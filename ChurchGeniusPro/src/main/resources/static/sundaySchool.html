@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Sunday School — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    /* ── Tabs ── */
+    .tab-bar { display:flex; gap:4px; margin-bottom:20px; background:#fff;
+      border-radius:10px; padding:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); flex-wrap:wrap; }
+    .tab-btn { padding:8px 18px; border-radius:7px; font-size:13px; font-weight:600;
+      color:#888; transition:background .15s,color .15s; }
+    .tab-btn.active { background:#673147; color:#fff; }
+    .tab-btn:hover:not(.active) { background:#f0e8ec; color:#673147; }
+    .tab-pane { display:none; } .tab-pane.active { display:block; }
+    /* ── Cards ── */
+    .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07);
+      padding:20px; margin-bottom:16px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .card-title { font-size:15px; font-weight:700; color:#673147; }
+    /* ── Buttons ── */
+    .btn { padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600; transition:background .15s; }
+    .btn-primary { background:transparent; color:#673147; border:1px solid #c5a0b5; transition:background .18s,color .18s,border-color .18s; } .btn-primary:hover { background:#673147; color:#fff; border-color:#673147; }
+    .btn-secondary { background:#f0f0f0; color:#444; } .btn-secondary:hover { background:#e0e0e0; }
+    .btn-danger { background:#fdecea; color:#c62828; } .btn-danger:hover { background:#f8c4c0; }
+    .btn-sm { padding:4px 10px; font-size:12px; border-radius:6px; }
+    .btn-xs { padding:2px 8px; font-size:11px; border-radius:5px; }
+    /* ── Forms ── */
+    .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .form-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:140px; }
+    label { font-size:12px; font-weight:600; color:#555; }
+    input[type=text], input[type=email], input[type=number], select, textarea {
+      padding:7px 10px; border:1px solid #ddd; border-radius:7px; font-size:13px;
+      font-family:inherit; width:100%; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:#673147; }
+    textarea { resize:vertical; min-height:60px; }
+    /* ── Lists ── */
+    .item-row { display:flex; align-items:center; gap:8px; padding:8px 10px;
+      border:1px solid #ece6ee; border-radius:8px; margin-bottom:6px; background:#fdfafd; }
+    .item-name { flex:1; font-size:13px; font-weight:600; }
+    .item-sub  { font-size:11px; color:#888; }
+    .chip { display:inline-block; background:#f0e8ec; color:#673147; border-radius:10px;
+      padding:2px 10px; font-size:11px; font-weight:600; }
+    .chip-green { background:#e8f5e9; color:#2e7d32; }
+    .chip-amber { background:#fff8e1; color:#e65100; }
+    .chip-blue  { background:#e3f2fd; color:#1565c0; }
+    .chip-grey  { background:#f0f0f0; color:#666; }
+    /* ── Divider ── */
+    .section-divider { border:none; border-top:1px solid #eee; margin:16px 0; }
+    /* ── Toast ── */
+    #toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      background:#323232; color:#fff; padding:10px 22px; border-radius:24px;
+      font-size:13px; font-weight:600; z-index:9999; display:none; }
+    /* ── Modal overlay ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:5000; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:14px; padding:28px; width:100%;
+      max-width:560px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .modal-title { font-size:16px; font-weight:700; color:#673147; margin-bottom:18px; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+    /* ── Exam question list ── */
+    .question-card { border:1px solid #e0d6e8; border-radius:10px; padding:14px;
+      margin-bottom:10px; background:#fdfafd; }
+    .question-type-badge { font-size:10px; font-weight:700; text-transform:uppercase;
+      background:#e8d5de; color:#673147; border-radius:5px; padding:2px 6px; }
+    /* ── Submission rows ── */
+    .sub-row { display:grid; grid-template-columns:1fr 1fr 1fr auto auto;
+      gap:8px; align-items:center; padding:8px 10px;
+      border:1px solid #ece6ee; border-radius:8px; margin-bottom:6px; font-size:13px; }
+    @media(max-width:600px) { .sub-row { grid-template-columns:1fr 1fr; } }
+    /* ── Status badge ── */
+    .status-pending { background:#f0f0f0; color:#666; }
+    .status-inprogress { background:#fff3e0; color:#e65100; }
+    .status-done { background:#e8f5e9; color:#2e7d32; }
+    .status-skipped { background:#e3f2fd; color:#1565c0; }
+    /* ── Searchable member dropdown ── */
+    .member-search-wrap { position:relative; }
+    .member-search-inner { display:flex; align-items:center; border:1.5px solid #ddd; border-radius:7px; overflow:hidden; transition:border-color .2s; background:#fff; }
+    .member-search-inner:focus-within { border-color:#673147; }
+    .member-search-inner input { flex:1; padding:8px 10px; border:none; outline:none; font-size:13px; color:#333; background:transparent; font-family:inherit; }
+    .member-search-clear { padding:4px 8px; font-size:14px; color:#bbb; cursor:pointer; line-height:1; }
+    .member-search-clear:hover { color:#e53935; }
+    .member-dd { position:absolute; top:calc(100% + 3px); left:0; right:0; background:#fff; border:1px solid #e0e0e0; border-radius:8px; box-shadow:0 4px 18px rgba(0,0,0,.12); max-height:200px; overflow-y:auto; z-index:6000; display:none; }
+    .member-dd.open { display:block; }
+    .member-dd-item { padding:8px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid #f5f5f5; }
+    .member-dd-item:last-child { border-bottom:none; }
+    .member-dd-item:hover, .member-dd-item.hi { background:#f0e8ec; }
+    .member-dd-empty { padding:12px; font-size:13px; color:#bbb; text-align:center; }
+    .member-badge { display:none; align-items:center; gap:6px; background:#f0e8ec; border-radius:20px; padding:4px 10px; margin-top:6px; font-size:13px; font-weight:600; color:#673147; }
+    .member-badge.show { display:inline-flex; }
+    .member-badge-rm { cursor:pointer; font-size:15px; color:#9e4060; line-height:1; }
+  /* ── When embedded in an iframe (inside kidsMinistry), hide the shell chrome ── */
+  .in-iframe .sidebar,
+  .in-iframe .topbar,
+  .in-iframe #sidebar,
+  .in-iframe #topbar { display: none !important; }
+  .in-iframe .main-area { margin-left: 0 !important; }
+  .in-iframe .page-content { padding: 16px !important; }
+  </style>
+<script>
+  if (window !== window.top) document.documentElement.classList.add('in-iframe');
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content" style="padding:24px;">
+
+
+  <h2 style="font-size:20px;font-weight:700;color:#673147;margin-bottom:20px;">📖 Sunday School</h2>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabClasses" onclick="showTab('classes')">🏫 Classes</button>
+    <button class="tab-btn" id="tabStudents"  onclick="showTab('students')">👦 Students &amp; Lessons</button>
+    <button class="tab-btn" id="tabExams"     onclick="showTab('exams')">📝 Exams</button>
+    <button class="tab-btn" id="tabResults"   onclick="showTab('results')">📊 Results &amp; Marks</button>
+  </div>
+
+  <!-- ═══════════════════ TAB: CLASSES ═══════════════════ -->
+  <div class="tab-pane active" id="paneClasses">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Classes</span>
+        <button class="btn btn-primary btn-sm" onclick="openClassModal()">+ New Class</button>
+      </div>
+      <div id="classList"><p style="color:#aaa;font-size:13px;">Loading…</p></div>
+    </div>
+
+    <!-- Selected class detail -->
+    <div id="classDetail" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="detailClassName"></span>
+          <span></span>
+        </div>
+
+        <!-- Teachers -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:#555;">👩‍🏫 Teachers</span>
+            <button class="btn btn-secondary btn-sm" onclick="openTeacherModal()">+ Add Teacher</button>
+          </div>
+          <div id="teacherList"><p style="color:#aaa;font-size:12px;">Loading…</p></div>
+        </div>
+        <hr class="section-divider" />
+
+        <!-- Notes -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:#555;">📝 Class Notes</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <textarea id="newNoteText" rows="2" style="flex:1;" placeholder="Add a note for this class…"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="addNote()">Add</button>
+          </div>
+          <div id="noteList"></div>
+        </div>
+        <hr class="section-divider" />
+
+        <!-- Files -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:#555;">📎 Files</span>
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+              Upload <input type="file" id="fileInput" style="display:none;" onchange="uploadFile()"/>
+            </label>
+          </div>
+          <div id="fileList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ TAB: STUDENTS & LESSONS ═══════════════════ -->
+  <div class="tab-pane" id="paneStudents">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Select a Class</span>
+      </div>
+      <select id="studentClassSel" onchange="loadStudentsForClass()" style="max-width:320px;">
+        <option value="">-- Select Class --</option>
+      </select>
+    </div>
+
+    <div id="studentSection" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Students</span>
+          <button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ Add Student</button>
+        </div>
+        <div id="studentList"></div>
+      </div>
+
+      <!-- Lesson panel (shown when a student is selected) -->
+      <div id="lessonSection" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Lessons for <span id="lessonStudentName"></span></span>
+            <button class="btn btn-primary btn-sm" onclick="openLessonModal()">+ Add Lesson</button>
+          </div>
+          <div id="lessonList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ TAB: EXAMS ═══════════════════ -->
+  <div class="tab-pane" id="paneExams">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Select a Class</span></div>
+      <select id="examClassSel" onchange="loadExamsForClass()" style="max-width:320px;">
+        <option value="">-- Select Class --</option>
+      </select>
+    </div>
+
+    <div id="examSection" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Exams</span>
+          <button class="btn btn-primary btn-sm" onclick="openExamModal()">+ New Exam</button>
+        </div>
+        <div id="examList"></div>
+      </div>
+
+      <!-- Question panel -->
+      <div id="questionSection" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Questions for <span id="questionExamName"></span></span>
+            <div style="display:flex;gap:8px;">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                📄 Upload Paper <input type="file" id="paperInput" accept=".pdf,.docx,.txt" style="display:none;" onchange="uploadQuestionPaper()"/>
+              </label>
+              <button class="btn btn-primary btn-sm" onclick="openQuestionModal()">+ Add Question</button>
+            </div>
+          </div>
+          <!-- Exam settings -->
+          <div class="form-row" style="margin-bottom:14px;">
+            <div class="form-group">
+              <label>Total Questions</label>
+              <input type="number" id="editTotalQ" min="1" placeholder="e.g. 20"/>
+            </div>
+            <div class="form-group">
+              <label>Required to Answer</label>
+              <input type="number" id="editReqQ" min="1" placeholder="e.g. 15"/>
+            </div>
+            <div class="form-group">
+              <label>Duration (minutes)</label>
+              <input type="number" id="editDuration" min="1" placeholder="e.g. 60"/>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="editExamStatus">
+                <option value="Draft">Draft</option>
+                <option value="Published">Published</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+            <div class="form-group" style="align-self:flex-end;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">
+                <input type="checkbox" id="editCopyToHoh" style="width:16px;height:16px;accent-color:#673147;cursor:pointer;"/>
+                Send copy to HoH
+              </label>
+            </div>
+            <div class="form-group" style="justify-content:flex-end;align-self:flex-end;">
+              <button class="btn btn-primary btn-sm" onclick="saveExamSettings()">Save Settings</button>
+            </div>
+          </div>
+          <div id="questionList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ TAB: RESULTS ═══════════════════ -->
+  <div class="tab-pane" id="paneResults">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Select a Class &amp; Exam</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Class</label>
+          <select id="resultClassSel" onchange="loadResultExams()" style="max-width:280px;">
+            <option value="">-- Select Class --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Exam</label>
+          <select id="resultExamSel" onchange="loadSubmissions()" style="max-width:280px;">
+            <option value="">-- Select Exam --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="submissionSection" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Submissions</span>
+        </div>
+        <div id="submissionList"></div>
+      </div>
+    </div>
+  </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ── MODALS ── -->
+
+<!-- Class modal -->
+<div class="modal-overlay" id="classModal">
+  <div class="modal-box">
+    <div class="modal-title" id="classModalTitle">New Class</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Class Name *</label>
+      <input type="text" id="classNameInput" placeholder="e.g. Beginners, Juniors…"/>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Description</label>
+      <textarea id="classDescInput" rows="2" placeholder="Optional description"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('classModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClass()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Teacher modal -->
+<div class="modal-overlay" id="teacherModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Teacher</div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">Select from existing members</label>
+      <div class="member-search-wrap" style="margin-top:4px;" id="teacherMemberSearchWrap">
+        <div class="member-search-inner">
+          <input type="text" id="teacherMemberSearchInput" placeholder="Type a name to search…"
+                 autocomplete="off"
+                 oninput="onTeacherMemberSearch(this.value)"
+                 onfocus="onTeacherMemberSearchFocus()"
+                 onkeydown="onTeacherMemberSearchKey(event)" />
+          <span class="member-search-clear" id="teacherMemberSearchClear" style="display:none;" onclick="clearTeacherMemberSelection()">✕</span>
+        </div>
+        <div class="member-dd" id="teacherMemberDropdown"></div>
+      </div>
+      <div class="member-badge" id="teacherMemberBadge">
+        <span id="teacherMemberBadgeName"></span>
+        <span class="member-badge-rm" onclick="clearTeacherMemberSelection()">✕</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" id="teacherNameInput" placeholder="Full name"/>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="teacherEmailInput" placeholder="teacher@email.com"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('teacherModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTeacher()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student modal -->
+<div class="modal-overlay" id="studentModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Student</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Assigned Teacher *</label>
+      <select id="studentTeacherSel" style="width:100%;"></select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">Select Child Member</label>
+      <div class="member-search-wrap" style="margin-top:4px;" id="memberSearchWrap">
+        <div class="member-search-inner">
+          <input type="text" id="memberSearchInput" placeholder="Type a name to search…"
+                 autocomplete="off"
+                 oninput="onMemberSearch(this.value)"
+                 onfocus="onMemberSearchFocus()"
+                 onkeydown="onMemberSearchKey(event)" />
+          <span class="member-search-clear" id="memberSearchClear" style="display:none;" onclick="clearMemberSelection()">✕</span>
+        </div>
+        <div class="member-dd" id="memberDropdown"></div>
+      </div>
+      <div class="member-badge" id="memberBadge">
+        <span id="memberBadgeName"></span>
+        <span class="member-badge-rm" onclick="clearMemberSelection()">✕</span>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Student Name *</label>
+      <input type="text" id="studentNameInput" placeholder="Full name"/>
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label>Contact Email</label>
+      <input type="email" id="studentEmailInput" placeholder="student or parent email"/>
+    </div>
+    <div id="hohEmailRow" style="display:none;margin-bottom:12px;">
+      <label style="font-size:12px;color:#888;">No email on file. Use Head of Household's email?</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+        <span id="hohEmailDisplay" style="font-size:13px;color:#444;font-weight:600;"></span>
+        <button class="btn btn-secondary btn-xs" onclick="useHohEmail()">Use this</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('studentModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Re-link member modal -->
+<div class="modal-overlay" id="relinkModal">
+  <div class="modal-box">
+    <div class="modal-title">🔗 Re-link Member</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">
+      Search for the correct church member and link them to this student record.
+      This fixes enrollments where a student was accidentally linked to the wrong family member.
+    </p>
+    <div style="font-size:13px;font-weight:600;color:#673147;margin-bottom:12px;" id="relinkStudentLabel"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">Select Correct Member</label>
+      <div class="member-search-wrap" style="margin-top:4px;" id="relinkMemberSearchWrap">
+        <div class="member-search-inner">
+          <input type="text" id="relinkMemberSearchInput" placeholder="Type a name to search…"
+                 autocomplete="off"
+                 oninput="onRelinkMemberSearch(this.value)"
+                 onfocus="onRelinkMemberSearchFocus()"
+                 onkeydown="onRelinkMemberSearchKey(event)" />
+          <span class="member-search-clear" id="relinkMemberSearchClear" style="display:none;" onclick="clearRelinkMemberSelection()">✕</span>
+        </div>
+        <div class="member-dd" id="relinkMemberDropdown"></div>
+      </div>
+      <div class="member-badge" id="relinkMemberBadge" style="">
+        <span id="relinkMemberBadgeName"></span>
+        <span class="member-badge-rm" onclick="clearRelinkMemberSelection()">✕</span>
+      </div>
+    </div>
+    <div id="relinkSelectedInfo" style="display:none;background:#f3e5f5;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#4a148c;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('relinkModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRelinkMember()">Save Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lesson modal -->
+<div class="modal-overlay" id="lessonModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Lesson</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Lesson Title *</label>
+      <input type="text" id="lessonTitleInput" placeholder="e.g. The Lord's Prayer"/>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Status</label>
+      <select id="lessonStatusInput">
+        <option value="Pending">Pending</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Done">Done</option>
+        <option value="Skipped">Skipped</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Remarks</label>
+      <textarea id="lessonRemarksInput" rows="2"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('lessonModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLesson()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam modal -->
+<div class="modal-overlay" id="examModal">
+  <div class="modal-box">
+    <div class="modal-title">New Exam</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Exam Title *</label>
+      <input type="text" id="examTitleInput" placeholder="e.g. Term 1 Exam"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('examModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExam()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Question modal -->
+<div class="modal-overlay" id="questionModal">
+  <div class="modal-box">
+    <div class="modal-title" id="questionModalTitle">Add Question</div>
+    <input type="hidden" id="questionEditId"/>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Type *</label>
+        <select id="questionTypeInput" onchange="onQTypeChange()">
+          <option value="MCQ">Multiple Choice</option>
+          <option value="ShortAnswer">Short Answer</option>
+          <option value="LongAnswer">Long Answer</option>
+          <option value="Comprehensive">Comprehensive</option>
+          <option value="TrueFalse">True / False</option>
+          <option value="FillBlank">Fill in the Blank</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Marks</label>
+        <input type="number" id="questionMarksInput" value="1" min="1"/>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Question Text *</label>
+      <textarea id="questionTextInput" rows="3" placeholder="Enter the question…"></textarea>
+    </div>
+    <div id="mcqOptionsBlock" style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">Options (one per line)</label>
+      <textarea id="questionOptionsInput" rows="4" placeholder="Option A&#10;Option B&#10;Option C&#10;Option D" oninput="refreshAnswerField()"></textarea>
+    </div>
+    <div id="correctAnswerBlock" style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#555;">Correct Answer</label>
+      <!-- For MCQ: dropdown populated from options; for others: free text -->
+      <select id="questionAnswerSelect" style="display:none;width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></select>
+      <input type="text" id="questionAnswerInput" placeholder="e.g. True, answer text…"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('questionModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveQuestion()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extend time modal (admin) -->
+<div class="modal-overlay" id="extendTimeModal">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-title">⏱ Extend Time — <span id="extendTimeStudentName"></span></div>
+    <p style="font-size:13px;color:#555;margin-bottom:14px;">Select how many extra minutes to add to this student's exam.</p>
+    <input type="hidden" id="extendTimeSubId"/>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-secondary" onclick="confirmExtendTime(5)">+5 min</button>
+      <button class="btn btn-secondary" onclick="confirmExtendTime(10)">+10 min</button>
+      <button class="btn btn-secondary" onclick="confirmExtendTime(15)">+15 min</button>
+      <button class="btn btn-secondary" onclick="confirmExtendTime(20)">+20 min</button>
+      <button class="btn btn-secondary" onclick="confirmExtendTime(30)">+30 min</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;white-space:nowrap;">Custom:</label>
+      <input type="number" id="extendTimeCustom" min="1" max="120" placeholder="Minutes" style="width:90px;"/>
+      <button class="btn btn-secondary" onclick="confirmExtendTime(parseInt(document.getElementById('extendTimeCustom').value)||0)">Add</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('extendTimeModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Answer review modal -->
+<div class="modal-overlay" id="answerModal">
+  <div class="modal-box" style="max-width:700px;">
+    <div class="modal-title">Answer Sheet — <span id="answerStudentName"></span></div>
+    <div id="answerList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('answerModal')">Close</button>
+      <button class="btn btn-primary" onclick="saveAllManualMarks()">Save Marks</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = { activePage: 'general/kids-ministry', openSection: 'general', pageTitle: 'Sunday School' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>
+/* ═══════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════ */
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var parts = String(d).split('-');
+  if (parts.length < 3) return d;
+  var yr = parts[0], mo = parseInt(parts[1],10)-1, dy = parseInt(parts[2],10);
+  return (months[mo]||parts[1]) + ' ' + dy + ', ' + yr;
+}
+
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
+let selectedClassId   = null;
+let selectedClassName = '';
+let selectedStudentId = null;
+let selectedExamId    = null;
+let selectedExamClassId = null;
+let resultExamId      = null;
+let resultSubmissionId = null;
+let allClasses = [];
+let childMembers = [];
+let currentTeachers = [];
+let currentStudentHohEmail = '';
+let editingLessonId = null;
+let editingClassId_modal = null; // for class edit
+
+/* ═══════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════ */
+function showTab(tab) {
+  ['classes','students','exams','results'].forEach(t => {
+    document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+    document.getElementById('tab'  + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+(async function init() {
+  await loadClasses();
+  await loadChildMembers();
+})();
+
+/* ═══════════════════════════════════════════════
+   CLASSES
+═══════════════════════════════════════════════ */
+async function loadClasses() {
+  const el = document.getElementById('classList');
+  try {
+    const res = await fetch('/api/ss/classes', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+      if (el) el.innerHTML = '<p style="color:#c0392b;font-size:13px;">Couldn’t load classes (' + res.status + '). Please refresh or try again.</p>';
+      return;
+    }
+    allClasses = await res.json();
+    renderClassList();
+    populateClassSelects();
+  } catch (e) {
+    if (el) el.innerHTML = '<p style="color:#c0392b;font-size:13px;">Couldn’t load classes. Please refresh or try again.</p>';
+  }
+}
+
+function renderClassList() {
+  const el = document.getElementById('classList');
+  if (!allClasses.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No classes yet. Create one to get started.</p>'; return; }
+  el.innerHTML = allClasses.map(c => `
+    <div class="item-row">
+      <div class="item-name">${esc(c.className)}</div>
+      <div class="item-sub">${esc(c.description||'')}</div>
+      <button class="btn btn-secondary btn-xs" onclick="selectClass(${c.id},'${esc(c.className)}')">Open</button>
+      <button class="btn btn-secondary btn-xs" onclick="openClassModal(${c.id},'${esc(c.className)}','${esc(c.description||'')}')">Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteClass(${c.id})">Delete</button>
+    </div>`).join('');
+}
+
+function populateClassSelects() {
+  ['studentClassSel','examClassSel','resultClassSel'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">-- Select Class --</option>'
+      + allClasses.map(c => `<option value="${c.id}">${esc(c.className)}</option>`).join('');
+    if (prev) sel.value = prev;
+  });
+}
+
+async function selectClass(id, name) {
+  selectedClassId = id; selectedClassName = name;
+  document.getElementById('detailClassName').textContent = '🏫 ' + name;
+  document.getElementById('classDetail').style.display = '';
+  await loadTeachers();
+  await loadNotes();
+  await loadFiles();
+}
+
+function openClassModal(id, name, desc) {
+  editingClassId_modal = id || null;
+  document.getElementById('classModalTitle').textContent = id ? 'Edit Class' : 'New Class';
+  document.getElementById('classNameInput').value = name || '';
+  document.getElementById('classDescInput').value = desc || '';
+  openModal('classModal');
+}
+
+async function saveClass() {
+  const name = document.getElementById('classNameInput').value.trim();
+  const desc = document.getElementById('classDescInput').value.trim();
+  if (!name) { toast('Class name is required.', true); return; }
+  const url = editingClassId_modal ? `/api/ss/classes/${editingClassId_modal}` : '/api/ss/classes';
+  const method = editingClassId_modal ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ className: name, description: desc }) });
+  if (res.ok) { closeModal('classModal'); await loadClasses(); toast('Saved!'); }
+  else toast('Failed to save class.', true);
+}
+
+async function deleteClass(id) {
+  if (!confirm('Delete this class? This cannot be undone.')) return;
+  await fetch(`/api/ss/classes/${id}`, { method:'DELETE' });
+  if (selectedClassId === id) { document.getElementById('classDetail').style.display = 'none'; selectedClassId = null; }
+  await loadClasses(); toast('Class deleted.');
+}
+
+/* ═══════════════════════════════════════════════
+   TEACHERS
+═══════════════════════════════════════════════ */
+async function loadTeachers() {
+  if (!selectedClassId) return;
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/teachers`);
+  currentTeachers = res.ok ? await res.json() : [];
+  renderTeacherList();
+}
+
+function renderTeacherList() {
+  const el = document.getElementById('teacherList');
+  if (!currentTeachers.length) { el.innerHTML = '<p style="color:#aaa;font-size:12px;">No teachers assigned yet.</p>'; return; }
+  el.innerHTML = currentTeachers.map(t => `
+    <div class="item-row">
+      <div>
+        <div class="item-name">👩‍🏫 ${esc(t.teacherName)}</div>
+        <div class="item-sub">${esc(t.email||'No email')}</div>
+      </div>
+      <button class="btn btn-danger btn-xs" onclick="deleteTeacher(${t.id})">Remove</button>
+    </div>`).join('');
+}
+
+function openTeacherModal() {
+  if (!selectedClassId) { toast('Select a class first.', true); return; }
+  clearTeacherMemberSelection();
+  document.getElementById('teacherMemberSearchInput').value = '';
+  document.getElementById('teacherMemberSearchClear').style.display = 'none';
+  document.getElementById('teacherNameInput').value = '';
+  document.getElementById('teacherEmailInput').value = '';
+  // Load all members if not yet loaded
+  if (!allTeacherMembers.length) loadAllTeacherMembers();
+  openModal('teacherModal');
+}
+
+/* ── Teacher member searchable picker ── */
+let allTeacherMembers = [];
+let _teacherMemberSelected = null;
+let _teacherMemberFiltered = [];
+let _teacherMemberDDHighlight = -1;
+
+async function loadAllTeacherMembers() {
+  try {
+    const res = await fetch('/api/members?search=&showDeleted=false&showInactive=false');
+    if (res.ok) allTeacherMembers = await res.json();
+  } catch(_) {}
+}
+
+function onTeacherMemberSearch(val) {
+  document.getElementById('teacherMemberSearchClear').style.display = val ? '' : 'none';
+  if (_teacherMemberSelected) _teacherMemberSelected = null;
+  filterTeacherMemberDD(val);
+}
+
+function onTeacherMemberSearchFocus() {
+  filterTeacherMemberDD(document.getElementById('teacherMemberSearchInput').value);
+}
+
+function filterTeacherMemberDD(val) {
+  const q = val.trim().toLowerCase();
+  const dd = document.getElementById('teacherMemberDropdown');
+  if (!q) { dd.classList.remove('open'); return; }
+  const fullName = m => [m.firstName, m.lastName].filter(Boolean).join(' ') || m.name || '';
+  _teacherMemberFiltered = allTeacherMembers.filter(m => fullName(m).toLowerCase().includes(q)).slice(0, 50);
+  dd.innerHTML = _teacherMemberFiltered.length
+    ? _teacherMemberFiltered.map((m, i) =>
+        `<div class="member-dd-item" onmousedown="pickTeacherMember(${i})" onmouseover="hiTeacherMemberDD(${i})">${esc([m.firstName,m.lastName].filter(Boolean).join(' ')||m.name||'')}</div>`
+      ).join('')
+    : '<div class="member-dd-empty">No members found</div>';
+  dd.classList.add('open');
+  _teacherMemberDDHighlight = -1;
+}
+
+function hiTeacherMemberDD(i) {
+  _teacherMemberDDHighlight = i;
+  document.querySelectorAll('#teacherMemberDropdown .member-dd-item').forEach((el, j) => el.classList.toggle('hi', j === i));
+}
+
+function pickTeacherMember(i) {
+  const m = _teacherMemberFiltered[i];
+  if (!m) return;
+  _teacherMemberSelected = m;
+  const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || m.name || '';
+  document.getElementById('teacherMemberSearchInput').value = name;
+  document.getElementById('teacherMemberSearchClear').style.display = '';
+  document.getElementById('teacherMemberDropdown').classList.remove('open');
+  document.getElementById('teacherMemberBadgeName').textContent = name;
+  document.getElementById('teacherMemberBadge').classList.add('show');
+  // Auto-fill name and email
+  document.getElementById('teacherNameInput').value = name;
+  if (m.email) document.getElementById('teacherEmailInput').value = m.email;
+}
+
+function clearTeacherMemberSelection() {
+  _teacherMemberSelected = null;
+  _teacherMemberFiltered = [];
+  _teacherMemberDDHighlight = -1;
+  const inp = document.getElementById('teacherMemberSearchInput');
+  if (inp) inp.value = '';
+  const clr = document.getElementById('teacherMemberSearchClear');
+  if (clr) clr.style.display = 'none';
+  const dd = document.getElementById('teacherMemberDropdown');
+  if (dd) dd.classList.remove('open');
+  const badge = document.getElementById('teacherMemberBadge');
+  if (badge) badge.classList.remove('show');
+  const badgeName = document.getElementById('teacherMemberBadgeName');
+  if (badgeName) badgeName.textContent = '';
+}
+
+function onTeacherMemberSearchKey(e) {
+  const dd = document.getElementById('teacherMemberDropdown');
+  if (!dd.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); hiTeacherMemberDD(Math.min(_teacherMemberDDHighlight + 1, _teacherMemberFiltered.length - 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hiTeacherMemberDD(Math.max(_teacherMemberDDHighlight - 1, 0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (_teacherMemberDDHighlight >= 0) pickTeacherMember(_teacherMemberDDHighlight); }
+  else if (e.key === 'Escape') dd.classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('teacherMemberSearchWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('teacherMemberDropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+
+async function saveTeacher() {
+  const name  = document.getElementById('teacherNameInput').value.trim();
+  const email = document.getElementById('teacherEmailInput').value.trim();
+  const ref   = _teacherMemberSelected ? (_teacherMemberSelected.memberRef || '') : '';
+  if (!name) { toast('Teacher name is required.', true); return; }
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/teachers`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ teacherName: name, email, memberRef: ref }) });
+  if (res.ok) { closeModal('teacherModal'); await loadTeachers(); toast('Teacher added.'); }
+  else toast('Failed to add teacher.', true);
+}
+
+async function deleteTeacher(id) {
+  if (!confirm('Remove this teacher?')) return;
+  await fetch(`/api/ss/teachers/${id}`, { method:'DELETE' });
+  await loadTeachers(); toast('Teacher removed.');
+}
+
+/* ═══════════════════════════════════════════════
+   NOTES
+═══════════════════════════════════════════════ */
+async function loadNotes() {
+  if (!selectedClassId) return;
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/notes`);
+  const notes = res.ok ? await res.json() : [];
+  const el = document.getElementById('noteList');
+  if (!notes.length) { el.innerHTML = '<p style="color:#aaa;font-size:12px;">No notes yet.</p>'; return; }
+  el.innerHTML = notes.map(n => `
+    <div class="item-row" style="align-items:flex-start;">
+      <div style="flex:1;font-size:13px;">${esc(n.noteText)}</div>
+      <div class="item-sub" style="flex-shrink:0;">${fmtDate(n.createdAt)}</div>
+      <button class="btn btn-danger btn-xs" onclick="deleteNote(${n.id})">×</button>
+    </div>`).join('');
+}
+
+async function addNote() {
+  const text = document.getElementById('newNoteText').value.trim();
+  if (!text || !selectedClassId) return;
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/notes`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ noteText: text }) });
+  if (res.ok) { document.getElementById('newNoteText').value = ''; await loadNotes(); toast('Note added.'); }
+}
+
+async function deleteNote(id) {
+  await fetch(`/api/ss/notes/${id}`, { method:'DELETE' });
+  await loadNotes();
+}
+
+/* ═══════════════════════════════════════════════
+   FILES
+═══════════════════════════════════════════════ */
+async function loadFiles() {
+  if (!selectedClassId) return;
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/files`);
+  const files = res.ok ? await res.json() : [];
+  const el = document.getElementById('fileList');
+  if (!files.length) { el.innerHTML = '<p style="color:#aaa;font-size:12px;">No files uploaded.</p>'; return; }
+  el.innerHTML = files.map(f => `
+    <div class="item-row">
+      <div class="item-name">📎 ${esc(f.originalName)}</div>
+      <div class="item-sub">${fmtDate(f.uploadedAt)}</div>
+      <a href="/api/ss/files/${f.id}/download" class="btn btn-secondary btn-xs">Download</a>
+      <button class="btn btn-danger btn-xs" onclick="deleteFile(${f.id})">Delete</button>
+    </div>`).join('');
+}
+
+async function uploadFile() {
+  if (!selectedClassId) { toast('Select a class first.', true); return; }
+  const input = document.getElementById('fileInput');
+  if (!input.files.length) return;
+  const fd = new FormData(); fd.append('file', input.files[0]);
+  const res = await fetch(`/api/ss/classes/${selectedClassId}/files`, { method:'POST', body: fd });
+  if (res.ok) { await loadFiles(); toast('File uploaded.'); }
+  else toast('Upload failed.', true);
+  input.value = '';
+}
+
+async function deleteFile(id) {
+  if (!confirm('Delete this file?')) return;
+  await fetch(`/api/ss/files/${id}`, { method:'DELETE' });
+  await loadFiles(); toast('File deleted.');
+}
+
+/* ═══════════════════════════════════════════════
+   CHILD MEMBERS
+═══════════════════════════════════════════════ */
+async function loadChildMembers() {
+  const res = await fetch('/api/ss/child-members');
+  childMembers = res.ok ? await res.json() : [];
+}
+
+/* ── Searchable member picker ── */
+let _selectedMember = null;
+let _memberFiltered = [];
+let _memberDDHighlight = -1;
+
+function onMemberSearch(val) {
+  document.getElementById('memberSearchClear').style.display = val ? '' : 'none';
+  if (_selectedMember) { _selectedMember = null; }
+  filterMemberDD(val);
+}
+
+function onMemberSearchFocus() {
+  filterMemberDD(document.getElementById('memberSearchInput').value);
+}
+
+function filterMemberDD(val) {
+  const q = val.trim().toLowerCase();
+  const dd = document.getElementById('memberDropdown');
+  if (!q) { dd.classList.remove('open'); return; }
+  _memberFiltered = childMembers.filter(m => (m.name||'').toLowerCase().includes(q)).slice(0, 50);
+  dd.innerHTML = _memberFiltered.length
+    ? _memberFiltered.map((m, i) =>
+        `<div class="member-dd-item" onmousedown="pickMember(${i})" onmouseover="hiMemberDD(${i})">${esc(m.name||'')}</div>`
+      ).join('')
+    : '<div class="member-dd-empty">No child members found</div>';
+  dd.classList.add('open');
+  _memberDDHighlight = -1;
+}
+
+function hiMemberDD(i) {
+  _memberDDHighlight = i;
+  document.querySelectorAll('#memberDropdown .member-dd-item').forEach((el, j) => el.classList.toggle('hi', j === i));
+}
+
+function pickMember(i) {
+  const m = _memberFiltered[i];
+  if (!m) return;
+  _selectedMember = m;
+  document.getElementById('memberSearchInput').value = m.name || '';
+  document.getElementById('memberSearchClear').style.display = '';
+  document.getElementById('memberDropdown').classList.remove('open');
+  document.getElementById('memberBadgeName').textContent = m.name || '';
+  document.getElementById('memberBadge').classList.add('show');
+  onStudentMemberPick(m);
+}
+
+function clearMemberSelection() {
+  _selectedMember = null;
+  _memberFiltered = [];
+  _memberDDHighlight = -1;
+  document.getElementById('memberSearchInput').value = '';
+  document.getElementById('memberSearchClear').style.display = 'none';
+  document.getElementById('memberDropdown').classList.remove('open');
+  document.getElementById('memberBadge').classList.remove('show');
+  document.getElementById('memberBadgeName').textContent = '';
+}
+
+function onMemberSearchKey(e) {
+  const dd = document.getElementById('memberDropdown');
+  if (!dd.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); hiMemberDD(Math.min(_memberDDHighlight + 1, _memberFiltered.length - 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hiMemberDD(Math.max(_memberDDHighlight - 1, 0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (_memberDDHighlight >= 0) pickMember(_memberDDHighlight); }
+  else if (e.key === 'Escape') dd.classList.remove('open');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('memberSearchWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('memberDropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   STUDENTS
+═══════════════════════════════════════════════ */
+async function loadStudentsForClass() {
+  const classId = document.getElementById('studentClassSel').value;
+  document.getElementById('studentSection').style.display = classId ? '' : 'none';
+  document.getElementById('lessonSection').style.display = 'none';
+  if (!classId) return;
+  selectedExamClassId = parseInt(classId);
+  await loadStudents(classId);
+}
+
+async function loadStudents(classId) {
+  const res = await fetch(`/api/ss/classes/${classId}/students`);
+  const students = res.ok ? await res.json() : [];
+  renderStudentList(students, classId);
+}
+
+function renderStudentList(students, classId) {
+  const el = document.getElementById('studentList');
+  if (!students.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No students enrolled. Add a student to get started.</p>'; return; }
+  el.innerHTML = students.map(s => `
+    <div class="item-row">
+      <div>
+        <div class="item-name">👦 ${esc(s.studentName)}</div>
+        <div class="item-sub">${esc(s.contactEmail||'No email')}</div>
+        ${s.familyMemberId ? '' : '<div class="item-sub" style="color:#e65100;">⚠ Not linked to a member</div>'}
+      </div>
+      <button class="btn btn-secondary btn-xs" onclick="selectStudent(${s.id},'${esc(s.studentName)}')">Lessons</button>
+      <button class="btn btn-secondary btn-xs" style="background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;" onclick="openRelinkModal(${s.id},'${esc(s.studentName)}')">🔗 Re-link</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteStudent(${s.id},${classId})">Remove</button>
+    </div>`).join('');
+}
+
+async function selectStudent(id, name) {
+  selectedStudentId = id;
+  document.getElementById('lessonStudentName').textContent = name;
+  document.getElementById('lessonSection').style.display = '';
+  await loadLessons();
+}
+
+function openStudentModal() {
+  const classId = document.getElementById('studentClassSel').value;
+  if (!classId) { toast('Select a class first.', true); return; }
+  // Populate teacher dropdown
+  const tSel = document.getElementById('studentTeacherSel');
+  tSel.innerHTML = '<option value="">-- Select Teacher --</option>';
+  fetch(`/api/ss/classes/${classId}/teachers`).then(r => r.json()).then(teachers => {
+    tSel.innerHTML += teachers.filter(t => !t.deleteFlag)
+      .map(t => `<option value="${t.id}">${esc(t.teacherName)}</option>`).join('');
+  });
+  // Reset searchable child member picker
+  clearMemberSelection();
+  document.getElementById('memberSearchInput').value = '';
+  document.getElementById('memberSearchClear').style.display = 'none';
+  document.getElementById('studentNameInput').value = '';
+  document.getElementById('studentEmailInput').value = '';
+  document.getElementById('hohEmailRow').style.display = 'none';
+  currentStudentHohEmail = '';
+  openModal('studentModal');
+}
+
+function onStudentMemberPick(member) {
+  document.getElementById('studentNameInput').value = member.name || '';
+  const email = member.email || '';
+  const hoh = member.hohEmail || '';
+  document.getElementById('studentEmailInput').value = email;
+  currentStudentHohEmail = hoh;
+  if (!email && hoh) {
+    document.getElementById('hohEmailRow').style.display = '';
+    document.getElementById('hohEmailDisplay').textContent = hoh;
+  } else {
+    document.getElementById('hohEmailRow').style.display = 'none';
+  }
+}
+
+function useHohEmail() {
+  document.getElementById('studentEmailInput').value = currentStudentHohEmail;
+  document.getElementById('hohEmailRow').style.display = 'none';
+}
+
+async function saveStudent() {
+  const classId  = document.getElementById('studentClassSel').value;
+  const teacherId = document.getElementById('studentTeacherSel').value;
+  const name     = document.getElementById('studentNameInput').value.trim();
+  const email    = document.getElementById('studentEmailInput').value.trim();
+  const memberRef = _selectedMember ? (_selectedMember.memberRef || '') : '';
+  const fmId      = _selectedMember ? String(_selectedMember.id || '') : '';
+  if (!name) { toast('Student name required.', true); return; }
+  if (!teacherId) { toast('Please select a teacher.', true); return; }
+  const res = await fetch(`/api/ss/classes/${classId}/students`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ teacherId, studentName: name, contactEmail: email, memberRef, familyMemberId: fmId }) });
+  if (res.ok) { closeModal('studentModal'); await loadStudents(classId); toast('Student added.'); }
+  else toast('Failed to add student.', true);
+}
+
+async function deleteStudent(id, classId) {
+  if (!confirm('Remove this student?')) return;
+  await fetch(`/api/ss/students/${id}`, { method:'DELETE' });
+  await loadStudents(classId);
+  if (selectedStudentId === id) document.getElementById('lessonSection').style.display = 'none';
+  toast('Student removed.');
+}
+
+/* ═══════════════════════════════════════════════
+   RE-LINK MEMBER MODAL
+═══════════════════════════════════════════════ */
+var _relinkStudentId = null;
+var _relinkSelectedMember = null;
+
+function openRelinkModal(studentId, studentName) {
+  _relinkStudentId = studentId;
+  _relinkSelectedMember = null;
+  document.getElementById('relinkStudentLabel').textContent = 'Student: ' + studentName;
+  clearRelinkMemberSelection();
+  loadRelinkMembers(); // pre-fetch all members (cached after first call)
+  openModal('relinkModal');
+}
+
+var _relinkAllMembers = [];
+
+async function loadRelinkMembers() {
+  if (_relinkAllMembers.length) return; // already loaded
+  try {
+    const res = await fetch('/api/members?search=&showDeleted=false&showInactive=false');
+    if (res.ok) _relinkAllMembers = await res.json();
+  } catch(_) {}
+}
+
+function relinkMemberFullName(m) {
+  return [m.firstName, m.lastName].filter(Boolean).join(' ') || m.name || '';
+}
+
+function onRelinkMemberSearch(val) {
+  document.getElementById('relinkMemberSearchClear').style.display = val ? '' : 'none';
+  if (_relinkSelectedMember) _relinkSelectedMember = null;
+  filterRelinkMemberDD(val);
+}
+
+function onRelinkMemberSearchFocus() {
+  filterRelinkMemberDD(document.getElementById('relinkMemberSearchInput').value);
+}
+
+function onRelinkMemberSearchKey(e) {
+  const dd = document.getElementById('relinkMemberDropdown');
+  if (!dd.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); hiRelinkMemberDD(Math.min(_relinkMemberDDHighlight + 1, _relinkMemberFiltered.length - 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hiRelinkMemberDD(Math.max(_relinkMemberDDHighlight - 1, 0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (_relinkMemberDDHighlight >= 0) pickRelinkMember(_relinkMemberDDHighlight); }
+  else if (e.key === 'Escape') dd.classList.remove('open');
+}
+
+var _relinkMemberFiltered = [];
+var _relinkMemberDDHighlight = -1;
+
+function filterRelinkMemberDD(val) {
+  const q = val.trim().toLowerCase();
+  const dd = document.getElementById('relinkMemberDropdown');
+  if (!q || q.length < 2) { dd.classList.remove('open'); return; }
+  _relinkMemberFiltered = _relinkAllMembers.filter(m => relinkMemberFullName(m).toLowerCase().includes(q)).slice(0, 50);
+  dd.innerHTML = _relinkMemberFiltered.length
+    ? _relinkMemberFiltered.map((m, i) =>
+        `<div class="member-dd-item" onmousedown="pickRelinkMember(${i})" onmouseover="hiRelinkMemberDD(${i})">${esc(relinkMemberFullName(m))} <span style="color:#999;font-size:11px;">${esc(m.email||'')}</span></div>`
+      ).join('')
+    : '<div class="member-dd-empty">No members found</div>';
+  dd.classList.add('open');
+  _relinkMemberDDHighlight = -1;
+}
+
+function hiRelinkMemberDD(i) {
+  _relinkMemberDDHighlight = i;
+  document.querySelectorAll('#relinkMemberDropdown .member-dd-item').forEach((el, j) => el.classList.toggle('hi', j === i));
+}
+
+function pickRelinkMember(idx) {
+  const m = _relinkMemberFiltered[idx];
+  if (!m) return;
+  _relinkSelectedMember = m;
+  const name = relinkMemberFullName(m);
+  document.getElementById('relinkMemberSearchInput').value = name;
+  document.getElementById('relinkMemberSearchClear').style.display = '';
+  document.getElementById('relinkMemberDropdown').classList.remove('open');
+  document.getElementById('relinkMemberBadge').classList.add('show');
+  document.getElementById('relinkMemberBadgeName').textContent = name;
+  const info = document.getElementById('relinkSelectedInfo');
+  info.style.display = '';
+  info.innerHTML = `<strong>Member ID:</strong> ${m.id || '—'} &nbsp;|&nbsp; <strong>Member Ref:</strong> ${esc(m.memberRef||'—')} &nbsp;|&nbsp; <strong>Email:</strong> ${esc(m.email||'—')}`;
+}
+
+function clearRelinkMemberSelection() {
+  _relinkSelectedMember = null;
+  _relinkMemberFiltered = [];
+  _relinkMemberDDHighlight = -1;
+  document.getElementById('relinkMemberSearchInput').value = '';
+  document.getElementById('relinkMemberSearchClear').style.display = 'none';
+  document.getElementById('relinkMemberDropdown').classList.remove('open');
+  document.getElementById('relinkMemberBadge').classList.remove('show');
+  document.getElementById('relinkMemberBadgeName').textContent = '';
+  document.getElementById('relinkSelectedInfo').style.display = 'none';
+}
+
+async function saveRelinkMember() {
+  if (!_relinkStudentId) return;
+  if (!_relinkSelectedMember) { toast('Please select a member first.', true); return; }
+  const body = {
+    familyMemberId: _relinkSelectedMember.id || null,
+    memberRef:      _relinkSelectedMember.memberRef || ''
+  };
+  const res = await fetch(`/api/ss/students/${_relinkStudentId}/link-member`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    closeModal('relinkModal');
+    const classId = document.getElementById('studentClassSel').value;
+    if (classId) await loadStudents(classId);
+    toast('Student successfully linked to ' + relinkMemberFullName(_relinkSelectedMember) + '.');
+  } else {
+    toast('Failed to re-link student.', true);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   LESSONS
+═══════════════════════════════════════════════ */
+async function loadLessons() {
+  if (!selectedStudentId) return;
+  const res = await fetch(`/api/ss/students/${selectedStudentId}/lessons`);
+  const lessons = res.ok ? await res.json() : [];
+  renderLessonList(lessons);
+}
+
+function renderLessonList(lessons) {
+  const el = document.getElementById('lessonList');
+  if (!lessons.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No lessons added yet.</p>'; return; }
+  el.innerHTML = lessons.map(l => {
+    const st = l.status || 'Pending';
+    const stClass = {'Pending':'chip-grey','In Progress':'chip-amber','Done':'chip-green','Skipped':'chip-blue'}[st] || 'chip-grey';
+    return `<div class="item-row" style="align-items:flex-start;">
+      <div style="flex:1;">
+        <div class="item-name">${esc(l.lessonTitle)}</div>
+        <div class="item-sub">${esc(l.remarks||'')}</div>
+      </div>
+      <span class="chip ${stClass}">${esc(st)}</span>
+      <select onchange="updateLessonStatus(${l.id},this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;">
+        ${['Pending','In Progress','Done','Skipped'].map(s => `<option${s===st?' selected':''}>${s}</option>`).join('')}
+      </select>
+      <button class="btn btn-secondary btn-xs" onclick="openEditLessonModal(${l.id},'${esc(l.lessonTitle)}','${esc(l.remarks||'')}','${esc(st)}')">Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteLesson(${l.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function openLessonModal() {
+  editingLessonId = null;
+  document.getElementById('lessonTitleInput').value = '';
+  document.getElementById('lessonStatusInput').value = 'Pending';
+  document.getElementById('lessonRemarksInput').value = '';
+  openModal('lessonModal');
+}
+
+function openEditLessonModal(id, title, remarks, status) {
+  editingLessonId = id;
+  document.getElementById('lessonTitleInput').value = title;
+  document.getElementById('lessonStatusInput').value = status;
+  document.getElementById('lessonRemarksInput').value = remarks;
+  openModal('lessonModal');
+}
+
+async function saveLesson() {
+  const title   = document.getElementById('lessonTitleInput').value.trim();
+  const status  = document.getElementById('lessonStatusInput').value;
+  const remarks = document.getElementById('lessonRemarksInput').value.trim();
+  if (!title) { toast('Lesson title required.', true); return; }
+  if (editingLessonId) {
+    const res = await fetch(`/api/ss/lessons/${editingLessonId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ lessonTitle: title, status, remarks }) });
+    if (res.ok) { closeModal('lessonModal'); await loadLessons(); toast('Lesson updated.'); }
+    else toast('Failed.', true);
+  } else {
+    const res = await fetch(`/api/ss/students/${selectedStudentId}/lessons`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ lessonTitle: title, status, remarks }) });
+    if (res.ok) { closeModal('lessonModal'); await loadLessons(); toast('Lesson added.'); }
+    else toast('Failed.', true);
+  }
+}
+
+async function updateLessonStatus(id, status) {
+  await fetch(`/api/ss/lessons/${id}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+  await loadLessons(); toast('Status updated.');
+}
+
+async function deleteLesson(id) {
+  if (!confirm('Delete this lesson?')) return;
+  await fetch(`/api/ss/lessons/${id}`, { method:'DELETE' });
+  await loadLessons(); toast('Lesson deleted.');
+}
+
+/* ═══════════════════════════════════════════════
+   EXAMS
+═══════════════════════════════════════════════ */
+async function loadExamsForClass() {
+  const classId = document.getElementById('examClassSel').value;
+  document.getElementById('examSection').style.display = classId ? '' : 'none';
+  document.getElementById('questionSection').style.display = 'none';
+  if (!classId) return;
+  selectedExamClassId = parseInt(classId);
+  await loadExams(classId);
+}
+
+async function loadExams(classId) {
+  const res = await fetch(`/api/ss/classes/${classId}/exams`);
+  const exams = res.ok ? await res.json() : [];
+  renderExamList(exams);
+}
+
+function renderExamList(exams) {
+  const el = document.getElementById('examList');
+  if (!exams.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No exams yet.</p>'; return; }
+  el.innerHTML = exams.map(e => {
+    const stClass = {'Draft':'chip-grey','Published':'chip-green','Closed':'chip-blue'}[e.status]||'chip-grey';
+    // Publish / Republish / Close quick-action button
+    let pubBtn = '';
+    if (e.status === 'Published') {
+      pubBtn = `<button class="btn btn-secondary btn-xs" onclick="quickSetExamStatus(${e.id},'Closed')" title="Close exam (stop accepting answers)">Close</button>`;
+    } else if (e.status === 'Closed') {
+      // Republish clears all submissions so students can retake
+      pubBtn = `<button class="btn btn-primary btn-xs" onclick="republishExam(${e.id})" title="Republish and allow retakes — clears all previous submissions">🔄 Republish</button>`;
+    } else {
+      // Draft
+      pubBtn = `<button class="btn btn-primary btn-xs" onclick="quickSetExamStatus(${e.id},'Published')">🚀 Publish</button>`;
+    }
+    return `<div class="item-row">
+      <div class="item-name">📝 ${esc(e.examTitle)}</div>
+      <span class="chip ${stClass}">${esc(e.status)}</span>
+      <div class="item-sub">${e.totalQuestions||0} Qs · ${e.durationMinutes||'—'} min</div>
+      ${pubBtn}
+      <button class="btn btn-secondary btn-xs" onclick="selectExam(${e.id},'${esc(e.examTitle)}',${e.totalQuestions||0},${e.requiredQuestions||0},${e.durationMinutes||0},'${esc(e.status)}',${!!e.copyToHoh})">Manage</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteExam(${e.id})">Delete</button>
+    </div>`;
+  }).join('');
+}
+
+async function quickSetExamStatus(examId, status) {
+  const label = status === 'Published' ? 'publish' : 'close';
+  if (!confirm(`${status === 'Published' ? 'Publish' : 'Close'} this exam? Students will ${status === 'Published' ? 'be able to see and take it.' : 'no longer be able to start new attempts.'}`)) return;
+  const res = await fetch(`/api/ss/exams/${examId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  if (res.ok) {
+    toast(`Exam ${status === 'Published' ? 'published' : 'closed'}.`);
+    await loadExams(selectedClassId);
+  } else {
+    toast('Failed to update status.', true);
+  }
+}
+
+async function republishExam(examId) {
+  if (!confirm('Republish this exam for retakes?\n\nThis will clear ALL existing submissions and scores so every student can start fresh. This cannot be undone.')) return;
+  const res = await fetch(`/api/ss/exams/${examId}/republish`, { method: 'POST' });
+  if (res.ok) {
+    const d = await res.json();
+    toast(`Exam republished. ${d.clearedSubmissions} submission(s) cleared.`);
+    await loadExams(selectedClassId);
+  } else {
+    toast('Failed to republish exam.', true);
+  }
+}
+
+function selectExam(id, title, totalQ, reqQ, dur, status, copyToHoh) {
+  selectedExamId = id;
+  document.getElementById('questionExamName').textContent = title;
+  document.getElementById('editTotalQ').value = totalQ || '';
+  document.getElementById('editReqQ').value = reqQ || '';
+  document.getElementById('editDuration').value = dur || '';
+  document.getElementById('editExamStatus').value = status || 'Draft';
+  document.getElementById('editCopyToHoh').checked = !!copyToHoh;
+  document.getElementById('questionSection').style.display = '';
+  loadQuestions(id);
+}
+
+function openExamModal() {
+  document.getElementById('examTitleInput').value = '';
+  openModal('examModal');
+}
+
+async function saveExam() {
+  const classId = document.getElementById('examClassSel').value;
+  const title = document.getElementById('examTitleInput').value.trim();
+  if (!title) { toast('Exam title required.', true); return; }
+  const res = await fetch(`/api/ss/classes/${classId}/exams`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ examTitle: title }) });
+  if (res.ok) { closeModal('examModal'); await loadExams(classId); toast('Exam created.'); }
+  else toast('Failed.', true);
+}
+
+async function saveExamSettings() {
+  if (!selectedExamId) return;
+  // Fall back to detected question count when fields are left blank
+  const detectedQ = document.querySelectorAll('#questionList .question-card').length;
+  const totalQEl  = document.getElementById('editTotalQ');
+  const reqQEl    = document.getElementById('editReqQ');
+  const totalQ    = parseInt(totalQEl.value) || detectedQ || null;
+  const reqQ      = parseInt(reqQEl.value)   || totalQ    || null;
+  // Reflect resolved values back into the inputs so the user sees what was saved
+  if (totalQ) totalQEl.value = totalQ;
+  if (reqQ)   reqQEl.value   = reqQ;
+  const body = {
+    totalQuestions:   totalQ,
+    requiredQuestions:reqQ,
+    durationMinutes:  parseInt(document.getElementById('editDuration').value)||null,
+    status:           document.getElementById('editExamStatus').value,
+    copyToHoh:        document.getElementById('editCopyToHoh').checked
+  };
+  const res = await fetch(`/api/ss/exams/${selectedExamId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) {
+    toast('Settings saved.');
+    await loadExams(document.getElementById('examClassSel').value);
+  } else toast('Failed.', true);
+}
+
+async function deleteExam(id) {
+  if (!confirm('Delete this exam?')) return;
+  const classId = document.getElementById('examClassSel').value;
+  await fetch(`/api/ss/exams/${id}`, { method:'DELETE' });
+  if (selectedExamId === id) { document.getElementById('questionSection').style.display='none'; selectedExamId=null; }
+  await loadExams(classId); toast('Exam deleted.');
+}
+
+/* ═══════════════════════════════════════════════
+   QUESTIONS
+═══════════════════════════════════════════════ */
+async function loadQuestions(examId) {
+  const res = await fetch(`/api/ss/exams/${examId}/questions`);
+  const questions = res.ok ? await res.json() : [];
+  renderQuestionList(questions);
+
+  // Auto-populate Total Questions and Required to Answer with the detected count,
+  // but only if the fields are currently blank (don't overwrite values the admin has set).
+  const detected = questions.length;
+  const totalQEl = document.getElementById('editTotalQ');
+  const reqQEl   = document.getElementById('editReqQ');
+  if (detected > 0) {
+    if (!totalQEl.value) totalQEl.value = detected;
+    if (!reqQEl.value)   reqQEl.value   = totalQEl.value || detected;
+  }
+}
+
+/* map of questionId → question object, used by openEditQuestion() */
+const _qMap = {};
+
+function renderQuestionList(questions) {
+  const el = document.getElementById('questionList');
+  if (!questions.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No questions. Upload a paper or add manually.</p>'; return; }
+  const LABELS = ['A','B','C','D','E','F'];
+  questions.forEach(q => { _qMap[q.id] = q; });
+  const autoGradable = ['MCQ','TrueFalse','FillBlank'];
+  el.innerHTML = questions.map((q,i) => {
+    let opts = [];
+    try { opts = JSON.parse(q.optionsJson || '[]'); } catch(e) {}
+    if (q.questionType === 'TrueFalse' && opts.length === 0) opts = ['True','False'];
+    const needsAnswer = autoGradable.includes(q.questionType) && (!q.correctAnswer || !q.correctAnswer.trim());
+    const optHtml = opts.length ? '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
+      opts.map((o,j) => {
+        const isCorrect = o === q.correctAnswer;
+        return `<div style="font-size:13px;padding:4px 10px;border-radius:6px;background:${isCorrect ? '#e8f5e9' : '#f5f5f5'};border:1px solid ${isCorrect ? '#a5d6a7' : '#e0e0e0'};display:flex;gap:8px;align-items:center;">
+          <span style="font-weight:700;color:${isCorrect ? '#2e7d32' : '#888'};min-width:18px;">${LABELS[j]}.</span>
+          <span>${esc(o)}</span>
+          ${isCorrect ? '<span style="margin-left:auto;font-size:11px;color:#2e7d32;font-weight:700;">✅ Correct</span>' : ''}
+        </div>`;
+      }).join('') + '</div>' : '';
+    // For non-MCQ questions, show answer inline
+    const plainAns = !opts.length && q.correctAnswer
+      ? `<div style="margin-top:6px;font-size:12px;background:#e8f5e9;border-radius:5px;padding:4px 10px;color:#2e7d32;font-weight:600;">✅ Answer: ${esc(q.correctAnswer)}</div>` : '';
+    // Quick answer setter for questions missing correct answer
+    let quickAnswerHtml = '';
+    if (needsAnswer) {
+      if (opts.length > 0) {
+        // MCQ / TrueFalse: show inline dropdown
+        quickAnswerHtml = `<div style="margin-top:10px;background:#fff8e8;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#92400e;font-weight:600;">⚠️ No correct answer set</span>
+          <select id="quickAns_${q.id}" style="flex:1;min-width:140px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="">-- Select correct answer --</option>
+            ${opts.map((o,j) => `<option value="${esc(o)}">${LABELS[j]}. ${esc(o)}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="quickSetAnswer(${q.id})" style="padding:5px 14px;font-size:12px;">Set Answer</button>
+        </div>`;
+      } else if (q.questionType === 'FillBlank') {
+        // FillBlank: show inline text input
+        quickAnswerHtml = `<div style="margin-top:10px;background:#fff8e8;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#92400e;font-weight:600;">⚠️ No correct answer set</span>
+          <input type="text" id="quickAns_${q.id}" placeholder="Enter correct answer…" style="flex:1;min-width:140px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"/>
+          <button class="btn btn-primary btn-sm" onclick="quickSetAnswer(${q.id})" style="padding:5px 14px;font-size:12px;">Set Answer</button>
+        </div>`;
+      }
+    }
+    return `
+    <div class="question-card" id="qcard_${q.id}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-weight:700;color:#673147;">Q${i+1}.</span>
+        <span class="question-type-badge">${esc(q.questionType)}</span>
+        <span style="font-size:11px;color:#888;">· ${q.marks||1} mark${(q.marks||1)>1?'s':''}</span>
+        <div style="flex:1;"></div>
+        <button class="btn btn-secondary btn-xs" onclick="openEditQuestion(${q.id})">Edit</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteQuestion(${q.id})">×</button>
+      </div>
+      <div style="font-size:14px;font-weight:500;line-height:1.5;">${esc(q.questionText)}</div>
+      ${optHtml}${plainAns}${quickAnswerHtml}
+    </div>`;
+  }).join('');
+}
+
+async function quickSetAnswer(questionId) {
+  const el = document.getElementById('quickAns_' + questionId);
+  if (!el) return;
+  const answer = el.value.trim();
+  if (!answer) { toast('Please select or enter the correct answer.', true); return; }
+  const res = await fetch(`/api/ss/questions/${questionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correctAnswer: answer })
+  });
+  if (res.ok) { toast('Correct answer saved.'); await loadQuestions(selectedExamId); }
+  else toast('Failed to save answer.', true);
+}
+
+function openQuestionModal() {
+  document.getElementById('questionModalTitle').textContent = 'Add Question';
+  document.getElementById('questionEditId').value = '';
+  document.getElementById('questionTypeInput').value = 'MCQ';
+  document.getElementById('questionMarksInput').value = '1';
+  document.getElementById('questionTextInput').value = '';
+  document.getElementById('questionOptionsInput').value = '';
+  document.getElementById('questionAnswerInput').value = '';
+  document.getElementById('questionAnswerSelect').innerHTML = '';
+  document.getElementById('questionAnswerSelect').style.display = 'none';
+  document.getElementById('questionAnswerInput').style.display = '';
+  onQTypeChange();
+  openModal('questionModal');
+}
+
+function openEditQuestion(id) {
+  const q = _qMap[id] || {};
+  const type   = q.questionType || 'Essay';
+  const marks  = q.marks || 1;
+  const text   = q.questionText || '';
+  const opts   = q.optionsJson || '';
+  const answer = q.correctAnswer || '';
+  document.getElementById('questionModalTitle').textContent = 'Edit Question';
+  document.getElementById('questionEditId').value = id;
+  document.getElementById('questionTypeInput').value = type;
+  document.getElementById('questionMarksInput').value = marks;
+  document.getElementById('questionTextInput').value = text;
+  try {
+    const arr = JSON.parse(opts || '[]');
+    document.getElementById('questionOptionsInput').value = arr.join('\n');
+  } catch { document.getElementById('questionOptionsInput').value = opts || ''; }
+  // Set answer value on whichever control is visible after refresh
+  document.getElementById('questionAnswerInput').value = answer || '';
+  onQTypeChange(); // also calls refreshAnswerField
+  // After refreshAnswerField has built the select, set its value
+  const sel = document.getElementById('questionAnswerSelect');
+  if (sel.style.display !== 'none' && answer) sel.value = answer;
+  openModal('questionModal');
+}
+
+function onQTypeChange() {
+  const type = document.getElementById('questionTypeInput').value;
+  const hasMcq = ['MCQ','TrueFalse'].includes(type);
+  const hasAuto = ['MCQ','TrueFalse','FillBlank'].includes(type);
+  document.getElementById('mcqOptionsBlock').style.display = hasMcq ? '' : 'none';
+  document.getElementById('correctAnswerBlock').style.display = hasAuto ? '' : 'none';
+  if (type === 'TrueFalse') document.getElementById('questionOptionsInput').value = 'True\nFalse';
+  refreshAnswerField();
+}
+
+function refreshAnswerField() {
+  const type = document.getElementById('questionTypeInput').value;
+  const sel  = document.getElementById('questionAnswerSelect');
+  const inp  = document.getElementById('questionAnswerInput');
+  const currentVal = sel.style.display !== 'none'
+    ? sel.value : inp.value;
+  if (type === 'MCQ' || type === 'TrueFalse') {
+    // Build options from the options textarea
+    const optsRaw = document.getElementById('questionOptionsInput').value.trim();
+    const opts = optsRaw ? optsRaw.split('\n').map(s=>s.trim()).filter(Boolean) : [];
+    if (opts.length) {
+      const LABELS = ['A','B','C','D','E','F'];
+      sel.innerHTML = '<option value="">-- Select correct answer --</option>' +
+        opts.map((o,i) => `<option value="${o.replace(/"/g,'&quot;')}"${o===currentVal?' selected':''}>${LABELS[i]}. ${o}</option>`).join('');
+      sel.style.display = '';
+      inp.style.display = 'none';
+      return;
+    }
+  }
+  // Free text for FillBlank / ShortAnswer / LongAnswer
+  if (sel.style.display !== 'none') {
+    inp.value = sel.value || currentVal;
+  }
+  sel.style.display = 'none';
+  inp.style.display = '';
+}
+
+async function saveQuestion() {
+  const editId = document.getElementById('questionEditId').value;
+  const type   = document.getElementById('questionTypeInput').value;
+  const marks  = parseInt(document.getElementById('questionMarksInput').value)||1;
+  const text   = document.getElementById('questionTextInput').value.trim();
+  const optsRaw = document.getElementById('questionOptionsInput').value.trim();
+  const _ansInp = document.getElementById('questionAnswerInput');
+  const _ansSel = document.getElementById('questionAnswerSelect');
+  const answer = (_ansSel.style.display !== 'none' ? _ansSel.value : _ansInp.value).trim();
+  if (!text) { toast('Question text required.', true); return; }
+  const opts = optsRaw ? JSON.stringify(optsRaw.split('\n').map(s=>s.trim()).filter(Boolean)) : null;
+  const body = { questionType: type, questionText: text, optionsJson: opts, correctAnswer: answer, marks };
+  let res;
+  if (editId) {
+    res = await fetch(`/api/ss/questions/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  } else {
+    res = await fetch(`/api/ss/exams/${selectedExamId}/questions`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  }
+  if (res.ok) { closeModal('questionModal'); await loadQuestions(selectedExamId); toast('Question saved.'); }
+  else toast('Failed.', true);
+}
+
+async function deleteQuestion(id) {
+  if (!confirm('Delete this question?')) return;
+  await fetch(`/api/ss/questions/${id}`, { method:'DELETE' });
+  await loadQuestions(selectedExamId); toast('Question deleted.');
+}
+
+async function uploadQuestionPaper() {
+  if (!selectedExamId) { toast('Select an exam first.', true); return; }
+  const input = document.getElementById('paperInput');
+  if (!input.files.length) return;
+  const fd = new FormData(); fd.append('file', input.files[0]);
+  toast('Parsing paper…');
+  const res = await fetch(`/api/ss/exams/${selectedExamId}/upload-paper`, { method:'POST', body: fd });
+  if (res.ok) {
+    const data = await res.json();
+    await loadQuestions(selectedExamId);
+    await saveExamSettings();
+    toast(`Parsed ${data.count} question(s) from the paper.`);
+  } else toast('Failed to parse paper.', true);
+  input.value = '';
+}
+
+/* ═══════════════════════════════════════════════
+   RESULTS & MARKS
+═══════════════════════════════════════════════ */
+async function loadResultExams() {
+  const classId = document.getElementById('resultClassSel').value;
+  const sel = document.getElementById('resultExamSel');
+  sel.innerHTML = '<option value="">-- Select Exam --</option>';
+  document.getElementById('submissionSection').style.display = 'none';
+  if (!classId) return;
+  const res = await fetch(`/api/ss/classes/${classId}/exams`);
+  const exams = res.ok ? await res.json() : [];
+  sel.innerHTML += exams.map(e => `<option value="${e.id}">${esc(e.examTitle)}</option>`).join('');
+}
+
+async function loadSubmissions() {
+  const examId = document.getElementById('resultExamSel').value;
+  document.getElementById('submissionSection').style.display = examId ? '' : 'none';
+  if (!examId) return;
+  resultExamId = parseInt(examId);
+  const res = await fetch(`/api/ss/exams/${examId}/submissions`);
+  const subs = res.ok ? await res.json() : [];
+  renderSubmissions(subs);
+}
+
+function renderSubmissions(subs) {
+  const el = document.getElementById('submissionList');
+  if (!subs.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px;">No submissions yet.</p>'; return; }
+  el.innerHTML = subs.map(function(s, idx) {
+    window['_ss_' + idx] = s;
+    const stCls = {InProgress:'chip-amber',Submitted:'chip-green',TimedOut:'chip-blue'}[s.status]||'chip-grey';
+    const totalExtra = (s.extraTimeMinutes || 0);
+    const baseLimit = s.durationMinutes ? s.durationMinutes + (totalExtra ? ' + ' + totalExtra + ' extra' : '') + ' min' : null;
+    const duration = s.takenMinutes != null ? (s.takenMinutes + ' min') : (baseLimit ? 'Limit: ' + baseLimit : '—');
+    const marksCell = 'Auto: <strong>' + (s.autoMarks != null ? s.autoMarks : '—') + '</strong> · Total: '
+      + '<span id="totalDisp_' + s.id + '">' + (s.totalMarks != null ? s.totalMarks : '—') + '</span>'
+      + '<input type="number" id="totalInp_' + s.id + '" value="' + (s.totalMarks != null ? s.totalMarks : '') + '" min="0"'
+      + ' style="width:60px;padding:3px 6px;font-size:12px;margin-left:6px;border:1px solid #ddd;border-radius:5px;"'
+      + ' onchange="saveTotalMarks(' + s.id + ', this.value)"/>';
+    return '<div class="sub-row">'
+      + '<div><strong>' + esc(s.studentName||'Student') + '</strong></div>'
+      + '<span class="chip ' + stCls + '">' + esc(s.status) + '</span>'
+      + '<div style="font-size:12px;">' + marksCell + '</div>'
+      + '<div style="font-size:11px;color:#888;">' + duration + ' · ' + (fmtDate(s.submittedAt)||'Not submitted') + '</div>'
+      + '<div style="display:flex;gap:4px;">'
+      + (s.status === 'InProgress' ? '<button class="btn btn-secondary btn-xs" style="background:#fff3e0;color:#e65100;border-color:#ffcc80;" onclick="openExtendTimeModal(' + s.id + ', \'' + esc(s.studentName||'Student') + '\')">⏱ +Time</button>' : '')
+      + '<button class="btn btn-secondary btn-xs" onclick="openAnswerReviewByIdx(' + idx + ')">👁 Answers</button>'
+      + '<button class="btn btn-secondary btn-xs" onclick="printSubmissionByIdx(' + idx + ')">🖨️</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+async function saveTotalMarks(submissionId, val) {
+  const marks = parseInt(val) || 0;
+  await fetch(`/api/ss/submissions/${submissionId}/marks`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ totalMarks: marks })
+  });
+  toast('Marks updated!');
+}
+
+function openExtendTimeModal(submissionId, studentName) {
+  document.getElementById('extendTimeSubId').value = submissionId;
+  document.getElementById('extendTimeStudentName').textContent = studentName;
+  document.getElementById('extendTimeCustom').value = '';
+  openModal('extendTimeModal');
+}
+
+async function confirmExtendTime(extraMinutes) {
+  if (!extraMinutes || extraMinutes <= 0) { toast('Enter a valid number of minutes', true); return; }
+  const subId = document.getElementById('extendTimeSubId').value;
+  const res = await fetch(`/api/ss/submissions/${subId}/extend`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ extraMinutes: extraMinutes })
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); toast(err.error || 'Failed to extend time', true); return; }
+  const data = await res.json();
+  closeModal('extendTimeModal');
+  toast(`+${extraMinutes} min added! Total extra: ${data.extraTimeMinutes} min`);
+  await loadSubmissions();
+}
+
+let reviewData = null;
+
+function openAnswerReviewByIdx(idx) {
+  const s = window['_ss_' + idx];
+  if (s) openAnswerReview(s.id, s.studentName || 'Student');
+}
+
+function printSubmissionByIdx(idx) {
+  const s = window['_ss_' + idx];
+  if (s) printSubmission(s.id, s.studentName || 'Student');
+}
+
+async function openAnswerReview(submissionId, studentName) {
+  resultSubmissionId = submissionId;
+  document.getElementById('answerStudentName').textContent = studentName;
+  const res = await fetch(`/api/ss/submissions/${submissionId}/answers`);
+  reviewData = res.ok ? await res.json() : null;
+  if (!reviewData) { toast('Failed to load answers', true); return; }
+  renderAnswerModal(reviewData);
+  openModal('answerModal');
+}
+
+function renderAnswerModal(data) {
+  const LABELS = ['A','B','C','D','E','F'];
+  const el = document.getElementById('answerList');
+  el.innerHTML = (data.questions||[]).map((q,i) => {
+    const autoGradable = ['MCQ','TrueFalse','FillBlank'].includes(q.questionType);
+    let opts = [];
+    try { opts = JSON.parse(q.optionsJson||'[]'); } catch(e) {}
+    const answerDisplay = q.answerText
+      ? `<span style="font-weight:600;">${esc(q.answerText)}</span>${autoGradable ? (q.isCorrect ? ' <span style="color:#2e7d32">✅</span>' : ' <span style="color:#c62828">❌</span>') : ''}`
+      : `<em style="color:#aaa;">No answer provided</em>`;
+    const correctHtml = autoGradable && q.correctAnswer
+      ? `<div style="margin-top:4px;font-size:12px;color:#2e7d32;"><strong>Correct:</strong> ${esc(q.correctAnswer)}</div>` : '';
+    const marksHtml = !autoGradable ? `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <label style="font-size:12px;font-weight:600;">Marks:</label>
+        <input type="number" id="manualMarks_${q.answerId||0}" value="${q.manualMarks != null ? q.manualMarks : ''}" min="0" max="${q.marks||10}" style="width:70px;padding:4px 8px;font-size:13px;border:1px solid #ddd;border-radius:5px;"/>
+        <span style="font-size:11px;color:#888;">/ ${q.marks||'?'}</span>
+      </div>` : '';
+    return `<div class="question-card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <strong>Q${i+1}.</strong><span class="question-type-badge">${esc(q.questionType)}</span>
+        <span style="font-size:11px;color:#888;margin-left:auto;">${q.marks||1} mark${(q.marks||1)>1?'s':''}</span>
+      </div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;">${esc(q.questionText)}</div>
+      <div style="font-size:13px;background:#f5f5f5;border-radius:6px;padding:8px;">
+        <strong>Answer:</strong> ${answerDisplay}
+      </div>
+      ${correctHtml}${marksHtml}
+    </div>`;
+  }).join('');
+}
+
+async function saveAllManualMarks() {
+  if (!reviewData) return;
+  for (const q of (reviewData.questions||[])) {
+    if (['MCQ','TrueFalse','FillBlank'].includes(q.questionType)) continue;
+    if (!q.answerId) continue;
+    const inp = document.getElementById(`manualMarks_${q.answerId}`);
+    if (!inp) continue;
+    const marks = parseInt(inp.value) || 0;
+    await fetch(`/api/ss/answers/${q.answerId}/marks`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ manualMarks: marks }) });
+  }
+  closeModal('answerModal');
+  await loadSubmissions();
+  toast('Marks saved!');
+}
+
+async function printSubmission(submissionId, studentName) {
+  const res = await fetch(`/api/ss/submissions/${submissionId}/answers`);
+  if (!res.ok) { toast('Failed to load', true); return; }
+  const data = await res.json();
+  const LABELS = ['A','B','C','D','E','F'];
+  let html = `<html><head><title>Exam — ${studentName}</title>
+  <style>body{font-family:sans-serif;max-width:700px;margin:40px auto;color:#333;}
+  h2{color:#673147;}h3{margin:0 0 4px;font-size:14px;}
+  .qcard{border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:12px;}
+  .badge{font-size:10px;background:#e8d5de;color:#673147;border-radius:4px;padding:2px 6px;font-weight:700;text-transform:uppercase;}
+  .ans{background:#f5f5f5;border-radius:5px;padding:8px;margin-top:6px;font-size:13px;}
+  .correct{color:#2e7d32;font-size:12px;margin-top:4px;}
+  @media print{button{display:none!important;}}</style></head><body>`;
+  html += `<h2>📋 Exam Submission</h2>
+  <p><strong>Student:</strong> ${studentName}</p>
+  <p><strong>Score:</strong> Auto: ${data.autoMarks} · Total: ${data.totalMarks}</p><hr style="margin:16px 0">`;
+  (data.questions||[]).forEach((q,i) => {
+    const autoGradable = ['MCQ','TrueFalse','FillBlank'].includes(q.questionType);
+    const verdict = autoGradable && q.isCorrect !== null ? (q.isCorrect ? ' ✅' : ' ❌') : '';
+    html += `<div class="qcard">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <strong>Q${i+1}.</strong><span class="badge">${q.questionType}</span>
+        <span style="margin-left:auto;font-size:11px;color:#888;">${q.marks||1} mark(s)</span>
+      </div>
+      <div style="font-size:13px;font-weight:500;">${q.questionText||''}</div>
+      <div class="ans"><strong>Answer:</strong> ${q.answerText||'<em>No answer</em>'}${verdict}</div>
+      ${autoGradable && q.correctAnswer ? `<div class="correct">✅ Correct: ${q.correctAnswer}</div>` : ''}
+    </div>`;
+  });
+  html += `<button onclick="window.print()" style="margin-top:20px;padding:8px 20px;background:#673147;color:#fff;border:none;border-radius:8px;cursor:pointer;">🖨️ Print</button>
+  </body></html>`;
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL HELPERS
+═══════════════════════════════════════════════ */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+function toast(msg, isErr) {
+  let t = document.getElementById('toastMsg');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toastMsg';
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:99999;'
+      + 'padding:11px 20px;border-radius:8px;color:#fff;font:600 13px Arial,sans-serif;'
+      + 'box-shadow:0 4px 16px rgba(0,0,0,.2);display:none;max-width:90vw;text-align:center;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = isErr ? '#c0392b' : '#43a047';
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.style.display = 'none'; }, 3000);
+}
+</script>
+</body>
+</html>

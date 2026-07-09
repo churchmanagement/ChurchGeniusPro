@@ -1,0 +1,334 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Shared Certificate framework styling.
+   Used by every certificate type (baptism reference + appreciation,
+   dedication, completion, sunday-school, membership, marriage, other).
+   Pairs with certificate-core.js, which renders the overlays + edit panel
+   from a per-page window.CERT_CONFIG object.
+
+   Certificate canvas is a fixed 900×636 box (A4-landscape ratio). Every
+   printed element is an absolutely-positioned overlay on a clean textured
+   paper background, so the design scales smoothly and prints/exports crisp.
+════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       background: #f5f6fa; color: #333; }
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+/* ── Page header ── */
+.page-header { margin-bottom: 14px; display: flex; align-items: center; gap: 14px; }
+.page-back {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px;
+  background: #fff; border: 1px solid #e0e0e0;
+  font-size: 16px; color: #555; flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.page-back:hover { background: #f0e8ec; border-color: #c5a8b8; color: #673147; }
+.page-title    { font-size: 22px; font-weight: 700; color: #673147; }
+.page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+/* ── Action bar ── */
+.action-bar {
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.07);
+  padding: 10px 14px; margin-bottom: 14px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.btn-action {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  transition: background .15s, opacity .15s;
+}
+.btn-action:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary   { background: #673147; color: #fff; }
+.btn-primary:hover:not(:disabled)   { background: #4f2538; }
+.btn-secondary { background: #f0f0f0; color: #444; }
+.btn-secondary:hover:not(:disabled) { background: #e2e2e2; }
+.btn-outline   { background: #fff; color: #673147; border: 1.5px solid #c5a8b8; }
+.btn-outline:hover:not(:disabled)   { background: #f0e8ec; }
+.btn-save      { background: #2e7d32; color: #fff; }
+.btn-save:hover:not(:disabled)      { background: #246627; }
+.action-spacer { flex: 1; }
+
+/* ── Two-column layout ── */
+.cert-layout { display: flex; gap: 20px; align-items: flex-start; }
+.cert-left   { flex: 1; min-width: 0; }
+.cert-right  { width: 294px; flex-shrink: 0; }
+
+/* ════════════════════════════════════════════════════
+   CERTIFICATE CANVAS — 900×636 px (A4 landscape ratio)
+════════════════════════════════════════════════════ */
+.cert-canvas-wrap {
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  padding: 6px; width: 100%; overflow: hidden;
+}
+.cert-scale-host {
+  position: relative; width: 100%;
+  aspect-ratio: 297 / 210; overflow: hidden;
+}
+#certificate {
+  position: absolute; top: 0; left: 0;
+  width: 900px; height: 636px;
+  transform-origin: top left;
+  overflow: hidden;
+  background: url('/cert_bg_paper.jpg?v=1') center/cover no-repeat;
+}
+
+/* ── Arched title (crisp vector — never clipped, smooth in print/PDF) ── */
+.cert-title-svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+.cert-title-svg text {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 4px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* ── Logo (church logo when available) ── */
+.cert-logo {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 118px; width: 88px; height: 88px;
+  border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.cert-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cert-logo.empty { display: none; }
+
+/* ── Pre-name line ("This certificate is presented to", etc.) ── */
+.cert-preline {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 196px; width: 700px;
+  text-align: center;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 15px; letter-spacing: 1.5px;
+  color: #4a4470; text-transform: uppercase;
+}
+
+/* ── Recipient name(s) ── */
+.cert-name {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 220px; width: 760px; height: 86px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Great Vibes', cursive;
+  font-size: 54px; color: #1a1035;
+  text-align: center; line-height: 1;
+  white-space: nowrap; overflow: hidden;
+}
+.cert-name.dual { font-size: 42px; }
+
+/* ── Decorative divider line under the name (navy w/ diamond ends) ── */
+.cert-rule {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 308px; width: 540px; height: 2px;
+}
+.cert-rule::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1.4px; background: #2e266d; transform: translateY(-50%);
+}
+.cert-rule .dia-l, .cert-rule .dia-r {
+  position: absolute; top: 50%; width: 8px; height: 8px;
+  background: #2e266d; transform: translateY(-50%) rotate(45deg);
+}
+.cert-rule .dia-l { left: -4px; }
+.cert-rule .dia-r { right: -4px; }
+
+/* ── Body paragraph ── */
+.cert-para {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 326px; width: 680px;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 16px; color: #2e266d;
+  text-align: center; line-height: 1.6;
+}
+
+/* ── Signature row (1 or 2 blocks) ── */
+.cert-sigs {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 452px; width: 660px;
+  display: flex; justify-content: center; gap: 90px;
+}
+.cert-sigs.two { justify-content: space-between; }
+.cert-sig { width: 240px; text-align: center; }
+.cert-sig-name {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: 13px; color: #2e266d; line-height: 1.1;
+  min-height: 16px; white-space: nowrap; overflow: hidden;
+}
+.cert-sig-line { border-top: 1.2px solid #6b6680; margin: 3px auto 4px; width: 100%; }
+.cert-sig-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 12px; color: #2e266d;
+}
+
+/* ── Vector seal ── */
+.cert-seal {
+  position: absolute;
+  left: 92px; top: 470px;
+  width: 104px; height: 124px;
+  pointer-events: none;
+}
+.cert-seal.hidden { display: none; }
+
+/* ── Scripture / footer line ── */
+.cert-scripture {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: 556px; width: 600px;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-style: italic; font-size: 11.5px;
+  color: #2e266d; text-align: center; line-height: 1.55;
+}
+
+/* ── Record number (small, bottom-right) ── */
+.cert-number {
+  position: absolute; right: 26px; bottom: 16px;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 10px; color: #9a93b0; letter-spacing: .5px;
+}
+
+/* ════════════════════════════════════════════════════
+   EDIT PANEL (right column)
+════════════════════════════════════════════════════ */
+.edit-panel { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+.edit-panel-header { background: #673147; padding: 14px 18px; display: flex; align-items: center; gap: 8px; }
+.edit-panel-header h3 { font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .5px; }
+.edit-panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; max-height: 82vh; overflow-y: auto; }
+
+.ep-field { display: flex; flex-direction: column; gap: 4px; }
+.ep-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .4px; }
+.ep-input {
+  width: 100%; padding: 7px 10px;
+  border: 1.5px solid #e0e0e0; border-radius: 7px;
+  font-size: 13px; color: #333; outline: none; font-family: inherit;
+  transition: border-color .2s;
+}
+.ep-input:focus { border-color: #673147; }
+textarea.ep-input { resize: vertical; min-height: 58px; }
+.ep-controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ep-select {
+  padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px;
+  font-size: 12px; color: #333; outline: none; background: #fff; cursor: pointer;
+  transition: border-color .2s; flex: 1;
+}
+.ep-select:focus { border-color: #673147; }
+.ep-color { width: 28px; height: 28px; border: 1.5px solid #e0e0e0; border-radius: 6px; cursor: pointer; padding: 2px; flex-shrink: 0; }
+.ep-toggle {
+  padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;
+  background: #f0f0f0; color: #555; border: 1.5px solid #e0e0e0;
+  transition: background .15s, color .15s;
+}
+.ep-toggle.active { background: #673147; color: #fff; border-color: #673147; }
+
+/* Member search dropdown */
+.search-wrap { position: relative; }
+.search-inner {
+  display: flex; align-items: center;
+  border: 1.5px solid #e0e0e0; border-radius: 7px;
+  overflow: hidden; transition: border-color .2s;
+}
+.search-inner:focus-within { border-color: #673147; }
+.search-inner input {
+  flex: 1; padding: 7px 10px; border: none; outline: none;
+  font-size: 13px; color: #333; background: transparent; font-family: inherit;
+}
+.search-clear {
+  padding: 5px 8px; font-size: 14px; color: #ccc; background: none; border: none;
+  cursor: pointer; line-height: 1; transition: color .15s;
+}
+.search-clear:hover { color: #e53935; }
+.dropdown {
+  position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.12); max-height: 200px; overflow-y: auto;
+  z-index: 200; display: none;
+}
+.dropdown.open { display: block; }
+.dd-item {
+  padding: 8px 12px; font-size: 13px; cursor: pointer;
+  border-bottom: 1px solid #f5f5f5; transition: background .1s;
+}
+.dd-item:last-child { border-bottom: none; }
+.dd-item:hover, .dd-item.hi { background: #f0e8ec; }
+.dd-empty { padding: 12px; font-size: 13px; color: #bbb; text-align: center; }
+
+.selected-badge {
+  display: none; align-items: center; gap: 8px;
+  background: #f0e8ec; border: 1px solid #c5a8b8;
+  border-radius: 7px; padding: 6px 10px; margin-top: 4px;
+}
+.selected-badge.show { display: flex; }
+.selected-badge-name { font-size: 13px; font-weight: 600; color: #673147; flex: 1; }
+.selected-badge-rm { font-size: 14px; color: #c5a8b8; cursor: pointer; padding: 1px 5px; border-radius: 4px; transition: color .15s; }
+.selected-badge-rm:hover { color: #e53935; }
+
+.or-div { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; font-weight: 700; }
+.or-div::before, .or-div::after { content: ''; flex: 1; border-top: 1px solid #eee; }
+
+.ep-section-title {
+  font-size: 11px; font-weight: 700; color: #673147;
+  text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1px solid #f0e8ec; padding-bottom: 5px;
+}
+.ep-hint { font-size: 11px; color: #aaa; margin-top: 1px; }
+
+/* Toast for save confirmation */
+.cert-toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: #2e7d32; color: #fff; padding: 10px 18px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  z-index: 9999; opacity: 0; transition: opacity .25s; pointer-events: none;
+}
+.cert-toast.show { opacity: 1; }
+.cert-toast.err { background: #c62828; }
+
+/* ════════════════════════════════════════════════════
+   PRINT — only the certificate prints, centered, full page
+════════════════════════════════════════════════════ */
+@media print {
+  @page { size: landscape; margin: 8mm; }
+  html, body { background: #fff !important; }
+
+  .sidebar, .topbar, .app-footer { display: none !important; }
+
+  /* Show ONLY the certificate: hide every other direct child of the page
+     content — catches the globally-injected AI search box and any toolbar. */
+  main.page-content > *:not(.cert-layout) { display: none !important; }
+
+  #aaHost, .aa-host, #aaBar, .aa-controls, #aiResultsWrap, .aa-searchbar,
+  .aa-hintrow, .aa-guide, .aa-toast, .ai-search-wrap,
+  .page-header, .action-bar, .cert-right { display: none !important; }
+
+  .app, .page-content { display: block !important; }
+  .page-content { padding: 0 !important; margin: 0 !important; }
+  .cert-layout { display: block !important; margin: 0 !important; }
+  .cert-left { width: 100% !important; }
+  .cert-canvas-wrap { box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; background: #fff !important; }
+  .cert-scale-host { aspect-ratio: 297 / 210 !important; width: 100% !important; height: auto !important; }
+  #certificate { transform: none !important; width: 100% !important; height: 100% !important; position: static !important; }
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+@media (max-width: 960px) {
+  .cert-layout { flex-direction: column; }
+  .cert-right  { width: 100%; }
+  .edit-panel-body { max-height: none; }
+}

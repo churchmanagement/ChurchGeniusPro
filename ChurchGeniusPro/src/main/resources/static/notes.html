@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Notes – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+    
+
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ── */
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; font-weight: 700; color: #673147; background: transparent; border: 1px solid #c5a0b5; border-radius: 7px; padding: 7px 14px; cursor: pointer; letter-spacing: .4px; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page ── */
+    
+    .page-header  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+    .btn-new-note { background: #673147; color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background .15s; }
+    .btn-new-note:hover { background: #4f2538; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Filter tabs ── */
+    .filter-tabs { display: flex; gap: 0; border-bottom: 2px solid #e8eaf0; margin-bottom: 20px; }
+    .filter-tab { padding: 8px 18px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s; }
+    .filter-tab.active { color: #673147; border-bottom-color: #673147; }
+    .filter-tab:hover { color: #673147; }
+
+    /* ── Notes grid ── */
+    .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .note-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e8eaf0;
+      padding: 18px 20px; display: flex; flex-direction: column;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: box-shadow .2s, transform .15s;
+    }
+    .note-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); transform: translateY(-2px); }
+    .note-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .note-title { font-size: 15px; font-weight: 700; color: #1e2139; flex: 1; line-height: 1.3; }
+    .btn-star { font-size: 20px; flex-shrink: 0; padding: 2px; transition: transform .15s; }
+    .btn-star:hover { transform: scale(1.2); }
+    .note-body-preview {
+      font-size: 13px; color: #666; line-height: 1.6; flex: 1;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      white-space: pre-wrap; margin-bottom: 12px;
+    }
+    .note-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #b0b8d0; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+    .note-author { font-weight: 600; color: #9fa8c4; }
+    .note-actions { display: flex; gap: 6px; padding-top: 10px; border-top: 1px solid #f0f1f8; }
+    .btn-note-action { flex: 1; padding: 6px 0; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background .15s; text-align: center; }
+    .btn-note-edit { border: 1px solid #673147; color: #fff; background: #673147; }
+    .btn-note-edit:hover { background: #3949ab; border-color: #3949ab; }
+    .btn-note-del  { border: 1px solid #673147; color: #fff; background: #673147; }
+    .btn-note-del:hover  { background: #3949ab; border-color: #3949ab; }
+    .empty-state { text-align: center; padding: 60px 24px; color: #b0b8d0; }
+    .empty-state-icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 16px; color: #888; margin-bottom: 6px; }
+    .empty-state p  { font-size: 13px; }
+
+    /* ── Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #eee; }
+    .modal-title { font-size: 16px; font-weight: 700; color: #1e2139; }
+    .modal-close { font-size: 22px; cursor: pointer; color: #888; padding: 0 4px; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .modal-footer { padding: 12px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .field input, .field textarea { border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px; font-size: 13px; color: #333; outline: none; background: #fff; transition: border-color .2s; font-family: inherit; }
+    .field input:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .field textarea { resize: vertical; min-height: 200px; }
+    .required-star { color: #e53935; }
+    .btn-save { background: #673147; color: #fff; border: none; border-radius: 8px; padding: 9px 24px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-cancel { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer; }
+    .btn-cancel:hover { background: #f5f5f5; }
+
+    @media (max-width: 600px) { .notes-grid { grid-template-columns: 1fr; } .page-content { padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📝 Notes</div>
+          <div class="page-subtitle">Create and manage notes for your organization</div>
+        </div>
+        <button class="btn-new-note" onclick="openModal()">➕ New Note</button>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Filter Tabs -->
+      <div class="filter-tabs">
+        <div class="filter-tab active" data-filter="all"     onclick="setFilter('all')">All Notes</div>
+        <div class="filter-tab"        data-filter="starred"  onclick="setFilter('starred')">⭐ Starred</div>
+        <div class="filter-tab"        data-filter="mine"     onclick="setFilter('mine')">My Notes</div>
+      </div>
+
+      <!-- Notes Grid -->
+      <div id="notesContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">📝</div>
+          <h3>Loading notes…</h3>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- Note Modal -->
+<div class="modal-overlay" id="noteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">New Note</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="noteTitle">Title <span class="required-star">*</span></label>
+        <input type="text" id="noteTitle" placeholder="Note title…" />
+      </div>
+      <div class="field">
+        <label for="noteBody">Body</label>
+        <textarea id="noteBody" placeholder="Write your note here…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="saveNoteBtn" onclick="saveNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════ NAVIGATION ════ */
+  
+
+  /* ════ STATE ════ */
+  let allNotes    = [];
+  let currentFilter = 'all';
+  let editingId   = null;
+  let currentUserId = null;
+
+  /* ════ INIT ════ */
+  (async function init() {
+    await loadNotes();
+  })();
+
+  /* ════ LOAD ════ */
+  async function loadNotes() {
+    try {
+      const res  = await fetch('/api/notes');
+      allNotes   = await res.json();
+      // Identify current user from first "isOwner" note or from session.js globals
+      const mine = allNotes.find(n => n.isOwner);
+      if (mine) currentUserId = mine.createdById;
+      renderNotes();
+    } catch { showFeedback('❌ Could not load notes.', 'error'); }
+  }
+
+  /* ════ FILTER ════ */
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.filter === f);
+    });
+    renderNotes();
+  }
+
+  /* ════ RENDER ════ */
+  function renderNotes() {
+    let notes = allNotes;
+    if (currentFilter === 'starred') notes = notes.filter(n => n.starred);
+    if (currentFilter === 'mine')    notes = notes.filter(n => n.isOwner);
+
+    const container = document.getElementById('notesContainer');
+    if (!notes.length) {
+      const msgs = {
+        all:     { icon: '📝', h: 'No notes yet', p: 'Click "New Note" to create your first note.' },
+        starred: { icon: '⭐', h: 'No starred notes', p: 'Star notes to find them quickly here.' },
+        mine:    { icon: '📝️', h: 'No notes by you yet', p: 'Create a note and it will appear here.' }
+      };
+      const m = msgs[currentFilter];
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${m.icon}</div><h3>${m.h}</h3><p>${m.p}</p></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="notes-grid">${notes.map(noteCard).join('')}</div>`;
+  }
+
+  function noteCard(n) {
+    const star   = n.starred ? '⭐' : '☆';
+    const owner  = n.isOwner;
+    const body   = n.body ? escHtml(n.body) : '<em style="color:#ccc;">No content</em>';
+    const date   = n.updatedDate ? formatDate(n.updatedDate) : (n.createdDate ? formatDate(n.createdDate) : '');
+    const ownerActions = owner
+      ? `<button class="btn-note-action btn-note-edit" onclick="openModal(${n.id})">Edit</button>
+         <button class="btn-note-action btn-note-del"  onclick="deleteNote(${n.id}, '${escJs(n.title)}')">Delete</button>`
+      : `<span style="font-size:11px;color:#c5cae9;padding:4px 8px;">Read only</span>`;
+    return `<div class="note-card">
+      <div class="note-card-top">
+        <div class="note-title">${escHtml(n.title)}</div>
+        <button class="btn-star" title="${n.starred ? 'Unstar' : 'Star'}" onclick="toggleStar(${n.id})">${star}</button>
+      </div>
+      <div class="note-body-preview">${body}</div>
+      <div class="note-meta">
+        <span class="note-author">👤 ${escHtml(n.createdByName || 'Unknown')}</span>
+        <span>${date}</span>
+      </div>
+      <div class="note-actions">${ownerActions}</div>
+    </div>`;
+  }
+
+  /* ════ MODAL ════ */
+  function openModal(id) {
+    editingId = id || null;
+    document.getElementById('modalTitle').textContent = id ? 'Edit Note' : 'New Note';
+    document.getElementById('saveNoteBtn').textContent = id ? 'Update Note' : 'Save Note';
+    if (id) {
+      const n = allNotes.find(x => x.id === id);
+      if (n) {
+        document.getElementById('noteTitle').value = n.title || '';
+        document.getElementById('noteBody').value  = n.body  || '';
+      }
+    } else {
+      document.getElementById('noteTitle').value = '';
+      document.getElementById('noteBody').value  = '';
+    }
+    document.getElementById('noteModal').classList.add('open');
+    document.getElementById('noteTitle').focus();
+  }
+  function closeModal() { document.getElementById('noteModal').classList.remove('open'); editingId = null; }
+  document.getElementById('noteModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+  /* ════ SAVE ════ */
+  async function saveNote() {
+    const title = document.getElementById('noteTitle').value.trim();
+    const body  = document.getElementById('noteBody').value;
+    if (!title) { alert('Title is required.'); return; }
+    const btn = document.getElementById('saveNoteBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const url    = editingId ? `/api/notes/${editingId}` : '/api/notes';
+      const method = editingId ? 'PUT' : 'POST';
+      const res    = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`✅ Note ${editingId ? 'updated' : 'saved'} successfully.`, 'success');
+        closeModal();
+        await loadNotes();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to save note.'}`, 'error');
+      }
+    } catch { showFeedback('❌ Network error.', 'error'); }
+    finally { btn.disabled = false; btn.textContent = editingId ? 'Update Note' : 'Save Note'; }
+  }
+
+  /* ════ TOGGLE STAR ════ */
+  async function toggleStar(id) {
+    try {
+      const res  = await fetch(`/api/notes/${id}/star`, { method: 'PUT' });
+      const data = await res.json();
+      if (res.ok) {
+        const idx = allNotes.findIndex(n => n.id === id);
+        if (idx !== -1) allNotes[idx] = data;
+        renderNotes();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to star note.'}`, 'error');
+      }
+    } catch { showFeedback('❌ Network error.', 'error'); }
+  }
+
+  /* ════ DELETE ════ */
+  async function deleteNote(id, title) {
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    try {
+      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      if (res.ok) { showFeedback('Note deleted.', 'success'); await loadNotes(); }
+      else { const d = await res.json(); showFeedback(`❌ ${d.error || 'Failed to delete.'}`, 'error'); }
+    } catch { showFeedback('❌ Network error.', 'error'); }
+  }
+
+  /* ════ HELPERS ════ */
+  function formatDate(s) {
+    if (!s) return '';
+    const d = new Date(s);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg; el.className = 'feedback ' + type;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { el.className = 'feedback'; }, 5000);
+  }
+  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escJs(s)   { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/files', pageTitle: 'Notes', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Reminders — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Sidebar theme ── */
+    .sidebar       { background: #673147 !important; }
+    .nav-item-btn  { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn   { color: rgba(255,255,255,.7)  !important; }
+    .brand-name    { color: #fff !important; }
+    .user-name     { color: #fff !important; }
+
+    /* ── Page header ── */
+    .page-header   { margin-bottom: 28px; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 4px; }
+
+    /* ── Reminder cards grid ── */
+    .reminder-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .reminder-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      border: 1.5px solid #eee;
+      padding: 26px 24px 22px;
+      cursor: pointer;
+      transition: border-color .18s, box-shadow .18s, transform .12s;
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .reminder-card:hover {
+      border-color: #673147;
+      box-shadow: 0 4px 20px rgba(103,49,71,.12);
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      font-size: 30px;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .card-body { flex: 1; }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #673147;
+      margin-bottom: 5px;
+    }
+    .card-desc {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+    .card-arrow {
+      font-size: 18px;
+      color: #ccc;
+      align-self: center;
+      flex-shrink: 0;
+      transition: color .15s;
+    }
+    .reminder-card:hover .card-arrow { color: #673147; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">&#x1F514; Reminders</div>
+        <div class="page-subtitle">Set up automated reminders to keep your congregation informed.</div>
+      </div>
+
+      <div class="reminder-grid">
+
+        <a class="reminder-card cgp-fav-able" href="/eventReminders"
+           data-fav-id="/eventReminders" data-fav-label="Event Reminders" data-fav-href="/eventReminders"
+           data-fav-icon="&#x1F4C5;" data-fav-perm="reminders.event">
+          <div class="card-icon">&#x1F4C5;</div>
+          <div class="card-body">
+            <div class="card-title">Event Reminders</div>
+            <div class="card-desc">Send automatic reminders to attendees before upcoming church events.</div>
+          </div>
+          <div class="card-arrow">&#x276F;</div>
+        </a>
+
+        <a class="reminder-card cgp-fav-able" href="/autoReminders"
+           data-fav-id="/autoReminders" data-fav-label="Periodic Reminders" data-fav-href="/autoReminders"
+           data-fav-icon="&#x1F504;" data-fav-perm="reminders.auto">
+          <div class="card-icon">&#x1F504;</div>
+          <div class="card-body">
+            <div class="card-title">Periodic Reminders</div>
+            <div class="card-desc">Schedule recurring reminder messages on a daily, weekly, or monthly basis.</div>
+          </div>
+          <div class="card-arrow">&#x276F;</div>
+        </a>
+
+        <a class="reminder-card cgp-fav-able" href="/oneReminders"
+           data-fav-id="/oneReminders" data-fav-label="One-time Reminders" data-fav-href="/oneReminders"
+           data-fav-icon="&#x23F0;" data-fav-perm="reminders.onetime">
+          <div class="card-icon">&#x23F0;</div>
+          <div class="card-body">
+            <div class="card-title">One-time Reminders</div>
+            <div class="card-desc">Send a single reminder for a specific date and time — no repeat.</div>
+          </div>
+          <div class="card-arrow">&#x276F;</div>
+        </a>
+
+      </div>
+
+    </main>
+    <footer id="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  window.CGP_PAGE = {
+    activePage:  'general/reminders',
+    pageTitle:   'Reminders',
+    openSection: 'general'
+  };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

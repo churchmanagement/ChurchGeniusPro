@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#673147" />
+  <title>Church Genius Pro – Data Import</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; background: #f5f6fa; color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    button { cursor: pointer; font-family: inherit; border: none; }
+
+    .topbar { background: #3a5a9b; color: #fff; padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; }
+    .topbar-brand img { height: 30px; }
+    .admin-chip { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 10px; }
+    .btn-ghost { background: rgba(255,255,255,.15); color:#fff; border-radius: 6px; padding: 7px 14px; font-size: 13px; }
+    .btn-ghost:hover { background: rgba(255,255,255,.28); }
+
+    .main { max-width: 1080px; margin: 22px auto; padding: 0 18px 60px; }
+
+    /* stepper */
+    .steps { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .step { flex: 1; min-width: 160px; background: #fff; border: 1px solid #e4e7ee; border-radius: 10px;
+      padding: 12px 14px; display: flex; gap: 10px; align-items: center; opacity: .55; }
+    .step.active { opacity: 1; border-color: #3a5a9b; box-shadow: 0 2px 10px rgba(58,90,155,.12); }
+    .step.done { opacity: 1; }
+    .step .num { width: 26px; height: 26px; border-radius: 50%; background: #eceff5; color: #3a5a9b;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: none; }
+    .step.active .num { background: #3a5a9b; color: #fff; }
+    .step.done .num { background: #2e9e5b; color: #fff; }
+    .step .lbl { font-size: 13px; font-weight: 600; }
+    .step .sub { font-size: 11px; color: #8a8f9c; }
+
+    .card { background: #fff; border: 1px solid #e4e7ee; border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
+    .card h2 { font-size: 16px; margin-bottom: 4px; }
+    .card .hint { font-size: 12.5px; color: #7c818d; margin-bottom: 16px; }
+    .hidden { display: none !important; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #555; margin: 0 0 5px; }
+    select, input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid #cfd4df; border-radius: 8px;
+      font-size: 13.5px; background: #fff; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .row > .col { flex: 1; min-width: 200px; }
+
+    .btn { background: #3a5a9b; color: #fff; border-radius: 8px; padding: 9px 16px; font-size: 13.5px; font-weight: 600; }
+    .btn:hover { background: #32508c; }
+    .btn:disabled { background: #b9c0cf; cursor: not-allowed; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+    .btn-green { background: #2e9e5b; } .btn-green:hover { background: #28894f; }
+    .btn-red { background: #d24a52; } .btn-red:hover { background: #bd3d45; }
+    .btn-light { background: #eef1f7; color: #3a5a9b; } .btn-light:hover { background: #e2e7f2; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 8px 9px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8a8f9c; background: #fafbfd; }
+    .tbl-wrap { overflow-x: auto; border: 1px solid #eef0f4; border-radius: 10px; }
+
+    .badge { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+      padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
+    .b-auto { background: #e2f3e8; color: #2e7d44; }
+    .b-review { background: #fdf0d8; color: #9a6b12; }
+    .b-confirmed { background: #dce9fb; color: #2c5aa0; }
+    .b-rejected { background: #f6dede; color: #b23b3b; }
+    .b-valid { background: #e2f3e8; color: #2e7d44; }
+    .b-warn { background: #fdf0d8; color: #9a6b12; }
+    .b-error { background: #f6dede; color: #b23b3b; }
+    .b-pending { background: #ececf1; color: #6a6f7c; }
+
+    .pill { display:inline-block; background:#eef1f7; color:#3a5a9b; border-radius:20px;
+      padding:3px 11px; font-size:12px; font-weight:600; margin:0 6px 6px 0; cursor:pointer; border:1px solid transparent; }
+    .pill.on { background:#3a5a9b; color:#fff; }
+    .summary { display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 14px; }
+    .stat { background:#f7f9fc; border:1px solid #eef0f4; border-radius:10px; padding:10px 16px; min-width:90px; }
+    .stat .n { font-size:20px; font-weight:800; } .stat .k { font-size:11px; color:#8a8f9c; text-transform:uppercase; }
+
+    .msg { font-size: 11.5px; color:#9a6b12; }
+    .msg.err { color:#b23b3b; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color:#555;
+      max-width: 320px; white-space: pre-wrap; word-break: break-word; }
+    .note { background:#fff8e6; border:1px solid #f3e2b3; color:#8a6d1f; border-radius:8px; padding:10px 13px; font-size:12.5px; }
+
+    #toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px);
+      background: #2b2f3a; color: #fff; padding: 11px 18px; border-radius: 8px; font-size: 13px;
+      opacity: 0; transition: all .3s; z-index: 99; max-width: 80vw; }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.err { background: #b23b3b; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-brand">
+    <img src="/logo.png" alt="Church Genius Pro" />
+    <span>Church Genius Pro</span>
+    <span class="admin-chip">Data Import</span>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn-ghost" onclick="window.location.href='/serviceadminhome'">← Admin Home</button>
+    <button class="btn-ghost" id="logoutBtn">Logout</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="steps">
+    <div class="step" id="st1"><div class="num">1</div><div><div class="lbl">Run</div><div class="sub">Tenant &amp; source</div></div></div>
+    <div class="step" id="st2"><div class="num">2</div><div><div class="lbl">Upload</div><div class="sub">Extract &amp; profile</div></div></div>
+    <div class="step" id="st3"><div class="num">3</div><div><div class="lbl">Map</div><div class="sub">Review columns</div></div></div>
+    <div class="step" id="st4"><div class="num">4</div><div><div class="lbl">Stage</div><div class="sub">Validate &amp; preview</div></div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="card" id="card1">
+    <h2>1 · Start an import run</h2>
+    <div class="hint">A run is bound to one church (tenant). Everything you stage or load belongs only to it.</div>
+    <div class="row">
+      <div class="col">
+        <label>Church (tenant)</label>
+        <select id="clientSel"><option value="">Loading…</option></select>
+      </div>
+      <div class="col">
+        <label>Source label (optional)</label>
+        <input type="text" id="sourceLabel" placeholder="e.g. LegacyChMS export 2026-06" />
+      </div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <button class="btn" id="btnCreateRun">Create run</button>
+      <div style="flex:1; min-width:220px;">
+        <label>…or resume an existing run</label>
+        <select id="runSel"><option value="">—</option></select>
+      </div>
+      <button class="btn-light btn" id="btnResume">Resume</button>
+    </div>
+    <div id="runInfo" style="margin-top:14px;"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card hidden" id="card2">
+    <h2>2 · Upload source files</h2>
+    <div class="hint">CSV or JSON. Each file becomes a named source table, captured verbatim and profiled. No live data is touched.</div>
+    <div class="row">
+      <div class="col">
+        <label>Source name</label>
+        <input type="text" id="srcName" placeholder="defaults to the file name" />
+      </div>
+      <div class="col">
+        <label>File (.csv / .json)</label>
+        <input type="text" id="fileLabel" readonly placeholder="No file chosen"
+               onclick="document.getElementById('fileInput').click()" />
+        <input type="file" id="fileInput" accept=".csv,.json,text/csv,application/json" class="hidden" />
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button class="btn" id="btnUpload">Upload &amp; profile</button>
+      </div>
+    </div>
+    <div id="sourcesArea" style="margin-top:16px;"></div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="card hidden" id="card3">
+    <h2>3 · Review the column mapping</h2>
+    <div class="hint">The matcher suggests a source column for each target. AUTO = high confidence; REVIEW = please check. AI suggestions are always REVIEW — nothing loads until you confirm.</div>
+    <div class="row">
+      <div class="col">
+        <label>Target table</label>
+        <select id="targetSel">
+          <option value="family">family</option>
+          <option value="income">income</option>
+          <option value="expense">expense</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Source table</label>
+        <select id="mapSrcSel"><option value="">—</option></select>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button class="btn" id="btnSuggest">Suggest mappings</button>
+      </div>
+    </div>
+    <div id="mapArea" style="margin-top:16px;"></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="card hidden" id="card4">
+    <h2>4 · Stage, validate &amp; preview</h2>
+    <div class="hint">Transforms run the confirmed mappings into tenant-stamped staging rows, then validation grades every row. Still nothing live.</div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <span style="font-size:12.5px;color:#555;">Target:</span>
+      <strong id="stageTarget" style="font-size:13.5px;">family</strong>
+      <button class="btn btn-sm" id="btnStage">Stage &amp; validate</button>
+    </div>
+    <div id="valSummary" class="summary"></div>
+    <div id="previewFilters" style="margin-top:6px;"></div>
+    <div id="previewArea"></div>
+
+    <div class="hidden" id="loadPanel" style="margin-top:18px; border-top:1px solid #eef0f4; padding-top:16px;">
+      <h2 style="font-size:15px;">Load to live data</h2>
+      <div class="note" style="margin:8px 0 12px;">
+        Approving creates a reversible batch. Loading writes the VALID/WARN rows into this church's live
+        <strong id="loadTargetLbl">family</strong> table (INSERT-or-SKIP, tenant-stamped). Duplicates default to SKIP.
+        A whole batch can be rolled back.
+      </div>
+      <button class="btn btn-green" id="btnApprove">Approve batch</button>
+      <button class="btn btn-light" id="btnVerify">Verify run</button>
+      <div id="batchArea" style="margin-top:14px;"></div>
+      <div id="verifyArea" style="margin-top:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ── auth guard (UX only; the API enforces the real session) ── */
+if (!localStorage.getItem('serviceAdminLoggedIn')) window.location.href = '/serviceadminlogin';
+document.getElementById('logoutBtn').addEventListener('click', function () {
+  localStorage.removeItem('serviceAdminLoggedIn');
+  window.location.href = '/serviceadminlogin';
+});
+
+var S = { clientId: '', runId: null, runStatus: '', sources: {}, target: 'family',
+          previewFilter: 'all', previewOffset: 0 };
+
+/* ── helpers ── */
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
+  setTimeout(function () { t.className = ''; }, 3200);
+}
+function esc(v) {
+  return (v == null ? '' : String(v)).replace(/[&<>"]/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+  });
+}
+function qs(obj) {
+  return Object.keys(obj).filter(function (k) { return obj[k] != null && obj[k] !== ''; })
+    .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]); }).join('&');
+}
+async function apiGet(path, params) {
+  var url = path + (params ? ('?' + qs(params)) : '');
+  var r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  var j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+  return j;
+}
+async function apiSend(method, path, body) {
+  var r = await fetch(path, {
+    method: method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  var j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+  return j;
+}
+
+function setStep(n) {
+  [1, 2, 3, 4].forEach(function (i) {
+    var st = document.getElementById('st' + i);
+    var card = document.getElementById('card' + i);
+    st.classList.toggle('active', i === n);
+    st.classList.toggle('done', i < n);
+    if (i === 1) return;             // step 1 card always visible
+    card.classList.toggle('hidden', i > n && i !== n);
+  });
+  if (n >= 2) document.getElementById('card2').classList.remove('hidden');
+  if (n >= 3) document.getElementById('card3').classList.remove('hidden');
+  if (n >= 4) document.getElementById('card4').classList.remove('hidden');
+}
+
+function statusBadge(s) {
+  var map = { AUTO: 'b-auto', NEEDS_REVIEW: 'b-review', CONFIRMED: 'b-confirmed', REJECTED: 'b-rejected',
+              VALID: 'b-valid', WARN: 'b-warn', ERROR: 'b-error', PENDING: 'b-pending' };
+  var label = s === 'NEEDS_REVIEW' ? 'REVIEW' : s;
+  return '<span class="badge ' + (map[s] || 'b-pending') + '">' + esc(label) + '</span>';
+}
+
+/* ── Step 1: clients + run ── */
+async function loadClients() {
+  try {
+    var j = await apiGet('/api/serviceadmin/clients');
+    var list = (j.data || []).filter(function (c) { return c.clientId; });
+    var sel = document.getElementById('clientSel');
+    sel.innerHTML = '<option value="">Select a church…</option>' + list.map(function (c) {
+      var name = c.churchName || c.name || c.clientId;
+      return '<option value="' + esc(c.clientId) + '">' + esc(name) + ' (' + esc(c.clientId) + ')</option>';
+    }).join('');
+  } catch (e) { toast('Could not load churches: ' + e.message, true); }
+}
+
+async function refreshRuns() {
+  if (!S.clientId) { document.getElementById('runSel').innerHTML = '<option value="">—</option>'; return; }
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs', { clientId: S.clientId });
+    var runs = j.runs || [];
+    document.getElementById('runSel').innerHTML = '<option value="">—</option>' + runs.map(function (r) {
+      return '<option value="' + r.id + '">#' + r.id + ' · ' + esc(r.status) + ' · ' + esc(r.sourceLabel || 'no label') + '</option>';
+    }).join('');
+  } catch (e) { /* ignore */ }
+}
+
+function renderRunInfo() {
+  if (!S.runId) { document.getElementById('runInfo').innerHTML = ''; return; }
+  document.getElementById('runInfo').innerHTML =
+    '<div class="pill on">Run #' + S.runId + '</div>' +
+    '<div class="pill" style="cursor:default">' + esc(S.runStatus) + '</div>';
+}
+
+document.getElementById('clientSel').addEventListener('change', function () {
+  S.clientId = this.value; refreshRuns();
+});
+document.getElementById('fileInput').addEventListener('change', function () {
+  document.getElementById('fileLabel').value = this.files.length ? this.files[0].name : 'No file chosen';
+});
+
+document.getElementById('btnCreateRun').addEventListener('click', async function () {
+  if (!S.clientId) { toast('Pick a church first', true); return; }
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs',
+      { clientId: S.clientId, sourceLabel: document.getElementById('sourceLabel').value });
+    S.runId = j.run.id; S.runStatus = j.run.status; S.sources = {};
+    renderRunInfo(); renderSources(); setStep(2);
+    toast('Run #' + S.runId + ' created');
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+document.getElementById('btnResume').addEventListener('click', async function () {
+  var id = document.getElementById('runSel').value;
+  if (!S.clientId || !id) { toast('Pick a church and a run', true); return; }
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + id, { clientId: S.clientId });
+    S.runId = j.run.id; S.runStatus = j.run.status;
+    // reload profiled source tables
+    var p = await apiGet('/api/serviceadmin/etl/runs/' + id + '/profile', { clientId: S.clientId });
+    S.sources = {};
+    Object.keys(p.profile || {}).forEach(function (t) { S.sources[t] = { profile: p.profile[t], rowCount: null }; });
+    renderRunInfo(); renderSources(); refreshMapSources(); setStep(2);
+    toast('Resumed run #' + S.runId + ' (' + S.runStatus + ')');
+  } catch (e) { toast(e.message, true); }
+});
+
+/* ── Step 2: upload + profile ── */
+document.getElementById('btnUpload').addEventListener('click', async function () {
+  var fi = document.getElementById('fileInput');
+  if (!S.runId) { toast('Create a run first', true); return; }
+  if (!fi.files.length) { toast('Choose a file', true); return; }
+  var fd = new FormData();
+  fd.append('file', fi.files[0]);
+  fd.append('clientId', S.clientId);
+  var sname = document.getElementById('srcName').value.trim();
+  if (sname) fd.append('sourceTable', sname);
+  this.disabled = true;
+  try {
+    var r = await fetch('/api/serviceadmin/etl/runs/' + S.runId + '/extract', { method: 'POST', body: fd });
+    var j = await r.json();
+    if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+    S.sources[j.sourceTable] = { profile: j.profile, rowCount: j.rowCount };
+    S.runStatus = 'PROFILED'; renderRunInfo();
+    fi.value = ''; document.getElementById('fileLabel').value = 'No file chosen';
+    document.getElementById('srcName').value = '';
+    renderSources(); refreshMapSources(); setStep(3);
+    toast('Profiled "' + j.sourceTable + '" — ' + j.rowCount + ' rows');
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+function renderSources() {
+  var keys = Object.keys(S.sources);
+  var el = document.getElementById('sourcesArea');
+  if (!keys.length) { el.innerHTML = '<div class="hint">No sources uploaded yet.</div>'; return; }
+  el.innerHTML = keys.map(function (t) {
+    var cols = S.sources[t].profile || [];
+    var rows = cols.map(function (c) {
+      return '<tr><td><strong>' + esc(c.column) + '</strong></td><td>' + statusBadge(c.type) +
+        '</td><td>' + esc(c.nonNull) + '/' + esc(c.total) + '</td><td>' + esc(c.distinct) +
+        '</td><td>' + (c.nullRate != null ? (Math.round(c.nullRate * 100) + '%') : '') +
+        '</td><td class="mono">' + esc(c.samples || '') + '</td></tr>';
+    }).join('');
+    return '<div style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:6px;">' +
+      esc(t) + (S.sources[t].rowCount != null ? ' · ' + S.sources[t].rowCount + ' rows' : '') + '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Column</th><th>Type</th><th>Filled</th>' +
+      '<th>Distinct</th><th>Null%</th><th>Samples</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }).join('');
+}
+
+function refreshMapSources() {
+  var keys = Object.keys(S.sources);
+  document.getElementById('mapSrcSel').innerHTML = keys.length
+    ? keys.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('')
+    : '<option value="">—</option>';
+}
+
+/* ── Step 3: mapping ── */
+document.getElementById('btnSuggest').addEventListener('click', async function () {
+  var target = document.getElementById('targetSel').value;
+  var source = document.getElementById('mapSrcSel').value;
+  if (!source) { toast('Upload a source first', true); return; }
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/mappings/suggest',
+      { clientId: S.clientId, targetTable: target, sourceTable: source });
+    S.runStatus = 'MAPPED'; renderRunInfo();
+    renderMappings(j.mappings || [], source);
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+function sourceColOptions(sourceTable, selected) {
+  var cols = (S.sources[sourceTable] || {}).profile || [];
+  var opts = '<option value="">— none —</option>';
+  cols.forEach(function (c) {
+    opts += '<option value="' + esc(c.column) + '"' + (c.column === selected ? ' selected' : '') + '>' +
+      esc(c.column) + '</option>';
+  });
+  return opts;
+}
+
+function renderMappings(rules, sourceTable) {
+  var auto = rules.filter(function (r) { return r.status === 'AUTO'; }).length;
+  var review = rules.filter(function (r) { return r.status === 'NEEDS_REVIEW'; }).length;
+  var body = rules.map(function (r) {
+    return '<tr data-tc="' + esc(r.targetColumn) + '">' +
+      '<td><strong>' + esc(r.targetColumn) + '</strong></td>' +
+      '<td><select class="m-src">' + sourceColOptions(sourceTable, r.sourceColumn) + '</select></td>' +
+      '<td><input type="text" class="m-tf" value="' + esc(r.transform || '') + '" style="padding:6px 8px;font-size:12px;"></td>' +
+      '<td>' + (r.confidence != null ? Number(r.confidence).toFixed(2) : '') + '</td>' +
+      '<td>' + statusBadge(r.status) + '</td>' +
+      '<td class="msg">' + esc(r.rationale || '') + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button class="btn btn-sm btn-green m-confirm">Confirm</button> ' +
+        '<button class="btn btn-sm btn-red m-reject">Reject</button>' +
+      '</td></tr>';
+  }).join('');
+  document.getElementById('mapArea').innerHTML =
+    '<div class="summary"><div class="stat"><div class="n">' + auto + '</div><div class="k">auto</div></div>' +
+    '<div class="stat"><div class="n">' + review + '</div><div class="k">review</div></div></div>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Target</th><th>Source column</th><th>Transform</th>' +
+    '<th>Conf.</th><th>Status</th><th>Why</th><th>Decision</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+    '<div style="margin-top:14px;"><button class="btn" id="btnGoStage">Done mapping → Stage</button></div>';
+
+  document.getElementById('btnGoStage').addEventListener('click', function () {
+    S.target = document.getElementById('targetSel').value;
+    document.getElementById('stageTarget').textContent = S.target;
+    setStep(4);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#mapArea tbody tr'), function (tr) {
+    function decide(decision) {
+      return async function () {
+        var tc = tr.getAttribute('data-tc');
+        var src = tr.querySelector('.m-src').value;
+        var tf = tr.querySelector('.m-tf').value;
+        try {
+          var j = await apiSend('PUT', '/api/serviceadmin/etl/runs/' + S.runId + '/mappings', {
+            clientId: S.clientId, targetTable: document.getElementById('targetSel').value,
+            targetColumn: tc, sourceTable: sourceTable, sourceColumn: src, transform: tf, decision: decision
+          });
+          var cell = tr.children[4];
+          cell.innerHTML = statusBadge(j.mapping.status);
+          toast(tc + ' ' + decision.toLowerCase());
+        } catch (e) { toast(e.message, true); }
+      };
+    }
+    tr.querySelector('.m-confirm').addEventListener('click', decide('CONFIRMED'));
+    tr.querySelector('.m-reject').addEventListener('click', decide('REJECTED'));
+  });
+}
+
+/* ── Step 4: stage + preview ── */
+document.getElementById('btnStage').addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/stage',
+      { clientId: S.clientId, targetTable: S.target });
+    S.runStatus = 'VALIDATED'; renderRunInfo();
+    var v = j.validation || {};
+    document.getElementById('valSummary').innerHTML =
+      '<div class="stat"><div class="n">' + (j.staged || 0) + '</div><div class="k">staged</div></div>' +
+      '<div class="stat"><div class="n">' + (v.valid || 0) + '</div><div class="k">valid</div></div>' +
+      '<div class="stat"><div class="n">' + (v.warn || 0) + '</div><div class="k">warn</div></div>' +
+      '<div class="stat"><div class="n">' + (v.error || 0) + '</div><div class="k">error</div></div>';
+    document.getElementById('loadPanel').classList.remove('hidden');
+    document.getElementById('loadTargetLbl').textContent = S.target;
+    S.previewFilter = 'all'; S.previewOffset = 0;
+    renderFilters(); loadPreview(true); refreshBatches();
+    toast('Staged & validated ' + (j.staged || 0) + ' rows');
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+/* ── load + rollback ── */
+document.getElementById('btnApprove').addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/batches',
+      { clientId: S.clientId, targetTable: S.target });
+    S.runStatus = 'APPROVED'; renderRunInfo(); refreshBatches();
+    toast('Batch #' + j.batch.id + ' approved');
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+document.getElementById('btnVerify').addEventListener('click', async function () {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/verify', { clientId: S.clientId });
+    var checks = (j.checks || []).map(function (c) {
+      var cls = c.status === 'PASS' ? 'b-valid' : (c.status === 'WARN' ? 'b-warn' : 'b-error');
+      return '<tr><td><span class="badge ' + cls + '">' + esc(c.status) + '</span></td>' +
+        '<td><strong>' + esc(c.name) + '</strong></td><td class="msg">' + esc(c.detail) + '</td></tr>';
+    }).join('');
+    document.getElementById('verifyArea').innerHTML =
+      '<div style="margin:6px 0;font-weight:700;">Verification: ' +
+      (j.verified ? '<span class="badge b-valid">ALL CHECKS PASSED</span>' : '<span class="badge b-error">ISSUES FOUND</span>') +
+      ' · ' + j.stagedRows + ' staged · ' + j.batches + ' batches · ' + j.auditEvents + ' audit events</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Result</th><th>Check</th><th>Detail</th></tr></thead><tbody>' +
+      checks + '</tbody></table></div>';
+  } catch (e) { toast(e.message, true); }
+});
+
+async function refreshBatches() {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/batches', { clientId: S.clientId });
+    var batches = (j.batches || []).filter(function (b) { return b.targetTable === S.target; });
+    var el = document.getElementById('batchArea');
+    if (!batches.length) { el.innerHTML = '<div class="hint">No batches yet.</div>'; return; }
+    el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Status</th>' +
+      '<th>Ins</th><th>Upd</th><th>Skip</th><th>Fail</th><th>Actions</th></tr></thead><tbody>' +
+      batches.map(function (b) {
+        var actions = '';
+        if (b.status === 'APPROVED') actions = '<button class="btn btn-sm" data-load="' + b.id + '">Load to live</button>';
+        else if (b.status === 'LOADED') actions = '<button class="btn btn-sm btn-red" data-rb="' + b.id + '">Roll back</button> ' +
+          '<button class="btn btn-sm btn-light" data-rep="' + b.id + '">Report</button>';
+        else actions = '<button class="btn btn-sm btn-light" data-rep="' + b.id + '">Report</button>';
+        return '<tr><td>#' + b.id + '</td><td>' + statusBadge(b.status) + '</td>' +
+          '<td>' + (b.inserted || 0) + '</td><td>' + (b.updated || 0) + '</td>' +
+          '<td>' + (b.skipped || 0) + '</td><td>' + (b.failed || 0) + '</td><td style="white-space:nowrap;">' + actions + '</td></tr>';
+      }).join('') + '</tbody></table></div><div id="reportArea" style="margin-top:10px;"></div>';
+
+    Array.prototype.forEach.call(el.querySelectorAll('[data-load]'), function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!confirm('Load batch #' + btn.getAttribute('data-load') + ' into live data?')) return;
+        btn.disabled = true;
+        try {
+          var r = await apiSend('POST', '/api/serviceadmin/etl/batches/' + btn.getAttribute('data-load') + '/load',
+            { clientId: S.clientId });
+          S.runStatus = 'LOADED'; renderRunInfo(); refreshBatches();
+          toast('Loaded: ' + r.batch.inserted + ' inserted, ' + r.batch.skipped + ' skipped, ' + r.batch.failed + ' failed');
+        } catch (e) { toast(e.message, true); btn.disabled = false; }
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rb]'), function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!confirm('Roll back batch #' + btn.getAttribute('data-rb') + '? This soft-deletes the inserted live rows.')) return;
+        btn.disabled = true;
+        try {
+          var r = await apiSend('POST', '/api/serviceadmin/etl/batches/' + btn.getAttribute('data-rb') + '/rollback',
+            { clientId: S.clientId });
+          refreshBatches();
+          toast('Rolled back batch #' + r.batch.id);
+        } catch (e) { toast(e.message, true); btn.disabled = false; }
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rep]'), function (btn) {
+      btn.addEventListener('click', async function () {
+        try {
+          var r = await apiGet('/api/serviceadmin/etl/batches/' + btn.getAttribute('data-rep') + '/report',
+            { clientId: S.clientId });
+          var rows = (r.report || []).slice(0, 200).map(function (x) {
+            return '<tr><td>' + esc(x.sourceRowId) + '</td><td>' + statusBadge(x.rowStatus) +
+              '</td><td>' + esc(x.targetId == null ? '' : x.targetId) + '</td>' +
+              '<td>' + esc(x.dedupeMatchId == null ? '' : x.dedupeMatchId) + '</td></tr>';
+          }).join('');
+          document.getElementById('reportArea').innerHTML =
+            '<div class="tbl-wrap"><table><thead><tr><th>Src row</th><th>Outcome</th><th>Live id</th>' +
+            '<th>Dup of</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+  } catch (e) { /* ignore */ }
+}
+
+function renderFilters() {
+  var f = ['all', 'valid', 'warn', 'error'];
+  document.getElementById('previewFilters').innerHTML = f.map(function (x) {
+    return '<span class="pill ' + (S.previewFilter === x ? 'on' : '') + '" data-f="' + x + '">' + x + '</span>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#previewFilters .pill'), function (p) {
+    p.addEventListener('click', function () {
+      S.previewFilter = p.getAttribute('data-f'); S.previewOffset = 0;
+      renderFilters(); loadPreview(true);
+    });
+  });
+}
+
+async function loadPreview(reset) {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/preview',
+      { clientId: S.clientId, targetTable: S.target, filter: S.previewFilter, limit: 50, offset: S.previewOffset });
+    var rows = j.rows || [];
+    var body = rows.map(function (r) {
+      var vals = Object.keys(r.values || {}).map(function (k) {
+        return '<div><span style="color:#9aa0ad">' + esc(k) + ':</span> ' + esc(r.values[k]) + '</div>';
+      }).join('');
+      var msgs = '';
+      try {
+        var arr = r.validationMsgs ? JSON.parse(r.validationMsgs) : [];
+        msgs = arr.map(function (m) {
+          return '<div class="msg ' + (m.level === 'ERROR' ? 'err' : '') + '">• ' + esc(m.message) + '</div>';
+        }).join('');
+      } catch (e) { msgs = ''; }
+      var dedupe = (r.dedupeMatchId ? ('dup #' + r.dedupeMatchId + ' / ' + esc(r.dedupeAction || '')) : '');
+      return '<tr><td>' + esc(r.sourceRowId) + '</td><td>' + statusBadge(r.rowStatus) + '</td>' +
+        '<td>' + vals + '</td><td>' + msgs + '</td><td class="msg">' + dedupe + '</td></tr>';
+    }).join('');
+    var wrap = document.getElementById('previewArea');
+    var table = '<div class="tbl-wrap"><table><thead><tr><th>Src row</th><th>Status</th><th>Values</th>' +
+      '<th>Messages</th><th>Dedupe</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<div style="margin-top:10px;font-size:12px;color:#8a8f9c;">Showing ' +
+      (rows.length ? (S.previewOffset + 1) : 0) + '–' + (S.previewOffset + rows.length) + ' of ' + j.total +
+      (S.previewOffset + rows.length < j.total ? ' · <a href="#" id="moreLink">load more</a>' : '') + '</div>';
+    if (reset) wrap.innerHTML = table; else wrap.innerHTML = table;
+    var more = document.getElementById('moreLink');
+    if (more) more.addEventListener('click', function (e) {
+      e.preventDefault(); S.previewOffset += 50; loadPreview(false);
+    });
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ── init ── */
+loadClients();
+setStep(1);
+</script>
+</body>
+</html>

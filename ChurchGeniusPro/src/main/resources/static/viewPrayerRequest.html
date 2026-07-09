@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prayer Requests</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f0f2f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      background: #673147;
+      box-shadow: 0 2px 12px rgba(103,49,71,.35);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-logo {
+      height: 44px;
+      width: auto;
+      max-width: 160px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+    .topbar-logo-fallback {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,.15);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .topbar-name {
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .topbar-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,.6);
+      margin-top: 1px;
+    }
+
+    /* ── Content wrapper ────────────────────────────────────────────────── */
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 28px 16px 56px;
+    }
+
+    /* ── Verse card ─────────────────────────────────────────────────────── */
+    .verse-card {
+      background: linear-gradient(135deg, #4a1f30 0%, #673147 60%, #3949ab 100%);
+      border-radius: 14px;
+      padding: 24px 26px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 18px rgba(103,49,71,.22);
+      position: relative;
+      overflow: hidden;
+    }
+    .verse-card::before {
+      content: '\201C';
+      position: absolute;
+      top: -10px;
+      left: 14px;
+      font-size: 100px;
+      color: rgba(255,255,255,.10);
+      font-family: Georgia, serif;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .verse-text {
+      color: #fff;
+      font-size: 15px;
+      line-height: 1.65;
+      font-style: italic;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .verse-reference {
+      color: rgba(255,255,255,.75);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Submit button ──────────────────────────────────────────────────── */
+    .btn-submit-new {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #673147, #3949ab);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(103,49,71,.3);
+      transition: opacity 0.18s, transform 0.15s;
+      margin-bottom: 28px;
+      letter-spacing: 0.2px;
+    }
+    .btn-submit-new:hover {
+      opacity: 0.93;
+      transform: translateY(-1px);
+    }
+
+    /* ── Section cards ──────────────────────────────────────────────────── */
+    .section-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.08);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .section-card-header {
+      background: linear-gradient(135deg, #673147, #3949ab);
+      color: #fff;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      letter-spacing: 0.1px;
+    }
+    .section-card-header::before {
+      content: '🙏';
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .request-list {
+      padding: 14px 18px;
+    }
+
+    /* ── Request items ──────────────────────────────────────────────────── */
+    .request-item {
+      border-left: 4px solid #673147;
+      background: #fafbff;
+      border-radius: 9px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      transition: box-shadow 0.15s;
+    }
+    .request-item:last-child { margin-bottom: 0; }
+    .request-item:hover { box-shadow: 0 2px 10px rgba(103,49,71,.10); }
+
+    .request-title {
+      font-weight: 700;
+      color: #3f3553;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .request-desc {
+      color: #555;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+    .request-by {
+      color: #9fa8c4;
+      font-size: 12px;
+      margin-top: 7px;
+    }
+    .request-by span {
+      font-style: italic;
+    }
+
+    /* ── Empty / loading states ─────────────────────────────────────────── */
+    .state-msg {
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+      padding: 48px 20px;
+    }
+    .state-msg .state-icon {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    /* ── Modal overlay ──────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18);
+      animation: modalIn 0.18s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0)     scale(1); }
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, #4a1f30 0%, #673147 45%, #3949ab 100%);
+      color: #fff;
+      padding: 22px 28px;
+      text-align: center;
+    }
+    .modal-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .modal-header p {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-top: 3px;
+    }
+
+    .modal-body {
+      padding: 24px 28px;
+    }
+
+    /* ── Form fields ────────────────────────────────────────────────────── */
+    .field {
+      margin-bottom: 18px;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 5px;
+    }
+    .field label .req { color: #e53935; margin-left: 2px; }
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid #dde;
+      border-radius: 9px;
+      background: #fafbff;
+      font-size: 14px;
+      font-family: inherit;
+      color: #333;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: #673147;
+      box-shadow: 0 0 0 3px rgba(103,49,71,.1);
+    }
+    .field textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    /* ── Modal actions ──────────────────────────────────────────────────── */
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .btn-cancel {
+      flex: 1;
+      background: #f0f2f8;
+      color: #444;
+      border: none;
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-cancel:hover { background: #e4e6ef; }
+
+    .btn-save {
+      flex: 2;
+      background: linear-gradient(135deg, #673147, #3949ab);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(103,49,71,.25);
+      transition: opacity 0.18s, transform 0.15s;
+    }
+    .btn-save:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-save:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ── Feedback message ───────────────────────────────────────────────── */
+    .feedback {
+      font-size: 13px;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      display: none;
+    }
+    .feedback.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      display: block;
+    }
+    .feedback.error {
+      background: #ffebee;
+      color: #c62828;
+      display: block;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      color: #bbb;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    /* ── Mobile ─────────────────────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      .topbar { padding: 10px 18px; }
+      .content { padding: 20px 12px 48px; }
+      .modal-body { padding: 20px 18px; }
+      .modal-header { padding: 18px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div id="topbarLogoWrap">
+    <div class="topbar-logo-fallback" id="logoFallback">⛪</div>
+  </div>
+  <div>
+    <div class="topbar-name" id="topbarChurchName">Loading…</div>
+    <div class="topbar-sub">Prayer Requests</div>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- Daily verse — hidden until loaded -->
+  <div class="verse-card" id="verseCard" style="display:none;">
+    <p class="verse-text"  id="verseText"></p>
+    <p class="verse-reference" id="verseReference"></p>
+  </div>
+
+  <button class="btn-submit-new" onclick="openSubmitModal()">+ Submit a Prayer Request</button>
+
+  <div id="vprContent">
+    <div class="state-msg">
+      <span class="state-icon">🙏</span>
+      Loading prayer requests…
+    </div>
+  </div>
+
+  <p class="footer">Powered by ChurchGenius Pro</p>
+</div>
+
+<!-- Submit Modal -->
+<div class="modal-overlay" id="vprOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Submit a Prayer Request</h2>
+      <p>We will lift your request up in prayer</p>
+    </div>
+    <div class="modal-body">
+
+      <div class="field">
+        <label for="vprSection">Section</label>
+        <select id="vprSection"></select>
+      </div>
+
+      <div class="field">
+        <label for="vprTitle">Prayer Request <span class="req">*</span></label>
+        <input type="text" id="vprTitle" placeholder="Brief title or subject" maxlength="200" />
+      </div>
+
+      <div class="field">
+        <label for="vprDesc">Details <span style="font-weight:400;color:#999;">(optional)</span></label>
+        <textarea id="vprDesc" placeholder="Share more details about this prayer request…"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="vprName">Your Name <span style="font-weight:400;color:#999;">(optional)</span></label>
+        <input type="text" id="vprName" placeholder="Anonymous if left blank" maxlength="100" />
+      </div>
+
+      <div class="feedback" id="vprMsg"></div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-save"   id="vprSaveBtn" onclick="submitRequest()">Submit Request</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Read encrypted clientId from ?cid= param ──────────────────────────
+  const params = new URLSearchParams(window.location.search);
+  const CID    = params.get('cid') || '';
+
+  if (!CID) {
+    document.getElementById('vprContent').innerHTML =
+      '<div class="state-msg"><span class="state-icon">⚠️</span>Invalid link — no church identifier found.</div>';
+    document.getElementById('topbarChurchName').textContent = 'Prayer Requests';
+  } else {
+    loadChurchBranding();
+    loadVerse();
+    loadRequests();
+  }
+
+  // ── Church branding ───────────────────────────────────────────────────
+  async function loadChurchBranding() {
+    try {
+      const r = await fetch('/api/prayer/public-church-info?cid=' + encodeURIComponent(CID));
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.name) {
+        document.getElementById('topbarChurchName').textContent = d.name;
+        document.title = d.name + ' — Prayer Requests';
+      }
+
+      // Logo — replace fallback emoji with actual image if available
+      const img = new Image();
+      img.onload = () => {
+        img.className = 'topbar-logo';
+        document.getElementById('topbarLogoWrap').innerHTML = '';
+        document.getElementById('topbarLogoWrap').appendChild(img);
+      };
+      img.src = '/api/prayer/public-logo?cid=' + encodeURIComponent(CID);
+    } catch (_) {}
+  }
+
+  // ── Daily Bible verse ─────────────────────────────────────────────────
+  async function loadVerse() {
+    try {
+      const r = await fetch('/api/prayer/public-verse?cid=' + encodeURIComponent(CID));
+      if (!r.ok || r.status === 204) return;
+      const d = await r.json();
+      if (!d.verseText) return;
+      document.getElementById('verseText').textContent      = '“' + d.verseText + '”';
+      document.getElementById('verseReference').textContent = d.reference ? '— ' + d.reference : '';
+      document.getElementById('verseCard').style.display    = '';
+    } catch (_) {}
+  }
+
+  // ── Load and render prayer requests ───────────────────────────────────
+  async function loadRequests() {
+    document.getElementById('vprContent').innerHTML =
+      '<div class="state-msg"><span class="state-icon">🙏</span>Loading prayer requests…</div>';
+    try {
+      const res  = await fetch('/api/prayer/public-requests?cid=' + encodeURIComponent(CID));
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        document.getElementById('vprContent').innerHTML =
+          '<div class="state-msg"><span class="state-icon">⚠️</span>Unable to load prayer requests. Please try again later.</div>';
+        return;
+      }
+
+      renderSections(data);
+      populateSectionDropdown(data);
+    } catch (e) {
+      document.getElementById('vprContent').innerHTML =
+        '<div class="state-msg"><span class="state-icon">⚠️</span>Unable to load prayer requests. Please try again later.</div>';
+    }
+  }
+
+  function renderSections(sections) {
+    const container = document.getElementById('vprContent');
+    if (!sections.length) {
+      container.innerHTML =
+        '<div class="state-msg"><span class="state-icon">🙏</span>No prayer requests have been added yet.</div>';
+      return;
+    }
+
+    let html = '';
+    for (const sec of sections) {
+      const requests = sec.requests || [];
+      html += `<div class="section-card">`;
+      html += `<div class="section-card-header">${esc(sec.name)}</div>`;
+      html += `<div class="request-list">`;
+
+      if (!requests.length) {
+        html += '<p style="color:#bbb;font-size:13px;padding:6px 2px;">No requests in this section.</p>';
+      } else {
+        for (const r of requests) {
+          html += `<div class="request-item">`;
+          html += `<div class="request-title">${esc(r.title)}</div>`;
+          if (r.description) {
+            html += `<div class="request-desc">${esc(r.description)}</div>`;
+          }
+          if (r.requesterName) {
+            html += `<div class="request-by">Requested by: <span>${esc(r.requesterName)}</span></div>`;
+          }
+          html += `</div>`;
+        }
+      }
+      html += `</div></div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function populateSectionDropdown(sections) {
+    const sel = document.getElementById('vprSection');
+    sel.innerHTML = '';
+    for (const sec of sections) {
+      const opt = document.createElement('option');
+      opt.value       = sec.id;
+      opt.textContent = sec.name;
+      sel.appendChild(opt);
+    }
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────
+  function openSubmitModal() {
+    document.getElementById('vprTitle').value = '';
+    document.getElementById('vprDesc').value  = '';
+    document.getElementById('vprName').value  = '';
+    setMsg('', '');
+    document.getElementById('vprSaveBtn').disabled = false;
+    document.getElementById('vprOverlay').classList.add('open');
+    document.getElementById('vprTitle').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('vprOverlay').classList.remove('open');
+  }
+
+  document.getElementById('vprOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  async function submitRequest() {
+    const title  = document.getElementById('vprTitle').value.trim();
+    const desc   = document.getElementById('vprDesc').value.trim();
+    const name   = document.getElementById('vprName').value.trim();
+    const secId  = document.getElementById('vprSection').value;
+    const saveBtn = document.getElementById('vprSaveBtn');
+
+    if (!title) {
+      setMsg('Prayer request title is required.', 'error');
+      document.getElementById('vprTitle').focus();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Submitting…';
+    setMsg('', '');
+
+    try {
+      const res  = await fetch('/api/prayer/public-submit?cid=' + encodeURIComponent(CID), {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sectionId: secId, title, description: desc, requesterName: name })
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setMsg(data.error || 'Submission failed. Please try again.', 'error');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Submit Request';
+        return;
+      }
+
+      setMsg('Your prayer request has been submitted. Thank you! 🙏', 'success');
+      saveBtn.textContent = 'Submitted!';
+      setTimeout(() => {
+        closeModal();
+        loadRequests();
+      }, 1800);
+    } catch (e) {
+      setMsg('Submission failed. Please try again.', 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Submit Request';
+    }
+  }
+
+  function setMsg(text, type) {
+    const el = document.getElementById('vprMsg');
+    el.textContent = text;
+    el.className = 'feedback' + (type ? ' ' + type : '');
+  }
+
+  // ── Utility ───────────────────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>

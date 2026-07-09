@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <title>Kids Check-In</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f6fa; color: #333; min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center; padding: 28px 16px;
+    }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    a { color: #673147; }
+
+    .page {
+      width: 100%; max-width: 640px;
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 4px 28px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    .hdr {
+      background: linear-gradient(135deg, #673147 0%, #8d3f5f 100%);
+      color: #fff; padding: 26px 24px 22px; text-align: center;
+    }
+    .hdr h1 { font-size: 22px; font-weight: 700; letter-spacing: .2px; margin: 0; }
+    .hdr p  { font-size: 13px; opacity: .85; margin-top: 6px; }
+
+    .body { padding: 22px 22px 28px; }
+    .field-label { font-size: 12px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .row { display: flex; gap: 10px; align-items: stretch; }
+    .row input[type=tel] {
+      flex: 1; border: 1.5px solid #ddd; border-radius: 9px;
+      padding: 12px 14px; font-size: 15px; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .row input[type=tel]:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .btn-primary {
+      background: #673147; color: #fff; border-radius: 9px;
+      padding: 12px 22px; font-size: 14px; font-weight: 700;
+      transition: background .15s;
+    }
+    .btn-primary:hover  { background: #4f2538; }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+    .results { margin-top: 22px; display: none; }
+    .results.show { display: block; }
+    .empty-note {
+      padding: 18px; text-align: center; color: #888; font-size: 14px;
+      background: #fafbfd; border: 1px dashed #e3e6ef; border-radius: 10px;
+    }
+
+    .child-card {
+      border: 1.5px solid #e3e6ef; border-radius: 12px;
+      padding: 14px 16px; margin-top: 12px; background: #fdfdff;
+    }
+    .child-name { font-size: 16px; font-weight: 700; color: #1e2139; }
+    .child-meta { font-size: 12px; color: #666; margin-top: 2px; }
+    .check-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 8px; margin-top: 10px;
+      border-radius: 8px; background: #fff; border: 1px solid #f0f0f0;
+    }
+    .check-row input[type=checkbox] {
+      width: 18px; height: 18px; accent-color: #673147; flex-shrink: 0;
+    }
+    .check-row label { font-size: 14px; flex: 1; cursor: pointer; }
+    .check-row .sub { font-size: 12px; color: #888; }
+    .guardian-block { margin-top: 6px; padding-left: 6px; border-left: 2px solid #f0e8ec; }
+    .guardian-block .check-row { background: #fafbfd; }
+
+    .actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-secondary {
+      background: #fff; color: #673147; border: 1.5px solid #673147;
+      border-radius: 9px; padding: 10px 18px; font-size: 14px; font-weight: 600;
+    }
+    .btn-secondary:hover { background: #f4ecf0; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #c62828; color: #fff; padding: 10px 20px; border-radius: 8px;
+      font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── Success / label ── */
+    .success-card { padding: 28px 22px 22px; text-align: center; }
+    .success-tag { font-size: 13px; color: #2e7d32; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+    .success-people { font-size: 16px; font-weight: 700; color: #1e2139; }
+    .success-people .person { display: block; margin: 2px 0; }
+    .success-code-label { font-size: 11px; color: #888; text-transform: uppercase;
+      letter-spacing: .6px; margin-top: 14px; }
+    .success-code {
+      background: #f5eaef; color: #673147;
+      font-family: "Courier New", monospace; font-weight: 900;
+      /* Tight letter-spacing + nowrap keeps the 7-character family code
+         (e.g. "G-8624") on one line inside the 640px-max card. The old
+         6px tracking pushed it past the card edge on narrow screens and
+         the browser wrapped it onto two lines. */
+      font-size: 44px; letter-spacing: 2px; white-space: nowrap;
+      border-radius: 12px; padding: 12px 22px;
+      display: inline-block; margin-top: 6px;
+      max-width: 100%; overflow: visible;
+    }
+    .success-time { font-size: 12px; color: #555; margin-top: 10px; }
+    .success-hint { font-size: 12px; color: #888; margin-top: 6px; }
+
+    /* ── Print: mini-receipt-friendly. Stripped chrome, narrow column,
+         large code so a 58mm thermal printer cuts a usable slip. ── */
+    @media print {
+      body, html { background: #fff !important; padding: 0 !important; }
+      .page { box-shadow: none !important; max-width: 100% !important; border-radius: 0 !important; }
+      .hdr { background: #fff !important; color: #000 !important; padding: 6px 0 !important; }
+      .hdr h1 { font-size: 14px !important; }
+      .hdr p { display: none; }
+      .body { padding: 6px 0 !important; }
+      /* Hide the search form + action buttons; only the receipt is printed. */
+      #searchSection, .actions, .toast, #backBtn { display: none !important; }
+      .success-card { padding: 4px 0 !important; }
+      .success-code { font-size: 42px !important; padding: 6px 14px !important; }
+      .success-people { font-size: 14px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hdr">
+      <h1>🧒 Kids Check-In</h1>
+      <p>Enter the parent / guardian phone number to find children.</p>
+    </div>
+
+    <div class="body" id="searchSection">
+      <div class="field-label">Parent / Guardian Phone</div>
+      <div class="row">
+        <input type="tel" id="phoneInput" inputmode="tel" autocomplete="tel"
+               placeholder="e.g. 555 123 4567"
+               oninput="onPhoneInput()" />
+        <button type="button" class="btn-primary" id="searchBtn" onclick="search()">Search</button>
+      </div>
+
+      <div class="results" id="resultsWrap">
+        <div id="resultsList"></div>
+        <div class="actions" id="resultsActions" style="display:none;">
+          <button type="button" class="btn-secondary" onclick="clearResults()">Clear</button>
+          <button type="button" class="btn-primary" id="submitBtn" onclick="submit()">Check In</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success/receipt area, swapped in after check-in -->
+    <div class="success-card" id="successCard" style="display:none;">
+      <div class="success-tag">✅ Checked In</div>
+      <div class="success-people" id="successPeople"></div>
+      <div class="success-code-label">Check In Code</div>
+      <div class="success-code" id="successCode"></div>
+      <div class="success-time" id="successTime"></div>
+      <div class="success-hint">Show this code at pickup.</div>
+      <div class="actions" style="justify-content:center;">
+        <button type="button" class="btn-secondary" id="backBtn" onclick="resetForAnother()">Check in another</button>
+        <button type="button" class="btn-primary"   onclick="printLabels()">🖨 Print Labels</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script>
+/* ── Locate the encrypted client-id (cid) from the URL. Without it the
+     page can't talk to the API. ── */
+const CID = new URLSearchParams(location.search).get('cid') || '';
+if (!CID) { showToast('This link is invalid (missing org token).', true); }
+
+/* ── State ── */
+let _children = [];   // last search payload
+let _selected = {};   // { kids: {childId:bool}, guardians: {guardianId:bool} }
+
+function onPhoneInput() {
+  // Allow Enter to trigger search for keyboard users.
+  document.getElementById('searchBtn').disabled = false;
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.activeElement &&
+      document.activeElement.id === 'phoneInput') {
+    e.preventDefault();
+    search();
+  }
+});
+
+async function search() {
+  const phone = (document.getElementById('phoneInput').value || '').replace(/\D+/g, '');
+  if (phone.length < 4) { showToast('Enter at least the last 4 digits.', true); return; }
+  if (!CID) return;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.textContent = 'Searching…';
+  try {
+    const url = '/api/public/kids-checkin/search?cid=' + encodeURIComponent(CID)
+              + '&phone=' + encodeURIComponent(phone);
+    const res = await fetch(url, { credentials: 'omit' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error || 'Search failed.', true); return; }
+    _children = Array.isArray(data.children) ? data.children : [];
+    renderResults();
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Search';
+  }
+}
+
+function renderResults() {
+  const wrap = document.getElementById('resultsWrap');
+  const list = document.getElementById('resultsList');
+  const actions = document.getElementById('resultsActions');
+  wrap.classList.add('show');
+  _selected = {};
+  if (!_children.length) {
+    list.innerHTML = '<div class="empty-note">No children found for that phone number.<br>' +
+      '<span style="font-size:12px;">Have a leader register the child in Kids Ministry first.</span></div>';
+    actions.style.display = 'none';
+    return;
+  }
+  // Render two grouped sections: all kids in one card, then a single
+  // de-duplicated parent/guardian section below. The old layout repeated
+  // the same parent under every child card (e.g. "Anson Mathew" appeared
+  // twice when both Asher and Esther were in the result set).
+  const uniqueGuardians = collectUniqueGuardians(_children);
+  list.innerHTML =
+    buildKidsSection(_children) +
+    buildGuardiansSection(uniqueGuardians);
+  actions.style.display = '';
+}
+
+/**
+ * Walks every child in the search payload and pulls together a
+ * de-duplicated guardian list — same guardian.id only appears once even
+ * when several kids share that parent. Kids without family-linked
+ * guardians simply contribute nothing here.
+ */
+function collectUniqueGuardians(children) {
+  const seen   = new Set();
+  const result = [];
+  (children || []).forEach(function(c){
+    (c.guardians || []).forEach(function(g){
+      if (g && g.id != null && !seen.has(g.id)) {
+        seen.add(g.id);
+        result.push(g);
+      }
+    });
+  });
+  return result;
+}
+
+function buildKidsSection(children) {
+  const rows = children.map(function(c){
+    const ageStr = (c.age != null) ? c.age + ' yr' : '';
+    const meta   = [ageStr, c.grade].filter(Boolean).join(' · ');
+    const allergyChip = c.allergies
+      ? '<span style="background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:6px;">⚠ Allergy</span>'
+      : '';
+    return '<div class="check-row">'
+      +   '<input type="checkbox" id="kid_' + c.id + '" onchange="onKidToggle(' + c.id + ', this.checked)" />'
+      +   '<label for="kid_' + c.id + '"><strong>' + esc(c.firstName + ' ' + c.lastName) + '</strong>' + allergyChip
+      +     (meta ? '<div class="sub">' + esc(meta) + '</div>' : '')
+      +   '</label>'
+      + '</div>';
+  }).join('');
+  return '<div class="child-card">'
+    + '<div class="child-name">Children</div>'
+    + rows
+    + '</div>';
+}
+
+function buildGuardiansSection(guardians) {
+  if (!guardians.length) return '';
+  const rows = guardians.map(function(g){
+    const name = ((g.firstName||'') + ' ' + (g.lastName||'')).trim() || '(unnamed)';
+    const sub  = [g.role || '', g.phone || ''].filter(Boolean).join(' · ');
+    return '<div class="check-row">'
+      +   '<input type="checkbox" id="g_' + g.id + '" onchange="onGuardianToggle(' + g.id + ', this.checked)" />'
+      +   '<label for="g_' + g.id + '"><strong>' + esc(name) + '</strong>'
+      +     (sub ? '<div class="sub">' + esc(sub) + '</div>' : '')
+      +   '</label>'
+      + '</div>';
+  }).join('');
+  return '<div class="child-card">'
+    + '<div class="child-name">Parent / Guardian</div>'
+    + rows
+    + '</div>';
+}
+
+// Selection state — now flat per ID (no per-child nesting since the
+// guardian list is shared across kids).
+function onKidToggle(childId, checked) {
+  if (!_selected.kids) _selected.kids = {};
+  _selected.kids[childId] = !!checked;
+}
+function onGuardianToggle(guardianId, checked) {
+  if (!_selected.guardians) _selected.guardians = {};
+  _selected.guardians[guardianId] = !!checked;
+}
+
+// Mirror of KidsMinistryController#generateSecurityCode so the FRONT END can
+// pre-mint a shared family code and pass it to every submission in this
+// session — that way kid+kid+parent all carry the SAME code on their printed
+// labels and group together in the family-checkin lookup.
+function kcGenerateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const letter = chars.charAt(Math.floor(Math.random() * chars.length));
+  const num    = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+  return letter + '-' + num;
+}
+
+async function submit() {
+  // Build one task per checked person. Because the guardian list is now
+  // shared (not duplicated per child), kid rows and guardian rows are
+  // independent — each contributes one task to the batch. Every task
+  // sends the same familyCheckinCode so the printed labels all match.
+  const tasks = [];
+  const kids      = _selected.kids      || {};
+  const guardians = _selected.guardians || {};
+  Object.keys(kids).forEach(function(cid){
+    if (kids[cid]) tasks.push({ childId: Number(cid), guardianMemberId: null });
+  });
+  Object.keys(guardians).forEach(function(gid){
+    if (guardians[gid]) tasks.push({ childId: null, guardianMemberId: Number(gid) });
+  });
+  if (!tasks.length) { showToast('Pick at least one person to check in.', true); return; }
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true; submitBtn.textContent = 'Checking in…';
+
+  // One shared code for this whole submission — sent as familyCheckinCode
+  // on every POST so the backend stamps the same value on every row.
+  const sessionCode = kcGenerateCode();
+
+  let firstTime = '';
+  const labels = [];
+  for (const t of tasks) {
+    try {
+      const res = await fetch('/api/public/kids-checkin/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'omit',
+        body: JSON.stringify({
+          cid: CID,
+          childId: t.childId,
+          guardianMemberId: t.guardianMemberId,
+          familyCheckinCode: sessionCode
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(data.error || 'Check-in failed.', true); continue; }
+      if (!firstTime) firstTime = data.checkinTime || '';
+      // The server echoes back familyCheckinCode — fall through to the
+      // session code if for any reason that's missing.
+      const code = data.familyCheckinCode || sessionCode;
+      if (data.child)    labels.push({ name: data.child.name,    role: '',            code, kind: 'child' });
+      if (data.guardian) labels.push({ name: data.guardian.name, role: data.guardian.role || '', code, kind: 'guardian' });
+    } catch (e) {
+      showToast('Network error. Please try again.', true);
+    }
+  }
+  submitBtn.disabled = false; submitBtn.textContent = 'Check In';
+  if (!labels.length) return;
+  showSuccess(labels, sessionCode, firstTime);
+}
+
+function showSuccess(labels, code, isoTime) {
+  document.getElementById('searchSection').style.display = 'none';
+  document.getElementById('successCard').style.display = '';
+  document.getElementById('successPeople').innerHTML =
+    labels.map(function(l){ return '<span class="person">' + esc(l.name || '') + '</span>'; }).join('');
+  document.getElementById('successCode').textContent = code || '—';
+  document.getElementById('successTime').textContent = isoTime ? ('Checked in: ' + formatDateTime(isoTime)) : '';
+  // Stash for the Print button — opening a popup with all labels needs the
+  // same data after the user clicks, possibly later.
+  _lastPrintPayload = { labels: labels, code: code, isoTime: isoTime };
+}
+
+// Holds the most recent successful check-in so the Print button can rebuild
+// the per-person labels even after the user has dismissed any toast.
+var _lastPrintPayload = null;
+
+/**
+ * Opens a popup window containing one printable label per person, all
+ * stamped with the same shared family code. The popup auto-triggers
+ * window.print() on load so a mini-receipt printer dispatches every
+ * label in one go — without batching them into a single combined slip.
+ *
+ * Why a popup (not the inline page)? The inline page is a single-column
+ * card; a thermal printer with a default "fit to page" driver would
+ * shrink it to nothing. The popup carries a dedicated print stylesheet
+ * with page-break-after rules so each label lands on its own slip.
+ */
+/**
+ * Sequentially prints ONE slip per person, each in its own popup window.
+ *
+ * Thermal mini-printers fed a continuous roll ignore CSS `page-break-after`
+ * and treat the whole multi-section document as a single job — which is
+ * what produced the unwanted "L-2044 L-2044" combined slip earlier.
+ *
+ * Opening a fresh popup per person forces the browser (and driver) to
+ * dispatch each label as a distinct print job. We wait for each popup's
+ * load+afterprint cycle before opening the next so the user isn't
+ * ambushed by N stacked print dialogs.
+ *
+ * NOTE: every label still carries the same shared check-in code; only
+ * the print delivery is split.
+ */
+function printLabels() {
+  const p = _lastPrintPayload;
+  if (!p || !p.labels || !p.labels.length) {
+    showToast('Nothing to print yet.', true);
+    return;
+  }
+  const dateStr = p.isoTime ? formatDateTime(p.isoTime) : formatDateTime(new Date());
+
+  // Build the print sequence. Every checked-in person gets the existing
+  // check-in-code label; each CHILD additionally gets a name label (the
+  // child's name + the shared check-in code) so it can be matched to the
+  // corresponding check-in label. All slips carry the same check-in number.
+  //  • 1 child            → 2 slips (check-in + name)
+  //  • 2 children         → 4 slips (2 check-in + 2 name)
+  const slips = [];
+  p.labels.forEach(function(l) {
+    const code = l.code || p.code || '';
+    slips.push({ type: 'checkin', name: l.name, code: code });
+    if (l.kind === 'child') {
+      slips.push({ type: 'name', name: l.name, code: code });
+    }
+  });
+  if (!slips.length) { showToast('Nothing to print yet.', true); return; }
+
+  // Disable the Print button while the sequence runs so a double-tap doesn't
+  // start two staggered sequences (which can race popups against each other).
+  const btn = document.querySelector('.success-card .btn-primary');
+  if (btn) { btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = 'Printing…'; }
+
+  printOneSlip(slips, 0, dateStr, btn);
+}
+
+/** Recursive driver: print slip `i`, then on close/afterprint open slip i+1. */
+function printOneSlip(slips, i, dateStr, btn) {
+  if (i >= slips.length) {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || '🖨 Print Labels'; }
+    return;
+  }
+  const slip       = slips[i];
+  const code       = slip.code || '';
+  const slipCount  = slips.length;
+  const slipNum    = (slipCount > 1) ? ('Slip ' + (i + 1) + ' of ' + slipCount) : '';
+
+  // Render the check-in code as a scannable Code128 barcode (as a PNG data URL
+  // in the main document, then embedded into the popup so no library is needed
+  // inside the popup window).
+  const barcodeUrl = makeBarcodeDataUrl(code);
+
+  const win = window.open('', '_blank', 'width=380,height=520');
+  if (!win) {
+    showToast('Pop-up blocked — please allow pop-ups to print.', true);
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || '🖨 Print Labels'; }
+    return;
+  }
+
+  // Body differs by slip type: a check-in-code label vs a child-name label.
+  let bodyInner;
+  if (slip.type === 'name') {
+    bodyInner =
+      '<div class="hdr">CHILD NAME</div>' +
+      '<div class="name">' + esc(slip.name || '') + '</div>' +
+      '<div class="hdr" style="margin-top:14px;">CHECK IN CODE</div>' +
+      '<div class="code">' + esc(code) + '</div>' +
+      (barcodeUrl
+        ? '<div class="barcode"><img src="' + barcodeUrl + '" alt="' + esc(code) + ' barcode"/></div>'
+        : '') +
+      '<div class="time">' + esc(dateStr) + '</div>' +
+      (slipNum ? '<div class="slip-num">' + esc(slipNum) + '</div>' : '');
+  } else {
+    bodyInner =
+      '<div class="hdr">CHECK IN CODE</div>' +
+      '<div class="code">' + esc(code) + '</div>' +
+      (barcodeUrl
+        ? '<div class="barcode"><img src="' + barcodeUrl + '" alt="' + esc(code) + ' barcode"/></div>'
+        : '') +
+      '<div class="time">' + esc(dateStr) + '</div>' +
+      (slipNum ? '<div class="slip-num">' + esc(slipNum) + '</div>' : '');
+  }
+
+  const html =
+    '<!doctype html><html><head><meta charset="utf-8"/>' +
+    '<title>Check-In Label ' + (i + 1) + '</title>' +
+    '<style>' +
+    '  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}' +
+    // Bold everything (per spec). Pure black ink on white background to
+    // maximise contrast on thermal slips.
+    '  html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
+    '            color:#000;background:#fff;font-weight:700;}' +
+    '  body{padding:14px;}' +
+    '  *{font-weight:700 !important;}' +
+    '  .label{text-align:center;padding:22px 10px;}' +
+    '  .hdr{font-size:14px;color:#000;text-transform:uppercase;' +
+    '       letter-spacing:1.2px;margin-bottom:10px;}' +
+    '  .name{font-size:30px;color:#000;margin:6px 0 4px;line-height:1.15;}' +
+    '  .code{font-family:"Courier New",monospace;font-size:56px;' +
+    '        color:#000;background:#f5eaef;border-radius:10px;' +
+    '        padding:14px 24px;margin:8px 0;letter-spacing:3px;' +
+    '        white-space:nowrap;display:inline-block;}' +
+    '  .time{font-size:14px;color:#000;margin-top:12px;}' +
+    '  .slip-num{font-size:11px;color:#333;margin-top:8px;letter-spacing:.5px;}' +
+    '  .barcode{margin-top:14px;}' +
+    '  .barcode img{width:90%;max-width:280px;height:auto;}' +
+    '  @media print{' +
+    '    body{padding:0;color:#000 !important;' +
+    '          -webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+    '    .label{padding:6px 0;}' +
+    '    .barcode img{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+    '  }' +
+    '</style></head><body>' +
+    '<section class="label">' + bodyInner + '</section>' +
+    '</body></html>';
+  win.document.write(html);
+  win.document.close();
+
+  // Schedule the next slip once this popup's print dialog closes (or after
+  // a generous timeout if `afterprint` isn't supported / never fires).
+  let advanced = false;
+  const advance = () => {
+    if (advanced) return;
+    advanced = true;
+    try { win.close(); } catch (_) {}
+    // Tiny gap between popups so the printer doesn't merge jobs.
+    setTimeout(() => printOneSlip(slips, i + 1, dateStr, btn), 400);
+  };
+
+  win.addEventListener('load', () => {
+    setTimeout(() => {
+      try { win.focus(); } catch (_) {}
+      // Hook afterprint BEFORE calling print() so we catch the close event.
+      win.addEventListener('afterprint', advance);
+      try { win.print(); } catch (_) { advance(); }
+    }, 120);
+  });
+  // Belt-and-suspenders timeout: some browsers never fire `afterprint`
+  // (or the user dismisses without printing). Move on anyway after 15s.
+  setTimeout(advance, 15000);
+}
+
+function resetForAnother() {
+  document.getElementById('successCard').style.display = 'none';
+  document.getElementById('searchSection').style.display = '';
+  document.getElementById('phoneInput').value = '';
+  clearResults();
+  document.getElementById('phoneInput').focus();
+}
+
+function clearResults() {
+  _children = [];
+  _selected = {};
+  const list = document.getElementById('resultsList');
+  if (list) list.innerHTML = '';
+  document.getElementById('resultsActions').style.display = 'none';
+  document.getElementById('resultsWrap').classList.remove('show');
+}
+
+function formatDateTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const datePart = d.toLocaleDateString(undefined, { month:'long', day:'numeric', year:'numeric' });
+  const timePart = d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+  return datePart + ' ' + timePart;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? '#c62828' : '#2e7d32';
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ── Barcode generation for printed labels ──
+   Renders the check-in code as a Code128 barcode (PNG data URL) in the main
+   document so it can be embedded directly into the print popup. ── */
+function makeBarcodeDataUrl(code) {
+  try {
+    if (typeof JsBarcode === 'undefined' || !code) return '';
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, String(code), {
+      format: 'CODE128', displayValue: false,
+      margin: 6, width: 2, height: 60,
+      background: '#ffffff', lineColor: '#000000'
+    });
+    return canvas.toDataURL('image/png');
+  } catch (e) { return ''; }
+}
+</script>
+</body>
+</html>

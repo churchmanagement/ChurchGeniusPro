@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>WhatsApp Integration — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page header ── */
+    .page-header {
+      background: #25D366;
+      color: #fff;
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+
+    .page-body { max-width: 700px; margin: 32px auto; padding: 0 20px 60px; }
+
+    /* ── Settings card ── */
+    .settings-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      padding: 32px;
+    }
+    .settings-card h2 {
+      font-size: 15px; font-weight: 700; color: #673147;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #eef0fb;
+      padding-bottom: 12px;
+    }
+    .card-description { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.6; }
+
+    /* ── Info notice ── */
+    .info-notice {
+      background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px;
+      padding: 12px 16px; font-size: 13px; color: #1b5e20;
+      margin-bottom: 24px; display: flex; gap: 10px;
+      align-items: flex-start; line-height: 1.5;
+    }
+    .info-notice .notice-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 22px; }
+    .field label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: #25D366; margin-bottom: 6px;
+    }
+    .field small { display: block; font-size: 12px; color: #aaa; margin-top: 5px; line-height: 1.5; }
+
+    .input-wrap { position: relative; }
+    .input-wrap input,
+    .input-wrap textarea {
+      width: 100%; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 10px 44px 10px 13px; font-size: 14px; font-family: inherit;
+      color: #673147; background: #fff; outline: none;
+      transition: border-color .15s; resize: vertical;
+    }
+    .input-wrap textarea { padding-right: 13px; min-height: 90px; }
+    .input-wrap input:focus,
+    .input-wrap textarea:focus {
+      border-color: #25D366;
+      box-shadow: 0 0 0 3px rgba(37,211,102,.1);
+    }
+    .input-wrap input.has-value,
+    .input-wrap textarea.has-value { border-color: #a5d6a7; background: #f9fff9; }
+
+    .btn-toggle-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: #aaa; font-size: 16px;
+      line-height: 1; padding: 2px 4px;
+    }
+    .btn-toggle-eye:hover { color: #25D366; }
+
+    /* ── Token status badge ── */
+    .token-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-bottom: 14px; padding: 5px 12px;
+      border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .token-status.set    { background: #e8f5e9; color: #2e7d32; }
+    .token-status.notset { background: #fff3e0; color: #e65100; }
+
+    /* ── Divider between sections ── */
+    .section-divider {
+      border: none; border-top: 1px solid #eef0fb; margin: 28px 0;
+    }
+
+    /* ── Actions ── */
+    .form-actions { display: flex; justify-content: flex-end; margin-top: 28px; }
+    .btn-save {
+      padding: 11px 32px; background: #25D366; color: #fff;
+      font-size: 14px; font-weight: 600; border: none; border-radius: 8px;
+      cursor: pointer; transition: background .2s; font-family: inherit;
+    }
+    .btn-save:hover { background: #1ebe58; }
+    .btn-save:disabled { opacity: .7; cursor: not-allowed; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px; background: #43a047;
+      color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      display: none; z-index: 2000;
+    }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Char counter ── */
+    .char-counter { font-size: 11px; color: #aaa; text-align: right; margin-top: 4px; }
+    .char-counter.warn { color: #e65100; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <span style="font-size:28px;">💬</span>
+        <h1>WhatsApp Integration</h1>
+      </div>
+
+      <div class="page-body">
+        <div class="settings-card">
+          <h2>Twilio / WhatsApp Credentials</h2>
+          <p class="card-description">
+            Connect your Twilio account to send WhatsApp messages directly from Church Genius Pro.
+            You'll find your Account SID and Auth Token in the
+            <a href="https://console.twilio.com/" target="_blank" rel="noopener"
+               style="color:#1b5e20;">Twilio Console</a>.
+          </p>
+
+          <div class="info-notice">
+            <span class="notice-icon">💡</span>
+            <span>
+              Your <strong>Sender Phone</strong> must be a WhatsApp-enabled Twilio number in the format
+              <code>+15005550006</code>.  The <strong>Message</strong> is the default template sent when
+              no custom text is provided — you can customise it per-send from other pages.
+            </span>
+          </div>
+
+          <!-- Account SID -->
+          <div class="field">
+            <label for="accountSid">Account SID <span style="color:#e53935;">*</span></label>
+            <div class="input-wrap">
+              <input type="text" id="accountSid"
+                     placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                     autocomplete="off" spellcheck="false"
+                     oninput="onInput(this)" />
+            </div>
+            <small>Found at the top of your Twilio Console dashboard.</small>
+          </div>
+
+          <!-- Auth Token -->
+          <div class="field">
+            <label for="authToken">Auth Token <span style="color:#e53935;">*</span></label>
+            <div id="authTokenStatus" class="token-status notset" style="display:none;">
+              <span>🔑</span><span id="authTokenStatusText">Not set</span>
+            </div>
+            <div class="input-wrap">
+              <input type="password" id="authToken"
+                     placeholder="Your Twilio Auth Token"
+                     autocomplete="new-password" spellcheck="false"
+                     oninput="onInput(this)" />
+              <button class="btn-toggle-eye" type="button"
+                      onclick="toggleVisibility('authToken','eyeBtn')"
+                      title="Show / hide auth token" id="eyeBtn">👁</button>
+            </div>
+            <small>Keep this confidential — never share it or expose it in client-side code.</small>
+          </div>
+
+          <hr class="section-divider" />
+          <h2>Sender &amp; Message</h2>
+
+          <!-- Sender Phone -->
+          <div class="field">
+            <label for="senderPhone">Sender Phone <span style="color:#e53935;">*</span></label>
+            <div class="input-wrap">
+              <input type="text" id="senderPhone"
+                     placeholder="+15005550006"
+                     autocomplete="off" spellcheck="false"
+                     oninput="onInput(this)" />
+            </div>
+            <small>
+              The WhatsApp-enabled Twilio number messages are sent from.
+              Must include the country code (e.g. <code>+1</code> for US).
+            </small>
+          </div>
+
+          <!-- Message Template -->
+          <div class="field">
+            <label for="messageTemplate">Default Message</label>
+            <div class="input-wrap">
+              <textarea id="messageTemplate" maxlength="1000"
+                        placeholder="Enter your default WhatsApp message template…"
+                        oninput="onInput(this); updateCharCount()"></textarea>
+            </div>
+            <div class="char-counter" id="charCounter">0 / 1000</div>
+            <small>
+              Optional default message. Leave blank if you prefer to supply the message text per-send.
+            </small>
+          </div>
+
+          <div class="field">
+            <label for="meetingReminderContentSid">Meeting Reminder Template SID</label>
+            <div class="input-wrap">
+              <input type="text" id="meetingReminderContentSid"
+                     placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                     oninput="onInput(this)" />
+            </div>
+            <small>
+              Twilio Content Template SID for Meeting Reminder WhatsApp notifications.
+              When set, meeting reminders use this pre-approved template with dynamic fields:
+              <code>{{churchname}}</code>, <code>{{name}}</code>, <code>{{dateandtime}}</code>,
+              <code>{{location}}</code>, <code>{{direction}}</code>.
+            </small>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-save" id="saveBtn" onclick="saveSettings()">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   WHATSAPP SETTINGS LOGIC
+══════════════════════════════════════════════════════ */
+let authTokenIsSet = false;   // true when an auth token already exists in DB
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/whatsapp-settings');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    setFieldValue('accountSid',                data.accountSid                || '');
+    setFieldValue('senderPhone',               data.senderPhone               || '');
+    setFieldValue('messageTemplate',           data.messageTemplate           || '');
+    setFieldValue('meetingReminderContentSid', data.meetingReminderContentSid || '');
+    updateCharCount();
+
+    authTokenIsSet = !!data.authTokenSet;
+    updateTokenStatus();
+  } catch (e) {
+    console.error('Failed to load WhatsApp settings:', e);
+  }
+}
+
+function setFieldValue(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = val;
+  if (val) el.classList.add('has-value');
+}
+
+function updateTokenStatus() {
+  const badge    = document.getElementById('authTokenStatus');
+  const badgeText= document.getElementById('authTokenStatusText');
+  badge.style.display = 'inline-flex';
+  if (authTokenIsSet) {
+    badge.className     = 'token-status set';
+    badgeText.textContent = 'Auth token is set — enter a new value to replace it';
+  } else {
+    badge.className     = 'token-status notset';
+    badgeText.textContent = 'No auth token saved yet';
+  }
+}
+
+function onInput(input) {
+  if (input.value.trim()) input.classList.add('has-value');
+  else                    input.classList.remove('has-value');
+}
+
+function toggleVisibility(inputId, btnId) {
+  const inp = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈'; }
+  else                         { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+function updateCharCount() {
+  const ta  = document.getElementById('messageTemplate');
+  const cnt = document.getElementById('charCounter');
+  if (!ta || !cnt) return;
+  const len = ta.value.length;
+  cnt.textContent = `${len} / 1000`;
+  cnt.classList.toggle('warn', len > 900);
+}
+
+async function saveSettings() {
+  const accountSid                = document.getElementById('accountSid').value.trim();
+  const authToken                 = document.getElementById('authToken').value.trim();
+  const senderPhone               = document.getElementById('senderPhone').value.trim();
+  const messageTemplate           = document.getElementById('messageTemplate').value.trim();
+  const meetingReminderContentSid = document.getElementById('meetingReminderContentSid').value.trim();
+
+  if (!accountSid) {
+    showToast('Account SID is required.', true);
+    document.getElementById('accountSid').focus();
+    return;
+  }
+  if (!authToken && !authTokenIsSet) {
+    showToast('Auth Token is required.', true);
+    document.getElementById('authToken').focus();
+    return;
+  }
+  if (!senderPhone) {
+    showToast('Sender Phone is required.', true);
+    document.getElementById('senderPhone').focus();
+    return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/api/whatsapp-settings', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ accountSid, authToken, senderPhone, messageTemplate, meetingReminderContentSid }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('WhatsApp settings saved successfully.', false);
+      authTokenIsSet = true;
+      document.getElementById('authToken').value = '';
+      document.getElementById('authToken').classList.remove('has-value');
+      updateTokenStatus();
+    } else {
+      showToast(data.error || 'Failed to save settings.', true);
+    }
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Settings';
+  }
+}
+
+/* ── Utilities ── */
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+/* ── Init ── */
+loadSettings();
+</script>
+<script>
+window.CGP_PAGE = {
+  activePage:  'admin/whatsapp-integration',
+  pageTitle:   '',
+  openSection: 'admin'
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

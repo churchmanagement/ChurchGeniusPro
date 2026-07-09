@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <title>Church Genius Pro – Church Registration</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background-color: #f5f6fa;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #333;
+    }
+
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page wrapper ───────────────────────────────────── */
+    .page-wrapper {
+      width: 100%;
+      max-width: 780px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ── Brand header ───────────────────────────────────── */
+    .brand-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .logo-box { width: 200px; }
+    .logo-box img { width: 100%; height: auto; display: block; }
+
+    .app-title    { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+    .app-subtitle { font-size: 13px; color: #aaa; }
+
+    /* ── Feedback messages ──────────────────────────────── */
+    .feedback {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Form card ──────────────────────────────────────── */
+    .form-card {
+      width: 100%;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .form-card-header {
+      background: #673147;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-card-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+
+    .section-icon { font-size: 16px; }
+    .form-card-body { padding: 20px 24px 24px; }
+
+    /* ── Form grid ──────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px 24px;
+    }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .span-2 { grid-column: span 2; }
+
+    /* ── Field ──────────────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .required-star { color: #e53935; margin-left: 2px; }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 14px;
+      color: #333;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff;
+      font-family: inherit;
+    }
+
+    .field input::placeholder { color: #bbb; }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: #673147;
+      box-shadow: 0 0 0 3px rgba(103,49,71, .1);
+    }
+
+    .field input.invalid,
+    .field select.invalid { border-color: #e53935; }
+
+    .field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* ── Password show/hide wrapper ──────────────────── */
+    .pw-wrap {
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .pw-wrap input {
+      flex: 1;
+      padding-right: 58px; /* room for the toggle button */
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #673147;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      user-select: none;
+    }
+    .pw-toggle:hover { background: rgba(103,49,71, .1); }
+
+    /* ── Declaration checkbox ───────────────────────────── */
+    .declaration-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: #fdf5f7;
+      border: 1.5px solid #e8eaf6;
+      border-radius: 7px;
+    }
+
+    .declaration-wrap input[type="checkbox"] {
+      width: 18px; height: 18px;
+      accent-color: #673147;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 0;
+    }
+
+    .declaration-wrap label {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.6;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .terms-link { color: #3a5a9b; font-weight: 600; text-decoration: underline; }
+    .terms-link:hover { color: #673147; }
+
+    /* ── Action bar ─────────────────────────────────────── */
+    .action-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px 24px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-back-login {
+      font-size: 13px;
+      color: #3a7bd5;
+      font-weight: 500;
+      padding: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-back-login:hover { text-decoration: underline; }
+
+    .action-right { display: flex; align-items: center; gap: 14px; }
+
+    .btn-cancel {
+      padding: 11px 28px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      border: 1.5px solid #e0e0e0;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-cancel:hover { background: #f5f6fa; }
+
+    .btn-submit {
+      padding: 11px 36px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: #3a5a9b;
+      border: none;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-submit:hover:not(:disabled) { background: #3d1d2b; }
+    .btn-submit:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Scrollbar ──────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+    /* ── Info / status screens ──────────────────────────── */
+    #accessDenied, #validatingMsg, #alreadyRegistered {
+      display: none;
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 48px 40px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    #accessDenied .deny-icon,
+    #validatingMsg .validate-icon,
+    #alreadyRegistered .info-icon { font-size: 48px; margin-bottom: 16px; }
+    #accessDenied h2,
+    #validatingMsg h2,
+    #alreadyRegistered h2 { font-size: 20px; color: #1a1a2e; margin-bottom: 10px; }
+    #accessDenied p,
+    #validatingMsg p,
+    #alreadyRegistered p { font-size: 14px; color: #666; line-height: 1.6; }
+
+    /* ── OTP step ───────────────────────────────────────── */
+    #otpStep {
+      display: none;
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 48px 40px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+    #otpStep .otp-icon  { font-size: 48px; margin-bottom: 16px; }
+    #otpStep h2         { font-size: 20px; color: #1a1a2e; margin-bottom: 10px; }
+    #otpStep .otp-desc  { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 28px; }
+
+    .otp-input-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    #otpInput {
+      width: 200px;
+      padding: 14px 16px;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 10px;
+      text-align: center;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      outline: none;
+      color: #3a5a9b;
+      font-family: monospace;
+      transition: border-color .2s;
+    }
+    #otpInput:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    #otpInput.invalid { border-color: #e53935; }
+
+    .otp-hint { font-size: 11px; color: #e53935; min-height: 16px; margin-bottom: 20px; }
+
+    .btn-verify {
+      width: 100%;
+      padding: 13px;
+      background: #3a5a9b;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .18s;
+      margin-bottom: 16px;
+    }
+    .btn-verify:hover:not(:disabled) { background: #3d1d2b; }
+    .btn-verify:disabled { opacity: .65; cursor: not-allowed; }
+
+    .otp-resend {
+      font-size: 13px;
+      color: #3a7bd5;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .otp-resend:hover { text-decoration: underline; }
+    .otp-resend:disabled { color: #aaa; cursor: not-allowed; text-decoration: none; }
+
+    @media (max-width: 680px) {
+      .form-grid        { grid-template-columns: 1fr; }
+      .form-grid.cols-3 { grid-template-columns: 1fr; }
+      .span-2           { grid-column: span 1; }
+      .action-bar       { flex-direction: column; align-items: stretch; }
+      .action-right     { justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Validating Screen ────────────────────────────── -->
+<div id="validatingMsg" style="display:block;">
+  <div class="validate-icon">⏳</div>
+  <h2>Verifying your link…</h2>
+  <p>Please wait while we validate your registration link.</p>
+</div>
+
+<!-- ── Access Denied Screen ─────────────────────────── -->
+<div id="accessDenied">
+  <div class="deny-icon">⛔</div>
+  <h2>Invalid Registration Link</h2>
+  <p id="accessDeniedMsg">This link is invalid, has expired, or the account is not active. Please contact support for assistance.</p>
+</div>
+
+<!-- ── Already Registered Screen ────────────────────── -->
+<div id="alreadyRegistered">
+  <div class="info-icon">⛪</div>
+  <h2>Already Registered</h2>
+  <p>This church has already been registered. If you have any issues, please contact customer service.</p>
+</div>
+
+<!-- ── OTP Verification Step ────────────────────────── -->
+<div id="otpStep">
+  <div class="otp-icon">📧</div>
+  <h2>Check Your Email</h2>
+  <p class="otp-desc">
+    A 6-digit verification code has been sent to
+    <strong id="maskedEmailDisplay"></strong>.
+    Enter it below to complete your registration.
+  </p>
+  <div class="otp-input-wrap">
+    <input type="text" id="otpInput" maxlength="6" placeholder="000000"
+           inputmode="numeric" autocomplete="one-time-code" />
+  </div>
+  <p class="otp-hint" id="otpHint"></p>
+  <button class="btn-verify" id="verifyBtn" onclick="submitOtp()">Verify &amp; Register</button>
+  <button class="otp-resend" id="resendBtn" onclick="resendCode()">Resend Code</button>
+</div>
+
+<!-- ── Main Registration Form ───────────────────────── -->
+<div class="page-wrapper" id="mainContent" style="display:none;">
+
+  <!-- ── Brand Header ────────────────────────────────── -->
+  <div class="brand-header">
+    <div class="logo-box"><img src="/logo.png" alt="Church Genius" onerror="this.style.display='none'" /></div>
+    <p class="app-subtitle">Register your church to get started</p>
+  </div>
+
+  <!-- ── Feedback ────────────────────────────────────── -->
+  <div class="feedback" id="feedbackMsg"></div>
+
+  <form id="churchRegForm" novalidate style="width:100%; display:flex; flex-direction:column; gap:20px;">
+
+    <!-- Hidden fields -->
+    <input type="hidden" id="id"       name="id" />
+    <input type="hidden" id="clientId" name="clientId" />
+
+    <!-- ── Section 1: Personal Information ─────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">👤</span>
+        <h3>Personal Information</h3>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="firstName">First Name <span class="required-star">*</span></label>
+            <input type="text" id="firstName" name="firstName" placeholder="Enter first name" />
+            <span class="field-hint" id="firstNameHint"></span>
+          </div>
+
+          <div class="field">
+            <label for="lastName">Last Name <span class="required-star">*</span></label>
+            <input type="text" id="lastName" name="lastName" placeholder="Enter last name" />
+            <span class="field-hint" id="lastNameHint"></span>
+          </div>
+
+          <div class="field">
+            <label for="email">Email <span class="required-star">*</span></label>
+            <input type="email" id="email" name="email" placeholder="Enter email address" />
+            <span class="field-hint" id="emailHint"></span>
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" placeholder="Enter phone number" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 2: Church Information ───────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">⛪</span>
+        <h3>Church Information</h3>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+
+          <div class="field span-2">
+            <label for="churchName">Church Name</label>
+            <input type="text" id="churchName" name="churchName" placeholder="Enter church name" />
+          </div>
+
+          <div class="field">
+            <label for="ein">EIN (Employer Identification Number)</label>
+            <input type="text" id="ein" name="ein" placeholder="e.g. 12-3456789" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3: Address ───────────────────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">📍</span>
+        <h3>Address</h3>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+
+          <div class="field span-2">
+            <label for="address1">Address Line 1</label>
+            <input type="text" id="address1" name="address1" placeholder="Street address" />
+          </div>
+
+          <div class="field span-2">
+            <label for="address2">Address Line 2</label>
+            <input type="text" id="address2" name="address2" placeholder="Apt, suite, unit, building (optional)" />
+          </div>
+
+          <div class="field">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" placeholder="Enter city" />
+          </div>
+
+          <div class="field">
+            <label for="state">State</label>
+            <select id="state" name="state">
+              <option value="">— Select State —</option>
+              <option value="1">AL – Alabama</option>
+              <option value="2">AK – Alaska</option>
+              <option value="3">AZ – Arizona</option>
+              <option value="4">AR – Arkansas</option>
+              <option value="5">CA – California</option>
+              <option value="6">CO – Colorado</option>
+              <option value="7">CT – Connecticut</option>
+              <option value="8">DE – Delaware</option>
+              <option value="9">FL – Florida</option>
+              <option value="10">GA – Georgia</option>
+              <option value="11">HI – Hawaii</option>
+              <option value="12">ID – Idaho</option>
+              <option value="13">IL – Illinois</option>
+              <option value="14">IN – Indiana</option>
+              <option value="15">IA – Iowa</option>
+              <option value="16">KS – Kansas</option>
+              <option value="17">KY – Kentucky</option>
+              <option value="18">LA – Louisiana</option>
+              <option value="19">ME – Maine</option>
+              <option value="20">MD – Maryland</option>
+              <option value="21">MA – Massachusetts</option>
+              <option value="22">MI – Michigan</option>
+              <option value="23">MN – Minnesota</option>
+              <option value="24">MS – Mississippi</option>
+              <option value="25">MO – Missouri</option>
+              <option value="26">MT – Montana</option>
+              <option value="27">NE – Nebraska</option>
+              <option value="28">NV – Nevada</option>
+              <option value="29">NH – New Hampshire</option>
+              <option value="30">NJ – New Jersey</option>
+              <option value="31">NM – New Mexico</option>
+              <option value="32">NY – New York</option>
+              <option value="33">NC – North Carolina</option>
+              <option value="34">ND – North Dakota</option>
+              <option value="35">OH – Ohio</option>
+              <option value="36">OK – Oklahoma</option>
+              <option value="37">OR – Oregon</option>
+              <option value="38">PA – Pennsylvania</option>
+              <option value="39">RI – Rhode Island</option>
+              <option value="40">SC – South Carolina</option>
+              <option value="41">SD – South Dakota</option>
+              <option value="42">TN – Tennessee</option>
+              <option value="43">TX – Texas</option>
+              <option value="44">UT – Utah</option>
+              <option value="45">VT – Vermont</option>
+              <option value="46">VA – Virginia</option>
+              <option value="47">WA – Washington</option>
+              <option value="48">WV – West Virginia</option>
+              <option value="49">WI – Wisconsin</option>
+              <option value="50">WY – Wyoming</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="country">Country</label>
+            <select id="country" name="country">
+              <option value="USA" selected>USA – United States</option>
+              <option value="CAN">CAN – Canada</option>
+              <option value="GBR">GBR – United Kingdom</option>
+              <option value="AUS">AUS – Australia</option>
+              <option value="IND">IND – India</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="pinCode">Pin / Zip Code</label>
+            <input type="text" id="pinCode" name="pinCode" placeholder="Enter zip / pin code" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section: Website & Social Media (optional) ───────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">🌐</span>
+        <h3>Website &amp; Social Media <span style="font-weight:400;color:#999;font-size:13px;">(optional)</span></h3>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="websiteUrl">Website URL</label>
+            <input type="url" id="websiteUrl" name="websiteUrl" placeholder="https://yourchurch.org" />
+          </div>
+          <div class="field">
+            <label for="facebookUrl">Facebook URL</label>
+            <input type="url" id="facebookUrl" name="facebookUrl" placeholder="https://facebook.com/yourchurch" />
+          </div>
+          <div class="field">
+            <label for="instagramUrl">Instagram URL</label>
+            <input type="url" id="instagramUrl" name="instagramUrl" placeholder="https://instagram.com/yourchurch" />
+          </div>
+          <div class="field span-2">
+            <label for="youtubeUrl">YouTube URL</label>
+            <input type="url" id="youtubeUrl" name="youtubeUrl" placeholder="https://youtube.com/@yourchurch" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 4: Login Credentials ─────────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">🔐</span>
+        <h3>Login Credentials</h3>
+      </div>
+      <div class="form-card-body">
+        <div class="form-grid">
+
+          <div class="field span-2">
+            <label for="username">Username <span class="required-star">*</span></label>
+            <input type="text" id="username" name="username"
+                   placeholder="Choose a username"
+                   autocomplete="username" />
+            <span class="field-hint" id="usernameHint"></span>
+          </div>
+
+          <div class="field">
+            <label for="password">Password <span class="required-star">*</span></label>
+            <div class="pw-wrap">
+              <input type="password" id="password" name="password"
+                     placeholder="At least 8 characters"
+                     autocomplete="new-password" />
+              <button type="button" class="pw-toggle" id="pwToggle1"
+                      onclick="togglePw('password','pwToggle1')"
+                      tabindex="-1" aria-label="Show password">Show</button>
+            </div>
+            <span class="field-hint" id="passwordHint"></span>
+          </div>
+
+          <div class="field">
+            <label for="confirmPassword">Confirm Password <span class="required-star">*</span></label>
+            <div class="pw-wrap">
+              <input type="password" id="confirmPassword" name="confirmPassword"
+                     placeholder="Re-enter password"
+                     autocomplete="new-password" />
+              <button type="button" class="pw-toggle" id="pwToggle2"
+                      onclick="togglePw('confirmPassword','pwToggle2')"
+                      tabindex="-1" aria-label="Show confirm password">Show</button>
+            </div>
+            <span class="field-hint" id="confirmPasswordHint"></span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 5: Declaration ────────────────────── -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">📋</span>
+        <h3>Declaration</h3>
+      </div>
+      <div class="form-card-body">
+        <div class="declaration-wrap">
+          <input type="checkbox" id="declarationCheck" name="declarationCheck" />
+          <label for="declarationCheck">
+            I have read and agree to the
+            <a href="/terms-of-service" target="_blank" class="terms-link">Terms of Service</a>
+            and the
+            <a href="/acceptable-use-policy" target="_blank" class="terms-link">Acceptable Use Policy</a>.
+          </label>
+        </div>
+        <span class="field-hint" id="declarationHint"></span>
+        <div class="declaration-wrap" style="margin-top:10px;">
+          <input type="checkbox" id="privacyCheck" name="privacyCheck" />
+          <label for="privacyCheck">
+            I acknowledge the
+            <a href="/privacy-policy" target="_blank" class="terms-link">Privacy Policy</a>
+            and
+            <a href="/cookie-policy" target="_blank" class="terms-link">Cookie Policy</a>.
+          </label>
+        </div>
+        <span class="field-hint" id="privacyHint"></span>
+      </div>
+    </div>
+
+    <!-- ── Action Bar ────────────────────────────────── -->
+    <div class="action-bar">
+      <button type="button" class="btn-back-login" onclick="window.location.href='/login'">← Back to Login</button>
+      <div class="action-right">
+        <button type="button" class="btn-cancel" onclick="window.location.href='/login'">Cancel</button>
+        <button type="submit" class="btn-submit" id="submitBtn">Register Church</button>
+      </div>
+    </div>
+
+  </form>
+</div><!-- .page-wrapper -->
+
+<script>
+  /* ── Show / hide password ───────────────────────── */
+  function togglePw(inputId, btnId) {
+    const input  = document.getElementById(inputId);
+    const btn    = document.getElementById(btnId);
+    const isHidden = input.type === 'password';
+    input.type       = isHidden ? 'text' : 'password';
+    btn.textContent  = isHidden ? 'Hide' : 'Show';
+    btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+  }
+
+  /* ── Holds the full form payload between the initiate and verify steps ── */
+  let pendingPayload = null;
+
+  /* ── Client-link validation ──────────────────────── */
+  (async function () {
+    console.log('IIFE: started');
+    const params      = new URLSearchParams(window.location.search);
+    const encClientId = params.get('clientId');
+    console.log('IIFE: encClientId =', encClientId);
+
+    const validatingEl      = document.getElementById('validatingMsg');
+    const deniedEl          = document.getElementById('accessDenied');
+    const alreadyRegistered = document.getElementById('alreadyRegistered');
+    const mainEl            = document.getElementById('mainContent');
+
+    if (!encClientId) {
+      deniedEl.style.display = 'block';
+      return;
+    }
+
+    validatingEl.style.display = 'block';
+    console.log('IIFE: showing validating, about to fetch validate');
+
+    try {
+      // Step A: validate service-client link (10-second timeout)
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => { console.log('IIFE: TIMEOUT FIRED - aborting'); controller.abort(); }, 10000);
+      let res, data;
+      try {
+        console.log('IIFE: calling fetch validate...');
+        res  = await fetch('/public/churchregistration/validate?clientId=' +
+                           encodeURIComponent(encClientId),
+                           { signal: controller.signal });
+        console.log('IIFE: validate response received, status =', res.status);
+        data = await res.json().catch(() => ({}));
+        console.log('IIFE: validate data =', data);
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        console.log('IIFE: fetch error =', fetchErr);
+        throw fetchErr;   // re-throw to outer catch for consistent error display
+      }
+      clearTimeout(timeoutId);
+
+      validatingEl.style.display = 'none';
+      console.log('IIFE: validate done, hiding validating msg');
+
+      if (!res.ok || data.status !== 'valid') {
+        document.getElementById('accessDeniedMsg').textContent =
+          data.message || 'This link is invalid or has expired.';
+        deniedEl.style.display = 'block';
+        return;
+      }
+
+      const decryptedClientId = data.clientId || '';
+      document.getElementById('clientId').value = decryptedClientId;
+
+      // Step B: check if church has already been registered
+      const statusRes  = await fetch('/public/churchregistration/status?clientId=' +
+                                     encodeURIComponent(decryptedClientId));
+      const statusData = await statusRes.json().catch(() => ({}));
+
+      if (statusData.registered === true) {
+        alreadyRegistered.style.display = 'block';
+        return;
+      }
+
+      // Step C: prefill form from service_client data
+      try {
+        const prefillRes  = await fetch('/public/churchregistration/prefill?clientId=' +
+                                        encodeURIComponent(decryptedClientId));
+        const prefillData = await prefillRes.json().catch(() => ({}));
+        if (prefillData.found) {
+          const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val) el.value = val;
+          };
+          set('firstName',  prefillData.firstName);
+          set('lastName',   prefillData.lastName);
+          set('email',      prefillData.email);
+          set('phone',      prefillData.phone);
+          set('churchName', prefillData.churchName);
+          set('address1',   prefillData.address1);
+          set('address2',   prefillData.address2);
+          set('city',       prefillData.city);
+          set('pinCode',    prefillData.pinCode);
+          // country select
+          if (prefillData.country) {
+            const countryEl = document.getElementById('country');
+            if (countryEl) {
+              // try exact match first, then fallback to USA
+              const opt = Array.from(countryEl.options).find(o => o.value === prefillData.country);
+              if (opt) countryEl.value = prefillData.country;
+            }
+          }
+          // state — service_client stores state as a string abbreviation (e.g. "TX")
+          // registration form uses numeric option values; match by option text
+          if (prefillData.state) {
+            const stateEl = document.getElementById('state');
+            if (stateEl) {
+              const stateStr = prefillData.state.toString().trim().toUpperCase();
+              // try matching by numeric value first (if already a number)
+              let matched = Array.from(stateEl.options).find(o => o.value === stateStr);
+              // then try matching the two-letter abbreviation in the option text (e.g. "TX – Texas")
+              if (!matched) {
+                matched = Array.from(stateEl.options).find(o =>
+                  o.text.toUpperCase().startsWith(stateStr + ' ') ||
+                  o.text.toUpperCase().startsWith(stateStr + '–') ||
+                  o.text.toUpperCase().startsWith(stateStr + ' –')
+                );
+              }
+              if (matched) stateEl.value = matched.value;
+            }
+          }
+        }
+      } catch (e) { /* prefill failure is non-fatal */ }
+
+      // All good — show the form
+      mainEl.style.display = 'flex';
+
+    } catch (err) {
+      validatingEl.style.display = 'none';
+      document.getElementById('accessDeniedMsg').textContent =
+        'Unable to verify the link. Please check your connection and try again.';
+      deniedEl.style.display = 'block';
+    }
+  })();
+
+  /* ── Validation helpers ─────────────────────────── */
+  function setError(inputId, hintId, msg) {
+    const el   = document.getElementById(inputId);
+    const hint = document.getElementById(hintId);
+    if (el)   el.classList.add('invalid');
+    if (hint) hint.textContent = msg;
+    return false;
+  }
+
+  function clearError(inputId, hintId) {
+    const el   = document.getElementById(inputId);
+    const hint = document.getElementById(hintId);
+    if (el)   el.classList.remove('invalid');
+    if (hint) hint.textContent = '';
+  }
+
+  function isValidEmail(val) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  }
+
+  /* ── Blur validators ────────────────────────────── */
+  document.getElementById('firstName').addEventListener('blur', function () {
+    this.value.trim()
+      ? clearError('firstName', 'firstNameHint')
+      : setError('firstName', 'firstNameHint', 'First name is required.');
+  });
+
+  document.getElementById('lastName').addEventListener('blur', function () {
+    this.value.trim()
+      ? clearError('lastName', 'lastNameHint')
+      : setError('lastName', 'lastNameHint', 'Last name is required.');
+  });
+
+  document.getElementById('email').addEventListener('blur', function () {
+    if (!this.value.trim()) {
+      setError('email', 'emailHint', 'Email is required.');
+    } else if (!isValidEmail(this.value.trim())) {
+      setError('email', 'emailHint', 'Enter a valid email address.');
+    } else {
+      clearError('email', 'emailHint');
+    }
+  });
+
+  /* password: validate on blur AND re-check confirmPassword live */
+  document.getElementById('password').addEventListener('blur', function () {
+    validatePassword();
+  });
+
+  document.getElementById('password').addEventListener('input', function () {
+    // If confirmPassword has already been touched, keep it in sync
+    if (document.getElementById('confirmPassword').value) {
+      validateConfirmPassword();
+    }
+  });
+
+  document.getElementById('confirmPassword').addEventListener('blur', function () {
+    validateConfirmPassword();
+  });
+
+  document.getElementById('confirmPassword').addEventListener('input', function () {
+    validateConfirmPassword();
+  });
+
+  function validatePassword() {
+    const pw = document.getElementById('password').value;
+    if (!pw) {
+      setError('password', 'passwordHint', 'Password is required.');
+    } else if (pw.length < 8) {
+      setError('password', 'passwordHint', 'Password must be at least 8 characters.');
+    } else {
+      clearError('password', 'passwordHint');
+    }
+  }
+
+  function validateConfirmPassword() {
+    const pw  = document.getElementById('password').value;
+    const cpw = document.getElementById('confirmPassword').value;
+    if (!cpw) {
+      /* Only show "required" error after blur, not while typing */
+      clearError('confirmPassword', 'confirmPasswordHint');
+    } else if (cpw !== pw) {
+      setError('confirmPassword', 'confirmPasswordHint', 'Passwords do not match.');
+    } else {
+      clearError('confirmPassword', 'confirmPasswordHint');
+    }
+  }
+
+  /* ── Form submit → Step 1: initiate ────────────── */
+  document.getElementById('churchRegForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const feedback  = document.getElementById('feedbackMsg');
+    const submitBtn = document.getElementById('submitBtn');
+    feedback.className   = 'feedback';
+    feedback.textContent = '';
+
+    const firstName        = document.getElementById('firstName').value.trim();
+    const lastName         = document.getElementById('lastName').value.trim();
+    const email            = document.getElementById('email').value.trim();
+    const username         = document.getElementById('username').value.trim();
+    const pwInput          = document.getElementById('password');
+    const cpInput          = document.getElementById('confirmPassword');
+    const password         = pwInput.value;
+    const confirmPassword  = cpInput.value;
+    const declarationCheck = document.getElementById('declarationCheck').checked;
+    const privacyCheck     = document.getElementById('privacyCheck').checked;
+
+    let valid = true;
+
+    if (!firstName) {
+      setError('firstName', 'firstNameHint', 'First name is required.'); valid = false;
+    } else { clearError('firstName', 'firstNameHint'); }
+
+    if (!lastName) {
+      setError('lastName', 'lastNameHint', 'Last name is required.'); valid = false;
+    } else { clearError('lastName', 'lastNameHint'); }
+
+    if (!email) {
+      setError('email', 'emailHint', 'Email is required.'); valid = false;
+    } else if (!isValidEmail(email)) {
+      setError('email', 'emailHint', 'Enter a valid email address.'); valid = false;
+    } else { clearError('email', 'emailHint'); }
+
+    if (!username) {
+      setError('username', 'usernameHint', 'Username is required.'); valid = false;
+    } else { clearError('username', 'usernameHint'); }
+
+    if (!password) {
+      setError('password', 'passwordHint', 'Password is required.'); valid = false;
+    } else if (password.length < 8) {
+      setError('password', 'passwordHint', 'Password must be at least 8 characters.'); valid = false;
+    } else { clearError('password', 'passwordHint'); }
+
+    if (!confirmPassword) {
+      setError('confirmPassword', 'confirmPasswordHint', 'Please confirm your password.'); valid = false;
+    } else if (cpInput.value !== pwInput.value) {
+      setError('confirmPassword', 'confirmPasswordHint', 'Passwords do not match.'); valid = false;
+    } else { clearError('confirmPassword', 'confirmPasswordHint'); }
+
+    if (!declarationCheck) {
+      document.getElementById('declarationHint').textContent =
+        'You must accept the Terms of Service and Acceptable Use Policy to proceed.';
+      valid = false;
+    } else {
+      document.getElementById('declarationHint').textContent = '';
+    }
+
+    if (!privacyCheck) {
+      document.getElementById('privacyHint').textContent =
+        'You must acknowledge the Privacy Policy and Cookie Policy to proceed.';
+      valid = false;
+    } else {
+      document.getElementById('privacyHint').textContent = '';
+    }
+
+    if (!valid) {
+      feedback.textContent = 'Please fix the errors above before submitting.';
+      feedback.className   = 'feedback error';
+      feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+
+    // Build payload (will be reused when the OTP is submitted)
+    pendingPayload = {
+      clientId:         document.getElementById('clientId').value || null,
+      firstName,
+      lastName,
+      churchName:       document.getElementById('churchName').value.trim(),
+      email,
+      phone:            document.getElementById('phone').value.trim(),
+      address1:         document.getElementById('address1').value.trim(),
+      address2:         document.getElementById('address2').value.trim(),
+      city:             document.getElementById('city').value.trim(),
+      state:            document.getElementById('state').value || null,
+      country:          document.getElementById('country').value,
+      pinCode:          document.getElementById('pinCode').value.trim(),
+      ein:              document.getElementById('ein').value.trim(),
+      websiteUrl:       (document.getElementById('websiteUrl')||{}).value ? document.getElementById('websiteUrl').value.trim() : '',
+      facebookUrl:      (document.getElementById('facebookUrl')||{}).value ? document.getElementById('facebookUrl').value.trim() : '',
+      instagramUrl:     (document.getElementById('instagramUrl')||{}).value ? document.getElementById('instagramUrl').value.trim() : '',
+      youtubeUrl:       (document.getElementById('youtubeUrl')||{}).value ? document.getElementById('youtubeUrl').value.trim() : '',
+      declarationCheck,
+      privacyCheck,
+      username,
+      password
+    };
+
+    submitBtn.disabled    = true;
+    submitBtn.textContent = 'Sending code…';
+
+    try {
+      const res  = await fetch('/api/churchregistration/initiate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(pendingPayload)
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.status === 'success') {
+        // Show OTP step
+        document.getElementById('mainContent').style.display  = 'none';
+        const otpEl = document.getElementById('otpStep');
+        otpEl.style.display = 'flex';
+        document.getElementById('maskedEmailDisplay').textContent = data.maskedEmail || 'your email';
+        document.getElementById('otpInput').value  = '';
+        document.getElementById('otpHint').textContent = '';
+      } else {
+        feedback.textContent = data.message || '❌ Failed to send verification code. Please try again.';
+        feedback.className   = 'feedback error';
+        // Highlight username field if taken
+        if (data.field === 'username') {
+          setError('username', 'usernameHint', data.message);
+        }
+      }
+    } catch (err) {
+      feedback.textContent = '❌ Unable to connect. Please check your connection and try again.';
+      feedback.className   = 'feedback error';
+    } finally {
+      submitBtn.disabled    = false;
+      submitBtn.textContent = 'Register Church';
+      feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+
+  /* ── OTP submit → Step 2: verify ───────────────── */
+  async function submitOtp() {
+    const otpInput  = document.getElementById('otpInput');
+    const otpHint   = document.getElementById('otpHint');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const code      = otpInput.value.trim();
+
+    otpHint.textContent = '';
+    otpInput.classList.remove('invalid');
+
+    if (!code || code.length < 6) {
+      otpHint.textContent = 'Please enter the 6-digit verification code.';
+      otpInput.classList.add('invalid');
+      return;
+    }
+
+    if (!pendingPayload) {
+      otpHint.textContent = 'Session expired. Please go back and fill the form again.';
+      return;
+    }
+
+    verifyBtn.disabled    = true;
+    verifyBtn.textContent = 'Verifying…';
+
+    const verifyPayload = Object.assign({}, pendingPayload, { code });
+
+    try {
+      const res  = await fetch('/api/churchregistration/verify', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(verifyPayload)
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.status === 'success') {
+        // Replace OTP step with a success screen
+        document.getElementById('otpStep').style.display = 'none';
+        const successEl = document.createElement('div');
+        successEl.style.cssText =
+          'width:100%;max-width:520px;background:#fff;border-radius:16px;padding:48px 40px;' +
+          'box-shadow:0 4px 24px rgba(0,0,0,0.08);text-align:center;';
+        successEl.innerHTML =
+          '<div style="font-size:48px;margin-bottom:16px;">✅</div>' +
+          '<h2 style="font-size:20px;color:#1a1a2e;margin-bottom:10px;">Registration Complete!</h2>' +
+          '<p style="font-size:14px;color:#666;line-height:1.6;">Your church has been registered successfully. You can now <a href="/login" style="color:#3a5a9b;font-weight:600;">log in</a> with your credentials.</p>';
+        document.body.appendChild(successEl);
+      } else {
+        otpHint.textContent = data.message || 'Invalid code. Please try again.';
+        otpInput.classList.add('invalid');
+      }
+    } catch (err) {
+      otpHint.textContent = 'Unable to connect. Please check your connection and try again.';
+    } finally {
+      verifyBtn.disabled    = false;
+      verifyBtn.textContent = 'Verify & Register';
+    }
+  }
+
+  /* ── Resend OTP ─────────────────────────────────── */
+  async function resendCode() {
+    if (!pendingPayload) return;
+    const resendBtn = document.getElementById('resendBtn');
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Sending…';
+    try {
+      const res  = await fetch('/api/churchregistration/initiate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(pendingPayload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.status === 'success') {
+        document.getElementById('otpHint').textContent = 'A new code has been sent.';
+      } else {
+        document.getElementById('otpHint').textContent = data.message || 'Failed to resend. Please try again.';
+      }
+    } catch (err) {
+      document.getElementById('otpHint').textContent = 'Unable to connect. Please try again.';
+    } finally {
+      setTimeout(() => {
+        resendBtn.disabled    = false;
+        resendBtn.textContent = 'Resend Code';
+      }, 30000);
+    }
+  }
+</script>
+<script src="/legal-footer.js"></script>
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/mobile.css" />
+<link rel="stylesheet" href="/shell.css" />
+<title>Bank Sync — Review Transactions | ChurchGeniusPro</title>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<style>
+  :root { --maroon:#673147; --maroon-dark:#4f2538; --bg:#f4f2f5; --border:#e0d4db; }
+  /* ── Standard page base (matches events.html & other shell pages) ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  button { cursor: pointer; font-family: inherit; border: none; background: none; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+  a { text-decoration: none; color: inherit; }
+
+  .sidebar { background: #673147 !important; }
+  .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+  .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+  .brand-name   { color: #fff !important; }
+  .user-name    { color: #fff !important; }
+
+  .page-content { color:#222; }
+  .page-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .page-head h1 { font-size:19px; margin:0; font-weight:700; color:var(--maroon); }
+  .wrap { max-width:1150px; margin:0 auto; padding:0; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); margin-bottom:18px; }
+  .card-head { padding:14px 18px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .card-title { font-size:15px; font-weight:700; color:var(--maroon); }
+  .card-body { padding:16px 18px; }
+  .btn { border:0; border-radius:8px; font-size:13px; font-weight:600; padding:8px 15px; cursor:pointer; }
+  .btn-primary { background:var(--maroon); color:#fff; } .btn-primary:hover { background:var(--maroon-dark); }
+  .btn-secondary { background:#f0f0f0; color:#444; } .btn-sm { padding:5px 10px; font-size:12px; }
+  .btn-approve { background:#e8f5e9; color:#2e7d32; } .btn-approve:hover { background:#c8e6c9; }
+  .btn-reject { background:#fdecea; color:#c62828; } .btn-reject:hover { background:#f8c4c0; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .banks { display:flex; flex-wrap:wrap; gap:10px; }
+  .bank { border:1px solid var(--border); border-radius:10px; padding:10px 12px; min-width:200px; font-size:13px; }
+  .bank .st { font-size:11px; padding:2px 7px; border-radius:10px; display:inline-block; margin-top:4px; }
+  .st-ACTIVE{background:#e8f5e9;color:#2e7d32;} .st-LOGIN_REQUIRED,.st-ERROR{background:#fdecea;color:#c62828;} .st-DEGRADED{background:#fff3e0;color:#e65100;}
+  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select, input[type=text], input[type=number], input[type=date] { padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; background:#fff; }
+  .tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:900px; }
+  th { text-align:left; padding:9px 10px; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:#888; border-bottom:2px solid #f0f0f0; white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
+  .dir { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+  .dir-INCOME{background:#e8f5e9;color:#2e7d32;} .dir-EXPENSE{background:#fdecea;color:#c62828;}
+  .map select { display:block; margin-bottom:5px; width:100%; max-width:190px; }
+  .bulkbar { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--border); padding:10px 18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  /* ── Per-bank transaction groups ── */
+  .grp { border:1px solid var(--border); border-radius:10px; margin:14px 18px; overflow:hidden; background:#fff; }
+  .grp-head { background:#faf7f9; padding:11px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:2px solid var(--border); }
+  .grp-title { font-size:14px; font-weight:700; color:var(--maroon); }
+  .grp-count { font-size:12px; color:#888; }
+  .grp-foot { padding:10px 14px; text-align:center; border-top:1px solid #f0f0f0; }
+  .muted { color:#888; font-size:12px; }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; display:none; z-index:50; max-width:90%; }
+  .pend { font-size:11px; color:#e65100; }
+  @media(max-width:600px){ table{min-width:760px;} header h1{font-size:15px;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="wrap">
+        <div class="page-head">
+          <h1>&#127974; Bank Sync — Review Transactions</h1>
+          <button class="btn btn-primary" id="connectBtn" onclick="connectBank()">+ Connect a bank</button>
+        </div>
+  <!-- Connected banks -->
+  <div class="card">
+    <div class="card-head"><span class="card-title">Connected Banks</span>
+      <button class="btn btn-secondary btn-sm" onclick="loadItems()">Refresh</button></div>
+    <div class="card-body"><div class="banks" id="banks"><span class="muted">Loading…</span></div></div>
+  </div>
+
+  <!-- Review queue -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Review Queue</span>
+      <div class="filters">
+        <label class="muted">Status
+          <select id="fStatus" onchange="loadTxns(true)">
+            <option value="PENDING" selected>Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="">All</option>
+          </select></label>
+        <label class="muted">Type
+          <select id="fDir" onchange="loadTxns(true)">
+            <option value="">All</option>
+            <option value="INCOME">Income</option>
+            <option value="EXPENSE">Expense</option>
+          </select></label>
+      </div>
+    </div>
+    <div id="txnGroups"><div class="muted" style="padding:16px 18px;">Loading…</div></div>
+    <div class="bulkbar">
+      <span class="muted" id="selCount">0 selected</span>
+      <button class="btn btn-approve btn-sm" onclick="bulk('approve')">Approve selected</button>
+      <button class="btn btn-reject btn-sm" onclick="bulk('reject')">Reject selected</button>
+    </div>
+  </div>
+      </div><!-- .wrap -->
+      <footer id="app-footer" class="app-footer"></footer>
+    </main>
+  </div><!-- .main-area -->
+</div><!-- .app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+var LOOKUPS = { incomeFunds:[], expensePurposes:[], expenseFunds:[], methods:[] };
+var TXNS = [];
+var ACCT_MAP = {};   // internal account id → "Institution — Account ••mask"
+var GROUPS = [];     // [{key, label, txns:[…]}] in newest-first order
+var VISIBLE = {};    // group key → number of rows currently shown
+var PAGE_SIZE = 10;
+
+function toast(msg, ok){ var t=document.getElementById('toast'); t.textContent=msg; t.style.background=ok?'#2e7d32':'#333'; t.style.display='block'; setTimeout(function(){t.style.display='none';},3500); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function money(v){ var n=Number(v||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function api(url, opts){ var r=await fetch(url, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{})); var d=await r.json().catch(function(){return{};}); return {ok:r.ok, d:d}; }
+
+// ── Connect a bank (Plaid Link) ──────────────────────────────────────────
+async function verifyEmailFlow(){
+  if(!confirm('Your email must be verified before connecting a bank. Send a verification code now?')) return;
+  var s = await api('/api/plaid/verify-email/send', {method:'POST'});
+  if(!s.ok){ toast(s.d.message||'Could not send code.'); return; }
+  if(s.d.verified){ toast('Already verified — try connecting again.', true); return; }
+  var code = prompt('Enter the 6-digit code sent to your email:');
+  if(!code) return;
+  var c = await api('/api/plaid/verify-email/confirm', {method:'POST', body:JSON.stringify({code:code.trim()})});
+  if(c.ok && c.d.verified){ toast('Email verified — connecting…', true); connectBank(); }
+  else toast(c.d.message||'Verification failed.');
+}
+async function connectBank(){
+  var res = await api('/api/plaid/link-token', {method:'POST'});
+  if(!res.ok){
+    if(res.d.message && /email/i.test(res.d.message)){ return verifyEmailFlow(); }
+    toast(res.d.message||'Could not start bank connection.'); return;
+  }
+  var handler = Plaid.create({
+    token: res.d.linkToken,
+    onSuccess: async function(public_token){
+      var ex = await api('/api/plaid/exchange', {method:'POST', body:JSON.stringify({publicToken:public_token})});
+      if(ex.ok){ toast('Bank connected — '+(ex.d.stagedTransactions||0)+' transactions imported for review.', true); await loadItems(); loadTxns(true); }
+      else { toast(ex.d.message||'Could not complete connection.'); }
+    },
+    onExit: function(err){ if(err) toast('Connection cancelled.'); }
+  });
+  handler.open();
+}
+
+// ── Connected banks ──────────────────────────────────────────────────────
+async function loadItems(){
+  var res = await api('/api/plaid/items');
+  var el = document.getElementById('banks');
+  if(!res.ok){ el.innerHTML='<span class="muted">'+esc(res.d.message||'Unable to load.')+'</span>'; return; }
+  var items = res.d.items||[];
+  if(!items.length){ el.innerHTML='<span class="muted">No banks connected yet.</span>'; return; }
+  ACCT_MAP = {};
+  items.forEach(function(it){
+    var inst = it.institutionName || it.institutionId || 'Bank';
+    (it.accounts||[]).forEach(function(a){
+      ACCT_MAP[a.id] = inst + ' — ' + (a.name || 'Account') + (a.mask ? ' ••' + a.mask : '');
+    });
+  });
+  el.innerHTML = items.map(function(it){
+    var accts=(it.accounts||[]).map(function(a){return esc(a.name||'')+' ••'+esc(a.mask||'');}).join(', ');
+    return '<div class="bank"><strong>'+esc(it.institutionName||it.institutionId||'Bank')+'</strong>'
+      +'<div class="muted">'+esc(accts||'—')+'</div>'
+      +'<span class="st st-'+esc(it.status)+'">'+esc(it.status||'')+'</span> '
+      +'<button class="btn btn-secondary btn-sm" onclick="syncNow('+it.id+')">Sync now</button></div>';
+  }).join('');
+}
+async function syncNow(id){
+  var res = await api('/api/plaid/items/'+id+'/sync', {method:'POST'});
+  if(res.ok){ toast('Synced — '+(res.d.stagedTransactions||0)+' new transaction(s).', true); await loadItems(); loadTxns(); }
+  else { toast(res.d.message||'Sync failed.'); }
+}
+
+// ── Review queue ─────────────────────────────────────────────────────────
+async function loadLookups(){ var res=await api('/api/plaid/review/lookups'); if(res.ok){ LOOKUPS=res.d; } }
+// resetPaging=true (filter change / first load) collapses every bank back to the
+// first 10 rows; otherwise the per-bank "Load More" state is preserved.
+async function loadTxns(resetPaging){
+  var status=document.getElementById('fStatus').value, dir=document.getElementById('fDir').value;
+  var res=await api('/api/plaid/review?status='+encodeURIComponent(status)+'&direction='+encodeURIComponent(dir));
+  var box=document.getElementById('txnGroups');
+  if(!res.ok){ box.innerHTML='<div class="muted" style="padding:16px 18px;">'+esc(res.d.message||'Unable to load.')+'</div>'; return; }
+  TXNS=res.d.transactions||[];
+
+  // Group by connected bank account, preserving the API's newest-first order.
+  var byKey={}; GROUPS=[];
+  TXNS.forEach(function(t){
+    var key=String(t.plaidAccountId!=null?t.plaidAccountId:'other');
+    if(!byKey[key]){
+      byKey[key]={ key:key, label:(t.plaidAccountId!=null&&ACCT_MAP[t.plaidAccountId])?ACCT_MAP[t.plaidAccountId]:'Other transactions', txns:[] };
+      GROUPS.push(byKey[key]);
+    }
+    byKey[key].txns.push(t);
+  });
+
+  if(resetPaging) VISIBLE={};
+  GROUPS.forEach(function(g){
+    if(!VISIBLE[g.key]) VISIBLE[g.key]=PAGE_SIZE;
+    VISIBLE[g.key]=Math.min(VISIBLE[g.key], Math.max(g.txns.length, PAGE_SIZE));
+  });
+  renderGroups();
+}
+
+function renderGroups(){
+  var box=document.getElementById('txnGroups');
+  if(!GROUPS.length){ box.innerHTML='<div class="muted" style="padding:16px 18px;">No transactions.</div>'; updateCount(); return; }
+  var multi = GROUPS.length > 1;
+  box.innerHTML = GROUPS.map(function(g){
+    var shown=Math.min(VISIBLE[g.key], g.txns.length);
+    var head = '<div class="grp-head">'
+      + '<span class="grp-title">' + (multi ? '🏦 ' : '') + esc(g.label) + '</span>'
+      + '<span class="grp-count" id="gcount-'+g.key+'">Showing '+shown+' of '+g.txns.length+'</span>'
+      + '</div>';
+    var table = '<div class="tbl-scroll"><table>'
+      + '<thead><tr>'
+      + '<th><input type="checkbox" onchange="toggleGroup(this,\''+g.key+'\')"></th>'
+      + '<th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Category mapping</th><th>Actions</th>'
+      + '</tr></thead>'
+      + '<tbody id="gtb-'+g.key+'">' + g.txns.slice(0, shown).map(renderRow).join('') + '</tbody>'
+      + '</table></div>';
+    var foot = '<div class="grp-foot" id="gfoot-'+g.key+'"'+(shown>=g.txns.length?' style="display:none"':'')+'>'
+      + '<button class="btn btn-secondary btn-sm" onclick="loadMore(\''+g.key+'\')">Load More</button>'
+      + '</div>';
+    return '<div class="grp">' + head + table + foot + '</div>';
+  }).join('');
+  updateCount();
+}
+
+// Appends the next batch of 10 rows for ONE bank only — other banks' lists,
+// checkbox selections, and unsaved edits are untouched.
+function loadMore(key){
+  var g=GROUPS.find(function(x){return x.key===key;});
+  if(!g) return;
+  var start=Math.min(VISIBLE[key], g.txns.length);
+  VISIBLE[key]=Math.min(start+PAGE_SIZE, g.txns.length);
+  var tb=document.getElementById('gtb-'+key);
+  if(tb) tb.insertAdjacentHTML('beforeend', g.txns.slice(start, VISIBLE[key]).map(renderRow).join(''));
+  var cnt=document.getElementById('gcount-'+key);
+  if(cnt) cnt.textContent='Showing '+VISIBLE[key]+' of '+g.txns.length;
+  var foot=document.getElementById('gfoot-'+key);
+  if(foot && VISIBLE[key]>=g.txns.length) foot.style.display='none';
+}
+
+// "Jul 08, 2026" from "2026-07-08" (parsed without timezone shift)
+function fmtDate(d){
+  if(!d) return '';
+  var p=String(d).split('-');
+  if(p.length!==3) return d;
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var m=parseInt(p[1],10);
+  if(!(m>=1&&m<=12)) return d;
+  return months[m-1]+' '+p[2]+', '+p[0];
+}
+function opts(list, sel, idKey, nameKey){
+  return '<option value="">— select —</option>'+list.map(function(o){
+    return '<option value="'+o[idKey]+'"'+(String(o[idKey])===String(sel)?' selected':'')+'>'+esc(o[nameKey])+'</option>';
+  }).join('');
+}
+function mappingCell(t){
+  var isPending = (t.status==='PENDING');
+  if(!isPending) return '<span class="muted">—</span>';
+  if(t.direction==='EXPENSE'){
+    return '<div class="map">'
+      +'<select onchange="save('+t.id+',{mappedPurposeId:this.value})">'+opts(LOOKUPS.expensePurposes||[],t.mappedPurposeId,'id','purposeName')+'</select>'
+      +'<select onchange="save('+t.id+',{mappedMainSourceId:this.value})">'+opts(LOOKUPS.expenseFunds||[],t.mappedMainSourceId,'id','sourceName')+'</select>'
+      +'<select onchange="save('+t.id+',{mappedTransactionTypeId:this.value})">'+opts(LOOKUPS.methods||[],t.mappedTransactionTypeId,'id','name')+'</select></div>';
+  }
+  return '<div class="map">'
+    +'<select onchange="save('+t.id+',{mappedSubSourceId:this.value})">'+opts(LOOKUPS.incomeFunds||[],t.mappedSubSourceId,'id','sourceName')+'</select>'
+    +'<select onchange="save('+t.id+',{mappedTransactionTypeId:this.value})">'+opts(LOOKUPS.methods||[],t.mappedTransactionTypeId,'id','name')+'</select></div>';
+}
+function renderRow(t){
+  var isPending=(t.status==='PENDING');
+  var actions = isPending
+    ? '<button class="btn btn-approve btn-sm" onclick="approve('+t.id+')" '+(t.pending?'disabled title="Still pending at bank"':'')+'>Approve</button> '
+      +'<button class="btn btn-reject btn-sm" onclick="reject('+t.id+')">Reject</button>'
+    : '<span class="dir dir-'+(t.status==='APPROVED'?'INCOME':'EXPENSE')+'">'+esc(t.status)+'</span>';
+  var desc = isPending
+    ? '<input type="text" value="'+esc(t.description||t.name||'')+'" style="width:170px" onchange="save('+t.id+',{description:this.value})">'
+    : esc(t.description||t.name||'');
+  var dir = isPending
+    ? '<select onchange="save('+t.id+',{direction:this.value},true)"><option value="INCOME"'+(t.direction==='INCOME'?' selected':'')+'>Income</option><option value="EXPENSE"'+(t.direction==='EXPENSE'?' selected':'')+'>Expense</option></select>'
+    : '<span class="dir dir-'+esc(t.direction)+'">'+esc(t.direction)+'</span>';
+  var amt = isPending
+    ? '<input type="number" step="0.01" min="0" value="'+esc(t.amount)+'" style="width:90px" onchange="save('+t.id+',{amount:this.value})">'
+    : money(t.amount);
+  return '<tr id="row-'+t.id+'">'
+    +'<td>'+(isPending?'<input type="checkbox" class="rowchk" value="'+t.id+'" onchange="updateCount()">':'')+'</td>'
+    +'<td style="white-space:nowrap">'+esc(fmtDate(t.txnDate))+(t.pending?'<div class="pend">pending</div>':'')+'</td>'
+    +'<td>'+desc+'<div class="muted">'+esc(t.merchantName||'')+(t.plaidCategory?' · '+esc(t.plaidCategory):'')+'</div></td>'
+    +'<td>'+dir+'</td><td>'+amt+'</td><td>'+mappingCell(t)+'</td><td style="white-space:nowrap">'+actions+'</td></tr>';
+}
+async function save(id, patch, rerender){
+  var res=await api('/api/plaid/review/'+id, {method:'PUT', body:JSON.stringify(patch)});
+  if(!res.ok){ toast(res.d.message||'Could not save.'); return; }
+  // keep local copy in sync; re-render row when direction changes (mapping fields differ)
+  var t=TXNS.find(function(x){return x.id===id;}); if(t&&res.d.transaction) Object.assign(t,res.d.transaction);
+  if(rerender){ var tr=document.getElementById('row-'+id); if(tr&&t) tr.outerHTML=renderRow(t); }
+}
+async function approve(id){
+  var res=await api('/api/plaid/review/'+id+'/approve', {method:'POST'});
+  if(res.ok){ toast('Approved.', true); loadTxns(); } else { toast(res.d.message||'Could not approve.'); }
+}
+async function reject(id){
+  var res=await api('/api/plaid/review/'+id+'/reject', {method:'POST'});
+  if(res.ok){ toast('Rejected.', true); loadTxns(); } else { toast(res.d.message||'Could not reject.'); }
+}
+function checkedIds(){ return Array.prototype.slice.call(document.querySelectorAll('.rowchk:checked')).map(function(c){return Number(c.value);}); }
+function toggleGroup(cb, key){
+  var tb=document.getElementById('gtb-'+key);
+  if(tb) tb.querySelectorAll('.rowchk').forEach(function(c){c.checked=cb.checked;});
+  updateCount();
+}
+function updateCount(){ document.getElementById('selCount').textContent=checkedIds().length+' selected'; }
+async function bulk(action){
+  var ids=checkedIds();
+  if(!ids.length){ toast('Select at least one transaction.'); return; }
+  var res=await api('/api/plaid/review/bulk', {method:'POST', body:JSON.stringify({ids:ids, action:action})});
+  if(res.ok){
+    var msg=res.d.processed+' '+action+(action==='approve'?'d':'ed');
+    if(res.d.skipped && res.d.skipped.length) msg+=', '+res.d.skipped.length+' skipped (missing category)';
+    toast(msg+'.', true); loadTxns();
+  } else { toast(res.d.message||'Bulk action failed.'); }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+(async function(){ await loadLookups(); await loadItems(); loadTxns(true); })();
+</script>
+
+<script>window.CGP_PAGE = { activePage: 'accounting/bank-sync', pageTitle: 'Bank Sync', openSection: 'accounting' };</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

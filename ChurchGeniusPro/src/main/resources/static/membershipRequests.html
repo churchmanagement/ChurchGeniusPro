@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Membership Requests – Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;}
+    a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+    
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* ── Main ── */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    
+    /* ── Header ── */
+    .page-header{margin-bottom:20px;}
+    .page-title{font-size:22px;font-weight:700;color:#1e2139;}
+    .page-sub{font-size:13px;color:#888;margin-top:2px;}
+    /* ── Feedback ── */
+    .feedback{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+    .feedback.success{display:block;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
+    .feedback.error{display:block;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+    /* ── List card ── */
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px;}
+    .card-header{padding:14px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;background:#fafbfd;}
+    .card-header h3{font-size:14px;font-weight:700;color:#1e2139;}
+    .table-wrap{overflow-x:auto;}
+    table.req-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+    table.req-tbl thead th{background:#f5f6fa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#888;padding:10px 14px;text-align:left;border-bottom:2px solid #e8eaf0;white-space:nowrap;}
+    table.req-tbl tbody td{padding:11px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    table.req-tbl tbody tr:last-child td{border-bottom:none;}
+    table.req-tbl tbody tr:hover td{background:#fafbff;cursor:pointer;}
+    .empty-row{text-align:center;color:#bbb;padding:32px!important;}
+    /* ── Detail panel ── */
+    .detail-panel{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:20px;display:none;}
+    .detail-panel.open{display:block;}
+    .detail-header{padding:14px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;background:#fafbfd;}
+    .detail-header h3{font-size:14px;font-weight:700;color:#1e2139;}
+    .btn-close-detail{font-size:18px;color:#999;padding:2px 6px;}
+    .btn-close-detail:hover{color:#333;}
+    .detail-body{padding:20px 24px;}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:16px;}
+    @media(max-width:600px){.detail-grid{grid-template-columns:1fr;}}
+    .detail-field label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:3px;}
+    .detail-field span{font-size:13px;color:#333;}
+    /* ── Members sub-table ── */
+    table.mem-tbl{width:100%;border-collapse:collapse;font-size: 13px;margin-top:4px;}
+    table.mem-tbl thead th{background:#e8eaf6;color:#673147;font-size:11px;font-weight:700;padding:7px 10px;text-align:left;border-bottom:1px solid #c5cae9;}
+    table.mem-tbl tbody td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:top;}
+    table.mem-tbl tbody tr:last-child td{border-bottom:none;}
+    .role-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .role-primary{background:#e8eaf6;color:#673147;} .role-wife{background:#fce4ec;color:#c2185b;}
+    .role-son{background:#e3f2fd;color:#1565c0;} .role-daughter{background:#f3e5f5;color:#7b1fa2;}
+    .role-other{background:#fff3e0;color:#e65100;}
+    /* ── Actions ── */
+    .detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+    .btn-approve{padding:9px 22px;background:#2e7d32;color:#fff;border-radius:7px;font-size:13px;font-weight:700;transition:background .15s;}
+    .btn-approve:hover{background:#1b5e20;}
+    .btn-approve:disabled{opacity:.55;cursor:not-allowed;}
+    .btn-approve-signup{padding:9px 22px;background:#673147;color:#fff;border-radius:7px;font-size:13px;font-weight:700;transition:background .15s;}
+    .btn-approve-signup:hover{background:#4f2538;}
+    .btn-approve-signup:disabled{opacity:.55;cursor:not-allowed;}
+    .signup-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:600;}
+    .signup-badge.pending{background:#fff3e0;color:#e65100;}
+    .signup-badge.approved{background:#e8f5e9;color:#2e7d32;}
+    .btn-back{padding:9px 16px;background:#fff;border:1px solid #ddd;border-radius:7px;font-size:13px;color:#555;}
+    .btn-back:hover{border-color:#673147;color:#673147;}
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">📝 Membership Requests</div>
+        <div class="page-sub">Review families who applied via the public Membership Form</div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Detail panel (hidden until a row is clicked) -->
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+          <h3 id="detailTitle">Family Details</h3>
+          <button class="btn-close-detail" onclick="closeDetail()" title="Close">✕</button>
+        </div>
+        <div class="detail-body" id="detailBody"></div>
+      </div>
+
+      <!-- List card -->
+      <div class="card">
+        <div class="card-header">
+          <span>📋</span>
+          <h3>Pending Applications</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="req-tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Family Name</th>
+                <th>City</th>
+                <th>Members</th>
+                <th>Submitted</th>
+                <th>Declaration</th>
+              </tr>
+            </thead>
+            <tbody id="reqTableBody">
+              <tr><td class="empty-row" colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+/* ════ HELPERS ════ */
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  var d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function roleClass(role) {
+  if (!role) return '';
+  var r = role.toLowerCase().replace(/\s+/g, '-');
+  return 'role-' + r;
+}
+function showFeedback(msg, type) {
+  var el = document.getElementById('feedbackMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'feedback ' + (type || '');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (type === 'success') setTimeout(function(){ el.className = 'feedback'; el.textContent = ''; }, 5000);
+}
+
+/* ════ DATA ════ */
+let allRequests = [];
+
+/* ════ INIT ════ */
+(async function init() {
+  await loadRequests();
+})();
+
+async function loadRequests() {
+  try {
+    const res = await fetch('/api/membership-requests');
+    if (!res.ok) { showFeedback('❌ Could not load requests.', 'error'); return; }
+    allRequests = await res.json();
+    renderTable(allRequests);
+  } catch { showFeedback('❌ Network error loading requests.', 'error'); }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('reqTableBody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td class="empty-row" colspan="6">No membership requests yet.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr onclick="openDetail(${r.id})">
+      <td>${i + 1}</td>
+      <td style="font-weight:600;">${esc(r.familyName||'')}</td>
+      <td>${esc(r.familyCity||'—')}</td>
+      <td><span style="background:#e8eaf6;color:#673147;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;" id="memCount_${r.id}">…</span></td>
+      <td>${fmtDate(r.createdDate)}</td>
+      <td>${r.declarationAccepted ? '<span style="color:#2e7d32;font-weight:600;">✅ Accepted</span>' : '<span style="color:#aaa;">—</span>'}</td>
+    </tr>`).join('');
+  // Load member counts (lazy)
+  rows.forEach(r => loadMemberCount(r.id));
+}
+
+async function loadMemberCount(id) {
+  try {
+    const res  = await fetch(`/api/membership-requests/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const el   = document.getElementById(`memCount_${id}`);
+    if (el) el.textContent = (data.members||[]).length + ' member(s)';
+  } catch {}
+}
+
+/* ════ DETAIL ════ */
+async function openDetail(id) {
+  try {
+    const res  = await fetch(`/api/membership-requests/${id}`);
+    if (!res.ok) { showFeedback('❌ Could not load details.', 'error'); return; }
+    const data = await res.json();
+    renderDetail(data);
+    document.getElementById('detailPanel').classList.add('open');
+    document.getElementById('detailPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch { showFeedback('❌ Network error.', 'error'); }
+}
+
+function renderDetail(d) {
+  document.getElementById('detailTitle').textContent = d.familyName || 'Family Details';
+  const addr = [d.familyAddress1, d.familyAddress2, d.familyCity, d.familyState, d.familyCountry, d.familyPinCode]
+               .filter(Boolean).join(', ') || '—';
+  const members = d.members || [];
+
+  const memRows = members.length
+    ? members.map(m => `
+        <tr>
+          <td><span class="role-badge ${roleClass(m.role)}">${esc(m.role||'')}</span></td>
+          <td>${esc((m.firstName||'') + ' ' + (m.middleName ? m.middleName+' ':''  ) + (m.lastName||''))}</td>
+          <td>${formatPhone(m.phone)}</td>
+          <td>${esc(m.email||'—')}</td>
+          <td>${esc(m.memberType||'Guest')}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:#bbb;padding:12px;">No members found.</td></tr>`;
+
+  // Build signup account section if signup exists
+  const signupSection = d.signupId ? `
+    <div style="background:#f5f6fa;border:1px solid #e0e0e0;border-radius:8px;padding:14px 16px;margin-top:12px;">
+      <div style="font-size:13px;font-weight:700;color:#673147;margin-bottom:10px;">🔐 Login Account Request</div>
+      <div class="detail-grid" style="margin-bottom:0;">
+        <div class="detail-field"><label>Username</label><span>${esc(d.signupUsername||'—')}</span></div>
+        <div class="detail-field"><label>Account Status</label>
+          <span>
+            ${d.signupActive
+              ? '<span class="signup-badge approved">✅ Approved / Active</span>'
+              : '<span class="signup-badge pending">⏳ Pending Approval</span>'}
+          </span>
+        </div>
+      </div>
+    </div>` : '';
+
+  const canApprove = !(window.CGP_PERMS && window.CGP_PERMS['admin.membership'] === false);
+  const isExisting = !!d.hasExistingFamily;
+
+  // Approve button label and behaviour depends on whether this is an existing or new member
+  const approveBtn = canApprove ? (isExisting
+    ? `<button class="btn-approve" id="approveBtn_${d.id}" onclick="approveMembership(${d.id}, this)">
+         ✅ Approve (Update Renewal)
+       </button>`
+    : `<button class="btn-approve" id="approveBtn_${d.id}" onclick="approveMembership(${d.id}, this)">
+         ✅ Add as Member
+       </button>`) : '';
+
+  const approveSignupBtn = canApprove && d.signupId && !d.signupActive && isExisting
+    ? `<button class="btn-approve-signup" id="approveSignupBtn_${d.id}" onclick="approveSignup(${d.id}, this)">
+         🔐 Approve Login Account
+       </button>`
+    : '';
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-field"><label>Family Name</label><span>${esc(d.familyName||'')}</span></div>
+      <div class="detail-field"><label>Address</label><span>${esc(addr)}</span></div>
+      <div class="detail-field"><label>Submitted</label><span>${fmtDate(d.createdDate)}</span></div>
+      <div class="detail-field"><label>Declaration</label><span>${d.declarationAccepted ? '✅ Accepted' : '—'}</span></div>
+      <div class="detail-field"><label>Request Type</label><span>${isExisting
+        ? '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Renewal / Update</span>'
+        : '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">New Member</span>'}</span></div>
+    </div>
+    <h4 style="font-size:13px;font-weight:700;color:#673147;margin:16px 0 8px;">Family Members (${members.length})</h4>
+    <div style="overflow-x:auto;">
+      <table class="mem-tbl">
+        <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Email</th><th>Type</th></tr></thead>
+        <tbody>${memRows}</tbody>
+      </table>
+    </div>
+    ${signupSection}
+    <div class="detail-actions">
+      ${approveBtn}
+      ${approveSignupBtn}
+      <button class="btn-back" onclick="closeDetail()">← Back to List</button>
+    </div>`;
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+/* ════ APPROVE ════ */
+async function approveMembership(id, btn) {
+  if (!confirm('Move this family to the Members list with Member Type = "Member"? This cannot be undone.')) return;
+  btn.disabled = true; btn.textContent = 'Processing…';
+  try {
+    const res  = await fetch(`/api/membership-requests/${id}/approve`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      closeDetail();
+      const msg = data.isExisting
+        ? '✅ Renewal approved. Member renewal date updated.'
+        : '✅ Family successfully added as Members! An approval email has been sent.';
+      showFeedback(msg, 'success');
+      await loadRequests();
+    } else {
+      showFeedback('❌ ' + (data.error || 'Approval failed.'), 'error');
+      btn.disabled = false; btn.textContent = btn.textContent.replace('Processing…', '✅ Approve');
+    }
+  } catch {
+    showFeedback('❌ Network error.', 'error');
+    btn.disabled = false; btn.textContent = '✅ Approve';
+  }
+}
+
+/* ▄▄▄▄ APPROVE SIGNUP ▄▄▄▄ */
+async function approveSignup(id, btn) {
+  if (!confirm("Activate this member's login account? They will be able to log in immediately.")) return;
+  btn.disabled = true; btn.textContent = 'Processing…';
+  try {
+    const res  = await fetch(`/api/membership-requests/${id}/approve-signup`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      closeDetail();
+      showFeedback('✅ Login account activated! The member can now log in.', 'success');
+      await loadRequests();
+    } else {
+      showFeedback('❌ ' + (data.error || 'Could not activate account.'), 'error');
+      btn.disabled = false; btn.textContent = '✅ Approve';
+    }
+  } catch {
+    showFeedback('❌ Network error.', 'error');
+    btn.disabled = false; btn.textContent = '✅ Approve';
+  }
+}
+</script>
+<script>
+window.CGP_applyPerms = function(p) {
+  // Add-as-member button is rendered inline on detail open using window.CGP_PERMS — no extra work needed here.
+};
+window.CGP_PAGE = { activePage: 'admin/membership-requests', pageTitle: '', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

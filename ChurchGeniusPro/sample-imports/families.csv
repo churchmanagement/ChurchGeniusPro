@@ -1,0 +1,6 @@
+First Name,Surname,Nickname,E-mail Address,Mobile,Street,City,State,Zip,Member Type,Role,Family ID
+John,Smith,Johnny,john.smith@example.com,(555) 201-3001,12 Oak St,Springfield,IL,62704,Member,Head,1001
+Mary,Smith,,mary.smith@example.com,555-201-3002,12 Oak St,Springfield,IL,62704,Member,Wife,1001
+David,Jones,Dave,david.jones@example.com,555-201-3010,9 Pine Ave,Springfield,IL,62704,Member,Head,1002
+Sarah,Lee,,sarah.lee@example.com,+1 555 201 3020,4 Elm Rd,Dayton,OH,45402,Guest,Head,1003
+,,,noone@example.com,,,,,,Member,,1004

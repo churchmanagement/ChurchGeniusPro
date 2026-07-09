@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Song Book Access – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    .page-header { margin-bottom: 14px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .tabs { display: flex; gap: 8px; margin: 12px 0; }
+    .tab { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+           background: #fff; color: #673147; border: 1.5px solid #e6d9e0; cursor: pointer; }
+    .tab.active { background: #673147; color: #fff; border-color: #673147; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); padding: 16px; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .search { flex: 1; min-width: 200px; padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+    .search:focus { border-color: #673147; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 10px; font-size: 14px; border-bottom: 1px solid #f0eef1; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #999; font-weight: 700; }
+    .member-name { font-weight: 600; color: #222; }
+    .member-sub { font-size: 12px; color: #aaa; }
+    .seg { display: inline-flex; border: 1.5px solid #e6d9e0; border-radius: 8px; overflow: hidden; }
+    .seg button { padding: 6px 12px; font-size: 12px; font-weight: 700; background: #fff; color: #777; border: none; cursor: pointer; }
+    .seg button + button { border-left: 1px solid #efe7ec; }
+    .seg button.on-none.active { background: #9e9e9e; color: #fff; }
+    .seg button.on-view.active { background: #1565c0; color: #fff; }
+    .seg button.on-full.active { background: #2e7d32; color: #fff; }
+    .empty { text-align: center; color: #bbb; padding: 40px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .b-none { background: #f0f0f0; color: #888; }
+    .b-view { background: #e3f0fb; color: #1565c0; }
+    .b-full { background: #e6f4e6; color: #2e7d32; }
+    .audit-row { padding: 9px 4px; border-bottom: 1px solid #f3f0f4; font-size: 13px; display: flex; gap: 10px; }
+    .audit-act { font-weight: 700; color: #673147; min-width: 110px; }
+    .audit-meta { color: #999; font-size: 12px; }
+    .cgp-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2e7d32; color: #fff;
+                 padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s; z-index: 9999; }
+    .cgp-toast.show { opacity: 1; }
+    .cgp-toast.err { background: #c62828; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Song Book Access</div>
+        <div class="page-subtitle">Grant members View Only or Full Access to the Member Portal Song Book</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="tabMembers" onclick="showTab('members')">Members</button>
+        <button class="tab" id="tabActivity" onclick="showTab('activity')">Activity Log</button>
+      </div>
+
+      <!-- Members -->
+      <div class="card" id="paneMembers">
+        <div class="toolbar">
+          <input class="search" id="search" placeholder="Search members by name or email…" oninput="renderMembers()" />
+          <span class="member-sub" id="countLbl"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr><th>Member</th><th>Role</th><th>Current</th><th style="text-align:right;">Access Level</th></tr>
+            </thead>
+            <tbody id="memberRows"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="membersEmpty" style="display:none;">No portal members found.</div>
+      </div>
+
+      <!-- Activity -->
+      <div class="card" id="paneActivity" style="display:none;">
+        <div id="auditList"></div>
+        <div class="empty" id="auditEmpty" style="display:none;">No activity yet.</div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="cgp-toast" id="toast"></div>
+
+<script>
+let MEMBERS = [];
+const LEVELS = ['NONE','VIEW','FULL'];
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, err){ const t=document.getElementById('toast'); t.textContent=msg; t.className='cgp-toast show'+(err?' err':''); setTimeout(()=>t.className='cgp-toast',2600); }
+
+function showTab(which){
+  document.getElementById('tabMembers').classList.toggle('active', which==='members');
+  document.getElementById('tabActivity').classList.toggle('active', which==='activity');
+  document.getElementById('paneMembers').style.display = which==='members' ? '' : 'none';
+  document.getElementById('paneActivity').style.display = which==='activity' ? '' : 'none';
+  if (which==='activity') loadAudit();
+}
+
+async function loadMembers(){
+  try {
+    const r = await fetch('/api/songbook/admin/members');
+    if (!r.ok) { toast('Could not load members.', true); return; }
+    MEMBERS = await r.json();
+    renderMembers();
+  } catch(e){ toast('Could not load members.', true); }
+}
+
+function fullName(m){ return [m.firstName, m.lastName].filter(Boolean).join(' ') || '(unnamed)'; }
+function levelBadge(l){ const c = l==='FULL'?'b-full':(l==='VIEW'?'b-view':'b-none'); const t = l==='FULL'?'Full Access':(l==='VIEW'?'View Only':'No Access'); return `<span class="badge ${c}">${t}</span>`; }
+
+function renderMembers(){
+  const q = (document.getElementById('search').value||'').toLowerCase().trim();
+  const list = MEMBERS.filter(m => !q || (fullName(m)+' '+(m.email||'')).toLowerCase().includes(q));
+  document.getElementById('countLbl').textContent = list.length + ' member' + (list.length===1?'':'s');
+  document.getElementById('membersEmpty').style.display = MEMBERS.length ? 'none' : 'block';
+  document.getElementById('memberRows').innerHTML = list.map(m => {
+    const lvl = m.level || 'NONE';
+    return `<tr>
+      <td><div class="member-name">${esc(fullName(m))}</div><div class="member-sub">${esc(m.email||'')}</div></td>
+      <td><span class="member-sub">${esc(m.role||'')}</span></td>
+      <td id="cur-${m.memberId}">${levelBadge(lvl)}</td>
+      <td style="text-align:right;">
+        <span class="seg">
+          <button class="on-none ${lvl==='NONE'?'active':''}" onclick="setLevel(${m.memberId},'NONE')">None</button>
+          <button class="on-view ${lvl==='VIEW'?'active':''}" onclick="setLevel(${m.memberId},'VIEW')">View Only</button>
+          <button class="on-full ${lvl==='FULL'?'active':''}" onclick="setLevel(${m.memberId},'FULL')">Full</button>
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function setLevel(memberId, level){
+  try {
+    const r = await fetch('/api/songbook/admin/access', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ memberId, level })
+    });
+    if (!r.ok){ toast('Could not update access.', true); return; }
+    const m = MEMBERS.find(x=>x.memberId===memberId); if (m) m.level = level;
+    renderMembers();
+    toast(`${fullName(m)} → ${level==='FULL'?'Full Access':(level==='VIEW'?'View Only':'No Access')}`);
+  } catch(e){ toast('Could not update access.', true); }
+}
+
+async function loadAudit(){
+  try {
+    const r = await fetch('/api/songbook/admin/audit?limit=150');
+    const rows = r.ok ? await r.json() : [];
+    document.getElementById('auditEmpty').style.display = rows.length ? 'none' : 'block';
+    document.getElementById('auditList').innerHTML = rows.map(a => {
+      const when = a.createdAt ? new Date(a.createdAt).toLocaleString() : '';
+      const what = [a.songTitle, a.detail].filter(Boolean).join(' — ');
+      return `<div class="audit-row"><span class="audit-act">${esc(a.action)}</span>
+        <span style="flex:1;">${esc(what)}</span>
+        <span class="audit-meta">${esc(a.actor||'')} · ${esc(when)}</span></div>`;
+    }).join('');
+  } catch(e){}
+}
+
+loadMembers();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/songbook-access', openSection: 'more', pageTitle: 'Song Book Access' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Help Center – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── Hero banner ── */
+    .hc-hero {
+      background: linear-gradient(135deg, #673147 0%, #3f4568 100%);
+      border-radius: 14px;
+      padding: 32px 36px;
+      margin-bottom: 28px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .hc-hero::after {
+      content: '❓';
+      position: absolute; right: 32px; top: 50%; transform: translateY(-50%);
+      font-size: 80px; opacity: .08;
+    }
+    .hc-hero h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .hc-hero p  { font-size: 14px; color: rgba(255,255,255,.82); max-width: 560px; line-height: 1.65; }
+
+    /* ── Search bar ── */
+    .hc-search-wrap {
+      display: flex; gap: 10px; margin-top: 20px;
+    }
+    .hc-search-inp {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      outline: none;
+      color: #222;
+      background: rgba(255,255,255,.95);
+    }
+    .hc-search-inp::placeholder { color: #aaa; }
+    .hc-search-btn {
+      background: #fff;
+      color: #673147;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 0 22px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .2s;
+    }
+    .hc-search-btn:hover { background: #f0e8ec; }
+    .hc-search-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Search results panel ── */
+    #hcSearchResults {
+      display: none;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e8eaf0;
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.07);
+    }
+    .hc-sr-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd;
+    }
+    .hc-sr-title { font-size: 14px; font-weight: 700; color: #673147; }
+    .hc-sr-close {
+      font-size: 18px; color: #aaa; cursor: pointer; line-height: 1;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .hc-sr-close:hover { background: #f0f0f0; color: #333; }
+    .hc-sr-body { padding: 20px; }
+    .hc-sr-answer {
+      font-size: 14px; line-height: 1.7; color: #333;
+      background: #faf6f8; border-left: 3px solid #673147;
+      padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;
+    }
+    .hc-sr-steps { margin-bottom: 16px; }
+    .hc-sr-steps h4 { font-size: 12px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .hc-sr-step {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 13px; color: #444; margin-bottom: 6px; line-height: 1.5;
+    }
+    .hc-sr-step-num {
+      background: #673147; color: #fff; font-size: 11px; font-weight: 700;
+      border-radius: 50%; width: 20px; height: 20px; min-width: 20px;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .hc-sr-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .hc-sr-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f0e8ec; color: #673147; border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; font-weight: 700;
+      text-decoration: none; transition: background .18s;
+    }
+    .hc-sr-link:hover { background: #e0d0d8; }
+    .hc-sr-related { margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; }
+    .hc-sr-related h4 { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .hc-sr-related-chip {
+      display: inline-block; background: #f5f6fa; color: #555; border-radius: 6px;
+      padding: 4px 10px; font-size: 12px; margin: 2px; cursor: pointer;
+      border: 1px solid #e0e0e0; transition: background .15s;
+    }
+    .hc-sr-related-chip:hover { background: #e8eaf6; color: #3f4568; }
+
+    /* ── Category pills ── */
+    .hc-cats {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;
+    }
+    .hc-cat-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1.5px solid #e0e0e0; background: #fff; color: #555;
+      transition: all .18s;
+    }
+    .hc-cat-pill:hover, .hc-cat-pill.active {
+      background: #673147; color: #fff; border-color: #673147;
+    }
+
+    /* ── Module cards grid ── */
+    .hc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+    }
+
+    .hc-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e8eaf0;
+      overflow: hidden; transition: box-shadow .2s, transform .15s;
+    }
+    .hc-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.09); transform: translateY(-1px); }
+
+    .hc-card-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; background: #fafbfd; border-bottom: 1px solid #f0f0f0;
+      cursor: pointer; user-select: none;
+    }
+    .hc-card-icon { font-size: 22px; flex-shrink: 0; }
+    .hc-card-head-text { flex: 1; }
+    .hc-card-head-text h3 { font-size: 15px; font-weight: 700; color: #1e2139; }
+    .hc-card-nav { font-size: 11px; color: #888; margin-top: 2px; }
+    .hc-card-chevron { font-size: 12px; color: #aaa; transition: transform .2s; }
+    .hc-card.open .hc-card-chevron { transform: rotate(180deg); }
+
+    .hc-card-body {
+      display: none; padding: 20px;
+    }
+    .hc-card.open .hc-card-body { display: block; }
+
+    .hc-section-label {
+      font-size: 11px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .5px;
+      margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid #f0eaf2;
+    }
+    .hc-desc { font-size: 13px; color: #555; line-height: 1.65; margin-bottom: 16px; }
+
+    /* Steps */
+    .hc-steps { margin-bottom: 16px; }
+    .hc-step {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 13px; color: #444; margin-bottom: 6px; line-height: 1.5;
+    }
+    .hc-step-num {
+      background: #673147; color: #fff; font-size: 11px; font-weight: 700;
+      border-radius: 50%; width: 20px; height: 20px; min-width: 20px;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+
+    /* Features */
+    .hc-features { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .hc-feat {
+      background: #f0e8ec; color: #673147; border-radius: 6px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+    }
+
+    /* Roles */
+    .hc-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .hc-role {
+      background: #e8eaf6; color: #3f4568; border-radius: 6px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+    }
+
+    /* FAQ */
+    .hc-faq { margin-bottom: 16px; }
+    .hc-faq-item { margin-bottom: 10px; }
+    .hc-faq-q { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 3px; }
+    .hc-faq-a { font-size: 13px; color: #666; line-height: 1.6; padding-left: 10px; border-left: 2px solid #e0d0d8; }
+
+    /* Links */
+    .hc-quick-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .hc-qlink {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #673147; color: #fff; border-radius: 7px;
+      padding: 6px 14px; font-size: 12px; font-weight: 700;
+      text-decoration: none; transition: background .18s;
+    }
+    .hc-qlink:hover { background: #3f4568; }
+    .hc-qlink.sec {
+      background: #f0e8ec; color: #673147;
+    }
+    .hc-qlink.sec:hover { background: #e0d0d8; }
+
+    /* Divider */
+    .hc-divider { border: none; border-top: 1px solid #f0eaf2; margin: 14px 0; }
+
+    /* Empty filter state */
+    .hc-empty {
+      text-align: center; padding: 48px 24px; color: #aaa; font-size: 14px;
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 640px) {
+      .hc-hero { padding: 22px 20px; }
+      .hc-hero h1 { font-size: 20px; }
+      .hc-grid { grid-template-columns: 1fr; }
+      .hc-search-wrap { flex-direction: column; }
+      .hc-search-btn { padding: 12px; }
+    }
+
+    /* ── AI Help Assistant ── */
+    #hcAssistantPanel, #hcArticlesPanel { background:#fff; border:1px solid #ececf3; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.05); padding:16px 18px; margin-bottom:18px; }
+    .hca-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .hca-title { font-size:16px; font-weight:800; color:#1e2139; }
+    .hca-sub { font-size:12px; color:#9aa; }
+    .hca-thread { max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px; }
+    .hca-msg { display:flex; }
+    .hca-msg.user { justify-content:flex-end; }
+    .hca-bubble { max-width:80%; padding:10px 13px; border-radius:12px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; }
+    .hca-msg.bot .hca-bubble { background:#f4f1f5; color:#222; border-top-left-radius:4px; }
+    .hca-msg.user .hca-bubble { background:#673147; color:#fff; border-top-right-radius:4px; }
+    .hca-bubble ol, .hca-bubble ul { margin:6px 0 2px; padding-left:20px; }
+    .hca-bubble .hca-trouble { margin-top:8px; padding-top:8px; border-top:1px dashed #d9c8d2; }
+    .hca-bubble .hca-readbtn { margin-top:8px; font-size:11.5px; font-weight:700; color:#673147; background:transparent; border:1px solid #c5a0b5; border-radius:7px; padding:4px 10px; cursor:pointer; }
+    .hca-bubble .hca-readbtn:hover { background:#673147; color:#fff; }
+    .hca-artlinks { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+    .hca-artlinks button { font-size:11.5px; border:1px solid #e0d5db; background:#fff; border-radius:14px; padding:3px 10px; cursor:pointer; color:#673147; }
+    .hca-artlinks button:hover { background:#f4eef1; }
+    .hca-input { display:flex; gap:8px; margin-top:12px; align-items:center; }
+    .hca-input input { flex:1; padding:11px 13px; border:1.5px solid #e0e0e0; border-radius:9px; font-size:14px; outline:none; }
+    .hca-input input:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .hca-mic { width:42px; height:42px; flex:0 0 42px; border-radius:50%; border:1.5px solid #c5a0b5; background:#fff; font-size:18px; cursor:pointer; }
+    .hca-mic.live { background:#c62828; border-color:#c62828; color:#fff; animation:hcaPulse 1.2s infinite; }
+    @keyframes hcaPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(198,40,40,.4);} 50%{ box-shadow:0 0 0 7px rgba(198,40,40,0);} }
+    .hca-send { background:#673147; color:#fff; border:none; border-radius:9px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; }
+    .hca-send:hover { background:#4f2538; }
+    .hca-quick { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+    .hca-quick button { font-size:12px; border:1px solid #e0d5db; background:#faf7f9; border-radius:14px; padding:5px 12px; cursor:pointer; color:#555; }
+    .hca-quick button:hover { background:#f1e8ee; color:#673147; }
+    .hca-typing { font-size:12px; color:#9aa; font-style:italic; }
+    /* Article list + reader */
+    .hc-art-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+    .hc-art-item { border:1px solid #eee; border-radius:10px; padding:11px 13px; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+    .hc-art-item:hover { border-color:#c5a0b5; box-shadow:0 2px 10px rgba(103,49,71,.08); }
+    .hc-art-item .hc-art-cat { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#9b7c8c; }
+    .hc-art-item .hc-art-title { font-size:13.5px; font-weight:700; color:#1e2139; margin:3px 0; }
+    .hc-art-item .hc-art-sum { font-size:12px; color:#777; line-height:1.4; }
+    .hc-art-item .hc-art-ver { font-size:10.5px; color:#bbb; margin-top:5px; }
+    .hc-reader-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; padding:18px; }
+    .hc-reader-overlay.open { display:flex; }
+    .hc-reader { background:#fff; border-radius:14px; width:640px; max-width:96vw; max-height:88vh; overflow:auto; }
+    .hc-reader-head { display:flex; align-items:center; padding:15px 18px; border-bottom:1px solid #eef0f6; position:sticky; top:0; background:#fff; }
+    .hc-reader-title { flex:1; font-size:16px; font-weight:800; color:#1e2139; }
+    .hc-reader-x { background:none; border:none; font-size:18px; cursor:pointer; color:#999; }
+    .hc-readaloud { display:flex; align-items:center; gap:8px; padding:10px 18px; background:#faf7f9; border-bottom:1px solid #f0e7ec; flex-wrap:wrap; }
+    .hc-readaloud button { font-size:12.5px; font-weight:700; color:#673147; background:#fff; border:1px solid #c5a0b5; border-radius:7px; padding:5px 11px; cursor:pointer; }
+    .hc-readaloud button:hover { background:#673147; color:#fff; }
+    .hc-readaloud label { font-size:12px; color:#666; display:flex; align-items:center; gap:5px; }
+    .hc-readaloud select { border:1px solid #ddd; border-radius:6px; padding:3px 6px; font-size:12px; }
+    .hc-reader-body { padding:16px 18px 22px; font-size:14px; line-height:1.6; color:#333; }
+    .hc-reader-body h4 { margin:16px 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.4px; color:#673147; }
+    .hc-reader-body ol, .hc-reader-body ul { padding-left:22px; }
+    .hc-reader-body li { margin:4px 0; }
+    .hc-rd-word.hl { background:#ffe8a3; border-radius:3px; }
+    .hc-changelog { font-size:12px; color:#888; }
+    .hc-changelog li { margin:2px 0; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <!-- Hero + Search -->
+      <div class="hc-hero">
+        <h1>📚 Help Center</h1>
+        <p>Search for any feature, screen, or task — get step-by-step instructions, navigation links, and FAQs instantly.</p>
+        <div class="hc-search-wrap">
+          <input id="hcSearchInp" class="hc-search-inp"
+                 placeholder="e.g. How do I add a child?  •  Create an event  •  Assign volunteers…"
+                 onkeydown="if(event.key==='Enter') hcSearch()" />
+          <button class="hc-search-btn" id="hcSearchBtn" onclick="hcSearch()">🔍 Search</button>
+        </div>
+      </div>
+
+      <!-- Search results -->
+      <div id="hcSearchResults">
+        <div class="hc-sr-header">
+          <span class="hc-sr-title" id="hcSrTitle">Results</span>
+          <span class="hc-sr-close" onclick="document.getElementById('hcSearchResults').style.display='none'">✕</span>
+        </div>
+        <div class="hc-sr-body" id="hcSrBody"></div>
+      </div>
+
+      <!-- ═══ AI HELP ASSISTANT (voice + conversational, permission-aware) ═══ -->
+      <section id="hcAssistantPanel">
+        <div class="hca-head">
+          <span class="hca-title">🤖 AI Help Assistant</span>
+          <span class="hca-sub">Ask by text or voice — answers respect your access.</span>
+        </div>
+        <div class="hca-thread" id="hcaThread">
+          <div class="hca-msg bot">
+            <div class="hca-bubble">Hi! Ask me things like “How do I check in a child?”, “Explain the Follow-Up module”, or “Why is my NTAG login not working?” You can also tap the mic to talk.</div>
+          </div>
+        </div>
+        <div class="hca-input">
+          <button id="hcaMic" class="hca-mic" title="Speak your question" onclick="hcaToggleVoice()">🎤</button>
+          <input id="hcaInput" type="text" placeholder="Ask a question…" autocomplete="off"
+                 onkeydown="if(event.key==='Enter')hcaSend()" />
+          <button class="hca-send" onclick="hcaSend()">Send</button>
+        </div>
+        <div class="hca-quick" id="hcaQuick">
+          <button onclick="hcaQuick('How do I create an event?')">Create an event</button>
+          <button onclick="hcaQuick('How do I check in a child?')">Check in a child</button>
+          <button onclick="hcaQuick('Explain the Follow-Up module')">Follow-Ups</button>
+          <button onclick="hcaQuick('Why is my NTAG login not working?')">NTAG login issue</button>
+        </div>
+      </section>
+
+      <!-- ═══ HELP ARTICLES (server permission-filtered) ═══ -->
+      <section id="hcArticlesPanel">
+        <div class="hca-head"><span class="hca-title">📘 Help Articles</span>
+          <span class="hca-sub" id="hcArtCount"></span></div>
+        <div id="hcArticleList" class="hc-art-list"></div>
+      </section>
+
+      <!-- Article reader modal with Read-Aloud -->
+      <div class="hc-reader-overlay" id="hcReaderOverlay" onclick="if(event.target===this)hcCloseReader()">
+        <div class="hc-reader">
+          <div class="hc-reader-head">
+            <span id="hcReaderTitle" class="hc-reader-title">Article</span>
+            <button class="hc-reader-x" onclick="hcCloseReader()">✕</button>
+          </div>
+          <div class="hc-readaloud" id="hcReadAloudBar">
+            <button id="hcRaPlay" onclick="hcRaToggle()">▶︎ Read aloud</button>
+            <button onclick="hcRaStop()">⏹ Stop</button>
+            <label>Speed
+              <select id="hcRaSpeed" onchange="hcRaSpeed()">
+                <option value="0.8">0.8×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+              </select>
+            </label>
+          </div>
+          <div class="hc-reader-body" id="hcReaderBody"></div>
+        </div>
+      </div>
+
+      <!-- Category filter pills -->
+      <div class="hc-cats" id="hcCats">
+        <button class="hc-cat-pill active" data-cat="all" onclick="filterCat(this,'all')">🌐 All</button>
+        <button class="hc-cat-pill" data-cat="members"    onclick="filterCat(this,'members')">👥 Members</button>
+        <button class="hc-cat-pill" data-cat="kids"       onclick="filterCat(this,'kids')">⛪ Kids Ministry</button>
+        <button class="hc-cat-pill" data-cat="events"     onclick="filterCat(this,'events')">🎉 Events</button>
+        <button class="hc-cat-pill" data-cat="accounting" onclick="filterCat(this,'accounting')">💰 Accounting</button>
+        <button class="hc-cat-pill" data-cat="groups"     onclick="filterCat(this,'groups')">👥 Groups</button>
+        <button class="hc-cat-pill" data-cat="reminders"  onclick="filterCat(this,'reminders')">🔔 Reminders</button>
+        <button class="hc-cat-pill" data-cat="admin"      onclick="filterCat(this,'admin')">⚙️ Admin</button>
+        <button class="hc-cat-pill" data-cat="member-portal" onclick="filterCat(this,'member-portal')">🙋 Member Portal</button>
+      </div>
+
+      <!-- Module cards -->
+      <div class="hc-grid" id="hcGrid">
+
+        <!-- ═══ MEMBERS & FAMILIES ═══ -->
+        <div class="hc-card" data-cat="members" data-keywords="member family add edit search household directory viewfamily">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">👨‍👩‍👧</span>
+            <div class="hc-card-head-text">
+              <h3>Members &amp; Families</h3>
+              <div class="hc-card-nav">Admin → Families / View Family</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Manage all church members and their family units. Add, edit, search, and deactivate members. Group members into families and track relationships, contact information, and member types.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Add Member</span><span class="hc-feat">Edit Member</span>
+              <span class="hc-feat">Search / Filter</span><span class="hc-feat">Family Groups</span>
+              <span class="hc-feat">Member Types</span><span class="hc-feat">Photo Upload</span>
+              <span class="hc-feat">Export CSV</span><span class="hc-feat">Member Directory</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span>
+              <span class="hc-role">Accountant</span><span class="hc-role">User</span>
+            </div>
+            <div class="hc-section-label">How to Add a Member</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Families</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ Add Family</strong> (or open an existing family)</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>+ Add Member</strong> inside the family</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Fill in First Name, Last Name, Role, Email, Phone, Birthday</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Save</strong></span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I search for a member?</div>
+                <div class="hc-faq-a">Use the search bar at the top of the Families page. Type a name, email, or phone number.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Can I deactivate a member instead of deleting?</div>
+                <div class="hc-faq-a">Yes — edit the member and set their status to Inactive. The record is preserved but hidden from active lists.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I assign a member type (e.g. Youth, Regular)?</div>
+                <div class="hc-faq-a">Member types are configured under <strong>Admin Settings → Member Type</strong>. Once created, they appear in the member form dropdown.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/viewfamily">👨‍👩‍👧 Families</a>
+              <a class="hc-qlink sec" href="/family">+ Add Family</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ KIDS MINISTRY ═══ -->
+        <div class="hc-card" data-cat="kids" data-keywords="child children kids ministry checkin checkout register sunday school class teacher exam grade kidsministry">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">⛪</span>
+            <div class="hc-card-head-text">
+              <h3>Kids Ministry</h3>
+              <div class="hc-card-nav">General → Ministry → Kids Ministry</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Manage children's registrations, check-in/check-out, Sunday School classes, teachers, exams, and grading. Parents can view their children's progress through the Member Portal.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Register Child</span><span class="hc-feat">Check-In / Check-Out</span>
+              <span class="hc-feat">QR Code Check-In</span><span class="hc-feat">Assign Teachers</span>
+              <span class="hc-feat">Sunday School Classes</span><span class="hc-feat">Exams &amp; Grading</span>
+              <span class="hc-feat">Authorized Pickups</span><span class="hc-feat">KM Volunteers</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span>
+            </div>
+            <div class="hc-section-label">How to Register a Child</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Ministry → Kids Ministry</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click the <strong>Children</strong> tab</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>+ Add Child</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Enter the child's name, DOB, grade, gender, and parent contact</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Save</strong></span></div>
+            </div>
+            <div class="hc-section-label">How to Set Up a Sunday School Class</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Kids Ministry → Sunday School</strong> tab</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Class</strong> and enter the class name</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Add a teacher by clicking <strong>+ Add Teacher</strong> and linking to a member</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Enroll students by clicking <strong>+ Add Student</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Create exams and publish them for students to take via the Kids Portal</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How does Check-In work?</div>
+                <div class="hc-faq-a">Go to <strong>Kids Ministry → Check-In</strong>. Search by child name or scan the parent's QR code. Click Check-In. At pickup, click Check-Out.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Where does a teacher see their class?</div>
+                <div class="hc-faq-a">Teachers linked to a member portal account see their assigned classes under <strong>MY PROFILE → Classes</strong> (the Teacher Classes tab).</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Can a parent view their child's exam results?</div>
+                <div class="hc-faq-a">Yes — parents log into the Member Portal and go to <strong>MY PROFILE → Sunday School</strong> to see all children's exams and grades.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/ministry">⛪ Kids Ministry</a>
+              <a class="hc-qlink sec" href="/sundaySchool">📖 Sunday School</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ EVENTS ═══ -->
+        <div class="hc-card" data-cat="events" data-keywords="event create manage registration qr volunteer reminder calendar">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🎉</span>
+            <div class="hc-card-head-text">
+              <h3>Events</h3>
+              <div class="hc-card-nav">General → Events</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Create and manage church events including registrations, volunteer assignments, QR code check-in, and automated reminders. Members can register for events through the public event page.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Create Event</span><span class="hc-feat">Event Registration</span>
+              <span class="hc-feat">QR Code Check-In</span><span class="hc-feat">Volunteer Roles</span>
+              <span class="hc-feat">Event Reminders</span><span class="hc-feat">Calendar View</span>
+              <span class="hc-feat">Multi-Day Events</span><span class="hc-feat">RSVP (Yes/No/Maybe)</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span>
+            </div>
+            <div class="hc-section-label">How to Create an Event</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Events</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Event</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter event name, date, time, location, and description</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Enable <strong>Show Registrants</strong> if attendance tracking is needed</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Optionally enable <strong>QR Code</strong> for self check-in</span></div>
+              <div class="hc-step"><span class="hc-step-num">6</span><span>Click <strong>Save</strong></span></div>
+            </div>
+            <div class="hc-section-label">How to Assign Volunteers</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open the event and click <strong>Volunteers</strong> tab</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ Add Role</strong> to define volunteer positions (e.g. Usher, Greeter)</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>+ Assign</strong> next to a role and search for a member</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>The member receives an email notification of their assignment</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do members register for an event?</div>
+                <div class="hc-faq-a">Share the public event registration link (found on the event page). Members can register without logging in.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How does QR check-in work?</div>
+                <div class="hc-faq-a">Enable <strong>Generate QR Code</strong> on the event. Members scan the QR code at the door to self check-in on the public check-in page.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Can I set up automatic reminders for an event?</div>
+                <div class="hc-faq-a">Yes — go to <strong>General → Reminders → Event Reminders</strong> and link a reminder to your event. It will send emails automatically at the specified time before the event.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/events">🎉 Events</a>
+              <a class="hc-qlink sec" href="/eventcalendar">📆 Calendar</a>
+              <a class="hc-qlink sec" href="/eventReminders">🔔 Reminders</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ ACCOUNTING / CONTRIBUTIONS ═══ -->
+        <div class="hc-card" data-cat="accounting" data-keywords="income expense tithe offering contribution pledge fund source report tax financial accounting">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">💰</span>
+            <div class="hc-card-head-text">
+              <h3>Accounting &amp; Contributions</h3>
+              <div class="hc-card-nav">Accounting → Income / Expense / Pledges / Reports</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Record tithes, offerings, donations, and expenses. Manage pledge campaigns, generate financial reports, and produce year-end tax documents for donors.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Record Income</span><span class="hc-feat">Record Expense</span>
+              <span class="hc-feat">Quick Add (Recurring)</span><span class="hc-feat">Pledge Campaigns</span>
+              <span class="hc-feat">Income Reports</span><span class="hc-feat">Expense Reports</span>
+              <span class="hc-feat">Tax Report</span><span class="hc-feat">Financial Overview</span>
+              <span class="hc-feat">Fund Management</span><span class="hc-feat">Transaction Types</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Accountant</span>
+            </div>
+            <div class="hc-section-label">How to Record a Contribution</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Accounting → Income</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ Add Income</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Select the member, fund (sub-source), transaction type, and amount</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Enter the date and any notes</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Save</strong></span></div>
+            </div>
+            <div class="hc-section-label">How to Create a Pledge Campaign</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Accounting → Pledges</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Campaign</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter campaign name, target amount, fund, and end date</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Add members as pledgers and enter their pledge amounts</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Track fulfillment as contributions come in</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I view contributions for a specific member?</div>
+                <div class="hc-faq-a">Go to <strong>Accounting → Income</strong> and use the member search filter. Or open the member's family record to see their giving history.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I generate a year-end tax report?</div>
+                <div class="hc-faq-a">Go to <strong>Accounting → Reports → Tax Report</strong>. Select the year and click Generate. You can download and print individual donor statements.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">What is a Quick Add (recurring) transaction?</div>
+                <div class="hc-faq-a">Mark an income or expense as <strong>Quick Add</strong> to make it appear in a quick-entry panel, saving time when recording the same recurring item each week.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/income">💰 Income</a>
+              <a class="hc-qlink sec" href="/expense">📤 Expense</a>
+              <a class="hc-qlink sec" href="/pledges">🤝 Pledges</a>
+              <a class="hc-qlink sec" href="/accountingReports">📊 Reports</a>
+              <a class="hc-qlink sec" href="/tax-report">🧾 Tax Report</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ GROUPS ═══ -->
+        <div class="hc-card" data-cat="groups" data-keywords="group groups small group ministry team cell email message communicate">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">👥</span>
+            <div class="hc-card-head-text">
+              <h3>Groups</h3>
+              <div class="hc-card-nav">Admin → Groups</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Organize members into groups (small groups, ministries, committees, etc.). Send group emails and manage membership. Members can view and message their groups from the Member Portal.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Create Group</span><span class="hc-feat">Add/Remove Members</span>
+              <span class="hc-feat">Send Group Email</span><span class="hc-feat">Group Directory</span>
+              <span class="hc-feat">Member Messaging</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span>
+            </div>
+            <div class="hc-section-label">How to Create a Group</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Groups</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Group</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter the group name and description</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Click <strong>Add Members</strong> and search for members to add</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Use <strong>Send Email</strong> to communicate with the group</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Can members message each other within a group?</div>
+                <div class="hc-faq-a">Yes — members with portal access can send direct messages to other group members via <strong>MY PROFILE → Groups → Messages</strong>.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/groups">👥 Groups</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ REMINDERS ═══ -->
+        <div class="hc-card" data-cat="reminders" data-keywords="reminder reminders event meeting periodic onetime auto email alert notification schedule">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🔔</span>
+            <div class="hc-card-head-text">
+              <h3>Reminders &amp; Notifications</h3>
+              <div class="hc-card-nav">General → Reminders</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Automate email notifications for events, meetings, and custom schedules. Set up one-time or recurring reminders to keep your congregation informed.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Event Reminders</span><span class="hc-feat">Meeting Reminders</span>
+              <span class="hc-feat">Periodic (Auto) Reminders</span><span class="hc-feat">One-Time Reminders</span>
+              <span class="hc-feat">Email Scheduling</span>
+            </div>
+            <div class="hc-section-label">Roles with Access</div>
+            <div class="hc-roles">
+              <span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span>
+            </div>
+            <div class="hc-section-label">How to Create an Event Reminder</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Reminders → Event Reminders</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Reminder</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Select the event and enter how many hours/days before the event to send</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Compose the email subject and body</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Save</strong> — the system will send it automatically</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Why are my reminders not sending?</div>
+                <div class="hc-faq-a">Check that your SMTP email settings are configured correctly under <strong>Admin Settings → Email Settings</strong>. Also confirm the event date is in the future.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">What is a Periodic (Auto) Reminder?</div>
+                <div class="hc-faq-a">A recurring reminder sent on a schedule (e.g. monthly) to a group or individual — useful for membership renewal notices or follow-ups.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/eventReminders">🔔 Event Reminders</a>
+              <a class="hc-qlink sec" href="/autoReminders">🔁 Periodic</a>
+              <a class="hc-qlink sec" href="/oneReminders">⏰ One-Time</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ ADMIN & USERS ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="admin user users role superadmin staff account permissions settings email logo stripe whatsapp">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">⚙️</span>
+            <div class="hc-card-head-text">
+              <h3>Admin &amp; User Management</h3>
+              <div class="hc-card-nav">Admin → View Users / Settings</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Manage staff accounts, roles, and permissions. Configure email settings, church logo, integrations (Stripe, WhatsApp), and system-wide preferences.</p>
+            <div class="hc-section-label">Roles</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">SuperAdmin</div><div class="hc-faq-a">Full access to all modules including accounting, admin settings, and user management.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Admin</div><div class="hc-faq-a">Access to members, events, groups, reminders, and general settings. No accounting access.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Accountant</div><div class="hc-faq-a">Access to income, expenses, pledges, and financial reports only.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">User</div><div class="hc-faq-a">Read-only access to general modules. Cannot modify accounting or admin settings.</div></div>
+            </div>
+            <div class="hc-section-label">How to Add a Staff User</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → View Users</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ Add User</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter name, email, and select a role (SuperAdmin / Admin / Accountant / User)</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Set a temporary password and click <strong>Save</strong></span></div>
+            </div>
+            <div class="hc-section-label">How to Configure Email Settings</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin Settings → Email Settings</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Enter your SMTP host, port, username, and password</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>Test Connection</strong> to verify</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Click <strong>Save</strong></span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I reset a user's password?</div>
+                <div class="hc-faq-a">Go to <strong>Admin → View Users</strong>, find the user, and click <strong>Reset Password</strong>. A temporary password can be set or a reset link emailed.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I change the church logo?</div>
+                <div class="hc-faq-a">Go to <strong>Admin Settings → Church Logo</strong> and upload a new image file.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/viewusers">🧑‍💼 View Users</a>
+              <a class="hc-qlink sec" href="/emailSettings">✉️ Email Settings</a>
+              <a class="hc-qlink sec" href="/stripeIntegration">💳 Stripe</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ MEMBER PORTAL ═══ -->
+        <div class="hc-card" data-cat="member-portal" data-keywords="member portal login family give groups volunteer sunday school classes profile memberHome">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🙋</span>
+            <div class="hc-card-head-text">
+              <h3>Member Portal</h3>
+              <div class="hc-card-nav">Member Portal → memberHome (login at /login.html)</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">A self-service portal for church members. Members can view their family, give online, see group messages, volunteer for events, track Sunday School exams, and update their profile — all without contacting the administrator.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">View Family</span><span class="hc-feat">Online Giving</span>
+              <span class="hc-feat">Group Messaging</span><span class="hc-feat">Volunteer Sign-Up</span>
+              <span class="hc-feat">Sunday School Exams</span><span class="hc-feat">Class Grades</span>
+              <span class="hc-feat">Prayer Requests</span><span class="hc-feat">Member Directory</span>
+              <span class="hc-feat">Guess It Game</span>
+            </div>
+            <div class="hc-section-label">How a Member Logs In</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>The administrator creates a member portal account in <strong>Admin → View Users → Member Portal</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>The member goes to <strong>/login.html</strong> and enters their username and password</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>They land on the Member Home page with their profile and available features</span></div>
+            </div>
+            <div class="hc-section-label">How a Member Gives Online</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Log into the Member Portal</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>MY PROFILE → Contributions → Give</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Select the fund, enter the amount, and complete payment via Stripe</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">A member says they can't log in — what do I check?</div>
+                <div class="hc-faq-a">Verify their signup account exists in <strong>View Users</strong>. Confirm the account is Active and not Locked. Check that the service_client subscription is active for the tenant.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Why does a teacher see "not enrolled" on the Classes tab?</div>
+                <div class="hc-faq-a">The teacher must be linked to a member portal account AND have their member record set as the teacher in <strong>Sunday School → Teachers</strong>. The system auto-redirects linked teachers to their teacher view.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/memberHome">🙋 Member Home</a>
+              <a class="hc-qlink sec" href="/login.html">🔑 Login</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ MEETINGS ═══ -->
+        <div class="hc-card" data-cat="events" data-keywords="meeting meetings schedule service midweek attendance">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📅</span>
+            <div class="hc-card-head-text">
+              <h3>Meetings</h3>
+              <div class="hc-card-nav">General → Meetings</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Schedule and track church meetings (Sunday services, mid-week, committees, etc.). Configure meeting types and record attendance.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Schedule Meeting</span><span class="hc-feat">Meeting Types</span>
+              <span class="hc-feat">Recurring Meetings</span><span class="hc-feat">Meeting Notes</span>
+            </div>
+            <div class="hc-section-label">How to Schedule a Meeting</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Meetings</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Meeting</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Select the meeting type, date, start and end times</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Add notes if needed and click <strong>Save</strong></span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/meetings">📅 Meetings</a>
+              <a class="hc-qlink sec" href="/meetingtype">🗂️ Meeting Types</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ VOLUNTEER ═══ -->
+        <div class="hc-card" data-cat="events" data-keywords="volunteer assign role event volunteer assignment worship planning">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🤝</span>
+            <div class="hc-card-head-text">
+              <h3>Volunteers &amp; Worship Planning</h3>
+              <div class="hc-card-nav">General → Events (Volunteers) / Worship Planning</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Assign volunteers to event roles and plan worship teams. Members can view their assignments in the Member Portal.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Event Volunteer Roles</span><span class="hc-feat">Volunteer Assignment</span>
+              <span class="hc-feat">Email Notifications</span><span class="hc-feat">Worship Team Planning</span>
+              <span class="hc-feat">Instrument / Song Tracking</span>
+            </div>
+            <div class="hc-section-label">How to Plan a Worship Team</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Worship Planning</strong> from the sidebar</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Create a worship assignment and add team members</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Assign songs and instruments per member</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Members can view their assignments in the Member Portal under <strong>Volunteer</strong></span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/worshipPlanning">🎵 Worship Planning</a>
+              <a class="hc-qlink sec" href="/events">🎉 Events</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ EMAIL & COMMUNICATIONS ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="email notify notification bulk send compose sms whatsapp communication">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">✉️</span>
+            <div class="hc-card-head-text">
+              <h3>Email &amp; Communications</h3>
+              <div class="hc-card-nav">General → Compose Email</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Send bulk emails to individuals, families, groups, or the entire congregation. Supports file attachments and HTML formatting. Configure WhatsApp for mobile notifications.</p>
+            <div class="hc-section-label">Features</div>
+            <div class="hc-features">
+              <span class="hc-feat">Bulk Email</span><span class="hc-feat">File Attachments</span>
+              <span class="hc-feat">Family / Group Targeting</span><span class="hc-feat">WhatsApp Integration</span>
+              <span class="hc-feat">Unsubscribe Management</span>
+            </div>
+            <div class="hc-section-label">How to Send a Bulk Email</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Compose Email</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Select recipients: All Members, a specific Group, or individual members</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter subject and compose your message</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Attach files if needed and click <strong>Send</strong></span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Emails are not being sent — what do I check?</div>
+                <div class="hc-faq-a">Verify SMTP settings under <strong>Admin Settings → Email Settings</strong>. Ensure the "From" email is allowed by your SMTP provider. Check spam/junk folders on recipient side.</div>
+              </div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/notifyEmail">✉️ Compose Email</a>
+              <a class="hc-qlink sec" href="/emailSettings">⚙️ Email Settings</a>
+              <a class="hc-qlink sec" href="/unsubscribed-list">🚫 Unsubscribed</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ CERTIFICATES ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="certificate baptism membership award print">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🏆</span>
+            <div class="hc-card-head-text">
+              <h3>Certificates</h3>
+              <div class="hc-card-nav">More → Certificates</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Generate and print official church certificates for baptism, membership, and other milestones.</p>
+            <div class="hc-section-label">How to Generate a Certificate</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>More → Certificates</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Select the certificate type (e.g. Baptism)</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Search for and select the member</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Enter the date and any custom text</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Generate</strong> and print or download the PDF</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/certificates">🏆 Certificates</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ FOLLOW-UPS ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="followup follow up task assign new member visitor pastoral care">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📌</span>
+            <div class="hc-card-head-text">
+              <h3>Follow-Ups</h3>
+              <div class="hc-card-nav">More → Follow-Ups</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Track pastoral follow-up tasks for new members, visitors, or members needing care. Assign tasks to staff and record outcomes.</p>
+            <div class="hc-section-label">How to Create a Follow-Up</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>More → Follow-Ups</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Follow-Up</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Select the member, assign a staff person, and set a due date</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Add notes and click <strong>Save</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Update status as the follow-up progresses (Pending → Completed)</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/followups">📌 Follow-Ups</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PUBLIC SCREENS ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="public screen projector tv display live church information kiosk">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📺</span>
+            <div class="hc-card-head-text">
+              <h3>Public Screens</h3>
+              <div class="hc-card-nav">More → Public Screens</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Display live church announcements, events, and information on a projector or TV screen without requiring a login. Shareable via a secure public link.</p>
+            <div class="hc-section-label">How to Set Up a Public Screen</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>More → Public Screens</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>Generate Link</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Copy the public URL and open it on the TV/projector browser</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>The screen auto-refreshes with the latest church information</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/publicScreens">📺 Public Screens</a>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.hc-grid -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+/* ── Knowledge base for in-page AI search ─────────────────── */
+const HC_KB = [
+  {
+    id: 'add-child',
+    q: ['add a child','register a child','add child','register child','new child','enroll child','child registration'],
+    title: '⛪ Register a Child',
+    answer: 'To register a child in Kids Ministry, navigate to General → Ministry → Kids Ministry, then open the Children tab.',
+    steps: ['Go to General → Ministry → Kids Ministry','Click the Children tab','Click + Add Child','Enter the child\'s name, date of birth, grade, gender, and parent/guardian contact','Click Save'],
+    links: [{label:'Kids Ministry', url:'/ministry', icon:'⛪'}],
+    related: ['assign teacher','sunday school class','check-in child']
+  },
+  {
+    id: 'create-event',
+    q: ['create event','add event','new event','create an event','how to create event','make event'],
+    title: '🎉 Create an Event',
+    answer: 'Events are managed under General → Events. You can create multi-day events, enable QR check-in, collect registrations, and assign volunteers.',
+    steps: ['Go to General → Events','Click + New Event','Enter event name, date, time, and location','Enable Show Registrants if tracking attendance','Optionally enable QR Code for self check-in','Click Save'],
+    links: [{label:'Events', url:'/events', icon:'🎉'},{label:'Calendar', url:'/eventcalendar', icon:'📆'}],
+    related: ['assign volunteers','event reminder','qr code check-in']
+  },
+  {
+    id: 'assign-volunteers',
+    q: ['assign volunteer','add volunteer','volunteer assignment','assign volunteers','how to volunteer','volunteer role'],
+    title: '🤝 Assign Volunteers to an Event',
+    answer: 'Volunteer roles are managed per event. Open the event, go to the Volunteers tab, create roles, then assign members.',
+    steps: ['Go to General → Events and open your event','Click the Volunteers tab','Click + Add Role to define a volunteer position (e.g. Usher, Sound)','Click + Assign next to the role and search for a member','The member receives an email notification'],
+    links: [{label:'Events', url:'/events', icon:'🎉'}],
+    related: ['create event','worship planning','member portal volunteer']
+  },
+  {
+    id: 'view-contributions',
+    q: ['view contributions','see contributions','contributions','where is income','find contribution','member giving','tithes','offering'],
+    title: '💰 View Contributions',
+    answer: 'Contributions (income) are recorded and viewed under Accounting → Income. Filter by member, date range, or fund.',
+    steps: ['Go to Accounting → Income','Use the search/filter bar to find contributions by member name, date, or fund','Click on a row to see full details'],
+    links: [{label:'Income', url:'/income', icon:'💰'},{label:'Reports', url:'/accountingReports', icon:'📊'}],
+    related: ['record contribution','pledge campaign','tax report']
+  },
+  {
+    id: 'record-contribution',
+    q: ['record contribution','add income','add contribution','tithe entry','record tithe','record offering','add donation'],
+    title: '💰 Record a Contribution',
+    answer: 'Go to Accounting → Income to add a new contribution for any member.',
+    steps: ['Go to Accounting → Income','Click + Add Income','Select the member, fund (sub-source), and transaction type','Enter the amount and date','Add any notes and click Save'],
+    links: [{label:'Income', url:'/income', icon:'💰'}],
+    related: ['view contributions','pledge campaign','quick add recurring']
+  },
+  {
+    id: 'pledge-campaign',
+    q: ['pledge campaign','create pledge','add pledge','pledge','how to pledge','fundraising campaign'],
+    title: '🤝 Create a Pledge Campaign',
+    answer: 'Pledge campaigns let you track member commitments toward a fundraising goal. Manage them under Accounting → Pledges.',
+    steps: ['Go to Accounting → Pledges','Click + New Campaign','Enter the campaign name, target amount, fund, and end date','Add members as pledgers and enter their individual pledge amounts','Track fulfillment as contributions come in against pledges'],
+    links: [{label:'Pledges', url:'/pledges', icon:'🤝'}],
+    related: ['view contributions','income report']
+  },
+  {
+    id: 'add-member',
+    q: ['add member','add a member','new member','register member','create member','how to add member','add person'],
+    title: '👨‍👩‍👧 Add a Church Member',
+    answer: 'Members are added within families. Go to Admin → Families, open or create a family, then add the member.',
+    steps: ['Go to Admin → Families','Click + Add Family (or open an existing family)','Click + Add Member inside the family','Enter First Name, Last Name, Role, Email, Phone, and Birthday','Set Member Type if applicable','Click Save'],
+    links: [{label:'Families', url:'/viewfamily', icon:'👨‍👩‍👧'},{label:'Add Family', url:'/family', icon:'➕'}],
+    related: ['search member','member portal','family groups']
+  },
+  {
+    id: 'sunday-school-class',
+    q: ['sunday school class','create class','ss class','setup class','new class sunday school','how to setup sunday school'],
+    title: '📖 Set Up a Sunday School Class',
+    answer: 'Sunday School classes are managed under Kids Ministry → Sunday School. Create a class, add a teacher, enroll students, then create and publish exams.',
+    steps: ['Go to General → Ministry → Kids Ministry','Click the Sunday School tab','Click + New Class and enter the class name','Click + Add Teacher and link to a member record','Click + Add Student to enroll children','Create exams via the Exams tab and set status to Published'],
+    links: [{label:'Sunday School', url:'/sundaySchool', icon:'📖'},{label:'Kids Ministry', url:'/ministry', icon:'⛪'}],
+    related: ['assign teacher','add child','exam grading','member portal classes']
+  },
+  {
+    id: 'assign-teacher',
+    q: ['assign teacher','add teacher','link teacher','teacher assignment','how to add teacher'],
+    title: '👩‍🏫 Assign a Teacher to a Sunday School Class',
+    answer: 'Teachers are added per class inside Sunday School. Link them to a member record so they can see the class in their Member Portal.',
+    steps: ['Go to Kids Ministry → Sunday School','Open the class','Click + Add Teacher','Enter the teacher\'s name and email','Optionally link to a member using their Member Ref (MBR token)','The teacher can now see the class under MY PROFILE → Classes in the Member Portal'],
+    links: [{label:'Sunday School', url:'/sundaySchool', icon:'📖'}],
+    related: ['sunday school class','member portal classes','exam grading']
+  },
+  {
+    id: 'check-in-child',
+    q: ['check in','check-in child','children check in','kids checkin','check in kids','scan qr child'],
+    title: '✅ Check In a Child',
+    answer: 'Use the Kids Ministry Check-In screen to check children in and out by name search or parent QR code.',
+    steps: ['Go to General → Ministry → Kids Ministry','Click Check-In tab','Search for the child by name or scan the parent\'s QR code','Click Check-In','At pickup, search again and click Check-Out'],
+    links: [{label:'Kids Ministry', url:'/ministry', icon:'⛪'}],
+    related: ['register child','authorized pickup','kids ministry']
+  },
+  {
+    id: 'tax-report',
+    q: ['tax report','year end report','annual report','tax','donor statement','generate tax'],
+    title: '🧾 Generate a Tax Report',
+    answer: 'Year-end tax reports (donor acknowledgement letters) are generated under Accounting Reports → Tax Report.',
+    steps: ['Go to Accounting → Reports → Tax Report','Select the tax year','Click Generate','Download or print individual donor statements'],
+    links: [{label:'Tax Report', url:'/tax-report', icon:'🧾'},{label:'Reports', url:'/accountingReports', icon:'📊'}],
+    related: ['view contributions','income report','financial report']
+  },
+  {
+    id: 'bulk-email',
+    q: ['send email','bulk email','email members','notify members','compose email','how to email'],
+    title: '✉️ Send a Bulk Email',
+    answer: 'Use General → Compose Email to send emails to individuals, groups, or your entire congregation.',
+    steps: ['Go to General → Compose Email','Select recipients: All Members, a Group, or individual members','Enter the subject and compose your message','Attach files if needed','Click Send'],
+    links: [{label:'Compose Email', url:'/notifyEmail', icon:'✉️'}],
+    related: ['email settings','group email','reminders']
+  },
+  {
+    id: 'event-reminder',
+    q: ['event reminder','set reminder','reminder','how to reminder','automatic reminder','auto reminder','notify before event'],
+    title: '🔔 Set Up an Event Reminder',
+    answer: 'Event reminders automatically email attendees before an event. Set them up under General → Reminders.',
+    steps: ['Go to General → Reminders → Event Reminders','Click + New Reminder','Select the event and enter how many hours/days before the event to send','Compose the email subject and body','Click Save — it will send automatically at the scheduled time'],
+    links: [{label:'Event Reminders', url:'/eventReminders', icon:'🔔'}],
+    related: ['create event','email settings','periodic reminders']
+  },
+  {
+    id: 'add-user',
+    q: ['add user','create user','add staff','new staff','create account','staff account','how to add user'],
+    title: '🧑‍💼 Add a Staff User',
+    answer: 'Staff accounts are managed under Admin → View Users. Assign roles (SuperAdmin, Admin, Accountant, User) to control access.',
+    steps: ['Go to Admin → View Users','Click + Add User','Enter the staff member\'s name, email, and select a role','Set a temporary password','Click Save'],
+    links: [{label:'View Users', url:'/viewusers', icon:'🧑‍💼'}],
+    related: ['roles permissions','member portal account','reset password']
+  },
+  {
+    id: 'create-group',
+    q: ['create group','add group','new group','manage group','how to create group','small group'],
+    title: '👥 Create a Group',
+    answer: 'Groups organize members into teams, ministries, or small groups. Manage them under Admin → Groups.',
+    steps: ['Go to Admin → Groups','Click + New Group','Enter the group name and description','Click Add Members to search and add church members','Use Send Email to communicate with the entire group'],
+    links: [{label:'Groups', url:'/groups', icon:'👥'}],
+    related: ['group email','member portal groups','ministry team']
+  },
+  {
+    id: 'worship-planning',
+    q: ['worship planning','worship team','plan worship','song assignment','instrument','worship schedule'],
+    title: '🎵 Plan a Worship Team',
+    answer: 'Worship Planning lets you assign team members, songs, and instruments for each service.',
+    steps: ['Go to Worship Planning from the sidebar','Click + New Assignment','Enter the date/service name','Add team members and assign instruments and songs','Members can view their assignments in the Member Portal under Volunteer'],
+    links: [{label:'Worship Planning', url:'/worshipPlanning', icon:'🎵'}],
+    related: ['volunteer assignment','event volunteer','member portal']
+  }
+];
+
+/* ── Search logic ─────────────────────────────────────────── */
+function hcSearch() {
+  const inp = document.getElementById('hcSearchInp');
+  const btn = document.getElementById('hcSearchBtn');
+  const q   = (inp.value || '').trim().toLowerCase();
+  if (!q) { inp.focus(); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Searching…';
+
+  // Score each KB entry
+  const scored = HC_KB.map(entry => {
+    let score = 0;
+    entry.q.forEach(phrase => {
+      if (q.includes(phrase) || phrase.includes(q)) score += 10;
+      // Partial word overlap
+      const qWords = q.split(/\s+/);
+      const pWords = phrase.split(/\s+/);
+      qWords.forEach(w => { if (w.length > 2 && pWords.some(p => p.includes(w) || w.includes(p))) score += 3; });
+    });
+    // Also search title and steps
+    const fullText = (entry.title + ' ' + (entry.steps || []).join(' ')).toLowerCase();
+    q.split(/\s+/).forEach(w => { if (w.length > 2 && fullText.includes(w)) score += 1; });
+    return { entry, score };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+
+  setTimeout(() => {
+    btn.disabled = false; btn.textContent = '🔍 Search';
+    renderHcResults(scored, q);
+  }, 300);
+}
+
+function renderHcResults(scored, q) {
+  const panel = document.getElementById('hcSearchResults');
+  const title = document.getElementById('hcSrTitle');
+  const body  = document.getElementById('hcSrBody');
+  title.textContent = scored.length
+    ? `Results for: "${q}"`
+    : `No results for: "${q}"`;
+
+  if (!scored.length) {
+    body.innerHTML = `<div style="color:#aaa;font-size:14px;padding:8px 0;">
+      No help articles matched your query. Try different keywords, or browse the modules below.
+      <br/><br/><a href="/help" style="color:#673147;font-weight:600;">→ View basic help page</a></div>`;
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  const entry = scored[0].entry;
+  let html = `<div class="hc-sr-answer">${escHC(entry.answer)}</div>`;
+
+  if (entry.steps && entry.steps.length) {
+    html += `<div class="hc-sr-steps"><h4>Step-by-Step</h4>`;
+    entry.steps.forEach((s, i) => {
+      html += `<div class="hc-sr-step"><span class="hc-sr-step-num">${i+1}</span><span>${escHC(s)}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (entry.links && entry.links.length) {
+    html += `<div><strong style="font-size:12px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;">Quick Navigation</strong><div class="hc-sr-links" style="margin-top:8px;">`;
+    entry.links.forEach(lk => {
+      html += `<a class="hc-sr-link" href="${escHC(lk.url)}">${escHC(lk.icon || '')} ${escHC(lk.label)}</a>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Other matches
+  if (scored.length > 1) {
+    html += `<div class="hc-sr-related"><h4>Also relevant</h4>`;
+    scored.slice(1, 5).forEach(({entry: e}) => {
+      html += `<span class="hc-sr-related-chip" onclick="hcJumpTo('${escHC(e.id)}')">${escHC(e.title)}</span>`;
+    });
+    html += `</div>`;
+  }
+
+  if (entry.related && entry.related.length) {
+    html += `<div style="margin-top:10px;"><span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.4px;font-weight:700;">Related topics: </span>`;
+    entry.related.forEach(r => {
+      html += `<span class="hc-sr-related-chip" onclick="document.getElementById('hcSearchInp').value='${escHC(r)}';hcSearch()">${escHC(r)}</span>`;
+    });
+    html += `</div>`;
+  }
+
+  body.innerHTML = html;
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hcJumpTo(id) {
+  const entry = HC_KB.find(e => e.id === id);
+  if (!entry) return;
+  document.getElementById('hcSearchInp').value = entry.q[0];
+  hcSearch();
+}
+
+/* ── Category filter ─────────────────────────────────────── */
+function filterCat(btn, cat) {
+  document.querySelectorAll('.hc-cat-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const cards = document.querySelectorAll('.hc-card');
+  let visible = 0;
+  cards.forEach(c => {
+    const show = cat === 'all' || c.dataset.cat === cat;
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  // Show empty state if needed
+  let empty = document.getElementById('hcEmpty');
+  if (!visible) {
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.id = 'hcEmpty'; empty.className = 'hc-empty';
+      empty.textContent = 'No articles in this category yet.';
+      document.getElementById('hcGrid').appendChild(empty);
+    }
+    empty.style.display = '';
+  } else if (empty) {
+    empty.style.display = 'none';
+  }
+}
+
+/* ── Card expand/collapse ────────────────────────────────── */
+function toggleCard(headEl) {
+  const card = headEl.closest('.hc-card');
+  card.classList.toggle('open');
+}
+
+/* ── Open card by keyword from URL hash ─────────────────── */
+function openFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+  const card = document.querySelector(`.hc-card[data-keywords*="${hash}"]`);
+  if (card) { card.classList.add('open'); card.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  // Also pre-fill search
+  const entry = HC_KB.find(e => e.id === hash);
+  if (entry) { document.getElementById('hcSearchInp').value = entry.q[0]; hcSearch(); }
+}
+
+/* ── HTML escape ─────────────────────────────────────────── */
+function escHC(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Enter key on search ─────────────────────────────────── */
+document.getElementById('hcSearchInp').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') hcSearch();
+});
+
+/* ── Init ─────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', openFromHash);
+</script>
+
+<!-- ═══ AI Help Assistant + Read-Aloud + permission gating ═══ -->
+<script>
+(function () {
+  'use strict';
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  /* ── 1. Permission-filtered Help Articles (server-authoritative) ── */
+  var ARTICLES = [];
+  function loadArticles() {
+    fetch('/api/help/articles').then(function(r){ return r.ok ? r.json() : []; }).then(function(list){
+      ARTICLES = list || [];
+      var box = document.getElementById('hcArticleList');
+      document.getElementById('hcArtCount').textContent = ARTICLES.length + ' article' + (ARTICLES.length===1?'':'s') + ' available to you';
+      box.innerHTML = ARTICLES.map(function(a){
+        return '<div class="hc-art-item" onclick="hcOpenArticle(\''+esc(a.id)+'\')">'
+             + '<div class="hc-art-cat">'+esc(a.category)+'</div>'
+             + '<div class="hc-art-title">'+esc(a.title)+'</div>'
+             + '<div class="hc-art-sum">'+esc(a.summary)+'</div>'
+             + '<div class="hc-art-ver">v'+esc(a.version)+'</div></div>';
+      }).join('') || '<div class="hca-sub">No help articles are available for your account.</div>';
+    }).catch(function(){});
+  }
+
+  window.hcOpenArticle = function(id) {
+    fetch('/api/help/articles/' + encodeURIComponent(id)).then(function(r){
+      return r.json().then(function(j){ return { ok:r.ok, j:j }; });
+    }).then(function(res){
+      if (!res.ok || (res.j && res.j.denied)) {
+        alert((res.j && res.j.message) || 'You do not have permission to view this article.');
+        return;
+      }
+      renderReader(res.j);
+    }).catch(function(){});
+  };
+
+  function renderReader(a) {
+    document.getElementById('hcReaderTitle').textContent = a.title;
+    var body = document.getElementById('hcReaderBody');
+    var html = '<p>' + wrapWords(a.detail || a.summary) + '</p>';
+    if (a.steps && a.steps.length) {
+      html += '<h4>Step by step</h4><ol>' + a.steps.map(function(s){ return '<li>'+wrapWords(s)+'</li>'; }).join('') + '</ol>';
+    }
+    if (a.troubleshooting && a.troubleshooting.length) {
+      html += '<h4>Troubleshooting</h4><ul>' + a.troubleshooting.map(function(s){ return '<li>'+wrapWords(s)+'</li>'; }).join('') + '</ul>';
+    }
+    if (a.changelog && a.changelog.length) {
+      html += '<h4>Version history</h4><ul class="hc-changelog">' + a.changelog.map(function(s){ return '<li>'+esc(s)+'</li>'; }).join('') + '</ul>';
+    }
+    body.innerHTML = html;
+    hcRaStop();
+    document.getElementById('hcReaderOverlay').classList.add('open');
+  }
+  window.hcCloseReader = function(){ hcRaStop(); document.getElementById('hcReaderOverlay').classList.remove('open'); };
+
+  /* Word-wrap for read-aloud highlighting (skips changelog). */
+  var WID = 0;
+  function wrapWords(text) {
+    return String(text==null?'':text).split(/(\s+)/).map(function(tok){
+      if (/^\s+$/.test(tok) || tok==='') return esc(tok);
+      return '<span class="hc-rd-word" id="rdw'+(WID++)+'">'+esc(tok)+'</span>';
+    }).join('');
+  }
+
+  /* ── 2. Read-Aloud TTS controller (play/pause/stop/speed/highlight) ── */
+  var synth = window.speechSynthesis;
+  var raUtter = null, raRate = 1, raWords = [], raPaused = false;
+  function raCollect() {
+    raWords = Array.prototype.slice.call(document.querySelectorAll('#hcReaderBody .hc-rd-word'));
+  }
+  function raText() { return raWords.map(function(w){ return w.textContent; }).join(' '); }
+  function raClearHl() { raWords.forEach(function(w){ w.classList.remove('hl'); }); }
+
+  window.hcRaToggle = function() {
+    if (!synth) { alert('Text-to-speech is not available in this browser.'); return; }
+    if (synth.speaking && !synth.paused) { synth.pause(); raPaused = true; setPlay('▶︎ Resume'); return; }
+    if (synth.paused) { synth.resume(); raPaused = false; setPlay('⏸ Pause'); return; }
+    raCollect();
+    var text = raText(); if (!text.trim()) return;
+    raUtter = new SpeechSynthesisUtterance(text);
+    raUtter.rate = raRate;
+    raClearHl();
+    // Highlight the word at each boundary.
+    raUtter.onboundary = function(e) {
+      if (e.name && e.name !== 'word') return;
+      var ci = e.charIndex || 0, acc = 0, idx = -1;
+      for (var i=0;i<raWords.length;i++){ acc += raWords[i].textContent.length + 1; if (ci < acc){ idx = i; break; } }
+      raClearHl();
+      if (idx >= 0) { raWords[idx].classList.add('hl'); raWords[idx].scrollIntoView({block:'nearest'}); }
+    };
+    raUtter.onend = function(){ raClearHl(); setPlay('▶︎ Read aloud'); };
+    setPlay('⏸ Pause');
+    synth.cancel(); synth.speak(raUtter);
+  };
+  window.hcRaStop = function(){ if (synth) synth.cancel(); raClearHl(); raPaused=false; setPlay('▶︎ Read aloud'); };
+  window.hcRaSpeed = function(){ raRate = parseFloat(document.getElementById('hcRaSpeed').value) || 1;
+    if (synth && synth.speaking) { var resume = !synth.paused; synth.cancel(); raClearHl(); if (resume) hcRaToggle(); } };
+  function setPlay(t){ var b=document.getElementById('hcRaPlay'); if(b) b.textContent = t; }
+
+  /* ── 3. AI Help Assistant (text + voice, conversational) ── */
+  var historyLines = [];
+  var voiceMode = false, recorder = null;
+
+  function addMsg(who, html) {
+    var thread = document.getElementById('hcaThread');
+    var div = document.createElement('div');
+    div.className = 'hca-msg ' + who;
+    div.innerHTML = '<div class="hca-bubble">' + html + '</div>';
+    thread.appendChild(div); thread.scrollTop = thread.scrollHeight;
+    return div;
+  }
+  function typing(on) {
+    var ex = document.getElementById('hcaTyping');
+    if (on && !ex) { var d = addMsg('bot','<span class="hca-typing">Thinking…</span>'); d.id='hcaTyping'; }
+    else if (!on && ex) ex.remove();
+  }
+
+  window.hcaQuick = function(q){ document.getElementById('hcaInput').value = q; hcaSend(); };
+
+  window.hcaSend = function(opts) {
+    var input = document.getElementById('hcaInput');
+    var q = (opts && opts.text) || input.value.trim();
+    if (!q) return;
+    input.value = '';
+    addMsg('user', esc(q));
+    historyLines.push('User: ' + q);
+    typing(true);
+    fetch('/api/help/assist', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ query:q, history: historyLines.slice(-8).join('\n'), voice: !!(opts && opts.voice) })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      typing(false);
+      renderAnswer(d || {});
+    }).catch(function(){ typing(false); addMsg('bot','Sorry, I had trouble answering. Please try again.'); });
+  };
+
+  function renderAnswer(d) {
+    var answer = d.answer || 'I could not find an answer.';
+    var html = esc(answer);
+    if (d.steps && d.steps.length) html += '<ol>' + d.steps.map(function(s){ return '<li>'+esc(s)+'</li>'; }).join('') + '</ol>';
+    if (d.troubleshooting && d.troubleshooting.length) html += '<div class="hca-trouble"><b>Troubleshooting</b><ul>' + d.troubleshooting.map(function(s){ return '<li>'+esc(s)+'</li>'; }).join('') + '</ul></div>';
+    if (d.followUpQuestion) html += '<div style="margin-top:6px;color:#673147;">'+esc(d.followUpQuestion)+'</div>';
+    if (d.articles && d.articles.length) {
+      html += '<div class="hca-artlinks">' + d.articles.map(function(a){
+        return '<button onclick="hcOpenArticle(\''+esc(a.id)+'\')">📘 '+esc(a.title)+'</button>'; }).join('') + '</div>';
+    }
+    // Build a plain spoken version
+    var spoken = answer + (d.steps && d.steps.length ? '. Steps: ' + d.steps.join('. ') : '');
+    var safe = spoken.replace(/'/g,"\\'").replace(/\n/g,' ');
+    html += '<button class="hca-readbtn" onclick="hcaSpeak(\''+safe.replace(/"/g,'&quot;')+'\')">🔊 Read aloud</button>';
+    addMsg('bot', html);
+    historyLines.push('Assistant: ' + answer);
+    if (voiceMode) hcaSpeak(spoken);   // auto-speak in voice mode
+  }
+
+  window.hcaSpeak = function(text) {
+    if (!synth) return;
+    synth.cancel();
+    if (recorder && recorder.setMuted) recorder.setMuted(true);   // don't hear ourselves
+    var u = new SpeechSynthesisUtterance(text);
+    u.rate = raRate;
+    u.onend = function(){ if (voiceMode && recorder && recorder.setMuted) recorder.setMuted(false); };
+    synth.speak(u);
+  };
+
+  /* Voice input via the shared OpenAI recorder; interrupt = stop TTS when mic toggled. */
+  window.hcaToggleVoice = function() {
+    if (synth) synth.cancel();   // interrupt any reading
+    if (!window.VoiceOpenAI || !VoiceOpenAI.createRecorder) {
+      alert('Voice input is not available right now.'); return;
+    }
+    if (!recorder) {
+      recorder = VoiceOpenAI.createRecorder({
+        context: 'help',
+        onState: function(state){
+          var mic = document.getElementById('hcaMic');
+          var on = (state === 'recording' || state === 'listening');
+          voiceMode = on;
+          mic.classList.toggle('live', on);
+        },
+        onTranscript: function(text){
+          if (text && text.trim()) hcaSend({ text: text.trim(), voice: true });
+        },
+        onDisabled: function(){ alert('Voice features require the church AI to be configured.'); voiceMode=false;
+          document.getElementById('hcaMic').classList.remove('live'); }
+      });
+      if (recorder && recorder.supported === false) { alert('Your browser does not support voice input.'); recorder=null; return; }
+    }
+    recorder.toggle();
+  };
+
+  /* ── 4. Gate sensitive legacy cards by role/permission (admin & accounting docs) ── */
+  function gateCards() {
+    fetch('/api/session').then(function(r){ return r.ok ? r.json() : null; }).then(function(s){
+      if (!s) return;
+      var role = s.role || 'User';
+      var isAdmin = s.church === true || role === 'SuperAdmin' || role === 'Admin';
+      var perms = null;
+      try { perms = s.privileges ? JSON.parse(s.privileges) : null; } catch(e) {}
+      function denied(key){ return perms && perms[key] === false; }
+      var accountingAllowed = !(denied('accounting.income') && denied('accounting.expense') && denied('accounting.reports'));
+      document.querySelectorAll('.hc-card').forEach(function(card){
+        var cat = card.getAttribute('data-cat') || '';
+        if (cat === 'admin' && !isAdmin) card.style.display = 'none';
+        if (cat === 'accounting' && !accountingAllowed) card.style.display = 'none';
+      });
+    }).catch(function(){});
+  }
+
+  window.addEventListener('DOMContentLoaded', function(){ loadArticles(); gateCards(); });
+})();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'helpCenter', pageTitle: 'Help Center', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

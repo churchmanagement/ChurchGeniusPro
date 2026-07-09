@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Email Settings — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    
+
+    /* Sidebar */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* Main */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    .tb-username { font-size: 13px; color: #555; }
+    
+    .page-header { background: #673147; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .page-body { max-width: 680px; margin: 32px auto; padding: 0 20px 60px; }
+
+    /* Form */
+    .settings-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); padding: 32px; }
+    .settings-card h2 { font-size: 15px; font-weight: 700; color: #673147; margin-bottom: 24px; border-bottom: 1px solid #eef0fb; padding-bottom: 12px; }
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #673147; margin-bottom: 6px; }
+    .field small { display: block; font-size: 13px; color: #aaa; margin-top: 4px; }
+    .field input[type="text"], .field textarea {
+      width: 100%; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 10px 13px; font-size: 14px; font-family: inherit;
+      color: #673147; background: #fff; outline: none; transition: border-color .15s;
+    }
+    .field input[type="text"]:focus, .field textarea:focus { border-color: #673147; }
+    .field textarea { min-height: 100px; resize: vertical; }
+    .checkbox-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid #f0f2fb; }
+    .checkbox-row:last-of-type { border-bottom: 1px solid #f0f2fb; }
+    .checkbox-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: #673147; cursor: pointer; flex-shrink: 0; }
+    .checkbox-row label { font-size: 14px; color: #673147; cursor: pointer; }
+    .checkbox-row small { font-size: 13px; color: #aaa; margin-left: auto; }
+    .form-actions { display: flex; justify-content: flex-end; margin-top: 28px; gap: 10px; }
+    .btn-save { padding: 11px 28px; background: #673147; color: #fff; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background .2s; font-family: inherit; }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .7; cursor: not-allowed; }
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; z-index: 2000; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <span style="font-size:26px;">✉</span>
+        <h1>Email Settings</h1>
+      </div>
+
+      <div class="page-body">
+        <div class="settings-card">
+          <h2>Outgoing Email Configuration</h2>
+
+          <div class="field">
+            <label for="displayName">Display Name</label>
+            <input type="text" id="displayName" placeholder="e.g. Grace Community Church" maxlength="200" />
+            <small>Shown as the sender name in recipients' inboxes. Leave blank to use the system default.</small>
+          </div>
+
+          <div class="field">
+            <label for="footerComments">Footer Comments</label>
+            <textarea id="footerComments" placeholder="Text appended to the bottom of every email…"></textarea>
+            <small>Appended to every outgoing email's footer.</small>
+          </div>
+
+          <div class="field">
+            <label for="signature">Signature</label>
+            <textarea id="signature" placeholder="e.g. Blessings,&#10;The Admin Team" style="min-height:80px;"></textarea>
+            <small>Closing signature shown before the footer.</small>
+          </div>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="includeLogo" />
+            <label for="includeLogo">Add Logo</label>
+            <small>Include the organization logo in email footers (if a logo has been uploaded).</small>
+          </div>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="includeDailyVerse" />
+            <label for="includeDailyVerse">Daily Verse</label>
+            <small>Include a randomly selected Promise Verse in every email footer.</small>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-save" id="saveBtn" onclick="saveSettings()">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Email Settings logic ── */
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/email-settings');
+    if (!res.ok) return;
+    const s = await res.json();
+    document.getElementById('displayName').value       = s.displayName    || '';
+    document.getElementById('footerComments').value    = s.footerComments || '';
+    document.getElementById('signature').value         = s.signature      || '';
+    document.getElementById('includeLogo').checked     = !!s.includeLogo;
+    document.getElementById('includeDailyVerse').checked = !!s.includeDailyVerse;
+  } catch(e) { console.error(e); }
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/email-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        displayName:       document.getElementById('displayName').value.trim(),
+        footerComments:    document.getElementById('footerComments').value.trim(),
+        signature:         document.getElementById('signature').value.trim(),
+        includeLogo:       document.getElementById('includeLogo').checked,
+        includeDailyVerse: document.getElementById('includeDailyVerse').checked
+      })
+    });
+    if (res.ok) {
+      showToast('Settings saved successfully.', false);
+    } else {
+      showToast('Failed to save settings.', true);
+    }
+  } catch(e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Settings';
+  }
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+loadSettings();
+</script>
+<script src="/session.js" defer></script>
+<script>
+window.CGP_PAGE = { activePage: 'admin-settings/email-settings', pageTitle: 'Email Settings', openSection: 'admin-settings' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Public Prayer Requests — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 16px; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; }
+    .tabs { display:flex; gap:6px; flex-wrap:wrap; }
+    .tab { padding:6px 13px; border-radius:18px; font-size:12px; font-weight:600; border:1.5px solid #dde0ec; color:#666; background:#fff; }
+    .tab.active { background:#673147; color:#fff; border-color:#673147; }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:9px 10px; text-align:left; border-bottom:2px solid #eef0f8; white-space:nowrap; }
+    td { padding:9px 10px; border-bottom:1px solid #f3f4f9; vertical-align:top; }
+    select { border:1.5px solid #dde0ec; border-radius:7px; padding:5px 7px; font-size:12px; background:#fff; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+    .src-NTAG { background:#ede7f6; color:#5e35b1; } .src-PUBLIC { background:#e3f2fd; color:#1565c0; } .src-WEBSITE { background:#e8f5e9; color:#2e7d32; }
+    .req-text { max-width:260px; white-space:pre-wrap; color:#555; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:7px; padding:5px 9px; font-size:11.5px; font-weight:600; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:7px; padding:4px 9px; font-size:11.5px; }
+    .feedback { padding:10px 16px; border-radius:9px; font-size:13px; margin-bottom:14px; display:none; }
+    .feedback.ok { display:block; background:#e8f5e9; color:#2e7d32; } .feedback.err { display:block; background:#ffebee; color:#c62828; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:#fff; border-radius:14px; width:480px; max-width:94vw; max-height:88vh; overflow:auto; }
+    .modal-h { display:flex; align-items:center; padding:14px 18px; border-bottom:1px solid #eef0f6; }
+    .modal-h h3 { flex:1; font-size:15px; margin:0; } .modal-b { padding:18px; }
+    .note { border-left:3px solid #673147; background:#faf7f9; padding:8px 10px; border-radius:6px; margin-bottom:8px; }
+    .note .meta { font-size:11px; color:#999; } .ntype { font-weight:700; color:#673147; font-size:11px; }
+    textarea,input { width:100%; border:1.5px solid #dde0ec; border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; }
+    .muted { color:#9aa; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">🙏 Public Prayer Requests</div>
+      <div class="page-subtitle">Prayer requests submitted from the public website and NTAG landing page — managed separately from internal requests.</div>
+      <div class="feedback" id="fb"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Submissions</h2>
+          <div class="tabs" id="srcTabs">
+            <button class="tab active" data-src="ALL" onclick="setSrc('ALL',this)">All</button>
+            <button class="tab" data-src="NTAG" onclick="setSrc('NTAG',this)">NTAG</button>
+            <button class="tab" data-src="PUBLIC" onclick="setSrc('PUBLIC',this)">Public</button>
+            <button class="tab" data-src="WEBSITE" onclick="setSrc('WEBSITE',this)">Website</button>
+          </div>
+          <button class="btn-sec" onclick="load()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Name</th><th>Email</th><th>Phone</th><th>Request</th><th>Share</th><th>Source</th>
+              <th>Date</th><th>Status</th><th>Assigned Volunteer</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="rows"><tr><td colspan="10" style="text-align:center;color:#aaa;padding:18px;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="modal-overlay" id="notesModal">
+  <div class="modal">
+    <div class="modal-h"><h3 id="notesTitle">Activity</h3><button class="btn-sec" onclick="closeNotes()">✕</button></div>
+    <div class="modal-b">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select id="noteType" style="flex:0 0 150px;">
+          <option value="NOTE">Note</option>
+          <option value="CONTACT_ATTEMPT">Contact attempt</option>
+          <option value="PRAYER_ACTIVITY">Prayer activity</option>
+          <option value="OUTCOME">Follow-up outcome</option>
+        </select>
+        <input id="noteText" placeholder="Add a note / record activity…" style="flex:1;" />
+        <button class="btn" onclick="addNote()">Add</button>
+      </div>
+      <div id="notesList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var SRC = 'ALL', VOLS = [], LIST = [], notesId = null;
+  var STATUSES = ['New','Assigned','InProgress','PrayedFor','FollowedUp','Closed'];
+  function fb(m,ok){ var e=document.getElementById('fb'); e.textContent=m; e.className='feedback '+(ok?'ok':'err'); setTimeout(()=>{e.className='feedback';},3500); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function setSrc(s,btn){ SRC=s; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); load(); }
+
+  async function init(){ try { VOLS = await (await fetch('/api/ppr/volunteers')).json(); } catch { VOLS=[]; } load(); }
+
+  async function load() {
+    var tb = document.getElementById('rows');
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:18px;">Loading…</td></tr>';
+    try { LIST = await (await fetch('/api/ppr?source=' + SRC)).json(); } catch { LIST=[]; }
+    if (!LIST.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:18px;">No public prayer requests.</td></tr>'; return; }
+    tb.innerHTML = LIST.map(function (p) {
+      var name = (esc(p.firstName||'')+' '+esc(p.lastName||'')).trim() || '—';
+      var statusSel = '<select onchange="setStatus('+p.id+',this.value)">' + STATUSES.map(s=>'<option'+(s===p.status?' selected':'')+'>'+s+'</option>').join('') + '</select>';
+      var volSel = '<select onchange="assign('+p.id+',this.value)"><option value="">— Unassigned —</option>'
+        + VOLS.map(v=>'<option value="'+v.id+'"'+(p.assignedVolunteerId==v.id?' selected':'')+'>'+esc(v.name)+(v.role?(' ('+esc(v.role)+')'):'')+'</option>').join('') + '</select>';
+      return '<tr>'
+        + '<td style="font-weight:600;">'+name+'</td>'
+        + '<td>'+esc(p.email||'—')+'</td>'
+        + '<td>'+esc(p.phone||'—')+'</td>'
+        + '<td class="req-text">'+esc(p.requestText||'')+'</td>'
+        + '<td>'+(p.shareWithTeam?'✅':'—')+'</td>'
+        + '<td><span class="pill src-'+esc(p.source)+'">'+esc(p.source)+'</span></td>'
+        + '<td>'+(p.createdAt?esc(new Date(p.createdAt).toLocaleDateString()):'—')+'</td>'
+        + '<td>'+statusSel+'</td>'
+        + '<td>'+volSel+'</td>'
+        + '<td style="white-space:nowrap;"><button class="btn-sec" onclick="openNotes('+p.id+',\''+esc(name).replace(/\'/g,"")+'\')">Activity</button> '
+        + '<button class="btn-danger" onclick="del('+p.id+')">Delete</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  async function assign(id, vid) {
+    var r = await fetch('/api/ppr/'+id+'/assign', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({volunteerId:vid||null}) });
+    if (r.ok) { fb('Assignment updated.', true); load(); } else fb('Could not assign.', false);
+  }
+  async function setStatus(id, status) {
+    var r = await fetch('/api/ppr/'+id+'/status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+    if (r.ok) fb('Status updated.', true); else fb('Could not update status.', false);
+  }
+  async function del(id) {
+    if (!confirm('Delete this public prayer request?')) return;
+    var r = await fetch('/api/ppr/'+id, { method:'DELETE' });
+    if (r.ok) { fb('Deleted.', true); load(); } else fb('Could not delete.', false);
+  }
+
+  async function openNotes(id, name) {
+    notesId = id;
+    document.getElementById('notesTitle').textContent = 'Activity — ' + name;
+    document.getElementById('noteText').value = '';
+    document.getElementById('notesModal').classList.add('open');
+    renderNotes(await fetchNotes());
+  }
+  function closeNotes(){ document.getElementById('notesModal').classList.remove('open'); notesId=null; }
+  async function fetchNotes(){ try { return await (await fetch('/api/ppr/'+notesId+'/notes')).json(); } catch { return []; } }
+  function renderNotes(notes) {
+    var box = document.getElementById('notesList');
+    if (!notes || !notes.length) { box.innerHTML = '<div class="muted">No activity recorded yet.</div>'; return; }
+    var labels = { NOTE:'Note', CONTACT_ATTEMPT:'Contact attempt', PRAYER_ACTIVITY:'Prayer activity', OUTCOME:'Outcome' };
+    box.innerHTML = notes.map(n => '<div class="note"><div class="ntype">'+esc(labels[n.type]||n.type)+'</div><div>'+esc(n.text||'')+'</div>'
+      + '<div class="meta">'+(n.author?esc(n.author)+' · ':'')+(n.time?esc(new Date(n.time).toLocaleString()):'')+'</div></div>').join('');
+  }
+  async function addNote() {
+    var text = document.getElementById('noteText').value.trim();
+    if (!text) return;
+    var type = document.getElementById('noteType').value;
+    var r = await fetch('/api/ppr/'+notesId+'/note', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type,text}) });
+    if (r.ok) { document.getElementById('noteText').value=''; renderNotes(await fetchNotes()); } else fb('Could not add note.', false);
+  }
+
+  init();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'general/prayer-request', pageTitle: 'Public Prayer Requests', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

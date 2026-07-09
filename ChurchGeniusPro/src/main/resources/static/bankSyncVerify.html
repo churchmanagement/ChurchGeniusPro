@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#673147" />
+<link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+<title>Verify to access Bank Sync | ChurchGeniusPro</title>
+<style>
+  :root { --maroon:#673147; --maroon-d:#4f2538; --border:#e0d4db; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:linear-gradient(135deg,#f4f2f5,#efe6ec); font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#222; padding:16px; }
+  .card { background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(103,49,71,.18); width:100%; max-width:440px; overflow:hidden; }
+  .head { background:var(--maroon); color:#fff; padding:22px 26px; }
+  .head h1 { margin:0; font-size:19px; font-weight:700; }
+  .head p { margin:6px 0 0; font-size:13px; color:#f0e0e7; }
+  .body { padding:24px 26px; }
+  .msg { font-size:13px; padding:10px 12px; border-radius:8px; margin-bottom:16px; display:none; }
+  .msg.info { display:block; background:#f0e6eb; color:#673147; }
+  .msg.ok   { display:block; background:#e8f5e9; color:#2e7d32; }
+  .msg.err  { display:block; background:#fdecea; color:#c62828; }
+  label.fld { display:block; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#666; margin-bottom:6px; }
+  input[type=text] { width:100%; padding:13px 14px; font-size:22px; letter-spacing:8px; text-align:center;
+                     border:1.5px solid var(--border); border-radius:10px; outline:none; font-family:inherit; }
+  input[type=text]:focus { border-color:var(--maroon); box-shadow:0 0 0 3px rgba(103,49,71,.12); }
+  .remember { display:flex; align-items:center; gap:9px; margin:16px 0; font-size:13px; color:#444; cursor:pointer; }
+  .remember input { width:17px; height:17px; }
+  .btn { border:0; border-radius:10px; font-size:14px; font-weight:700; padding:13px; cursor:pointer; width:100%; }
+  .btn-primary { background:var(--maroon); color:#fff; } .btn-primary:hover { background:var(--maroon-d); }
+  .btn-primary:disabled { opacity:.55; cursor:not-allowed; }
+  .row { display:flex; gap:10px; margin-top:14px; }
+  .btn-ghost { flex:1; background:#f0f0f0; color:#444; border:0; border-radius:10px; padding:11px; font-size:13px; font-weight:600; cursor:pointer; }
+  .btn-ghost:hover { background:#e6e6e6; }
+  .resend { text-align:center; margin-top:16px; font-size:13px; }
+  .resend a { color:var(--maroon); font-weight:600; text-decoration:none; cursor:pointer; }
+  .resend a.disabled { color:#aaa; cursor:not-allowed; }
+  .note { font-size:11.5px; color:#999; text-align:center; margin-top:14px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <h1>🔐 Verify to access Bank Sync</h1>
+    <p>For your security, confirm the code we sent to your registered email.</p>
+  </div>
+  <div class="body">
+    <div class="msg info" id="msg">Sending a verification code to your email…</div>
+
+    <label class="fld" for="code">Verification code</label>
+    <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+           placeholder="______" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+
+    <label class="remember">
+      <input type="checkbox" id="remember" /> Remember this device for 30 days
+    </label>
+
+    <button class="btn btn-primary" id="verifyBtn" onclick="verify()">Verify &amp; Continue</button>
+
+    <div class="row">
+      <button class="btn-ghost" onclick="goBack()">← Back</button>
+      <button class="btn-ghost" onclick="closePage()">Close</button>
+    </div>
+
+    <div class="resend">
+      Didn't get a code? <a id="resendLink" onclick="resend()">Resend Verification Code</a>
+    </div>
+    <div class="note">The code expires in 15 minutes and can be used once. If you can't receive the email,
+      a Church administrator can generate a temporary code for you from the Users page.</div>
+  </div>
+</div>
+
+<script>
+  function show(kind, text) { var m=document.getElementById('msg'); m.className='msg '+kind; m.textContent=text; }
+  async function api(url, body) {
+    var r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: body ? JSON.stringify(body) : undefined });
+    var d = await r.json().catch(function(){return{};});
+    return { ok:r.ok, d:d };
+  }
+  async function sendInitial() {
+    var res = await api('/api/plaid/gate/send');
+    if (res.ok) show('info', 'We emailed a verification code to your registered address. Enter it below.');
+    else show('err', res.d.message || 'Could not send a code. Please contact your administrator.');
+  }
+  var cooldown = false;
+  async function resend() {
+    if (cooldown) return;
+    var link = document.getElementById('resendLink');
+    var res = await api('/api/plaid/gate/resend');
+    if (res.ok) {
+      show('ok', 'A new code has been sent.');
+      cooldown = true; link.classList.add('disabled');
+      var secs = 30; link.textContent = 'Resend in ' + secs + 's';
+      var t = setInterval(function(){ secs--; link.textContent = 'Resend in ' + secs + 's';
+        if (secs<=0){ clearInterval(t); cooldown=false; link.classList.remove('disabled'); link.textContent='Resend Verification Code'; } }, 1000);
+    } else show('err', res.d.message || 'Could not resend the code.');
+  }
+  async function verify() {
+    var code = document.getElementById('code').value.trim();
+    if (code.length < 6) { show('err','Enter the 6-digit code.'); return; }
+    var btn = document.getElementById('verifyBtn');
+    btn.disabled = true; btn.textContent = 'Verifying…';
+    var res = await api('/api/plaid/gate/verify',
+      { code: code, remember: document.getElementById('remember').checked });
+    if (res.ok && res.d.verified) {
+      show('ok', 'Verified. Redirecting to Bank Sync…');
+      window.location.href = '/bankSync';
+    } else {
+      show('err', res.d.message || 'Verification failed.');
+      btn.disabled = false; btn.textContent = 'Verify & Continue';
+    }
+  }
+  function goBack() { if (document.referrer && !/\/bankSync/.test(document.referrer)) history.back(); else window.location.href='/home'; }
+  function closePage() { window.location.href = '/home'; }
+
+  document.getElementById('code').addEventListener('keydown', function(e){ if(e.key==='Enter') verify(); });
+  sendInitial();
+</script>
+</body>
+</html>

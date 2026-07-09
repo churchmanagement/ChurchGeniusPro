@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Payroll Employees — ChurchGenius Pro</title>
+<link rel="stylesheet" href="/mobile.css" />
+<link rel="stylesheet" href="/shell.css" />
+<style>
+  :root { --brand:#673147; --brand-soft:#fdf5f7; --line:#e6dde2; --ink:#333; --muted:#888; }
+  * { box-sizing:border-box; }
+  /* Keep the shared side navigation identical to the rest of the app */
+  button { cursor: pointer; font-family: inherit; border: none; background: none; }
+  .sidebar { background: #673147 !important; }
+  .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+  .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+  body { margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:#faf7f8; }
+  .wrap { max-width:1080px; margin:0 auto; padding:22px 18px 60px; }
+  .nav { display:flex; gap:14px; font-size:13px; margin-bottom:14px; }
+  .nav a { color:var(--brand); text-decoration:none; font-weight:600; }
+  .nav a.active { text-decoration:underline; }
+  h1 { font-size:22px; color:var(--brand); margin:0 0 4px; }
+  h2 { font-size:15px; color:var(--brand); margin:0 0 12px; }
+  .sub { font-size:13px; color:var(--muted); margin:0 0 18px; }
+  .grid { display:grid; grid-template-columns:300px 1fr; gap:18px; align-items:start; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+  label { font-size:12px; font-weight:600; color:#6a4a57; display:block; margin:10px 0 4px; }
+  input, select { width:100%; padding:8px 9px; border:1px solid #d7c9d0; border-radius:7px; font-size:13px; background:#fff; }
+  input[type=checkbox]{ width:auto; margin-right:6px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .btn { cursor:pointer; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:6px; padding:7px 12px; font-size:12px; font-weight:600; }
+  .btn.solid { background:var(--brand); color:#fff; }
+  .btn.sm { padding:4px 8px; font-size:11px; }
+  .btn.danger { border-color:#b42424; color:#b42424; }
+  .btn[disabled]{ opacity:.4; cursor:not-allowed; }
+  .elist { list-style:none; margin:0; padding:0; }
+  .elist li { padding:9px 10px; border:1px solid var(--line); border-radius:7px; margin-bottom:7px; cursor:pointer; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+  .elist li:hover { background:var(--brand-soft); }
+  .elist li.sel { border-color:var(--brand); background:var(--brand-soft); }
+  .elist li small { color:var(--muted); }
+  .tag { font-size:10px; padding:1px 7px; border-radius:999px; background:#eef1f6; color:#5a6b86; }
+  .tag.off { background:#fdeaea; color:#b42424; }
+  fieldset { border:1px solid var(--line); border-radius:8px; margin:0 0 14px; padding:10px 14px 14px; }
+  legend { font-size:12px; font-weight:700; color:var(--brand); padding:0 6px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid #eee; }
+  td.num,th.num { text-align:right; }
+  .msg { font-size:13px; padding:11px; border-radius:8px; margin:10px 0; }
+  .msg.ok { background:#e7f5ec; color:#1e7a44; } .msg.err { background:#fdeaea; color:#b42424; }
+  .hint { font-size:11px; color:var(--muted); margin-top:3px; }
+  .disabledPanel { opacity:.45; pointer-events:none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+<div class="wrap">
+  <a href="/payroll" class="btn" style="text-decoration:none;display:inline-block;margin-bottom:12px;">&#8592; Back to Payroll</a>
+  <div class="nav">
+    <a href="/payroll/employees" class="active">Employees</a>
+    <a href="/payroll/runs">Payroll runs</a>
+    <a href="/payroll/reports">Reports</a>
+    <a href="/payroll/activity">Activity</a>
+  </div>
+  <h1>Payroll Employees</h1>
+  <p class="sub">Set up employees, their W-4, and deductions so payroll can be run.</p>
+
+  <div id="globalMsg"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h2 style="margin:0;">Employees</h2>
+          <button class="btn solid sm" id="btnNew">+ New</button>
+        </div>
+        <ul class="elist" id="empList"><li><small>Loading…</small></li></ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="editorCard" style="display:none;">
+        <h2 id="editorTitle">New employee</h2>
+        <div id="editorMsg"></div>
+
+        <fieldset>
+          <legend>Profile</legend>
+          <div class="row2">
+            <div><label>First name *</label><input id="f_firstName"/></div>
+            <div><label>Last name *</label><input id="f_lastName"/></div>
+          </div>
+          <div class="row3">
+            <div><label>Email</label><input id="f_email"/></div>
+            <div><label>Phone</label><input id="f_phone"/></div>
+            <div><label>SSN (last 4)</label><input id="f_ssnLast4" maxlength="4"/></div>
+          </div>
+          <label>Address</label><input id="f_addressLine1" placeholder="Street address"/>
+          <div class="row3" style="margin-top:8px;">
+            <div><input id="f_city" placeholder="City"/></div>
+            <div><input id="f_state" placeholder="State"/></div>
+            <div><input id="f_postalCode" placeholder="ZIP"/></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Pay setup</legend>
+          <div class="row3">
+            <div><label>Pay type</label>
+              <select id="f_payType"><option value="SALARY">Salary</option><option value="HOURLY">Hourly</option></select></div>
+            <div><label>Pay frequency</label>
+              <select id="f_payFrequency">
+                <option value="WEEKLY">Weekly</option><option value="BIWEEKLY">Biweekly</option>
+                <option value="SEMIMONTHLY" selected>Semi-monthly</option><option value="MONTHLY">Monthly</option>
+                <option value="DAILY">Daily</option><option value="HOURLY">Hourly</option></select></div>
+            <div><label>State tax code</label><input id="f_stateTaxCode" placeholder="e.g. TX (blank = none)"/></div>
+          </div>
+          <div class="row2">
+            <div><label>Annual salary</label><input id="f_annualSalary" type="number" step="0.01" placeholder="for Salary"/></div>
+            <div><label>Hourly rate</label><input id="f_hourlyRate" type="number" step="0.01" placeholder="for Hourly"/></div>
+          </div>
+          <div class="row3">
+            <div><label>Bank name</label><input id="f_bankName"/></div>
+            <div><label>DD account (last 4)</label><input id="f_ddAcct" maxlength="4"/></div>
+            <div><label>DD type</label>
+              <select id="f_ddType"><option value="">—</option><option value="CHECKING">Checking</option><option value="SAVINGS">Savings</option></select></div>
+          </div>
+          <div class="hint">Only the last 4 digits of SSN and bank account are stored.</div>
+        </fieldset>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn solid" id="btnSaveEmp">Save employee</button>
+          <button class="btn danger" id="btnDeactivate" style="display:none;">Deactivate</button>
+          <button class="btn" id="btnActivate" style="display:none;">Activate</button>
+          <button class="btn danger" id="btnDelete" style="display:none;">Delete</button>
+        </div>
+
+        <div id="dependentPanels" class="disabledPanel">
+          <fieldset style="margin-top:16px;">
+            <legend>Form W-4</legend>
+            <div class="row2">
+              <div><label>Filing status</label>
+                <select id="w_filingStatus">
+                  <option value="SINGLE">Single</option>
+                  <option value="MARRIED_FILING_JOINTLY">Married filing jointly</option>
+                  <option value="MARRIED_FILING_SEPARATELY">Married filing separately</option>
+                  <option value="HEAD_OF_HOUSEHOLD">Head of household</option></select></div>
+              <div><label>&nbsp;</label><label style="font-weight:400;"><input type="checkbox" id="w_step2"/>Step 2 checkbox (multiple jobs)</label></div>
+            </div>
+            <div class="row2">
+              <div><label>Step 3 — annual credits ($)</label><input id="w_step3" type="number" step="0.01" placeholder="e.g. 2000 per child"/></div>
+              <div><label>Step 4(c) — extra per period ($)</label><input id="w_step4c" type="number" step="0.01"/></div>
+            </div>
+            <div class="row2">
+              <div><label>Step 4(a) — other income ($/yr)</label><input id="w_step4a" type="number" step="0.01"/></div>
+              <div><label>Step 4(b) — deductions ($/yr)</label><input id="w_step4b" type="number" step="0.01"/></div>
+            </div>
+            <button class="btn solid sm" id="btnSaveW4" style="margin-top:10px;">Save W-4</button>
+            <span id="w4Status" class="hint"></span>
+          </fieldset>
+
+          <fieldset>
+            <legend>Assigned deductions</legend>
+            <table><thead><tr><th>Deduction</th><th>Type</th><th class="num">Amount / rate</th><th></th></tr></thead>
+              <tbody id="assignBody"><tr><td colspan="4" style="color:#aaa;">None</td></tr></tbody></table>
+            <div class="row3" style="margin-top:10px; align-items:end;">
+              <div><label>Deduction</label><select id="a_def"></select></div>
+              <div><label>Amount or rate</label><input id="a_amt" type="number" step="0.0001" placeholder="flat $ or rate e.g. 0.06"/></div>
+              <div><button class="btn solid" id="btnAssign">Assign</button></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Pay history &amp; year-to-date</legend>
+            <div id="ytdBox" style="font-size:12px; color:#555; margin-bottom:8px;">—</div>
+            <table><thead><tr><th>Pay date</th><th class="num">Gross</th><th class="num">Taxes</th><th class="num">Net</th><th></th></tr></thead>
+              <tbody id="historyBody"><tr><td colspan="5" style="color:#aaa;">No paystubs yet.</td></tr></tbody></table>
+          </fieldset>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Deduction catalog</h2>
+        <p class="hint" style="margin-top:-6px;">Reusable deduction types for this church. Pre-tax flags control tax treatment (Section 125 reduces FICA too; 401(k) does not).</p>
+        <table><thead><tr><th>Name</th><th>Scope</th><th>Reduces</th><th class="num">Default</th><th></th></tr></thead>
+          <tbody id="defBody"><tr><td colspan="5" style="color:#aaa;">Loading…</td></tr></tbody></table>
+        <fieldset style="margin-top:12px;">
+          <legend>New deduction type</legend>
+          <div class="row3">
+            <div><label>Name *</label><input id="d_name" placeholder="e.g. Medical PPO"/></div>
+            <div><label>Scope</label>
+              <select id="d_scope"><option value="PRE_TAX">Pre-tax</option><option value="POST_TAX">Post-tax</option></select></div>
+            <div><label>Default amount / rate</label><input id="d_amount" type="number" step="0.0001"/></div>
+          </div>
+          <div style="margin-top:8px; font-size:12px; display:flex; flex-wrap:wrap; gap:14px;">
+            <label style="font-weight:400;"><input type="checkbox" id="d_fed" checked/>Reduces federal</label>
+            <label style="font-weight:400;"><input type="checkbox" id="d_state" checked/>Reduces state</label>
+            <label style="font-weight:400;"><input type="checkbox" id="d_fica"/>Reduces FICA</label>
+            <label style="font-weight:400;"><input type="checkbox" id="d_pct"/>Percentage-based</label>
+          </div>
+          <button class="btn solid sm" id="btnCreateDef" style="margin-top:10px;">Add deduction type</button>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var defs = [];            // deduction definitions cache
+  var currentId = null;     // selected employee id
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function v(id){ return document.getElementById(id).value.trim(); }
+  function num(id){ var x=v(id); return x===''?null:Number(x); }
+  function setV(id,val){ document.getElementById(id).value = (val==null?'':val); }
+  function chk(id){ return document.getElementById(id).checked; }
+  function setChk(id,b){ document.getElementById(id).checked = !!b; }
+  function msg(el,text,kind){ document.getElementById(el).innerHTML = text?('<div class="msg '+(kind||'ok')+'">'+esc(text)+'</div>'):''; }
+  var fmtUSD = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+
+  async function api(url, method, body){
+    var opt = { method: method||'GET', headers:{'Content-Type':'application/json'} };
+    if (body!==undefined) opt.body = JSON.stringify(body);
+    var res = await fetch(url, opt);
+    var data = await res.json().catch(function(){ return {}; });
+    if (res.status === 401){ msg('globalMsg','You need to sign in to manage payroll. ','err'); throw new Error('auth'); }
+    if (!res.ok || data.status==='error'){ throw new Error(data.message || ('Request failed ('+res.status+')')); }
+    return data.data;
+  }
+
+  // ── Employees list ──
+  async function loadEmployees(){
+    try {
+      var list = await api('/api/payroll/employees');
+      var ul = document.getElementById('empList');
+      if (!list.length){ ul.innerHTML = '<li><small>No employees yet. Click + New.</small></li>'; return; }
+      ul.innerHTML = list.map(function(e){
+        return '<li data-id="'+e.id+'" class="'+(e.id===currentId?'sel':'')+'">'
+          + '<span>'+esc(e.fullName||'(no name)')+'<br><small>'+esc(e.payType||'')+' · '+esc(e.payFrequency||'')+'</small></span>'
+          + '<span class="tag '+(e.active?'':'off')+'">'+esc(e.status||(e.active?'Active':'Inactive'))+'</span></li>';
+      }).join('');
+      Array.prototype.forEach.call(ul.querySelectorAll('li[data-id]'), function(li){
+        li.addEventListener('click', function(){ selectEmployee(Number(li.getAttribute('data-id'))); });
+      });
+    } catch(e){ if(e.message!=='auth') msg('globalMsg', e.message, 'err'); }
+  }
+
+  function blankForm(){
+    ['f_firstName','f_lastName','f_email','f_phone','f_ssnLast4','f_addressLine1','f_city','f_state','f_postalCode',
+     'f_annualSalary','f_hourlyRate','f_stateTaxCode','f_bankName','f_ddAcct',
+     'w_step3','w_step4c','w_step4a','w_step4b'].forEach(function(id){ setV(id,''); });
+    setV('f_payType','SALARY'); setV('f_payFrequency','SEMIMONTHLY'); setV('f_ddType','');
+    setV('w_filingStatus','SINGLE'); setChk('w_step2',false);
+    document.getElementById('assignBody').innerHTML = '<tr><td colspan="4" style="color:#aaa;">None</td></tr>';
+    document.getElementById('w4Status').textContent='';
+    document.getElementById('ytdBox').textContent = '—';
+    document.getElementById('historyBody').innerHTML = '<tr><td colspan="5" style="color:#aaa;">No paystubs yet.</td></tr>';
+  }
+
+  function newEmployee(){
+    currentId = null;
+    blankForm();
+    document.getElementById('editorCard').style.display='';
+    document.getElementById('editorTitle').textContent='New employee';
+    document.getElementById('btnDeactivate').style.display='none';
+    document.getElementById('btnActivate').style.display='none';
+    document.getElementById('btnDelete').style.display='none';
+    document.getElementById('dependentPanels').classList.add('disabledPanel');
+    msg('editorMsg','Save the employee first to set W-4 and deductions.','ok');
+    loadEmployees();
+  }
+
+  async function selectEmployee(id){
+    try {
+      var e = await api('/api/payroll/employees/'+id);
+      currentId = id;
+      document.getElementById('editorCard').style.display='';
+      document.getElementById('editorTitle').textContent = 'Edit: '+(e.fullName||'')+'  ·  '+(e.status||(e.active?'Active':'Inactive'));
+      document.getElementById('btnDeactivate').style.display = e.active?'':'none';
+      document.getElementById('btnActivate').style.display = e.active?'none':'';
+      document.getElementById('btnDelete').style.display = '';
+      msg('editorMsg','','ok');
+      setV('f_firstName',e.firstName); setV('f_lastName',e.lastName); setV('f_email',e.email); setV('f_phone',e.phone);
+      setV('f_ssnLast4',e.ssnLast4); setV('f_addressLine1',e.addressLine1); setV('f_city',e.city); setV('f_state',e.state);
+      setV('f_postalCode',e.postalCode); setV('f_payType',e.payType||'SALARY'); setV('f_payFrequency',e.payFrequency||'SEMIMONTHLY');
+      setV('f_stateTaxCode',e.stateTaxCode); setV('f_annualSalary',e.annualSalary); setV('f_hourlyRate',e.hourlyRate);
+      setV('f_bankName',e.bankName); setV('f_ddAcct',e.directDepositAccountLast4); setV('f_ddType',e.directDepositAccountType||'');
+      // W-4
+      var w = e.w4;
+      if (w){ setV('w_filingStatus',w.filingStatus||'SINGLE'); setChk('w_step2',w.step2Checked);
+        setV('w_step3',w.step3AnnualCredits); setV('w_step4c',w.step4cExtraPerPeriod);
+        setV('w_step4a',w.step4aOtherIncome); setV('w_step4b',w.step4bDeductions);
+        document.getElementById('w4Status').textContent='On file (effective '+(w.effectiveDate||'')+')'; }
+      else { setV('w_filingStatus','SINGLE'); setChk('w_step2',false); ['w_step3','w_step4c','w_step4a','w_step4b'].forEach(function(i){setV(i,'');});
+        document.getElementById('w4Status').textContent='No W-4 on file yet.'; }
+      renderAssignments(e.deductions||[]);
+      document.getElementById('dependentPanels').classList.remove('disabledPanel');
+      loadHistory(id);
+      loadEmployees();
+    } catch(err){ if(err.message!=='auth') msg('globalMsg', err.message, 'err'); }
+  }
+
+  async function loadHistory(id){
+    try {
+      var ytd = await api('/api/payroll/employees/'+id+'/ytd');
+      var w = ytd.w2 || {};
+      document.getElementById('ytdBox').innerHTML =
+        '<b>'+esc(ytd.year)+' YTD</b> — Gross '+fmtUSD.format(ytd.ytdGross||0)
+        + ' · Taxes '+fmtUSD.format(ytd.ytdTaxes||0) + ' · Net '+fmtUSD.format(ytd.ytdNet||0)
+        + ' &nbsp;|&nbsp; W-2: Box 1 '+fmtUSD.format(w.box1_wages||0)
+        + ', Box 2 '+fmtUSD.format(w.box2_federalIncomeTax||0)
+        + ', Box 3 '+fmtUSD.format(w.box3_socialSecurityWages||0)
+        + ', Box 5 '+fmtUSD.format(w.box5_medicareWages||0);
+      var stubs = await api('/api/payroll/employees/'+id+'/paystubs');
+      var body = document.getElementById('historyBody');
+      body.innerHTML = stubs.length ? stubs.map(function(s){
+        return '<tr'+(s.voided?' style="color:#bbb;text-decoration:line-through;"':'')+'>'
+          + '<td>'+esc(s.payDate||'')+'</td>'
+          + '<td class="num">'+fmtUSD.format(s.grossEarnings||0)+'</td>'
+          + '<td class="num">'+fmtUSD.format(s.totalTaxes||0)+'</td>'
+          + '<td class="num">'+fmtUSD.format(s.netPay||0)+'</td>'
+          + '<td>'+(s.voided?'':'<a class="btn sm" href="'+s.pdfUrl+'" target="_blank" rel="noopener">PDF</a>')+'</td>'
+          + '</tr>';
+      }).join('') : '<tr><td colspan="5" style="color:#aaa;">No paystubs yet.</td></tr>';
+    } catch(e){ if(e.message!=='auth'){ document.getElementById('ytdBox').textContent = 'Could not load history.'; } }
+  }
+
+  function empBody(){
+    return {
+      firstName:v('f_firstName'), lastName:v('f_lastName'), email:v('f_email'), phone:v('f_phone'),
+      ssnLast4:v('f_ssnLast4'), addressLine1:v('f_addressLine1'), city:v('f_city'), state:v('f_state'),
+      postalCode:v('f_postalCode'), payType:v('f_payType'), payFrequency:v('f_payFrequency'),
+      stateTaxCode:v('f_stateTaxCode'), annualSalary:num('f_annualSalary'), hourlyRate:num('f_hourlyRate'),
+      bankName:v('f_bankName'), directDepositAccountLast4:v('f_ddAcct'), directDepositAccountType:v('f_ddType')
+    };
+  }
+
+  async function saveEmployee(){
+    try {
+      if (!v('f_firstName') || !v('f_lastName')){ msg('editorMsg','First and last name are required.','err'); return; }
+      var pt = v('f_payType');
+      if (pt === 'HOURLY' && !num('f_hourlyRate')){ msg('editorMsg','Hourly employees need an hourly rate.','err'); return; }
+      if (pt === 'SALARY' && !num('f_annualSalary')){ msg('editorMsg','Salaried employees need an annual salary.','err'); return; }
+      var saved;
+      if (currentId){ saved = await api('/api/payroll/employees/'+currentId,'PUT',empBody()); }
+      else { saved = await api('/api/payroll/employees','POST',empBody()); currentId = saved.id; }
+      msg('editorMsg','Saved.','ok');
+      document.getElementById('editorTitle').textContent='Edit: '+(saved.fullName||'')+'  ·  '+(saved.status||(saved.active?'Active':'Inactive'));
+      document.getElementById('btnDeactivate').style.display = saved.active?'':'none';
+      document.getElementById('btnActivate').style.display = saved.active?'none':'';
+      document.getElementById('btnDelete').style.display = '';
+      document.getElementById('dependentPanels').classList.remove('disabledPanel');
+      loadEmployees();
+    } catch(e){ if(e.message!=='auth') msg('editorMsg', e.message, 'err'); }
+  }
+
+  async function deactivateEmployee(){
+    if (!currentId) return;
+    try {
+      await api('/api/payroll/employees/'+currentId+'/deactivate','POST');
+      msg('editorMsg','Employee deactivated. They will no longer appear in new payroll runs; their history is preserved.','ok');
+      document.getElementById('btnDeactivate').style.display='none';
+      document.getElementById('btnActivate').style.display='';
+      loadEmployees();
+    }
+    catch(e){ if(e.message!=='auth') msg('editorMsg', e.message, 'err'); }
+  }
+
+  async function activateEmployee(){
+    if (!currentId) return;
+    try {
+      await api('/api/payroll/employees/'+currentId+'/activate','POST');
+      msg('editorMsg','Employee re-activated. They are now available for new payroll runs.','ok');
+      document.getElementById('btnActivate').style.display='none';
+      document.getElementById('btnDeactivate').style.display='';
+      loadEmployees();
+    }
+    catch(e){ if(e.message!=='auth') msg('editorMsg', e.message, 'err'); }
+  }
+
+  async function deleteEmployee(){
+    if (!currentId) return;
+    var name = (document.getElementById('editorTitle').textContent || 'this employee').replace(/^Edit:\s*/,'').split('  ·  ')[0];
+    if (!window.confirm('Delete '+name+'? This permanently removes the employee. If they have any payroll history, deletion is blocked and you should deactivate instead.')) return;
+    try {
+      await api('/api/payroll/employees/'+currentId,'DELETE');
+      msg('globalMsg','Employee deleted.','ok');
+      currentId = null;
+      document.getElementById('editorCard').style.display='none';
+      loadEmployees();
+    }
+    catch(e){ if(e.message!=='auth') msg('editorMsg', e.message, 'err'); }
+  }
+
+  async function saveW4(){
+    if (!currentId){ return; }
+    try {
+      await api('/api/payroll/employees/'+currentId+'/w4','PUT',{
+        filingStatus:v('w_filingStatus'), step2Checked:chk('w_step2'),
+        step3AnnualCredits:num('w_step3'), step4cExtraPerPeriod:num('w_step4c'),
+        step4aOtherIncome:num('w_step4a'), step4bDeductions:num('w_step4b')
+      });
+      document.getElementById('w4Status').textContent='Saved.';
+    } catch(e){ if(e.message!=='auth') msg('editorMsg', e.message, 'err'); }
+  }
+
+  // ── Deduction catalog ──
+  async function loadDefinitions(){
+    try {
+      defs = await api('/api/payroll/deduction-definitions') || [];
+      var body = document.getElementById('defBody');
+      body.innerHTML = defs.length ? defs.map(function(d){
+        var reduces = [d.reducesFederalTaxable?'Fed':null, d.reducesStateTaxable?'State':null, d.reducesFicaWages?'FICA':null].filter(Boolean).join(', ') || '—';
+        return '<tr><td>'+esc(d.name)+'</td><td>'+esc(d.scope)+'</td><td>'+esc(reduces)+'</td>'
+          + '<td class="num">'+(d.defaultAmount==null?'—':(d.percentageBased?(Number(d.defaultAmount)*100).toFixed(2)+'%':fmtUSD.format(d.defaultAmount)))+'</td>'
+          + '<td><button class="btn danger sm" data-def="'+d.id+'">Remove</button></td></tr>';
+      }).join('') : '<tr><td colspan="5" style="color:#aaa;">No deduction types yet.</td></tr>';
+      Array.prototype.forEach.call(body.querySelectorAll('button[data-def]'), function(b){
+        b.addEventListener('click', function(){ deactivateDef(Number(b.getAttribute('data-def'))); });
+      });
+      var sel = document.getElementById('a_def');
+      sel.innerHTML = defs.map(function(d){ return '<option value="'+d.id+'">'+esc(d.name)+' ('+esc(d.scope)+')</option>'; }).join('')
+        || '<option value="">No deduction types</option>';
+    } catch(e){ if(e.message!=='auth') msg('globalMsg', e.message, 'err'); }
+  }
+
+  async function createDef(){
+    try {
+      if (!v('d_name')){ msg('globalMsg','Deduction name is required.','err'); return; }
+      await api('/api/payroll/deduction-definitions','POST',{
+        name:v('d_name'), scope:v('d_scope'), defaultAmount:num('d_amount'),
+        reducesFederalTaxable:chk('d_fed'), reducesStateTaxable:chk('d_state'),
+        reducesFicaWages:chk('d_fica'), percentageBased:chk('d_pct')
+      });
+      setV('d_name',''); setV('d_amount',''); msg('globalMsg','Deduction type added.','ok');
+      loadDefinitions();
+    } catch(e){ if(e.message!=='auth') msg('globalMsg', e.message, 'err'); }
+  }
+
+  async function deactivateDef(id){
+    try { await api('/api/payroll/deduction-definitions/'+id+'/deactivate','POST'); loadDefinitions(); }
+    catch(e){ if(e.message!=='auth') msg('globalMsg', e.message, 'err'); }
+  }
+
+  // ── Assignments ──
+  function defName(id){ var d = defs.filter(function(x){return x.id===id;})[0]; return d?d.name:('#'+id); }
+  function renderAssignments(list){
+    var body = document.getElementById('assignBody');
+    if (!list.length){ body.innerHTML = '<tr><td colspan="4" style="color:#aaa;">None</td></tr>'; return; }
+    body.innerHTML = list.map(function(a){
+      var d = defs.filter(function(x){return x.id===a.definitionId;})[0];
+      var amt = a.amountOrRate==null?'—':((d&&d.percentageBased)?(Number(a.amountOrRate)*100).toFixed(2)+'%':fmtUSD.format(a.amountOrRate));
+      return '<tr><td>'+esc(defName(a.definitionId))+'</td><td>'+esc(d?d.scope:'')+'</td><td class="num">'+amt+'</td>'
+        + '<td><button class="btn danger sm" data-asg="'+a.id+'">Remove</button></td></tr>';
+    }).join('');
+    Array.prototype.forEach.call(body.querySelectorAll('button[data-asg]'), function(b){
+      b.addEventListener('click', function(){ removeAssign(Number(b.getAttribute('data-asg'))); });
+    });
+  }
+
+  async function assignDeduction(){
+    if (!currentId){ return; }
+    try {
+      var defId = Number(document.getElementById('a_def').value);
+      if (!defId){ msg('editorMsg','Add a deduction type first.','err'); return; }
+      await api('/api/payroll/employees/'+currentId+'/deductions','POST',{ definitionId:defId, amountOrRate:num('a_amt') });
+      setV('a_amt','');
+      var e = await api('/api/payroll/employees/'+currentId);
+      renderAssignments(e.deductions||[]);
+    } catch(err){ if(err.message!=='auth') msg('editorMsg', err.message, 'err'); }
+  }
+
+  async function removeAssign(asgId){
+    try { await api('/api/payroll/employees/'+currentId+'/deductions/'+asgId,'DELETE');
+      var e = await api('/api/payroll/employees/'+currentId); renderAssignments(e.deductions||[]); }
+    catch(err){ if(err.message!=='auth') msg('editorMsg', err.message, 'err'); }
+  }
+
+  document.getElementById('btnNew').addEventListener('click', newEmployee);
+  document.getElementById('btnSaveEmp').addEventListener('click', saveEmployee);
+  document.getElementById('btnDeactivate').addEventListener('click', deactivateEmployee);
+  document.getElementById('btnActivate').addEventListener('click', activateEmployee);
+  document.getElementById('btnDelete').addEventListener('click', deleteEmployee);
+  document.getElementById('btnSaveW4').addEventListener('click', saveW4);
+  document.getElementById('btnCreateDef').addEventListener('click', createDef);
+  document.getElementById('btnAssign').addEventListener('click', assignDeduction);
+
+  loadDefinitions();
+  loadEmployees();
+</script>
+    </main>
+  </div>
+</div>
+<script>
+window.CGP_PAGE = { activePage:'accounting/payroll', pageTitle:'Payroll Employees', openSection:'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

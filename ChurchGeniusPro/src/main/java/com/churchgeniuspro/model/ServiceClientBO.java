@@ -1,0 +1,49 @@
+package com.churchgeniuspro.model;
+
+import lombok.Data;
+
+/**
+ * Request / response DTO for Service Client registration and updates.
+ */
+@Data
+public class ServiceClientBO {
+
+    private Integer id;
+
+    // ── Contact ──────────────────────────────────────────────────────────────
+    private String name;
+    private String churchName;
+    private String email;
+    private String phone;
+
+    // ── Address ──────────────────────────────────────────────────────────────
+    private String addressLine1;
+    private String addressLine2;
+    private String city;
+    private String state;
+    private String country;
+    private String pinCode;
+
+    // ── Website & Social Media ───────────────────────────────────────────────
+    private String websiteUrl;
+    private String facebookUrl;
+    private String instagramUrl;
+    private String youtubeUrl;
+
+    // ── Subscription ─────────────────────────────────────────────────────────
+    private Integer activePeriod;
+    /** MONTHS or YEARS */
+    private String activePeriodUnit;
+    /** ISO-8601 date string (yyyy-MM-dd) */
+    private String startDate;
+
+    /** NOT_REQUIRED | PENDING | PAID */
+    private String paymentStatus;
+    /** FREE | LIMITED | FULL */
+    private String subscriptionType;
+
+    // ── Misc ─────────────────────────────────────────────────────────────────
+    private String note;
+    /** Active | Hold | Inactive */
+    private String status;
+}

@@ -1,0 +1,46 @@
+{
+  "name": "Church Genius Pro",
+  "short_name": "ChurchGenius",
+  "description": "Church management platform for congregations",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f6fa",
+  "theme_color": "#673147",
+  "categories": ["productivity", "social"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Member Home",
+      "url": "/memberHome",
+      "description": "Go to Member Portal"
+    },
+    {
+      "name": "Dashboard",
+      "url": "/home",
+      "description": "Go to Admin Dashboard"
+    }
+  ],
+  "prefer_related_applications": false
+}

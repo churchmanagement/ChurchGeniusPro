@@ -1,0 +1,29 @@
+First Name,Surname,Nickname,E-mail Address,Mobile,Street,City,State,Zip,Member Type,Role,Family ID
+James,Anderson,Jim,james.anderson@example.com,(555) 300-1001,21 Maple St,Springfield,IL,62701,Member,Head,2001
+Linda,Anderson,,linda.anderson@example.com,555-300-1002,21 Maple St,Springfield,IL,62701,Member,Wife,2001
+Ethan,Anderson,,,5553001003,21 Maple St,Springfield,IL,62701,Member,Son,2001
+Robert,Martinez,Bob,robert.martinez@example.com,+1 555 300 1010,5 Cedar Ave,Springfield,IL,62702,Member,Head,2002
+Maria,Martinez,,maria.martinez@example.com,555.300.1011,5 Cedar Ave,Springfield,IL,62702,Member,Wife,2002
+William,Thompson,Will,will.thompson@example.com,(555) 300-1020,88 Birch Rd,Dayton,OH,45402,Member,Head,2003
+Patricia,Thompson,Patty,patricia.thompson@example.com,555-300-1021,88 Birch Rd,Dayton,OH,45402,Member,Wife,2003
+Olivia,Thompson,Liv,,555-300-1022,88 Birch Rd,Dayton,OH,45402,Member,Daughter,2003
+Michael,Garcia,Mike,michael.garcia@example.com,555-300-1030,12 Elm St,Columbus,OH,43004,Guest,Head,2004
+David,Wilson,Dave,david.wilson@example.com,5553001040,9 Oak Ln,Columbus,OH,43004,Member,Head,2005
+Jennifer,Wilson,Jen,jennifer.wilson@example.com,555-300-1041,9 Oak Ln,Columbus,OH,43004,Member,Wife,2005
+Daniel,Wilson,,,,9 Oak Ln,Columbus,OH,43004,Member,Son,2005
+Susan,Brown,Sue,susan.brown@example.com,(555) 300-1050,3 Pine Ct,Indianapolis,IN,46201,Member,Head,2006
+Christopher,Davis,Chris,chris.davis@example.com,555-300-1060,77 Walnut Way,Indianapolis,IN,46202,Member,Head,2007
+Karen,Davis,,karen.davis@example.com,555-300-1061,77 Walnut Way,Indianapolis,IN,46202,Member,Wife,2007
+Matthew,Rodriguez,Matt,matthew.rodriguez@example.com,555-300-1070,40 Spruce St,Louisville,KY,40202,Member,Head,2008
+Nancy,Rodriguez,,nancy.rodriguez@example.com,555-300-1071,40 Spruce St,Louisville,KY,40202,Member,Wife,2008
+Joseph,Lee,Joe,joseph.lee@example.com,(555) 300-1080,15 Ash Blvd,Louisville,KY,40203,Guest,Head,2009
+Sandra,Walker,,sandra.walker@example.com,555-300-1090,62 Chestnut Dr,Nashville,TN,37201,Member,Head,2010
+Mark,Hall,,mark.hall@example.com,555-300-1100,8 Poplar Pl,Nashville,TN,37203,Member,Head,2011
+Betty,Hall,,betty.hall@example.com,5553001101,8 Poplar Pl,Nashville,TN,37203,Member,Wife,2011
+Steven,Young,Steve,steven.young@example.com,(555) 300-1110,29 Willow St,Memphis,TN,38103,Member,Head,2012
+Donald,King,Don,donald.king@example.com,555-300-1120,51 Sycamore Ave,Memphis,TN,38104,Member,Head,2013
+Carol,King,,carol.king@example.com,555-300-1121,51 Sycamore Ave,Memphis,TN,38104,Member,Wife,2013
+Kevin,Wright,,kevin.wright@example.com,555-300-1130,18 Magnolia Rd,Atlanta,GA,30303,Guest,Head,2014
+,,,missingname@example.com,,,,,,Member,,2015
+Brian,Scott,,brian.scott@example.com,not-a-phone,73 Dogwood Ln,Atlanta,GA,30305,Member,Head,2016
+Angela,Green,Angie,angela.green@example.com,555-300-1150,34 Holly St,Charlotte,NC,28202,Member,Head,2017

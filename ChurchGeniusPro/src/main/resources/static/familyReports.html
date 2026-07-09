@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Family Report — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    
+
+    /* Sidebar */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* Main */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    .tb-username { font-size: 13px; color: #555; }
+    
+    .page-header { background: #673147; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .page-body { max-width: 960px; margin: 32px auto; padding: 0 20px 60px; }
+
+    /* Filter bar */
+    .filter-bar { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 20px 24px; display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+    .filter-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+    .filter-field label { font-size: 13px; font-weight: 600; color: #673147; text-transform: uppercase; letter-spacing: .5px; }
+    .filter-field select { border: 1.5px solid #dde0ec; border-radius: 8px; padding: 9px 13px; font-size: 14px; color: #673147; background: #fff; outline: none; transition: border-color .15s; }
+    .filter-field select:focus { border-color: #673147; }
+    .btn-view { padding: 10px 28px; background: #673147; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; transition: background .2s; white-space: nowrap; }
+    .btn-view:hover { background: #4f2538; }
+    .btn-view:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-print { padding: 10px 20px; background: #fff; color: #673147; font-size: 14px; font-weight: 600; border: 1.5px solid #673147; border-radius: 8px; transition: background .2s; white-space: nowrap; display: none; }
+    .btn-print.visible { display: inline-flex; align-items: center; gap: 6px; }
+    .btn-print:hover { background: #f0f2ff; }
+
+    /* Report card */
+    .report-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); overflow: hidden; display: none; }
+    .report-card.visible { display: block; }
+    .report-title-bar { background: #673147; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .report-title-bar h2 { font-size: 17px; font-weight: 700; margin: 0; }
+    .report-title-text { display: flex; flex-direction: column; gap: 2px; }
+    .report-meta { font-size: 13px; opacity: .8; }
+
+    /* In-card action bar (Print / Download). Visible on screen whenever the
+       report card is shown, hidden in print + during PDF capture (.pdf-hide). */
+    .report-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    .report-actions .btn-action {
+      padding: 8px 16px; background: rgba(255,255,255,.12); color: #fff;
+      font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.5);
+      border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+      transition: background .15s, border-color .15s;
+    }
+    .report-actions .btn-action:hover {
+      background: rgba(255,255,255,.22); border-color: #fff;
+    }
+    .report-actions .btn-action:disabled {
+      opacity: .6; cursor: progress;
+    }
+
+    /* Member cards */
+    .members-grid { padding: 20px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+    .member-card { border: 1.5px solid #e8eaf6; border-radius: 10px; overflow: hidden; }
+    .member-card-hdr { background: #f0f2ff; padding: 11px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e8eaf6; }
+    .member-role-badge { font-size: 11px; font-weight: 700; color: #fff; background: #673147; border-radius: 20px; padding: 2px 10px; white-space: nowrap; }
+    .member-name { font-size: 14px; font-weight: 700; color: #673147; }
+    .member-body { padding: 14px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+    .detail-row { display: flex; flex-direction: column; gap: 2px; }
+    .detail-row.full { grid-column: 1 / -1; }
+    .detail-label { font-size: 11px; font-weight: 600; color: #673147; text-transform: uppercase; letter-spacing: .4px; }
+    .detail-value { font-size: 13px; color: #444; word-break: break-word; }
+    .detail-value.empty { color: #ccc; font-style: italic; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 24px; color: #aaa; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-state p { font-size: 14px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; z-index: 2000; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Print styles */
+    @media print {
+      .sidebar, .topbar, .filter-bar, .btn-print, .toast, .report-actions, .app-footer { display: none !important; }
+      .main-area { overflow: visible; }
+      .page-content { overflow: visible; }
+      .report-card { display: block !important; box-shadow: none; border: 1px solid #ddd; }
+      .page-body { margin: 0; padding: 0; max-width: 100%; }
+      .members-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    }
+
+    /* While html2pdf is capturing the report, .pdf-hide elements get
+       display:none so the action bar (and anything else flagged) is excluded
+       from the saved PDF. The class is added/removed by downloadReport(). */
+    .pdf-hide { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-body">
+
+        <!-- Filter bar (single-family selector; hidden in multi-family ?ids= mode) -->
+        <div class="filter-bar">
+          <div class="filter-field">
+            <label for="familySelect">Select Family</label>
+            <select id="familySelect">
+              <option value="">— Choose a family —</option>
+            </select>
+          </div>
+          <button class="btn-view" id="btnView" onclick="viewReport()" disabled>View Report</button>
+        </div>
+
+        <!-- Report output -->
+        <div class="report-card" id="reportCard">
+          <div class="report-title-bar">
+            <div class="report-title-text">
+              <h2 id="reportFamilyName">Family Report</h2>
+              <span class="report-meta" id="reportMeta"></span>
+            </div>
+            <!-- In-card actions — always visible whenever the report is rendered,
+                 in both single-family and multi-family (?ids=) modes. Hidden in
+                 @media print and during PDF capture via .pdf-hide. -->
+            <div class="report-actions" id="reportActions">
+              <button type="button" class="btn-action" id="btnPrint2" onclick="printReport()">🖨 Print</button>
+              <button type="button" class="btn-action" id="btnDownload" onclick="downloadReport()">⬇ Download</button>
+            </div>
+          </div>
+          <div id="reportBody">
+            <div class="empty-state">
+              <div class="icon">👨‍👩‍👧</div>
+              <p>Select a family above to view the report.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- PDF generation library used by the Download button (deferred so it doesn't
+     block the rest of the page from rendering / fetching). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+
+<script>
+/* ── Sidebar nav ── */
+
+/* ── Family list ── */
+async function loadFamilies() {
+  try {
+    const res  = await fetch('/api/families?search=&showDeleted=false&showInactive=true');
+    if (!res.ok) return;
+    const list = await res.json();
+    const sel  = document.getElementById('familySelect');
+    list.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value       = f.id;
+      opt.textContent = f.familyName + (f.inactive ? ' (Inactive)' : '');
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      document.getElementById('btnView').disabled = !sel.value;
+    });
+  } catch(e) {
+    console.error('Failed to load families', e);
+  }
+}
+
+/* ── Multi-family auto-load from ?ids= URL param ── */
+async function loadMultipleFamilies(ids) {
+  // Fetch each family independently so one bad ID doesn't kill the whole batch.
+  // Each entry resolves to either the family payload, an error stub object, or
+  // `null` (network failure). renderFamilySection tolerates partial data.
+  const results = await Promise.all(ids.map(async (id) => {
+    try {
+      const res = await fetch(`/api/families/${id}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { id, _error: body && body.error ? body.error : ('HTTP ' + res.status) };
+      }
+      return body;
+    } catch (e) {
+      return { id, _error: 'Network error' };
+    }
+  }));
+
+  const ok    = results.filter(r => !r._error);
+  const errs  = results.filter(r =>  r._error);
+
+  document.getElementById('reportFamilyName').textContent = 'Family Report';
+  const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('reportMeta').textContent =
+    results.length + ' famil' + (results.length === 1 ? 'y' : 'ies') +
+    (errs.length ? '  ·  ' + errs.length + ' could not be loaded' : '') +
+    '  ·  Generated ' + dateStr;
+
+  // Render every fetched family; for the failed ones show a short notice.
+  const html = results.map(data => {
+    if (data._error) {
+      return '<div style="padding:12px 24px;color:#c62828;border-top:1px solid #e8eaf6;">' +
+             'Family #' + esc(String(data.id)) + ' could not be loaded — ' + esc(data._error) +
+             '</div>';
+    }
+    return renderFamilySection(data);
+  }).join('');
+
+  document.getElementById('reportBody').innerHTML = html ||
+    '<div class="empty-state"><div class="icon">⚠️</div><p>No family data returned.</p></div>';
+
+  // Show the report card even when some/all entries failed, so the user sees
+  // the per-family error messages instead of a blank page. The action bar
+  // (Print / Download) lives inside the report card and inherits its visibility.
+  document.getElementById('reportCard').classList.add('visible');
+
+  if (errs.length && ok.length === 0) {
+    showToast('Failed to load family details.', true);
+  } else if (errs.length) {
+    showToast(errs.length + ' famil' + (errs.length === 1 ? 'y' : 'ies') + ' failed to load.', true);
+  }
+}
+
+/* ── Report ── */
+async function viewReport() {
+  const sel = document.getElementById('familySelect');
+  const id  = sel.value;
+  if (!id) return;
+
+  const btn = document.getElementById('btnView');
+  btn.disabled = true; btn.textContent = 'Loading…';
+
+  try {
+    const res  = await fetch(`/api/families/${id}`);
+    if (!res.ok) { showToast('Failed to load family details.', true); return; }
+    const data = await res.json();
+    renderReport(data);
+    document.getElementById('reportCard').classList.add('visible');
+  } catch(e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'View Report';
+  }
+}
+
+function renderReport(data) {
+  document.getElementById('reportFamilyName').textContent = data.familyName;
+  const memberCount = (data.members || []).length;
+  document.getElementById('reportMeta').textContent =
+      memberCount + ' member' + (memberCount !== 1 ? 's' : '') +
+      '  ·  Generated ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+
+  document.getElementById('reportBody').innerHTML = renderFamilySection(data);
+}
+
+/* Renders one family's members as an HTML string (used both for single and multi) */
+function renderFamilySection(data) {
+  const familyAddr = buildAddress(
+    data.familyAddress1, data.familyAddress2,
+    data.familyCity, data.familyState, data.familyCountry, data.familyPinCode
+  );
+
+  if (!data.members || data.members.length === 0) {
+    return `<div style="padding:16px 24px;font-weight:600;color:#673147;">${esc(data.familyName)}</div>
+            <div class="empty-state"><div class="icon">👤</div><p>No members found for this family.</p></div>`;
+  }
+
+  const cards = data.members.map(m => {
+    const name = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ') || '—';
+
+    // Address: use member's own address if present, else fall back to family address
+    const memberAddr = buildAddress(m.address1, m.address2, m.city, m.state, m.country, m.pinCode);
+    const address    = memberAddr || (m.sameAsFamilyAddress ? familyAddr : '') || '—';
+
+    const phone = formatPhone(m.phone);
+    const email = m.email || '—';
+
+    const birthday = formatDate(m.birthdayMonth, m.birthdayDay, m.birthdayYear);
+    const anniv    = formatDate(m.anniversaryMonth, m.anniversaryDay, m.anniversaryYear);
+
+    return `<div class="member-card">
+      <div class="member-card-hdr">
+        <span class="member-role-badge">${esc(m.role || 'Member')}</span>
+        <span class="member-name">${esc(name)}</span>
+      </div>
+      <div class="member-body">
+        <div class="detail-row full">
+          <span class="detail-label">Address</span>
+          <span class="detail-value ${address==='—'?'empty':''}">${esc(address)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Phone</span>
+          <span class="detail-value ${phone==='—'?'empty':''}">${esc(phone)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email</span>
+          <span class="detail-value ${email==='—'?'empty':''}">${esc(email)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Birthday</span>
+          <span class="detail-value ${birthday==='—'?'empty':''}">${esc(birthday)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Wedding Anniversary</span>
+          <span class="detail-value ${anniv==='—'?'empty':''}">${esc(anniv)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div style="padding:12px 24px 4px;font-weight:700;font-size:15px;color:#673147;border-top:1px solid #e8eaf6;">${esc(data.familyName)}</div>
+          <div class="members-grid">${cards}</div>`;
+}
+
+/* ── Helpers ── */
+const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+
+function formatDate(month, day, year) {
+  if (!month && !day && !year) return '—';
+  const parts = [];
+  if (month && MONTHS[month]) parts.push(MONTHS[month]);
+  if (day)   parts.push(day);
+  if (year)  parts.push(year);
+  return parts.length ? parts.join(' ') : '—';
+}
+
+function buildAddress(a1, a2, city, state, country, pin) {
+  return [a1, a2, city, state, country, pin].filter(Boolean).join(', ');
+}
+
+// 10-digit US phone → "(NNN) NNN-NNNN"; anything else returns the value unchanged.
+// Matches the formatter used in event-details.html / event-checkin-admin.html
+// so the report shows the same phone formatting users see elsewhere in the app.
+function formatPhone(p) {
+  if (!p) return '—';
+  const d = String(p).replace(/\D/g,'');
+  if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  return String(p);
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+/* ── Print / Download actions ──────────────────────────────────────────
+ * Print: hand off to the browser's native print dialog. The @media print
+ *        rules above hide the sidebar/topbar/action-bar so only the report
+ *        card lands on paper.
+ * Download: render the same report card to a PDF via html2pdf (CDN, loaded
+ *        below). The action bar is temporarily masked with .pdf-hide so it
+ *        doesn't show up in the captured image.
+ */
+function reportPdfFilename() {
+  const meta = document.getElementById('reportFamilyName');
+  const base = (meta && meta.textContent || 'Family-Report').trim();
+  // Strip characters that browsers reject in filenames (Windows is strict).
+  const safe = base.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+  return (safe || 'Family-Report') + '.pdf';
+}
+
+function printReport() {
+  window.print();
+}
+
+async function downloadReport() {
+  const card = document.getElementById('reportCard');
+  if (!card || !card.classList.contains('visible')) {
+    showToast('Nothing to download yet.', true);
+    return;
+  }
+  if (typeof window.html2pdf !== 'function') {
+    showToast('PDF library not loaded — please try again in a moment.', true);
+    return;
+  }
+  const btn     = document.getElementById('btnDownload');
+  const actions = document.getElementById('reportActions');
+  const orig    = btn ? btn.textContent : '';
+  if (btn)     { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  if (actions) { actions.classList.add('pdf-hide'); }
+  try {
+    await html2pdf().set({
+      margin:      [10, 10, 10, 10],
+      filename:    reportPdfFilename(),
+      image:       { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:   { mode: ['avoid-all', 'css'] }
+    }).from(card).save();
+  } catch (e) {
+    console.error('PDF generation failed', e);
+    showToast('Could not generate PDF. Try Print → Save as PDF instead.', true);
+  } finally {
+    if (actions) { actions.classList.remove('pdf-hide'); }
+    if (btn)     { btn.disabled = false; btn.textContent = orig || '⬇ Download'; }
+  }
+}
+
+/* ── Init ── */
+const _idsParam = new URLSearchParams(location.search).get('ids');
+if (_idsParam) {
+  // Multi-family mode: hide filter bar, auto-load all selected families
+  document.querySelector('.filter-bar').style.display = 'none';
+  const _ids = _idsParam.split(',').map(s => parseInt(s.trim())).filter(Boolean);
+  loadMultipleFamilies(_ids);
+} else {
+  // Single-family mode: show dropdown
+  loadFamilies();
+}
+</script>
+<script src="/session.js" defer></script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/family', pageTitle: 'Family Report', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

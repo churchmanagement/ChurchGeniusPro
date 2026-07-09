@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Members</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Toolbar ─────────────────────────────────────────── */
+    .toolbar {
+      background: #fff; padding: 16px 18px; margin-bottom: 14px;
+      border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .toolbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    /* name search */
+    .toolbar-search {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1.5px solid #e0e0e0;
+      border-radius: 22px; padding: 8px 16px; flex: 1; min-width: 220px;
+    }
+    .toolbar-search input {
+      border: none; background: none; outline: none;
+      font-size: 14px; color: #333; width: 100%;
+    }
+    .toolbar-search input::placeholder { color: #bbb; }
+    .search-icon-sm { color: #bbb; font-size: 15px; flex-shrink: 0; }
+
+    /* dropdown filters */
+    .filter-select {
+      padding: 8px 32px 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; color: #333; background: #fff; outline: none; cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath fill='%23999' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .filter-select:focus { border-color: #673147; }
+    .filter-label { font-size: 13px; color: #888; white-space: nowrap; font-weight: 500; }
+
+    /* checkbox filters */
+    .chk-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .chk-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+
+    /* rows-per-page */
+    .toolbar-pagesize { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; white-space: nowrap; margin-left: auto; }
+    .toolbar-pagesize select {
+      padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; outline: none; color: #333; background: #fff; cursor: pointer;
+    }
+    .toolbar-pagesize select:focus { border-color: #673147; }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+
+    /* ── Table ───────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    .members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .members-table th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .members-table td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .members-table tr:last-child td { border-bottom: none; }
+    .members-table tr:hover td { background: #fafbff; }
+
+    /* ── Name cell ───────────────────────────────────────── */
+    .member-name { font-weight: 600; color: #333; }
+    .member-role {
+      display: inline-block; padding: 2px 9px; border-radius: 9px;
+      font-size: 11px; font-weight: 600; margin-top: 3px;
+    }
+    .role-primary     { background: #e8eaf6; color: #673147; }
+    .role-wife        { background: #fce4ec; color: #c2185b; }
+    .role-son         { background: #e3f2fd; color: #1565c0; }
+    .role-daughter    { background: #f3e5f5; color: #6a1b9a; }
+    .role-father      { background: #e8f5e9; color: #2e7d32; }
+    .role-mother      { background: #fff3e0; color: #e65100; }
+    .role-motherinlaw { background: #fbe9e7; color: #bf360c; }
+    .role-fatherinlaw { background: #e0f2f1; color: #00695c; }
+
+    /* ── Family link ─────────────────────────────────────── */
+    .family-link {
+      color: #3949ab; font-weight: 600;
+      cursor: pointer; transition: color .18s;
+    }
+    .family-link:hover { color: #1a237e; text-decoration: underline; }
+
+    /* ── Type badge ──────────────────────────────────────── */
+    .type-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .type-member { background: #e8f5e9; color: #2e7d32; }
+    .type-guest  { background: #fff3e0; color: #e65100; }
+
+    /* ── Inactive badge ──────────────────────────────────── */
+    .badge-inactive { background: #ffebee; color: #c62828; display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+
+    /* ── Pagination ──────────────────────────────────────── */
+    .pagination-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      border-top: 1px solid #f0f0f0;
+      font-size: 13px; color: #666;
+    }
+    .pagination-btns { display: flex; align-items: center; gap: 8px; }
+    .btn-page {
+      padding: 7px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; color: #673147;
+      border: 1.5px solid #c5cae9; cursor: pointer; transition: background .18s;
+    }
+    .btn-page:hover:not(:disabled) { background: #e8eaf6; }
+    .btn-page:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Members</div>
+          <div class="page-subtitle">All family members across the church</div>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Toolbar ──────────────────────────────────────── -->
+      <div class="toolbar">
+
+        <!-- Row 1: name search + rows per page -->
+        <div class="toolbar-row">
+          <div class="toolbar-search">
+            <span class="search-icon-sm">🔍</span>
+            <input type="text" id="nameSearch" placeholder="Search by name, email or phone…" oninput="onSearch()" />
+          </div>
+          <div class="toolbar-pagesize">
+            Rows per page:
+            <select id="pageSize" onchange="onPageSizeChange()">
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 2: dropdown filters -->
+        <div class="toolbar-row">
+
+          <span class="filter-label">Role:</span>
+          <select class="filter-select" id="filterRole" onchange="applyFilters()">
+            <option value="">All Roles</option>
+            <option value="Head">Head</option>
+            <option value="Wife">Wife</option>
+            <option value="Son">Son</option>
+            <option value="Daughter">Daughter</option>
+            <option value="Father">Father</option>
+            <option value="Mother">Mother</option>
+            <option value="Mother-in-Law">Mother-in-Law</option>
+            <option value="Father-in-Law">Father-in-Law</option>
+          </select>
+
+          <span class="filter-label">Type:</span>
+          <select class="filter-select" id="filterType" onchange="applyFilters()">
+            <option value="">All Types</option>
+            <option value="Member">Member</option>
+            <option value="Guest">Guest</option>
+            <option value="Visitor">Visitor</option>
+          </select>
+
+          <span class="filter-label">Birth Month:</span>
+          <select class="filter-select" id="filterBirthMonth" onchange="applyFilters()">
+            <option value="">Any Month</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+
+          <span class="filter-label">Anniversary Month:</span>
+          <select class="filter-select" id="filterAnnivMonth" onchange="applyFilters()">
+            <option value="">Any Month</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+
+        <!-- Row 3: boolean filters -->
+        <div class="toolbar-row">
+          <span class="filter-label">Show only:</span>
+          <label class="chk-item">
+            <input type="checkbox" id="filterInactive" onchange="applyFilters()" />
+            Inactive
+          </label>
+          <label class="chk-item">
+            <input type="checkbox" id="filterDisableAlerts" onchange="applyFilters()" />
+            Disable Alerts
+          </label>
+          <label class="chk-item">
+            <input type="checkbox" id="filterIncludeContributions" onchange="applyFilters()" />
+            Include in Contributions
+          </label>
+        </div>
+
+      </div>
+
+      <!-- ── Table Card ──────────────────────────────────── -->
+      <div class="card">
+        <div class="table-wrap">
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>Member Name</th>
+                <th>Family Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody id="membersTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-bar" id="paginationBar">
+          <span id="paginationInfo"></span>
+          <div class="pagination-btns">
+            <button class="btn-page" id="btnPrev" onclick="prevPage()">← Previous</button>
+            <button class="btn-page" id="btnNext" onclick="nextPage()">Next →</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     ROLE → CSS class map
+  ════════════════════════════════════ */
+  const ROLE_CLASS = {
+    'Head':         'role-primary',
+    'Wife':         'role-wife',
+    'Son':          'role-son',
+    'Daughter':     'role-daughter',
+    'Father':       'role-father',
+    'Mother':       'role-mother',
+    'Mother-in-Law':'role-motherinlaw',
+    'Father-in-Law':'role-fatherinlaw',
+  };
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allMembers     = [];   // full list from API (never mutated after load)
+  let filtered       = [];   // after applying all active filters
+  let currentPage    = 1;
+  let searchTimer    = null;
+
+  function getPageSize() {
+    return parseInt(document.getElementById('pageSize').value, 10);
+  }
+
+  /* ════════════════════════════════════
+     LOAD FROM API
+  ════════════════════════════════════ */
+  async function loadMembers() {
+    try {
+      const res = await fetch('/api/members');
+      if (!res.ok) throw new Error('Server error');
+      allMembers = await res.json();
+    } catch {
+      allMembers = [];
+      showFeedback('❌ Failed to load members from the server.', 'error');
+    }
+    applyFilters();
+  }
+
+  /* ════════════════════════════════════
+     FILTER LOGIC (client-side)
+  ════════════════════════════════════ */
+  function applyFilters() {
+    const nameQ       = document.getElementById('nameSearch').value.trim().toLowerCase();
+    const roleQ       = document.getElementById('filterRole').value;
+    const typeQ       = document.getElementById('filterType').value;
+    const birthMonthQ = document.getElementById('filterBirthMonth').value;
+    const annivMonthQ = document.getElementById('filterAnnivMonth').value;
+    const onlyInact   = document.getElementById('filterInactive').checked;
+    const onlyAlerts  = document.getElementById('filterDisableAlerts').checked;
+    const onlyContrib = document.getElementById('filterIncludeContributions').checked;
+
+    filtered = allMembers.filter(m => {
+      /* ── Name / email / phone text search ── */
+      if (nameQ) {
+        const fullName = [m.firstName, m.middleName, m.lastName, (m.nickname || m.otherName)]
+          .filter(Boolean).join(' ').toLowerCase();
+        const haystack = fullName + ' ' +
+          (m.email || '').toLowerCase() + ' ' +
+          (m.phone || '').toLowerCase();
+        if (!haystack.includes(nameQ)) return false;
+      }
+
+      /* ── Dropdown filters ── */
+      if (roleQ       && m.role       !== roleQ)                    return false;
+      if (typeQ       && m.memberType !== typeQ)                    return false;
+      if (birthMonthQ && String(m.birthdayMonth)    !== birthMonthQ) return false;
+      if (annivMonthQ && String(m.anniversaryMonth) !== annivMonthQ) return false;
+
+      /* ── Boolean filters (additive — each ticked box must be satisfied) ── */
+      if (onlyInact   && !m.inactive)              return false;
+      if (onlyAlerts  && !m.disableAlerts)         return false;
+      if (onlyContrib && !m.includeContributions)  return false;
+
+      return true;
+    });
+
+    currentPage = 1;
+    render();
+  }
+
+  /* ════════════════════════════════════
+     RENDER
+  ════════════════════════════════════ */
+  function render() {
+    renderTable();
+    renderPagination();
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('membersTableBody');
+    const size  = getPageSize();
+    const start = (currentPage - 1) * size;
+    const page  = filtered.slice(start, start + size);
+
+    if (page.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-icon">👤</div>
+            <div class="empty-text">No members match the current filters.</div>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = page.map(m => {
+      const legalName = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+      const nick      = (m.nickname || m.otherName || '').trim();
+      const fullName  = escHtml(legalName) +
+        (nick ? ` <span class="cgp-nickname">(${escHtml(nick)})</span>` : '');
+      const roleClass = ROLE_CLASS[m.role] || 'role-primary';
+      const typeClass = (m.memberType || '').toLowerCase() === 'guest' ? 'type-guest' : 'type-member';
+      const inactBadge = m.inactive
+        ? '<span class="badge-inactive">Inactive</span>'
+        : '';
+
+      const familyCell = m.familyId
+        ? `<a class="family-link" href="#" onclick="event.preventDefault(); postNavigate('/family', {id:${m.familyId}, mode:'view'})">${escHtml(m.familyName)}</a>`
+        : '<span style="color:#ccc">—</span>';
+
+      return `<tr>
+        <td>
+          <div class="member-name">${fullName}${inactBadge}</div>
+          <span class="member-role ${roleClass}">${escHtml(m.role)}</span>
+        </td>
+        <td>${familyCell}</td>
+        <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}</td>
+        <td>${formatPhone(m.phone)}</td>
+        <td><span class="type-badge ${typeClass}">${escHtml(m.memberType) || '—'}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderPagination() {
+    const size       = getPageSize();
+    const total      = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    const start      = Math.min((currentPage - 1) * size + 1, total);
+    const end        = Math.min(currentPage * size, total);
+
+    document.getElementById('paginationInfo').textContent =
+      total === 0
+        ? 'No members found'
+        : `Showing ${start}–${end} of ${total} member${total === 1 ? '' : 's'}  •  Page ${currentPage} of ${totalPages}`;
+
+    document.getElementById('btnPrev').disabled = currentPage <= 1;
+    document.getElementById('btnNext').disabled = currentPage >= totalPages;
+  }
+
+  function prevPage() { if (currentPage > 1) { currentPage--; render(); } }
+  function nextPage() {
+    const total = Math.ceil(filtered.length / getPageSize());
+    if (currentPage < total) { currentPage++; render(); }
+  }
+
+  /* ════════════════════════════════════
+     SEARCH (debounced 350 ms)
+  ════════════════════════════════════ */
+  function onSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 350);
+  }
+
+  function onPageSizeChange() { currentPage = 1; render(); }
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    loadMembers();
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/family', pageTitle: 'Members', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

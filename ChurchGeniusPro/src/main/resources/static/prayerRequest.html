@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Prayer Requests — Church Genius Pro</title>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ── */
+
+
+    /* ── Sidebar ── */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /* ── Main area ── */
+
+
+    /* ── Top-bar ── */
+
+
+
+
+
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; }
+
+
+    .tb-username  { font-size: 13px; color: #555; }
+
+    /* ── Page content ── */
+
+
+    /* ── Page header bar ── */
+    .page-header {
+      background: #673147; color: #fff;
+      padding: 18px 28px; display: flex; align-items: center; gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    /* Full-width content with consistent side padding — matches home / viewfamily
+       so the page content lines up with the AI search box and the page header
+       (no narrow centered column that looks misaligned against full-width bars). */
+    .page-body { margin: 0; padding: 24px 24px 40px; }
+
+    /* ── Volunteer searchable picker (mirrors event-volunteers) ── */
+    .vol-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .vol-search-wrap { position:relative; flex:1; min-width:200px; }
+    .vol-search-input {
+      width:100%; border:1.5px solid #ddd; border-radius:8px; padding:9px 12px;
+      font-size:13px; outline:none; background:#fff; transition:border-color .2s;
+    }
+    .vol-search-input:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .vol-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:50;
+      background:#fff; border:1.5px solid #dde0ec; border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,.12); max-height:240px; overflow-y:auto; display:none;
+    }
+    .vol-dropdown.open { display:block; }
+    .vol-option {
+      padding:9px 14px; cursor:pointer; font-size:13px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .vol-option:hover { background:#f5f0f3; }
+    .vol-option .vol-name { font-weight:600; color:#222; }
+    .vol-option .vol-meta { font-size:11px; color:#888; }
+    .vol-no-results { padding:12px 14px; color:#aaa; font-style:italic; font-size:13px; }
+    .btn-add-manual {
+      background:transparent; color:#673147; border:1px solid #c5a0b5;
+      border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;
+      white-space:nowrap; transition:background .15s,color .15s;
+    }
+    .btn-add-manual:hover { background:#673147; color:#fff; }
+
+    /* Assigned-volunteer chips on the request card + edit modal */
+    .assigned-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .vol-chip {
+      display:inline-flex; align-items:center; gap:6px;
+      background:#ede7f6; color:#5e35b1; border-radius:16px; padding:3px 10px; font-size:12px;
+    }
+    .vol-chip .remove {
+      background:none; border:none; color:#5e35b1; font-size:14px; cursor:pointer;
+      line-height:1; padding:0 0 0 2px;
+    }
+    .vol-chip.manual { background:#fff3e0; color:#ef6c00; }
+    .vol-chip.manual .remove { color:#ef6c00; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; align-items: center; }
+    .btn { padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary   { background: transparent; color: #673147; border: 1px solid #c5a0b5; transition: background .18s, color .18s, border-color .18s; }
+    .btn-primary:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-secondary { background: #7986cb; color: #fff; }
+    .btn-success   { background: #43a047; color: #fff; }
+    .btn-danger    { background: #e53935; color: #fff; }
+    .btn-sm        { padding: 5px 12px; font-size: 13px; }
+
+    /* ── Section accordion ── */
+    .section-block { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 16px; overflow: hidden; }
+    .section-header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; cursor: pointer; border-bottom: 1px solid transparent; transition: background .15s; }
+    .section-header:hover { background: #f0f2fb; }
+    .section-header.open  { border-bottom-color: #e8eaf6; }
+    .section-title  { flex: 1; font-weight: 700; font-size: 15px; color: #673147; }
+    .section-count  { background: #e8eaf6; color: #673147; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; }
+    .section-actions { display: flex; gap: 6px; }
+    .section-arrow  { font-size: 11px; color: #9fa8c4; transition: transform .2s; user-select: none; }
+    /* ── Icon action buttons (Edit / Delete) ── */
+    .btn-icon { padding: 5px 9px; border-radius: 6px; font-size: 15px; line-height: 1; cursor: pointer; background: transparent; color: #673147; border: 1px solid #c5a0b5; transition: background .18s, color .18s, border-color .18s; }
+    .btn-icon:hover { background: #673147; color: #fff; border-color: #673147; }
+    .section-arrow.open { transform: rotate(90deg); }
+    .section-body  { display: none; padding: 14px 20px; }
+    .section-body.open { display: block; }
+
+    /* ── Prayer request cards ── */
+    .request-card { background: #f8f9fe; border-left: 4px solid #7986cb; border-radius: 7px; padding: 12px 16px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; }
+    .request-card.answered { border-left-color: #43a047; }
+    .request-card-body { flex: 1; min-width: 0; }
+    .request-title { font-weight: 700; font-size: 14px; color: #673147; margin-bottom: 4px; }
+    .request-desc  { font-size: 13px; color: #555; white-space: pre-wrap; margin-bottom: 6px; }
+    .request-meta  { font-size: 13px; color: #9fa8c4; }
+    .request-actions { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; }
+    .badge-active    { background: #e8eaf6; color: #673147; }
+    .badge-answered  { background: #e8f5e9; color: #43a047; }
+    .badge-schedule  { background: #fff3e0; color: #e65100; margin-left: 5px; }
+    .add-request-btn { margin-top: 10px; background: #eef0fb; color: #673147; border: 1.5px dashed #b3bae8; border-radius: 7px; padding: 9px 16px; cursor: pointer; font-size: 13px; font-weight: 600; width: 100%; text-align: left; transition: background .15s; }
+    .add-request-btn:hover { background: #e3e6f7; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.18); width: 480px; max-width: 95vw; padding: 28px 28px 20px; animation: popIn .18s ease; }
+    @keyframes popIn { from { transform: scale(.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; color: #673147; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #6070a0; margin-bottom: 5px; }
+    .field input, .field textarea, .field select { width: 100%; box-sizing: border-box; border: 1.5px solid #dde0ec; border-radius: 7px; padding: 9px 11px; font-size: 14px; font-family: inherit; color: #673147; background: #fff; transition: border-color .15s; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: #673147; }
+    .field textarea { min-height: 90px; resize: vertical; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .feedback { font-size: 13px; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: none; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 50px 20px; color: #aaa; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Schedule card (page-level) ── */
+    .schedule-card {
+      background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      padding: 20px 24px; margin-bottom: 22px;
+    }
+    .schedule-card-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+      padding-bottom: 12px; border-bottom: 1px solid #eef0f8;
+    }
+    .schedule-card-icon { font-size: 20px; }
+    .schedule-card-title { font-size: 15px; font-weight: 700; color: #673147; flex: 1; }
+    .schedule-card-desc { font-size: 12px; color: #9fa8c4; margin-top: 2px; }
+
+    .sched-field { margin-bottom: 14px; }
+    .sched-field label { display: block; font-size: 13px; font-weight: 600; color: #6070a0; margin-bottom: 6px; }
+    .sched-field select {
+      border: 1.5px solid #dde0ec; border-radius: 7px; padding: 9px 11px;
+      font-size: 14px; font-family: inherit; color: #673147; background: #fff;
+      outline: none; width: 100%; max-width: 280px;
+    }
+    .sched-field select:focus { border-color: #673147; }
+
+    .sched-extra { margin-top: 14px; }
+    .sched-extra.hidden { display: none; }
+    .sched-sub-label { font-size: 12px; font-weight: 600; color: #777; margin-bottom: 6px; margin-top: 12px; }
+    .sched-or-divider { font-size: 11px; color: #aaa; margin: 12px 0 6px; font-style: italic; }
+
+    /* Pill toggle buttons (days / months) */
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .pill-btn {
+      padding: 5px 13px; border-radius: 16px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #c5cae9; background: #fff; color: #673147; cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .pill-btn.selected { background: #673147; color: #fff; border-color: #673147; }
+
+    /* Compact selects inside the schedule section */
+    .sched-row { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+    .sched-row select {
+      flex: 1; min-width: 120px; border: 1.5px solid #dde0ec; border-radius: 7px;
+      padding: 7px 9px; font-size: 13px; font-family: inherit; color: #673147;
+      background: #fff; outline: none;
+    }
+    .sched-row select:focus { border-color: #673147; }
+
+    /* day-of-month standalone select */
+    .sched-dom-select {
+      border: 1.5px solid #dde0ec; border-radius: 7px; padding: 7px 9px;
+      font-size: 13px; font-family: inherit; color: #673147; background: #fff;
+      outline: none; width: 160px;
+    }
+    .sched-dom-select:focus { border-color: #673147; }
+
+    /* ── Notify banner ── */
+    .notify-bar { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .notify-bar p { margin: 0; font-size: 13px; color: #666; flex: 1; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page header bar -->
+      <div class="page-header">
+        <span style="font-size:26px;">🙏</span>
+        <h1>Prayer Requests</h1>
+      </div>
+
+      <div class="page-body">
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="openSectionModal()">+ Add Main Section</button>
+          <button class="btn btn-primary" id="notifyBtn" onclick="sendNotification()">✉ Email All Members</button>
+          <button class="btn btn-primary" onclick="openVolunteersModal()">👥 Manage Volunteers</button>
+          <button class="btn btn-primary" onclick="location.href='/publicPrayerAdmin'" title="Prayer requests submitted from the public website and NTAG landing page">🌐 Public Requests</button>
+        </div>
+
+        <!-- Filter bar — status + assignee + show closed -->
+        <div class="toolbar" style="background:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:14px;">
+          <span style="font-size:12px;font-weight:600;color:#555;">Filter:</span>
+          <select id="filterStatus" onchange="render()" style="font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;">
+            <option value="">All statuses</option>
+            <option value="New">New</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Following Up">Following Up</option>
+            <option value="Answered">Answered</option>
+            <option value="Closed">Closed</option>
+          </select>
+          <select id="filterAssignee" onchange="render()" style="font-size:13px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;">
+            <option value="">Any volunteer</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+          <input type="search" id="filterSearch" oninput="render()" placeholder="Search title/description…"
+                 style="font-size:13px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;min-width:180px;" />
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#555;cursor:pointer;">
+            <input type="checkbox" id="filterShowClosed" onchange="render()" />
+            Show closed
+          </label>
+        </div>
+
+        <!-- Email notification bar -->
+        <div class="notify-bar" id="notifyBar" style="display:none;">
+          <span style="font-size:22px;">✅</span>
+          <p id="notifyMsg">Email sent successfully.</p>
+          <button class="btn btn-sm btn-secondary" onclick="document.getElementById('notifyBar').style.display='none'">Dismiss</button>
+        </div>
+
+        <!-- ══════════════════════════════════════════
+             SCHEDULE CARD — global, page-level
+        ══════════════════════════════════════════ -->
+        <div class="schedule-card">
+          <div class="schedule-card-header">
+            <span class="schedule-card-icon">🔔</span>
+            <div>
+              <div class="schedule-card-title">Prayer Reminder Schedule</div>
+              <div class="schedule-card-desc">Configure when prayer request reminder emails are sent to members.</div>
+            </div>
+          </div>
+
+          <!-- Occurrence -->
+          <div class="sched-field">
+            <label>Occurrence</label>
+            <select id="reqOccurrence" onchange="onReqOccurrenceChange(this.value); saveSchedule()">
+              <option value="">— None (no reminder) —</option>
+              <option value="One-time">One-time</option>
+              <option value="Daily">Daily</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Monthly">Monthly</option>
+            </select>
+          </div>
+
+          <!-- Send Time -->
+          <div class="sched-field">
+            <label>Send Time</label>
+            <select id="reqSendHour" onchange="saveSchedule()">
+              <option value="6">6:00 AM</option>
+              <option value="18">6:00 PM</option>
+            </select>
+          </div>
+
+          <!-- Weekly: day toggles -->
+          <div class="sched-extra hidden" id="reqWeeklyPanel">
+            <div class="sched-sub-label">Repeat on days</div>
+            <div class="pill-row" id="reqDayRow">
+              <button type="button" class="pill-btn" data-day="0" onclick="toggleReqDay(this)">Sun</button>
+              <button type="button" class="pill-btn" data-day="1" onclick="toggleReqDay(this)">Mon</button>
+              <button type="button" class="pill-btn" data-day="2" onclick="toggleReqDay(this)">Tue</button>
+              <button type="button" class="pill-btn" data-day="3" onclick="toggleReqDay(this)">Wed</button>
+              <button type="button" class="pill-btn" data-day="4" onclick="toggleReqDay(this)">Thu</button>
+              <button type="button" class="pill-btn" data-day="5" onclick="toggleReqDay(this)">Fri</button>
+              <button type="button" class="pill-btn" data-day="6" onclick="toggleReqDay(this)">Sat</button>
+            </div>
+          </div>
+
+          <!-- Monthly: months + day-of-month or week-pattern -->
+          <div class="sched-extra hidden" id="reqMonthlyPanel">
+            <div class="sched-sub-label">Repeat in months</div>
+            <div class="pill-row" id="reqMonthRow">
+              <button type="button" class="pill-btn" data-month="1"  onclick="toggleReqMonth(this)">Jan</button>
+              <button type="button" class="pill-btn" data-month="2"  onclick="toggleReqMonth(this)">Feb</button>
+              <button type="button" class="pill-btn" data-month="3"  onclick="toggleReqMonth(this)">Mar</button>
+              <button type="button" class="pill-btn" data-month="4"  onclick="toggleReqMonth(this)">Apr</button>
+              <button type="button" class="pill-btn" data-month="5"  onclick="toggleReqMonth(this)">May</button>
+              <button type="button" class="pill-btn" data-month="6"  onclick="toggleReqMonth(this)">Jun</button>
+              <button type="button" class="pill-btn" data-month="7"  onclick="toggleReqMonth(this)">Jul</button>
+              <button type="button" class="pill-btn" data-month="8"  onclick="toggleReqMonth(this)">Aug</button>
+              <button type="button" class="pill-btn" data-month="9"  onclick="toggleReqMonth(this)">Sep</button>
+              <button type="button" class="pill-btn" data-month="10" onclick="toggleReqMonth(this)">Oct</button>
+              <button type="button" class="pill-btn" data-month="11" onclick="toggleReqMonth(this)">Nov</button>
+              <button type="button" class="pill-btn" data-month="12" onclick="toggleReqMonth(this)">Dec</button>
+            </div>
+
+            <div class="sched-sub-label" style="margin-top:14px;">Day of month</div>
+            <select id="reqMonthDay" class="sched-dom-select" onchange="saveSchedule()">
+              <option value="">— any day —</option>
+              <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option>
+              <option value="4">4th</option><option value="5">5th</option><option value="6">6th</option>
+              <option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+              <option value="10">10th</option><option value="11">11th</option><option value="12">12th</option>
+              <option value="13">13th</option><option value="14">14th</option><option value="15">15th</option>
+              <option value="16">16th</option><option value="17">17th</option><option value="18">18th</option>
+              <option value="19">19th</option><option value="20">20th</option><option value="21">21st</option>
+              <option value="22">22nd</option><option value="23">23rd</option><option value="24">24th</option>
+              <option value="25">25th</option><option value="26">26th</option><option value="27">27th</option>
+              <option value="28">28th</option><option value="29">29th</option><option value="30">30th</option>
+              <option value="31">31st</option>
+            </select>
+
+            <div class="sched-or-divider">— or use a week-based pattern —</div>
+            <div class="sched-row">
+              <select id="reqMonthWeekOrdinal" onchange="saveSchedule()">
+                <option value="">— any —</option>
+                <option value="1">1st</option>
+                <option value="2">2nd</option>
+                <option value="3">3rd</option>
+                <option value="4">4th</option>
+                <option value="5">Last</option>
+              </select>
+              <select id="reqMonthWeekDay" onchange="saveSchedule()">
+                <option value="">— any —</option>
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- end .schedule-card -->
+
+        <!-- Empty state (outside container so innerHTML resets never destroy it) -->
+        <div class="empty" id="emptyState" style="display:none;">
+          <div class="empty-icon">🙏</div>
+          <div>No prayer requests yet.<br>Click <strong>+ Add Main Section</strong> to get started.</div>
+        </div>
+
+        <!-- Sections list -->
+        <div id="sectionsContainer"></div>
+
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ── Section modal ── -->
+<div class="modal-overlay" id="sectionModal">
+  <div class="modal">
+    <div class="modal-title" id="sectionModalTitle">Add Main Section</div>
+    <div class="feedback" id="sectionFeedback"></div>
+    <div class="field">
+      <label>Section Name <span style="color:#e53935">*</span></label>
+      <input type="text" id="sectionName" placeholder="e.g. Pray for Visa" maxlength="120" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSectionModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSection()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Prayer request modal (no schedule — schedule is on the main page) ── -->
+<div class="modal-overlay" id="requestModal">
+  <div class="modal">
+    <div class="modal-title" id="requestModalTitle">Add Prayer Request</div>
+    <div class="feedback" id="requestFeedback"></div>
+    <div class="field">
+      <label>Section <span style="color:#e53935">*</span></label>
+      <select id="reqSection"></select>
+    </div>
+    <div class="field">
+      <label>Title (Subsection) <span style="color:#e53935">*</span></label>
+      <input type="text" id="reqTitle" placeholder="e.g. Anson's Visa Process" maxlength="200" />
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="reqDesc" placeholder="Details of the prayer request…"></textarea>
+    </div>
+    <div class="field">
+      <label>Requested By</label>
+      <input type="text" id="reqName" placeholder="Name of requester" maxlength="120" />
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="reqStatus">
+        <option value="New">New</option>
+        <option value="Assigned">Assigned</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Following Up">Following Up</option>
+        <option value="Answered">Answered</option>
+        <option value="Closed">Closed</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Assigned Volunteers</label>
+      <!-- Chips list of currently-assigned volunteers (rendered by JS). -->
+      <div id="reqAssignedChips" class="assigned-chips" style="margin-top:0;margin-bottom:8px;">
+        <span style="font-size:12px;color:#aaa;">No volunteers assigned yet.</span>
+      </div>
+      <!-- Searchable picker + Add Manually -->
+      <div class="vol-toolbar" style="margin-bottom:0;">
+        <div class="vol-search-wrap">
+          <input type="text" class="vol-search-input" id="reqVolSearch"
+                 placeholder="Search members or volunteers to assign…"
+                 oninput="prFilterReqVolDd()"
+                 onfocus="prFilterReqVolDd()"
+                 onblur="setTimeout(prCloseReqVolDd, 200)" />
+          <div class="vol-dropdown" id="reqVolDd"></div>
+        </div>
+        <button type="button" class="btn-add-manual" onclick="openManualVolModal(true)">+ Add Manually</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRequestModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRequest()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Manage Volunteers modal ── -->
+<div class="modal-overlay" id="volunteersModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title">👥 Prayer Team Volunteers</div>
+    <div class="feedback" id="volunteersFeedback"></div>
+
+    <!-- Add volunteer — searchable picker + manual button -->
+    <div class="vol-toolbar">
+      <div class="vol-search-wrap">
+        <input type="text" class="vol-search-input" id="volSearch"
+               placeholder="Search members by name, email or phone…"
+               oninput="prFilterVolDd()"
+               onfocus="prFilterVolDd()"
+               onblur="setTimeout(prCloseVolDd, 200)" />
+        <div class="vol-dropdown" id="volSearchDd"></div>
+      </div>
+      <button class="btn-add-manual" onclick="openManualVolModal(false)">+ Add Manually</button>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label style="font-size:12px;">Role (optional — applies to the next member picked)</label>
+      <input type="text" id="volRoleInput" placeholder="e.g. Intercessor" maxlength="100" />
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f5f6fa;">
+          <th style="text-align:left;padding:8px 10px;border:1px solid #eee;">Name</th>
+          <th style="text-align:left;padding:8px 10px;border:1px solid #eee;">Role</th>
+          <th style="text-align:center;padding:8px 10px;border:1px solid #eee;">Active</th>
+          <th style="padding:8px 10px;border:1px solid #eee;"></th>
+        </tr>
+      </thead>
+      <tbody id="volunteersTbody">
+        <tr><td colspan="4" style="padding:16px;text-align:center;color:#888;">Loading…</td></tr>
+      </tbody>
+    </table>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeVolunteersModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Notes drawer modal (per request) ── -->
+<div class="modal-overlay" id="notesModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title" id="notesModalTitle">📝 Notes</div>
+    <div class="feedback" id="notesFeedback"></div>
+
+    <div id="notesList" style="max-height:340px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:10px;background:#fafafa;margin-bottom:12px;">
+      <div style="font-size:13px;color:#888;padding:14px;text-align:center;">Loading…</div>
+    </div>
+
+    <div class="field" style="margin-bottom:8px;">
+      <label>Add a note</label>
+      <textarea id="newNoteBody" placeholder="Follow-up details, contact notes, prayer updates…" style="min-height:80px;"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeNotesModal()">Close</button>
+      <button class="btn btn-primary" onclick="addNote()">Add Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Manual Volunteer modal (used by both Manage Volunteers and Assign-on-request) ── -->
+<div class="modal-overlay" id="manualVolModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">➕ Add Volunteer Manually</div>
+    <div class="feedback" id="manualVolFeedback"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field" style="margin-bottom:8px;">
+        <label>First name *</label>
+        <input type="text" id="manualVolFirst" maxlength="100" />
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Last name</label>
+        <input type="text" id="manualVolLast" maxlength="100" />
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Phone</label>
+        <input type="tel" id="manualVolPhone" maxlength="50" />
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Email</label>
+        <input type="email" id="manualVolEmail" maxlength="200" />
+      </div>
+      <div class="field" style="margin-bottom:8px;grid-column:1 / -1;">
+        <label>Availability (optional)</label>
+        <input type="text" id="manualVolAvailability" placeholder="e.g. Mon/Wed evenings" maxlength="200" />
+      </div>
+      <div class="field" style="margin-bottom:8px;grid-column:1 / -1;">
+        <label>Role (optional)</label>
+        <input type="text" id="manualVolRole" placeholder="e.g. Intercessor" maxlength="100" />
+      </div>
+      <div class="field" style="margin-bottom:8px;grid-column:1 / -1;">
+        <label>Notes</label>
+        <textarea id="manualVolNotes" placeholder="Internal notes about this volunteer…" style="min-height:60px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeManualVolModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveManualVol()">Save Volunteer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   PRAYER REQUEST PAGE LOGIC
+════════════════════════════════════════ */
+let sections = [];
+let requests = [];
+let volunteers = [];     // [{ id, familyMemberId, name, role, active, manual, phone, email, notes, availability }]
+let allMembers = [];     // for the volunteer picker — {id,firstName,lastName,phone,email,role}
+let currentNotesRequestId = null;
+let editingSectionId = null;
+let editingRequestId = null;
+let openSections = new Set();
+
+// Per-edit-modal cache so the request modal can render chips even before save.
+// Initialised by openRequestModal, mutated by add/remove handlers, flushed
+// onto the server in saveRequest.
+let modalAssignees = [];   // [{ volunteerId, name, manual }]
+let manualVolForRequest = false;   // toggled by openManualVolModal so saveManualVol knows where to attach
+
+const STATUS_VALUES = ['New', 'Assigned', 'In Progress', 'Following Up', 'Answered', 'Closed'];
+const STATUS_COLORS = {
+  'New':           { bg: '#e3f2fd', fg: '#1565c0' },
+  'Assigned':      { bg: '#ede7f6', fg: '#5e35b1' },
+  'In Progress':   { bg: '#fff3e0', fg: '#ef6c00' },
+  'Following Up':  { bg: '#fff8e1', fg: '#a05a00' },
+  'Answered':      { bg: '#e8f5e9', fg: '#2e7d32' },
+  'Closed':        { bg: '#eceff1', fg: '#546e7a' }
+};
+
+async function init() {
+  await Promise.all([
+    loadSections(),
+    loadRequests(),
+    loadSchedule(),
+    loadVolunteers(),
+    loadMembersForPicker()
+  ]);
+  render();
+}
+
+async function loadSections() {
+  try {
+    const res = await fetch('/api/prayer/sections');
+    if (res.ok) sections = await res.json();
+  } catch(e) { console.error(e); }
+}
+
+async function loadRequests() {
+  try {
+    const res = await fetch('/api/prayer/requests');
+    if (res.ok) requests = await res.json();
+  } catch(e) { console.error(e); }
+}
+
+/* Volunteers — populates Manage modal + Assignee dropdowns + filter chip. */
+async function loadVolunteers() {
+  try {
+    const res = await fetch('/api/prayer/volunteers');
+    if (res.ok) volunteers = await res.json();
+    syncVolunteerSelects();
+  } catch(e) { console.error(e); }
+}
+
+/* Members list (FamilyMember) for the Add-Volunteer picker. Pulls from the
+   existing /api/families endpoint; we flatten to a member list. */
+async function loadMembersForPicker() {
+  try {
+    const res = await fetch('/api/families?showDeleted=false&showInactive=false&page=-1');
+    if (!res.ok) return;
+    const data = await res.json();
+    const fams = Array.isArray(data) ? data : (data.items || []);
+    // Flatten — only families with members (older endpoints may not return them inline).
+    allMembers = [];
+    for (const f of fams) {
+      if (Array.isArray(f.members)) {
+        for (const m of f.members) {
+          if (m && !m.deleted && !m.inactive) {
+            allMembers.push({
+              id:        m.id,
+              firstName: m.firstName || '',
+              lastName:  m.lastName  || '',
+              phone:     m.phone     || '',
+              email:     m.email     || '',
+              role:      m.role      || '',
+              // Pre-computed lowercase haystack used by the dropdown filter.
+              _hay: [m.firstName, m.lastName, m.email, m.phone]
+                      .filter(Boolean).join(' ').toLowerCase(),
+              name: [m.firstName, m.lastName].filter(Boolean).join(' ').trim() || '(unnamed)'
+            });
+          }
+        }
+      }
+    }
+    allMembers.sort((a, b) => a.name.localeCompare(b.name));
+  } catch(e) { console.warn('loadMembersForPicker:', e); }
+}
+
+/* Rebuilds the volunteer dropdown options in:
+    - the filter bar (Any volunteer / Unassigned / per volunteer)
+   The Request modal now uses a searchable input (prFilterReqVolDd) and the
+   Manage Volunteers modal uses prFilterVolDd, so neither needs a <select>. */
+function syncVolunteerSelects() {
+  const filt = document.getElementById('filterAssignee');
+  if (!filt) return;
+  const cur = filt.value;
+  const opts = volunteers
+    .filter(v => v.active)
+    .map(v => '<option value="' + v.id + '">' + esc(v.name || '(unknown)')
+              + (v.role ? ' — ' + esc(v.role) : '') + '</option>')
+    .join('');
+  filt.innerHTML = '<option value="">Any volunteer</option>'
+                 + '<option value="unassigned">Unassigned</option>' + opts;
+  filt.value = cur;
+}
+
+/* ── Manage Volunteers modal: searchable picker over allMembers ── */
+function prFilterVolDd() {
+  const q = (document.getElementById('volSearch').value || '').trim().toLowerCase();
+  const dd = document.getElementById('volSearchDd');
+  if (!dd) return;
+  dd.classList.add('open');
+  // Hide members already on the team to avoid duplicate adds (Spec: "Prevent
+  // duplicate volunteer assignment").
+  const taken = new Set(volunteers.map(v => v.familyMemberId).filter(Boolean).map(String));
+  const filtered = allMembers
+    .filter(m => !taken.has(String(m.id)))
+    .filter(m => !q || m._hay.includes(q))
+    .slice(0, 30);
+  if (!filtered.length) {
+    dd.innerHTML = '<div class="vol-no-results">No matching members found.</div>';
+    return;
+  }
+  dd.innerHTML = filtered.map(m => {
+    const meta = esc((m.role || '')
+                   + (m.email ? (m.role ? ' · ' : '') + m.email : '')
+                   + (m.phone ? ' · ' + m.phone : ''));
+    return '<div class="vol-option" onmousedown="event.preventDefault();prAddMemberAsVolunteer(' + m.id + ')">'
+         + '<div><div class="vol-name">' + esc(m.name) + '</div>'
+         + '<div class="vol-meta">' + meta + '</div></div></div>';
+  }).join('');
+}
+function prCloseVolDd() {
+  const dd = document.getElementById('volSearchDd');
+  if (dd) dd.classList.remove('open');
+}
+async function prAddMemberAsVolunteer(memberId) {
+  prCloseVolDd();
+  document.getElementById('volSearch').value = '';
+  const role = document.getElementById('volRoleInput').value.trim();
+  try {
+    const res = await fetch('/api/prayer/volunteers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyMemberId: memberId, role, active: true })
+    });
+    if (!res.ok) {
+      // Try to pull the server's error/detail JSON for a useful message.
+      let msg = 'save failed';
+      try { const j = await res.json(); msg = j.error || j.detail || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+    document.getElementById('volRoleInput').value = '';
+    await loadVolunteers();
+    renderVolunteersTable();
+    render();
+  } catch(e) { showFeedback('volunteersFeedback', 'Could not add: ' + e.message, 'error'); }
+}
+
+/* ── Request modal: searchable picker over members + existing volunteers ──
+   - Members get added: first creates/reuses the volunteer row, then attaches.
+   - Existing volunteer rows are attached directly. */
+function prFilterReqVolDd() {
+  const q = (document.getElementById('reqVolSearch').value || '').trim().toLowerCase();
+  const dd = document.getElementById('reqVolDd');
+  if (!dd) return;
+  dd.classList.add('open');
+  const assignedVolIds = new Set(modalAssignees.map(a => String(a.volunteerId)));
+  // Existing volunteers not yet assigned to this request.
+  const volOpts = volunteers
+    .filter(v => v.active && !assignedVolIds.has(String(v.id)))
+    .filter(v => !q || (v.name || '').toLowerCase().includes(q)
+                    || (v.email || '').toLowerCase().includes(q)
+                    || (v.phone || '').toLowerCase().includes(q))
+    .slice(0, 12)
+    .map(v => ({
+      type: 'volunteer',
+      id:   v.id,
+      label: v.name,
+      meta:  (v.role || '') + (v.manual ? ' · manual' : '')
+    }));
+  // Members not yet on the team — picking one will create the volunteer.
+  const onTeam = new Set(volunteers.map(v => v.familyMemberId).filter(Boolean).map(String));
+  const memberOpts = allMembers
+    .filter(m => !onTeam.has(String(m.id)))
+    .filter(m => !q || m._hay.includes(q))
+    .slice(0, 18)
+    .map(m => ({
+      type: 'member',
+      id:   m.id,
+      label: m.name,
+      meta:  (m.role || '') + (m.email ? (m.role ? ' · ' : '') + m.email : '')
+    }));
+  const all = volOpts.concat(memberOpts);
+  if (!all.length) {
+    dd.innerHTML = '<div class="vol-no-results">No matches. Use “Add Manually” for a non-member.</div>';
+    return;
+  }
+  dd.innerHTML = all.map(o =>
+    '<div class="vol-option" onmousedown="event.preventDefault();prAttachToRequest(\'' + o.type + '\',' + o.id + ')">'
+    + '<div><div class="vol-name">' + esc(o.label) + '</div>'
+    + '<div class="vol-meta">' + esc(o.meta || (o.type === 'member' ? 'Family member' : 'Prayer volunteer')) + '</div></div></div>'
+  ).join('');
+}
+function prCloseReqVolDd() {
+  const dd = document.getElementById('reqVolDd');
+  if (dd) dd.classList.remove('open');
+}
+
+/* Attach a member OR existing volunteer to the request being edited.
+   When picking a member, transparently creates the volunteer row first. */
+async function prAttachToRequest(type, id) {
+  prCloseReqVolDd();
+  document.getElementById('reqVolSearch').value = '';
+  try {
+    let volId = id;
+    if (type === 'member') {
+      const res = await fetch('/api/prayer/volunteers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ familyMemberId: id, active: true })
+      });
+      if (!res.ok) throw new Error('cannot create volunteer');
+      const v = await res.json();
+      volId = v.id;
+      await loadVolunteers();
+    }
+    // If we're editing an existing request, POST to the join endpoint right
+    // away so server state and modal state stay in sync. Otherwise just
+    // stage it locally — saveRequest will create the request, then we'll
+    // POST the join rows once we know the new request id.
+    if (editingRequestId) {
+      const join = await fetch('/api/prayer/requests/' + editingRequestId + '/volunteers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prayerVolunteerId: volId })
+      });
+      if (!join.ok) throw new Error('cannot attach');
+      const data = await join.json();
+      modalAssignees = (data.volunteers || []).map(v => ({
+        volunteerId: v.id, name: v.name, manual: v.manual
+      }));
+      // Refresh the card list too so chips on the underlying card update.
+      const idx = requests.findIndex(r => r.id === editingRequestId);
+      if (idx >= 0 && data.request) requests[idx] = data.request;
+    } else {
+      // Pre-save: look up the volunteer in our local list to get a name.
+      const v = volunteers.find(x => x.id === volId)
+              || { id: volId, name: '(new)', manual: false };
+      modalAssignees.push({ volunteerId: volId, name: v.name, manual: v.manual });
+    }
+    renderRequestModalChips();
+    render();
+  } catch(e) { showFeedback('requestFeedback', 'Could not attach: ' + e.message, 'error'); }
+}
+
+/* Removes a volunteer from the request currently being edited. */
+async function prDetachFromRequest(volunteerId) {
+  if (editingRequestId) {
+    try {
+      const res = await fetch('/api/prayer/requests/' + editingRequestId + '/volunteers/' + volunteerId,
+                              { method: 'DELETE' });
+      if (!res.ok) throw new Error('cannot detach');
+      const data = await res.json();
+      modalAssignees = (data.volunteers || []).map(v => ({
+        volunteerId: v.id, name: v.name, manual: v.manual
+      }));
+      const idx = requests.findIndex(r => r.id === editingRequestId);
+      if (idx >= 0 && data.request) requests[idx] = data.request;
+    } catch(e) { showFeedback('requestFeedback', 'Could not remove: ' + e.message, 'error'); return; }
+  } else {
+    modalAssignees = modalAssignees.filter(a => a.volunteerId !== volunteerId);
+  }
+  renderRequestModalChips();
+  render();
+}
+
+/* Renders the chips list in the request modal from `modalAssignees`. */
+function renderRequestModalChips() {
+  const host = document.getElementById('reqAssignedChips');
+  if (!host) return;
+  if (!modalAssignees.length) {
+    host.innerHTML = '<span style="font-size:12px;color:#aaa;">No volunteers assigned yet.</span>';
+    return;
+  }
+  host.innerHTML = modalAssignees.map(a =>
+    '<span class="vol-chip ' + (a.manual ? 'manual' : '') + '">'
+    + (a.manual ? '✏ ' : '👤 ') + esc(a.name || '(unknown)')
+    + '<button class="remove" type="button" onclick="prDetachFromRequest(' + a.volunteerId + ')" title="Remove">×</button>'
+    + '</span>'
+  ).join('');
+}
+
+/* ── Manual Volunteer modal ── */
+function openManualVolModal(forRequest) {
+  manualVolForRequest = !!forRequest;
+  document.getElementById('manualVolFirst').value        = '';
+  document.getElementById('manualVolLast').value         = '';
+  document.getElementById('manualVolPhone').value        = '';
+  document.getElementById('manualVolEmail').value        = '';
+  document.getElementById('manualVolAvailability').value = '';
+  document.getElementById('manualVolRole').value         = '';
+  document.getElementById('manualVolNotes').value        = '';
+  clearFeedback('manualVolFeedback');
+  document.getElementById('manualVolModal').classList.add('open');
+}
+function closeManualVolModal() {
+  document.getElementById('manualVolModal').classList.remove('open');
+}
+async function saveManualVol() {
+  const first = document.getElementById('manualVolFirst').value.trim();
+  const last  = document.getElementById('manualVolLast').value.trim();
+  if (!first && !last) {
+    showFeedback('manualVolFeedback', 'Enter at least a first or last name.', 'error'); return;
+  }
+  const payload = {
+    firstName:    first,
+    lastName:     last,
+    phone:        document.getElementById('manualVolPhone').value.trim(),
+    email:        document.getElementById('manualVolEmail').value.trim(),
+    role:         document.getElementById('manualVolRole').value.trim(),
+    availability: document.getElementById('manualVolAvailability').value.trim(),
+    notes:        document.getElementById('manualVolNotes').value.trim(),
+    active:       true
+  };
+  try {
+    const res = await fetch('/api/prayer/volunteers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('save failed');
+    const v = await res.json();
+    await loadVolunteers();
+    renderVolunteersTable();
+    closeManualVolModal();
+    // If this manual add was opened from the request modal, immediately
+    // attach the new volunteer to the request being edited.
+    if (manualVolForRequest) await prAttachToRequest('volunteer', v.id);
+    render();
+  } catch(e) { showFeedback('manualVolFeedback', 'Could not save: ' + e.message, 'error'); }
+}
+
+/* ── Global schedule load / save ── */
+async function loadSchedule() {
+  try {
+    const res = await fetch('/api/prayer/schedule');
+    if (!res.ok) return;
+    const sched = await res.json();
+    const occ = sched.occurrence || '';
+    document.getElementById('reqOccurrence').value = occ;
+    // Show/hide panels without triggering saveSchedule — populate all values first
+    document.getElementById('reqWeeklyPanel').classList.toggle('hidden', occ !== 'Weekly');
+    document.getElementById('reqMonthlyPanel').classList.toggle('hidden', occ !== 'Monthly');
+    if (occ === 'Weekly')  setReqDays(sched.weekDays || []);
+    if (occ === 'Monthly') {
+      setReqMonths(sched.monthMonths || []);
+      document.getElementById('reqMonthDay').value         = sched.monthDayOfMonth  != null ? String(sched.monthDayOfMonth)  : '';
+      document.getElementById('reqMonthWeekOrdinal').value = sched.monthWeekOrdinal != null ? String(sched.monthWeekOrdinal) : '';
+      document.getElementById('reqMonthWeekDay').value     = sched.monthWeekDay     != null ? String(sched.monthWeekDay)     : '';
+    }
+    document.getElementById('reqSendHour').value = sched.sendHour != null ? String(sched.sendHour) : '6';
+  } catch(e) { console.error('Could not load prayer schedule', e); }
+}
+
+async function saveSchedule() {
+  const occ      = document.getElementById('reqOccurrence').value;
+  const hourVal  = document.getElementById('reqSendHour').value;
+  const payload = {
+    occurrence:       occ || null,
+    weekDays:         occ === 'Weekly'  ? getReqDays()   : null,
+    monthMonths:      occ === 'Monthly' ? getReqMonths() : null,
+    monthDayOfMonth:  occ === 'Monthly'
+      ? (document.getElementById('reqMonthDay').value !== ''
+          ? parseInt(document.getElementById('reqMonthDay').value, 10) : null) : null,
+    monthWeekOrdinal: occ === 'Monthly'
+      ? (document.getElementById('reqMonthWeekOrdinal').value !== ''
+          ? parseInt(document.getElementById('reqMonthWeekOrdinal').value, 10) : null) : null,
+    monthWeekDay:     occ === 'Monthly'
+      ? (document.getElementById('reqMonthWeekDay').value !== ''
+          ? parseInt(document.getElementById('reqMonthWeekDay').value, 10) : null) : null,
+    sendHour:         hourVal !== '' ? parseInt(hourVal, 10) : null
+  };
+  try {
+    await fetch('/api/prayer/schedule', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch(e) { console.error('Could not save prayer schedule', e); }
+}
+
+function render() {
+  const container = document.getElementById('sectionsContainer');
+  const empty     = document.getElementById('emptyState');
+
+  if (sections.length === 0) {
+    empty.style.display = '';
+    container.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Pull the active filter values once so requestMatchesFilter can use them.
+  const f = {
+    status:     (document.getElementById('filterStatus')?.value     || ''),
+    assignee:   (document.getElementById('filterAssignee')?.value   || ''),
+    search:     (document.getElementById('filterSearch')?.value     || '').toLowerCase().trim(),
+    showClosed:  document.getElementById('filterShowClosed')?.checked || false
+  };
+
+  container.innerHTML = sections.map(s => {
+    const reqs   = requests
+      .filter(r => r.sectionId === s.id)
+      .filter(r => requestMatchesFilter(r, f));
+    const isOpen = openSections.has(s.id);
+    const cards  = reqs.map(r => requestCard(r)).join('');
+    return `
+      <div class="section-block" id="section-${s.id}">
+        <div class="section-header ${isOpen ? 'open' : ''}" onclick="toggleSection(${s.id})">
+          <span class="section-arrow ${isOpen ? 'open' : ''}">&#x25B6;</span>
+          <span class="section-title">${esc(s.name)}</span>
+          <span class="section-count">${reqs.length}</span>
+          <div class="section-actions" onclick="event.stopPropagation()">
+            <button class="btn-icon" onclick="openSectionModal(${s.id})" title="Edit">📝</button>
+            <button class="btn-icon" onclick="deleteSection(${s.id})" title="Delete">🗑</button>
+          </div>
+        </div>
+        <div class="section-body ${isOpen ? 'open' : ''}" id="body-${s.id}">
+          ${cards}
+          <button class="add-request-btn" onclick="openRequestModal(null, ${s.id})">+ Add Prayer Request</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* Filter predicate.
+   - "Show closed" off ⇒ hide status=Closed regardless of other filters
+     (so Closed only appears when explicitly opted in).
+   - status filter ⇒ exact match on r.status.
+   - assignee "unassigned" matches null/empty assignedVolunteerId.
+   - search ⇒ substring match in title or description, case-insensitive. */
+function requestMatchesFilter(r, f) {
+  if (!f.showClosed && r.status === 'Closed' && f.status !== 'Closed') return false;
+  if (f.status && r.status !== f.status) return false;
+  if (f.assignee === 'unassigned') {
+    if (r.assignedVolunteerId != null) return false;
+  } else if (f.assignee) {
+    if (String(r.assignedVolunteerId) !== String(f.assignee)) return false;
+  }
+  if (f.search) {
+    const hay = ((r.title || '') + ' ' + (r.description || '')).toLowerCase();
+    if (hay.indexOf(f.search) === -1) return false;
+  }
+  return true;
+}
+
+function schedBadge(r) {
+  if (!r.occurrence) return '';
+  const OCC_LABELS = { 'One-time': '🔔 One-time', 'Daily': '🔁 Daily', 'Weekly': '📅 Weekly', 'Monthly': '📆 Monthly' };
+  const label = OCC_LABELS[r.occurrence] || r.occurrence;
+  return `<span class="badge badge-schedule">${label}</span>`;
+}
+
+function statusBadge(status) {
+  const c = STATUS_COLORS[status] || { bg: '#eceff1', fg: '#37474f' };
+  return '<span style="display:inline-block;background:' + c.bg + ';color:' + c.fg
+       + ';font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;'
+       + 'text-transform:uppercase;letter-spacing:.3px;margin-right:6px;">'
+       + esc(status || 'New') + '</span>';
+}
+
+/* Renders all assigned-volunteer chips on the card. Uses the new multi-assign
+   list when present, falls back to the legacy single-volunteer field for old
+   data shapes. */
+function assigneeChip(r) {
+  const list = Array.isArray(r.assignedVolunteers) && r.assignedVolunteers.length
+    ? r.assignedVolunteers
+    : (r.assignedVolunteerId != null
+        ? [{ id: r.assignedVolunteerId, name: r.assignedVolunteerName, manual: false }]
+        : []);
+  if (!list.length) {
+    return '<span style="font-size:11px;color:#888;margin-right:6px;">Unassigned</span>';
+  }
+  return list.map(v =>
+    '<span class="vol-chip' + (v.manual ? ' manual' : '') + '" style="margin-right:4px;">'
+    + (v.manual ? '✏ ' : '👤 ') + esc(v.name || '(unknown)')
+    + '</span>'
+  ).join('');
+}
+
+function noteCountBadge(r) {
+  if (!r.noteCount) return '';
+  return '<span style="font-size:11px;color:#555;margin-right:6px;">💬 '
+       + r.noteCount + '</span>';
+}
+
+function requestCard(r) {
+  const isClosed   = r.status === 'Closed';
+  const isAnswered = r.status === 'Answered';
+  const desc = r.description
+    ? `<div class="request-desc">${esc(r.description)}</div>` : '';
+  const meta = r.requesterName
+    ? `<div class="request-meta">Requested by: ${esc(r.requesterName)}</div>` : '';
+  // Close vs Reopen — closed requests get a 🔄 reopen button instead.
+  const closeBtn = isClosed
+    ? `<button class="btn-icon" onclick="reopenRequest(${r.id})" title="Reopen">🔄</button>`
+    : `<button class="btn-icon" onclick="closeRequest(${r.id})" title="Close (archive)">📦</button>`;
+  return `
+    <div class="request-card ${isClosed ? 'closed' : isAnswered ? 'answered' : ''}" id="req-${r.id}">
+      <div class="request-card-body">
+        <div class="request-title">${esc(r.title)}</div>
+        ${desc}
+        ${meta}
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:2px;">
+          ${statusBadge(r.status)}
+          ${assigneeChip(r)}
+          ${noteCountBadge(r)}
+          ${schedBadge(r)}
+        </div>
+      </div>
+      <div class="request-actions">
+        <button class="btn-icon" onclick="openNotesModal(${r.id})" title="Notes">💬</button>
+        <button class="btn-icon" onclick="openRequestModal(${r.id})" title="Edit">📝</button>
+        ${closeBtn}
+        <button class="btn-icon" onclick="deleteRequest(${r.id})" title="Delete">🗑</button>
+      </div>
+    </div>`;
+}
+
+/* ── Close / reopen ─────────────────────────────────────── */
+async function closeRequest(id) {
+  if (!confirm('Close this prayer request? It will be hidden from the active list.')) return;
+  try {
+    const res = await fetch('/api/prayer/requests/' + id + '/close', { method: 'POST' });
+    if (!res.ok) throw new Error('close failed');
+    const updated = await res.json();
+    const idx = requests.findIndex(r => r.id === updated.id);
+    if (idx >= 0) requests[idx] = updated;
+    render();
+  } catch(e) { alert('Could not close: ' + e.message); }
+}
+async function reopenRequest(id) {
+  try {
+    const res = await fetch('/api/prayer/requests/' + id + '/reopen', { method: 'POST' });
+    if (!res.ok) throw new Error('reopen failed');
+    const updated = await res.json();
+    const idx = requests.findIndex(r => r.id === updated.id);
+    if (idx >= 0) requests[idx] = updated;
+    render();
+  } catch(e) { alert('Could not reopen: ' + e.message); }
+}
+
+/* ── Volunteers modal ───────────────────────────────────── */
+function openVolunteersModal() {
+  // Reset the searchable picker; the dropdown rebuilds on focus/input.
+  const s = document.getElementById('volSearch'); if (s) s.value = '';
+  const r = document.getElementById('volRoleInput'); if (r) r.value = '';
+  prCloseVolDd();
+  renderVolunteersTable();
+  document.getElementById('volunteersModal').classList.add('open');
+}
+function closeVolunteersModal() {
+  document.getElementById('volunteersModal').classList.remove('open');
+}
+function renderVolunteersTable() {
+  const body = document.getElementById('volunteersTbody');
+  if (!volunteers.length) {
+    body.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:#888;">No volunteers yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = volunteers.map(v => {
+    const contact = [v.phone, v.email].filter(Boolean).join(' · ');
+    const manualPill = v.manual
+      ? ' <span style="font-size:10px;background:#fff3e0;color:#ef6c00;padding:2px 6px;border-radius:8px;margin-left:4px;">MANUAL</span>'
+      : '';
+    return `
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #eee;font-weight:600;">
+        ${esc(v.name || '(unknown)')}${manualPill}
+        ${contact ? '<div style="font-size:11px;color:#888;font-weight:400;margin-top:2px;">' + esc(contact) + '</div>' : ''}
+        ${v.availability ? '<div style="font-size:11px;color:#7986cb;font-weight:400;margin-top:2px;">⏰ ' + esc(v.availability) + '</div>' : ''}
+      </td>
+      <td style="padding:8px 10px;border:1px solid #eee;">${esc(v.role || '')}</td>
+      <td style="padding:8px 10px;border:1px solid #eee;text-align:center;">
+        <label style="cursor:pointer;">
+          <input type="checkbox" ${v.active ? 'checked' : ''} onchange="toggleVolunteerActive(${v.id}, this.checked)" />
+        </label>
+      </td>
+      <td style="padding:8px 10px;border:1px solid #eee;text-align:right;">
+        <button class="btn-icon" onclick="removeVolunteer(${v.id})" title="Remove">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+/* (Legacy addVolunteer() removed — the Manage Volunteers modal now uses the
+   searchable picker driven by prFilterVolDd / prAddMemberAsVolunteer.) */
+async function toggleVolunteerActive(id, active) {
+  await fetch('/api/prayer/volunteers/' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active })
+  });
+  await loadVolunteers();
+  renderVolunteersTable();
+  render();
+}
+async function removeVolunteer(id) {
+  if (!confirm('Remove this volunteer? Existing assignments stay but the volunteer disappears from pickers.')) return;
+  await fetch('/api/prayer/volunteers/' + id, { method: 'DELETE' });
+  await loadVolunteers();
+  await loadRequests(); // assignee names may have changed to "(unknown)"
+  renderVolunteersTable();
+  render();
+}
+
+/* ── Notes drawer ──────────────────────────────────────── */
+async function openNotesModal(requestId) {
+  currentNotesRequestId = requestId;
+  const r = requests.find(x => x.id === requestId);
+  document.getElementById('notesModalTitle').textContent = '📝 Notes — ' + (r ? r.title : '');
+  document.getElementById('newNoteBody').value = '';
+  document.getElementById('notesList').innerHTML =
+    '<div style="font-size:13px;color:#888;padding:14px;text-align:center;">Loading…</div>';
+  document.getElementById('notesModal').classList.add('open');
+  try {
+    const res  = await fetch('/api/prayer/requests/' + requestId + '/notes');
+    const list = res.ok ? await res.json() : [];
+    renderNotesList(list);
+  } catch(e) {
+    document.getElementById('notesList').innerHTML =
+      '<div style="font-size:13px;color:#c62828;padding:14px;">Could not load notes.</div>';
+  }
+}
+function closeNotesModal() {
+  document.getElementById('notesModal').classList.remove('open');
+  currentNotesRequestId = null;
+}
+function renderNotesList(list) {
+  const el = document.getElementById('notesList');
+  if (!list || !list.length) {
+    el.innerHTML = '<div style="font-size:13px;color:#888;padding:14px;text-align:center;">No notes yet — add the first.</div>';
+    return;
+  }
+  el.innerHTML = list.map(n => `
+    <div style="background:#fff;border:1px solid #eee;border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:11px;color:#888;display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span><strong>${esc(n.createdBy || 'Staff')}</strong> · ${esc(n.createdAt || '')}</span>
+        <button class="btn-icon" style="font-size:14px;" onclick="deleteNote(${n.id})" title="Delete">🗑</button>
+      </div>
+      <div style="font-size:13px;color:#333;white-space:pre-wrap;">${esc(n.body)}</div>
+    </div>
+  `).join('');
+}
+async function addNote() {
+  if (!currentNotesRequestId) return;
+  const body = document.getElementById('newNoteBody').value.trim();
+  if (!body) { showFeedback('notesFeedback', 'Note body is required.', 'error'); return; }
+  try {
+    const res = await fetch('/api/prayer/requests/' + currentNotesRequestId + '/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    });
+    if (!res.ok) throw new Error('save failed');
+    document.getElementById('newNoteBody').value = '';
+    // Reload notes + refresh the count badge on the card via loadRequests.
+    const refreshed = await fetch('/api/prayer/requests/' + currentNotesRequestId + '/notes');
+    renderNotesList(refreshed.ok ? await refreshed.json() : []);
+    await loadRequests();
+    render();
+  } catch(e) { showFeedback('notesFeedback', 'Could not save: ' + e.message, 'error'); }
+}
+async function deleteNote(id) {
+  if (!confirm('Delete this note?')) return;
+  await fetch('/api/prayer/notes/' + id, { method: 'DELETE' });
+  if (currentNotesRequestId) {
+    const refreshed = await fetch('/api/prayer/requests/' + currentNotesRequestId + '/notes');
+    renderNotesList(refreshed.ok ? await refreshed.json() : []);
+    await loadRequests();
+    render();
+  }
+}
+
+function toggleSection(id) {
+  if (openSections.has(id)) openSections.delete(id);
+  else openSections.add(id);
+  render();
+}
+
+/* ── Section modal ── */
+function openSectionModal(id) {
+  editingSectionId = id || null;
+  document.getElementById('sectionModalTitle').textContent =
+    id ? 'Edit Section' : 'Add Main Section';
+  document.getElementById('sectionName').value =
+    id ? (sections.find(s => s.id === id)?.name || '') : '';
+  clearFeedback('sectionFeedback');
+  document.getElementById('sectionModal').classList.add('open');
+  setTimeout(() => document.getElementById('sectionName').focus(), 50);
+}
+
+function closeSectionModal() {
+  document.getElementById('sectionModal').classList.remove('open');
+  editingSectionId = null;
+}
+
+async function saveSection() {
+  const name = document.getElementById('sectionName').value.trim();
+  if (!name) { showFeedback('sectionFeedback', 'Section name is required.', 'error'); return; }
+
+  const url    = editingSectionId ? `/api/prayer/sections/${editingSectionId}` : '/api/prayer/sections';
+  const method = editingSectionId ? 'PUT' : 'POST';
+
+  try {
+    const res  = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (!res.ok) { showFeedback('sectionFeedback', data.error || 'Save failed.', 'error'); return; }
+
+    if (editingSectionId) {
+      const idx = sections.findIndex(s => s.id === editingSectionId);
+      if (idx !== -1) sections[idx] = data;
+    } else {
+      sections.push(data);
+      openSections.add(data.id);
+    }
+    closeSectionModal();
+    render();
+  } catch(e) { showFeedback('sectionFeedback', 'Network error.', 'error'); }
+}
+
+async function deleteSection(id) {
+  const s     = sections.find(s => s.id === id);
+  const count = requests.filter(r => r.sectionId === id).length;
+  const msg   = count > 0
+    ? `Delete section "${s?.name}" and its ${count} prayer request(s)?`
+    : `Delete section "${s?.name}"?`;
+  if (!confirm(msg)) return;
+
+  try {
+    const res = await fetch(`/api/prayer/sections/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      sections = sections.filter(s => s.id !== id);
+      requests = requests.filter(r => r.sectionId !== id);
+      openSections.delete(id);
+      render();
+    }
+  } catch(e) { alert('Delete failed. Please try again.'); }
+}
+
+/* ── Schedule helpers (read from page-level schedule card) ── */
+function onReqOccurrenceChange(val) {
+  document.getElementById('reqWeeklyPanel').classList.toggle('hidden', val !== 'Weekly');
+  document.getElementById('reqMonthlyPanel').classList.toggle('hidden', val !== 'Monthly');
+  if (val !== 'Weekly')  resetReqDays();
+  if (val !== 'Monthly') resetReqMonths();
+  // Note: saveSchedule() is called via the onchange attribute on the select, not here,
+  // so that loadSchedule() can call this function safely without triggering a premature save.
+}
+
+function toggleReqDay(btn)   { btn.classList.toggle('selected'); saveSchedule(); }
+function toggleReqMonth(btn) { btn.classList.toggle('selected'); saveSchedule(); }
+
+function resetReqDays() {
+  document.querySelectorAll('#reqDayRow .pill-btn').forEach(b => b.classList.remove('selected'));
+}
+function resetReqMonths() {
+  document.querySelectorAll('#reqMonthRow .pill-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('reqMonthDay').value = '';
+  document.getElementById('reqMonthWeekOrdinal').value = '';
+  document.getElementById('reqMonthWeekDay').value = '';
+}
+
+function setReqDays(days) {
+  document.querySelectorAll('#reqDayRow .pill-btn').forEach(b =>
+    b.classList.toggle('selected', (days || []).includes(parseInt(b.dataset.day, 10))));
+}
+function setReqMonths(months) {
+  document.querySelectorAll('#reqMonthRow .pill-btn').forEach(b =>
+    b.classList.toggle('selected', (months || []).includes(parseInt(b.dataset.month, 10))));
+}
+
+function getReqDays()   { return [...document.querySelectorAll('#reqDayRow .pill-btn.selected')].map(b => parseInt(b.dataset.day, 10)); }
+function getReqMonths() { return [...document.querySelectorAll('#reqMonthRow .pill-btn.selected')].map(b => parseInt(b.dataset.month, 10)); }
+
+/* ── Request modal ── */
+function openRequestModal(requestId, defaultSectionId) {
+  editingRequestId = requestId || null;
+  document.getElementById('requestModalTitle').textContent =
+    requestId ? 'Edit Prayer Request' : 'Add Prayer Request';
+
+  const sel = document.getElementById('reqSection');
+  sel.innerHTML = sections.map(s =>
+    `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+
+  // Refresh the assignee picker each time we open, in case volunteers changed.
+  syncVolunteerSelects();
+
+  if (requestId) {
+    const r = requests.find(r => r.id === requestId);
+    if (r) {
+      sel.value = r.sectionId;
+      document.getElementById('reqTitle').value    = r.title;
+      document.getElementById('reqDesc').value     = r.description;
+      document.getElementById('reqName').value     = r.requesterName;
+      // Map legacy "Active" → "New" so the dropdown can find it.
+      document.getElementById('reqStatus').value   = r.status === 'Active' ? 'New' : (r.status || 'New');
+      // Seed the multi-assignee chip list from the server payload.
+      modalAssignees = (r.assignedVolunteers || []).map(v => ({
+        volunteerId: v.id, name: v.name, manual: v.manual
+      }));
+    }
+  } else {
+    if (defaultSectionId) sel.value = defaultSectionId;
+    document.getElementById('reqTitle').value    = '';
+    document.getElementById('reqDesc').value     = '';
+    document.getElementById('reqName').value     = '';
+    document.getElementById('reqStatus').value   = 'New';
+    modalAssignees = [];
+  }
+  // Reset search input + dropdown for the assignee picker.
+  const vs = document.getElementById('reqVolSearch'); if (vs) vs.value = '';
+  prCloseReqVolDd();
+  renderRequestModalChips();
+
+  clearFeedback('requestFeedback');
+  document.getElementById('requestModal').classList.add('open');
+  setTimeout(() => document.getElementById('reqTitle').focus(), 50);
+}
+
+function closeRequestModal() {
+  document.getElementById('requestModal').classList.remove('open');
+  editingRequestId = null;
+}
+
+async function saveRequest() {
+  const title     = document.getElementById('reqTitle').value.trim();
+  const sectionId = parseInt(document.getElementById('reqSection').value, 10);
+
+  if (!title)     { showFeedback('requestFeedback', 'Title is required.', 'error'); return; }
+  if (!sectionId) { showFeedback('requestFeedback', 'Please select a section.', 'error'); return; }
+
+  const payload = {
+    sectionId,
+    title,
+    description:   document.getElementById('reqDesc').value.trim(),
+    requesterName: document.getElementById('reqName').value.trim(),
+    status:        document.getElementById('reqStatus').value
+    // assignedVolunteerId is now driven by the multi-assign join endpoint,
+    // not the request body. Server keeps the legacy column in sync via
+    // /api/prayer/requests/{id}/volunteers.
+  };
+
+  const url    = editingRequestId ? `/api/prayer/requests/${editingRequestId}` : '/api/prayer/requests';
+  const method = editingRequestId ? 'PUT' : 'POST';
+
+  try {
+    const res  = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) { showFeedback('requestFeedback', data.error || 'Save failed.', 'error'); return; }
+
+    if (editingRequestId) {
+      const idx = requests.findIndex(r => r.id === editingRequestId);
+      if (idx !== -1) requests[idx] = data;
+    } else {
+      // Brand-new request — flush any volunteers the user staged before save.
+      if (modalAssignees.length) {
+        for (const a of modalAssignees) {
+          try {
+            await fetch('/api/prayer/requests/' + data.id + '/volunteers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prayerVolunteerId: a.volunteerId })
+            });
+          } catch (_) { /* surface as a soft warn but don't block save */ }
+        }
+        // Re-fetch the request so the card chips reflect the new assignees.
+        try {
+          const refresh = await fetch('/api/prayer/requests');
+          if (refresh.ok) requests = await refresh.json();
+        } catch (_) { /* fall back to the partial data */ }
+        // If the partial fetch failed, at least keep the new row visible.
+        if (!requests.some(r => r.id === data.id)) requests.push(data);
+      } else {
+        requests.push(data);
+      }
+      openSections.add(sectionId);
+    }
+    closeRequestModal();
+    render();
+  } catch(e) { showFeedback('requestFeedback', 'Network error.', 'error'); }
+}
+
+async function deleteRequest(id) {
+  const r = requests.find(r => r.id === id);
+  if (!confirm('Are you sure you want to delete this prayer request?')) return;
+
+  try {
+    const res = await fetch(`/api/prayer/requests/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      requests = requests.filter(r => r.id !== id);
+      render();
+    }
+  } catch(e) { alert('Delete failed. Please try again.'); }
+}
+
+/* ── Email notification ── */
+async function sendNotification() {
+  if (!confirm('Are you sure you want to send email to all members?')) return;
+  const btn = document.getElementById('notifyBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res  = await fetch('/api/prayer/notify', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('notifyMsg').textContent =
+        `Email sent to ${data.count} member(s) successfully.`;
+      document.getElementById('notifyBar').style.display = '';
+      document.getElementById('notifyBar').scrollIntoView({ behavior: 'smooth' });
+    } else {
+      alert(data.error || 'Failed to send email.');
+    }
+  } catch(e) {
+    alert('Network error. Could not send email.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✉ Email All Members';
+  }
+}
+
+/* ── Helpers ── */
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function showFeedback(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'feedback ' + type;
+}
+function clearFeedback(id) {
+  const el = document.getElementById(id);
+  el.textContent = ''; el.className = 'feedback';
+}
+
+/* Close modal on backdrop click */
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('open');
+      editingSectionId = null;
+      editingRequestId = null;
+    }
+  });
+});
+
+document.getElementById('sectionName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveSection();
+});
+
+init();
+</script>
+
+<!-- session.js handles auth check, user display, role-based nav filtering, and logout -->
+<script src="/session.js" defer></script>
+<script>
+window.CGP_PAGE = { activePage: 'general/prayer-requests', pageTitle: '', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

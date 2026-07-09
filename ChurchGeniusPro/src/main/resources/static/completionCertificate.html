@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/certificate.css" />
+  <title>Completion Certificate – Church Genius Pro</title>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <a href="/certificates" class="page-back" title="Back">&#8592;</a>
+        <div>
+          <div class="page-title">Completion Certificate</div>
+          <div class="page-subtitle">Certificate Preview</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn-action btn-primary" id="downloadBtn" onclick="downloadPdf()">&#8675; Download PDF</button>
+        <button class="btn-action btn-outline" onclick="printCert()">&#128424; Print</button>
+        <button class="btn-action btn-save" id="saveBtn" onclick="saveRecord()">&#128190; Save Record</button>
+        <div class="action-spacer"></div>
+        <button class="btn-action btn-secondary" onclick="resetCert()">&#8634; Reset</button>
+      </div>
+
+      <div class="cert-layout">
+        <div class="cert-left">
+          <div class="cert-canvas-wrap">
+            <div class="cert-scale-host" id="certScaleHost">
+              <div id="certificate"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cert-right">
+          <div class="edit-panel">
+            <div class="edit-panel-header"><span style="font-size:14px;">&#9999;&#65039;</span><h3>Edit Certificate</h3></div>
+            <div class="edit-panel-body" id="editPanelBody"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+window.CERT_CONFIG = {"key": "completion","title": "CERTIFICATE OF COMPLETION","fileName": "Completion_Certificate","preline": "This certifies that","name": {"label": "Participant Name","placeholder": "Full name","member": true},"body": "has successfully completed\n{program}\non {date} at {church}","fields": [{"id": "program","label": "Program Name","type": "text","placeholder": "e.g. Discipleship 101"},{"id": "date","label": "Completion Date","type": "date"},{"id": "instructor","label": "Instructor / Teacher","type": "text","placeholder": "Instructor name"}],"primaryDateField": "date","signatures": [{"nameField": "instructor","title": "Instructor"}],"seal": true};
+</script>
+<script src="/certificate-core.js"></script>
+<script>
+window.CGP_PAGE = { activePage: 'more/certificates', openSection: 'more', pageTitle: 'Completion Certificate' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

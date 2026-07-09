@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Church Genius" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <title>Member Sign Up – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f2f8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 24px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 32px rgba(0,0,0,.10);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #673147;
+      padding: 28px 32px 22px;
+      text-align: center;
+    }
+    .card-header .brand { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+    .card-header .church-name { font-size: 13px; color: rgba(255,255,255,.75); margin-top: 4px; min-height: 18px; }
+    .card-header .step-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,.9); margin-top: 10px; }
+
+    .card-body { padding: 28px 32px 32px; }
+
+    /* Steps */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    /* Spinner */
+    .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 0; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #673147;
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-label { font-size: 14px; color: #888; }
+
+    /* Invalid / success states */
+    .big-icon { font-size: 42px; text-align: center; margin-bottom: 12px; }
+    .state-title { font-size: 17px; font-weight: 700; color: #1e2139; text-align: center; margin-bottom: 8px; }
+    .state-desc  { font-size: 13px; color: #666; text-align: center; line-height: 1.6; }
+    .state-desc a { color: #673147; }
+
+    /* Form elements */
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+    .field input {
+      width: 100%; border: 1.5px solid #ddd; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; color: #333; outline: none;
+      font-family: inherit; transition: border-color .2s;
+    }
+    .field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field input.invalid { border-color: #e53935; }
+    .hint { font-size: 11px; color: #e53935; margin-top: 4px; min-height: 14px; }
+
+    /* Password show/hide wrapper */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 42px; }
+    .pw-toggle {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 4px;
+      color: #888; font-size: 17px; line-height: 1; display: flex; align-items: center;
+    }
+    .pw-toggle:hover { color: #673147; }
+
+    .info-box {
+      background: #f5eaef; border: 1px solid #d4a3b4; border-radius: 8px;
+      padding: 10px 14px; font-size: 13px; color: #673147; margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .masked-email { font-weight: 700; }
+
+    /* OTP boxes */
+    .otp-row { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
+    .otp-box {
+      width: 46px; height: 52px;
+      border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 22px; font-weight: 700; color: #673147;
+      text-align: center; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .otp-box:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .otp-error { font-size: 13px; color: #e53935; text-align: center; min-height: 18px; margin-bottom: 8px; }
+    .resend-row { text-align: center; font-size: 13px; color: #888; margin-top: 12px; }
+    .btn-resend-link { background: none; border: none; color: #673147; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; }
+    .btn-resend-link:disabled { color: #aaa; cursor: default; }
+
+    /* Buttons */
+    .btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background .15s;
+    }
+    .btn-primary { background: #673147; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #4f2538; }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-secondary { background: #f0f2f8; color: #444; margin-top: 10px; }
+    .btn-secondary:hover { background: #e4e6ef; }
+
+    .login-link { text-align: center; font-size: 13px; color: #888; margin-top: 20px; }
+    .login-link a { color: #673147; font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="card-header">
+    <div class="brand" id="churchNameDisplay">Church Genius Pro</div>
+    <div class="step-title" id="stepTitleDisplay">Member Sign Up</div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- STEP: Validating link -->
+    <div class="step active" id="stepValidating">
+      <div class="spinner-wrap">
+        <div class="spinner"></div>
+        <div class="spinner-label">Verifying signup link…</div>
+      </div>
+    </div>
+
+    <!-- STEP: Invalid link -->
+    <div class="step" id="stepInvalid">
+      <div class="big-icon">⛔</div>
+      <div class="state-title">Invalid Signup Link</div>
+      <p class="state-desc" id="invalidMsg">This link is invalid or has expired.<br/>Please contact your administrator.</p>
+    </div>
+
+    <!-- STEP: Lookup — enter first name + last name + email/phone -->
+    <div class="step" id="stepLookup">
+      <div class="info-box">
+        Enter your name and the email address or phone number on file with your church.
+      </div>
+      <div class="field">
+        <label for="firstName">First Name <span style="color:#e53935;">*</span></label>
+        <input type="text" id="firstName" autocomplete="given-name" placeholder="John" />
+        <div class="hint" id="firstNameHint"></div>
+      </div>
+      <div class="field">
+        <label for="lastName">Last Name <span style="color:#e53935;">*</span></label>
+        <input type="text" id="lastName" autocomplete="family-name" placeholder="Smith" />
+        <div class="hint" id="lastNameHint"></div>
+      </div>
+      <div class="field">
+        <label for="contact">Email Address or Phone Number <span style="color:#e53935;">*</span></label>
+        <input type="text" id="contact" autocomplete="email" placeholder="you@example.com or 555-1234" />
+        <div class="hint" id="contactHint"></div>
+      </div>
+      <div class="hint" id="lookupError" style="font-size:13px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary" id="btnLookup" onclick="doLookup()">Find My Account</button>
+      <div class="login-link">Already have an account? <a href="/login">Log in</a></div>
+    </div>
+
+    <!-- STEP: Credentials — choose username + password -->
+    <div class="step" id="stepCredentials">
+      <!-- Hidden element keeps the maskedEmailDisplay reference intact for JS -->
+      <span id="maskedEmailDisplay" style="display:none;"></span>
+      <div class="field">
+        <label for="username">Username <span style="color:#e53935;">*</span></label>
+        <input type="text" id="username" autocomplete="username" placeholder="Choose a username" />
+        <div class="hint" id="usernameHint"></div>
+      </div>
+      <div class="field">
+        <label for="password">Password <span style="color:#e53935;">*</span></label>
+        <div class="pw-wrap">
+          <input type="password" id="password" autocomplete="new-password" placeholder="Minimum 8 characters" />
+          <button type="button" class="pw-toggle" onclick="togglePw('password', this)" tabindex="-1" aria-label="Show password">👁</button>
+        </div>
+        <div class="hint" id="passwordHint"></div>
+      </div>
+      <div class="field">
+        <label for="confirmPassword">Confirm Password <span style="color:#e53935;">*</span></label>
+        <div class="pw-wrap">
+          <input type="password" id="confirmPassword" autocomplete="new-password" placeholder="Re-enter password" />
+          <button type="button" class="pw-toggle" onclick="togglePw('confirmPassword', this)" tabindex="-1" aria-label="Show confirm password">👁</button>
+        </div>
+        <div class="hint" id="confirmHint"></div>
+      </div>
+      <div class="hint" id="credsError" style="font-size:13px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary" id="btnSendCode" onclick="doSendCode()">Send Verification Code</button>
+      <button class="btn btn-secondary" onclick="showStep('stepLookup')">← Back</button>
+    </div>
+
+    <!-- STEP: OTP -->
+    <div class="step" id="stepOtp">
+      <div class="info-box">
+        A 6-digit code was sent to <span class="masked-email" id="maskedEmailOtp"></span>.
+        Enter it below to complete your registration.
+      </div>
+      <div class="otp-row" id="otpBoxes">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" />
+      </div>
+      <div class="otp-error" id="otpError"></div>
+      <button class="btn btn-primary" id="btnVerify" onclick="doVerify()">Verify & Create Account</button>
+      <div class="resend-row">
+        <span id="resendTimer"></span>
+        <button class="btn-resend-link" id="btnResend" style="display:none;" onclick="doResend()">Resend code</button>
+      </div>
+    </div>
+
+    <!-- STEP: Success -->
+    <div class="step" id="stepSuccess">
+      <div class="big-icon">✅</div>
+      <div class="state-title">Account Created!</div>
+      <p class="state-desc">Your account has been set up successfully.<br/>Redirecting you to the login page…</p>
+    </div>
+
+  </div><!-- /card-body -->
+</div><!-- /card -->
+
+<script>
+/* ═══ STATE ═══════════════════════════════════════════════════════════════ */
+const S = {
+  token:       '',
+  appClientId: '',
+  memberRef:   '',
+  maskedEmail: '',
+  username:    '',
+  password:    '',
+  resendTimer: null
+};
+
+const STEPS = ['stepValidating','stepInvalid','stepLookup','stepCredentials','stepOtp','stepSuccess'];
+
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+
+function showStep(id) {
+  STEPS.forEach(s => document.getElementById(s).classList.toggle('active', s === id));
+}
+
+/* ═══ INIT ════════════════════════════════════════════════════════════════ */
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  S.token = params.get('token') || '';
+
+  if (!S.token) {
+    showInvalid('Missing token in the signup link.');
+    return;
+  }
+
+  try {
+    const res  = await fetch('/api/member-signup/validate?token=' + encodeURIComponent(S.token));
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.status === 'valid') {
+      S.appClientId = data.appClientId || '';
+      if (data.churchName) {
+        document.getElementById('churchNameDisplay').textContent = data.churchName;
+      }
+      showStep('stepLookup');
+    } else {
+      showInvalid(data.message || 'This signup link is invalid or has expired.');
+    }
+  } catch {
+    showInvalid('Unable to verify the link. Please check your connection.');
+  }
+})();
+
+function showInvalid(msg) {
+  document.getElementById('invalidMsg').textContent = msg;
+  showStep('stepInvalid');
+}
+
+/* ═══ STEP 1 · Lookup ═════════════════════════════════════════════════════ */
+async function doLookup() {
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  const contact   = document.getElementById('contact').value.trim();
+
+  clearErr('firstName','firstNameHint');
+  clearErr('lastName','lastNameHint');
+  clearErr('contact','contactHint');
+  document.getElementById('lookupError').textContent = '';
+
+  let ok = true;
+  if (!firstName) { setErr('firstName','firstNameHint','First name is required.'); ok = false; }
+  if (!lastName)  { setErr('lastName','lastNameHint','Last name is required.'); ok = false; }
+  if (!contact)   { setErr('contact','contactHint','Email or phone is required.'); ok = false; }
+  if (!ok) return;
+
+  const btn = document.getElementById('btnLookup');
+  btn.disabled = true; btn.textContent = 'Searching…';
+
+  try {
+    const res  = await fetch('/api/member-signup/lookup', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ appClientId: S.appClientId, firstName, lastName, contact })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.status === 'found') {
+      S.memberRef   = data.memberRef   || '';
+      S.maskedEmail = data.maskedEmail || '';
+      document.getElementById('maskedEmailDisplay').textContent = S.maskedEmail;
+      showStep('stepCredentials');
+    } else if (data.status === 'already_registered') {
+      document.getElementById('lookupError').textContent = data.message || 'This member already has an account.';
+    } else {
+      document.getElementById('lookupError').textContent = data.message || 'No matching member found.';
+    }
+  } catch {
+    document.getElementById('lookupError').textContent = 'Network error. Please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Find My Account';
+  }
+}
+
+/* ═══ STEP 2 · Credentials ════════════════════════════════════════════════ */
+async function doSendCode() {
+  const username        = document.getElementById('username').value.trim();
+  const password        = document.getElementById('password').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+
+  clearErr('username','usernameHint');
+  clearErr('password','passwordHint');
+  clearErr('confirmPassword','confirmHint');
+  document.getElementById('credsError').textContent = '';
+
+  let ok = true;
+  if (!username)              { setErr('username','usernameHint','Username is required.'); ok = false; }
+  if (!password)              { setErr('password','passwordHint','Password is required.'); ok = false; }
+  else if (password.length < 8) { setErr('password','passwordHint','Minimum 8 characters required.'); ok = false; }
+  if (password && confirmPassword !== password) { setErr('confirmPassword','confirmHint','Passwords do not match.'); ok = false; }
+  if (!ok) return;
+
+  const btn = document.getElementById('btnSendCode');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try {
+    const res  = await fetch('/api/member-signup/send-code', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ appClientId: S.appClientId, memberRef: S.memberRef, username, password })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.status === 'sent') {
+      S.username    = username;
+      S.password    = password;
+      S.maskedEmail = data.maskedEmail || S.maskedEmail;
+      document.getElementById('maskedEmailOtp').textContent = S.maskedEmail;
+      clearOtp();
+      document.getElementById('otpError').textContent = '';
+      startResendCooldown(60);
+      showStep('stepOtp');
+    } else {
+      document.getElementById('credsError').textContent = data.message || 'Failed to send verification code.';
+    }
+  } catch {
+    document.getElementById('credsError').textContent = 'Network error. Please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Verification Code';
+  }
+}
+
+/* ═══ STEP 3 · Verify OTP ═════════════════════════════════════════════════ */
+const otpBoxes = Array.from(document.querySelectorAll('.otp-box'));
+
+otpBoxes.forEach((box, i) => {
+  box.addEventListener('input', () => {
+    box.value = box.value.replace(/\D/g, '').slice(-1);
+    if (box.value && i < otpBoxes.length - 1) otpBoxes[i + 1].focus();
+  });
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !box.value && i > 0) otpBoxes[i - 1].focus();
+    if (e.key === 'Enter') doVerify();
+  });
+  box.addEventListener('paste', e => {
+    e.preventDefault();
+    const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    digits.split('').forEach((d, j) => { if (otpBoxes[j]) otpBoxes[j].value = d; });
+    const next = Math.min(digits.length, otpBoxes.length - 1);
+    otpBoxes[next].focus();
+  });
+});
+
+function clearOtp() { otpBoxes.forEach(b => b.value = ''); otpBoxes[0].focus(); }
+
+async function doVerify() {
+  const code = otpBoxes.map(b => b.value).join('');
+  document.getElementById('otpError').textContent = '';
+
+  if (code.length < 6) {
+    document.getElementById('otpError').textContent = 'Please enter the complete 6-digit code.';
+    return;
+  }
+
+  const btn = document.getElementById('btnVerify');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+
+  try {
+    const res  = await fetch('/api/member-signup/verify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        appClientId: S.appClientId,
+        memberRef:   S.memberRef,
+        username:    S.username,
+        password:    S.password,
+        code
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.status === 'success') {
+      clearInterval(S.resendTimer);
+      showStep('stepSuccess');
+      setTimeout(() => window.location.href = '/login', 2500);
+    } else {
+      document.getElementById('otpError').textContent = data.message || 'Invalid code. Please try again.';
+      clearOtp();
+    }
+  } catch {
+    document.getElementById('otpError').textContent = 'Network error. Please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Verify & Create Account';
+  }
+}
+
+/* ═══ Resend ══════════════════════════════════════════════════════════════ */
+function startResendCooldown(secs) {
+  const timerEl   = document.getElementById('resendTimer');
+  const resendBtn = document.getElementById('btnResend');
+  resendBtn.style.display = 'none';
+  clearInterval(S.resendTimer);
+  let rem = secs;
+  timerEl.textContent = 'Resend code in ' + rem + 's';
+  S.resendTimer = setInterval(() => {
+    rem--;
+    if (rem <= 0) {
+      clearInterval(S.resendTimer);
+      timerEl.textContent     = '';
+      resendBtn.style.display = '';
+    } else {
+      timerEl.textContent = 'Resend code in ' + rem + 's';
+    }
+  }, 1000);
+}
+
+async function doResend() {
+  document.getElementById('btnResend').style.display = 'none';
+  document.getElementById('otpError').textContent    = '';
+  try {
+    const res  = await fetch('/api/member-signup/send-code', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        appClientId: S.appClientId,
+        memberRef:   S.memberRef,
+        username:    S.username,
+        password:    S.password
+      })
+    });
+    if (res.ok) {
+      clearOtp();
+      startResendCooldown(60);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      document.getElementById('otpError').textContent = d.message || 'Failed to resend code.';
+      document.getElementById('btnResend').style.display = '';
+    }
+  } catch {
+    document.getElementById('otpError').textContent = 'Network error. Please try again.';
+    document.getElementById('btnResend').style.display = '';
+  }
+}
+
+/* ═══ Field helpers ═══════════════════════════════════════════════════════ */
+function setErr(id, hintId, msg) {
+  const el = document.getElementById(id);   if (el) el.classList.add('invalid');
+  const h  = document.getElementById(hintId); if (h) h.textContent = msg;
+}
+function clearErr(id, hintId) {
+  const el = document.getElementById(id);   if (el) el.classList.remove('invalid');
+  const h  = document.getElementById(hintId); if (h) h.textContent = '';
+}
+
+document.getElementById('firstName').addEventListener('blur', function () {
+  this.value.trim() ? clearErr('firstName','firstNameHint') : setErr('firstName','firstNameHint','First name is required.');
+});
+document.getElementById('lastName').addEventListener('blur', function () {
+  this.value.trim() ? clearErr('lastName','lastNameHint') : setErr('lastName','lastNameHint','Last name is required.');
+});
+document.getElementById('contact').addEventListener('blur', function () {
+  this.value.trim() ? clearErr('contact','contactHint') : setErr('contact','contactHint','Email or phone is required.');
+});
+document.getElementById('username').addEventListener('blur', function () {
+  this.value.trim() ? clearErr('username','usernameHint') : setErr('username','usernameHint','Username is required.');
+});
+document.getElementById('password').addEventListener('blur', function () {
+  if (!this.value)           setErr('password','passwordHint','Password is required.');
+  else if (this.value.length < 8) setErr('password','passwordHint','Minimum 8 characters required.');
+  else                       clearErr('password','passwordHint');
+});
+document.getElementById('confirmPassword').addEventListener('blur', function () {
+  const pwd = document.getElementById('password').value;
+  (this.value === pwd) ? clearErr('confirmPassword','confirmHint') : setErr('confirmPassword','confirmHint','Passwords do not match.');
+});
+</script>
+<script src="/pwa.js" async></script>
+</body>
+</html>

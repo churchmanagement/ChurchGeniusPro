@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Pledge Campaigns</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    .feedback { padding: 12px 20px; border-radius: 7px; font-size: 13px; font-weight: 500;
+                margin-bottom: 18px; display: none; }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    .btn-primary { background: #673147; color: #fff; border-radius: 6px; padding: 8px 16px;
+                   font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: #4d2436; }
+    .btn-secondary { background: #fff; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px;
+                     padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { background: #f7eef2; }
+    .btn-link { color: #673147; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+    .btn-link:hover { text-decoration: underline; }
+    .btn-danger { color: #c62828; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+    .btn-danger:hover { text-decoration: underline; }
+
+    /* Campaign cards grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .card-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .card-title { font-size: 16px; font-weight: 700; color: #673147; }
+    .card-sub   { font-size: 12px; color: #888; margin-top: 2px; }
+    .status-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px;
+                   text-transform: uppercase; letter-spacing: .3px; }
+    .status-Active   { background: #e8f5e9; color: #2e7d32; }
+    .status-Closed   { background: #eceff1; color: #607d8b; }
+    .status-Archived { background: #fff3e0; color: #ef6c00; }
+
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .stat { background: #f7f3f6; border-radius: 6px; padding: 8px 10px; }
+    .stat-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: .4px; }
+    .stat-value { font-size: 15px; font-weight: 700; color: #333; margin-top: 2px; }
+
+    .progress-wrap { margin-top: 14px; }
+    .progress-bar { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #c5a0b5, #673147); }
+    .progress-label { font-size: 11px; color: #888; margin-top: 4px; }
+
+    .card-actions { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+
+    .empty-state { background: #fff; border-radius: 10px; padding: 40px; text-align: center; color: #888; }
+    .empty-state .em-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-state .em-title { font-size: 15px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    .empty-state .em-sub { font-size: 13px; color: #888; }
+
+    /* Modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none;
+                      align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; max-width: 640px; width: 100%;
+             max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #eee; display: flex;
+                    justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 16px; font-weight: 700; color: #673147; }
+    .modal-close { font-size: 22px; color: #888; line-height: 1; padding: 0 4px; }
+    .modal-body { padding: 18px 20px; }
+    .modal-footer { padding: 14px 20px; border-top: 1px solid #eee; display: flex;
+                    justify-content: flex-end; gap: 10px; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 12px; color: #555; font-weight: 600; }
+    .field input, .field select, .field textarea {
+      border: 1px solid #ddd; border-radius: 6px; padding: 9px 10px; font-size: 13px;
+      font-family: inherit; background: #fff; color: #333; outline: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #c5a0b5; }
+    .field textarea { resize: vertical; min-height: 60px; }
+    .field-hint { font-size: 11px; color: #aaa; }
+
+    /* Pledge list inside the campaign detail modal */
+    .pledge-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+                      margin-bottom: 12px; }
+    .pledge-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pledge-tbl th, .pledge-tbl td { padding: 8px 10px; text-align: left;
+                                     border-bottom: 1px solid #eee; }
+    .pledge-tbl th { font-weight: 600; color: #673147; background: #faf6f8; font-size: 12px;
+                     text-transform: uppercase; letter-spacing: .4px; }
+    .pledge-tbl td.num { text-align: right; }
+    .pledge-tbl tr.empty td { text-align: center; color: #aaa; padding: 24px; }
+
+    .combo-wrap { position: relative; }
+    .combo-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff;
+                      border: 1px solid #ddd; border-radius: 6px; max-height: 200px;
+                      overflow-y: auto; z-index: 10; display: none;
+                      box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    .combo-dropdown.open { display: block; }
+    .combo-item { padding: 8px 12px; font-size: 13px; cursor: pointer; }
+    .combo-item:hover, .combo-item.active { background: #f7eef2; }
+    .combo-item .muted { color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Pledge Campaigns</div>
+          <div class="page-subtitle">Track member pledges and auto-allocate contributions to active campaigns</div>
+        </div>
+        <button class="btn-primary" id="btnNewCampaign" data-perm="accounting.pledges.edit" onclick="openCampaignModal()">+ New Campaign</button>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <div id="campaignsGrid" class="grid"></div>
+
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="em-icon">&#x1F91D;</div>
+        <div class="em-title">No campaigns yet</div>
+        <div class="em-sub">Start your first pledge campaign to begin tracking commitments.</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ════════ Campaign Modal ════════ -->
+<div class="modal-backdrop" id="campaignModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="campaignModalTitle">New Campaign</div>
+      <button class="modal-close" onclick="closeCampaignModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Campaign Name *</label>
+          <input type="text" id="cf_name" placeholder="e.g. Building Fund 2026" />
+        </div>
+        <div class="field">
+          <label>Subcategory (Fund)</label>
+          <select id="cf_subSourceId">
+            <option value="">— Select fund —</option>
+          </select>
+          <div class="field-hint">Contributions to this fund will auto-credit pledges.</div>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="cf_status">
+            <option value="Active">Active</option>
+            <option value="Closed">Closed</option>
+            <option value="Archived">Archived</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Target Amount</label>
+          <input type="number" id="cf_targetAmount" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field">
+          <label>End Date</label>
+          <input type="date" id="cf_endDate" />
+        </div>
+        <div class="field full">
+          <label>Other Gifts (non-cash)</label>
+          <input type="text" id="cf_otherGifts" placeholder="e.g. Sound system setup, volunteer hours" />
+        </div>
+        <div class="field full">
+          <label>Description</label>
+          <textarea id="cf_description" placeholder="Optional details about the campaign…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+      <button class="btn-primary"   data-perm="accounting.pledges.edit" onclick="saveCampaign()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ Pledges (Members) Modal ════════ -->
+<div class="modal-backdrop" id="pledgesModal">
+  <div class="modal" style="max-width: 880px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="pledgesModalTitle">Pledges</div>
+        <div class="page-subtitle" id="pledgesModalSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closePledgesModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="pledge-toolbar">
+        <div>
+          <span id="pledgeTotals" style="font-size: 13px; color: #555;"></span>
+        </div>
+        <button class="btn-primary" data-perm="accounting.pledges.edit" onclick="openPledgeFormModal()">+ Add Pledge</button>
+      </div>
+      <table class="pledge-tbl" id="pledgesTbl">
+        <thead>
+          <tr>
+            <th>Pledger</th>
+            <th class="num">Pledged</th>
+            <th class="num">Collected</th>
+            <th class="num">Pending</th>
+            <th>Monthly</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pledgesTblBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closePledgesModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ Single Pledge Form Modal ════════ -->
+<div class="modal-backdrop" id="pledgeFormModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="pledgeFormTitle">Add Pledge</div>
+      <button class="modal-close" onclick="closePledgeFormModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Pledger</label>
+          <div class="combo-wrap">
+            <input type="text" id="pf_memberInput" placeholder="Search member or type a guest name…"
+                   autocomplete="off" oninput="filterMembers()"
+                   onfocus="openMemberDropdown()" onblur="closeMemberDropdownDelay()" />
+            <div class="combo-dropdown" id="pf_memberDropdown"></div>
+          </div>
+          <input type="hidden" id="pf_familyMemberId" />
+          <input type="hidden" id="pf_guestName" />
+          <div class="field-hint" id="pf_memberHint">Pick an existing member, or type a name to record a walk-up pledge.</div>
+        </div>
+        <div class="field">
+          <label>Pledge Amount *</label>
+          <input type="number" id="pf_pledgeAmount" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field">
+          <label>Monthly Amount</label>
+          <input type="number" id="pf_monthlyAmount" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field full">
+          <label>Other Gifts (non-cash)</label>
+          <input type="text" id="pf_gifts" placeholder="e.g. Help with setup, sound equipment" />
+        </div>
+        <div class="field full">
+          <label>Notes</label>
+          <textarea id="pf_notes" placeholder="Optional details…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closePledgeFormModal()">Cancel</button>
+      <button class="btn-primary"   data-perm="accounting.pledges.edit" onclick="savePledge()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── State ─────────────────────────────────────────────────────────── */
+  var ALL_CAMPAIGNS   = [];
+  var ALL_SUBSOURCES  = [];
+  var ALL_MEMBERS     = [];
+  var CURRENT_CAMPAIGN= null;       // currently open in pledgesModal
+  var CURRENT_PLEDGES = [];
+  var EDIT_CAMPAIGN_ID= null;
+  var EDIT_PLEDGE_ID  = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  }); }
+  function money(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    if (isNaN(n)) return '—';
+    return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+  }
+  function flash(msg, kind) {
+    var el = $('feedbackMsg');
+    el.className = 'feedback ' + (kind || 'success');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function () { el.style.display = 'none'; }, 3500);
+  }
+
+  /* ── Initial data load ─────────────────────────────────────────────── */
+  function loadAll() {
+    return Promise.all([
+      fetch('/api/income/sub-sources').then(function (r) { return r.json(); }),
+      fetch('/api/income/contributors').then(function (r) { return r.json(); }),
+      fetch('/api/pledges/campaigns').then(function (r) { return r.json(); }),
+    ]).then(function (out) {
+      ALL_SUBSOURCES = out[0] || [];
+      ALL_MEMBERS    = out[1] || [];
+      ALL_CAMPAIGNS  = out[2] || [];
+      populateSubSourceSelect();
+      renderCampaigns();
+    }).catch(function (e) {
+      flash('Failed to load campaigns: ' + e, 'error');
+    });
+  }
+
+  /* ── Campaign cards ────────────────────────────────────────────────── */
+  function renderCampaigns() {
+    var grid  = $('campaignsGrid');
+    var empty = $('emptyState');
+    grid.innerHTML = '';
+    if (!ALL_CAMPAIGNS.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    ALL_CAMPAIGNS.forEach(function (c) { grid.appendChild(buildCampaignCard(c)); });
+  }
+
+  function buildCampaignCard(c) {
+    var t = c.totals || {};
+    var pct = t.percent != null ? Number(t.percent) : null;
+    var pctTxt = pct != null ? (pct + '% of target') : 'No target set';
+    var subName = '';
+    if (c.subSourceId) {
+      var ss = ALL_SUBSOURCES.find(function (x) { return x.id === c.subSourceId; });
+      if (ss) subName = ss.sourceName + (ss.mainSourceName ? ' (' + ss.mainSourceName + ')' : '');
+    }
+    var endTxt = c.endDate ? new Date(c.endDate).toLocaleDateString() : '';
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML =
+      '<div class="card-row">' +
+        '<div>' +
+          '<div class="card-title">' + esc(c.name || '(unnamed)') + '</div>' +
+          '<div class="card-sub">' + esc(subName || 'No fund linked') +
+            (endTxt ? ' · Ends ' + esc(endTxt) : '') + '</div>' +
+        '</div>' +
+        '<span class="status-pill status-' + esc(c.status || 'Active') + '">' +
+          esc(c.status || 'Active') + '</span>' +
+      '</div>' +
+      '<div class="stats">' +
+        '<div class="stat"><div class="stat-label">Pledged</div>' +
+          '<div class="stat-value">' + money(t.pledged) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Collected</div>' +
+          '<div class="stat-value">' + money(t.collected) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Pending</div>' +
+          '<div class="stat-value">' + money(t.pending) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Pledgers</div>' +
+          '<div class="stat-value">' + (t.pledgers || 0) + '</div></div>' +
+      '</div>' +
+      (c.targetAmount ?
+        '<div class="progress-wrap">' +
+          '<div class="progress-bar"><div class="progress-fill" style="width:' +
+              Math.min(100, Math.max(0, pct || 0)) + '%"></div></div>' +
+          '<div class="progress-label">' + esc(pctTxt) +
+            ' · Target ' + money(c.targetAmount) + '</div>' +
+        '</div>' : '') +
+      '<div class="card-actions">' +
+        '<button class="btn-secondary" data-act="pledges">Manage Pledges</button>' +
+        '<button class="btn-link"      data-act="edit"   data-perm="accounting.pledges.edit">Edit</button>' +
+        '<button class="btn-danger"    data-act="delete" data-perm="accounting.pledges.delete">Delete</button>' +
+      '</div>';
+    div.querySelector('[data-act="pledges"]').addEventListener('click', function () { openPledgesModal(c); });
+    div.querySelector('[data-act="edit"]')   .addEventListener('click', function () { openCampaignModal(c); });
+    div.querySelector('[data-act="delete"]') .addEventListener('click', function () { deleteCampaign(c); });
+    return div;
+  }
+
+  /* ── Campaign modal ────────────────────────────────────────────────── */
+  function populateSubSourceSelect() {
+    var sel = $('cf_subSourceId');
+    sel.innerHTML = '<option value="">— Select fund —</option>';
+    ALL_SUBSOURCES.forEach(function (s) {
+      var label = s.sourceName + (s.mainSourceName ? ' (' + s.mainSourceName + ')' : '');
+      var opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  }
+
+  function openCampaignModal(c) {
+    EDIT_CAMPAIGN_ID = c ? c.id : null;
+    $('campaignModalTitle').textContent = c ? 'Edit Campaign' : 'New Campaign';
+    $('cf_name').value         = c ? (c.name || '')         : '';
+    $('cf_subSourceId').value  = c && c.subSourceId  != null ? c.subSourceId : '';
+    $('cf_status').value       = c ? (c.status || 'Active') : 'Active';
+    $('cf_targetAmount').value = c && c.targetAmount != null ? c.targetAmount : '';
+    $('cf_endDate').value      = c ? (c.endDate || '')      : '';
+    $('cf_otherGifts').value   = c ? (c.otherGifts || '')   : '';
+    $('cf_description').value  = c ? (c.description || '')  : '';
+    $('campaignModal').classList.add('open');
+  }
+  function closeCampaignModal() { $('campaignModal').classList.remove('open'); }
+
+  function saveCampaign() {
+    var body = {
+      name:         $('cf_name').value.trim(),
+      subSourceId:  $('cf_subSourceId').value || null,
+      status:       $('cf_status').value,
+      targetAmount: $('cf_targetAmount').value || null,
+      endDate:      $('cf_endDate').value || null,
+      otherGifts:   $('cf_otherGifts').value.trim(),
+      description:  $('cf_description').value.trim()
+    };
+    if (!body.name) { flash('Campaign name is required', 'error'); return; }
+    var url = '/api/pledges/campaigns' + (EDIT_CAMPAIGN_ID ? '/' + EDIT_CAMPAIGN_ID : '');
+    var method = EDIT_CAMPAIGN_ID ? 'PUT' : 'POST';
+    fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { flash(res.body.error || 'Save failed', 'error'); return; }
+        closeCampaignModal();
+        flash('Campaign saved');
+        return loadAll();
+      })
+      .catch(function (e) { flash('Save failed: ' + e, 'error'); });
+  }
+
+  function deleteCampaign(c) {
+    if (!confirm('Delete campaign "' + c.name + '"? Existing pledges are also hidden.')) return;
+    fetch('/api/pledges/campaigns/' + c.id, { method: 'DELETE' })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { flash(res.body.error || 'Delete failed', 'error'); return; }
+        flash('Campaign deleted');
+        return loadAll();
+      })
+      .catch(function (e) { flash('Delete failed: ' + e, 'error'); });
+  }
+
+  /* ── Pledges modal ─────────────────────────────────────────────────── */
+  function openPledgesModal(c) {
+    CURRENT_CAMPAIGN = c;
+    $('pledgesModalTitle').textContent = 'Pledges — ' + (c.name || '');
+    $('pledgesModalSubtitle').textContent =
+      (c.status || 'Active') + (c.endDate ? ' · Ends ' + new Date(c.endDate).toLocaleDateString() : '');
+    $('pledgesModal').classList.add('open');
+    loadPledges();
+  }
+  function closePledgesModal() {
+    CURRENT_CAMPAIGN = null;
+    CURRENT_PLEDGES  = [];
+    $('pledgesModal').classList.remove('open');
+  }
+
+  function loadPledges() {
+    if (!CURRENT_CAMPAIGN) return Promise.resolve();
+    return fetch('/api/pledges/campaigns/' + CURRENT_CAMPAIGN.id + '/members')
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        CURRENT_PLEDGES = Array.isArray(rows) ? rows : [];
+        renderPledges();
+      })
+      .catch(function (e) { flash('Load pledges failed: ' + e, 'error'); });
+  }
+
+  function renderPledges() {
+    var body = $('pledgesTblBody');
+    body.innerHTML = '';
+    if (!CURRENT_PLEDGES.length) {
+      body.innerHTML = '<tr class="empty"><td colspan="6">No pledges yet — add the first one.</td></tr>';
+    } else {
+      CURRENT_PLEDGES.forEach(function (p) {
+        var tr = document.createElement('tr');
+        var name = p.memberName || p.guestName || '(unknown)';
+        tr.innerHTML =
+          '<td>' + esc(name) + (p.guestName && !p.memberName ? ' <span class="muted">(guest)</span>' : '') + '</td>' +
+          '<td class="num">' + money(p.pledgeAmount)    + '</td>' +
+          '<td class="num">' + money(p.amountCollected) + '</td>' +
+          '<td class="num">' + money(p.pending)         + '</td>' +
+          '<td>' + (p.monthlyAmount != null ? money(p.monthlyAmount) : '—') + '</td>' +
+          '<td>' +
+            '<button class="btn-link"   data-act="edit"   data-perm="accounting.pledges.edit">Edit</button>' +
+            '<button class="btn-danger" data-act="delete" data-perm="accounting.pledges.delete">Delete</button>' +
+          '</td>';
+        tr.querySelector('[data-act="edit"]')  .addEventListener('click', function () { openPledgeFormModal(p); });
+        tr.querySelector('[data-act="delete"]').addEventListener('click', function () { deletePledge(p); });
+        body.appendChild(tr);
+      });
+    }
+    // totals line
+    var totalPledged = 0, totalCollected = 0;
+    CURRENT_PLEDGES.forEach(function (p) {
+      if (p.pledgeAmount    != null) totalPledged   += Number(p.pledgeAmount);
+      if (p.amountCollected != null) totalCollected += Number(p.amountCollected);
+    });
+    $('pledgeTotals').textContent =
+      CURRENT_PLEDGES.length + ' pledger' + (CURRENT_PLEDGES.length === 1 ? '' : 's') +
+      ' · ' + money(totalPledged) + ' pledged · ' + money(totalCollected) + ' collected';
+  }
+
+  /* ── Single Pledge form ────────────────────────────────────────────── */
+  function openPledgeFormModal(p) {
+    EDIT_PLEDGE_ID = p ? p.id : null;
+    $('pledgeFormTitle').textContent = p ? 'Edit Pledge' : 'Add Pledge';
+    $('pf_memberInput').value      = p ? (p.memberName || p.guestName || '') : '';
+    $('pf_familyMemberId').value   = p && p.familyMemberId != null ? p.familyMemberId : '';
+    $('pf_guestName').value        = p && !p.familyMemberId && p.guestName ? p.guestName : '';
+    $('pf_pledgeAmount').value     = p && p.pledgeAmount  != null ? p.pledgeAmount  : '';
+    $('pf_monthlyAmount').value    = p && p.monthlyAmount != null ? p.monthlyAmount : '';
+    $('pf_gifts').value            = p ? (p.gifts || '')  : '';
+    $('pf_notes').value            = p ? (p.notes || '')  : '';
+    $('pledgeFormModal').classList.add('open');
+  }
+  function closePledgeFormModal() { $('pledgeFormModal').classList.remove('open'); }
+
+  function savePledge() {
+    if (!CURRENT_CAMPAIGN) return;
+    var memberId  = $('pf_familyMemberId').value || null;
+    var typed     = $('pf_memberInput').value.trim();
+    var guestName = memberId ? null : (typed || null);
+    var body = {
+      familyMemberId: memberId,
+      guestName:      guestName,
+      pledgeAmount:   $('pf_pledgeAmount').value  || null,
+      monthlyAmount:  $('pf_monthlyAmount').value || null,
+      gifts:          $('pf_gifts').value.trim(),
+      notes:          $('pf_notes').value.trim()
+    };
+    if (!memberId && !guestName) { flash('Pick a member or enter a name', 'error'); return; }
+    if (!body.pledgeAmount) { flash('Pledge amount is required', 'error'); return; }
+    var url, method;
+    if (EDIT_PLEDGE_ID) {
+      url = '/api/pledges/members/' + EDIT_PLEDGE_ID;
+      method = 'PUT';
+    } else {
+      url = '/api/pledges/campaigns/' + CURRENT_CAMPAIGN.id + '/members';
+      method = 'POST';
+    }
+    fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { flash(res.body.error || 'Save failed', 'error'); return; }
+        closePledgeFormModal();
+        flash('Pledge saved');
+        return loadPledges().then(loadAll); // refresh card totals too
+      })
+      .catch(function (e) { flash('Save failed: ' + e, 'error'); });
+  }
+
+  function deletePledge(p) {
+    var who = p.memberName || p.guestName || 'this pledge';
+    if (!confirm('Delete pledge for ' + who + '?')) return;
+    fetch('/api/pledges/members/' + p.id, { method: 'DELETE' })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { flash(res.body.error || 'Delete failed', 'error'); return; }
+        flash('Pledge deleted');
+        return loadPledges().then(loadAll);
+      })
+      .catch(function (e) { flash('Delete failed: ' + e, 'error'); });
+  }
+
+  /* ── Member combobox ───────────────────────────────────────────────── */
+  function filterMembers() {
+    var term = $('pf_memberInput').value.trim().toLowerCase();
+    var dd = $('pf_memberDropdown');
+    dd.innerHTML = '';
+    // Always clear the linked id when typing — savePledge() will re-link
+    // it when an option is clicked.
+    $('pf_familyMemberId').value = '';
+    var matches = ALL_MEMBERS.filter(function (m) {
+      if (!term) return true;
+      return (m.fullName || '').toLowerCase().indexOf(term) >= 0;
+    }).slice(0, 30);
+    matches.forEach(function (m) {
+      var it = document.createElement('div');
+      it.className = 'combo-item';
+      it.innerHTML = esc(m.fullName);
+      it.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        $('pf_memberInput').value    = m.fullName;
+        $('pf_familyMemberId').value = m.id;
+        $('pf_guestName').value      = '';
+        dd.classList.remove('open');
+      });
+      dd.appendChild(it);
+    });
+    dd.classList.toggle('open', matches.length > 0);
+  }
+  function openMemberDropdown()  { filterMembers(); }
+  function closeMemberDropdownDelay() {
+    setTimeout(function () { $('pf_memberDropdown').classList.remove('open'); }, 150);
+  }
+
+  /* ── Boot ──────────────────────────────────────────────────────────── */
+  loadAll();
+</script>
+
+<script>
+  window.CGP_PAGE = { activePage: 'accounting/pledges', pageTitle: 'Pledges', openSection: 'accounting' };
+  window.CGP_applyPerms = function (p) {
+    if (p && p['accounting.pledges.edit'] === false) {
+      var btn = document.getElementById('btnNewCampaign');
+      if (btn) btn.style.display = 'none';
+    }
+  };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

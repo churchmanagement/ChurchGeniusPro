@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Help – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── App shell ── */
+    
+
+    /* ── Sidebar ── */
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ── */
+    
+
+    /* ── Topbar ── */
+    
+    
+    
+    
+    
+
+    /* ── Page content ── */
+    
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Help cards ── */
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .help-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e8eaf0;
+      overflow: hidden;
+    }
+    .help-card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px; border-bottom: 1px solid #f0f0f0; background: #fafbfd;
+    }
+    .help-card-icon { font-size: 20px; }
+    .help-card-header h3 { font-size: 14px; font-weight: 700; color: #1e2139; }
+    .help-card-body { padding: 16px 18px; }
+    .help-card-body ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .help-card-body li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 13px; color: #444; line-height: 1.5;
+    }
+    .help-card-body li::before {
+      content: '•'; color: #673147; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* ── Intro banner ── */
+    .intro-banner {
+      background: linear-gradient(135deg, #673147, #3f4568);
+      border-radius: 12px; padding: 24px 28px; margin-bottom: 24px;
+      color: #fff;
+    }
+    .intro-banner h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .intro-banner p  { font-size: 13px; color: rgba(255,255,255,.82); line-height: 1.6; }
+
+    @media (max-width: 600px) {
+      .help-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Help</div>
+        <div class="page-subtitle">Learn how to use Church Genius Pro</div>
+      </div>
+
+      <div class="intro-banner">
+        <h2>Welcome to Church Genius Pro</h2>
+        <p>Church Genius Pro is a complete church management platform. Use the sections below to learn about each feature area and how to get the most out of the application.</p>
+      </div>
+
+      <div class="help-grid">
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">👥</span>
+            <h3>Members &amp; Families</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Go to <strong>Admin &rarr; Members</strong> to add, edit, or search church members.</li>
+              <li>Go to <strong>Admin &rarr; Families</strong> to group members into family units.</li>
+              <li>Use the <strong>View Family</strong> page to see all members belonging to a family.</li>
+              <li>Member types (e.g. Regular, Youth) can be configured under <strong>Admin Settings &rarr; Member Type</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">💰</span>
+            <h3>Income &amp; Expenses</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Record tithes, offerings, and donations under <strong>Accounting &rarr; Income</strong>.</li>
+              <li>Log church expenditures under <strong>Accounting &rarr; Expense</strong>.</li>
+              <li>Check the <strong>🔁</strong> indicator on a row to identify recurring (Quick Add) transactions.</li>
+              <li>Configure funds, purposes, and transaction types under <strong>Account Settings</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">📋</span>
+            <h3>Accounting Reports</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>View income summaries from <strong>Accounting Reports &rarr; Income Report</strong>.</li>
+              <li>View expense summaries from <strong>Accounting Reports &rarr; Expense Report</strong>.</li>
+              <li>Use <strong>Date Range Transactions</strong> to pull a combined income/expense view for any period.</li>
+              <li>Generate a <strong>Year-End Tax Report</strong> for annual filing or donor acknowledgement letters.</li>
+              <li>The <strong>Financial Report</strong> gives a high-level balance overview.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">📅</span>
+            <h3>Events &amp; Meetings</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Create and manage church events under <strong>General &rarr; Event</strong>.</li>
+              <li>View all upcoming events in the <strong>Event Calendar</strong>.</li>
+              <li>Allow members to register for events via <strong>Event Register</strong>.</li>
+              <li>Schedule and track meetings under <strong>General &rarr; Meetings</strong>.</li>
+              <li>Meeting categories can be defined under <strong>Admin Settings &rarr; Category</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">🔔</span>
+            <h3>Reminders</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Set up <strong>Event Reminders</strong> to automatically notify attendees before an event.</li>
+              <li>Use <strong>Periodic Reminders</strong> for recurring membership or donation follow-ups.</li>
+              <li>Schedule a specific <strong>One-time Reminder</strong> for any custom date and time.</li>
+              <li>Configure your outgoing email settings under <strong>Admin Settings &rarr; Email Settings</strong> before enabling reminders.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">✉️</span>
+            <h3>Email &amp; Notifications</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Compose and send emails to individuals, families, or groups from <strong>General &rarr; Email</strong>.</li>
+              <li>Attach files directly to outgoing emails from the compose screen.</li>
+              <li>SMTP settings (host, port, credentials) are configured under <strong>Admin Settings &rarr; Email Settings</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">🖥️</span>
+            <h3>Public Screens &amp; Files</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Display live church information on a projector or TV via <strong>General &rarr; Public Screens</strong>.</li>
+              <li>Generate and share a secure public screen link without requiring a login.</li>
+              <li>Upload and manage church documents and images under <strong>Admin &rarr; Files</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-header">
+            <span class="help-card-icon">⚙️</span>
+            <h3>Admin &amp; Users</h3>
+          </div>
+          <div class="help-card-body">
+            <ul>
+              <li>Manage staff accounts and roles from <strong>Admin &rarr; View Users</strong>.</li>
+              <li>Roles available: SuperAdmin, Admin, Accountant, and User — each with different permissions.</li>
+              <li>Update your church logo from <strong>Admin Settings &rarr; Logo</strong>.</li>
+              <li>Set a daily scripture verse for the dashboard under <strong>Admin Settings &rarr; Daily Verse</strong>.</li>
+              <li>Use the topbar dropdown to switch between linked accounts or update your account settings.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div><!-- /.help-grid -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div><!-- /.main-area -->
+</div><!-- /.app -->
+
+<script>
+  /* ════════════════════════════════════
+     SIDEBAR NAV
+  ════════════════════════════════════ */
+  
+
+  (function init() {
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'help', pageTitle: 'Help', openSection: '' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Worship Planning — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Card ── */
+    .card         { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); margin-bottom: 16px; overflow: hidden; }
+    .card-header  { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #f5f0f2; flex-wrap: wrap; gap: 8px; }
+    .card-title   { font-size: 15px; font-weight: 700; color: #673147; }
+    .card-body    { padding: 16px 18px; }
+
+    /* ── Buttons ── */
+    .btn-primary  { background: #673147; color: #fff; }
+
+    /* ── Worship schedule styles (identical to memberHome.html) ── */
+    .ws-group-block { margin-bottom: 20px; background: #fff; border-radius: 12px;
+                      border: 1px solid #e2d5db; box-shadow: 0 2px 8px rgba(103,49,71,.06); overflow: hidden; }
+    .ws-group-hdr   { display: flex; align-items: center; justify-content: space-between;
+                      padding: 11px 16px; background: linear-gradient(135deg,#673147 0%,#8a4060 100%);
+                      flex-wrap: wrap; gap: 8px; }
+    .ws-group-name  { font-size: 14px; font-weight: 700; color: #fff; }
+    .ws-group-hint  { font-size: 11px; color: rgba(255,255,255,.7); }
+    .ws-tbl-wrap    { overflow-x: auto; }
+    .ws-tbl         { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
+    .ws-tbl th      { background: #faf5f8; color: #673147; padding: 9px 12px; text-align: left;
+                      white-space: nowrap; font-size: 11px; font-weight: 700; text-transform: uppercase;
+                      letter-spacing: .4px; border-bottom: 2px solid #ede0e6; border-right: 1px solid #ede0e6; }
+    .ws-tbl th:last-child { border-right: none; }
+    .ws-tbl td      { padding: 8px 12px; border-bottom: 1px solid #f5f0f2;
+                      border-right: 1px solid #f5f0f2; vertical-align: top; }
+    .ws-tbl td:last-child { border-right: none; }
+    .ws-tbl tbody tr:last-child td { border-bottom: none; }
+    .ws-date-cell   { font-weight: 700; color: #673147; white-space: nowrap;
+                      background: #fdf8fb !important; min-width: 110px; }
+    .ws-me-row td   { background: #fff8f2 !important; }
+    .ws-me-row .ws-date-cell { background: #fff3e6 !important; }
+    .ws-chip        { display: inline-flex; align-items: center; background: #f0e8ec;
+                      border-radius: 10px; padding: 3px 9px; font-size: 12px; font-weight: 600;
+                      color: #673147; margin: 2px; }
+    .ws-me-chip     { display: inline-flex; align-items: center; background: #673147;
+                      color: #fff; border-radius: 10px; padding: 3px 9px;
+                      font-size: 12px; font-weight: 700; margin: 2px; }
+    .ws-me-star     { margin-left: 3px; font-size: 10px; }
+    .ws-song-cell   { font-size: 12px; color: #555; min-width: 120px; }
+    .ws-song-item   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                      max-width: 160px; display: block; }
+    .ws-empty       { text-align: center; padding: 28px; color: #bbb; font-size: 13px; }
+    .ws-legend      { font-size: 11px; color: #888; padding: 8px 16px;
+                      border-top: 1px solid #f0e8ec; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Buttons ── */
+    .btn            { display: inline-flex; align-items: center; gap: 5px;
+                      padding: 8px 16px; border-radius: 8px; font-size: 13px;
+                      font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
+    .btn:hover      { opacity: .88; }
+    .btn-secondary  { background: #f0e8ec; color: #673147; }
+    .btn-sm         { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+
+    /* ── Spinner ── */
+    .ws-spinner {
+      display: inline-block; width: 18px; height: 18px;
+      border: 3px solid #e2d5db; border-top-color: #673147;
+      border-radius: 50%; animation: ws-spin .7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes ws-spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .page-content { padding: 14px; }
+    }
+  </style>
+  <script src="/pwa.js" async></script>
+  <script>
+    window.CGP_PAGE = {
+      activePage:  'general/kids-ministry',
+      pageTitle:   'Worship Planning',
+      openSection: 'general'
+    };
+  </script>
+  <script src="/shell.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎵 Worship Schedule</span>
+          <!-- "Manage Worship" is only accessible to Members; staff see the schedule directly -->
+          <a id="manageWorshipBtn" href="/memberWorship" class="btn btn-primary btn-sm">🎵 Manage Worship</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div id="worshipScheduleWrap" style="padding:16px 20px;">
+            <p style="color:#aaa;font-size:13px;"><span class="ws-spinner"></span>Loading worship schedule…</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+
+</div>
+
+<script src="/session.js"></script>
+<script>
+/* ── Helpers ── */
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDateWs(dateStr) {
+  if (!dateStr) return '';
+  var parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  var days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+}
+
+/* ── Module-level state (needed for PDF/print) ── */
+const wsSongCache  = {};         // "groupId|date" → string[] of song titles
+const wsGroupStore = new Map();  // groupId → { groupName, rows, instruments }
+
+/* ── Main loader ── */
+async function loadWorshipSchedule() {
+  const wrap = document.getElementById('worshipScheduleWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<p style="color:#aaa;font-size:13px;"><span class="ws-spinner"></span>Loading worship schedule…</p>';
+
+  try {
+    const today  = new Date();
+    const from   = today.toISOString().split('T')[0];
+    const toDate = new Date(today);
+    toDate.setDate(toDate.getDate() + 84); // 12 weeks
+    const to = toDate.toISOString().split('T')[0];
+
+    const aRes = await fetch(`/api/worship/assignments?from=${from}&to=${to}`);
+    if (!aRes.ok) {
+      wrap.innerHTML = '<p style="color:#e53935;font-size:13px;">Failed to load worship schedule.</p>';
+      return;
+    }
+
+    const assignments = await aRes.json();
+
+    if (!assignments || assignments.length === 0) {
+      wrap.innerHTML = `<div class="ws-empty">No worship assignments have been generated yet.<br>
+        <span style="color:#bbb;font-size:12px;margin-top:6px;display:inline-block;">
+          Use the Worship Planning management page to set up groups and generate assignments.
+        </span></div>`;
+      return;
+    }
+
+    // Group by group
+    const groupMap = new Map();
+    for (const a of assignments) {
+      if (!groupMap.has(a.groupId)) groupMap.set(a.groupId, { groupName: a.groupName || '', rows: [] });
+      groupMap.get(a.groupId).rows.push(a);
+    }
+
+    // Get logged-in user's name for highlighting
+    const firstName = (localStorage.getItem('firstName') || '').trim();
+    const lastName  = (localStorage.getItem('lastName')  || '').trim();
+    const myName    = (firstName + ' ' + lastName).trim().toLowerCase();
+
+    let html = '';
+    for (const [groupId, { groupName, rows }] of groupMap) {
+      // Sort rows by date
+      rows.sort((a, b) => a.assignmentDate.localeCompare(b.assignmentDate));
+
+      // Collect all instruments across all rows
+      const instMap = new Map();
+      for (const row of rows) {
+        for (const slot of (row.slots || [])) {
+          if (!instMap.has(slot.instrumentId)) instMap.set(slot.instrumentId, slot.instrumentName);
+        }
+      }
+      const instruments = Array.from(instMap.entries());
+
+      // Store for PDF/print
+      wsGroupStore.set(groupId, { groupName, rows, instruments });
+
+      const gid = String(groupId);
+      html += `<div class="ws-group-block">
+        <div class="ws-group-hdr">
+          <span class="ws-group-name">🎵 ${esc(groupName)}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="ws-group-hint">${rows.length} date${rows.length !== 1 ? 's' : ''} · next 12 weeks</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);font-size:11px;padding:3px 10px;" onclick="wsGroupPrint(${gid})">🖨️ Print</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);font-size:11px;padding:3px 10px;" onclick="wsGroupDownloadPdf(${gid})">⬇️ Download</button>
+            </div>
+          </div>
+        </div>
+        <div class="ws-tbl-wrap"><table class="ws-tbl">
+          <thead><tr>
+            <th>Date</th>
+            ${instruments.map(([, iname]) => `<th>${esc(iname)}</th>`).join('')}
+            <th>Songs</th>
+          </tr></thead>
+          <tbody>`;
+
+      for (const row of rows) {
+        const dateStr = row.assignmentDate;
+        const slotMap = new Map();
+        for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
+
+        // Highlight if current user is assigned
+        let iAmHere = false;
+        if (myName) {
+          for (const [, members] of slotMap) {
+            if (members.some(m => m.memberName.toLowerCase().includes(myName) || myName.includes(m.memberName.toLowerCase().split(' ')[0]))) {
+              iAmHere = true; break;
+            }
+          }
+        }
+
+        html += `<tr class="${iAmHere ? 'ws-me-row' : ''}">
+          <td class="ws-date-cell">${formatDateWs(dateStr)}</td>`;
+
+        for (const [iid] of instruments) {
+          const members  = slotMap.get(iid) || [];
+          const chipsHtml = members.map(m => {
+            const isMe = myName && (m.memberName.toLowerCase().includes(myName) || myName.includes(m.memberName.toLowerCase().split(' ')[0]));
+            return isMe
+              ? `<span class="ws-me-chip">${esc(m.memberName)}<span class="ws-me-star">★</span></span>`
+              : `<span class="ws-chip">${esc(m.memberName)}</span>`;
+          }).join('');
+          html += `<td>${chipsHtml || '<span style="color:#ddd;">—</span>'}</td>`;
+        }
+
+        html += `<td class="ws-song-cell" id="wsSongs_${groupId}_${dateStr.replace(/-/g,'')}"><span style="color:#ddd;">—</span></td>`;
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      if (myName) {
+        html += `<div class="ws-legend"><span class="ws-me-chip" style="font-size:10px;padding:2px 7px;">Your Name ★</span> = you are assigned on this date</div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Global action bar
+    if (groupMap.size > 0) {
+      html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="wsPrintAll()">🖨️ Print All Groups</button>
+        <button class="btn btn-secondary btn-sm" onclick="wsDownloadAll()">⬇️ Download All as PDF</button>
+      </div>`;
+    }
+
+    wrap.innerHTML = html;
+
+    // Batch-fetch songs for all groups
+    if (groupMap.size > 0) {
+      const groupIdList = Array.from(groupMap.keys()).join(',');
+      const batchUrl = `/api/worship/songs/batch?groupIds=${groupIdList}&from=${from}&to=${to}`;
+      fetch(batchUrl)
+        .then(r => r.ok ? r.json() : {})
+        .then(batchResult => {
+          for (const [key, titles] of Object.entries(batchResult || {})) {
+            wsSongCache[key] = titles;
+            const [gId, dateStr] = key.split('|');
+            const cellId = `wsSongs_${gId}_${dateStr.replace(/-/g,'')}`;
+            const cell   = document.getElementById(cellId);
+            if (cell && titles.length) {
+              cell.innerHTML = titles.map(t => `<span class="ws-song-item">${esc(t)}</span>`).join('');
+            }
+          }
+        })
+        .catch(() => { /* keep "—" placeholders on error */ });
+    }
+
+  } catch(e) {
+    const wrap2 = document.getElementById('worshipScheduleWrap');
+    if (wrap2) wrap2.innerHTML = '<p style="color:#e53935;font-size:13px;">Error loading worship schedule.</p>';
+    console.error('loadWorshipSchedule', e);
+  }
+}
+
+/* ── PDF / Print helpers (identical to memberHome.html) ── */
+
+const WS_PDF_CSS = `
+  body{font-family:Arial,sans-serif;padding:24px;color:#222;font-size:13px;}
+  h2{color:#673147;margin:0 0 4px;}
+  .sub{font-size:11px;color:#888;margin-bottom:16px;}
+  table{border-collapse:collapse;width:100%;}
+  th{background:#673147;color:#fff;padding:8px 12px;text-align:left;border:1px solid #4a235a;font-size:12px;}
+  td{padding:7px 12px;border:1px solid #ddd;vertical-align:top;background:#fff;}
+  tr:nth-child(even) td{background:#faf8fb;}
+  @media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+`;
+
+function buildWsGroupPdfHtml(groupId) {
+  const entry = wsGroupStore.get(groupId);
+  if (!entry) return null;
+  const { groupName, rows, instruments } = entry;
+
+  const hasSongs = rows.some(row => {
+    const key = `${groupId}|${row.assignmentDate}`;
+    return wsSongCache[key] && wsSongCache[key].length > 0;
+  });
+
+  let t = `<h2>🎵 ${groupName}</h2><div class="sub">Worship Schedule · next 12 weeks</div>`;
+  t += `<table><thead><tr><th>Date</th>`;
+  instruments.forEach(([, iname]) => { t += `<th>${iname}</th>`; });
+  if (hasSongs) t += `<th>Songs</th>`;
+  t += `</tr></thead><tbody>`;
+
+  for (const row of rows) {
+    const dateStr = row.assignmentDate;
+    const slotMap = new Map();
+    row.slots && row.slots.forEach(slot => slotMap.set(slot.instrumentId, slot.memberName || '—'));
+    const key  = `${groupId}|${dateStr}`;
+    const songs = wsSongCache[key] || [];
+    t += `<tr><td>${dateStr}</td>`;
+    instruments.forEach(([iid]) => { t += `<td>${slotMap.get(iid) || '—'}</td>`; });
+    if (hasSongs) t += `<td>${songs.map(s => s.title || s).join(', ') || '—'}</td>`;
+    t += `</tr>`;
+  }
+  t += `</tbody></table>`;
+  return t;
+}
+
+function wsDownloadGroup(groupId) {
+  const html  = buildWsGroupPdfHtml(groupId);
+  if (!html) return;
+  const entry = wsGroupStore.get(groupId);
+  const name  = entry ? entry.groupName : 'Schedule';
+  const w = window.open('', '_blank', 'width=960,height=720');
+  w.document.write(`<!DOCTYPE html><html><head><title>${name}</title><style>${WS_PDF_CSS}</style></head><body>${html}<button onclick="window.print()" style="margin-top:20px;padding:8px 20px;background:#673147;color:#fff;border:none;border-radius:8px;cursor:pointer;">🖨️ Print / Save PDF</button></body></html>`);
+  w.document.close();
+}
+
+function wsPrintAll() {
+  let combined = '';
+  for (const [groupId] of wsGroupStore) {
+    const html = buildWsGroupPdfHtml(groupId);
+    if (html) combined += `<div style="page-break-after:always;">${html}</div>`;
+  }
+  if (!combined) return;
+  const w = window.open('', '_blank', 'width=960,height=720');
+  w.document.write(`<!DOCTYPE html><html><head><title>All Worship Schedules</title><style>${WS_PDF_CSS}</style></head><body>${combined}</body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 400);
+}
+
+function wsDownloadAll()          { wsPrintAll(); }
+function wsGroupPrint(groupId)    { wsDownloadGroup(groupId); }
+function wsGroupDownloadPdf(gid)  { wsDownloadGroup(gid); }
+
+/* ── Boot ── */
+(async function init() {
+  // The "Manage Worship" button is always visible here. Anyone who reaches
+  // /worshipPlanning has already passed the worship-access check, and the
+  // backend route guard on /memberWorship now mirrors that same check —
+  // so showing the button universally won't surface an access-denied page.
+  await loadWorshipSchedule();
+})();
+</script>
+</body>
+</html>

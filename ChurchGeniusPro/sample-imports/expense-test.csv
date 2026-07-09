@@ -1,0 +1,15 @@
+Date,Amount,Category,Purpose,Payee,Method,Reference No,Note
+06/02/2026,245.00,Utilities,Electricity,City Power Co,Check,5601,June electric
+06/03/2026,89.99,Utilities,Water,Municipal Water,Check,5602,Water bill
+06/04/2026,"$132.40",Supplies,Office,Staples,Card,,Paper and toner
+06/05/2026,500.00,Missions,Outreach,Local Food Bank,Check,5603,Monthly donation
+06/08/2026,75.00,Maintenance,Building,Handyman Services,Cash,,Door repair
+06/09/2026,1200.00,Salaries,Staff,Pastor Payroll,Check,5604,June salary
+06/10/2026,60.50,Supplies,Kitchen,Costco,Card,,Fellowship coffee
+06/12/2026,310.00,Events,Youth Camp,Camp Grounds Inc,Check,5605,Deposit
+06/15/2026,45.00,Utilities,Internet,Comcast,Card,,Monthly internet
+06/18/2026,220.00,Worship,Music,Music Supply Co,Check,5606,New microphones
+06/20/2026,95.75,Supplies,Office,Amazon,Card,,Printer ink
+06/25/2026,150.00,Missions,Outreach,Homeless Shelter,Check,5607,Quarterly gift
+06/28/2026,(50.00),Refund,,Member Refund,Cash,,Negative amount row
+06/29/2026,abc,Utilities,Gas,Gas Company,Check,5608,Bad amount row

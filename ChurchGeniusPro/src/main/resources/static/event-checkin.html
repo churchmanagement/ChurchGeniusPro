@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Check In – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f6fa; color: #333; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff; border-radius: 18px; border: 1px solid #e8eaf0;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08); width: 100%; max-width: 420px;
+      padding: 36px 32px; text-align: center;
+    }
+    .brand {
+      font-size: 13px; color: #b0b8d0; margin-bottom: 24px; letter-spacing: .3px;
+    }
+    .status-icon { font-size: 56px; margin-bottom: 16px; }
+    .status-title {
+      font-size: 22px; font-weight: 700; color: #1e2139; margin-bottom: 8px;
+    }
+    .status-sub {
+      font-size: 14px; color: #888; line-height: 1.6;
+    }
+    .name-badge {
+      display: inline-block; background: #eef0f8; color: #673147;
+      border-radius: 10px; padding: 8px 20px; font-size: 16px; font-weight: 700;
+      margin: 16px 0; letter-spacing: .3px;
+    }
+    .spinner {
+      display: inline-block; width: 40px; height: 40px;
+      border: 4px solid #e8eaf0; border-top-color: #673147;
+      border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .footer { font-size: 12px; color: #b0b8d0; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card" id="mainCard">
+    <div class="brand">Church Genius Pro</div>
+    <div class="spinner" id="spinner"></div>
+    <div class="status-title" id="statusTitle">Checking you in…</div>
+    <div class="status-sub" id="statusSub">Please wait a moment.</div>
+    <div class="name-badge" id="nameBadge" style="display:none;"></div>
+    <div class="footer" id="footerMsg"></div>
+  </div>
+
+  <script>
+    const pathParts       = window.location.pathname.split('/');
+    const registrationCode = pathParts[pathParts.length - 1] || null;
+
+    (async function checkIn() {
+      if (!registrationCode) {
+        setError('❌', 'Invalid Check-In Link', 'No registration code was found in this link. Please check your QR code and try again.');
+        return;
+      }
+      try {
+        const res  = await fetch(`/api/event-checkin/${encodeURIComponent(registrationCode)}`, { method: 'POST' });
+        const data = await res.json();
+
+        document.getElementById('spinner').style.display = 'none';
+
+        if (res.ok && data.success) {
+          const name = [data.firstName, data.lastName].filter(Boolean).join(' ');
+          document.getElementById('statusTitle').textContent = 'Welcome! 🎉';
+          document.getElementById('statusSub').textContent  = 'You are now checked in at the event.';
+          const badge = document.getElementById('nameBadge');
+          if (name) { badge.textContent = name; badge.style.display = 'inline-block'; }
+          document.getElementById('footerMsg').textContent = 'You can close this page.';
+          // Add a big green check icon
+          const icon = document.createElement('div');
+          icon.className = 'status-icon';
+          icon.textContent = '✅';
+          document.getElementById('mainCard').insertBefore(icon, document.getElementById('statusTitle'));
+        } else {
+          setError('⚠️', 'Check-In Failed', data.error || 'Unable to complete check-in. Please ask a staff member for help.');
+        }
+      } catch {
+        setError('⚠️', 'Connection Error', 'Could not reach the server. Please check your internet connection and try scanning again.');
+      }
+    })();
+
+    function setError(icon, title, msg) {
+      document.getElementById('spinner').style.display = 'none';
+      const iconEl = document.createElement('div');
+      iconEl.className = 'status-icon';
+      iconEl.textContent = icon;
+      const card = document.getElementById('mainCard');
+      card.insertBefore(iconEl, document.getElementById('statusTitle'));
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusSub').textContent  = msg;
+    }
+  </script>
+</body>
+</html>

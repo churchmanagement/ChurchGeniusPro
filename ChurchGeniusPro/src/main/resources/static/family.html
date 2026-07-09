@@ -1,0 +1,1868 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Family</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ── */
+    
+
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ── */
+    
+
+    /* ── Topbar ── */
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ── */
+    
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .btn-view-families {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      background: #673147; text-decoration: none;
+      transition: background .18s; white-space: nowrap;
+    }
+    .btn-view-families:hover { background: #4a5aae; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 12px 20px; border-radius: 7px; font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none; }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Form card ── */
+    .form-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: visible; margin-bottom: 20px; }
+    .form-card-header { background: #673147; padding: 14px 24px; display: flex; align-items: center; gap: 10px; border-radius: 10px 10px 0 0; }
+    .form-card-header h3 { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: .4px; text-transform: uppercase; }
+    .section-icon { font-size: 16px; }
+    .form-card-body { padding: 20px 24px 24px; }
+
+    /* ── Sub-section ── */
+    .sub-section { margin-bottom: 20px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title { font-size: 11px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .6px; padding-bottom: 8px; margin-bottom: 14px; border-bottom: 1px solid #e8eaf6; }
+
+    /* ── Form grid ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+
+    /* ── Field ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
+    .required-star { color: #e53935; margin-left: 2px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px; font-size: 14px; color: #333; outline: none; transition: border-color .2s, box-shadow .2s; background: #fff; font-family: inherit; }
+    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field input:disabled, .field select:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+    .field textarea { resize: vertical; min-height: 90px; }
+    .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .field-note { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+    /* ── Date row ── */
+    .date-row { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; }
+
+    /* ── Checkbox group ── */
+    .check-group { display: flex; flex-wrap: wrap; gap: 20px; padding: 4px 0; }
+    .check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; cursor: pointer; user-select: none; }
+    .check-item input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-checkbox:disabled { opacity: .45; cursor: not-allowed; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+
+    /* ── Photo upload ── */
+    .photo-col-wrap { position: relative; flex-shrink: 0; display: inline-block; }
+    .photo-preview { width: 180px; height: 180px; border-radius: 14px; border: 2px dashed #d0d0d0; background: #fdf5f7; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; transition: border-color .2s; }
+    .photo-preview:hover { border-color: #673147; }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-placeholder { font-size: 14px; color: #bbb; text-align: center; padding: 12px; line-height: 1.6; }
+    .btn-photo-clear { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.52); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; z-index: 10; line-height: 1; padding: 0; transition: background .15s; }
+    .btn-photo-clear:hover { background: rgba(200,0,0,.82); }
+    .form-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .form-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+
+    /* ── Member search picker ── */
+    .search-wrap-rel { position: relative; flex: 1; }
+    .member-search-box { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .member-search-input { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px; font-size: 14px; outline: none; transition: border-color .2s; font-family: inherit; }
+    .member-search-input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .member-search-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 400; background: #fff; border: 1.5px solid #c5cae9; border-top: none; border-radius: 0 0 8px 8px; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+    .msd-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+    .msd-item:last-child { border-bottom: none; }
+    .msd-item:hover { background: #f5f6fa; }
+    .msd-item .msd-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .msd-empty { padding: 12px 14px; font-size: 13px; color: #bbb; }
+
+    /* ── Add member inline form ── */
+    .add-member-form { display: none; }
+    .add-member-form.open { display: block; }
+    .add-member-form-inner { background: #fdf5f7; border: 1px solid #f0e0e7; border-radius: 9px; padding: 18px 20px; margin-top: 12px; }
+    .form-inner-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .form-inner-title { font-size: 13px; font-weight: 700; color: #673147; }
+    .btn-close-form { font-size: 18px; color: #aaa; cursor: pointer; line-height: 1; }
+    .btn-close-form:hover { color: #333; }
+    .btn-add-member { padding: 10px 26px; border-radius: 7px; font-size: 14px; font-weight: 600; color: #fff; background: #673147; border: none; cursor: pointer; transition: background .18s; }
+    .btn-add-member:hover { background: #4a5aae; }
+    .btn-cancel-member { padding: 10px 20px; border-radius: 7px; font-size: 13px; font-weight: 500; color: #666; border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s; }
+    .btn-cancel-member:hover { background: #f5f6fa; }
+    .btn-open-add { padding: 10px 22px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #673147; border: 1.5px solid #673147; cursor: pointer; transition: background .18s; white-space: nowrap; }
+    .btn-open-add:hover { background: #eef1fb; }
+
+    /* ── Members list table ── */
+    .members-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+    .members-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #f0f0f0; }
+    .members-table td { padding: 11px 14px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .members-table tr:last-child td { border-bottom: none; }
+    .members-table tr:hover td { background: #fafbff; }
+    .empty-members { text-align: center; padding: 28px; color: #bbb; font-size: 13px; }
+    .badge-primary { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; background: #e8eaf6; color: #673147; margin-left: 5px; text-transform: uppercase; letter-spacing: .4px; }
+    .btn-edit-member { padding: 4px 11px; border-radius: 6px; font-size: 13px; color: #fff; background: #673147; border: 1px solid #673147; cursor: pointer; margin-right: 5px; }
+    .btn-edit-member:hover { background: #3949ab; border-color: #3949ab; }
+    .btn-remove { padding: 4px 11px; border-radius: 6px; font-size: 13px; color: #fff; background: #673147; border: 1px solid #673147; cursor: pointer; }
+    .btn-remove:hover { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Roles table ── */
+    .roles-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .roles-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #f0f0f0; background: #fafbfd; }
+    .roles-table td { padding: 12px 14px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+    .roles-table tr:last-child td { border-bottom: none; }
+    .roles-table tr:hover td { background: #fafbff; }
+    .roles-table select { padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px; font-size: 13px; outline: none; background: #fff; font-family: inherit; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; min-width: 180px; }
+    .roles-table select:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .anniv-row { display: none; margin-top: 9px; }
+    .anniv-row.visible { display: flex; align-items: center; gap: 6px; }
+    .anniv-label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; margin-right: 4px; }
+    .anniv-row select { min-width: 0; flex: 1; padding: 6px 8px; font-size: 13px; border: 1.5px solid #e0e0e0; border-radius: 6px; outline: none; font-family: inherit; background: #fff; }
+    .anniv-row select:focus { border-color: #673147; }
+
+    /* ── Action bars ── */
+    .action-bar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 18px 24px; background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+    .btn-clear { padding: 11px 28px; border-radius: 7px; font-size: 14px; font-weight: 500; color: #666; border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s; }
+    .btn-clear:hover { background: #f5f6fa; }
+    .btn-save { padding: 11px 36px; border-radius: 7px; font-size: 14px; font-weight: 600; color: #fff; background: #673147; border: none; cursor: pointer; transition: background .18s; }
+    .btn-save:hover:not(:disabled) { background: #3d1d2b; }
+    .btn-save:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    @media (max-width: 900px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid.cols-3 { grid-template-columns: 1fr 1fr; }
+      .form-grid.cols-5 { grid-template-columns: 1fr 1fr 1fr; }
+      .span-2, .span-3 { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Family</div>
+          <div class="page-subtitle">Manage family groups and members</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn-view-families" onclick="window.open('/api/membership-form/pdf','_blank')" title="Download a printable / fillable membership form">📄 Membership Form (PDF)</button>
+          <button type="button" class="btn-view-families" onclick="document.getElementById('scanUploadInput').click()" title="Upload a completed membership form to auto-fill">📤 Upload Scanned Form</button>
+          <a href="/viewfamily" class="btn-view-families">👪 View Families</a>
+        </div>
+        <input type="file" id="scanUploadInput" accept=".pdf,image/*" style="display:none;" onchange="MFSCAN.upload(this)" />
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           CARD 1 — PRIMARY MEMBER
+      ══════════════════════════════════════════════════ -->
+      <div class="form-card">
+        <div class="form-card-header">
+          <span class="section-icon">👤</span>
+          <h3>Primary</h3>
+        </div>
+        <div class="form-card-body">
+
+          <!-- Photo + Rows 1–2: First Name/Last Name and Category/Gender -->
+          <div style="display:flex; gap:24px; align-items:flex-start; margin-bottom:14px;">
+            <!-- Photo column -->
+            <div class="photo-col-wrap">
+              <div class="photo-preview" id="photoPreviewBox" onclick="document.getElementById('primaryPhoto').click()" title="Click to upload photo">
+                <div class="photo-placeholder" id="photoPlaceholder">📷<br/>Click to upload</div>
+              </div>
+              <button type="button" class="btn-photo-clear" id="photoClearBtn" onclick="clearPhoto(event)" title="Remove photo" style="display:none;">✕</button>
+              <input type="file" id="primaryPhoto" accept="image/*" style="display:none" onchange="previewPhoto(this)" />
+            </div>
+            <!-- Right column: Row 1 (First Name | Last Name) + Row 2 (Phone | Email) -->
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; justify-content:center;">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="pFirstName">First Name <span class="required-star">*</span></label>
+                  <input type="text" id="pFirstName" placeholder="First name" />
+                  <span class="field-hint" id="pFirstNameHint"></span>
+                </div>
+                <div class="field">
+                  <label for="pLastName">Last Name <span class="required-star">*</span></label>
+                  <input type="text" id="pLastName" placeholder="Last name" />
+                  <span class="field-hint" id="pLastNameHint"></span>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="pPhone">Phone</label>
+                  <input type="tel" id="pPhone" placeholder="Phone number" />
+                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
+                    <input type="checkbox" id="pPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
+                  </label>
+                </div>
+                <div class="field">
+                  <label for="pEmail">Email</label>
+                  <input type="email" id="pEmail" placeholder="Email address" />
+                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
+                    <input type="checkbox" id="pEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Category | Gender | Birth Month | Birth Day | Birth Year -->
+          <div style="margin-bottom:14px;">
+            <div class="form-grid cols-5">
+              <div class="field">
+                <label for="pCategory">Category</label>
+                <select id="pCategory">
+                  <option value="Member">Member</option>
+                  <option value="Guest">Guest</option>
+                  <option value="Visitor">Visitor</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pGender">Gender</label>
+                <select id="pGender">
+                  <option value="">— Select —</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pBirthMonth">Birth Month</label>
+                <select id="pBirthMonth"><option value="">Month</option></select>
+              </div>
+              <div class="field">
+                <label for="pBirthDay">Birth Day</label>
+                <select id="pBirthDay"><option value="">Day</option></select>
+              </div>
+              <div class="field">
+                <label for="pBirthYear">Birth Year</label>
+                <select id="pBirthYear"><option value="">Year</option></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div class="sub-section">
+            <div class="form-grid cols-3">
+              <div class="field span-3">
+                <label for="pAddress1">Address Line 1</label>
+                <input type="text" id="pAddress1" placeholder="Street address" />
+              </div>
+              <div class="field span-3">
+                <label for="pAddress2">Address Line 2</label>
+                <input type="text" id="pAddress2" placeholder="Apt, suite, unit (optional)" />
+              </div>
+              <div class="field">
+                <label for="pCity">City</label>
+                <input type="text" id="pCity" placeholder="City" />
+              </div>
+              <div class="field">
+                <label for="pState">State</label>
+                <select id="pState">
+                  <option value="">— Select State —</option>
+                  <option value="1">AL – Alabama</option><option value="2">AK – Alaska</option><option value="3">AZ – Arizona</option><option value="4">AR – Arkansas</option><option value="5">CA – California</option><option value="6">CO – Colorado</option><option value="7">CT – Connecticut</option><option value="8">DE – Delaware</option><option value="9">FL – Florida</option><option value="10">GA – Georgia</option><option value="11">HI – Hawaii</option><option value="12">ID – Idaho</option><option value="13">IL – Illinois</option><option value="14">IN – Indiana</option><option value="15">IA – Iowa</option><option value="16">KS – Kansas</option><option value="17">KY – Kentucky</option><option value="18">LA – Louisiana</option><option value="19">ME – Maine</option><option value="20">MD – Maryland</option><option value="21">MA – Massachusetts</option><option value="22">MI – Michigan</option><option value="23">MN – Minnesota</option><option value="24">MS – Mississippi</option><option value="25">MO – Missouri</option><option value="26">MT – Montana</option><option value="27">NE – Nebraska</option><option value="28">NV – Nevada</option><option value="29">NH – New Hampshire</option><option value="30">NJ – New Jersey</option><option value="31">NM – New Mexico</option><option value="32">NY – New York</option><option value="33">NC – North Carolina</option><option value="34">ND – North Dakota</option><option value="35">OH – Ohio</option><option value="36">OK – Oklahoma</option><option value="37">OR – Oregon</option><option value="38">PA – Pennsylvania</option><option value="39">RI – Rhode Island</option><option value="40">SC – South Carolina</option><option value="41">SD – South Dakota</option><option value="42">TN – Tennessee</option><option value="43">TX – Texas</option><option value="44">UT – Utah</option><option value="45">VT – Vermont</option><option value="46">VA – Virginia</option><option value="47">WA – Washington</option><option value="48">WV – West Virginia</option><option value="49">WI – Wisconsin</option><option value="50">WY – Wyoming</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pCountry">Country</label>
+                <select id="pCountry">
+                  <option value="USA" selected>USA – United States</option>
+                  <option value="CAN">CAN – Canada</option>
+                  <option value="GBR">GBR – United Kingdom</option>
+                  <option value="AUS">AUS – Australia</option>
+                  <option value="IND">IND – India</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pPinCode">PIN / Zip Code</label>
+                <input type="text" id="pPinCode" placeholder="Zip / Pin code" />
+              </div>
+              <div class="field">
+                <label for="pNickName">Nick Name</label>
+                <input type="text" id="pNickName" placeholder="Nickname / other name" />
+              </div>
+            </div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#888;font-weight:600;margin-top:10px;cursor:pointer;">
+              <input type="checkbox" id="pAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
+            </label>
+          </div>
+
+          <!-- Options -->
+          <div class="sub-section">
+            <div class="check-group">
+              <label class="check-item toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="pInactive" />
+                <span class="toggle-label">Inactive</span>
+              </label>
+              <label class="check-item toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="pDisableAlerts" />
+                <span class="toggle-label">Disable Alerts</span>
+              </label>
+              <label class="check-item toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="pIncludeContrib" checked />
+                <span class="toggle-label">Include in Contributions</span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           CARD 2 — FAMILY MEMBERS
+      ══════════════════════════════════════════════════ -->
+      <div class="form-card" id="familyMembersCard">
+        <div class="form-card-header">
+          <span class="section-icon">👨‍👩‍👧</span>
+          <h3>Family Members</h3>
+        </div>
+        <div class="form-card-body">
+
+          <!-- Search existing + Add New button row -->
+          <div class="member-search-box">
+            <div class="search-wrap-rel" style="flex:1;">
+              <input type="text" id="memberSearchInput" class="member-search-input"
+                     placeholder="Search existing members to add to this family…"
+                     oninput="onMemberSearch(this.value)" autocomplete="off" />
+              <div id="memberSearchDropdown" class="member-search-dropdown" style="display:none;"></div>
+            </div>
+            <button class="btn-open-add" id="btnOpenAdd" onclick="toggleAddMemberForm()">＋ Add</button>
+          </div>
+
+          <!-- Inline Add / Edit Member Form -->
+          <div class="add-member-form" id="addMemberForm">
+            <div class="add-member-form-inner">
+              <div class="form-inner-header">
+                <span class="form-inner-title" id="addMemberFormTitle">Add Member</span>
+                <button class="btn-close-form" onclick="cancelEditMember()" title="Close">✕</button>
+              </div>
+
+              <!-- Row 1: First Name | Last Name -->
+              <div class="form-grid" style="margin-bottom:14px;">
+                <div class="field">
+                  <label for="mFirstName">First Name <span class="required-star">*</span></label>
+                  <input type="text" id="mFirstName" placeholder="First name" />
+                  <span class="field-hint" id="mFirstNameHint"></span>
+                </div>
+                <div class="field">
+                  <label for="mLastName">Last Name <span class="required-star">*</span></label>
+                  <input type="text" id="mLastName" placeholder="Last name" />
+                  <span class="field-hint" id="mLastNameHint"></span>
+                </div>
+              </div>
+
+              <!-- Row 2: Phone | Email -->
+              <div class="form-grid" style="margin-bottom:14px;">
+                <div class="field">
+                  <label for="mPhone">Phone</label>
+                  <input type="tel" id="mPhone" placeholder="Phone number" />
+                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
+                    <input type="checkbox" id="mPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
+                  </label>
+                </div>
+                <div class="field">
+                  <label for="mEmail">Email</label>
+                  <input type="email" id="mEmail" placeholder="Email address" />
+                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
+                    <input type="checkbox" id="mEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
+                  </label>
+                </div>
+              </div>
+
+              <!-- Row 3: Category | Gender | Birth Month | Birth Day | Birth Year -->
+              <div class="form-grid cols-5" style="margin-bottom:14px;">
+                <div class="field">
+                  <label for="mCategory">Category</label>
+                  <select id="mCategory">
+                    <option value="Member">Member</option>
+                    <option value="Guest">Guest</option>
+                    <option value="Visitor">Visitor</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="mGender">Gender</label>
+                  <select id="mGender">
+                    <option value="">— Select —</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="mBirthMonth">Birth Month</label>
+                  <select id="mBirthMonth"><option value="">Month</option></select>
+                </div>
+                <div class="field">
+                  <label for="mBirthDay">Birth Day</label>
+                  <select id="mBirthDay"><option value="">Day</option></select>
+                </div>
+                <div class="field">
+                  <label for="mBirthYear">Birth Year</label>
+                  <select id="mBirthYear"><option value="">Year</option></select>
+                </div>
+              </div>
+
+              <!-- Address -->
+              <div class="form-grid cols-3" id="mAddressGrid" style="margin-bottom:14px;">
+              <div class="span-3" style="margin-bottom:4px;">
+                <label class="check-item toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="sameAsPrimary" onchange="onSameAsPrimary(this.checked)" />
+                  <span class="toggle-label">Same as Primary (copy address from Primary Member)</span>
+                </label>
+              </div>
+                <div class="field span-3">
+                  <label for="mAddress1">Address Line 1</label>
+                  <input type="text" id="mAddress1" placeholder="Street address" />
+                </div>
+                <div class="field span-3">
+                  <label for="mAddress2">Address Line 2</label>
+                  <input type="text" id="mAddress2" placeholder="Apt, suite, unit (optional)" />
+                </div>
+                <div class="field">
+                  <label for="mCity">City</label>
+                  <input type="text" id="mCity" placeholder="City" />
+                </div>
+                <div class="field">
+                  <label for="mState">State</label>
+                  <select id="mState">
+                    <option value="">— Select State —</option>
+                    <option value="1">AL – Alabama</option><option value="2">AK – Alaska</option><option value="3">AZ – Arizona</option><option value="4">AR – Arkansas</option><option value="5">CA – California</option><option value="6">CO – Colorado</option><option value="7">CT – Connecticut</option><option value="8">DE – Delaware</option><option value="9">FL – Florida</option><option value="10">GA – Georgia</option><option value="11">HI – Hawaii</option><option value="12">ID – Idaho</option><option value="13">IL – Illinois</option><option value="14">IN – Indiana</option><option value="15">IA – Iowa</option><option value="16">KS – Kansas</option><option value="17">KY – Kentucky</option><option value="18">LA – Louisiana</option><option value="19">ME – Maine</option><option value="20">MD – Maryland</option><option value="21">MA – Massachusetts</option><option value="22">MI – Michigan</option><option value="23">MN – Minnesota</option><option value="24">MS – Mississippi</option><option value="25">MO – Missouri</option><option value="26">MT – Montana</option><option value="27">NE – Nebraska</option><option value="28">NV – Nevada</option><option value="29">NH – New Hampshire</option><option value="30">NJ – New Jersey</option><option value="31">NM – New Mexico</option><option value="32">NY – New York</option><option value="33">NC – North Carolina</option><option value="34">ND – North Dakota</option><option value="35">OH – Ohio</option><option value="36">OK – Oklahoma</option><option value="37">OR – Oregon</option><option value="38">PA – Pennsylvania</option><option value="39">RI – Rhode Island</option><option value="40">SC – South Carolina</option><option value="41">SD – South Dakota</option><option value="42">TN – Tennessee</option><option value="43">TX – Texas</option><option value="44">UT – Utah</option><option value="45">VT – Vermont</option><option value="46">VA – Virginia</option><option value="47">WA – Washington</option><option value="48">WV – West Virginia</option><option value="49">WI – Wisconsin</option><option value="50">WY – Wyoming</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="mCountry">Country</label>
+                  <select id="mCountry">
+                    <option value="USA" selected>USA – United States</option>
+                    <option value="CAN">CAN – Canada</option>
+                    <option value="GBR">GBR – United Kingdom</option>
+                    <option value="AUS">AUS – Australia</option>
+                    <option value="IND">IND – India</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="mPinCode">PIN / Zip Code</label>
+                  <input type="text" id="mPinCode" placeholder="Zip / Pin" />
+                </div>
+                <div class="field">
+                  <label for="mNickName">Nick Name</label>
+                  <input type="text" id="mNickName" placeholder="Nickname" />
+                </div>
+              </div>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#888;font-weight:500;margin-top:8px;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" id="mAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
+              </label>
+
+              <!-- Options -->
+              <div style="margin-bottom:16px;">
+                <div class="check-group">
+                  <label class="check-item toggle-row">
+                    <input type="checkbox" class="toggle-checkbox" id="mInactive" />
+                    <span class="toggle-label">Inactive</span>
+                  </label>
+                  <label class="check-item toggle-row">
+                    <input type="checkbox" class="toggle-checkbox" id="mDisableAlerts" />
+                    <span class="toggle-label">Disable Alerts</span>
+                  </label>
+                  <label class="check-item toggle-row">
+                    <input type="checkbox" class="toggle-checkbox" id="mIncludeContrib" />
+                    <span class="toggle-label">Include in Contributions</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Form actions -->
+              <div style="display:flex;gap:10px;align-items:center;">
+                <button class="btn-add-member" id="addMemberBtn" onclick="addOrUpdateMember()">＋ Add Member</button>
+                <button class="btn-cancel-member" onclick="cancelEditMember()">Cancel</button>
+              </div>
+              <div class="feedback" id="memberFormFeedback" style="margin-top:10px;"></div>
+
+            </div>
+          </div>
+
+          <!-- Members list table -->
+          <div id="membersListWrap">
+            <table class="members-table" id="membersListTable">
+              <thead>
+                <tr>
+                  <th style="width:36px;">#</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th style="width:130px;"></th>
+                </tr>
+              </thead>
+              <tbody id="membersListBody">
+                <tr><td colspan="7" class="empty-members">No family members added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           CARD 3 — RELATIONSHIPS & ROLES
+      ══════════════════════════════════════════════════ -->
+      <div class="form-card" id="rolesCard">
+        <div class="form-card-header">
+          <span class="section-icon">🔗</span>
+          <h3>Roles</h3>
+        </div>
+        <div class="form-card-body">
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            Assign a role to each family member. For <strong>Spouse</strong>, an Anniversary Date field will appear.
+          </p>
+          <div style="overflow-x:auto;">
+            <table class="roles-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Role</th>
+                  <th>Anniversary Date (Spouse only)</th>
+                </tr>
+              </thead>
+              <tbody id="rolesTableBody">
+                <tr><td colspan="3" style="text-align:center;color:#bbb;padding:28px;font-size:13px;">
+                  Add the Primary Member and Family Members above to assign roles.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Action Bar (create/edit mode) ── -->
+      <div class="action-bar" id="actionBar">
+        <button type="button" class="btn-clear" onclick="clearAll()">Clear All</button>
+        <button type="button" class="btn-save" id="saveBtn" onclick="saveFamily()">Save Family</button>
+      </div>
+
+      <!-- ── View-mode Action Bar ── -->
+      <div class="action-bar" id="viewActionBar" style="display:none;">
+        <button type="button" class="btn-clear" onclick="window.location.href='/viewfamily'">← Back to Families</button>
+        <button type="button" class="btn-save" onclick="switchToEdit()">✎ Edit Family</button>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     DATE DROPDOWNS HELPERS
+  ════════════════════════════════════ */
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  function fillMonths(selId) {
+    const sel = document.getElementById(selId);
+    MONTHS.forEach((m, i) => { const o = document.createElement('option'); o.value = i+1; o.textContent = m; sel.appendChild(o); });
+  }
+  function fillDays(selId) {
+    const sel = document.getElementById(selId);
+    for (let d = 1; d <= 31; d++) { const o = document.createElement('option'); o.value = d; o.textContent = d; sel.appendChild(o); }
+  }
+  function fillYears(selId, fromYear) {
+    const sel = document.getElementById(selId);
+    const cur = fromYear || new Date().getFullYear();
+    for (let y = cur; y >= cur - 120; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o); }
+  }
+  /** Creates a small set of anniversary-year options (last 80 years) in a select element. */
+  function fillAnnivYears(selEl) {
+    const cur = new Date().getFullYear();
+    for (let y = cur; y >= cur - 80; y--) { const o = document.createElement('option'); o.value = y; o.textContent = y; selEl.appendChild(o); }
+  }
+
+  function populateDateDropdowns() {
+    ['pBirthMonth','mBirthMonth'].forEach(fillMonths);
+    ['pBirthDay','mBirthDay'].forEach(fillDays);
+    ['pBirthYear','mBirthYear'].forEach(id => fillYears(id));
+  }
+
+  /* ════════════════════════════════════
+     PHOTO PREVIEW
+  ════════════════════════════════════ */
+  let primaryPhotoData = null;
+
+  function showPhotoClearBtn(visible) {
+    const btn = document.getElementById('photoClearBtn');
+    if (btn) btn.style.display = visible ? 'flex' : 'none';
+  }
+
+  function previewPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          const scale = MAX / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        primaryPhotoData = canvas.toDataURL('image/jpeg', 0.82);
+        const box = document.getElementById('photoPreviewBox');
+        box.innerHTML = `<img src="${primaryPhotoData}" alt="Primary photo" />`;
+        showPhotoClearBtn(true);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearPhoto(event) {
+    event.stopPropagation();
+    primaryPhotoData = '';  // sentinel: user explicitly removed photo
+    const box = document.getElementById('photoPreviewBox');
+    box.innerHTML = '<div class="photo-placeholder" id="photoPlaceholder">📷<br/>Click to upload</div>';
+    document.getElementById('primaryPhoto').value = '';
+    showPhotoClearBtn(false);
+  }
+
+  /* ════════════════════════════════════
+     PAGE STATE
+  ════════════════════════════════════ */
+  /** Array of additional family members (not the primary). */
+  const familyMembers = [];
+
+  /** Index in familyMembers[] being edited (null = new). */
+  let editingMemberIndex = null;
+
+  /** family id if editing existing record */
+  let familyId = null;
+
+  /** DB id of the primary (Head) member — null for brand-new families */
+  let primaryMemberId = null;
+
+  /** view-only mode */
+  let isViewMode = false;
+
+  /** dirty flag */
+  let isDirty = false;
+
+  /* Family name is derived from the primary member on the server — no hidden input needed. */
+
+  /* ════════════════════════════════════
+     MEMBER SEARCH (existing members)
+  ════════════════════════════════════ */
+  let searchTimer = null;
+  let memberSearchResults = [];   // holds the last batch of search hits
+
+  function onMemberSearch(q) {
+    clearTimeout(searchTimer);
+    const dd = document.getElementById('memberSearchDropdown');
+    if (!q.trim()) { dd.style.display = 'none'; return; }
+    searchTimer = setTimeout(() => doMemberSearch(q.trim()), 300);
+  }
+
+  async function doMemberSearch(q) {
+    const dd = document.getElementById('memberSearchDropdown');
+    dd.innerHTML = '<div class="msd-empty">Searching…</div>';
+    dd.style.display = 'block';
+    try {
+      const res  = await fetch(`/api/members?search=${encodeURIComponent(q)}`);
+      const list = await res.json();
+      if (!list.length) { dd.innerHTML = '<div class="msd-empty">No members found.</div>'; return; }
+      memberSearchResults = list.slice(0, 12);
+      dd.innerHTML = memberSearchResults.map((m, i) => {
+        const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
+        const sub  = [m.memberType, m.familyName].filter(Boolean).join(' · ');
+        return `<div class="msd-item" onclick="addSearchedMember(${i})">
+                  <strong>${escHtml(name)}</strong>
+                  ${sub ? `<div class="msd-sub">${escHtml(sub)}</div>` : ''}
+                </div>`;
+      }).join('');
+    } catch {
+      dd.innerHTML = '<div class="msd-empty">Search failed.</div>';
+    }
+  }
+
+  function addSearchedMember(index) {
+    const m = memberSearchResults[index];
+    if (!m) return;
+    document.getElementById('memberSearchInput').value = '';
+    document.getElementById('memberSearchDropdown').style.display = 'none';
+    familyMembers.push({
+      id:                   m.id || null,
+      firstName:            m.firstName   || '',
+      lastName:             m.lastName    || '',
+      otherName:            m.otherName   || '',
+      email:                m.email       || '',
+      phone:                m.phone       || '',
+      memberType:           m.memberType  || 'Member',
+      gender:               m.gender      || '',
+      address1:             m.address1    || '',
+      address2:             m.address2    || '',
+      city:                 m.city        || '',
+      state:                m.state       || '',
+      country:              m.country     || 'USA',
+      pinCode:              m.pinCode     || '',
+      phonePrivate:         !!m.phonePrivate,
+      emailPrivate:         !!m.emailPrivate,
+      addressPrivate:       !!m.addressPrivate,
+      birthdayMonth:        m.birthdayMonth  ? String(m.birthdayMonth) : '',
+      birthdayDay:          m.birthdayDay    ? String(m.birthdayDay)   : '',
+      birthdayYear:         m.birthdayYear   ? String(m.birthdayYear)  : '',
+      inactive:             !!m.inactive,
+      disableAlerts:        !!m.disableAlerts,
+      includeContributions: false,
+      sameAsFamilyAddress:  false,
+      role:                 'Adult',
+      anniversaryMonth:     '',
+      anniversaryDay:       '',
+      anniversaryYear:      '',
+    });
+    isDirty = true;
+    renderMembersList();
+    renderRolesTable();
+  }
+
+  /* ════════════════════════════════════
+     ADD MEMBER FORM TOGGLE
+  ════════════════════════════════════ */
+  function toggleAddMemberForm() {
+    const form = document.getElementById('addMemberForm');
+    const isOpen = form.classList.contains('open');
+    if (isOpen) { cancelEditMember(); }
+    else {
+      form.classList.add('open');
+      document.getElementById('btnOpenAdd').style.display = 'none';
+      document.getElementById('addMemberFormTitle').textContent = 'Add Member';
+      document.getElementById('addMemberBtn').textContent = '＋ Add Member';
+      resetMemberForm();
+    }
+  }
+
+  function cancelEditMember() {
+    document.getElementById('addMemberForm').classList.remove('open');
+    document.getElementById('btnOpenAdd').style.display = '';
+    editingMemberIndex = null;
+    resetMemberForm();
+  }
+
+  /* ════════════════════════════════════
+     SAME AS PRIMARY
+  ════════════════════════════════════ */
+  function onSameAsPrimary(checked) {
+    const addrIds = ['mAddress1','mAddress2','mCity','mState','mCountry','mPinCode'];
+    if (checked) {
+      setVal('mAddress1', document.getElementById('pAddress1').value);
+      setVal('mAddress2', document.getElementById('pAddress2').value);
+      setVal('mCity',     document.getElementById('pCity').value);
+      setVal('mState',    document.getElementById('pState').value);
+      setVal('mCountry',  document.getElementById('pCountry').value || 'USA');
+      setVal('mPinCode',  document.getElementById('pPinCode').value);
+      addrIds.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
+    } else {
+      addrIds.forEach(id => { const el = document.getElementById(id); if (el) { el.disabled = false; el.value = ''; } });
+      setVal('mCountry', 'USA');
+    }
+  }
+
+  /* ════════════════════════════════════
+     ADD / UPDATE MEMBER
+  ════════════════════════════════════ */
+  function readMemberForm() {
+    return {
+      firstName:            document.getElementById('mFirstName').value.trim(),
+      lastName:             document.getElementById('mLastName').value.trim(),
+      otherName:            document.getElementById('mNickName').value.trim(),
+      email:                document.getElementById('mEmail').value.trim(),
+      phone:                document.getElementById('mPhone').value.trim(),
+      memberType:           document.getElementById('mCategory').value,
+      gender:               document.getElementById('mGender').value,
+      address1:             document.getElementById('mAddress1').value.trim(),
+      address2:             document.getElementById('mAddress2').value.trim(),
+      city:                 document.getElementById('mCity').value.trim(),
+      state:                document.getElementById('mState').value,
+      country:              document.getElementById('mCountry').value,
+      pinCode:              document.getElementById('mPinCode').value.trim(),
+      phonePrivate:         document.getElementById('mPhonePrivate').checked,
+      emailPrivate:         document.getElementById('mEmailPrivate').checked,
+      addressPrivate:       document.getElementById('mAddressPrivate').checked,
+      birthdayMonth:        document.getElementById('mBirthMonth').value,
+      birthdayDay:          document.getElementById('mBirthDay').value,
+      birthdayYear:         document.getElementById('mBirthYear').value,
+      inactive:             document.getElementById('mInactive').checked,
+      disableAlerts:        document.getElementById('mDisableAlerts').checked,
+      includeContributions: document.getElementById('mIncludeContrib').checked,
+      sameAsFamilyAddress:  document.getElementById('sameAsPrimary').checked,
+      role:                 'Adult',          // default; overrideable in Roles section
+      anniversaryMonth:     '',
+      anniversaryDay:       '',
+      anniversaryYear:      '',
+    };
+  }
+
+  function addOrUpdateMember() {
+    const m = readMemberForm();
+    let valid = true;
+
+    if (!m.firstName) {
+      document.getElementById('mFirstNameHint').textContent = 'First name is required.';
+      document.getElementById('mFirstName').classList.add('invalid');
+      valid = false;
+    } else {
+      document.getElementById('mFirstNameHint').textContent = '';
+      document.getElementById('mFirstName').classList.remove('invalid');
+    }
+    if (!m.lastName) {
+      document.getElementById('mLastNameHint').textContent = 'Last name is required.';
+      document.getElementById('mLastName').classList.add('invalid');
+      valid = false;
+    } else {
+      document.getElementById('mLastNameHint').textContent = '';
+      document.getElementById('mLastName').classList.remove('invalid');
+    }
+    if (!valid) return;
+
+    let msg;
+    if (editingMemberIndex !== null) {
+      m.id   = familyMembers[editingMemberIndex].id;
+      m.role = familyMembers[editingMemberIndex].role;
+      m.anniversaryMonth = familyMembers[editingMemberIndex].anniversaryMonth;
+      m.anniversaryDay   = familyMembers[editingMemberIndex].anniversaryDay;
+      m.anniversaryYear  = familyMembers[editingMemberIndex].anniversaryYear;
+      familyMembers[editingMemberIndex] = m;
+      msg = `${m.firstName} ${m.lastName} updated.`;
+    } else {
+      familyMembers.push(m);
+      msg = `${m.firstName} ${m.lastName} added.`;
+    }
+    isDirty = true;
+    cancelEditMember();
+    renderMembersList();
+    renderRolesTable();
+
+    const fb = document.getElementById('memberFormFeedback');
+    fb.textContent = msg; fb.className = 'feedback success';
+    setTimeout(() => { fb.className = 'feedback'; }, 3500);
+  }
+
+  function editFamilyMember(index) {
+    const m = familyMembers[index];
+    editingMemberIndex = index;
+    const form = document.getElementById('addMemberForm');
+    form.classList.add('open');
+    document.getElementById('btnOpenAdd').style.display = 'none';
+    document.getElementById('addMemberFormTitle').textContent = 'Edit Member';
+    document.getElementById('addMemberBtn').textContent = '✔ Update Member';
+
+    setVal('mFirstName',  m.firstName);
+    setVal('mLastName',   m.lastName);
+    setVal('mNickName',   m.otherName);
+    setVal('mEmail',      m.email);
+    setVal('mPhone',      m.phone);
+    setVal('mCategory',   m.memberType || 'Member');
+    setVal('mGender',     m.gender || '');
+    setVal('mAddress1',   m.address1);
+    setVal('mAddress2',   m.address2);
+    setVal('mCity',       m.city);
+    setVal('mState',      m.state || '');
+    setVal('mCountry',    m.country || 'USA');
+    setVal('mPinCode',    m.pinCode);
+    setVal('mBirthMonth', m.birthdayMonth || '');
+    setVal('mBirthDay',   m.birthdayDay   || '');
+    setVal('mBirthYear',  m.birthdayYear  || '');
+    document.getElementById('mInactive').checked       = !!m.inactive;
+    document.getElementById('mDisableAlerts').checked  = !!m.disableAlerts;
+    document.getElementById('mIncludeContrib').checked = !!m.includeContributions;
+    document.getElementById('mPhonePrivate').checked   = !!m.phonePrivate;
+    document.getElementById('mEmailPrivate').checked   = !!m.emailPrivate;
+    document.getElementById('mAddressPrivate').checked = !!m.addressPrivate;
+    document.getElementById('sameAsPrimary').checked   = !!m.sameAsFamilyAddress;
+    ['mAddress1','mAddress2','mCity','mState','mCountry','mPinCode'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !!m.sameAsFamilyAddress;
+    });
+
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function removeFamilyMember(index) {
+    if (!confirm('Are you sure you want to remove this family member?')) return;
+    const m = familyMembers[index];
+    if (m.id && familyId) {
+      fetch(`/api/families/${familyId}/members/${m.id}`, { method: 'DELETE' }).catch(() => {});
+    }
+    if (editingMemberIndex === index) cancelEditMember();
+    else if (editingMemberIndex !== null && editingMemberIndex > index) editingMemberIndex--;
+    familyMembers.splice(index, 1);
+    isDirty = true;
+    renderMembersList();
+    renderRolesTable();
+    showFeedback(`${m.firstName} ${m.lastName} removed.`, 'success');
+  }
+
+  function resetMemberForm() {
+    ['mFirstName','mLastName','mNickName','mEmail','mPhone',
+     'mAddress1','mAddress2','mCity','mPinCode'].forEach(id => setVal(id, ''));
+    setVal('mCategory',   'Member');
+    setVal('mGender',     '');
+    setVal('mBirthMonth', ''); setVal('mBirthDay', ''); setVal('mBirthYear', '');
+    setVal('mState', ''); setVal('mCountry', 'USA');
+    document.getElementById('mInactive').checked       = false;
+    document.getElementById('mDisableAlerts').checked  = false;
+    document.getElementById('mIncludeContrib').checked = false;
+    document.getElementById('mPhonePrivate').checked   = false;
+    document.getElementById('mEmailPrivate').checked   = false;
+    document.getElementById('mAddressPrivate').checked = false;
+    document.getElementById('sameAsPrimary').checked   = true;
+    onSameAsPrimary(true);   // copy primary address and disable address fields by default
+    ['mFirstNameHint','mLastNameHint'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+    ['mFirstName','mLastName'].forEach(id => {
+      document.getElementById(id).classList.remove('invalid');
+    });
+    editingMemberIndex = null;
+  }
+
+  /* ════════════════════════════════════
+     RENDER MEMBERS LIST TABLE
+  ════════════════════════════════════ */
+  function renderMembersList() {
+    const tbody = document.getElementById('membersListBody');
+    if (!familyMembers.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-members">No family members added yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = familyMembers.map((m, i) => {
+      const nameHtml = (window.CGP_memberNameHtml
+        ? window.CGP_memberNameHtml(m.firstName, m.lastName, m.otherName)
+        : escHtml([m.firstName, m.lastName].filter(Boolean).join(' ')));
+      return `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${nameHtml}</strong></td>
+        <td>${escHtml(m.memberType || 'Member')}</td>
+        <td>${formatPhone(m.phone)}${m.phonePrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}</td>
+        <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}${m.emailPrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}${m.addressPrivate ? ' <span title="Address Private — hidden from members" style="font-size:11px;">🔒🏠</span>' : ''}</td>
+        <td>${isViewMode ? '' : `<div style="display:flex;gap:6px;align-items:center;">
+          ${window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false ? '' : `<button class="btn-edit-member" onclick="editFamilyMember(${i})">Edit</button>`}
+          ${window.CGP_PERMS && window.CGP_PERMS['admin.family.delete'] === false ? '' : `<button class="btn-remove" onclick="removeFamilyMember(${i})">Delete</button>`}
+        </div>`}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ════════════════════════════════════
+     RENDER ROLES TABLE
+  ════════════════════════════════════ */
+  const ROLE_OPTIONS = ['Head of Household', 'Spouse', 'Adult', 'Child'];
+
+  function renderRolesTable() {
+    const tbody     = document.getElementById('rolesTableBody');
+    const pFirst    = (document.getElementById('pFirstName').value || '').trim();
+    const pLast     = (document.getElementById('pLastName').value  || '').trim();
+    const pName     = [pFirst, pLast].filter(Boolean).join(' ') || '(Primary Member)';
+    const hasPrimary = pFirst || pLast;
+
+    const rows = [];
+
+    // Primary member row
+    if (hasPrimary || familyMembers.length > 0) {
+      rows.push({
+        key:    'primary',
+        label:  pName,
+        isPrimary: true,
+        role:   primaryRoleData.role,
+        annivM: primaryRoleData.anniversaryMonth,
+        annivD: primaryRoleData.anniversaryDay,
+        annivY: primaryRoleData.anniversaryYear,
+      });
+    }
+
+    // Family members
+    familyMembers.forEach((m, i) => {
+      rows.push({
+        key:    i,
+        label:  [m.firstName, m.lastName].filter(Boolean).join(' ') || `Member ${i+1}`,
+        isPrimary: false,
+        role:   m.role || 'Adult',
+        annivM: m.anniversaryMonth || '',
+        annivD: m.anniversaryDay   || '',
+        annivY: m.anniversaryYear  || '',
+      });
+    });
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#bbb;padding:28px;font-size:13px;">Add the Primary Member and Family Members above to assign roles.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const roleOpts = ROLE_OPTIONS.map(ro =>
+        `<option value="${ro}" ${r.role === ro ? 'selected' : ''}>${ro}</option>`
+      ).join('');
+      const isSpouse  = r.role === 'Spouse';
+      const annivShow = isSpouse ? 'visible' : '';
+      const keyStr    = r.key === 'primary' ? 'primary' : String(r.key);
+
+      // Build anniversary month/day/year selects
+      const annivMonthOpts = ['<option value="">Month</option>',
+        ...MONTHS.map((mn, mi) => `<option value="${mi+1}" ${String(r.annivM) === String(mi+1) ? 'selected' : ''}>${mn}</option>`)
+      ].join('');
+      const annivDayOpts = ['<option value="">Day</option>',
+        ...Array.from({length:31}, (_,di) => `<option value="${di+1}" ${String(r.annivD) === String(di+1) ? 'selected' : ''}>${di+1}</option>`)
+      ].join('');
+      const curYear = new Date().getFullYear();
+      const annivYearOpts = ['<option value="">Year</option>',
+        ...Array.from({length:80}, (_,yi) => { const y=curYear-yi; return `<option value="${y}" ${String(r.annivY) === String(y) ? 'selected' : ''}>${y}</option>`; })
+      ].join('');
+
+      return `<tr id="role-row-${keyStr}">
+        <td>
+          <strong>${escHtml(r.label)}</strong>
+          ${r.isPrimary ? '<span class="badge-primary">Primary</span>' : ''}
+        </td>
+        <td>
+          <select onchange="onRoleChange('${keyStr}', this.value)">
+            ${roleOpts}
+          </select>
+        </td>
+        <td>
+          <div class="anniv-row ${annivShow}" id="anniv-${keyStr}">
+            <span class="anniv-label">📅 Anniversary:</span>
+            <select onchange="onAnnivChange('${keyStr}','month',this.value)">${annivMonthOpts}</select>
+            <select onchange="onAnnivChange('${keyStr}','day',  this.value)">${annivDayOpts}</select>
+            <select onchange="onAnnivChange('${keyStr}','year', this.value)">${annivYearOpts}</select>
+          </div>
+          ${!isSpouse ? '<span style="color:#ccc;font-size: 13px;">—</span>' : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ────────────────────────────────── */
+  const primaryRoleData = {
+    role: 'Head of Household',
+    anniversaryMonth: '', anniversaryDay: '', anniversaryYear: ''
+  };
+
+  function onRoleChange(key, role) {
+    if (key === 'primary') {
+      primaryRoleData.role = role;
+    } else {
+      const idx = parseInt(key, 10);
+      if (familyMembers[idx]) familyMembers[idx].role = role;
+    }
+    // Show/hide anniversary row
+    const annivDiv  = document.getElementById(`anniv-${key}`);
+    const annivCell = annivDiv ? annivDiv.parentElement : null;
+    if (annivDiv) {
+      annivDiv.classList.toggle('visible', role === 'Spouse');
+    }
+    if (annivCell) {
+      const dash = annivCell.querySelector('span[style]');
+      if (role === 'Spouse') { if (dash) dash.style.display = 'none'; }
+      else { if (dash) dash.style.display = ''; else annivCell.innerHTML += '<span style="color:#ccc;font-size: 13px;">—</span>'; }
+    }
+    isDirty = true;
+  }
+
+  function onAnnivChange(key, field, value) {
+    if (key === 'primary') {
+      if (field === 'month') primaryRoleData.anniversaryMonth = value;
+      if (field === 'day')   primaryRoleData.anniversaryDay   = value;
+      if (field === 'year')  primaryRoleData.anniversaryYear  = value;
+    } else {
+      const idx = parseInt(key, 10);
+      if (familyMembers[idx]) {
+        if (field === 'month') familyMembers[idx].anniversaryMonth = value;
+        if (field === 'day')   familyMembers[idx].anniversaryDay   = value;
+        if (field === 'year')  familyMembers[idx].anniversaryYear  = value;
+      }
+    }
+    isDirty = true;
+  }
+
+  /* ════════════════════════════════════
+     PRIMARY FORM READER
+  ════════════════════════════════════ */
+  function readPrimary() {
+    return {
+      id:                   primaryMemberId || null,
+      photoData:            primaryPhotoData !== null ? primaryPhotoData : null,
+      role:                 primaryRoleData.role || 'Head of Household',
+      firstName:            document.getElementById('pFirstName').value.trim(),
+      lastName:             document.getElementById('pLastName').value.trim(),
+      otherName:            document.getElementById('pNickName').value.trim(),
+      email:                document.getElementById('pEmail').value.trim(),
+      phone:                document.getElementById('pPhone').value.trim(),
+      memberType:           document.getElementById('pCategory').value,
+      gender:               document.getElementById('pGender').value,
+      address1:             document.getElementById('pAddress1').value.trim(),
+      address2:             document.getElementById('pAddress2').value.trim(),
+      city:                 document.getElementById('pCity').value.trim(),
+      state:                document.getElementById('pState').value,
+      country:              document.getElementById('pCountry').value,
+      pinCode:              document.getElementById('pPinCode').value.trim(),
+      phonePrivate:         document.getElementById('pPhonePrivate').checked,
+      emailPrivate:         document.getElementById('pEmailPrivate').checked,
+      addressPrivate:       document.getElementById('pAddressPrivate').checked,
+      birthdayMonth:        document.getElementById('pBirthMonth').value,
+      birthdayDay:          document.getElementById('pBirthDay').value,
+      birthdayYear:         document.getElementById('pBirthYear').value,
+      anniversaryMonth:     primaryRoleData.anniversaryMonth,
+      anniversaryDay:       primaryRoleData.anniversaryDay,
+      anniversaryYear:      primaryRoleData.anniversaryYear,
+      inactive:             document.getElementById('pInactive').checked,
+      disableAlerts:        document.getElementById('pDisableAlerts').checked,
+      includeContributions: document.getElementById('pIncludeContrib').checked,
+      sameAsFamilyAddress:  false,
+    };
+  }
+
+  /* ════════════════════════════════════
+     SAVE FAMILY
+  ════════════════════════════════════ */
+  async function saveFamily() {
+    const primary = readPrimary();
+
+    // Guard: if we are editing an existing family but the primary member's DB id
+    // is still null, the page-load fetch hasn't finished yet (race condition).
+    // Proceeding without an id would cause the backend to soft-delete the existing
+    // row and insert a duplicate instead of updating it.
+    if (familyId && !primary.id) {
+      showFeedback('⏳ Family data is still loading — please wait a moment and try again.', 'error');
+      return;
+    }
+
+    // Validate primary member name
+    if (!primary.firstName || !primary.lastName) {
+      document.getElementById('pFirstNameHint').textContent = primary.firstName ? '' : 'First name is required.';
+      document.getElementById('pLastNameHint').textContent  = primary.lastName  ? '' : 'Last name is required.';
+      if (!primary.firstName) document.getElementById('pFirstName').classList.add('invalid');
+      if (!primary.lastName)  document.getElementById('pLastName').classList.add('invalid');
+      showFeedback("Please fill in the Primary Member's first and last name.", 'error');
+      return;
+    }
+    ['pFirstName','pLastName'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+    ['pFirstNameHint','pLastNameHint'].forEach(id => document.getElementById(id).textContent = '');
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = familyId ? 'Updating…' : 'Saving…';
+
+    const url    = familyId ? `/api/families/${familyId}` : '/api/family';
+    const method = familyId ? 'PUT' : 'POST';
+
+    const allMembers = [primary, ...familyMembers];
+
+    try {
+      const res  = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inactive: document.getElementById('pInactive').checked,
+          members:  allMembers,
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const savedId = data.id || familyId;
+        const wasNew  = !familyId;
+        showFeedback(
+          `✅ Family record for "${data.familyName}" ${wasNew ? 'saved' : 'updated'} with ${data.members || allMembers.length} member(s). (ID: ${savedId})`,
+          'success'
+        );
+        // Reload the full family from the server so every member's DB id is
+        // stored in the frontend state — prevents duplicate inserts on
+        // subsequent saves within the same page session.
+        await loadFamily(savedId, 'edit');
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to save family.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = familyId ? 'Update Family' : 'Save Family';
+    }
+  }
+
+  /* ════════════════════════════════════
+     CLEAR ALL
+  ════════════════════════════════════ */
+  function clearAll() {
+
+    const box = document.getElementById('photoPreviewBox');
+    box.innerHTML = '<div class="photo-placeholder" id="photoPlaceholder">📷<br/>Click to upload</div>';
+    document.getElementById('primaryPhoto').value = '';
+    primaryPhotoData = null;
+    showPhotoClearBtn(false);
+
+    ['pFirstName','pLastName','pNickName','pEmail','pPhone',
+     'pAddress1','pAddress2','pCity','pPinCode'].forEach(id => setVal(id, ''));
+    setVal('pCategory', 'Member');
+    setVal('pGender',   '');
+    setVal('pState', ''); setVal('pCountry', 'USA');
+    setVal('pBirthMonth', ''); setVal('pBirthDay', ''); setVal('pBirthYear', '');
+    document.getElementById('pInactive').checked       = false;
+    document.getElementById('pDisableAlerts').checked  = false;
+    document.getElementById('pIncludeContrib').checked = true;
+    document.getElementById('pPhonePrivate').checked   = false;
+    document.getElementById('pEmailPrivate').checked   = false;
+    document.getElementById('pAddressPrivate').checked = false;
+
+    primaryRoleData.role = 'Head of Household';
+    primaryRoleData.anniversaryMonth = '';
+    primaryRoleData.anniversaryDay   = '';
+    primaryRoleData.anniversaryYear  = '';
+
+    familyMembers.length = 0;
+    cancelEditMember();
+    renderMembersList();
+    renderRolesTable();
+
+    document.getElementById('feedbackMsg').className = 'feedback';
+    document.getElementById('feedbackMsg').textContent = '';
+    isDirty = false;
+    familyId = null;
+    primaryMemberId = null;
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  /* ════════════════════════════════════
+     LOAD FAMILY (URL-based or POST nav-context)
+  ════════════════════════════════════ */
+  async function loadFromUrl() {
+    // 1. Try URL query params first (direct links / bookmarks)
+    const params = new URLSearchParams(window.location.search);
+    let id   = params.get('id');
+    let mode = params.get('mode') || 'edit';
+
+    // 2. Fall back to server-side nav context set by POST /family
+    if (!id) {
+      try {
+        const res  = await fetch('/api/nav-context');
+        if (res.ok) {
+          const ctx = await res.json();
+          if (ctx.id) { id = ctx.id; mode = ctx.mode || 'view'; }
+        }
+      } catch { /* ignore — stay in add mode */ }
+    }
+
+    if (id) {
+      // Disable save while the family data is being fetched so that primaryMemberId
+      // is always populated before the user can trigger a save.
+      const saveBtn = document.getElementById('saveBtn');
+      if (saveBtn) saveBtn.disabled = true;
+      loadFamily(parseInt(id, 10), mode);
+    }
+  }
+
+  async function loadFamily(id, mode) {
+    try {
+      const res = await fetch(`/api/families/${id}`);
+      if (!res.ok) {
+        let errMsg = 'Failed to load family details.';
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch { /* ignore json parse error */ }
+        throw new Error(errMsg);
+      }
+      const data = await res.json();
+      familyId = data.id;
+      populateFamily(data, mode);
+    } catch (err) {
+      showFeedback('❌ ' + (err.message || 'Failed to load family details.'), 'error');
+      // Re-enable save button so the user isn't left with a permanently disabled button
+      const saveBtn = document.getElementById('saveBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
+  /* ════════════════════════════════════
+     POPULATE FAMILY FROM API DATA
+  ════════════════════════════════════ */
+  const ROLE_DB_TO_UI = {
+    'Head': 'Head of Household', 'Head of Household': 'Head of Household',
+    'Wife': 'Spouse',   'Spouse': 'Spouse',
+    'Son':  'Child',    'Daughter': 'Child', 'Child': 'Child',
+    'Father': 'Adult',  'Mother': 'Adult',
+    'Father-in-Law': 'Adult', 'Mother-in-Law': 'Adult', 'Adult': 'Adult',
+  };
+
+  function populateFamily(data, mode) {
+    // Separate primary (Head of Household) from other family members.
+    // Search explicitly for a Head/Head-of-Household role; only fall back to
+    // index 0 when no such member exists.  The old pattern
+    //   "|| allMbrs.indexOf(m) === 0"
+    // was always true for the first element, so headIdx was permanently 0
+    // regardless of role — causing the wrong member to be treated as primary
+    // whenever the API returned a non-Head member first.
+    const allMbrs = data.members || [];
+    const headIdx = (() => {
+      const idx = allMbrs.findIndex(m =>
+        ['Head', 'Head of Household'].includes(m.role));
+      return idx >= 0 ? idx : 0;
+    })();
+    const primary = allMbrs.length > 0 ? allMbrs[headIdx] : null;
+
+    if (primary) {
+      const uiRole = ROLE_DB_TO_UI[primary.role] || 'Head of Household';
+      primaryRoleData.role             = uiRole;
+      primaryMemberId = primary.id || null;
+      primaryRoleData.anniversaryMonth = primary.anniversaryMonth ? String(primary.anniversaryMonth) : '';
+      primaryRoleData.anniversaryDay   = primary.anniversaryDay   ? String(primary.anniversaryDay)   : '';
+      primaryRoleData.anniversaryYear  = primary.anniversaryYear  ? String(primary.anniversaryYear)  : '';
+
+      setVal('pFirstName',  primary.firstName  || '');
+      setVal('pLastName',   primary.lastName   || '');
+      setVal('pNickName',   primary.otherName  || '');
+      setVal('pEmail',      primary.email      || '');
+      setVal('pPhone',      primary.phone      || '');
+      setVal('pCategory',   primary.memberType || 'Member');
+      setVal('pGender',     primary.gender     || '');
+      setVal('pAddress1',   primary.address1   || '');
+      setVal('pAddress2',   primary.address2   || '');
+      setVal('pCity',       primary.city       || '');
+      setVal('pState',      primary.state      || '');
+      setVal('pCountry',    primary.country    || 'USA');
+      setVal('pPinCode',    primary.pinCode    || '');
+      setVal('pBirthMonth', primary.birthdayMonth ? String(primary.birthdayMonth) : '');
+      setVal('pBirthDay',   primary.birthdayDay   ? String(primary.birthdayDay)   : '');
+      setVal('pBirthYear',  primary.birthdayYear  ? String(primary.birthdayYear)  : '');
+      document.getElementById('pInactive').checked       = !!primary.inactive;
+      document.getElementById('pDisableAlerts').checked  = !!primary.disableAlerts;
+      document.getElementById('pIncludeContrib').checked = primary.includeContributions !== false;
+      document.getElementById('pPhonePrivate').checked   = !!primary.phonePrivate;
+      document.getElementById('pEmailPrivate').checked   = !!primary.emailPrivate;
+      document.getElementById('pAddressPrivate').checked = !!primary.addressPrivate;
+
+      // Restore photo if saved
+      if (primary.photoData) {
+        primaryPhotoData = primary.photoData;
+        const box = document.getElementById('photoPreviewBox');
+        box.innerHTML = `<img src="${primary.photoData}" alt="Primary photo" />`;
+        showPhotoClearBtn(true);
+      }
+    }
+
+    // Family members
+    familyMembers.length = 0;
+    allMbrs.forEach((m, i) => {
+      if (i === headIdx) return; // skip primary
+      const uiRole = ROLE_DB_TO_UI[m.role] || 'Adult';
+      familyMembers.push({
+        id:                   m.id                || null,
+        firstName:            m.firstName         || '',
+        lastName:             m.lastName          || '',
+        otherName:            m.otherName         || '',
+        email:                m.email             || '',
+        phone:                m.phone             || '',
+        memberType:           m.memberType        || 'Member',
+        gender:               m.gender            || '',
+        address1:             m.address1          || '',
+        address2:             m.address2          || '',
+        city:                 m.city              || '',
+        state:                m.state             || '',
+        country:              m.country           || 'USA',
+        pinCode:              m.pinCode           || '',
+        birthdayMonth:        m.birthdayMonth  != null ? String(m.birthdayMonth) : '',
+        birthdayDay:          m.birthdayDay    != null ? String(m.birthdayDay)   : '',
+        birthdayYear:         m.birthdayYear   != null ? String(m.birthdayYear)  : '',
+        anniversaryMonth:     m.anniversaryMonth != null ? String(m.anniversaryMonth) : '',
+        anniversaryDay:       m.anniversaryDay   != null ? String(m.anniversaryDay)   : '',
+        anniversaryYear:      m.anniversaryYear  != null ? String(m.anniversaryYear)  : '',
+        inactive:             !!m.inactive,
+        disableAlerts:        !!m.disableAlerts,
+        includeContributions: !!m.includeContributions,
+        sameAsFamilyAddress:  !!m.sameAsFamilyAddress,
+        phonePrivate:         !!m.phonePrivate,
+        emailPrivate:         !!m.emailPrivate,
+        addressPrivate:       !!m.addressPrivate,
+        role:                 uiRole,
+      });
+    });
+
+    renderMembersList();
+    renderRolesTable();
+    isDirty = false;
+
+    if (mode === 'view') applyViewMode();
+    else                 applyEditMode();
+  }
+
+  /* ════════════════════════════════════
+     VIEW / EDIT MODE
+  ════════════════════════════════════ */
+  function applyViewMode() {
+    isViewMode = true;
+    document.querySelector('.page-title').textContent    = 'View Family';
+    document.querySelector('.page-subtitle').textContent = 'Read-only details for this family';
+
+    document.querySelectorAll('#pFirstName, #pLastName, #pNickName, #pEmail, #pPhone, #pCategory, #pGender, #pAddress1, #pAddress2, #pCity, #pState, #pCountry, #pPinCode, #pBirthMonth, #pBirthDay, #pBirthYear, #pInactive, #pDisableAlerts, #pIncludeContrib').forEach(el => { el.disabled = true; });
+
+    const previewBox = document.getElementById('photoPreviewBox');
+    previewBox.style.cursor = 'default';
+    previewBox.onclick = null;
+    showPhotoClearBtn(false);
+    document.getElementById('familyMembersCard').style.display = 'none';
+    document.getElementById('rolesCard').querySelector('.roles-table').querySelectorAll('select').forEach(s => s.disabled = true);
+    document.getElementById('actionBar').style.display     = 'none';
+    document.getElementById('viewActionBar').style.display = '';
+    renderMembersList();
+  }
+
+  function applyEditMode() {
+    isViewMode = false;
+    document.querySelector('.page-title').textContent    = 'Edit Family';
+    document.querySelector('.page-subtitle').textContent = 'Update family details and members';
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.textContent = 'Update Family';
+    saveBtn.disabled    = false;   // Re-enable after family data has loaded
+    document.getElementById('familyMembersCard').style.display = '';
+    document.getElementById('actionBar').style.display     = '';
+    document.getElementById('viewActionBar').style.display = 'none';
+    renderMembersList();
+  }
+
+  function switchToEdit() {
+    postNavigate('/family', { id: familyId, mode: 'edit' });
+  }
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function setVal(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value || '';
+  }
+
+  function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatPhone(phone) {
+    if (!phone) return '<span style="color:#ccc">—</span>';
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.length === 10) {
+      return escHtml('(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6));
+    }
+    if (digits.length === 11 && digits[0] === '1') {
+      return escHtml('+1 (' + digits.slice(1,4) + ') ' + digits.slice(4,7) + '-' + digits.slice(7));
+    }
+    return escHtml(phone);
+  }
+
+  /* Close member search dropdown on outside click */
+  document.addEventListener('click', e => {
+    const dd    = document.getElementById('memberSearchDropdown');
+    const input = document.getElementById('memberSearchInput');
+    if (!dd.contains(e.target) && e.target !== input) dd.style.display = 'none';
+  });
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    populateDateDropdowns();
+    loadFromUrl();
+    renderRolesTable();
+
+    // Dirty tracking
+    document.querySelectorAll('input:not(#selectAllMembers), select, textarea').forEach(el => {
+      el.addEventListener('change', () => { isDirty = true; });
+      el.addEventListener('input',  () => { isDirty = true; });
+    });
+    window.addEventListener('beforeunload', e => {
+      if (isDirty) { e.preventDefault(); e.returnValue = 'You have unsaved changes.'; }
+    });
+
+    // Re-render roles table when primary name changes
+    ['pFirstName','pLastName'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => renderRolesTable());
+    });
+  })();
+</script>
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  if (p['admin.family.edit'] === false) {
+    hide('.btn-save[onclick*="switchToEdit"]'); // Edit Family button (view mode)
+    hide('#btnOpenAdd');                        // + Add member button
+    hide('#saveBtn');                           // Update Family / Save button
+  }
+  // Re-render members list so inline edit/delete buttons respect permissions
+  if (typeof renderMembersList === 'function') renderMembersList();
+};
+window.CGP_PAGE = { activePage: 'admin/family', pageTitle: 'Add / Edit Family', openSection: 'admin' };
+</script>
+<!-- ══ Scanned membership form: result / duplicate modal ══ -->
+<div id="mfScanModal" style="display:none; position:fixed; inset:0; background:rgba(40,20,30,.5); z-index:3000; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto;">
+  <div style="background:#fff; border-radius:14px; width:740px; max-width:100%; max-height:calc(100vh - 80px); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #eee;">
+      <div style="font-size:16px; font-weight:700; color:#673147;">📤 Imported Membership Form</div>
+      <button onclick="MFSCAN.close()" style="border:none;background:none;font-size:22px;color:#999;cursor:pointer;">&times;</button>
+    </div>
+    <div style="padding:18px 20px;" id="mfScanBody"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════ Scanned membership form: upload → extract → dedup ════════════ */
+(function () {
+  'use strict';
+  var FIELD_MAP = { firstName:'pFirstName', lastName:'pLastName', otherName:'pNickName', email:'pEmail',
+    phone:'pPhone', memberType:'pCategory', gender:'pGender', address1:'pAddress1', address2:'pAddress2',
+    city:'pCity', state:'pState', country:'pCountry', pinCode:'pPinCode',
+    birthdayMonth:'pBirthMonth', birthdayDay:'pBirthDay', birthdayYear:'pBirthYear' };
+  var LABEL = { firstName:'First Name', lastName:'Last Name', otherName:'Other Name', email:'Email',
+    phone:'Phone', memberType:'Member Type', gender:'Gender', address1:'Address 1', address2:'Address 2',
+    city:'City', state:'State', country:'Country', pinCode:'ZIP / Postal',
+    birthdayMonth:'Birth Month', birthdayDay:'Birth Day', birthdayYear:'Birth Year' };
+  var BTN='padding:9px 16px;border:1px solid #673147;background:#673147;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+  var BTNSOLID='padding:9px 16px;border:1px solid #b42446;background:#b42446;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+  var BTNGHOST='padding:9px 16px;border:1px solid #c5a0b5;background:#fff;color:#673147;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+
+  var STATE = { fields:{}, dup:{found:false}, members:[] };
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function activeKeys(f){ return Object.keys(FIELD_MAP).filter(function(k){ return f[k]!=null && f[k]!==''; }); }
+
+  function setVal(id, v){
+    var el=$(id); if(!el || v==null || v==='') return;
+    if(el.tagName==='SELECT'){
+      var lv=String(v).toLowerCase();
+      for(var i=0;i<el.options.length;i++){ var o=el.options[i];
+        if(String(o.value).toLowerCase()===lv || (o.text||'').trim().toLowerCase()===lv){ el.value=o.value; if(el.onchange) el.onchange(); return; } }
+    } else { el.value=v; if(el.oninput) el.oninput(); }
+  }
+  function truthy(v){ v=String(v==null?'':v).trim().toLowerCase(); return v==='true'||v==='1'||v==='yes'||v==='on'; }
+  function setChk(id,on){ var el=$(id); if(el){ el.checked=!!on; if(typeof el.onchange==='function') el.onchange(); } }
+  function populate(f){
+    Object.keys(FIELD_MAP).forEach(function(k){ setVal(FIELD_MAP[k], f[k]); });
+    // "Make it Private" flags read from the form → tick the primary Private checkboxes.
+    var src = STATE.fields || f || {};
+    setChk('pPhonePrivate',   truthy(src.phonePrivate));
+    setChk('pEmailPrivate',   truthy(src.emailPrivate));
+    setChk('pAddressPrivate', truthy(src.addressPrivate));
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  function open_(){ $('mfScanModal').style.display='flex'; }
+  function close_(){ $('mfScanModal').style.display='none'; }
+
+  function upload(input){
+    var file=input.files && input.files[0]; if(!file) return;
+    input.value='';
+    $('mfScanBody').innerHTML='<div style="padding:18px;text-align:center;color:#888;">Reading the form…</div>';
+    open_();
+    var fd=new FormData(); fd.append('file', file);
+    fetch('/api/family/scan-extract',{ method:'POST', body:fd })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if(!res.ok || res.j.error){ $('mfScanBody').innerHTML='<div style="padding:12px;background:#fdeaea;border-radius:8px;color:#b42424;">'+esc(res.j.error||'Upload failed.')+'</div>'; return; }
+        STATE.fields = res.j.fields||{}; STATE.dup = res.j.duplicate||{found:false}; STATE.note=res.j.note;
+        STATE.members = (res.j.additionalMembers||[]).filter(function(m){ return m && (m.firstName || m.lastName); });
+        var keys = activeKeys(STATE.fields);
+        // Nothing readable (e.g. a scanned image that couldn't be read) → show guidance.
+        if(keys.length===0 && STATE.members.length===0){ render(res.j); return; }
+        // A possible duplicate exists → let the user compare / merge / overwrite / add-new.
+        if(STATE.dup && STATE.dup.found){ render(res.j); return; }
+        // Otherwise auto-populate the Add Family form, ready for review and saving.
+        fillNew();
+      })
+      .catch(function(){ $('mfScanBody').innerHTML='<div style="padding:12px;background:#fdeaea;border-radius:8px;color:#b42424;">Network error.</div>'; });
+  }
+
+  function valRows(f, keys){
+    return keys.map(function(k){ return '<tr><td style="padding:5px 8px;color:#888;font-size:12px;">'+esc(LABEL[k]||k)+'</td>'
+      +'<td style="padding:5px 8px;font-size:13px;color:#222;">'+esc(f[k])+'</td></tr>'; }).join('');
+  }
+  function compareRows(existing, extracted, keys){
+    return keys.map(function(k){
+      var ev=existing[k]==null?'':existing[k], xv=extracted[k]==null?'':extracted[k];
+      var diff = String(ev).trim()!==String(xv).trim();
+      return '<tr style="'+(diff?'background:#fff8f3;':'')+'">'
+        +'<td style="padding:5px 8px;color:#888;font-size:12px;">'+esc(LABEL[k]||k)+'</td>'
+        +'<td style="padding:5px 8px;font-size:12.5px;color:#555;">'+esc(ev)+'</td>'
+        +'<td style="padding:5px 8px;font-size:12.5px;color:#222;font-weight:'+(diff?'600':'400')+';">'+esc(xv)+'</td>'
+        +'<td style="padding:5px 8px;text-align:center;"><input type="checkbox" class="mf-merge-chk" data-k="'+esc(k)+'" '+(diff?'checked':'')+' /></td></tr>';
+    }).join('');
+  }
+
+  function render(data){
+    var f=data.fields||{}; var keys=activeKeys(f);
+    var body=$('mfScanBody');
+    if(keys.length===0){
+      body.innerHTML='<div style="padding:12px;background:#fff6e5;border-radius:8px;color:#9a6b00;font-size:13px;">'+esc(data.note||'No member details could be read from this file.')+'</div>'
+        +'<div style="margin-top:16px;text-align:right;"><button onclick="MFSCAN.close()" style="'+BTNGHOST+'">Close</button></div>';
+      return;
+    }
+    var html='';
+    if(data.note) html+='<div style="font-size:12px;color:#888;margin-bottom:10px;">'+esc(data.note)+'</div>';
+    if(STATE.members && STATE.members.length){
+      html+='<div style="font-size:13px;color:#1e5fa4;background:#eaf2fb;padding:10px 12px;border-radius:8px;margin-bottom:12px;">'
+        +'👪 '+STATE.members.length+' additional household member'+(STATE.members.length>1?'s':'')+' found on the form'
+        +' ('+esc(STATE.members.map(function(m){return [m.firstName,m.lastName].filter(Boolean).join(' ');}).join(', '))+').'
+        +' They will be added to the family member list for review.</div>';
+    }
+    if(!data.duplicate || !data.duplicate.found){
+      html+='<div style="font-size:13px;color:#1e7a44;background:#e7f5ec;padding:10px 12px;border-radius:8px;margin-bottom:12px;">No existing member matched. Review the details below, then add them to the form.</div>'
+        +'<table style="width:100%;border-collapse:collapse;">'+valRows(f, keys)+'</table>'
+        +'<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">'
+        +'<button onclick="MFSCAN.close()" style="'+BTNGHOST+'">Cancel</button>'
+        +'<button onclick="MFSCAN.fillNew()" style="'+BTN+'">Fill the form for review</button></div>';
+    } else {
+      var m=data.duplicate.member||{};
+      html+='<div style="font-size:13px;color:#b42446;background:#fdeef0;padding:10px 12px;border-radius:8px;margin-bottom:12px;">&#9888;&#65039; A member matching this email/phone already exists. Compare the records and choose how to proceed.</div>'
+        +'<table style="width:100%;border-collapse:collapse;">'
+        +'<thead><tr><th style="text-align:left;padding:5px 8px;font-size:11px;color:#999;text-transform:uppercase;">Field</th>'
+        +'<th style="text-align:left;padding:5px 8px;font-size:11px;color:#999;text-transform:uppercase;">Existing</th>'
+        +'<th style="text-align:left;padding:5px 8px;font-size:11px;color:#999;text-transform:uppercase;">From form</th>'
+        +'<th style="text-align:center;padding:5px 8px;font-size:11px;color:#999;text-transform:uppercase;">Use</th></tr></thead>'
+        +'<tbody>'+compareRows(m, f, keys)+'</tbody></table>'
+        +'<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'
+        +'<button onclick="MFSCAN.close()" style="'+BTNGHOST+'">Skip Import</button>'
+        +'<button onclick="MFSCAN.fillNew()" style="'+BTNGHOST+'">Add as New Anyway</button>'
+        +'<button onclick="MFSCAN.merge()" style="'+BTN+'">Merge Selected</button>'
+        +'<button onclick="MFSCAN.overwrite()" style="'+BTNSOLID+'">Overwrite Existing</button></div>';
+    }
+    body.innerHTML=html;
+  }
+
+  // Convert an extracted-member map into the shape used by familyMembers[].
+  function toMember(em){
+    return {
+      firstName: em.firstName||'', lastName: em.lastName||'', otherName: em.otherName||'',
+      email: em.email||'', phone: em.phone||'', memberType: 'Member',
+      gender: em.gender||'', address1: em.address1||'', address2:'', city:'', state:'', country:'', pinCode:'',
+      birthdayMonth: em.birthdayMonth||'', birthdayDay: em.birthdayDay||'', birthdayYear: em.birthdayYear||'',
+      inactive:false, disableAlerts:false, includeContributions:false,
+      sameAsFamilyAddress: !em.address1, role: em.role || 'Adult',
+      anniversaryMonth:'', anniversaryDay:'', anniversaryYear:''
+    };
+  }
+
+  // Push extracted additional members into the on-page family member list so
+  // staff can review/edit them before saving. De-dupes by name (case-insensitive).
+  function pushExtractedMembers(){
+    if(!STATE.members || !STATE.members.length) return 0;
+    if(typeof familyMembers === 'undefined') return 0;
+    var added=0;
+    STATE.members.forEach(function(em){
+      var key=((em.firstName||'')+' '+(em.lastName||'')).trim().toLowerCase();
+      var dup=familyMembers.some(function(m){ return (((m.firstName||'')+' '+(m.lastName||'')).trim().toLowerCase())===key; });
+      if(!dup){ familyMembers.push(toMember(em)); added++; }
+    });
+    if(added){
+      if(typeof renderMembersList==='function') renderMembersList();
+      if(typeof renderRolesTable==='function') renderRolesTable();
+      if(typeof isDirty!=='undefined') isDirty=true;
+    }
+    return added;
+  }
+
+  // "Add as New Anyway" → load the extracted data into a brand-new family record.
+  function fillNew(){
+    if (typeof familyId !== 'undefined') familyId = null;            // ensure Save creates a NEW record
+    if (typeof primaryMemberId !== 'undefined') primaryMemberId = null;
+    populate(STATE.fields);
+    var n=pushExtractedMembers();
+    close_();
+    if(n) setTimeout(function(){ alert(n+' additional member'+(n>1?'s were':' was')+' added to the family member list below. Review, then Save Family.'); }, 350);
+  }
+
+  function chosenFromChecks(){
+    var chosen={};
+    document.querySelectorAll('.mf-merge-chk').forEach(function(c){ if(c.checked){ var k=c.getAttribute('data-k'); if(STATE.fields[k]!=null) chosen[k]=STATE.fields[k]; } });
+    return chosen;
+  }
+  // "Overwrite Existing" → open Edit screen with ALL extracted values applied.
+  function overwrite(){
+    var all={}; activeKeys(STATE.fields).forEach(function(k){ all[k]=STATE.fields[k]; });
+    openEditAndApply(all);
+  }
+  // "Merge Selected" → open Edit screen with only the ticked values applied.
+  function merge(){
+    var chosen=chosenFromChecks();
+    if(Object.keys(chosen).length===0){ msg('Select at least one field to merge, or choose Overwrite.','warn'); return; }
+    openEditAndApply(chosen);
+  }
+  function msg(text, kind){
+    var c = kind==='error'?'#b42424':(kind==='warn'?'#9a6b00':'#1e7a44');
+    var bg= kind==='error'?'#fdeaea':(kind==='warn'?'#fff6e5':'#e7f5ec');
+    var note=document.createElement('div'); note.style.cssText='margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13px;color:'+c+';background:'+bg+';';
+    note.textContent=text; $('mfScanBody').appendChild(note);
+  }
+
+  // Load the existing family into the Add/Edit form, apply the chosen extracted
+  // values to the matched member, then leave it for the user to review & Save.
+  // (No data is written until the user saves.)
+  function openEditAndApply(chosen){
+    var fid=STATE.dup.familyId;
+    if(!fid){ msg('Could not locate the existing family record.','error'); return; }
+    var pending = (STATE.members||[]).slice();
+    close_();
+    Promise.resolve(typeof loadFamily==='function' ? loadFamily(fid, 'edit') : null).then(function(){
+      applyToFamilyForm(chosen);
+      if(pending.length) pushExtractedMembers();   // also add any new household members read from the form
+      if(typeof showFeedback==='function') showFeedback('Loaded the existing family from the scanned form. Review the changes, then click Save.', 'success');
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }).catch(function(){ /* loadFamily reports its own errors */ });
+  }
+
+  // Apply chosen extracted fields to the member that matched the duplicate.
+  function applyToFamilyForm(chosen){
+    var mid = STATE.dup.memberId;
+    var pid = (typeof primaryMemberId !== 'undefined') ? primaryMemberId : null;
+    if(mid==null || pid==null || String(mid)===String(pid)){
+      populate(chosen);   // matched the primary member → overwrite the primary form fields
+      return;
+    }
+    if(typeof familyMembers !== 'undefined'){
+      var m = familyMembers.filter(function(x){ return String(x.id)===String(mid); })[0];
+      if(m){
+        ['firstName','lastName','otherName','email','phone','memberType','gender','address1','address2','city','state','country','pinCode','birthdayMonth','birthdayDay','birthdayYear']
+          .forEach(function(k){ if(chosen[k]!=null && chosen[k]!=='') m[k]=chosen[k]; });
+        // Carry "Make it Private" flags from the form onto the matched member.
+        ['phonePrivate','emailPrivate','addressPrivate'].forEach(function(k){ if(truthy(STATE.fields[k])) m[k]=true; });
+        if(typeof renderMembersList==='function') renderMembersList();
+        if(typeof renderRolesTable==='function') renderRolesTable();
+        if(typeof isDirty!=='undefined') isDirty=true;
+        return;
+      }
+    }
+    populate(chosen);   // fallback
+  }
+
+  window.MFSCAN = { upload:upload, close:close_, fillNew:fillNew, merge:merge, overwrite:overwrite };
+})();
+</script>
+
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

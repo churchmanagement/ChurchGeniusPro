@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#673147" />
+  <title>Child Pickup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f5f6fa; color: #2b2f3a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh; padding: 18px; }
+    .wrap { max-width: 460px; margin: 0 auto; }
+    .card { background: #fff; border: 1px solid #e7e1e7; border-radius: 14px; padding: 20px; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+    h1 { font-size: 18px; color: #673147; margin-bottom: 4px; }
+    .sub { font-size: 12.5px; color: #8a8f9c; margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1ecf1; font-size: 14px; }
+    .row .k { color: #8a8f9c; } .row .v { font-weight: 600; text-align: right; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .b-over { background: #fdecec; color: #c62828; } .b-ok { background: #e2f3e8; color: #2e7d44; }
+    .b-snz { background: #fdf0d8; color: #9a6b12; } .b-out { background: #ececf1; color: #555; }
+    .sec { margin-top: 16px; }
+    .sec h2 { font-size: 13px; color: #673147; margin-bottom: 8px; }
+    button { cursor: pointer; font-family: inherit; border: none; }
+    .btn { background: #673147; color: #fff; border-radius: 9px; padding: 11px 16px; font-size: 14px; font-weight: 600; width: 100%; }
+    .btn-light { background: #efe7ee; color: #673147; }
+    .snz { display: flex; gap: 7px; flex-wrap: wrap; }
+    .snz button { flex: 1; min-width: 64px; background: #efe7ee; color: #673147; border-radius: 8px; padding: 9px 6px; font-size: 13px; font-weight: 600; }
+    input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cfd4df; border-radius: 9px; font-size: 14px; font-family: inherit; margin-top: 6px; }
+    .msg { font-size: 13px; margin-top: 10px; text-align: center; }
+    .ok { color: #2e7d44; } .err { color: #c62828; }
+    .done { text-align: center; padding: 16px 0; }
+    .done .big { font-size: 40px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Child Pickup</h1>
+    <div class="sub" id="subline">Loading…</div>
+
+    <div id="statusBox" class="hidden">
+      <div id="statusBadge" style="margin-bottom:10px;"></div>
+      <div class="row"><span class="k">Child</span><span class="v" id="vName">—</span></div>
+      <div class="row"><span class="k">Classroom</span><span class="v" id="vRoom">—</span></div>
+      <div class="row"><span class="k">Parent / Guardian</span><span class="v" id="vParent">—</span></div>
+      <div class="row"><span class="k">Checked In</span><span class="v" id="vIn">—</span></div>
+      <div class="row"><span class="k">Scheduled Pickup</span><span class="v" id="vDeadline">—</span></div>
+
+      <div class="sec" id="snoozeSec">
+        <h2>Snooze alerts</h2>
+        <div class="snz">
+          <button onclick="snooze(15)">15 min</button>
+          <button onclick="snooze(30)">30 min</button>
+          <button onclick="snooze(60)">1 hour</button>
+          <button onclick="snooze(120)">2 hours</button>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:8px;">
+          <input type="number" id="customMin" placeholder="Custom minutes" min="1" max="720" style="margin-top:0;">
+          <button class="btn-light" style="border-radius:8px;padding:0 16px;font-weight:600;" onclick="snoozeCustom()">Snooze</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>Mark as picked up</h2>
+        <input type="text" id="puName" placeholder="Your name (who is picking up)">
+        <textarea id="puNotes" placeholder="Notes / comments (optional)" rows="2"></textarea>
+        <button class="btn" style="margin-top:10px;" onclick="markPickedUp()">✅ Confirm Picked Up</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div id="doneBox" class="done hidden">
+      <div class="big">✅</div>
+      <div style="font-weight:700;color:#2e7d44;margin-top:6px;">Pickup confirmed</div>
+      <div class="sub" id="doneMsg" style="margin-top:6px;"></div>
+    </div>
+
+    <div id="errBox" class="msg err hidden"></div>
+  </div>
+</div>
+
+<script>
+var T = new URLSearchParams(location.search).get('t') || '';
+
+function fmt(v) { if (!v) return '—'; var d = new Date(v); return isNaN(d) ? '—' : d.toLocaleString(); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+function load() {
+  if (!T) { fail('This link is missing its token.'); return; }
+  fetch('/api/public/kids-pickup/status?t=' + encodeURIComponent(T))
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+    .then(function(res){
+      if (!res.ok) { fail(res.d.error || 'This link is invalid or has expired.'); return; }
+      render(res.d);
+    })
+    .catch(function(){ fail('Could not load pickup status.'); });
+}
+
+function fail(m) {
+  document.getElementById('subline').textContent = '';
+  hide('statusBox');
+  var e = document.getElementById('errBox'); e.textContent = m; show('errBox');
+}
+
+function render(d) {
+  document.getElementById('subline').textContent = 'Status for your child';
+  document.getElementById('vName').textContent = d.childName || '—';
+  document.getElementById('vRoom').textContent = d.classroom || '—';
+  document.getElementById('vParent').textContent = d.parentName || '—';
+  document.getElementById('vIn').textContent = fmt(d.checkinTime);
+  document.getElementById('vDeadline').textContent = fmt(d.pickupDeadline);
+  var badge = document.getElementById('statusBadge');
+  if (d.checkedOut) {
+    showDone('This child was checked out at ' + fmt(d.checkoutTime) + '.');
+    return;
+  } else if (d.snoozed) {
+    badge.innerHTML = '<span class="badge b-snz">Snoozed until ' + fmt(d.snoozeUntil) + '</span>';
+  } else if (d.overdue) {
+    badge.innerHTML = '<span class="badge b-over">Overdue by ' + d.overdueMinutes + ' min</span>';
+  } else {
+    badge.innerHTML = '<span class="badge b-ok">On time</span>';
+  }
+  show('statusBox');
+}
+
+function showDone(text) {
+  hide('statusBox'); hide('errBox');
+  document.getElementById('subline').textContent = '';
+  document.getElementById('doneMsg').textContent = text || '';
+  show('doneBox');
+}
+
+function msg(text, isErr) {
+  var el = document.getElementById('msg');
+  el.textContent = text; el.className = 'msg ' + (isErr ? 'err' : 'ok');
+}
+
+function snooze(minutes) {
+  fetch('/api/public/kids-pickup/snooze', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t: T, minutes: minutes })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) { msg('Alerts snoozed for ' + minutes + ' minutes.'); setTimeout(load, 600); }
+    else msg(d.error || 'Could not snooze.', true);
+  }).catch(function(){ msg('Server error.', true); });
+}
+function snoozeCustom() {
+  var v = parseInt(document.getElementById('customMin').value, 10);
+  if (!v || v < 1) { msg('Enter a number of minutes.', true); return; }
+  snooze(v);
+}
+
+function markPickedUp() {
+  var name = document.getElementById('puName').value.trim();
+  var notes = document.getElementById('puNotes').value.trim();
+  if (!name) { msg('Please enter your name.', true); return; }
+  fetch('/api/public/kids-pickup/picked-up', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t: T, name: name, notes: notes })
+  }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+    .then(function(res){
+      if (res.ok && res.d.success) showDone('Thank you. The child has been checked out and alerts have been stopped.');
+      else msg(res.d.error || 'Could not confirm pickup.', true);
+    }).catch(function(){ msg('Server error.', true); });
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Payroll Run — ChurchGenius Pro</title>
+<link rel="stylesheet" href="/mobile.css" />
+<link rel="stylesheet" href="/shell.css" />
+<style>
+  :root { --brand:#673147; --brand-soft:#fdf5f7; --line:#e6dde2; --ink:#333; --muted:#888; }
+  * { box-sizing:border-box; }
+  /* Keep the shared side navigation identical to the rest of the app */
+  button { cursor: pointer; font-family: inherit; border: none; background: none; }
+  .sidebar { background: #673147 !important; }
+  .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+  .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+  body { margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:#faf7f8; }
+  .wrap { max-width:1000px; margin:0 auto; padding:24px 18px 60px; }
+  h1 { font-size:22px; color:var(--brand); margin:0 0 4px; }
+  .sub { font-size:13px; color:var(--muted); margin:0 0 20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+  label { font-size:12px; font-weight:700; color:var(--brand); display:block; margin-bottom:6px; }
+  select { width:100%; max-width:480px; padding:9px 10px; border:1px solid #d7c9d0; border-radius:7px; font-size:14px; background:#fff; }
+  .runmeta { display:flex; flex-wrap:wrap; gap:18px; margin-top:14px; font-size:13px; }
+  .runmeta div span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+  .pill.DRAFT{background:#eef1f6;color:#5a6b86;} .pill.PENDING_APPROVAL{background:#fff6e5;color:#9a6b00;}
+  .pill.APPROVED{background:#e7f5ec;color:#1e7a44;} .pill.PAID{background:#e6f0fb;color:#1b5fa8;}
+  .pill.VOIDED{background:#fdeaea;color:#b42424;}
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead tr { background:#f5f1f3; }
+  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid #eee; white-space:nowrap; }
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tr.voided td { color:#bbb; text-decoration:line-through; }
+  .btn { cursor:pointer; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:6px; padding:5px 10px; font-size:12px; font-weight:600; text-decoration:none; display:inline-block; }
+  .btn:hover { background:var(--brand); color:#fff; }
+  .btn.solid { background:var(--brand); color:#fff; }
+  .btn.solid:hover { opacity:.9; }
+  .btn[disabled] { opacity:.4; cursor:not-allowed; pointer-events:none; }
+  .actions { display:flex; gap:6px; }
+  .msg { font-size:13px; padding:14px; border-radius:8px; }
+  .msg.info { background:var(--brand-soft); color:#6a4a57; }
+  .msg.err { background:#fdeaea; color:#b42424; }
+  .totals { margin-top:10px; font-size:13px; color:#555; text-align:right; }
+  .totals strong { color:var(--brand); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+<div class="wrap">
+  <a href="/payroll" class="btn" style="text-decoration:none;display:inline-block;margin-bottom:12px;">&#8592; Back to Payroll</a>
+  <div style="display:flex; gap:14px; font-size:13px; margin-bottom:14px;">
+    <a href="/payroll/employees" style="color:#673147; text-decoration:none; font-weight:600;">Employees</a>
+    <a href="/payroll/runs" style="color:#673147; text-decoration:underline; font-weight:600;">Payroll runs</a>
+    <a href="/payroll/reports" style="color:#673147; text-decoration:none; font-weight:600;">Reports</a>
+    <a href="/payroll/activity" style="color:#673147; text-decoration:none; font-weight:600;">Activity</a>
+  </div>
+  <h1>Payroll Runs</h1>
+  <p class="sub">Create a run, process employees, move it through approval, and download paystubs.</p>
+
+  <div id="globalMsg"></div>
+
+  <div class="card">
+    <label style="font-size:12px; font-weight:700; color:#673147; display:block; margin-bottom:8px;">Create a new run</label>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr) auto; gap:10px; align-items:end;">
+      <div>
+        <label style="font-size:11px;color:#888;">Frequency</label>
+        <select id="c_freq" style="width:100%;padding:8px;border:1px solid #d7c9d0;border-radius:7px;">
+          <option value="WEEKLY">Weekly</option><option value="BIWEEKLY">Biweekly</option>
+          <option value="SEMIMONTHLY" selected>Semi-monthly</option><option value="MONTHLY">Monthly</option>
+          <option value="DAILY">Daily</option><option value="HOURLY">Hourly</option></select>
+      </div>
+      <div><label style="font-size:11px;color:#888;">Period start</label><input type="date" id="c_start" style="width:100%;padding:7px;border:1px solid #d7c9d0;border-radius:7px;"/></div>
+      <div><label style="font-size:11px;color:#888;">Period end</label><input type="date" id="c_end" style="width:100%;padding:7px;border:1px solid #d7c9d0;border-radius:7px;"/></div>
+      <div><label style="font-size:11px;color:#888;">Pay date</label><input type="date" id="c_paydate" style="width:100%;padding:7px;border:1px solid #d7c9d0;border-radius:7px;"/></div>
+      <div><button class="btn solid" id="btnCreateRun">Create run</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label for="runSelect">Payroll run</label>
+    <select id="runSelect"><option value="">Loading runs…</option></select>
+    <div class="runmeta" id="runMeta" style="display:none;"></div>
+    <div id="runActions" style="margin-top:14px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+  </div>
+
+  <div class="card" id="processCard" style="display:none;">
+    <label style="font-size:12px; font-weight:700; color:#673147; display:block; margin-bottom:6px;">Process employees</label>
+    <p class="sub" style="margin:0 0 8px;">Salaried employees pay automatically; enter hours for hourly employees, then Process.</p>
+    <div id="processPanel"></div>
+  </div>
+
+  <div class="card">
+    <div id="paystubArea">
+      <div class="msg info">Choose a payroll run above to see its paystubs.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var fmtUSD = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD' });
+  function money(v){ return (v==null) ? '—' : fmtUSD.format(Number(v)); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function qs(name){ return new URLSearchParams(location.search).get(name); }
+
+  function authMsg(area){
+    area.innerHTML = '<div class="msg err">You need to be signed in to view payroll. '
+      + '<a href="/login.html">Go to login</a>.</div>';
+  }
+
+  async function loadRuns(){
+    var sel = document.getElementById('runSelect');
+    try {
+      var res = await fetch('/api/payroll/runs');
+      if (res.status === 401) { sel.innerHTML='<option value="">Not signed in</option>'; authMsg(document.getElementById('paystubArea')); return; }
+      var data = await res.json();
+      var runs = (data && data.data) || [];
+      if (!runs.length) {
+        sel.innerHTML = '<option value="">No payroll runs yet</option>';
+        document.getElementById('paystubArea').innerHTML =
+          '<div class="msg info">No payroll runs have been created yet.</div>';
+        return;
+      }
+      sel.innerHTML = '<option value="">— Select a run —</option>' + runs.map(function(r){
+        var label = (r.payDate||'') + '  ·  ' + (r.payFrequency||'') + '  ·  ' + (r.status||'')
+                  + '  ·  ' + (r.employeeCount||0) + ' employee' + ((r.employeeCount===1)?'':'s');
+        return '<option value="'+r.id+'">'+esc(label)+'</option>';
+      }).join('');
+      var preset = qs('runId');
+      if (preset) { sel.value = preset; if (sel.value) loadPaystubs(preset); }
+    } catch(e){
+      sel.innerHTML = '<option value="">Failed to load</option>';
+      document.getElementById('paystubArea').innerHTML =
+        '<div class="msg err">Failed to load payroll runs from the server.</div>';
+    }
+  }
+
+  async function loadPaystubs(runId){
+    var area = document.getElementById('paystubArea');
+    var meta = document.getElementById('runMeta');
+    meta.style.display = 'none';
+    document.getElementById('runActions').innerHTML = '';
+    if (!runId){ area.innerHTML = '<div class="msg info">Choose a payroll run above to see its paystubs.</div>'; return; }
+    area.innerHTML = '<div class="msg info">Loading paystubs…</div>';
+    try {
+      var res = await fetch('/api/payroll/runs/'+encodeURIComponent(runId)+'/paystubs');
+      if (res.status === 401) { authMsg(area); return; }
+      if (res.status === 403) { area.innerHTML = '<div class="msg err">This payroll run belongs to another account.</div>'; return; }
+      var data = await res.json();
+      if (data.status !== 'success'){ area.innerHTML = '<div class="msg err">'+esc(data.message||'Could not load paystubs.')+'</div>'; return; }
+
+      var run = data.run || {};
+      meta.style.display = 'flex';
+      meta.innerHTML =
+          '<div><span>Pay period</span>'+esc((run.payPeriodStart||'?')+' → '+(run.payPeriodEnd||'?'))+'</div>'
+        + '<div><span>Pay date</span>'+esc(run.payDate||'—')+'</div>'
+        + '<div><span>Status</span><span class="pill '+esc(run.status||'')+'">'+esc(run.status||'—')+'</span></div>'
+        + '<div><span>Total gross</span>'+money(run.totalGross)+'</div>'
+        + '<div><span>Total net</span>'+money(run.totalNet)+'</div>';
+      currentRunId = runId;
+      renderActions(run);
+      updateProcessPanel(run, data.data || []);
+
+      var stubs = data.data || [];
+      if (!stubs.length){ area.innerHTML = '<div class="msg info">No paystubs in this run yet.</div>'; return; }
+
+      var rows = stubs.map(function(s){
+        var pdf = '/api/payroll/paystubs/'+s.id+'/pdf';
+        var actions = s.voided
+          ? '<span class="btn" disabled>Voided</span>'
+          : '<div class="actions">'
+              + '<a class="btn" href="'+pdf+'" target="_blank" rel="noopener">View PDF</a>'
+              + '<a class="btn solid" href="'+pdf+'?download=true">Download</a>'
+            + '</div>';
+        return '<tr class="'+(s.voided?'voided':'')+'">'
+          + '<td>'+esc(s.employeeName||'—')+'</td>'
+          + '<td>'+esc(s.payDate||'—')+'</td>'
+          + '<td class="num">'+money(s.grossEarnings)+'</td>'
+          + '<td class="num">'+money(s.totalTaxes)+'</td>'
+          + '<td class="num">'+money(s.netPay)+'</td>'
+          + '<td>'+actions+'</td>'
+          + '</tr>';
+      }).join('');
+
+      area.innerHTML =
+          '<table><thead><tr>'
+        + '<th>Employee</th><th>Pay date</th><th class="num">Gross</th>'
+        + '<th class="num">Taxes</th><th class="num">Net pay</th><th>Paystub</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table>'
+        + '<div class="totals">'+stubs.length+' paystub'+(stubs.length===1?'':'s')+'</div>';
+    } catch(e){
+      area.innerHTML = '<div class="msg err">Failed to load paystubs from the server.</div>';
+    }
+  }
+
+  // ── Run lifecycle actions ──
+  var currentRunId = null;
+
+  function gmsg(text, kind){
+    document.getElementById('globalMsg').innerHTML =
+      text ? '<div class="msg '+(kind==='err'?'err':'info')+'">'+esc(text)+'</div>' : '';
+  }
+  function fieldVal(id){ var x = document.getElementById(id).value; return x ? x : null; }
+
+  async function apiPost(url, body){
+    var opt = { method:'POST', headers:{'Content-Type':'application/json'} };
+    if (body !== undefined) opt.body = JSON.stringify(body);
+    var res = await fetch(url, opt);
+    var data = await res.json().catch(function(){ return {}; });
+    if (res.status === 401){ gmsg('Please sign in to manage payroll.','err'); throw new Error('auth'); }
+    if (!res.ok || data.status === 'error'){ throw new Error(data.message || ('Request failed ('+res.status+')')); }
+    return data.data;
+  }
+
+  function actBtn(label, act, danger){
+    return '<button class="btn '+(danger?'':'solid')+'" data-act="'+act+'"'
+      + (danger?' style="border-color:#b42424;color:#b42424;"':'') + '>'+label+'</button>';
+  }
+
+  function renderActions(run){
+    var bar = document.getElementById('runActions');
+    if (!run || !run.status){ bar.innerHTML = ''; return; }
+    var s = run.status, btns = [];
+    if (s === 'DRAFT'){ btns.push(actBtn('Process all salaried','process-all')); btns.push(actBtn('Submit for approval','submit')); }
+    if (s === 'PENDING_APPROVAL'){ btns.push(actBtn('Approve','approve')); }
+    if (s === 'APPROVED'){ btns.push(actBtn('Mark paid','paid')); }
+    if (s !== 'VOIDED' && s !== 'PAID'){ btns.push(actBtn('Void','void', true)); }
+    bar.innerHTML = btns.join('');
+    Array.prototype.forEach.call(bar.querySelectorAll('button[data-act]'), function(b){
+      b.addEventListener('click', function(){ doAction(b.getAttribute('data-act')); });
+    });
+  }
+
+  async function doAction(act){
+    if (!currentRunId) return;
+    try {
+      if (act === 'process-all'){
+        var stubs = await apiPost('/api/payroll/runs/'+currentRunId+'/process-all');
+        gmsg('Processed '+(stubs && stubs.length ? stubs.length : 0)+' paystub(s).','info');
+      } else if (act === 'void'){
+        var reason = prompt('Reason for voiding this run?') || '';
+        await apiPost('/api/payroll/runs/'+currentRunId+'/void', { reason: reason });
+        gmsg('Run voided.','info');
+      } else {
+        await apiPost('/api/payroll/runs/'+currentRunId+'/'+act);
+        gmsg('Run updated.','info');
+      }
+      await refresh();
+    } catch(e){ if (e.message !== 'auth') gmsg(e.message,'err'); }
+  }
+
+  async function createRun(){
+    try {
+      var body = { payFrequency: document.getElementById('c_freq').value,
+        payPeriodStart: fieldVal('c_start'), payPeriodEnd: fieldVal('c_end'), payDate: fieldVal('c_paydate') };
+      if (!body.payDate){ gmsg('Pay date is required.','err'); return; }
+      var run = await apiPost('/api/payroll/runs/create', body);
+      gmsg('Run created.','info');
+      await loadRuns();
+      document.getElementById('runSelect').value = run.id;
+      loadPaystubs(run.id);
+    } catch(e){ if (e.message !== 'auth') gmsg(e.message,'err'); }
+  }
+
+  async function refresh(){
+    await loadRuns();
+    if (currentRunId){ document.getElementById('runSelect').value = currentRunId; }
+    loadPaystubs(currentRunId);
+  }
+
+  // ── Per-employee processing (hours entry for hourly) ──
+  var employees = [];
+
+  async function loadEmployeesForRun(){
+    try {
+      var res = await fetch('/api/payroll/employees');
+      if (res.status === 401) return;
+      var data = await res.json();
+      employees = ((data && data.data) || []).filter(function(e){ return e.active; });
+    } catch(e){ employees = []; }
+  }
+
+  function updateProcessPanel(run, stubs){
+    var card = document.getElementById('processCard');
+    if (!run || run.status !== 'DRAFT'){ card.style.display = 'none'; return; }
+    card.style.display = '';
+    var done = {};
+    (stubs || []).forEach(function(s){ if (s.employeeId != null) done[s.employeeId] = true; });
+    var panel = document.getElementById('processPanel');
+    if (!employees.length){
+      panel.innerHTML = '<div class="msg info">No active payroll employees found. Please add employees in Payroll → '
+        + '<a href="/payroll-employees.html">Employees</a>.</div>';
+      return;
+    }
+    var processedCount = employees.filter(function(e){ return done[e.id]; }).length;
+    var header = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+      + '<div style="font-weight:600;">' + employees.length + ' active employee' + (employees.length===1?'':'s')
+      + (processedCount ? ' <span style="color:#2e7d46;font-size:12px;">· ' + processedCount + ' processed</span>' : '') + '</div>'
+      + '<div style="display:flex;gap:10px;align-items:center;">'
+      + '<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer;"><input type="checkbox" id="selAll"> Select all</label>'
+      + '<button class="btn solid" id="btnProcessSelected" style="padding:5px 12px;font-size:12px;">Process selected</button>'
+      + '</div></div>';
+    panel.innerHTML = header + employees.map(function(e){ return processRow(e, !!done[e.id]); }).join('');
+    Array.prototype.forEach.call(panel.querySelectorAll('button[data-emp]'), function(b){
+      b.addEventListener('click', function(){ processEmp(Number(b.getAttribute('data-emp'))); });
+    });
+    var selAll = document.getElementById('selAll');
+    if (selAll) selAll.addEventListener('change', function(){
+      Array.prototype.forEach.call(panel.querySelectorAll('input.empChk'), function(c){ c.checked = selAll.checked; });
+    });
+    var bps = document.getElementById('btnProcessSelected');
+    if (bps) bps.addEventListener('click', processSelected);
+  }
+
+  function hourInput(id, ph){
+    return '<input id="'+id+'" type="number" step="0.01" min="0" placeholder="'+ph+'" '
+      + 'style="width:80px;padding:5px;border:1px solid #d7c9d0;border-radius:6px;font-size:12px;"/>';
+  }
+  function procBtn(empId){
+    return '<button class="btn solid" data-emp="'+empId+'" style="padding:5px 10px;font-size:12px;">Process</button>';
+  }
+
+  function processRow(e, done){
+    var head = '<div style="font-weight:600;">'+esc(e.fullName||'(no name)')
+      + ' <span style="color:#888;font-size:11px;">'+esc(e.payType||'')+'</span></div>';
+    if (done){
+      return '<div style="padding:9px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">'
+        + head + '<span class="pill APPROVED">Processed</span></div>';
+    }
+    var chk = '<input type="checkbox" class="empChk" data-emp="'+e.id+'" style="margin-top:3px;">';
+    var controls;
+    if (e.payType === 'HOURLY'){
+      var rate = e.hourlyRate == null ? 0 : Number(e.hourlyRate);
+      controls = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:5px;">'
+        + hourInput('reg_'+e.id,'Reg hrs') + hourInput('ot_'+e.id,'OT hrs')
+        + hourInput('hol_'+e.id,'Hol hrs') + hourInput('bon_'+e.id,'Bonus $')
+        + '<span style="font-size:11px;color:#888;">@ '+fmtUSD.format(rate)+'/hr</span>'
+        + procBtn(e.id) + '</div>';
+    } else {
+      controls = '<div style="display:flex;gap:8px;align-items:center;margin-top:5px;">'
+        + '<span style="font-size:11px;color:#888;">Salary auto-calculated</span>' + procBtn(e.id) + '</div>';
+    }
+    return '<div style="padding:9px 0;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:flex-start;">'
+      + chk + '<div style="flex:1;">' + head + controls + '</div></div>';
+  }
+
+  function numEl(id){ var el = document.getElementById(id); if (!el) return null; var x = el.value; return x === '' ? null : Number(x); }
+
+  // Process one employee WITHOUT refreshing (so callers can batch). Returns true on success.
+  async function processOne(empId){
+    if (!currentRunId) return false;
+    var e = employees.filter(function(x){ return x.id === empId; })[0];
+    if (!e) return false;
+    var earnings = [];
+    if (e.payType === 'HOURLY'){
+      var rate = e.hourlyRate == null ? null : Number(e.hourlyRate);
+      if (!rate){ gmsg('Set an hourly rate for '+e.fullName+' on the Employees page first.','err'); return false; }
+      var reg = numEl('reg_'+empId), ot = numEl('ot_'+empId), hol = numEl('hol_'+empId), bon = numEl('bon_'+empId);
+      if (reg) earnings.push({ type:'REGULAR', description:'Regular', hours:reg, rate:rate, multiplier:1 });
+      if (ot)  earnings.push({ type:'OVERTIME', description:'Overtime', hours:ot, rate:rate, multiplier:1.5 });
+      if (hol) earnings.push({ type:'HOLIDAY', description:'Holiday', hours:hol, rate:rate, multiplier:1 });
+      if (bon) earnings.push({ type:'BONUS', description:'Bonus', amount:bon });
+      if (!earnings.length){ gmsg('Enter hours or a bonus for '+e.fullName+'.','err'); return false; }
+    }
+    try {
+      await apiPost('/api/payroll/runs/'+currentRunId+'/employees/'+empId+'/process', { earnings: earnings });
+      return true;
+    } catch(err){ if (err.message !== 'auth') gmsg(err.message,'err'); return false; }
+  }
+
+  async function processEmp(empId){
+    var e = employees.filter(function(x){ return x.id === empId; })[0];
+    if (await processOne(empId)){ gmsg('Processed '+(e?e.fullName:'employee')+'. Totals recalculated.','info'); await refresh(); }
+  }
+
+  // Process every checked employee, then refresh once (totals recalculate).
+  async function processSelected(){
+    var ids = Array.prototype.slice.call(document.querySelectorAll('input.empChk:checked'))
+                .map(function(c){ return Number(c.getAttribute('data-emp')); });
+    if (!ids.length){ gmsg('Select at least one employee to process.','err'); return; }
+    var done = 0;
+    for (var i = 0; i < ids.length; i++){ if (await processOne(ids[i])) done++; }
+    gmsg('Processed ' + done + ' of ' + ids.length + ' selected employee' + (ids.length===1?'':'s') + '. Totals recalculated.', done ? 'info' : 'err');
+    await refresh();
+  }
+
+  document.getElementById('btnCreateRun').addEventListener('click', createRun);
+  document.getElementById('runSelect').addEventListener('change', function(){ loadPaystubs(this.value); });
+  loadEmployeesForRun().then(loadRuns);
+</script>
+    </main>
+  </div>
+</div>
+<script>
+window.CGP_PAGE = { activePage:'accounting/payroll', pageTitle:'Payroll Run', openSection:'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <title>Church Calendar</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f0f2f8; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Topbar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      background: #673147;
+      box-shadow: 0 2px 12px rgba(103,49,71,.35);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-logo {
+      height: 46px; width: auto; max-width: 160px;
+      object-fit: contain; display: block; flex-shrink: 0;
+      border-radius: 6px;
+    }
+    .topbar-logo-fallback {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,.15); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .topbar-text { min-width: 0; }
+    .topbar-name {
+      color: #fff; font-size: 17px; font-weight: 700;
+      letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .topbar-sub { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+    /* ── Page wrapper ───────────────────────────────────────────────────── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 56px; }
+
+    /* ── Calendar card ──────────────────────────────────────────────────── */
+    .cal-card {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.09); overflow: hidden;
+    }
+
+    /* ── Toolbar ─────────────────────────────────────────────────────────── */
+    .cal-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+      flex-wrap: wrap; gap: 10px;
+    }
+    .cal-nav { display: flex; align-items: center; gap: 10px; }
+    .cal-month-label {
+      font-size: 18px; font-weight: 700; color: #673147;
+      min-width: 220px; text-align: center;
+    }
+    .btn-nav {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #673147;
+      border: 1.5px solid #e0e0e0; transition: background .18s;
+    }
+    .btn-nav:hover { background: #e8eaf6; border-color: #673147; }
+    .btn-today {
+      padding: 8px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; transition: background .18s, color .18s;
+      border: 1.5px solid #e0e0e0;
+    }
+    .btn-today:hover { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── View toggle ────────────────────────────────────────────────────── */
+    .view-toggle {
+      display: flex; gap: 4px;
+      background: #f0f1f8; border-radius: 8px; padding: 4px;
+    }
+    .btn-view {
+      padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      color: #888; transition: all .18s;
+    }
+    .btn-view.active { background: #fff; color: #673147; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    .btn-view:hover:not(.active) { color: #673147; }
+
+    /* ── Legend ─────────────────────────────────────────────────────────── */
+    .cal-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .legend-dot.birthday    { background: #e91e63; }
+    .legend-dot.anniversary { background: #7b1fa2; }
+    .legend-dot.meeting     { background: #1565c0; }
+    .legend-dot.churchevent { background: #2e7d32; }
+
+    /* ── Day-of-week header ─────────────────────────────────────────────── */
+    .cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 2px solid #f0f0f0; }
+    .cal-dow-cell {
+      padding: 10px 4px; text-align: center;
+      font-size: 11px; font-weight: 700; color: #999;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .cal-dow-cell.weekend { color: #c5cae9; }
+
+    /* ── Monthly grid ───────────────────────────────────────────────────── */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .cal-cell {
+      min-height: 108px; padding: 8px 6px 6px;
+      border-right: 1px solid #f5f5f5; border-bottom: 1px solid #f5f5f5;
+      cursor: pointer; transition: background .15s; position: relative;
+      overflow: hidden; min-width: 0;
+    }
+    .cal-cell:nth-child(7n) { border-right: none; }
+    .cal-cell:hover { background: #fafbff; }
+    .cal-cell.selected { background: #e8eaf6; }
+    .cal-cell.other-month { background: #fafafa; }
+    .cal-cell.other-month .cal-day-num { color: #ddd; }
+    .cal-cell.today .cal-day-num {
+      background: #673147; color: #fff;
+      border-radius: 50%; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-day-num {
+      font-size: 13px; font-weight: 600; color: #444;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .cal-events { display: flex; flex-direction: column; gap: 2px; }
+
+    /* ── Weekly grid ────────────────────────────────────────────────────── */
+    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .week-cell {
+      min-height: 160px; padding: 8px 6px 6px;
+      border-right: 1px solid #f5f5f5; border-bottom: 1px solid #f5f5f5;
+      cursor: pointer; transition: background .15s;
+      overflow: hidden; min-width: 0;
+    }
+    .week-cell:nth-child(7n) { border-right: none; }
+    .week-cell:hover { background: #fafbff; }
+    .week-cell.selected { background: #e8eaf6; }
+    .week-cell.today .cal-day-num {
+      background: #673147; color: #fff;
+      border-radius: 50%; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .week-date-label { font-size: 10px; color: #aaa; text-align: center; margin-bottom: 4px; }
+
+    /* ── Yearly grid ────────────────────────────────────────────────────── */
+    .year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 16px; }
+    .mini-month { border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden; }
+    .mini-month-header {
+      background: #f5f6fa; padding: 8px 10px;
+      font-size: 12px; font-weight: 700; color: #673147; text-align: center;
+    }
+    .mini-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid #f0f0f0; }
+    .mini-dow-cell { text-align: center; font-size: 9px; font-weight: 700; color: #bbb; padding: 4px 0; }
+    .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .mini-cell {
+      text-align: center; padding: 3px 0; font-size: 10px; color: #666;
+      cursor: pointer; border-radius: 3px; transition: background .12s; position: relative;
+    }
+    .mini-cell:hover { background: #eef0f8; color: #673147; }
+    .mini-cell.other-month { color: #ddd; }
+    .mini-cell.today { background: #673147; color: #fff; border-radius: 50%; }
+    .mini-cell.has-events::after {
+      content: ''; display: block; width: 4px; height: 4px;
+      border-radius: 50%; background: #e91e63;
+      margin: 1px auto 0;
+    }
+
+    /* ── Event chips ────────────────────────────────────────────────────── */
+    .chip {
+      display: flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%; line-height: 1.4;
+    }
+    .chip-icon { flex-shrink: 0; font-size: 10px; }
+    .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip.birthday    { background: #fce4ec; color: #c2185b; }
+    .chip.anniversary { background: #f3e5f5; color: #6a1b9a; }
+    .chip.meeting     { background: #e3f2fd; color: #1565c0; }
+    .chip.churchevent { background: #e8f5e9; color: #2e7d32; }
+    .chip-more { font-size: 10px; color: #888; padding: 2px 4px; font-style: italic; }
+
+    /* ── Detail panel ───────────────────────────────────────────────────── */
+    .detail-panel {
+      display: none; border-top: 2px solid #e8eaf6;
+      background: #f9f9ff; padding: 20px 24px;
+    }
+    .detail-panel.open { display: block; }
+    .detail-title { font-size: 14px; font-weight: 700; color: #673147; margin-bottom: 14px; }
+    .detail-list { display: flex; flex-direction: column; gap: 8px; }
+    .detail-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fff; border-radius: 8px;
+      padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .detail-badge {
+      min-width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .detail-badge.birthday    { background: #fce4ec; }
+    .detail-badge.anniversary { background: #f3e5f5; }
+    .detail-badge.meeting     { background: #e3f2fd; }
+    .detail-info { flex: 1; min-width: 0; }
+    .detail-item-title { font-size: 14px; font-weight: 600; color: #333; }
+    .detail-item-sub   { font-size: 13px; color: #888; margin-top: 2px; }
+    .detail-empty { font-size: 13px; color: #bbb; font-style: italic; }
+
+    /* ── View-only badge ─────────────────────────────────────────────────── */
+    .view-only-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 11px; font-weight: 600; color: rgba(255,255,255,.85);
+      margin-left: auto; flex-shrink: 0;
+    }
+
+    /* ── Loading skeleton ────────────────────────────────────────────────── */
+    .cal-loading {
+      display: flex; align-items: center; justify-content: center;
+      padding: 64px 20px; color: #bbb; font-size: 14px; gap: 10px;
+    }
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid #e0e0e0;
+      border-top-color: #673147; border-radius: 50%;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error state ─────────────────────────────────────────────────────── */
+    .cal-error {
+      padding: 40px 24px; text-align: center; color: #e53935; font-size: 14px;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 900px) { .year-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) {
+      .year-grid { grid-template-columns: repeat(2, 1fr); }
+      .cal-month-label { min-width: 160px; font-size: 15px; }
+      .topbar { padding: 10px 16px; }
+      .page { padding: 16px 10px 48px; }
+
+      /* Monthly & weekly grids: allow horizontal scroll on small screens */
+      .cal-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .cal-dow  { min-width: 420px; }
+      .cal-grid { min-width: 420px; }
+      .week-grid { min-width: 420px; }
+
+      /* Shrink cells so 7 cols fit comfortably in ~420px */
+      .cal-dow-cell { padding: 6px 2px; font-size: 9px; letter-spacing: 0; }
+      .cal-cell { min-height: 64px; padding: 5px 3px 4px; }
+      .week-cell { min-height: 90px; padding: 5px 3px 4px; }
+      .cal-day-num { font-size: 11px; width: 22px; height: 22px; }
+      .cal-cell.today .cal-day-num,
+      .week-cell.today .cal-day-num { width: 22px; height: 22px; font-size: 11px; }
+
+      /* Chips: narrower, smaller text */
+      .chip { font-size: 9px; padding: 1px 4px; gap: 2px; }
+      .chip-icon { display: none; }
+      .chip-more { font-size: 9px; }
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+    /* ── Google Calendar sync button ─────────────────────── */
+    .btn-gcal {
+      display: inline-flex; align-items: center;
+      padding: 7px 14px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; color: #1a73e8;
+      background: rgba(255,255,255,.92); border: 1.5px solid #1a73e8;
+      gap: 6px; cursor: pointer; transition: background .18s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-gcal:hover { background: #e8f0fe; }
+
+    /* ── Google Calendar sync panel ──────────────────────── */
+    .gcal-panel {
+      background: #fff; border-radius: 12px; border: 1.5px solid #e8f0fe;
+      box-shadow: 0 2px 12px rgba(26,115,232,.1);
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .gcal-panel-header {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px 20px; border-bottom: 1px solid #f0f4ff;
+      background: #f8fbff;
+    }
+    .gcal-panel-body { padding: 20px; }
+    .gcal-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+    .gcal-step { display: flex; align-items: flex-start; gap: 10px; }
+    .gcal-step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #1a73e8; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+    .gcal-step-text { font-size: 13px; color: #555; line-height: 1.5; }
+    .gcal-url-row { display: flex; gap: 8px; }
+    .gcal-url-input {
+      flex: 1; border: 1.5px solid #ddd; border-radius: 7px;
+      padding: 8px 12px; font-size: 12px; color: #333;
+      background: #fafafa; outline: none; min-width: 0;
+    }
+    .gcal-url-input:focus { outline: none; border-color: #1a73e8; }
+    .gcal-copy-btn {
+      padding: 8px 16px; border-radius: 7px;
+      background: #1a73e8; color: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .18s; white-space: nowrap; flex-shrink: 0;
+    }
+    .gcal-copy-btn:hover { background: #1557b0; }
+    .btn-gcal-add {
+      display: inline-flex; align-items: center;
+      padding: 8px 16px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      background: #1a73e8; gap: 6px; cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-gcal-add:hover { background: #1557b0; }
+    .btn-ics-download {
+      display: inline-flex; align-items: center;
+      padding: 8px 16px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; border: 1.5px solid #e0e0e0;
+      gap: 6px; cursor: pointer; transition: background .18s;
+    }
+    .btn-ics-download:hover { background: #fdf5f8; }
+    .gcal-note {
+      margin-top: 16px; padding: 12px 14px;
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+      font-size: 12px; color: #856404; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════ TOPBAR ════════════ -->
+<div class="topbar">
+  <div id="logoArea">
+    <div class="topbar-logo-fallback">⛪</div>
+  </div>
+  <div class="topbar-text">
+    <div class="topbar-name" id="churchName">Loading…</div>
+    <div class="topbar-sub">Event Calendar</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0;">
+    <button class="btn-gcal" id="btnGcal" onclick="toggleGcalPanel()">
+      <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png"
+           onerror="this.style.display='none'" width="16" height="16" style="border-radius:3px;" alt="" />
+      Sync
+    </button>
+    <div class="view-only-badge">👁 View Only</div>
+  </div>
+</div>
+
+<!-- ════════════ PAGE ════════════ -->
+<div class="page">
+
+  <!-- Google Calendar Sync Panel -->
+  <div class="gcal-panel" id="gcalPanel" style="display:none;">
+    <div class="gcal-panel-header">
+      <span style="font-size:18px;">📅</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#1a73e8;">Sync with Google Calendar</div>
+        <div style="font-size:12px;color:#888;margin-top:2px;">Subscribe to this church calendar — events stay in sync automatically.</div>
+      </div>
+      <button onclick="toggleGcalPanel()" style="margin-left:auto;font-size:18px;color:#aaa;background:none;border:none;cursor:pointer;line-height:1;">&#x2715;</button>
+    </div>
+    <div class="gcal-panel-body">
+      <div class="gcal-steps">
+        <div class="gcal-step">
+          <div class="gcal-step-num">1</div>
+          <div class="gcal-step-text">Copy the calendar feed URL below</div>
+        </div>
+        <div class="gcal-step">
+          <div class="gcal-step-num">2</div>
+          <div class="gcal-step-text">Open <strong>Google Calendar</strong> → Other Calendars → <strong>"From URL"</strong></div>
+        </div>
+        <div class="gcal-step">
+          <div class="gcal-step-num">3</div>
+          <div class="gcal-step-text">Paste the URL and click <strong>Add Calendar</strong> — events sync automatically!</div>
+        </div>
+      </div>
+
+      <div class="gcal-url-row">
+        <input type="text" id="icsUrlInput" class="gcal-url-input" readonly placeholder="Loading feed URL…" />
+        <button class="gcal-copy-btn" onclick="copyIcsUrl()" id="gcalCopyBtn" title="Copy URL">
+          📋 Copy
+        </button>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <a id="gcalAddLink" href="#" target="_blank" rel="noopener" class="btn-gcal-add" onclick="return openGcalAdd()">
+          <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png"
+               onerror="this.style.display='none'" width="16" height="16" alt="" style="border-radius:3px;" />
+          Add to Google Calendar
+        </a>
+        <a id="icsDownloadLink" href="#" class="btn-ics-download" download="church-calendar.ics">
+          📥 Download .ics File
+        </a>
+      </div>
+
+      <div class="gcal-note">
+        <strong>Note:</strong> Google Calendar may take up to 24 hours to refresh subscribed calendars.
+        For instant updates, use the <em>Download .ics</em> option and import manually.
+      </div>
+
+      <!-- iPhone Calendar -->
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e8f0fe;">
+        <div style="font-weight:700;color:#333;font-size:13px;margin-bottom:10px;">🍎 Sync to iPhone Calendar</div>
+        <div class="gcal-steps">
+          <div class="gcal-step">
+            <div class="gcal-step-num">1</div>
+            <div class="gcal-step-text">Copy the calendar feed URL above</div>
+          </div>
+          <div class="gcal-step">
+            <div class="gcal-step-num">2</div>
+            <div class="gcal-step-text">Open <strong>iPhone Settings</strong> → Apps → Calendar → <strong>Calendar Accounts</strong></div>
+          </div>
+          <div class="gcal-step">
+            <div class="gcal-step-num">3</div>
+            <div class="gcal-step-text">Tap <strong>Add Account</strong> → Other → <strong>Add Subscribed Calendar</strong></div>
+          </div>
+          <div class="gcal-step">
+            <div class="gcal-step-num">4</div>
+            <div class="gcal-step-text">Paste the URL and tap <strong>Save</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cal-card">
+
+    <!-- Toolbar -->
+    <div class="cal-toolbar">
+      <div class="cal-nav">
+        <button class="btn-nav" onclick="navPrev()" title="Previous">&#8249;</button>
+        <div class="cal-month-label" id="navLabel"></div>
+        <button class="btn-nav" onclick="navNext()" title="Next">&#8250;</button>
+        <button class="btn-today" onclick="goToToday()">Today</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div class="view-toggle">
+          <button class="btn-view active" id="btnMonthly" onclick="setView('monthly')">Monthly</button>
+          <button class="btn-view"        id="btnWeekly"  onclick="setView('weekly')">Weekly</button>
+          <button class="btn-view"        id="btnYearly"  onclick="setView('yearly')">Yearly</button>
+        </div>
+        <div class="cal-legend">
+          <div class="legend-item"><div class="legend-dot birthday"></div> Birthday</div>
+          <div class="legend-item"><div class="legend-dot anniversary"></div> Anniversary</div>
+          <div class="legend-item"><div class="legend-dot meeting"></div> Meeting</div>
+          <div class="legend-item"><div class="legend-dot churchevent"></div> Event</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day-of-week headers (hidden for yearly view) -->
+    <div class="cal-dow" id="calDow">
+      <div class="cal-dow-cell weekend">Sun</div>
+      <div class="cal-dow-cell">Mon</div>
+      <div class="cal-dow-cell">Tue</div>
+      <div class="cal-dow-cell">Wed</div>
+      <div class="cal-dow-cell">Thu</div>
+      <div class="cal-dow-cell">Fri</div>
+      <div class="cal-dow-cell weekend">Sat</div>
+    </div>
+
+    <!-- Calendar grid -->
+    <div id="calGrid"><div class="cal-loading"><div class="spinner"></div> Loading calendar…</div></div>
+
+    <!-- Detail panel (read-only) -->
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-title" id="detailTitle">Events</div>
+      <div class="detail-list" id="detailList"></div>
+    </div>
+
+  </div><!-- /.cal-card -->
+</div><!-- /.page -->
+
+<script>
+  /* ════════════════════════════════════
+     CID — read from URL query param
+  ════════════════════════════════════ */
+  const CID = new URLSearchParams(window.location.search).get('cid') || '';
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  const TODAY      = new Date();
+  let curView      = 'monthly';
+  let curYear      = TODAY.getFullYear();
+  let curMonth     = TODAY.getMonth() + 1;
+  let curWeekStart = getWeekStart(TODAY);
+  let events       = [];
+  let yearEvents   = {};
+  let selectedDay  = null;
+
+  /* ════════════════════════════════════
+     INIT — load church branding then calendar
+  ════════════════════════════════════ */
+  (async function init() {
+    if (!CID) {
+      document.getElementById('churchName').textContent = 'Public Calendar';
+      document.getElementById('calGrid').innerHTML =
+        '<div class="cal-error">Missing calendar link. Please use a valid public calendar URL.</div>';
+      return;
+    }
+    await loadChurchInfo();
+    load();
+  })();
+
+  /* ════════════════════════════════════
+     CHURCH BRANDING
+  ════════════════════════════════════ */
+  async function loadChurchInfo() {
+    try {
+      const res = await fetch(`/api/event-calendar/public-church-info?cid=${encodeURIComponent(CID)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.churchName) document.getElementById('churchName').textContent = data.churchName;
+        document.title = (data.churchName || 'Church') + ' – Calendar';
+      }
+    } catch { /* keep fallback text */ }
+
+    // Try to load logo
+    try {
+      const logoUrl = `/api/event-calendar/public-logo?cid=${encodeURIComponent(CID)}`;
+      const probe   = await fetch(logoUrl, { method: 'HEAD' });
+      if (probe.ok) {
+        const img = document.createElement('img');
+        img.src       = logoUrl;
+        img.alt       = 'Church Logo';
+        img.className = 'topbar-logo';
+        img.onerror   = () => { /* keep fallback */ };
+        document.getElementById('logoArea').innerHTML = '';
+        document.getElementById('logoArea').appendChild(img);
+      }
+    } catch { /* keep fallback icon */ }
+  }
+
+  /* ════════════════════════════════════
+     VIEW MANAGEMENT
+  ════════════════════════════════════ */
+  function setView(view) {
+    curView = view;
+    selectedDay = null;
+    document.getElementById('btnMonthly').classList.toggle('active', view === 'monthly');
+    document.getElementById('btnWeekly').classList.toggle('active', view === 'weekly');
+    document.getElementById('btnYearly').classList.toggle('active', view === 'yearly');
+    document.getElementById('calDow').style.display = (view === 'yearly') ? 'none' : '';
+    load();
+  }
+
+  /* ════════════════════════════════════
+     NAVIGATION
+  ════════════════════════════════════ */
+  function navPrev() {
+    if      (curView === 'monthly') { if (curMonth === 1) { curMonth = 12; curYear--; } else curMonth--; }
+    else if (curView === 'weekly')  { curWeekStart = new Date(curWeekStart.getTime() - 7 * 86400000); }
+    else                            { curYear--; }
+    selectedDay = null; load();
+  }
+  function navNext() {
+    if      (curView === 'monthly') { if (curMonth === 12) { curMonth = 1; curYear++; } else curMonth++; }
+    else if (curView === 'weekly')  { curWeekStart = new Date(curWeekStart.getTime() + 7 * 86400000); }
+    else                            { curYear++; }
+    selectedDay = null; load();
+  }
+  function goToToday() {
+    curYear = TODAY.getFullYear(); curMonth = TODAY.getMonth() + 1;
+    curWeekStart = getWeekStart(TODAY); selectedDay = null; load();
+  }
+
+  /* ════════════════════════════════════
+     LOAD
+  ════════════════════════════════════ */
+  async function load() {
+    updateNavLabel();
+    closeDetail();
+    if (curView === 'yearly')  { await loadYear();  renderYear(); }
+    else if (curView === 'weekly') { await loadWeek();  renderWeek(); }
+    else                           { await loadMonth(); renderGrid(); }
+  }
+
+  async function loadMonth() {
+    try {
+      const res = await fetch(
+        `/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${curYear}&month=${curMonth}`);
+      events = res.ok ? await res.json() : [];
+    } catch { events = []; }
+  }
+
+  async function loadWeek() {
+    const endDate = new Date(curWeekStart.getTime() + 6 * 86400000);
+    const months  = new Set();
+    months.add(`${curWeekStart.getFullYear()}-${curWeekStart.getMonth() + 1}`);
+    months.add(`${endDate.getFullYear()}-${endDate.getMonth() + 1}`);
+    let all = [];
+    for (const key of months) {
+      const [y, m] = key.split('-').map(Number);
+      try {
+        const res = await fetch(
+          `/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${y}&month=${m}`);
+        if (res.ok) all = all.concat(await res.json());
+      } catch {}
+    }
+    events = all;
+  }
+
+  async function loadYear() {
+    yearEvents = {};
+    const fetches = [];
+    for (let m = 1; m <= 12; m++) {
+      fetches.push(
+        fetch(`/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${curYear}&month=${m}`)
+          .then(r => r.ok ? r.json() : []).catch(() => [])
+          .then(evts => evts.forEach(e => {
+            if (!yearEvents[e.date]) yearEvents[e.date] = [];
+            yearEvents[e.date].push(e);
+          }))
+      );
+    }
+    await Promise.all(fetches);
+  }
+
+  /* ════════════════════════════════════
+     NAV LABEL
+  ════════════════════════════════════ */
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function updateNavLabel() {
+    const el = document.getElementById('navLabel');
+    if (curView === 'monthly') {
+      el.textContent = `${MONTH_NAMES[curMonth - 1]} ${curYear}`;
+    } else if (curView === 'weekly') {
+      const end      = new Date(curWeekStart.getTime() + 6 * 86400000);
+      const startStr = curWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr   = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      el.textContent = `${startStr} – ${endStr}`;
+    } else {
+      el.textContent = String(curYear);
+    }
+  }
+
+  /* ════════════════════════════════════
+     RENDER — MONTHLY
+  ════════════════════════════════════ */
+  function renderGrid() {
+    const grid = document.getElementById('calGrid');
+    grid.className = 'cal-grid';
+
+    const byDay        = buildByDay(events);
+    const firstDow     = new Date(curYear, curMonth - 1, 1).getDay();
+    const daysInMonth  = new Date(curYear, curMonth, 0).getDate();
+    const prevDays     = new Date(curYear, curMonth - 1, 0).getDate();
+    const todayStr     = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+
+    let cells = [];
+    for (let i = firstDow - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      const m = curMonth === 1 ? 12 : curMonth - 1;
+      const y = curMonth === 1 ? curYear - 1 : curYear;
+      cells.push(makeCell(y, m, d, true, byDay, todayStr));
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(makeCell(curYear, curMonth, d, false, byDay, todayStr));
+    }
+    const trailing = (7 - (cells.length % 7)) % 7;
+    for (let d = 1; d <= trailing; d++) {
+      const m = curMonth === 12 ? 1 : curMonth + 1;
+      const y = curMonth === 12 ? curYear + 1 : curYear;
+      cells.push(makeCell(y, m, d, true, byDay, todayStr));
+    }
+    grid.innerHTML = cells.join('');
+  }
+
+  /* ════════════════════════════════════
+     RENDER — WEEKLY
+  ════════════════════════════════════ */
+  function renderWeek() {
+    const grid    = document.getElementById('calGrid');
+    grid.className = 'week-grid';
+    const byDay   = buildByDay(events);
+    const todayStr = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+    let html = '';
+    for (let i = 0; i < 7; i++) {
+      const d       = new Date(curWeekStart.getTime() + i * 86400000);
+      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      const dateStr = isoDate(y, m, day);
+      const dayEvts = byDay[dateStr] || [];
+      const isToday = dateStr === todayStr;
+      const isSel   = dateStr === selectedDay;
+      let cls = 'week-cell';
+      if (isToday) cls += ' today';
+      if (isSel)   cls += ' selected';
+      html += `<div class="${cls}" onclick="selectDay('${dateStr}')">
+                 <div class="week-date-label">${DAY_NAMES[d.getDay()]}</div>
+                 <div class="cal-day-num">${day}</div>
+                 <div class="cal-events">${chipsBlock(dayEvts)}</div>
+               </div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  /* ════════════════════════════════════
+     RENDER — YEARLY
+  ════════════════════════════════════ */
+  function renderYear() {
+    const grid = document.getElementById('calGrid');
+    grid.className = 'year-grid';
+    const todayStr = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+    let html = '';
+    for (let m = 1; m <= 12; m++) {
+      const daysInMonth = new Date(curYear, m, 0).getDate();
+      const firstDow    = new Date(curYear, m - 1, 1).getDay();
+      const prevDays    = new Date(curYear, m - 1, 0).getDate();
+      html += `<div class="mini-month">
+        <div class="mini-month-header">${MONTH_NAMES[m - 1]}</div>
+        <div class="mini-dow-row">
+          <div class="mini-dow-cell">S</div><div class="mini-dow-cell">M</div>
+          <div class="mini-dow-cell">T</div><div class="mini-dow-cell">W</div>
+          <div class="mini-dow-cell">T</div><div class="mini-dow-cell">F</div>
+          <div class="mini-dow-cell">S</div>
+        </div>
+        <div class="mini-cal-grid">`;
+      for (let i = firstDow - 1; i >= 0; i--) {
+        html += `<div class="mini-cell other-month">${prevDays - i}</div>`;
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = isoDate(curYear, m, d);
+        const isToday = dateStr === todayStr;
+        const hasEvts = !!(yearEvents[dateStr] && yearEvents[dateStr].length);
+        let cls = 'mini-cell';
+        if (isToday) cls += ' today';
+        if (hasEvts) cls += ' has-events';
+        html += `<div class="${cls}" onclick="onYearCellClick('${dateStr}')">${d}</div>`;
+      }
+      const trail = (7 - ((firstDow + daysInMonth) % 7)) % 7;
+      for (let d = 1; d <= trail; d++) html += `<div class="mini-cell other-month">${d}</div>`;
+      html += `</div></div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function onYearCellClick(dateStr) {
+    const [y, m] = dateStr.split('-').map(Number);
+    curYear = y; curMonth = m; curView = 'monthly'; selectedDay = dateStr;
+    document.getElementById('btnMonthly').classList.add('active');
+    document.getElementById('btnWeekly').classList.remove('active');
+    document.getElementById('btnYearly').classList.remove('active');
+    document.getElementById('calDow').style.display = '';
+    loadMonth().then(() => { renderGrid(); showDetail(dateStr); });
+    updateNavLabel();
+  }
+
+  /* ════════════════════════════════════
+     CELL BUILDER
+  ════════════════════════════════════ */
+  function makeCell(y, m, d, otherMonth, byDay, todayStr) {
+    const dateStr = isoDate(y, m, d);
+    const dayEvts = byDay[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    const isSel   = dateStr === selectedDay;
+    let classes = 'cal-cell';
+    if (otherMonth) classes += ' other-month';
+    if (isToday)    classes += ' today';
+    if (isSel)      classes += ' selected';
+    return `<div class="${classes}" onclick="selectDay('${dateStr}')">
+              <div class="cal-day-num">${d}</div>
+              <div class="cal-events">${chipsBlock(dayEvts)}</div>
+            </div>`;
+  }
+
+  function chipsBlock(dayEvts) {
+    const MAX  = 3;
+    const shown = dayEvts.slice(0, MAX);
+    const more  = dayEvts.length - MAX;
+    return shown.map(e => chipHtml(e)).join('') +
+           (more > 0 ? `<div class="chip-more">+${more} more</div>` : '');
+  }
+
+  function chipHtml(e) {
+    return `<div class="chip ${e.type}">
+              <span class="chip-icon">${typeIcon(e.type)}</span>
+              <span class="chip-label">${escHtml(e.title)}</span>
+            </div>`;
+  }
+
+  /* ════════════════════════════════════
+     DAY SELECTION & DETAIL PANEL (read-only)
+  ════════════════════════════════════ */
+  function selectDay(dateStr) {
+    if (selectedDay === dateStr) {
+      selectedDay = null; closeDetail();
+      if (curView === 'monthly') renderGrid();
+      else if (curView === 'weekly') renderWeek();
+      return;
+    }
+    selectedDay = dateStr;
+    if (curView === 'monthly') renderGrid();
+    else if (curView === 'weekly') renderWeek();
+    showDetail(dateStr);
+  }
+
+  function showDetail(dateStr) {
+    const panel = document.getElementById('detailPanel');
+    const title = document.getElementById('detailTitle');
+    const list  = document.getElementById('detailList');
+    const dayEvts = events.filter(e => e.date === dateStr);
+    const [y, m, d] = dateStr.split('-').map(Number);
+    title.textContent = new Date(y, m - 1, d)
+      .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    if (dayEvts.length === 0) {
+      list.innerHTML = `<div class="detail-empty">No events on this day.</div>`;
+    } else {
+      list.innerHTML = dayEvts.map(e => {
+        const sub = e.time
+          ? `<div class="detail-item-sub">🕐 ${escHtml(e.time)}</div>`
+          : `<div class="detail-item-sub">${typeLabel(e.type)}</div>`;
+        return `<div class="detail-item">
+                  <div class="detail-badge ${e.type}">${typeIcon(e.type)}</div>
+                  <div class="detail-info">
+                    <div class="detail-item-title">${escHtml(e.title)}</div>
+                    ${sub}
+                  </div>
+                </div>`;
+      }).join('');
+    }
+    panel.classList.add('open');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); }
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function buildByDay(evtArr) {
+    const map = {};
+    evtArr.forEach(e => { if (!map[e.date]) map[e.date] = []; map[e.date].push(e); });
+    return map;
+  }
+  function getWeekStart(date) {
+    const d = new Date(date); d.setHours(0,0,0,0); d.setDate(d.getDate() - d.getDay()); return d;
+  }
+  function isoDate(y, m, d) {
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  function typeIcon(type) {
+    if (type === 'birthday') return '🎂'; if (type === 'anniversary') return '💍'; return '📅';
+  }
+  function typeLabel(type) {
+    if (type === 'birthday') return 'Birthday';
+    if (type === 'anniversary') return 'Wedding Anniversary';
+    return 'Meeting';
+  }
+  function escHtml(str) {
+    return (str == null ? '' : String(str))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ════════════════════════════════════
+     GOOGLE CALENDAR SYNC PANEL
+  ════════════════════════════════════ */
+  function toggleGcalPanel() {
+    const panel = document.getElementById('gcalPanel');
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) initGcalPanel();
+  }
+
+  function initGcalPanel() {
+    // Build public ICS feed URL with the org's cid param
+    const icsUrl = window.location.origin + '/api/event-calendar/public-ics?cid=' + encodeURIComponent(CID);
+    const icsInput = document.getElementById('icsUrlInput');
+    if (icsInput) icsInput.value = icsUrl;
+    const downloadLink = document.getElementById('icsDownloadLink');
+    if (downloadLink) downloadLink.href = icsUrl;
+  }
+
+  function copyIcsUrl() {
+    const input = document.getElementById('icsUrlInput');
+    if (!input || !input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = document.getElementById('gcalCopyBtn');
+      if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000); }
+    }).catch(() => {
+      // Fallback
+      input.select();
+      document.execCommand('copy');
+      const btn = document.getElementById('gcalCopyBtn');
+      if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000); }
+    });
+  }
+
+  function openGcalAdd() {
+    const input = document.getElementById('icsUrlInput');
+    if (!input || !input.value) return false;
+    const encoded = encodeURIComponent(input.value);
+    window.open('https://calendar.google.com/calendar/r?cid=' + encoded, '_blank', 'noopener');
+    return false;
+  }
+</script>
+</body>
+</html>

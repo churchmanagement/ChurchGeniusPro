@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+  <title>Guess It – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f0ecf3; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: #673147;
+      box-shadow: 0 2px 8px rgba(103,49,71,.35);
+      padding: 6px 16px;
+      display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-logo-wrap {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: rgba(255,255,255,.15); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+      overflow: hidden;
+    }
+    .topbar-logo-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
+    .topbar-name { color: #fff; font-size: 13px; font-weight: 700; }
+    .topbar-sub  { font-size: 10px; color: rgba(255,255,255,.6); margin-top: 1px; }
+
+    /* ── Page ── */
+    .page { max-width: 820px; margin: 0 auto; padding: 12px 16px 40px; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 2px 14px rgba(103,49,71,.10);
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .card-header {
+      padding: 7px 14px; border-bottom: 1px solid #f0e8ec;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-title { font-size: 12px; font-weight: 700; color: #673147; }
+    .card-body  { padding: 8px 14px; }
+
+    /* ── No game state ── */
+    .no-game {
+      text-align: center; padding: 28px 20px;
+      color: #999; font-size: 14px;
+    }
+    .no-game .emoji { font-size: 32px; margin-bottom: 8px; }
+
+    /* ── Game title ── */
+    .game-title {
+      font-size: 16px; font-weight: 800; color: #673147;
+      text-align: center; margin-bottom: 4px;
+    }
+    .game-subtitle {
+      font-size: 12px; color: #999; text-align: center; margin-bottom: 10px;
+    }
+
+    /* ── Clue display ── */
+    .clue-box {
+      background: linear-gradient(135deg, #673147 0%, #8b3e5e 100%);
+      border-radius: 10px; padding: 14px 16px; text-align: center;
+      margin-bottom: 10px;
+    }
+    .clue-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.65);
+                  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+    .clue-number { font-size: 12px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+    .clue-text   { font-size: 18px; font-weight: 800; color: #fff; line-height: 1.3; }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .stat-box {
+      flex: 1; min-width: 70px;
+      background: #fdf5f7; border-radius: 8px; padding: 8px 10px;
+      text-align: center; border: 1px solid #f0d9e0;
+    }
+    .stat-value { font-size: 18px; font-weight: 800; color: #673147; line-height: 1; }
+    .stat-label { font-size: 10px; color: #999; margin-top: 3px; }
+
+    /* ── Winners / Eliminated lists ── */
+    .name-list { display: flex; flex-direction: column; gap: 4px; }
+    .name-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 8px; border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+    }
+    .name-chip.winner    { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .name-chip.eliminated { background: #ffeaea; color: #c62828; border: 1px solid #ffcdd2; }
+    .name-chip .chip-icon { font-size: 13px; flex-shrink: 0; }
+    .empty-list { font-size: 11px; color: #aaa; font-style: italic; }
+
+    /* ── Status badge ── */
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .status-active    { background: #e8f5e9; color: #2e7d32; }
+    .status-pending   { background: #fff8e1; color: #f57f17; }
+    .status-completed { background: #ede7f6; color: #512da8; }
+
+    /* ── Active game bar (always visible when game is active + admin panel open) ── */
+    #activeGameBar {
+      display: none;
+      background: #fff;
+      border: 2px solid #673147;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    #activeGameBar .bar-label {
+      font-size: 11px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px;
+    }
+
+    /* ── Admin panel (hidden by default) ── */
+    #adminPanel {
+      display: none;
+      border: 2px dashed #673147;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .admin-body { padding: 20px; display: none; }
+    .admin-section { margin-bottom: 24px; }
+    .admin-section-title {
+      font-size: 13px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 12px; padding-bottom: 6px;
+      border-bottom: 1.5px solid #f0e8ec;
+    }
+    .btn-admin {
+      padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-admin:hover { opacity: .85; }
+    .btn-start    { background: #2e7d32; color: #fff; }
+    .btn-next     { background: #673147; color: #fff; }
+    .btn-end      { background: #e53935; color: #fff; }
+    .btn-create   { background: #1565c0; color: #fff; }
+    .btn-restart  { background: #ef6c00; color: #fff; }
+    .btn-nextgame { background: #1565c0; color: #fff; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    .clue-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #fdf5f7; border: 1px solid #f0d9e0;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 13px; color: #673147; font-weight: 600;
+    }
+    .clue-pill.current-clue { background: #673147; color: #fff; }
+    .option-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 8px;
+      background: #f8f8f8; margin-bottom: 6px; font-size: 13px;
+    }
+    .option-row.correct-option {
+      background: #e8f5e9; color: #2e7d32; font-weight: 700;
+      border: 1.5px solid #a5d6a7;
+    }
+    .admin-input {
+      width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0;
+      border-radius: 7px; font-size: 13px; outline: none; margin-bottom: 8px;
+    }
+    .admin-textarea {
+      width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0;
+      border-radius: 7px; font-size: 13px; outline: none; margin-bottom: 8px;
+      resize: vertical; min-height: 80px; font-family: inherit;
+    }
+    .admin-hint { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+    .admin-game-list { display: flex; flex-direction: column; gap: 8px; }
+    .admin-game-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 9px;
+      background: #fdf5f7; border: 1px solid #f0d9e0;
+      font-size: 13px;
+    }
+    .admin-game-row .game-name { flex: 1; font-weight: 600; color: #333; }
+    .admin-err { color: #e53935; font-size: 13px; margin-top: 6px; }
+    .admin-toggle-btn {
+      position: fixed; bottom: 20px; right: 20px;
+      background: #673147; color: #fff;
+      border-radius: 50%; width: 48px; height: 48px;
+      font-size: 20px; box-shadow: 0 4px 14px rgba(103,49,71,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; opacity: .6; transition: opacity .2s;
+    }
+    .admin-toggle-btn:hover { opacity: 1; }
+
+    /* ── Polling indicator ── */
+    .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+             background: #43a047; margin-right: 6px;
+             animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    /* ── Timer countdown bar ── */
+    .timer-bar-wrap {
+      margin: 8px 0 6px;
+      height: 8px; border-radius: 4px;
+      background: rgba(255,255,255,.2);
+      overflow: hidden;
+    }
+    .timer-bar-fill {
+      height: 100%; border-radius: 4px;
+      background: #fff;
+      transition: width .9s linear, background .3s;
+    }
+    .timer-bar-fill.danger { background: #ff5252; }
+    .timer-label {
+      text-align: center; font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,.75); margin-bottom: 4px; letter-spacing: .5px;
+    }
+    .timer-label.danger { color: #ff8a80; }
+
+    /* ── Admin timer select ── */
+    .admin-timer-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .admin-timer-row label { font-size: 13px; color: #555; font-weight: 600; white-space: nowrap; }
+    .admin-timer-select {
+      padding: 7px 10px; border: 1.5px solid #e0e0e0;
+      border-radius: 7px; font-size: 13px; outline: none;
+      background: #fff; flex: 1; max-width: 180px;
+    }
+
+    /* ── Responsive ── */
+    @media(max-width:500px) {
+      .clue-text { font-size: 15px; }
+      .game-title { font-size: 14px; }
+      .stat-value { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo-wrap" id="topLogoWrap">🎯</div>
+  <div>
+    <div class="topbar-name" id="topChurchName">Guess It</div>
+    <div class="topbar-sub"><span class="pulse"></span>Live</div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Main game display -->
+  <div id="gameDisplay">
+    <div class="no-game">
+      <div class="emoji">🎯</div>
+      <div>No game is active right now.</div>
+      <div style="font-size:13px;margin-top:8px;color:#bbb;">Check back soon!</div>
+    </div>
+  </div>
+
+  <!-- ── ACTIVE GAME BAR (always visible when admin panel open + game active) ── -->
+  <div id="activeGameBar">
+    <div class="bar-label">🎮 Active Game</div>
+    <div class="btn-row">
+      <button class="btn-admin btn-next"    onclick="adminNextClue()">➡️ Next Clue</button>
+      <button class="btn-admin btn-end"     onclick="adminEndGame()">⏹ End Game</button>
+      <button class="btn-admin btn-restart" onclick="adminRestartGame()">🔄 Restart Game</button>
+      <button class="btn-admin btn-nextgame" id="btnNextGame" onclick="adminNextGame()" style="display:none;">⏭ Next Game</button>
+    </div>
+  </div>
+
+  <!-- ── ADMIN PANEL ───────────────────────────────────────────────────── -->
+  <div id="adminPanel">
+    <div class="card-header" style="background:#fdf5f7;cursor:pointer;" onclick="toggleAdminBody()">
+      <span class="card-title">🔐 Master Controls</span>
+      <span id="adminChevron" style="color:#673147;font-size:18px;">▼</span>
+    </div>
+
+    <!-- Admin body (collapsed by default — click header to expand) -->
+    <div class="admin-body" id="adminBody" style="display:none;">
+
+      <!-- Game selection -->
+      <div class="admin-section">
+        <div class="admin-section-title">📋 Games</div>
+        <div class="admin-game-list" id="adminGameList">
+          <div style="color:#aaa;font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Active game controls (detail view — buttons are in the bar above) -->
+      <div class="admin-section" id="adminActiveSection" style="display:none;">
+        <div class="admin-section-title">🎮 Active Game Details</div>
+
+        <!-- Clues (all revealed to admin) -->
+        <div class="admin-section-title" style="margin-top:16px;">💡 All Clues</div>
+        <div id="adminClueList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+
+        <!-- Answers (including correct) -->
+        <div class="admin-section-title">📝 Answer Options</div>
+        <div id="adminOptionList"></div>
+      </div>
+
+      <!-- Timer setting — always visible; applies to the active game immediately,
+           or saves as the default for the next game that is started -->
+      <div class="admin-section" id="adminTimerSection">
+        <div class="admin-section-title">⏱ Timer Per Clue</div>
+        <div class="admin-timer-row">
+          <label for="timerSelect">Duration:</label>
+          <select class="admin-timer-select" id="timerSelect" onchange="adminSetTimer(this.value)">
+            <option value="0">Off (no timer)</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="90">90 seconds</option>
+            <option value="120">2 minutes</option>
+          </select>
+        </div>
+        <div class="admin-hint" id="timerHint" style="margin-top:-4px;">Timer resets automatically when admin reveals the next clue.</div>
+      </div>
+
+      <!-- Create new game -->
+      <div class="admin-section">
+        <div class="admin-section-title">➕ Create New Game</div>
+        <input class="admin-input" id="newGameTitle"   placeholder="Game title (e.g. Guess the Bible Character)" />
+        <div class="admin-hint">Clues — one per line (they will be revealed one at a time):</div>
+        <textarea class="admin-textarea" id="newGameClues" placeholder="Female&#10;Humility&#10;King David&#10;Moabite&#10;Naomi"></textarea>
+        <div class="admin-hint">Answer options — one per line:</div>
+        <textarea class="admin-textarea" id="newGameOptions" placeholder="Eve&#10;Sarah&#10;Ruth&#10;Esther"></textarea>
+        <input class="admin-input" id="newGameAnswer"  placeholder="Correct answer (must match one option exactly)" />
+        <div class="admin-err" id="createGameErr"></div>
+        <button class="btn-admin btn-create" onclick="adminCreateGame()" style="margin-top:4px;">Create Game</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Small hidden toggle button to reveal admin panel -->
+<button class="admin-toggle-btn" title="Admin" onclick="toggleAdminPanel()">⚙</button>
+
+<script>
+/* ── State ──────────────────────────────────────────────────────────── */
+var cid        = new URLSearchParams(location.search).get('cid') || '';
+var pollTimer  = null;
+var adminPanelOpen = false;
+var adminBodyManuallyOpen = false; // true only when user explicitly clicked the header to expand
+var activeGameId = null;
+var allGames   = [];
+
+/* ── Poll engine state ──────────────────────────────────────────────── */
+var lastV          = null;   // last fingerprint seen — skip re-render when unchanged
+var pollInterval   = 1500;   // ms between polls; adapts based on game state
+var errBackoff     = 0;      // consecutive error count for exponential backoff
+var pageHidden     = false;  // true when Page Visibility API reports hidden
+
+/* ── Timer state (public screen countdown) ──────────────────────────── */
+var timerTick      = null;   // setInterval handle for local countdown
+var timerSecs      = 0;      // total clue duration (0 = disabled)
+var clueStartedAt  = 0;      // server epoch ms when current clue started
+var timerExpired   = false;  // cached expiry flag from last poll
+
+/* ── Escape helper ────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  // Ensure Master Controls starts fully hidden — never auto-open on load
+  var adminPanel = document.getElementById('adminPanel');
+  var adminBody  = document.getElementById('adminBody');
+  var adminChevron = document.getElementById('adminChevron');
+  if (adminPanel)   { adminPanel.style.display = 'none'; }
+  if (adminBody)    { adminBody.style.display   = 'none'; }
+  if (adminChevron) { adminChevron.textContent  = '▶'; }
+  adminPanelOpen = false;
+
+  if (!cid) {
+    document.getElementById('gameDisplay').innerHTML =
+      '<div class="no-game"><div class="emoji">⚠️</div><div>No game link provided.</div>'
+      + '<div style="font-size:13px;margin-top:8px;color:#bbb;">Ask the game master for the correct link.</div></div>';
+    return;
+  }
+  startPolling();
+});
+
+/* ── Adaptive poll engine ─────────────────────────────────────────── */
+function startPolling() {
+  schedulePoll(0); // fire immediately
+
+  // Pause polling when tab/window is hidden; resume + immediate poll on focus
+  document.addEventListener('visibilitychange', function() {
+    pageHidden = document.hidden;
+    if (!pageHidden) schedulePoll(0);
+  });
+  window.addEventListener('focus', function() {
+    if (!pageHidden) schedulePoll(0);
+  });
+}
+
+function schedulePoll(delay) {
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  pollTimer = setTimeout(poll, delay);
+}
+
+async function poll() {
+  pollTimer = null;
+  if (pageHidden) return; // don't poll while hidden
+
+  try {
+    var res = await fetch('/api/guess-it/public?cid=' + encodeURIComponent(cid),
+                          { cache: 'no-store' });
+    if (!res.ok) { throw new Error('HTTP ' + res.status); }
+    var data = await res.json();
+    errBackoff = 0; // reset on success
+
+    // Adaptive rate: fast when active, slower when idle
+    pollInterval = data.hasGame && data.status === 'active' ? 1200 : 4000;
+
+    // Skip full re-render if nothing changed
+    if (data.v !== undefined && data.v === lastV) {
+      schedulePoll(pollInterval);
+      return;
+    }
+    lastV = data.v !== undefined ? data.v : null;
+    renderPublicGame(data);
+  } catch(e) {
+    // Exponential backoff: 2s, 4s, 8s, cap at 8s
+    errBackoff = Math.min(errBackoff + 1, 3);
+    pollInterval = 2000 * Math.pow(2, errBackoff - 1);
+  }
+  schedulePoll(pollInterval);
+}
+
+/* ── Timer helpers ─────────────────────────────────────────────────── */
+function stopTimerTick() {
+  if (timerTick) { clearInterval(timerTick); timerTick = null; }
+}
+
+function startTimerTick() {
+  stopTimerTick();
+  if (timerSecs <= 0 || clueStartedAt <= 0) return;
+  timerTick = setInterval(updateTimerUI, 500);
+  updateTimerUI(); // paint immediately
+}
+
+function updateTimerUI() {
+  var barFill  = document.getElementById('timerBarFill');
+  var barLabel = document.getElementById('timerBarLabel');
+  if (!barFill || !barLabel) return;
+
+  var elapsed = (Date.now() - clueStartedAt) / 1000;
+  var remaining = Math.max(0, timerSecs - elapsed);
+  var pct = timerSecs > 0 ? (remaining / timerSecs) * 100 : 0;
+  var isDanger = remaining <= 10;
+
+  barFill.style.width = pct.toFixed(1) + '%';
+  if (isDanger) {
+    barFill.classList.add('danger');
+    barLabel.classList.add('danger');
+  } else {
+    barFill.classList.remove('danger');
+    barLabel.classList.remove('danger');
+  }
+
+  if (remaining <= 0) {
+    barLabel.textContent = '⏰ Time\'s up!';
+    stopTimerTick();
+  } else {
+    var mins = Math.floor(remaining / 60);
+    var secs = Math.floor(remaining % 60);
+    barLabel.textContent = '⏱ ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
+  }
+}
+
+/* ── Seed timer from poll response ──────────────────────────────────── */
+function syncTimer(data) {
+  var newTimerSecs     = data.timerSecs     || 0;
+  var newClueStartedAt = data.clueStartedAt || 0;
+
+  // Re-anchor if timer secs changed or clue changed (new start timestamp)
+  if (newTimerSecs !== timerSecs || newClueStartedAt !== clueStartedAt) {
+    timerSecs     = newTimerSecs;
+    clueStartedAt = newClueStartedAt;
+    timerExpired  = data.timerExpired || false;
+    if (timerSecs > 0 && clueStartedAt > 0 && !timerExpired) {
+      startTimerTick();
+    } else {
+      stopTimerTick();
+    }
+  }
+}
+
+/* ── Public game rendering ────────────────────────────────────────── */
+function renderPublicGame(data) {
+  var el = document.getElementById('gameDisplay');
+  if (!data.hasGame) {
+    el.innerHTML = '<div class="no-game"><div class="emoji">🎯</div>'
+      + '<div>No game is active right now.</div>'
+      + '<div style="font-size:13px;margin-top:8px;color:#bbb;">Check back soon!</div></div>';
+    // Hide active game bar and active section
+    activeGameId = null;
+    stopTimerTick();
+    timerSecs = 0; clueStartedAt = 0;
+    if (adminPanelOpen) renderAdminActiveSection(null);
+    var bar = document.getElementById('activeGameBar');
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+
+  activeGameId = data.gameId;
+
+  // Sync local timer from server-anchored timestamp
+  syncTimer(data);
+
+  var statusLabel = data.status === 'active' ? 'active' :
+                    data.status === 'pending' ? 'pending' : 'completed';
+  var statusClass = 'status-' + statusLabel;
+
+  // Winner banner (shown immediately when game ends with a winner)
+  var winnerBanner = '';
+  if (data.winners && data.winners.length) {
+    var wName = data.winners[0].name;
+    winnerBanner = '<div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);border-radius:10px;padding:12px 16px;text-align:center;margin-bottom:10px;animation:fadeIn .4s ease;">'
+      + '<div style="font-size:26px;margin-bottom:4px;">🏆</div>'
+      + '<div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:2px;">We have a winner!</div>'
+      + '<div style="font-size:14px;font-weight:700;color:#a5d6a7;">' + esc(wName) + '</div>'
+      + '</div>';
+  }
+
+  // Cumulative clue display
+  var clueHtml = '';
+  if (data.status === 'active' || data.status === 'completed') {
+    if (data.revealedClues && data.revealedClues.length) {
+      clueHtml = '<div style="margin-bottom:10px;">';
+      data.revealedClues.forEach(function(clue, i) {
+        var isLatest = (i === data.revealedClues.length - 1) && data.status === 'active';
+        if (isLatest) {
+          var timerBarHtml = '';
+          if (data.timerSecs > 0) {
+            timerBarHtml = '<div class="timer-label" id="timerBarLabel">⏱ Loading…</div>'
+              + '<div class="timer-bar-wrap"><div class="timer-bar-fill" id="timerBarFill" style="width:100%;"></div></div>';
+          }
+          clueHtml += '<div class="clue-box">'
+            + '<div class="clue-label">Clue ' + (i+1) + ' of ' + data.totalClues + '</div>'
+            + '<div class="clue-text">' + esc(clue) + '</div>'
+            + timerBarHtml
+            + '</div>';
+        } else {
+          clueHtml += '<div style="background:rgba(255,255,255,.07);border-radius:7px;padding:5px 12px;margin-bottom:5px;font-size:12px;color:rgba(255,255,255,.6);">'
+            + '<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);margin-right:6px;">CLUE ' + (i+1) + '</span>' + esc(clue)
+            + '</div>';
+        }
+      });
+      clueHtml += '</div>';
+    } else {
+      clueHtml = '<div class="clue-box"><div class="clue-label">Waiting for first clue…</div></div>';
+    }
+    if (data.status === 'completed') {
+      clueHtml += '<div style="background:rgba(237,231,246,.15);border-radius:8px;padding:7px 12px;text-align:center;color:#ce93d8;font-weight:700;font-size:13px;margin-bottom:8px;">Game Over</div>';
+    }
+  }
+
+  var statsHtml = '<div class="stats-row">'
+    + '<div class="stat-box"><div class="stat-value">' + (data.totalJoined || 0) + '</div><div class="stat-label">Joined</div></div>'
+    + '<div class="stat-box"><div class="stat-value">' + (data.activeCount || 0) + '</div><div class="stat-label">Still Playing</div></div>'
+    + '<div class="stat-box"><div class="stat-value">' + (data.winners ? data.winners.length : 0) + '</div><div class="stat-label">Winner 🏆</div></div>'
+    + '<div class="stat-box"><div class="stat-value">' + (data.eliminated ? data.eliminated.length : 0) + '</div><div class="stat-label">Eliminated</div></div>'
+    + '</div>';
+
+  var winnersHtml = '<div class="card"><div class="card-header"><span class="card-title">🏆 Winners</span></div><div class="card-body">';
+  if (data.winners && data.winners.length) {
+    winnersHtml += '<div class="name-list">';
+    data.winners.forEach(function(w) {
+      winnersHtml += '<div class="name-chip winner"><span class="chip-icon">🏆</span>' + esc(w.name) + '</div>';
+    });
+    winnersHtml += '</div>';
+  } else {
+    winnersHtml += '<div class="empty-list">No winner yet…</div>';
+  }
+  winnersHtml += '</div></div>';
+
+  var elimHtml = '<div class="card"><div class="card-header"><span class="card-title">❌ Eliminated</span></div><div class="card-body">';
+  if (data.eliminated && data.eliminated.length) {
+    elimHtml += '<div class="name-list">';
+    data.eliminated.forEach(function(e) {
+      elimHtml += '<div class="name-chip eliminated"><span class="chip-icon">❌</span>' + esc(e.name) + '</div>';
+    });
+    elimHtml += '</div>';
+  } else {
+    elimHtml += '<div class="empty-list">No eliminations yet.</div>';
+  }
+  elimHtml += '</div></div>';
+
+  el.innerHTML = winnerBanner
+    + '<div class="card"><div class="card-body">'
+    + '<div class="game-title">' + esc(data.title) + '</div>'
+    + '<div class="game-subtitle"><span class="status-badge ' + statusClass + '">' + statusLabel.toUpperCase() + '</span></div>'
+    + clueHtml
+    + statsHtml
+    + '</div></div>'
+    + winnersHtml
+    + elimHtml;
+
+}
+
+/* ── Admin panel ─────────────────────────────────────────────────── */
+function toggleAdminPanel() {
+  adminPanelOpen = !adminPanelOpen;
+  var panel   = document.getElementById('adminPanel');
+  var bar     = document.getElementById('activeGameBar');
+  var body    = document.getElementById('adminBody');
+  var chevron = document.getElementById('adminChevron');
+  panel.style.display = adminPanelOpen ? 'block' : 'none';
+  if (adminPanelOpen) {
+    // Always open in collapsed state — user must click header to expand body
+    if (body)    body.style.display   = 'none';
+    if (chevron) chevron.textContent  = '▶';
+    // Restore saved timer selection
+    try {
+      var saved = localStorage.getItem('gi_pendingTimerSecs');
+      var timerSel = document.getElementById('timerSelect');
+      if (timerSel && saved !== null) { timerSel.value = saved; updateTimerHint(parseInt(saved,10)||0); }
+    } catch(e) {}
+    loadAdminGames();
+  } else {
+    if (body)    body.style.display   = 'none';
+    if (chevron) chevron.textContent  = '▶';
+    if (bar)     bar.style.display    = 'none';
+    adminBodyManuallyOpen = false; // reset when panel is closed
+  }
+}
+
+function toggleAdminBody() {
+  var body    = document.getElementById('adminBody');
+  var chevron = document.getElementById('adminChevron');
+  if (!body || !chevron) return;
+  var isHidden = body.style.display === 'none' ||
+                 getComputedStyle(body).display === 'none';
+  adminBodyManuallyOpen = isHidden; // true when opening, false when closing
+  body.style.display = isHidden ? 'block' : 'none';
+  chevron.textContent = isHidden ? '▼' : '▶';
+}
+
+
+async function loadAdminGames() {
+  try {
+    var res = await fetch('/api/guess-it/admin/games', { credentials: 'include' });
+    if (res.status === 401) {
+      // Not logged in — hide the admin panel silently (public viewers have no session)
+      adminPanelOpen = false;
+      var panel = document.getElementById('adminPanel');
+      var bar   = document.getElementById('activeGameBar');
+      if (panel) panel.style.display = 'none';
+      if (bar)   bar.style.display   = 'none';
+      return;
+    }
+    if (!res.ok) return;
+    allGames = await res.json();
+    renderAdminGameList();
+    renderAdminActiveSection(activeGameId);
+    // Collapse the body after every reload unless the user explicitly opened it
+    if (!adminBodyManuallyOpen) {
+      var body    = document.getElementById('adminBody');
+      var chevron = document.getElementById('adminChevron');
+      if (body)    body.style.display  = 'none';
+      if (chevron) chevron.textContent = '▶';
+    }
+  } catch(e) {}
+}
+
+function renderAdminGameList() {
+  var el = document.getElementById('adminGameList');
+  if (!allGames.length) {
+    el.innerHTML = '<div class="empty-list">No games yet. Create one below.</div>';
+    return;
+  }
+  el.innerHTML = allGames.map(function(g, idx) {
+    var sc = 'status-' + g.status;
+    var seq = (idx + 1) + '. ';
+    var btns = '';
+    if (g.status === 'pending') {
+      btns += '<button class="btn-admin btn-start" style="padding:5px 12px;font-size:12px;" onclick="adminStartGame(' + g.id + ')">▶ Start</button>';
+    } else if (g.status === 'active') {
+      btns += '<span style="font-size:12px;color:#2e7d32;font-weight:700;">● LIVE</span>';
+    } else {
+      btns += '<button class="btn-admin" style="padding:5px 12px;font-size:12px;background:#1565c0;color:#fff;" onclick="adminRestartGameById(' + g.id + ')">🔄 Restart</button>';
+    }
+    // Delete (hard) button shown for all non-active games
+    if (g.status !== 'active') {
+      btns += '<button class="btn-admin btn-danger" style="padding:5px 10px;font-size:12px;" onclick="adminHardDeleteGame(' + g.id + ')" title="Delete permanently">🗑</button>';
+    }
+    return '<div class="admin-game-row">'
+      + '<span class="game-name"><span style="color:#888;font-weight:600;margin-right:4px;">' + seq + '</span>' + esc(g.title) + '</span>'
+      + '<span class="status-badge ' + sc + '">' + g.status + '</span>'
+      + btns + '</div>';
+  }).join('');
+}
+
+function renderAdminActiveSection(gameId) {
+  var section = document.getElementById('adminActiveSection');
+  var bar     = document.getElementById('activeGameBar');
+  if (!gameId) {
+    section.style.display = 'none';
+    if (bar) bar.style.display = 'none';
+    updateTimerHint(parseInt(document.getElementById('timerSelect')&&document.getElementById('timerSelect').value||'0',10));
+    return;
+  }
+  var g = allGames.find(function(x){ return x.id === gameId; });
+  if (!g || g.status !== 'active') {
+    section.style.display = 'none';
+    if (bar) bar.style.display = 'none';
+    updateTimerHint(parseInt(document.getElementById('timerSelect')&&document.getElementById('timerSelect').value||'0',10));
+    return;
+  }
+  // Show the persistent action bar (visible regardless of collapsible state)
+  if (bar) bar.style.display = 'block';
+
+  // Sync timer dropdown to current active game's timerSecs
+  var timerSelect = document.getElementById('timerSelect');
+  if (timerSelect && g.timerSecs !== undefined) {
+    timerSelect.value = String(g.timerSecs);
+    updateTimerHint(g.timerSecs);
+  }
+
+  // Show "Next Game" button only if there is a pending game waiting
+  var btnNextGame = document.getElementById('btnNextGame');
+  if (btnNextGame) {
+    var hasPending = allGames.some(function(x) { return x.status === 'pending' && x.id !== gameId; });
+    btnNextGame.style.display = hasPending ? '' : 'none';
+  }
+
+  section.style.display = '';
+
+  // Clue pills
+  var clueEl = document.getElementById('adminClueList');
+  clueEl.innerHTML = (g.clues || []).map(function(c, i) {
+    var isCur = i === g.currentClueIndex;
+    return '<span class="clue-pill' + (isCur ? ' current-clue' : '') + '">'
+      + (isCur ? '📍 ' : (i < g.currentClueIndex ? '✓ ' : '')) + esc(c) + '</span>';
+  }).join('');
+
+  // Options
+  var optEl = document.getElementById('adminOptionList');
+  optEl.innerHTML = (g.options || []).map(function(o) {
+    var isCorrect = o === g.correctAnswer;
+    return '<div class="option-row' + (isCorrect ? ' correct-option' : '') + '">'
+      + (isCorrect ? '✅ ' : '') + esc(o) + (isCorrect ? ' <em style="font-size:11px;margin-left:4px;">(correct)</em>' : '')
+      + '</div>';
+  }).join('');
+}
+
+/* ── Admin actions ───────────────────────────────────────────────── */
+async function adminStartGame(gameId) {
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + gameId + '/start', {
+      method: 'POST', credentials: 'include'
+    });
+    var data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to start game.'); return; }
+    activeGameId = gameId;
+    // Apply pending timer setting if one is saved
+    try {
+      var pendingSecs = parseInt(localStorage.getItem('gi_pendingTimerSecs') || '0', 10);
+      if (pendingSecs > 0) {
+        await fetch('/api/guess-it/admin/games/' + gameId + '/timer', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ timerSecs: pendingSecs })
+        });
+      }
+    } catch(e) {}
+    await loadAdminGames();
+    renderAdminActiveSection(gameId);
+  } catch(e) { alert('Error starting game.'); }
+}
+
+async function adminNextClue() {
+  if (!activeGameId) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + activeGameId + '/next-clue', {
+      method: 'POST', credentials: 'include'
+    });
+    var data = await res.json();
+    if (!res.ok) { alert(data.error || 'No more clues or failed.'); return; }
+    // Update local game state
+    var g = allGames.find(function(x){ return x.id === activeGameId; });
+    if (g) g.currentClueIndex = data.currentClueIndex;
+    renderAdminActiveSection(activeGameId);
+  } catch(e) { alert('Error advancing clue.'); }
+}
+
+async function adminEndGame() {
+  if (!activeGameId) return;
+  if (!confirm('End the current game?')) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + activeGameId + '/end', {
+      method: 'POST', credentials: 'include'
+    });
+    if (!res.ok) { var d = await res.json(); alert(d.error || 'Failed.'); return; }
+    activeGameId = null;
+    await loadAdminGames();
+    renderAdminActiveSection(null);
+  } catch(e) { alert('Error ending game.'); }
+}
+
+async function adminDeleteGame(gameId) {
+  if (!confirm('Delete this game?')) return;
+  try {
+    await fetch('/api/guess-it/admin/games/' + gameId, {
+      method: 'DELETE', credentials: 'include'
+    });
+    await loadAdminGames();
+  } catch(e) {}
+}
+
+async function adminHardDeleteGame(gameId) {
+  if (!confirm('Permanently delete this game and all its data? This cannot be undone.')) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + gameId + '/hard', {
+      method: 'DELETE', credentials: 'include'
+    });
+    if (!res.ok) { var d = await res.json(); alert(d.error || 'Failed to delete.'); return; }
+    if (activeGameId === gameId) { activeGameId = null; renderAdminActiveSection(null); }
+    await loadAdminGames();
+  } catch(e) { alert('Error deleting game.'); }
+}
+
+async function adminRestartGameById(gameId) {
+  if (!confirm('Restart this game? All previous participant results will be cleared and the game will go live again.')) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + gameId + '/restart', {
+      method: 'POST', credentials: 'include'
+    });
+    var data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to restart game.'); return; }
+    activeGameId = data.id;
+    await loadAdminGames();
+    renderAdminActiveSection(activeGameId);
+  } catch(e) { alert('Error restarting game.'); }
+}
+
+async function adminRestartGame() {
+  if (!activeGameId) return;
+  if (!confirm('Restart the current game? This will reset all participants, clue progress, and answers.')) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + activeGameId + '/restart', {
+      method: 'POST', credentials: 'include'
+    });
+    var data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to restart game.'); return; }
+    activeGameId = data.id;
+    await loadAdminGames();
+    renderAdminActiveSection(activeGameId);
+  } catch(e) { alert('Error restarting game.'); }
+}
+
+async function adminNextGame() {
+  if (!activeGameId) return;
+  if (!confirm('End the current game and start the next pending game?')) return;
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + activeGameId + '/next-game', {
+      method: 'POST', credentials: 'include'
+    });
+    var data = await res.json();
+    if (!res.ok) { alert(data.error || 'No pending game found or failed.'); return; }
+    activeGameId = data.id;
+    await loadAdminGames();
+    renderAdminActiveSection(activeGameId);
+  } catch(e) { alert('Error starting next game.'); }
+}
+
+
+async function adminSetTimer(value) {
+  var secs = parseInt(value, 10) || 0;
+  // Always persist as the pending default (used when starting the next game)
+  try { localStorage.setItem('gi_pendingTimerSecs', String(secs)); } catch(e) {}
+  updateTimerHint(secs);
+
+  if (!activeGameId) {
+    // No active game — selection saved as default for when admin starts the next game
+    return;
+  }
+
+  // Active game — apply immediately via API
+  try {
+    var res = await fetch('/api/guess-it/admin/games/' + activeGameId + '/timer', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ timerSecs: secs })
+    });
+    if (!res.ok) { var d = await res.json(); alert(d.error || 'Failed to set timer.'); return; }
+    var data = await res.json();
+    // Update local game cache
+    var g = allGames.find(function(x){ return x.id === activeGameId; });
+    if (g) { g.timerSecs = data.timerSecs; }
+    // Sync timer state — takes effect on next clue reveal
+    timerSecs = data.timerSecs || 0;
+    if (timerSecs === 0) { stopTimerTick(); }
+  } catch(e) { alert('Error setting timer.'); }
+}
+
+function updateTimerHint(secs) {
+  var hint = document.getElementById('timerHint');
+  if (!hint) return;
+  if (activeGameId) {
+    hint.textContent = secs > 0
+      ? 'Applied to the active game. Resets on each next clue.'
+      : 'Timer disabled for the active game.';
+  } else {
+    hint.textContent = secs > 0
+      ? 'Will apply when the next game is started.'
+      : 'No timer — participants get unlimited time.';
+  }
+}
+
+async function adminCreateGame() {
+  var title  = document.getElementById('newGameTitle').value.trim();
+  var clues  = document.getElementById('newGameClues').value.trim()
+                 .split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+  var opts   = document.getElementById('newGameOptions').value.trim()
+                 .split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+  var answer = document.getElementById('newGameAnswer').value.trim();
+  var errEl  = document.getElementById('createGameErr');
+  errEl.textContent = '';
+
+  if (!title)          { errEl.textContent = 'Title is required.'; return; }
+  if (!clues.length)   { errEl.textContent = 'Add at least one clue.'; return; }
+  if (!opts.length)    { errEl.textContent = 'Add at least one option.'; return; }
+  if (!answer)         { errEl.textContent = 'Correct answer is required.'; return; }
+  if (!opts.includes(answer)) { errEl.textContent = 'Correct answer must match one of the options exactly.'; return; }
+
+  try {
+    var res = await fetch('/api/guess-it/admin/games', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ title: title, clues: clues, options: opts, correctAnswer: answer })
+    });
+    var data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Failed to create.'; return; }
+    // Clear form
+    ['newGameTitle','newGameClues','newGameOptions','newGameAnswer'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    await loadAdminGames();
+  } catch(e) { errEl.textContent = 'Error creating game.'; }
+}
+</script>
+</body>
+</html>

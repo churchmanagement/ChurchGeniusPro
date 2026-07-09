@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Bank Import — Church Genius Pro</title>
+  <style>
+    /* Keep the shared side navigation identical to the rest of the app */
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+
+    :root { --brand:#673147; --brand-soft:#fdf5f7; --line:#e8dde3; --muted:#8a8a8a; }
+    .bi-sub { font-size:13px; color:var(--muted); margin:0 0 16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+
+    .drop { border:2px dashed #d6c2cd; border-radius:12px; padding:26px; text-align:center; transition:.15s; cursor:pointer; background:#fdfafc; }
+    .drop.drag { border-color:var(--brand); background:var(--brand-soft); }
+    .drop .big { font-size:30px; }
+    .drop .t { font-weight:700; color:var(--brand); margin-top:6px; }
+    .drop .h { font-size:12px; color:var(--muted); margin-top:4px; }
+    .fname { font-size:13px; color:#444; margin-top:10px; }
+    .btn { cursor:pointer; border:1px solid var(--brand); background:var(--brand); color:#fff; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; }
+    .btn.ghost { background:#fff; color:var(--brand); }
+    .btn.sm { padding:5px 10px; font-size:12px; border-radius:6px; }
+    .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+    .chips { display:flex; gap:10px; flex-wrap:wrap; }
+    .chip { background:#f4eef1; color:#5b3a4b; border-radius:999px; padding:5px 12px; font-size:12.5px; font-weight:600; }
+    .chip b { color:var(--brand); }
+    .chip.in  { background:#e7f5ec; color:#1e7a44; }
+    .chip.out { background:#fdeef0; color:#b42446; }
+
+    .filters { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; }
+    .fld { display:flex; flex-direction:column; gap:4px; }
+    .fld label { font-size:11px; font-weight:700; color:#6a4a57; text-transform:uppercase; letter-spacing:.4px; }
+    .fld select, .fld input[type=range] { font-size:13px; }
+    .fld select { padding:7px 9px; border:1px solid #d7c9d0; border-radius:7px; background:#fff; min-width:160px; }
+    .confval { font-weight:700; color:var(--brand); }
+
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead tr { background:#f6f1f4; }
+    th,td { text-align:left; padding:9px 12px; border-bottom:1px solid #efe8ec; vertical-align:middle; }
+    th.num, td.num { text-align:right; white-space:nowrap; }
+    td.desc { max-width:300px; }
+    .amt.pos { color:#1e7a44; font-weight:600; }
+    .amt.neg { color:#b42446; font-weight:600; }
+    .pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:#eef1f6; color:#41506b; white-space:nowrap; }
+    .fund-General  { background:#eef1f6; color:#41506b; }
+    .fund-Missions { background:#e7f0ff; color:#1b5fa8; }
+    .fund-Youth    { background:#fff1e6; color:#a85a1b; }
+    .fund-Building { background:#ecf7ee; color:#1e7a44; }
+    .conf { display:inline-flex; align-items:center; gap:7px; }
+    .bar { width:48px; height:7px; border-radius:6px; background:#eee; overflow:hidden; }
+    .bar > i { display:block; height:100%; }
+    .conf b { font-size:12px; }
+    .c-hi b{ color:#1e7a44; } .c-hi .bar>i{ background:#43a047; }
+    .c-md b{ color:#9a6b00; } .c-md .bar>i{ background:#f4a000; }
+    .c-lo b{ color:#b42446; } .c-lo .bar>i{ background:#e0405f; }
+    .saved-badge { font-size:11px; font-weight:700; color:#1e7a44; background:#e7f5ec; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+
+    .msg { font-size:13px; padding:13px; border-radius:9px; }
+    .msg.info { background:var(--brand-soft); color:#6a4a57; }
+    .msg.err  { background:#fdeaea; color:#b42424; }
+    .msg.ok   { background:#e7f5ec; color:#1e7a44; }
+    .hidden { display:none; }
+    .spin { width:16px; height:16px; border:2px solid #e3cdd8; border-top-color:var(--brand); border-radius:50%; display:inline-block; animation:sp .7s linear infinite; vertical-align:middle; }
+    @keyframes sp { to { transform:rotate(360deg); } }
+
+    /* ── Modal ── */
+    .overlay { position:fixed; inset:0; background:rgba(45,22,33,.5); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px); display:flex; align-items:flex-start; justify-content:center; padding:48px 16px; z-index:2000; overflow:auto; }
+    .overlay.hidden { display:none; }   /* must beat .overlay's display:flex when hidden */
+    .modal { background:#fff; border-radius:18px; width:600px; max-width:100%; box-shadow:0 24px 60px rgba(60,20,40,.28); overflow:hidden; animation:modalIn .18s ease-out; }
+    @keyframes modalIn { from { opacity:0; transform:translateY(8px) scale(.99); } to { opacity:1; transform:none; } }
+
+    .modal-h { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 22px; border-bottom:1px solid var(--line); }
+    .mh-left { display:flex; align-items:center; gap:13px; min-width:0; }
+    .mh-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:23px; font-weight:700; color:#fff; background:var(--brand); flex-shrink:0; }
+    .theme-income  .mh-icon { background:linear-gradient(135deg,#2e9e5b,#1e7a44); }
+    .theme-expense .mh-icon { background:linear-gradient(135deg,#d65576,#b42446); }
+    .mh-title { font-size:17px; font-weight:700; color:#3a2330; line-height:1.2; }
+    .mh-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+    .mh-right { display:flex; align-items:center; gap:12px; flex-shrink:0; }
+    .modal-h .x { font-size:24px; color:#b6a7ae; line-height:1; padding:2px 6px; border-radius:7px; transition:.15s; }
+    .modal-h .x:hover { color:#8a6b78; background:#f3ebef; }
+
+    .modal-b { padding:18px 22px; max-height:calc(100vh - 232px); overflow:auto; }
+    .orig-card { display:flex; align-items:center; gap:11px; flex-wrap:wrap; font-size:13px; color:#5a4751; background:var(--brand-soft); border:1px solid #f0e3ea; border-radius:11px; padding:11px 14px; margin-bottom:16px; }
+    .orig-card b { color:var(--brand); }
+    .orig-tag { font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#fff; background:var(--brand); border-radius:999px; padding:3px 9px; flex-shrink:0; }
+    .orig-line { min-width:0; }
+
+    .form-sec + .form-sec { margin-top:16px; padding-top:16px; border-top:1px dashed #ecdfe6; }
+    .sec-label { font-size:11px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#9a7d8a; margin-bottom:11px; }
+
+    .mgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
+    .mfld { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .mfld.mfull { grid-column:1 / -1; }
+    .mfld label { font-size:12px; font-weight:600; color:#5b4350; }
+    .mfld .req { color:#d6456a; font-weight:700; }
+    .mfld input, .mfld select { padding:10px 11px; border:1px solid #ddd0d7; border-radius:10px; font-size:13.5px; background:#fff; width:100%; color:#333; transition:border-color .15s, box-shadow .15s; }
+    .mfld input:focus, .mfld select:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(103,49,71,.13); }
+    .mfld input::placeholder { color:#bcacb4; }
+    .input-prefix { position:relative; display:flex; align-items:center; }
+    .input-prefix > span { position:absolute; left:12px; color:#9a7d8a; font-weight:600; font-size:13.5px; pointer-events:none; }
+    .input-prefix > input { padding-left:25px; }
+
+    .modal-f { display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:15px 22px; border-top:1px solid var(--line); background:#fdfbfc; }
+    .modal-f .btn { padding:10px 20px; }
+
+    .type-tag { font-size:11px; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; }
+    .type-tag.income { background:#e7f5ec; color:#1e7a44; }
+    .type-tag.expense{ background:#fdeef0; color:#b42446; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Bank Import</div>
+        <div class="page-subtitle">Import bank &amp; credit-card transactions and record them as Income or Expense</div>
+      </div>
+      <p class="bi-sub">Upload a statement export (<b>CSV</b>, <b>OFX</b>, or <b>QFX</b>). Transactions are read and auto-categorized, then you can <b>add each one to Income (credits) or Expense (debits)</b> — reviewing and editing the mapped fields before saving. Records are saved exactly like the Income and Expense screens.</p>
+
+      <!-- Upload -->
+      <div class="card">
+        <div class="drop" id="drop">
+          <div class="big">🏦</div>
+          <div class="t">Drop a bank file or statement photo here, or click to choose</div>
+          <div class="h">Supported: .csv &nbsp;·&nbsp; .ofx &nbsp;·&nbsp; .qfx &nbsp;·&nbsp; PDF &nbsp;·&nbsp; JPG / PNG / HEIC (photo or screenshot)</div>
+          <div class="fname" id="fname"></div>
+        </div>
+        <input type="file" id="file" accept=".csv,.ofx,.qfx,.txt,.pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,image/*,application/pdf" style="display:none;" />
+        <input type="file" id="fileCam" accept="image/*" capture="environment" style="display:none;" />
+        <div class="row" style="margin-top:14px;">
+          <button class="btn" id="btnParse" disabled>Upload &amp; Categorize</button>
+          <button class="btn ghost" id="btnPhoto">📷 Take Photo</button>
+          <button class="btn ghost" id="btnClear" disabled>Clear</button>
+          <span id="status" style="font-size:13px;color:var(--muted);"></span>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="resultWrap" class="hidden">
+        <div class="card"><div class="chips" id="chips"></div></div>
+
+        <div class="card">
+          <div class="filters">
+            <div class="fld"><label for="fFund">Fund</label><select id="fFund"><option value="">All funds</option></select></div>
+            <div class="fld"><label for="fCat">Category</label><select id="fCat"><option value="">All categories</option></select></div>
+            <div class="fld"><label for="fType">Type</label>
+              <select id="fType"><option value="">All</option><option value="in">Income (credits)</option><option value="out">Expense (debits)</option></select></div>
+            <div class="fld"><label for="fConf">Min confidence: <span class="confval" id="confLbl">0%</span></label>
+              <input type="range" id="fConf" min="0" max="100" step="5" value="0" /></div>
+            <button class="btn ghost" id="btnReset" style="padding:7px 12px;">Reset filters</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:8px 6px;"><div id="tableHost"></div></div>
+      </div>
+
+      <div id="firstMsg" class="msg info">Choose a bank file above to begin.</div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- Webcam capture modal (desktop) -->
+<div id="camOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,20,30,.6);z-index:5000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;max-width:720px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;">
+    <div style="font-weight:700;color:#673147;margin-bottom:10px;">📷 Take a Photo of the Statement</div>
+    <div id="camBody"></div>
+  </div>
+</div>
+
+<!-- Edit + save modal -->
+<div id="editOverlay" class="overlay hidden">
+  <div class="modal" id="editModal">
+    <div class="modal-h">
+      <div class="mh-left">
+        <div class="mh-icon" id="mIcon">+</div>
+        <div class="mh-text">
+          <div class="mh-title" id="mTitle">Add transaction</div>
+          <div class="mh-sub">Review the mapped fields, then save</div>
+        </div>
+      </div>
+      <div class="mh-right">
+        <span id="mTypeTag" class="type-tag"></span>
+        <button class="btn ghost sm" id="mSwitchType" title="Reclassify this transaction" style="padding:4px 10px;font-size:12px;">⇄ Switch</button>
+        <button class="x" id="mClose" aria-label="Close">&times;</button>
+      </div>
+    </div>
+
+    <div class="modal-b">
+      <div class="orig-card">
+        <span class="orig-tag">From statement</span>
+        <div class="orig-line" id="mOrig"></div>
+      </div>
+      <div id="mErr" class="msg err hidden"></div>
+      <div id="mDup" class="msg" style="display:none;background:#fff4e0;border:1px solid #ffd98a;color:#8a5a00;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;"></div>
+
+      <div class="form-sec">
+        <div class="sec-label income-only">Contributor &amp; fund</div>
+        <div class="sec-label expense-only">Category &amp; fund</div>
+        <div class="mgrid">
+          <div class="mfld mfull income-only">
+            <label for="mContributor">Contributor</label>
+            <select id="mContributor"></select>
+          </div>
+          <div class="mfld mfull income-only" id="mGuestWrap">
+            <label for="mGuestName">New / guest contributor name</label>
+            <input id="mGuestName" type="text" placeholder="Name shown on the deposit" />
+          </div>
+          <div class="mfld mfull income-only">
+            <label for="mSubSource">Fund <span class="req">*</span></label>
+            <select id="mSubSource"></select>
+          </div>
+          <div class="mfld expense-only">
+            <label for="mPurpose">Expense category <span class="req">*</span></label>
+            <select id="mPurpose"></select>
+          </div>
+          <div class="mfld expense-only">
+            <label for="mMainSource">Fund <span class="req">*</span></label>
+            <select id="mMainSource"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-sec">
+        <div class="sec-label">Transaction details</div>
+        <div class="mgrid">
+          <div class="mfld">
+            <label for="mDate">Date <span class="req">*</span></label>
+            <input id="mDate" type="date" />
+          </div>
+          <div class="mfld">
+            <label for="mAmount">Amount <span class="req">*</span></label>
+            <div class="input-prefix"><span>$</span><input id="mAmount" type="number" step="0.01" min="0" /></div>
+          </div>
+          <div class="mfld">
+            <label for="mMethod">Method <span class="req">*</span></label>
+            <select id="mMethod"></select>
+          </div>
+          <div class="mfld">
+            <label for="mRef">Ref No</label>
+            <input id="mRef" type="text" placeholder="Cheque / reference (optional)" />
+          </div>
+          <div class="mfld mfull">
+            <label for="mNote">Note</label>
+            <input id="mNote" type="text" placeholder="Optional note" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-f">
+      <button class="btn ghost" id="mCancel">Cancel</button>
+      <button class="btn" id="mSave">Save to <span id="mSaveType">Income</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var ALL = [];                 // parsed rows (each gets _id)
+  var SAVED = {};               // _id -> { type, id }
+  var REF = null;               // {contributors, subSources, methods, purposes, funds}
+  var editingId = null, editingType = null;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function mmdd(iso){ if(!iso) return ''; var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m? (m[2]+'/'+m[3]) : esc(iso); }
+  function isoDate(s){ return /^\d{4}-\d{2}-\d{2}$/.test(s||'') ? s : new Date().toISOString().slice(0,10); }
+  function money(n){ var v=Number(n); if(isNaN(v)) return ''; return (v<0?'-':'+')+'$'+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function lc(s){ return String(s==null?'':s).toLowerCase(); }
+
+  // ── File selection ──
+  var drop=$('drop'), fileInput=$('file');
+  drop.addEventListener('click', function(){ fileInput.click(); });
+  ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('drag'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('drag'); }); });
+  drop.addEventListener('drop', function(e){ if(e.dataTransfer.files.length){ fileInput.files=e.dataTransfer.files; onPick(); } });
+  fileInput.addEventListener('change', onPick);
+  function onPick(){ var f=fileInput.files[0]; if(!f) return; $('fname').textContent='Selected: '+f.name; $('btnParse').disabled=false; $('btnClear').disabled=false; $('status').textContent=''; }
+
+  // ── Reference data (loaded once, lazily) ──
+  function loadRefs(){
+    if (REF) return Promise.resolve(REF);
+    function getJson(u){ return fetch(u).then(function(r){ return r.ok? r.json():[]; }).catch(function(){ return []; }); }
+    return Promise.all([
+      getJson('/api/income/contributors'),
+      getJson('/api/income/sub-sources'),
+      getJson('/api/transaction-types'),
+      getJson('/api/expense/purposes'),
+      getJson('/api/expense/funds')
+    ]).then(function(a){
+      function arr(x){ return Array.isArray(x)? x : (x&&x.data)||[]; }
+      REF = { contributors:arr(a[0]), subSources:arr(a[1]), methods:arr(a[2]), purposes:arr(a[3]), funds:arr(a[4]) };
+      return REF;
+    });
+  }
+
+  // ── Parse / ingest ──
+  function ingest(j){
+    ALL = (j.data||[]).map(function(t,i){ t._id=i; return t; });
+    SAVED = {};
+    $('status').textContent='';
+    renderSummary(j.summary||{});
+    buildFilters(); applyFilters();
+    $('firstMsg').classList.add('hidden'); $('resultWrap').classList.remove('hidden');
+    loadRefs();   // warm the dropdowns for the editor
+    if(j.message){ $('tableHost').innerHTML='<div class="msg info" style="margin:8px;">'+esc(j.message)+'</div>'; }
+  }
+  function isScanFile(f){
+    var n=(f.name||'').toLowerCase(), ty=(f.type||'').toLowerCase();
+    return ty.indexOf('image')===0 || ty.indexOf('pdf')!==-1 || /\.(pdf|jpg|jpeg|png|heic|heif|webp|gif|bmp|tiff?)$/.test(n);
+  }
+
+  $('btnParse').addEventListener('click', function(){
+    var f=fileInput.files[0]; if(!f) return;
+    if(isScanFile(f)){ runScan(f); return; }       // photo / PDF → OCR pipeline
+    $('btnParse').disabled=true;
+    $('status').innerHTML='<span class="spin"></span> Reading &amp; categorizing…';
+    var fd=new FormData(); fd.append('file', f);
+    fetch('/api/bank-import/parse',{ method:'POST', body:fd })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        $('btnParse').disabled=false;
+        if(!res.ok || res.j.error){ $('status').innerHTML='<span style="color:#b42424;">'+esc(res.j.error||'Upload failed.')+'</span>'; return; }
+        ingest(res.j);
+      })
+      .catch(function(){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">Network error — please try again.</span>'; });
+  });
+
+  // ── Photo capture + OCR scan pipeline ──
+  // Mobile: native device camera (capture input). Desktop: live webcam (getUserMedia).
+  $('btnPhoto').addEventListener('click', function(){ openCamera(); });
+  $('fileCam').addEventListener('change', function(){ var f=this.files[0]; this.value=''; if(f){ $('fname').textContent='Photo: '+(f.name||'camera'); runScan(f); } });
+
+  function isMobile(){
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile;
+    return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || '');
+  }
+  var _camStream=null, _camCanvas=null;
+  window.openCamera = function(){
+    if (isMobile()){ $('fileCam').click(); return; }                              // device camera on phones
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ $('fileCam').click(); return; }
+    $('camOverlay').style.display='flex';
+    $('camBody').innerHTML='<video id="camVideo" autoplay playsinline muted style="width:100%;max-width:640px;border-radius:10px;background:#000;"></video>'
+      +'<div style="font-size:12px;color:#888;margin-top:6px;">Fit the statement in view, then capture.</div>'
+      +'<div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">'
+      +'<button class="btn ghost" onclick="closeCamera()">Cancel</button>'
+      +'<button class="btn" onclick="captureCamera()">📸 Capture</button></div>';
+    navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:1600}, height:{ideal:1200} }, audio:false })
+      .then(function(stream){ _camStream=stream; var v=$('camVideo'); if(v){ v.srcObject=stream; var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){}); } })
+      .catch(function(err){
+        stopCamera();
+        var name=err&&err.name;
+        var msg=(name==='NotAllowedError'||name==='SecurityError'||name==='PermissionDeniedError') ? 'Camera access is required to take a photo. Please allow camera permissions and try again.'
+               :(name==='NotFoundError'||name==='DevicesNotFoundError'||name==='OverconstrainedError') ? 'No camera detected. Please upload an image instead.'
+               :'Could not open the webcam ('+(name||'error')+'). Please upload an image instead.';
+        $('camBody').innerHTML='<div style="color:#b42424;padding:12px;">'+esc(msg)+'</div><div style="text-align:center;"><button class="btn ghost" onclick="closeCamera()">Close</button></div>';
+      });
+  };
+  window.captureCamera = function(){
+    var v=$('camVideo'); if(!v||!v.videoWidth) return;
+    var c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height); stopCamera(); _camCanvas=c;
+    $('camBody').innerHTML='<img src="'+c.toDataURL('image/jpeg',0.92)+'" style="width:100%;max-width:640px;border-radius:10px;">'
+      +'<div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">'
+      +'<button class="btn ghost" onclick="openCamera()">↺ Retake</button>'
+      +'<button class="btn" onclick="useCamera()">Use This Photo</button></div>';
+  };
+  window.useCamera = function(){
+    var c=_camCanvas; if(!c){ closeCamera(); return; }
+    c.toBlob(function(blob){
+      if(!blob){ closeCamera(); return; }
+      var f; try{ f=new File([blob],'webcam-statement.jpg',{type:'image/jpeg'}); }catch(e){ f=blob; f.name='webcam-statement.jpg'; }
+      _camCanvas=null; closeCamera(); $('fname').textContent='Photo: camera'; runScan(f);
+    },'image/jpeg',0.92);
+  };
+  window.closeCamera = function(){ stopCamera(); _camCanvas=null; $('camOverlay').style.display='none'; };
+  function stopCamera(){ if(_camStream){ try{ _camStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} _camStream=null; } }
+
+  function runScan(f){
+    $('btnParse').disabled=true;
+    $('status').innerHTML='<span class="spin"></span> Reading statement…';
+    var fd=new FormData(); fd.append('file', f);
+    fetch('/api/bank-import/scan',{ method:'POST', body:fd })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if(!res.ok || res.j.error){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">'+esc(res.j.error||'Upload failed.')+'</span>'; return; }
+        var j=res.j;
+        if(j.readable===false && j.method==='image-needs-ocr'){ scanOcr(f); return; }   // browser OCR
+        $('btnParse').disabled=false; ingest(j);
+        if(!(j.data&&j.data.length)) $('status').innerHTML='<span style="color:#a06b00;">'+esc(j.note||'No transactions found. Try a clearer image or enter manually.')+'</span>';
+      })
+      .catch(function(){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">Network error — please try again.</span>'; });
+  }
+
+  function scanOcr(f){
+    $('status').innerHTML='<span class="spin"></span> Scanning image with OCR…';
+    loadTesseract().then(function(T){
+      if(!T){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">OCR isn’t available here. Upload a CSV/OFX or a PDF statement, or enter transactions manually.</span>'; return; }
+      var url=URL.createObjectURL(f);
+      T.recognize(url,'eng',{logger:function(m){ if(m.status==='recognizing text'){ $('status').innerHTML='<span class="spin"></span> Scanning… '+Math.round((m.progress||0)*100)+'%'; }}})
+        .then(function(out){
+          URL.revokeObjectURL(url);
+          var text=(out&&out.data&&out.data.text)||''; var conf=(out&&out.data&&out.data.confidence)||0;
+          fetch('/api/bank-import/scan-parse',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:text, ocrConfidence:conf, fileName:f.name}) })
+            .then(function(r){ return r.json(); })
+            .then(function(j){
+              $('btnParse').disabled=false;
+              if(!j || !(j.data && j.data.length)){ $('status').innerHTML='<span style="color:#b42424;">Couldn’t read transactions from this image. Please retake the photo or enter values manually.</span>'; return; }
+              ingest(j);
+            })
+            .catch(function(){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">OCR parsing failed — please try again.</span>'; });
+        })
+        .catch(function(){ URL.revokeObjectURL(url); $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">Could not read the image.</span>'; });
+    });
+  }
+
+  var _tess=null;
+  function loadTesseract(){
+    if(window.Tesseract) return Promise.resolve(window.Tesseract);
+    if(_tess) return _tess;
+    var urls=[
+      'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+      'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
+    ];
+    _tess=new Promise(function(resolve){
+      var settled=false;
+      function done(v){ if(!settled){ settled=true; resolve(v); } }
+      (function tryNext(i){
+        if(window.Tesseract) return done(window.Tesseract);
+        if(i>=urls.length) return done(null);
+        var s=document.createElement('script');
+        s.src=urls[i];
+        s.onload=function(){ window.Tesseract ? done(window.Tesseract) : tryNext(i+1); };
+        s.onerror=function(){ tryNext(i+1); };
+        document.head.appendChild(s);
+      })(0);
+      setTimeout(function(){ done(window.Tesseract||null); }, 20000);
+    });
+    return _tess;
+  }
+  $('btnClear').addEventListener('click', function(){
+    fileInput.value=''; ALL=[]; SAVED={}; $('fname').textContent=''; $('status').textContent='';
+    $('btnParse').disabled=true; $('btnClear').disabled=true;
+    $('resultWrap').classList.add('hidden'); $('firstMsg').classList.remove('hidden');
+  });
+
+  function renderSummary(s){
+    var chips=[];
+    chips.push('<span class="chip">Transactions <b>'+(s.count||0)+'</b></span>');
+    chips.push('<span class="chip in">Income <b>'+(s.credits||0)+'</b> · '+money(s.totalIn||0)+'</span>');
+    chips.push('<span class="chip out">Expense <b>'+(s.debits||0)+'</b> · -$'+Math.abs(Number(s.totalOut||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>');
+    if(s.fileName) chips.push('<span class="chip">File <b>'+esc(s.fileName)+'</b></span>');
+    $('chips').innerHTML=chips.join('');
+  }
+
+  // ── Filters ──
+  function buildFilters(){
+    var funds={}, cats={};
+    ALL.forEach(function(t){ if(t.fund) funds[t.fund]=1; if(t.category) cats[t.category]=1; });
+    fillFilter('fFund', Object.keys(funds).sort(), 'All funds');
+    fillFilter('fCat',  Object.keys(cats).sort(),  'All categories');
+  }
+  function fillFilter(id, vals, allLabel){
+    var sel=$(id), cur=sel.value;
+    sel.innerHTML='<option value="">'+allLabel+'</option>'+vals.map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('');
+    sel.value=cur;
+  }
+  ['fFund','fCat','fType'].forEach(function(id){ $(id).addEventListener('change', applyFilters); });
+  $('fConf').addEventListener('input', function(){ $('confLbl').textContent=this.value+'%'; applyFilters(); });
+  $('btnReset').addEventListener('click', function(){ $('fFund').value=''; $('fCat').value=''; $('fType').value=''; $('fConf').value=0; $('confLbl').textContent='0%'; applyFilters(); });
+
+  function applyFilters(){
+    var fund=$('fFund').value, cat=$('fCat').value, type=$('fType').value, minC=Number($('fConf').value)||0;
+    var rows=ALL.filter(function(t){
+      if(fund && t.fund!==fund) return false;
+      if(cat && t.category!==cat) return false;
+      if((t.confidence||0) < minC) return false;
+      var amt=Number(t.amount);
+      if(type==='in'  && !(amt>0)) return false;
+      if(type==='out' && !(amt<0)) return false;
+      return true;
+    });
+    renderTable(rows);
+  }
+
+  function confClass(c){ return c>=80?'c-hi':(c>=60?'c-md':'c-lo'); }
+  function renderTable(rows){
+    if(!rows.length){ $('tableHost').innerHTML='<div class="msg info" style="margin:8px;">No transactions match the current filters.</div>'; return; }
+    var html='<table><thead><tr>'
+      + '<th>Date</th><th>Description</th><th class="num">Amount</th><th>Category</th><th>Fund</th><th>Confidence</th><th>Action</th>'
+      + '</tr></thead><tbody>';
+    rows.forEach(function(t){
+      var amt=Number(t.amount), cls=amt<0?'neg':'pos', c=t.confidence||0;
+      var sv=SAVED[t._id];
+      var action = sv
+        ? '<span class="saved-badge">✓ '+sv.type+(sv.id?(' #'+sv.id):'')+'</span>'
+        : '<button class="btn sm '+(amt<0?'ghost':'')+'" onclick="openEditor('+t._id+')">'+(amt<0?'→ Expense':'→ Income')+'</button>';
+      html+='<tr>'
+        + '<td>'+mmdd(t.date)+'</td>'
+        + '<td class="desc">'+esc(t.description||'')+'</td>'
+        + '<td class="num amt '+cls+'">'+money(amt)+'</td>'
+        + '<td><span class="pill">'+esc(t.category||'')+'</span></td>'
+        + '<td><span class="pill fund-'+esc((t.fund||'General').replace(/[^A-Za-z]/g,''))+'">'+esc(t.fund||'General')+'</span></td>'
+        + '<td><span class="conf '+confClass(c)+'"><span class="bar"><i style="width:'+c+'%"></i></span><b>'+c+'%</b></span></td>'
+        + '<td>'+action+'</td>'
+        + '</tr>';
+    });
+    html+='</tbody></table>';
+    $('tableHost').innerHTML=html;
+  }
+
+  // ── Editor / save ──
+  function optionList(items, getVal, getText, placeholder){
+    var html = placeholder!=null ? '<option value="">'+esc(placeholder)+'</option>' : '';
+    items.forEach(function(it){ html += '<option value="'+esc(getVal(it))+'">'+esc(getText(it))+'</option>'; });
+    return html;
+  }
+  function bestMatchValue(items, getText, needle){
+    needle = lc(needle); if(!needle) return '';
+    for(var i=0;i<items.length;i++){ var txt=lc(getText(items[i])); if(txt.indexOf(needle)!==-1 || needle.indexOf(txt)!==-1) return String(items[i].id); }
+    return '';
+  }
+  function defaultMethod(items){
+    var prefer=['bank','transfer','ach','online','card','debit','check'];
+    for(var p=0;p<prefer.length;p++){ for(var i=0;i<items.length;i++){ if(lc(items[i].typeName).indexOf(prefer[p])!==-1) return String(items[i].id); } }
+    return items.length? String(items[0].id) : '';
+  }
+
+  window.openEditor = function(id, forceType){
+    var t = ALL.filter(function(x){ return x._id===id; })[0]; if(!t) return;
+    if(!REF){ loadRefs().then(function(){ openEditor(id, forceType); }); return; }
+    editingId=id;
+    var amt=Number(t.amount);
+    editingType = forceType || (amt<0 ? 'expense' : 'income');
+    var isInc = editingType==='income';
+    $('mDup').style.display='none';
+
+    $('mTitle').textContent = isInc ? 'Add to Income' : 'Add to Expense';
+    $('mTypeTag').textContent = isInc ? 'Income (credit)' : 'Expense (debit)';
+    $('mTypeTag').className = 'type-tag '+(isInc?'income':'expense');
+    $('mSaveType').textContent = isInc ? 'Income' : 'Expense';
+    $('editModal').className = 'modal ' + (isInc ? 'theme-income' : 'theme-expense');  // cosmetic theming only
+    $('mIcon').textContent = isInc ? '+' : '−';
+    $('mOrig').innerHTML = '<b>'+mmdd(t.date)+'</b> · '+esc(t.description||'')+' · <b>'+money(amt)+'</b>'
+      + ' &nbsp;·&nbsp; suggested: '+esc(t.category||'')+' / '+esc(t.fund||'General');
+    $('mErr').classList.add('hidden');
+
+    document.querySelectorAll('.income-only').forEach(function(e){ e.style.display = isInc?'':'none'; });
+    document.querySelectorAll('.expense-only').forEach(function(e){ e.style.display = isInc?'none':''; });
+
+    // common
+    $('mDate').value = isoDate(t.date);
+    $('mAmount').value = Math.abs(amt).toFixed(2);
+    $('mNote').value = t.memo || t.description || '';
+    $('mRef').value = t.refNo || t.checkNo || '';
+    $('mMethod').innerHTML = optionList(REF.methods, function(x){return x.id;}, function(x){return x.typeName;}, 'Select method…');
+    $('mMethod').value = defaultMethod(REF.methods);
+
+    if(isInc){
+      $('mContributor').innerHTML = '<option value="guest">➕ New / guest contributor</option>'
+        + optionList(REF.contributors, function(x){return x.id;}, function(x){return x.fullName || ((x.firstName||'')+' '+(x.lastName||'')).trim();}, null);
+      $('mContributor').value = 'guest';
+      $('mGuestName').value = t.description || '';
+      $('mGuestWrap').style.display = '';
+      $('mSubSource').innerHTML = optionList(REF.subSources, function(x){return x.id;},
+        function(x){ return x.mainSourceName ? (x.mainSourceName+' / '+x.sourceName) : x.sourceName; }, 'Select fund…');
+      $('mSubSource').value = bestMatchValue(REF.subSources, function(x){ return (x.sourceName||'')+' '+(x.mainSourceName||''); }, t.fund);
+    } else {
+      $('mPurpose').innerHTML = optionList(REF.purposes, function(x){return x.id;}, function(x){return x.purposeName || x.name;}, 'Select category…');
+      $('mPurpose').value = bestMatchValue(REF.purposes, function(x){ return x.purposeName||x.name; }, t.category);
+      $('mMainSource').innerHTML = optionList(REF.funds, function(x){return x.id;}, function(x){return x.sourceName;}, 'Select fund…');
+      $('mMainSource').value = bestMatchValue(REF.funds, function(x){ return x.sourceName; }, t.fund);
+    }
+    $('editOverlay').classList.remove('hidden');
+  };
+
+  function closeEditor(){ $('editOverlay').classList.add('hidden'); editingId=null; }
+  $('mClose').addEventListener('click', closeEditor);
+  $('mCancel').addEventListener('click', closeEditor);
+  $('editOverlay').addEventListener('click', function(e){ if(e.target===this) closeEditor(); });
+  $('mContributor').addEventListener('change', function(){ $('mGuestWrap').style.display = this.value==='guest' ? '' : 'none'; });
+
+  function showErr(msg){ var e=$('mErr'); e.textContent=msg; e.classList.remove('hidden'); }
+
+  // Reclassify the current row between Income and Expense (re-renders the editor).
+  $('mSwitchType').addEventListener('click', function(){
+    if(editingId==null) return;
+    openEditor(editingId, editingType==='income' ? 'expense' : 'income');
+  });
+
+  // Build the save payload from the current editor state. Returns {url, payload, label} or null (with error shown).
+  function buildSavePayload(){
+    var amount = parseFloat($('mAmount').value);
+    var date   = $('mDate').value;
+    var method = $('mMethod').value ? parseInt($('mMethod').value,10) : null;
+    var refNo  = $('mRef').value.trim() || null;
+    var note   = $('mNote').value.trim() || null;
+    if(!(amount>0)){ showErr('Amount must be greater than zero.'); return null; }
+    if(!date){ showErr('Date is required.'); return null; }
+    if(!method){ showErr('Method is required.'); return null; }
+    if(editingType==='income'){
+      var sub = $('mSubSource').value ? parseInt($('mSubSource').value,10) : null;
+      if(!sub){ showErr('Fund is required.'); return null; }
+      var contrib = $('mContributor').value;
+      var memberId = (contrib && contrib!=='guest') ? parseInt(contrib,10) : null;
+      var guestName = (contrib==='guest') ? ($('mGuestName').value.trim() || null) : null;
+      return { url:'/api/income', label:'Income', amount:amount, date:date, refNo:refNo,
+        payload:{ memberId:memberId, guestName:guestName, subSourceId:sub, incomeDate:date,
+                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false } };
+    } else {
+      var purpose = $('mPurpose').value ? parseInt($('mPurpose').value,10) : null;
+      var mainSrc = $('mMainSource').value ? parseInt($('mMainSource').value,10) : null;
+      if(!purpose){ showErr('Expense category is required.'); return null; }
+      if(!mainSrc){ showErr('Fund is required.'); return null; }
+      return { url:'/api/expense', label:'Expense', amount:amount, date:date, refNo:refNo,
+        payload:{ purposeId:purpose, mainSourceId:mainSrc, expenseDate:date,
+                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false } };
+    }
+  }
+
+  // POST a new record, or PUT to overwrite an existing one (overwriteId set).
+  function doSave(spec, overwriteId){
+    var saveBtn=$('mSave'); saveBtn.disabled=true; saveBtn.textContent='Saving…';
+    var url = overwriteId ? (spec.url+'/'+overwriteId) : spec.url;
+    var method = overwriteId ? 'PUT' : 'POST';
+    fetch(url, { method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(spec.payload) })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>';
+        if(!res.ok || res.j.error){ showErr(res.j.error || 'Save failed.'); return; }
+        SAVED[editingId] = { type:spec.label, id:(res.j.id||overwriteId||null) };
+        closeEditor(); applyFilters();
+      })
+      .catch(function(){ saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>'; showErr('Network error — please try again.'); });
+  }
+
+  // Show the duplicate warning with Skip / Save as New / Overwrite.
+  function showDup(spec, dup){
+    var box=$('mDup');
+    box.innerHTML = '⚠️ A possible duplicate already exists — '
+      + '<b>'+esc(dup.type)+'</b> on '+esc(dup.date)+' for $'+Math.abs(Number(dup.amount)).toFixed(2)
+      + (dup.refNo ? ' (ref '+esc(dup.refNo)+')' : '') + '.'
+      + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
+      +   '<button class="btn ghost sm" id="mDupSkip">Skip</button>'
+      +   '<button class="btn sm" id="mDupNew">Save as New</button>'
+      +   (dup.id && dup.type===spec.label.toLowerCase()
+            ? '<button class="btn sm" id="mDupOver" style="background:#b42446;">Update / Overwrite</button>' : '')
+      + '</div>';
+    box.style.display='';
+    $('mDupSkip').addEventListener('click', function(){ box.style.display='none'; SAVED[editingId]={type:'Skipped'}; closeEditor(); applyFilters(); });
+    $('mDupNew').addEventListener('click', function(){ box.style.display='none'; doSave(spec, null); });
+    var ov=$('mDupOver'); if(ov) ov.addEventListener('click', function(){ box.style.display='none'; doSave(spec, dup.id); });
+  }
+
+  $('mSave').addEventListener('click', function(){
+    $('mErr').classList.add('hidden'); $('mDup').style.display='none';
+    var spec = buildSavePayload();
+    if(!spec) return;
+    var t = ALL.filter(function(x){ return x._id===editingId; })[0] || {};
+    var saveBtn=$('mSave'); saveBtn.disabled=true; saveBtn.textContent='Checking…';
+    fetch('/api/bank-import/check-duplicate', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:spec.label.toLowerCase(), date:spec.date, amount:spec.amount, refNo:spec.refNo, checkNo:(t.checkNo||null) }) })
+      .then(function(r){ return r.json(); })
+      .then(function(dup){
+        saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>';
+        if(dup && dup.found){ showDup(spec, dup); } else { doSave(spec, null); }
+      })
+      .catch(function(){ saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>'; doSave(spec, null); });
+  });
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'accounting/bank-import', pageTitle: 'Bank Import', openSection: 'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

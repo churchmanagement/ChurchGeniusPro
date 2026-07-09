@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <title>Upcoming Events</title>
+  <style>
+    :root { --brand:#673147; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:#f3eef1; color:#222; }
+    .wrap { max-width:560px; margin:0 auto; min-height:100vh; background:#fff; }
+    .top { background:var(--brand); color:#fff; padding:22px 20px; display:flex; align-items:center; gap:12px; }
+    .top .back { color:#fff; text-decoration:none; font-size:22px; }
+    .top h1 { font-size:19px; font-weight:800; margin:0; }
+    .body { padding:16px; }
+    .card { border:1px solid #eadfe5; border-radius:14px; padding:15px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(103,49,71,.05); }
+    .tag { display:inline-block; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:3px 9px; border-radius:10px; }
+    .tag.event { background:#f3e7ee; color:var(--brand); } .tag.meeting { background:#e7eef9; color:#2c5fa3; }
+    .name { font-size:17px; font-weight:700; margin:8px 0 6px; color:#1e2139; }
+    .meta { font-size:13px; color:#555; display:flex; align-items:flex-start; gap:7px; margin:4px 0; }
+    .meta .i { width:18px; flex:0 0 auto; text-align:center; }
+    .desc { font-size:13px; color:#666; margin-top:8px; line-height:1.5; white-space:pre-wrap; }
+    .reg { display:inline-block; margin-top:12px; background:var(--brand); color:#fff; text-decoration:none; padding:9px 18px; border-radius:9px; font-size:14px; font-weight:700; }
+    .state { text-align:center; padding:60px 24px; color:#888; }
+    .spinner { width:34px; height:34px; border:3px solid #e6dde2; border-top-color:var(--brand); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 14px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top"><a class="back" id="backLink" href="#" title="Back">‹</a><h1>Upcoming Events &amp; Meetings</h1></div>
+    <div class="body" id="body"><div class="state"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+  <script>
+    (function () {
+      function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      var params = new URLSearchParams(location.search);
+      var cid = params.get('c') || params.get('cid') || '';
+      var body = document.getElementById('body');
+      var back = document.getElementById('backLink');
+      if (cid) back.href = '/ntagLanding?c=' + encodeURIComponent(cid);
+
+      if (!cid) { body.innerHTML = '<div class="state">This page link is invalid.</div>'; return; }
+
+      fetch('/api/public/upcoming-events?cid=' + encodeURIComponent(cid))
+        .then(function (r) { return r.json(); })
+        .then(render)
+        .catch(function () { body.innerHTML = '<div class="state">Could not load events.</div>'; });
+
+      function fmtDate(iso) {
+        if (!iso) return '';
+        try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }); }
+        catch (e) { return iso; }
+      }
+      function fmtTime(t) {
+        if (!t) return '';
+        var p = t.split(':'); var h = parseInt(p[0],10); var m = p[1] || '00';
+        var ap = h >= 12 ? 'PM' : 'AM'; var h12 = (h % 12) || 12;
+        return h12 + ':' + m + ' ' + ap;
+      }
+
+      function render(list) {
+        if (!list || !list.length) { body.innerHTML = '<div class="state">No upcoming events or meetings right now.<br>Check back soon!</div>'; return; }
+        body.innerHTML = list.map(function (e) {
+          var time = fmtTime(e.startTime) + (e.endTime ? ' – ' + fmtTime(e.endTime) : '');
+          var rows = '';
+          rows += '<div class="meta"><span class="i">📅</span><span>' + esc(fmtDate(e.date)) + (time ? ' · ' + esc(time) : '') + '</span></div>';
+          if (e.location) rows += '<div class="meta"><span class="i">📍</span><span>' + esc(e.location) + '</span></div>';
+          if (e.fee)      rows += '<div class="meta"><span class="i">💰</span><span>' + esc(e.fee) + '</span></div>';
+          return '<div class="card">'
+            + '<span class="tag ' + (e.kind === 'meeting' ? 'meeting' : 'event') + '">' + (e.kind === 'meeting' ? 'Meeting' : 'Event') + '</span>'
+            + '<div class="name">' + esc(e.name || 'Untitled') + '</div>'
+            + rows
+            + (e.description ? '<div class="desc">' + esc(e.description) + '</div>' : '')
+            + (e.registrationLink ? '<a class="reg" href="' + esc(e.registrationLink) + '" target="_blank" rel="noopener">Register ›</a>' : '')
+            + '</div>';
+        }).join('');
+      }
+    })();
+  </script>
+</body>
+</html>

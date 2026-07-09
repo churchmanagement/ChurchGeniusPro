@@ -1,0 +1,2363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Meetings – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── App shell ── */
+    
+
+        /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+/* ── Main area ── */
+    
+
+    /* ── Topbar ── */
+    
+    
+    
+    .search-wrap { display: flex; align-items: center; gap: 8px; background: #f5f6fa; border-radius: 8px; padding: 6px 12px; }
+    .search-icon { color: #999; font-size: 14px; }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; width: 180px; }
+    
+    .tb-link, .tb-dropdown, .btn-admin-settings { font-size: 13px; background: #673147; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; }
+    .btn-admin-settings:hover { background: #3f4568; }
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+
+
+    /* ── Page content ── */
+    
+    .page-header { margin-bottom: 20px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Form cards ── */
+    .form-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e8eaf0;
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .form-card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd;
+    }
+    .section-icon { font-size: 18px; }
+    .form-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; }
+    .form-card-body { padding: 20px; }
+
+    /* ── Sub-sections ── */
+    .sub-section { margin-bottom: 20px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: #673147; margin-bottom: 14px;
+      padding-bottom: 6px; border-bottom: 1px solid #eef0f8;
+    }
+
+    /* ── Form grid ── */
+    .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    /* Ensure date/time inputs never overflow their grid cell */
+    .field input[type="date"], .field input[type="time"] { width: 100%; min-width: 0; box-sizing: border-box; }
+
+    /* ── Fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .required-star { color: #e53935; }
+    .field input, .field select, .field textarea {
+      border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px;
+      font-size: 13px; color: #333; outline: none; background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12);
+    }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; min-height: 90px; font-family: inherit; }
+    .field input:disabled, .field select:disabled { background: #f9f9f9; color: #aaa; cursor: not-allowed; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .field-note { font-size: 11px; color: #888; font-style: italic; }
+
+    /* ── Location picker ── */
+    .picker-wrap { position: relative; }
+    .picker-wrap input { width: 100%; }
+    .picker-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+      background: #fff; border: 1px solid #ddd; border-top: none;
+      border-radius: 0 0 8px 8px; max-height: 220px; overflow-y: auto;
+      box-shadow: 0 6px 20px rgba(0,0,0,.1);
+    }
+    .picker-item {
+      padding: 9px 12px; cursor: pointer; font-size: 13px;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .picker-item:hover { background: #eef0f8; }
+    .picker-item .family { font-size: 11px; color: #999; }
+    .picker-item.no-results { color: #aaa; cursor: default; }
+    .picker-group-hdr {
+      padding: 5px 12px 3px; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; color: #673147;
+      background: #f5f6fa; border-bottom: 1px solid #eef0f8;
+    }
+    .picker-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #aaa; cursor: pointer;
+      font-size: 16px; padding: 2px 4px; display: none;
+    }
+    .picker-clear.visible { display: block; }
+    .addr-source-note {
+      font-size: 11px; color: #673147; font-style: italic; margin-top: 4px;
+    }
+
+    /* ── End-date visibility ── */
+    .end-date-field { transition: opacity .2s; }
+    .end-date-field.hidden { opacity: .35; pointer-events: none; }
+
+    /* ── Action bar ── */
+    .action-bar {
+      display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+      padding: 14px 20px; background: #fff; border-top: 1px solid #eee;
+      border-radius: 0 0 12px 12px;
+    }
+    .btn-save {
+      background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 8px;
+      padding: 9px 24px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-save:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-clear {
+      background: none; border: 1px solid #ddd; border-radius: 8px;
+      padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer;
+    }
+    .btn-clear:hover { background: #f5f5f5; }
+
+    /* ── Meetings table ── */
+    .meetings-table-wrap { overflow-x: auto; }
+    .meetings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .meetings-table th {
+      background: #f5f6fa; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: #888; padding: 10px 14px; text-align: left;
+      border-bottom: 2px solid #e8eaf0; white-space: nowrap;
+    }
+    .meetings-table td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .meetings-table tr:last-child td { border-bottom: none; }
+    .meetings-table tr:hover td { background: #fafbfd; }
+    .empty-row { text-align: center; color: #bbb; padding: 32px !important; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    }
+    .badge-one     { background: #e8eaf6; color: #673147; }
+    .badge-daily   { background: #e3f2fd; color: #1565c0; }
+    .badge-weekly  { background: #e8f5e9; color: #2e7d32; }
+    .badge-monthly { background: #fff3e0; color: #e65100; }
+    .actions { display: flex; gap: 6px; }
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit-row   { background: transparent; color: #673147; border-color: #673147; transition: background .18s, color .18s, border-color .18s; }
+    .btn-edit-row:hover   { background: #673147; color: #fff; border-color: #673147; }
+    .btn-notify-row { background: transparent; color: #1565c0; border-color: #1565c0; transition: background .18s, color .18s, border-color .18s; }
+    .btn-notify-row:hover { background: #1565c0; color: #fff; border-color: #1565c0; }
+    .btn-del-row    { background: transparent; color: #673147; border-color: #673147; transition: background .18s, color .18s, border-color .18s; }
+    .btn-del-row:hover    { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Notify Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 2000; align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: #fff; border-radius: 14px; width: 100%; max-width: 420px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18); padding: 28px 28px 24px;
+      margin: 16px;
+    }
+    .modal-title { font-size: 16px; font-weight: 700; color: #1e2139; margin-bottom: 4px; }
+    .modal-subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+    .modal-section-label { font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .5px; color: #673147; margin-bottom: 10px; margin-top: 16px; }
+    .modal-check-group { display: flex; gap: 12px; flex-wrap: wrap; }
+    .modal-check-group label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 14px; color: #333; cursor: pointer;
+      background: #f5f6fa; border: 1.5px solid #dde1f0; border-radius: 8px;
+      padding: 7px 14px; transition: border-color .15s, background .15s;
+    }
+    .modal-check-group label:has(input:checked) { border-color: #1565c0; background: #e3f2fd; }
+    .modal-check-group input[type=checkbox] { width: 15px; height: 15px; accent-color: #1565c0; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+    .btn-modal-cancel { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      background: #f5f6fa; color: #555; border: 1.5px solid #dde1f0; cursor: pointer; }
+    .btn-modal-send   { padding: 8px 22px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      background: #1565c0; color: #fff; border: none; cursor: pointer; transition: background .15s; }
+    .btn-modal-send:hover   { background: #0d47a1; }
+    .btn-modal-cancel:hover { background: #e8eaf0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .form-grid { grid-template-columns: repeat(2, 1fr); }
+      .span-3 { grid-column: span 2; }
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .span-2, .span-3 { grid-column: span 1; }
+    }
+
+    /* ── Modal overlay ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 500; display: flex; align-items: center; justify-content: center; }
+
+    /* ── Category panel ── */
+    .category-panel { display: none; }
+    .category-panel.visible { display: block; }
+    .cat-add-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+    .cat-add-row input { flex: 1; border: 1px solid #ddd; border-radius: 7px; padding: 9px 12px; font-size: 13px; outline: none; }
+    .cat-add-row input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .cat-add-row input.invalid { border-color: #e53935; }
+    .btn-cat-add { background: #673147; color: #fff; border: none; border-radius: 7px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-cat-add:hover { background: #4a5aae; }
+    .btn-cat-add:disabled { opacity: .6; cursor: not-allowed; }
+    .field-hint-sm { font-size: 11px; color: #e53935; min-height: 14px; }
+    .cat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .cat-table th { background: #f5f6fa; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888; padding: 8px 12px; border-bottom: 2px solid #e8eaf0; }
+    .cat-table td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+    .cat-table tr:last-child td { border-bottom: none; }
+    .cat-table tr:hover td { background: #fafbfd; }
+    .btn-cat-edit { padding: 3px 10px; font-size: 13px; border-radius: 5px; border: 1px solid #673147; color: #673147; background: none; cursor: pointer; }
+    .btn-cat-edit:hover { background: #eef0f8; }
+    .btn-cat-del  { padding: 3px 10px; font-size: 13px; border-radius: 5px; border: 1px solid #e53935; color: #e53935; background: none; cursor: pointer; }
+    .btn-cat-del:hover  { background: #ffebee; }
+
+    /* ── Recurrence extra options ── */
+    .recur-extra { margin-top: 14px; }
+    .recur-extra.hidden { display: none; }
+
+    /* Day-of-week toggles */
+    .day-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .day-btn {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #c5cae9; background: #fff; color: #673147; cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s; white-space: nowrap;
+    }
+    .day-btn.selected { background: #673147; color: #fff; border-color: #673147; }
+
+    /* Month toggles */
+    .month-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .month-btn {
+      padding: 5px 10px; border-radius: 16px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #c5cae9; background: #fff; color: #673147; cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .month-btn.selected { background: #673147; color: #fff; border-color: #673147; }
+
+    .recur-sub-label { font-size: 12px; font-weight: 600; color: #777; margin-top: 12px; margin-bottom: 4px; }
+    .recur-or-divider { font-size: 11px; color: #aaa; margin: 10px 0 4px; font-style: italic; }
+
+    /* ── Image upload ── */
+    .img-upload-area {
+      border: 2px dashed #c5cae9; border-radius: 10px; padding: 18px 20px;
+      text-align: center; cursor: pointer; background: #fafbfd;
+      transition: border-color .2s, background .2s; position: relative;
+    }
+    .img-upload-area:hover, .img-upload-area.drag-over {
+      border-color: #673147; background: #f5f0f3;
+    }
+    .img-upload-area input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .img-upload-placeholder { font-size: 13px; color: #888; pointer-events: none; }
+    .img-upload-placeholder span { color: #673147; font-weight: 600; }
+    .img-preview-wrap {
+      position: relative; display: inline-block; margin-top: 10px;
+    }
+    .img-preview-wrap img {
+      max-width: 100%; max-height: 180px; border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.12); display: block;
+    }
+    .btn-img-remove {
+      position: absolute; top: -8px; right: -8px;
+      background: #e53935; color: #fff; border: none; border-radius: 50%;
+      width: 22px; height: 22px; font-size: 13px; line-height: 22px;
+      text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.2);
+      padding: 0;
+    }
+    .img-upload-hint { font-size: 11px; color: #aaa; margin-top: 6px; }
+    .img-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 5px; vertical-align: middle; cursor: pointer; }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div class="page-title" id="pageTitle">Meetings</div>
+          <div class="page-subtitle">Schedule and manage church meetings</div>
+        </div>
+        <button id="btnCategory" onclick="toggleCategoryPanel()"
+                style="padding:8px 18px;border-radius:7px;font-size:13px;font-weight:600;
+                       color:#673147;border:1.5px solid #c5cae9;background:#fff;cursor:pointer;
+                       display:flex;align-items:center;gap:6px;white-space:nowrap;margin-top:2px;">
+          🏷️ Category
+        </button>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Meeting Form ──────────────────────────────── -->
+      <div class="form-card" id="meetingFormCard">
+        <div class="form-card-header">
+          <span class="section-icon">🗓️</span>
+          <h3 id="formTitle">Add Meeting</h3>
+        </div>
+        <div class="form-card-body">
+
+          <!-- Meeting Details -->
+          <div class="sub-section">
+            <div class="sub-section-title">Meeting Details</div>
+            <!-- Row 1: Category + Location -->
+            <div class="form-grid cols-2" style="margin-bottom:16px;">
+              <!-- Meeting Type -->
+              <div class="field">
+                <label for="meetingType">Category <span class="required-star">*</span></label>
+                <select id="meetingType" onchange="onMeetingTypeChange(this.value)">
+                  <option value="">— Select Type —</option>
+                </select>
+                <span class="field-hint" id="meetingTypeHint"></span>
+              </div>
+
+              <!-- Location (searchable) -->
+              <div class="field">
+                <label for="locationSearch">Location</label>
+                <div class="picker-wrap">
+                  <input type="text" id="locationSearch" placeholder="Search member…" autocomplete="off"
+                         oninput="onLocationSearch(this.value)" onfocus="showLocationDropdown()" />
+                  <button class="picker-clear" id="locationClearBtn" onclick="clearLocation()" title="Clear">×</button>
+                  <div class="picker-dropdown" id="locationDropdown" style="display:none;"></div>
+                </div>
+                <div class="addr-source-note" id="addrSourceNote" style="display:none;">
+                  📍 Address auto-filled from selected member
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Date + Start Time + End Time (uniform 3-col row) -->
+            <div class="form-grid cols-3">
+              <!-- One-time / Daily date (hidden for Weekly/Monthly) -->
+              <div class="field" id="meetingDateField">
+                <label for="meetingDate">Date <span class="required-star">*</span></label>
+                <input type="date" id="meetingDate" />
+                <span class="field-hint" id="meetingDateHint"></span>
+              </div>
+
+              <!-- Series start date — required for Daily, optional for Weekly/Monthly -->
+              <div class="field hidden" id="startDateField">
+                <label for="seriesStartDate">Start Date <span style="font-weight:400;color:#888;">(optional)</span></label>
+                <input type="date" id="seriesStartDate" />
+                <span class="field-hint" id="seriesStartDateHint"></span>
+                <span class="field-note" id="seriesStartDateNote">Leave blank to start from the next valid occurrence</span>
+              </div>
+
+              <!-- Start Time -->
+              <div class="field">
+                <label for="startTime">Start Time</label>
+                <input type="time" id="startTime" />
+              </div>
+
+              <!-- End Time -->
+              <div class="field">
+                <label for="endTime">End Time</label>
+                <input type="time" id="endTime" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div class="sub-section">
+            <div class="sub-section-title">Address</div>
+            <div class="form-grid">
+              <div class="field span-2">
+                <label for="address1">Address Line 1</label>
+                <input type="text" id="address1" placeholder="Street address" />
+              </div>
+              <div class="field span-2">
+                <label for="address2">Address Line 2</label>
+                <input type="text" id="address2" placeholder="Apt, suite, unit (optional)" />
+              </div>
+              <div class="field">
+                <label for="city">City</label>
+                <input type="text" id="city" placeholder="City" />
+              </div>
+              <div class="field">
+                <label for="state">State</label>
+                <select id="state">
+                  <option value="">— Select State —</option>
+                  <option value="1">AL – Alabama</option>
+                  <option value="2">AK – Alaska</option>
+                  <option value="3">AZ – Arizona</option>
+                  <option value="4">AR – Arkansas</option>
+                  <option value="5">CA – California</option>
+                  <option value="6">CO – Colorado</option>
+                  <option value="7">CT – Connecticut</option>
+                  <option value="8">DE – Delaware</option>
+                  <option value="9">FL – Florida</option>
+                  <option value="10">GA – Georgia</option>
+                  <option value="11">HI – Hawaii</option>
+                  <option value="12">ID – Idaho</option>
+                  <option value="13">IL – Illinois</option>
+                  <option value="14">IN – Indiana</option>
+                  <option value="15">IA – Iowa</option>
+                  <option value="16">KS – Kansas</option>
+                  <option value="17">KY – Kentucky</option>
+                  <option value="18">LA – Louisiana</option>
+                  <option value="19">ME – Maine</option>
+                  <option value="20">MD – Maryland</option>
+                  <option value="21">MA – Massachusetts</option>
+                  <option value="22">MI – Michigan</option>
+                  <option value="23">MN – Minnesota</option>
+                  <option value="24">MS – Mississippi</option>
+                  <option value="25">MO – Missouri</option>
+                  <option value="26">MT – Montana</option>
+                  <option value="27">NE – Nebraska</option>
+                  <option value="28">NV – Nevada</option>
+                  <option value="29">NH – New Hampshire</option>
+                  <option value="30">NJ – New Jersey</option>
+                  <option value="31">NM – New Mexico</option>
+                  <option value="32">NY – New York</option>
+                  <option value="33">NC – North Carolina</option>
+                  <option value="34">ND – North Dakota</option>
+                  <option value="35">OH – Ohio</option>
+                  <option value="36">OK – Oklahoma</option>
+                  <option value="37">OR – Oregon</option>
+                  <option value="38">PA – Pennsylvania</option>
+                  <option value="39">RI – Rhode Island</option>
+                  <option value="40">SC – South Carolina</option>
+                  <option value="41">SD – South Dakota</option>
+                  <option value="42">TN – Tennessee</option>
+                  <option value="43">TX – Texas</option>
+                  <option value="44">UT – Utah</option>
+                  <option value="45">VT – Vermont</option>
+                  <option value="46">VA – Virginia</option>
+                  <option value="47">WA – Washington</option>
+                  <option value="48">WV – West Virginia</option>
+                  <option value="49">WI – Wisconsin</option>
+                  <option value="50">WY – Wyoming</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="country">Country</label>
+                <select id="country">
+                  <option value="USA" selected>USA – United States</option>
+                  <option value="CAN">CAN – Canada</option>
+                  <option value="GBR">GBR – United Kingdom</option>
+                  <option value="AUS">AUS – Australia</option>
+                  <option value="IND">IND – India</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pinCode">Pin / Zip Code</label>
+                <input type="text" id="pinCode" placeholder="Zip / Pin" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedule -->
+          <div class="sub-section">
+            <div class="sub-section-title">Schedule</div>
+            <div class="form-grid cols-2">
+              <div class="field">
+                <label for="occurrence">Occurrences</label>
+                <select id="occurrence" onchange="onOccurrenceChange(this.value)">
+                  <option value="One-time" selected>One-time</option>
+                  <option value="Daily">Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Monthly">Monthly</option>
+                </select>
+                <span class="field-hint" id="occurrenceHint"></span>
+              </div>
+              <div class="field end-date-field hidden" id="endDateField">
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" />
+                <span class="field-note">Last date of the recurring series</span>
+              </div>
+            </div>
+
+            <!-- Weekly: day-of-week toggles -->
+            <div class="recur-extra hidden" id="weeklyDayPanel">
+              <div class="recur-sub-label">Repeat on days</div>
+              <div class="day-toggle-row" id="dayToggleRow">
+                <button type="button" class="day-btn" data-day="0" onclick="toggleDay(this)">Sun</button>
+                <button type="button" class="day-btn" data-day="1" onclick="toggleDay(this)">Mon</button>
+                <button type="button" class="day-btn" data-day="2" onclick="toggleDay(this)">Tue</button>
+                <button type="button" class="day-btn" data-day="3" onclick="toggleDay(this)">Wed</button>
+                <button type="button" class="day-btn" data-day="4" onclick="toggleDay(this)">Thu</button>
+                <button type="button" class="day-btn" data-day="5" onclick="toggleDay(this)">Fri</button>
+                <button type="button" class="day-btn" data-day="6" onclick="toggleDay(this)">Sat</button>
+              </div>
+            </div>
+
+            <!-- Monthly options -->
+            <div class="recur-extra hidden" id="monthlyPanel">
+              <!-- Month multi-select -->
+              <div class="recur-sub-label">Repeat in months</div>
+              <div class="month-toggle-row" id="monthToggleRow">
+                <button type="button" class="month-btn" data-month="1"  onclick="toggleMonth(this)">Jan</button>
+                <button type="button" class="month-btn" data-month="2"  onclick="toggleMonth(this)">Feb</button>
+                <button type="button" class="month-btn" data-month="3"  onclick="toggleMonth(this)">Mar</button>
+                <button type="button" class="month-btn" data-month="4"  onclick="toggleMonth(this)">Apr</button>
+                <button type="button" class="month-btn" data-month="5"  onclick="toggleMonth(this)">May</button>
+                <button type="button" class="month-btn" data-month="6"  onclick="toggleMonth(this)">Jun</button>
+                <button type="button" class="month-btn" data-month="7"  onclick="toggleMonth(this)">Jul</button>
+                <button type="button" class="month-btn" data-month="8"  onclick="toggleMonth(this)">Aug</button>
+                <button type="button" class="month-btn" data-month="9"  onclick="toggleMonth(this)">Sep</button>
+                <button type="button" class="month-btn" data-month="10" onclick="toggleMonth(this)">Oct</button>
+                <button type="button" class="month-btn" data-month="11" onclick="toggleMonth(this)">Nov</button>
+                <button type="button" class="month-btn" data-month="12" onclick="toggleMonth(this)">Dec</button>
+              </div>
+
+              <!-- Day of month -->
+              <div class="recur-sub-label" style="margin-top:14px;">Day of month</div>
+              <div class="field" style="max-width:160px;">
+                <select id="monthDayOfMonth">
+                  <option value="">— any day —</option>
+                  <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option>
+                  <option value="4">4th</option><option value="5">5th</option><option value="6">6th</option>
+                  <option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+                  <option value="10">10th</option><option value="11">11th</option><option value="12">12th</option>
+                  <option value="13">13th</option><option value="14">14th</option><option value="15">15th</option>
+                  <option value="16">16th</option><option value="17">17th</option><option value="18">18th</option>
+                  <option value="19">19th</option><option value="20">20th</option><option value="21">21st</option>
+                  <option value="22">22nd</option><option value="23">23rd</option><option value="24">24th</option>
+                  <option value="25">25th</option><option value="26">26th</option><option value="27">27th</option>
+                  <option value="28">28th</option><option value="29">29th</option><option value="30">30th</option>
+                  <option value="31">31st</option>
+                </select>
+              </div>
+
+              <!-- Week-based pattern -->
+              <div class="recur-or-divider">— or use a week-based pattern —</div>
+              <div class="form-grid cols-2" style="max-width:400px;">
+                <div class="field">
+                  <label for="monthWeekOrdinal" style="font-size:12px;">Week</label>
+                  <select id="monthWeekOrdinal">
+                    <option value="">— any —</option>
+                    <option value="1">1st</option>
+                    <option value="2">2nd</option>
+                    <option value="3">3rd</option>
+                    <option value="4">4th</option>
+                    <option value="5">Last</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="monthWeekDay" style="font-size:12px;">Day of week</label>
+                  <select id="monthWeekDay">
+                    <option value="">— any —</option>
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="sub-section">
+            <div class="sub-section-title">Notes</div>
+            <div class="field">
+              <label for="note">Note</label>
+              <textarea id="note" placeholder="Additional notes or agenda…" style="min-height:110px;"></textarea>
+            </div>
+            <div class="field" style="margin-top:8px;">
+              <label class="toggle-row" title="Don't auto-delete (exempt from 90-day purge)">
+                <input type="checkbox" class="toggle-checkbox" id="doNotAutoDelete" />
+                <span class="toggle-label">Don't auto-delete (exempt from 90-day purge)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Image Upload -->
+          <div class="sub-section">
+            <div class="sub-section-title">Meeting Image <span style="font-weight:400;color:#aaa;font-size:11px;text-transform:none;">(optional — flyer, banner, etc.)</span></div>
+            <div class="img-upload-area" id="imgUploadArea"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="onImgDrop(event)">
+              <input type="file" id="imgFileInput" accept="image/*" onchange="onImgFileChange(this)" />
+              <div class="img-upload-placeholder" id="imgPlaceholder">
+                📷 Drop an image here or <span>click to browse</span>
+              </div>
+              <div class="img-preview-wrap" id="imgPreviewWrap" style="display:none;">
+                <img id="imgPreview" src="" alt="Meeting image preview" />
+                <button type="button" class="btn-img-remove" onclick="removeImg(event)" title="Remove image">×</button>
+              </div>
+            </div>
+            <div class="img-upload-hint" id="imgUploadHint">Max 5 MB · JPEG, PNG, WEBP, GIF</div>
+          </div>
+
+          <!-- Message Template -->
+          <div class="sub-section">
+            <div class="sub-section-title">Message Template <span style="font-weight:400;color:#aaa;font-size:11px;text-transform:none;">(used when notifying)</span></div>
+            <div class="field">
+              <label for="msgTemplateSelect">Template</label>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="msgTemplateSelect" style="flex:1; min-width:200px;" onchange="updateMsgPreview()"></select>
+                <button type="button" class="btn-clear" style="white-space:nowrap;" onclick="openTplManager()">⚙ Manage</button>
+                <button type="button" class="btn-clear" style="white-space:nowrap;" onclick="toggleMsgPreview()" id="msgPreviewToggle">👁 Preview</button>
+              </div>
+            </div>
+            <div id="msgPreviewPanel" style="display:none; margin-top:10px; border:1px solid #e6dde2; border-radius:10px; background:#fbf7f9; padding:14px;">
+              <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#9a7d8a; margin-bottom:8px;">Live preview</div>
+              <pre id="msgPreviewText" style="white-space:pre-wrap; word-break:break-word; font-family:inherit; font-size:13px; color:#333; margin:0;"></pre>
+              <img id="msgPreviewImg" src="" alt="Meeting image" style="display:none; max-width:100%; margin-top:10px; border-radius:8px;" />
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Action bar -->
+        <div class="action-bar">
+          <button class="btn-clear" onclick="resetForm()">Clear</button>
+          <button class="btn-save" id="saveBtn" onclick="saveMeeting()">Save</button>
+        </div>
+      </div>
+
+      <!-- ── Meetings Table ──────────────────────────── -->
+      <div class="form-card">
+        <div class="form-card-header" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="section-icon">📅</span>
+            <h3 id="meetingsCardTitle">Scheduled Meetings</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button id="deleteSelectedBtn" data-perm="general.meetings.delete" onclick="deleteSelected()"
+                    style="display:none;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;
+                           color:#e53935;border:1.5px solid #ffcdd2;background:none;cursor:pointer;">
+              🗑 Delete Selected
+            </button>
+            <button id="historyBtn" onclick="toggleHistory()"
+                    style="padding:5px 14px;border-radius:6px;font-size: 13px;font-weight:500;
+                           color:#673147;border:1.5px solid #c5cae9;background:none;cursor:pointer;">
+              🕐 History
+            </button>
+          </div>
+        </div>
+        <div class="form-card-body" style="padding:0;">
+          <div class="meetings-table-wrap">
+            <table class="meetings-table" id="meetingsTable">
+              <thead>
+                <tr>
+                  <th style="width:36px;"><input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this.checked)" title="Select all" /></th>
+                  <th>#</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Location</th>
+                  <th>Occurrence</th>
+                  <th>End Date</th>
+                  <th style="width:48px;">Image</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="meetingsTableBody">
+                <tr><td colspan="10" class="empty-row">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Notify Modal ──────────────────────────────────────────────── -->
+      <div class="modal-overlay" id="notifyModal" style="display:none;" onclick="if(event.target===this)closeNotifyModal()">
+        <div class="modal-box">
+          <div class="modal-title">📣 Send Meeting Notification</div>
+          <div class="modal-subtitle" id="notifyMeetingLabel"></div>
+
+          <div class="modal-section-label">Channel</div>
+          <div class="modal-check-group">
+            <label><input type="checkbox" id="notifyChanEmail" checked /> ✉️ Email</label>
+            <label><input type="checkbox" id="notifyChanSms"           /> 💬 SMS</label>
+          </div>
+
+          <div class="modal-section-label">Recipients</div>
+          <div class="modal-check-group">
+            <label><input type="checkbox" id="notifyRcpMembers" checked /> 👥 Members</label>
+            <label><input type="checkbox" id="notifyRcpGuests"          /> 🙋 Guests</label>
+          </div>
+
+          <div id="notifyFeedback" class="feedback" style="margin-top:14px;margin-bottom:0;"></div>
+
+          <div class="modal-actions">
+            <button class="btn-modal-cancel" onclick="closeNotifyModal()">Cancel</button>
+            <button class="btn-modal-send"   id="notifySendBtn" onclick="confirmNotify()">Send Now</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Message Template Manager Modal ─────────────── -->
+      <div class="modal-overlay" id="tplModal" style="display:none; align-items:flex-start; overflow:auto; padding:24px 12px;" onclick="if(event.target===this)closeTplManager()">
+        <div class="modal-box" style="max-width:780px; width:100%; max-height:calc(100vh - 48px); overflow-y:auto; margin:0 auto;">
+          <div class="modal-title">📝 Meeting Message Templates</div>
+          <div class="modal-subtitle">Create reusable messages with dynamic placeholders, choose date/time formats, and preview before sending.</div>
+          <div id="tplFeedback" class="feedback" style="margin:6px 0;"></div>
+
+          <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
+            <!-- list -->
+            <div style="flex:1 1 210px; min-width:190px;">
+              <div class="modal-section-label">Templates</div>
+              <div id="tplList" style="border:1px solid #eee; border-radius:8px; max-height:340px; overflow:auto;"></div>
+              <button class="btn-clear" style="margin-top:8px; width:100%;" onclick="tplNew()">＋ New template</button>
+            </div>
+            <!-- editor -->
+            <div style="flex:2 1 330px; min-width:280px;">
+              <div class="modal-section-label" id="tplEditorTitle">New template</div>
+              <input type="hidden" id="tplEditId" value="" />
+              <div class="field"><label for="tplName">Name</label><input type="text" id="tplName" placeholder="e.g. Service Reminder" /></div>
+              <div class="field" style="margin-top:8px;">
+                <label>Insert placeholder</label>
+                <div id="tplPlaceholders" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+              </div>
+              <div class="field" style="margin-top:8px;">
+                <label for="tplBody">Message</label>
+                <textarea id="tplBody" style="min-height:170px; width:100%;" oninput="tplPreview()" placeholder="Type your message and insert placeholders…"></textarea>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                <div class="field" style="flex:1; min-width:160px;"><label for="tplDateFormat">Date format</label><select id="tplDateFormat" onchange="tplPreview()"></select></div>
+                <div class="field" style="flex:1; min-width:140px;"><label for="tplTimeFormat">Time format</label>
+                  <select id="tplTimeFormat" onchange="tplPreview()">
+                    <option value="start">Start time only</option>
+                    <option value="startEnd">Start – End time</option>
+                  </select>
+                </div>
+              </div>
+              <label class="toggle-row" style="margin-top:10px;"><input type="checkbox" class="toggle-checkbox" id="tplMakeDefault" /><span class="toggle-label">Set as default template</span></label>
+              <div class="modal-section-label" style="margin-top:12px;">Preview (current meeting)</div>
+              <pre id="tplPreviewText" style="white-space:pre-wrap; word-break:break-word; font-family:inherit; font-size:12.5px; background:#fbf7f9; border:1px solid #eee; border-radius:8px; padding:10px; margin:0; min-height:60px; color:#333;"></pre>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-modal-cancel" onclick="closeTplManager()">Close</button>
+            <button class="btn-modal-send" id="tplSaveBtn" onclick="tplSave()">Save Template</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Category Panel ─────────────────────────────── -->
+      <div class="form-card category-panel" id="categoryPanel">
+        <div class="form-card-header" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="section-icon">🏷️</span>
+            <h3>Meeting Categories</h3>
+          </div>
+          <button onclick="toggleCategoryPanel()"
+                  style="padding:3px 10px;font-size: 13px;border:1px solid #ddd;border-radius:5px;color:#888;cursor:pointer;">✕ Close</button>
+        </div>
+        <div class="form-card-body">
+          <div style="font-size: 13px;color:#888;margin-bottom:12px;">
+            Categories defined here appear in the <strong>Category</strong> dropdown above.
+          </div>
+          <div class="feedback" id="catFeedback"></div>
+          <!-- Add row -->
+          <div class="cat-add-row">
+            <input type="text" id="catNewName" placeholder="e.g. Sunday Service, Bible Study…"
+                   onkeydown="if(event.key==='Enter') addCategory()" />
+            <button class="btn-cat-add" id="catAddBtn" onclick="addCategory()">＋ Add</button>
+          </div>
+          <div class="field-hint-sm" id="catNewNameHint"></div>
+          <!-- Table -->
+          <div style="overflow-x:auto;">
+            <table class="cat-table">
+              <thead><tr><th style="width:48px;">#</th><th>Category Name</th><th style="width:140px;">Actions</th></tr></thead>
+              <tbody id="catTableBody">
+                <tr><td colspan="3" style="text-align:center;color:#bbb;padding:24px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+
+<!-- ── Edit Category Modal ── -->
+<div class="modal-overlay" id="catEditModal" style="display:none;" onclick="if(event.target===this)closeCatModal()">
+  <div style="background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:400px;max-width:calc(100vw - 48px);overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:#673147;">
+      <span style="font-size:14px;font-weight:700;color:#fff;">Edit Category</span>
+      <button onclick="closeCatModal()" style="color:rgba(255,255,255,.8);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <label style="font-size: 13px;font-weight:600;color:#555;">Category Name <span style="color:#e53935;">*</span></label>
+      <input type="text" id="catEditName" style="width:100%;border:1px solid #ddd;border-radius:7px;padding:9px 12px;font-size:13px;margin-top:6px;outline:none;"
+             onkeydown="if(event.key==='Enter') saveCatEdit()" />
+      <div style="font-size:11px;color:#e53935;min-height:14px;" id="catEditHint"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid #eee;">
+      <button onclick="closeCatModal()" style="padding:8px 18px;border:1px solid #ddd;border-radius:7px;font-size:13px;color:#666;cursor:pointer;">Cancel</button>
+      <button onclick="saveCatEdit()" id="catEditSaveBtn" style="padding:8px 22px;background:#673147;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">Update</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU — mirrors other pages
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     STATE MAP (code → abbreviation)
+  ════════════════════════════════════ */
+  const STATE_MAP = {
+    "1":"AL","2":"AK","3":"AZ","4":"AR","5":"CA","6":"CO","7":"CT","8":"DE",
+    "9":"FL","10":"GA","11":"HI","12":"ID","13":"IL","14":"IN","15":"IA","16":"KS",
+    "17":"KY","18":"LA","19":"ME","20":"MD","21":"MA","22":"MI","23":"MN","24":"MS",
+    "25":"MO","26":"MT","27":"NE","28":"NV","29":"NH","30":"NJ","31":"NM","32":"NY",
+    "33":"NC","34":"ND","35":"OH","36":"OK","37":"OR","38":"PA","39":"RI","40":"SC",
+    "41":"SD","42":"TN","43":"TX","44":"UT","45":"VT","46":"VA","47":"WA","48":"WV",
+    "49":"WI","50":"WY"
+  };
+
+  /* ════════════════════════════════════
+     PAGE STATE
+  ════════════════════════════════════ */
+  let allLocations    = [];   // from GET /api/meetings/locations  (members with own address)
+  let allMeetingTypes = [];   // from GET /api/meeting-types
+  let allMeetings     = [];   // from GET /api/meetings
+  let selectedLocId   = null; // id of the selected location (family or member)
+  let selectedLocType = null; // 'family' | 'member' | null
+  let editingId       = null; // meeting id being edited (null = new)
+  let showHistory     = false; // toggle between active and historical meetings
+
+  /** Returns today's date as a YYYY-MM-DD string in local time (not UTC) for comparison. */
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+  }
+
+  /**
+   * Returns true if the meeting has expired and should appear only in history.
+   *  - One-time / One Time / Once: expired if meetingDate < today
+   *  - Daily / Weekly / Monthly: expired if endDate exists and endDate < today
+   */
+  function isMeetingExpired(m) {
+    const today = todayStr();
+    const occ = m.occurrence || '';
+    if (occ === 'One-time' || occ === 'One Time' || occ === 'Once') {
+      return !!(m.meetingDate && m.meetingDate < today);
+    }
+    // Daily / Weekly / Monthly: expired only if end date is set and in the past
+    return !!(m.endDate && m.endDate < today);
+  }
+
+  function toggleHistory() {
+    showHistory = !showHistory;
+    document.getElementById('meetingsCardTitle').textContent =
+      showHistory ? 'Meeting History' : 'Scheduled Meetings';
+    document.getElementById('historyBtn').textContent =
+      showHistory ? '📅 Active' : '🕐 History';
+    renderMeetingsTable();
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (async function init() {
+    await Promise.all([loadMeetingTypes(), loadLocations(), loadMeetings()]);
+    // Auto-purge is restricted to Admin/SuperAdmin with the meetings-delete
+    // permission (backend RoleGuard.requireAdmin + general.meetings.delete).
+    // Only call it when the user qualifies, so other roles don't trigger a 403.
+    // Deferred so session.js has populated role + permissions first.
+    setTimeout(function () {
+      var role = localStorage.getItem('role') || '';
+      var isAdmin = (role === 'Admin' || role === 'SuperAdmin');
+      var canDelete = !window.CGP_can || window.CGP_can('general.meetings.delete');
+      if (isAdmin && canDelete) runAutoPurge();
+    }, 1200);
+    // Close location dropdown when clicking outside
+    document.addEventListener('click', e => {
+      if (!document.getElementById('locationSearch').contains(e.target) &&
+          !document.getElementById('locationDropdown').contains(e.target)) {
+        document.getElementById('locationDropdown').style.display = 'none';
+      }
+    });
+  })();
+
+  /* ════════════════════════════════════
+     DATA LOADERS
+  ════════════════════════════════════ */
+  async function loadMeetingTypes() {
+    try {
+      const res  = await fetch('/api/meeting-types');
+      allMeetingTypes = await res.json();
+      const sel  = document.getElementById('meetingType');
+      allMeetingTypes.forEach(mt => {
+        const opt = document.createElement('option');
+        opt.value = mt.id; opt.textContent = mt.typeName;
+        sel.appendChild(opt);
+      });
+    } catch { /* ignore */ }
+  }
+
+  async function loadLocations() {
+    try {
+      const res  = await fetch('/api/meetings/locations');
+      allLocations = await res.json();
+      window.allLocations = allLocations;   // expose to the AI assistant (meeting-voice.js)
+    } catch { /* ignore */ }
+  }
+
+  async function loadMeetings() {
+    try {
+      const res = await fetch('/api/meetings');
+      allMeetings = await res.json();
+      renderMeetingsTable();
+    } catch {
+      showFeedback('Could not load meetings.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     LOCATION PICKER
+  ════════════════════════════════════ */
+  function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function onLocationSearch(query) {
+    const dd = document.getElementById('locationDropdown');
+    const q  = query.trim().toLowerCase();
+
+    const members = allLocations.filter(l =>
+      !q || l.displayName.toLowerCase().includes(q));
+
+    if (members.length === 0) {
+      dd.innerHTML = '<div class="picker-item no-results">No matches found. Enter address manually.</div>';
+    } else {
+      dd.innerHTML = members.map(l =>
+        `<div class="picker-item" onclick="selectLocation('member',${l.id})">
+           <strong>${escHtml(l.displayName)}</strong>
+         </div>`
+      ).join('');
+    }
+    dd.style.display = 'block';
+    document.getElementById('locationClearBtn').classList.toggle('visible', query.length > 0);
+  }
+
+  function showLocationDropdown() {
+    if (selectedLocId) return; // already selected; don't re-open
+    onLocationSearch(document.getElementById('locationSearch').value);
+  }
+
+  function selectLocation(locType, id) {
+    const loc = allLocations.find(l => l.locType === locType && l.id === id);
+    if (!loc) return;
+    selectedLocType = locType;
+    selectedLocId   = id;
+
+    const label = locType === 'family'
+      ? loc.displayName
+      : loc.displayName + (loc.familyName ? ` — ${loc.familyName}` : '');
+    document.getElementById('locationSearch').value = label;
+    document.getElementById('locationDropdown').style.display = 'none';
+    document.getElementById('locationClearBtn').classList.add('visible');
+
+    // Auto-fill address from selected family or member
+    setVal('address1', loc.address1);
+    setVal('address2', loc.address2);
+    setVal('city',     loc.city);
+    setVal('state',    loc.state || '');
+    setVal('country',  loc.country || 'USA');
+    setVal('pinCode',  loc.pinCode);
+    document.getElementById('addrSourceNote').style.display = '';
+  }
+
+  function clearLocation() {
+    selectedLocId   = null;
+    selectedLocType = null;
+    document.getElementById('locationSearch').value = '';
+    document.getElementById('locationClearBtn').classList.remove('visible');
+    document.getElementById('locationDropdown').style.display = 'none';
+    document.getElementById('addrSourceNote').style.display = 'none';
+    // Let user re-enter address manually
+    ['address1','address2','city','pinCode'].forEach(id => setVal(id, ''));
+    setVal('state', ''); setVal('country', 'USA');
+  }
+
+  /* ════════════════════════════════════
+     MEETING TYPE → auto-fill times
+  ════════════════════════════════════ */
+  async function onMeetingTypeChange(typeId, opts) {
+    if (!typeId) return;
+    opts = opts || {};
+    // When the AI/voice assistant selects the category it supplies the explicit
+    // start time itself (and only sets an end time when the user actually stated
+    // one). Skip the last-used-times convenience fill in that case so we never
+    // clobber the detected start time or inject an unwanted end time.
+    if (opts.fromAssistant) return;
+    try {
+      const res  = await fetch(`/api/meetings/type/${typeId}/last-times`);
+      const data = await res.json();
+      const st = document.getElementById('startTime');
+      const et = document.getElementById('endTime');
+      // Only suggest last-used times into fields the user hasn't already filled.
+      if (data.startTime && st && !st.value) setVal('startTime', data.startTime);
+      if (data.endTime   && et && !et.value) setVal('endTime',   data.endTime);
+    } catch { /* ignore — times stay blank */ }
+  }
+
+  /* ════════════════════════════════════
+     DAY / MONTH TOGGLE HELPERS
+  ════════════════════════════════════ */
+  function toggleDay(btn) {
+    btn.classList.toggle('selected');
+  }
+
+  function toggleMonth(btn) {
+    btn.classList.toggle('selected');
+  }
+
+  /** Return sorted array of selected day numbers (0=Sun…6=Sat) */
+  function getSelectedDays() {
+    return [...document.querySelectorAll('#dayToggleRow .day-btn.selected')]
+      .map(b => parseInt(b.dataset.day, 10));
+  }
+
+  /** Return sorted array of selected month numbers (1–12) */
+  function getSelectedMonths() {
+    return [...document.querySelectorAll('#monthToggleRow .month-btn.selected')]
+      .map(b => parseInt(b.dataset.month, 10));
+  }
+
+  /** Set day-of-week buttons from an array of day numbers */
+  function setSelectedDays(days) {
+    document.querySelectorAll('#dayToggleRow .day-btn').forEach(b => {
+      b.classList.toggle('selected', (days || []).includes(parseInt(b.dataset.day, 10)));
+    });
+  }
+
+  /** Set month buttons from an array of month numbers */
+  function setSelectedMonths(months) {
+    document.querySelectorAll('#monthToggleRow .month-btn').forEach(b => {
+      b.classList.toggle('selected', (months || []).includes(parseInt(b.dataset.month, 10)));
+    });
+  }
+
+  /* ════════════════════════════════════
+     OCCURRENCE → END DATE + EXTRA PANELS
+  ════════════════════════════════════ */
+  function onOccurrenceChange(val) {
+    const endField        = document.getElementById('endDateField');
+    const weeklyPanel     = document.getElementById('weeklyDayPanel');
+    const monthlyPanel    = document.getElementById('monthlyPanel');
+    const meetingDateFld  = document.getElementById('meetingDateField');
+    const startDateFld    = document.getElementById('startDateField');
+    const startDateLabel  = startDateFld ? startDateFld.querySelector('label') : null;
+
+    // Weekly / Monthly / Daily: hide fixed Date field, show Start Date instead.
+    // One-time: show Date field, hide Start Date.
+    if (val === 'Weekly' || val === 'Monthly' || val === 'Daily') {
+      meetingDateFld.classList.add('hidden');
+      setVal('meetingDate', '');
+      startDateFld.classList.remove('hidden');
+      // Daily: Start Date is required; Weekly/Monthly: optional
+      const startDateNote = document.getElementById('seriesStartDateNote');
+      if (startDateLabel) {
+        if (val === 'Daily') {
+          startDateLabel.innerHTML = 'Start Date <span class="required-star">*</span>';
+          if (startDateNote) startDateNote.style.display = 'none';
+        } else {
+          startDateLabel.innerHTML = 'Start Date <span style="font-weight:400;color:#888;">(optional)</span>';
+          if (startDateNote) startDateNote.style.display = '';
+        }
+      }
+    } else {
+      meetingDateFld.classList.remove('hidden');
+      startDateFld.classList.add('hidden');
+      setVal('seriesStartDate', '');
+    }
+
+    // End date: show for Daily, Weekly, Monthly
+    if (val === 'Daily' || val === 'Weekly' || val === 'Monthly') {
+      endField.classList.remove('hidden');
+    } else {
+      endField.classList.add('hidden');
+      setVal('endDate', '');
+    }
+
+    // Weekly day panel
+    if (val === 'Weekly') {
+      weeklyPanel.classList.remove('hidden');
+    } else {
+      weeklyPanel.classList.add('hidden');
+      setSelectedDays([]);
+    }
+
+    // Monthly options panel
+    if (val === 'Monthly') {
+      monthlyPanel.classList.remove('hidden');
+    } else {
+      monthlyPanel.classList.add('hidden');
+      setSelectedMonths([]);
+      setVal('monthDayOfMonth', '');
+      setVal('monthWeekOrdinal', '');
+      setVal('monthWeekDay', '');
+    }
+  }
+
+  /* ════════════════════════════════════
+     FORM HELPERS
+  ════════════════════════════════════ */
+  function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val || '';
+  }
+
+  function clearHint(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  }
+
+  function setHint(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+
+  function markInvalid(id, hintId, msg) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('invalid');
+    setHint(hintId, msg);
+    return false;
+  }
+
+  function clearInvalid(id, hintId) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('invalid');
+    clearHint(hintId);
+  }
+
+  /* ════════════════════════════════════
+     VALIDATION
+  ════════════════════════════════════ */
+  function validate() {
+    let ok = true;
+    const occ = document.getElementById('occurrence').value;
+
+    if (!document.getElementById('meetingType').value)
+      ok = markInvalid('meetingType', 'meetingTypeHint', 'Please select a meeting type.') && ok;
+    else clearInvalid('meetingType', 'meetingTypeHint');
+
+    if (occ === 'Weekly' || occ === 'Monthly' || occ === 'Daily') {
+      // meetingDate field is hidden for these; validate recurrence fields instead
+      clearInvalid('meetingDate', 'meetingDateHint');
+
+      if (occ === 'Daily') {
+        // Start Date is required for Daily
+        if (!document.getElementById('seriesStartDate').value)
+          ok = markInvalid('seriesStartDate', 'seriesStartDateHint', 'Please select a start date.') && ok;
+        else clearInvalid('seriesStartDate', 'seriesStartDateHint');
+      }
+
+      if (occ === 'Weekly') {
+        if (getSelectedDays().length === 0)
+          ok = markInvalid('occurrence', 'occurrenceHint', 'Please select at least one "Repeat on day".') && ok;
+        else clearInvalid('occurrence', 'occurrenceHint');
+      }
+
+      if (occ === 'Monthly') {
+        const hasDayOfMonth = !!document.getElementById('monthDayOfMonth').value;
+        const hasWeekPattern = !!(document.getElementById('monthWeekOrdinal').value && document.getElementById('monthWeekDay').value);
+        if (!hasDayOfMonth && !hasWeekPattern)
+          ok = markInvalid('occurrence', 'occurrenceHint', 'Please select a Day of Month or a Week-based pattern.') && ok;
+        else clearInvalid('occurrence', 'occurrenceHint');
+      }
+    } else {
+      // One-time: meetingDate is required
+      if (!document.getElementById('meetingDate').value)
+        ok = markInvalid('meetingDate', 'meetingDateHint', 'Please select a date.') && ok;
+      else clearInvalid('meetingDate', 'meetingDateHint');
+      clearInvalid('occurrence', 'occurrenceHint');
+    }
+
+    return ok;
+  }
+
+  /* ════════════════════════════════════
+     READ FORM
+  ════════════════════════════════════ */
+  function readForm() {
+    const occurrence = document.getElementById('occurrence').value;
+    const selectedDays   = occurrence === 'Weekly'  ? getSelectedDays()   : [];
+    const selectedMonths = occurrence === 'Monthly' ? getSelectedMonths() : [];
+    const monthDayOfMonth  = occurrence === 'Monthly' ? (document.getElementById('monthDayOfMonth').value  || null) : null;
+    const monthWeekOrdinal = occurrence === 'Monthly' ? (document.getElementById('monthWeekOrdinal').value || null) : null;
+    const monthWeekDay     = occurrence === 'Monthly' ? (document.getElementById('monthWeekDay').value     || null) : null;
+
+    // For Weekly/Monthly/Daily the Date field is hidden.
+    // Use seriesStartDate for Daily (required), or as optional anchor for Weekly/Monthly.
+    // For One-time the user picks the date directly via the Date field.
+    let meetingDate = document.getElementById('meetingDate').value;
+    if (occurrence === 'Daily') {
+      meetingDate = document.getElementById('seriesStartDate').value || '';
+    } else if (occurrence === 'Weekly') {
+      const explicitStart = document.getElementById('seriesStartDate').value || '';
+      meetingDate = computeWeeklyStartDate(selectedDays, explicitStart);
+    } else if (occurrence === 'Monthly') {
+      const explicitStart = document.getElementById('seriesStartDate').value || '';
+      meetingDate = computeMonthlyStartDate(
+        explicitStart,
+        monthDayOfMonth  ? parseInt(monthDayOfMonth, 10)  : null,
+        monthWeekOrdinal ? parseInt(monthWeekOrdinal, 10) : null,
+        monthWeekDay     ? parseInt(monthWeekDay, 10)     : null
+      );
+    }
+
+    return {
+      meetingTypeId:    parseInt(document.getElementById('meetingType').value) || null,
+      locationMemberId: selectedLocType === 'member' ? selectedLocId : null,
+      locationFamilyId: selectedLocType === 'family' ? selectedLocId : null,
+      meetingDate,
+      startTime:        document.getElementById('startTime').value,
+      endTime:          document.getElementById('endTime').value,
+      address1:         document.getElementById('address1').value.trim(),
+      address2:         document.getElementById('address2').value.trim(),
+      city:             document.getElementById('city').value.trim(),
+      state:            document.getElementById('state').value,
+      country:          document.getElementById('country').value,
+      pinCode:          document.getElementById('pinCode').value.trim(),
+      note:             document.getElementById('note').value.trim(),
+      occurrence,
+      endDate:           document.getElementById('endDate').value || null,
+      doNotAutoDelete:   document.getElementById('doNotAutoDelete').checked,
+      weekDays:          selectedDays.length   ? selectedDays   : null,
+      monthMonths:       selectedMonths.length ? selectedMonths : null,
+      monthDayOfMonth:   monthDayOfMonth  ? parseInt(monthDayOfMonth, 10)  : null,
+      monthWeekOrdinal:  monthWeekOrdinal ? parseInt(monthWeekOrdinal, 10) : null,
+      monthWeekDay:      monthWeekDay     ? parseInt(monthWeekDay, 10)     : null,
+    };
+  }
+
+  /**
+   * Given the selected weekday numbers (0=Sun…6=Sat) and an optional explicit
+   * start date string, returns the YYYY-MM-DD of the series start.
+   *
+   * Rules:
+   *  - If startDate provided: advance from that date to the next day that is in
+   *    selectedDays (or the date itself if it already matches).
+   *  - If not provided: find the next calendar day (from today) that is in selectedDays.
+   */
+  function computeWeeklyStartDate(selectedDays, explicitStart) {
+    if (!selectedDays || selectedDays.length === 0) return explicitStart || todayStr();
+    const anchor = explicitStart ? new Date(explicitStart + 'T00:00:00') : new Date(todayStr() + 'T00:00:00');
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(anchor);
+      d.setDate(anchor.getDate() + i);
+      if (selectedDays.includes(d.getDay())) return d.toISOString().slice(0, 10);
+    }
+    return explicitStart || todayStr();
+  }
+
+  /**
+   * Given an optional explicit start date and monthly pattern fields, returns
+   * the YYYY-MM-DD of the first valid occurrence on or after the anchor.
+   *
+   * Rules:
+   *  - anchor = explicitStart if provided, else today
+   *  - If dayOfMonth set: next occurrence of that day-of-month on or after anchor
+   *  - If weekOrdinal+weekDay set: next "Nth weekday of month" on or after anchor
+   *  - Otherwise: return anchor as-is
+   */
+  function computeMonthlyStartDate(explicitStart, dayOfMonth, weekOrdinal, weekDay) {
+    const anchor = new Date((explicitStart || todayStr()) + 'T00:00:00');
+
+    if (dayOfMonth) {
+      // Find the next occurrence of this day-of-month on or after anchor
+      let d = new Date(anchor.getFullYear(), anchor.getMonth(), dayOfMonth);
+      if (d < anchor) d = new Date(anchor.getFullYear(), anchor.getMonth() + 1, dayOfMonth);
+      return d.toISOString().slice(0, 10);
+    }
+
+    if (weekOrdinal != null && weekDay != null) {
+      // Find "Nth weekDay of month" on or after anchor
+      // weekOrdinal: 1–4 = 1st–4th, 5 = Last
+      const findOccurrence = (year, month) => {
+        if (weekOrdinal === 5) {
+          // Last: find last occurrence of weekDay in that month
+          const lastDay = new Date(year, month + 1, 0);
+          let d = new Date(lastDay);
+          while (d.getDay() !== weekDay) d.setDate(d.getDate() - 1);
+          return d;
+        }
+        // 1st-4th: find nth occurrence of weekDay
+        let count = 0;
+        for (let day = 1; day <= 31; day++) {
+          const d = new Date(year, month, day);
+          if (d.getMonth() !== month) break;
+          if (d.getDay() === weekDay) { count++; if (count === weekOrdinal) return d; }
+        }
+        return null;
+      };
+
+      let year = anchor.getFullYear(), month = anchor.getMonth();
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const occ = findOccurrence(year, month);
+        if (occ && occ >= anchor) return occ.toISOString().slice(0, 10);
+        month++;
+        if (month > 11) { month = 0; year++; }
+      }
+    }
+
+    return (explicitStart || todayStr());
+  }
+
+  /* ════════════════════════════════════
+     IMAGE UPLOAD HELPERS
+  ════════════════════════════════════ */
+  let _imgFile       = null;   // pending File object (new upload)
+  let _imgRemoved    = false;  // user clicked × on an existing image
+  let _imgEditingId  = null;   // meeting id whose existing image is shown in preview
+
+  function onImgFileChange(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be 5 MB or smaller.');
+      input.value = '';
+      return;
+    }
+    _imgFile    = file;
+    _imgRemoved = false;
+    const reader = new FileReader();
+    reader.onload = e => showImgPreview(e.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function onImgDrop(e) {
+    e.preventDefault();
+    document.getElementById('imgUploadArea').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be 5 MB or smaller.'); return; }
+    _imgFile    = file;
+    _imgRemoved = false;
+    const reader = new FileReader();
+    reader.onload = ev => showImgPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function showImgPreview(src) {
+    document.getElementById('imgPlaceholder').style.display  = 'none';
+    document.getElementById('imgPreviewWrap').style.display  = '';
+    document.getElementById('imgPreview').src = src;
+  }
+
+  function removeImg(e) {
+    e.stopPropagation();
+    _imgFile    = null;
+    _imgRemoved = true;
+    document.getElementById('imgFileInput').value = '';
+    document.getElementById('imgPreviewWrap').style.display = 'none';
+    document.getElementById('imgPlaceholder').style.display = '';
+    document.getElementById('imgPreview').src = '';
+  }
+
+  function resetImgUpload() {
+    _imgFile      = null;
+    _imgRemoved   = false;
+    _imgEditingId = null;
+    document.getElementById('imgFileInput').value = '';
+    document.getElementById('imgPreviewWrap').style.display = 'none';
+    document.getElementById('imgPlaceholder').style.display = '';
+    document.getElementById('imgPreview').src = '';
+  }
+
+  /** After saving a meeting, upload the image (or delete it if removed). */
+  async function handleImgAfterSave(meetingId) {
+    if (_imgFile) {
+      const fd = new FormData();
+      fd.append('file', _imgFile);
+      await fetch(`/api/meetings/${meetingId}/image`, { method: 'POST', body: fd });
+    } else if (_imgRemoved && _imgEditingId === meetingId) {
+      await fetch(`/api/meetings/${meetingId}/image`, { method: 'DELETE' });
+    }
+  }
+
+  /** Opens a lightbox modal to view the image full-size. */
+  function openImgModal(src) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:3000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    overlay.onclick = () => overlay.remove();
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.5);';
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+  }
+
+  /* ════════════════════════════════════
+     SAVE / UPDATE
+  ════════════════════════════════════ */
+  async function saveMeeting() {
+    if (!validate()) return;
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = editingId ? 'Updating…' : 'Saving…';
+
+    const url    = editingId ? `/api/meetings/${editingId}` : '/api/meetings';
+    const method = editingId ? 'PUT' : 'POST';
+
+    try {
+      const res  = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(readForm())
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await handleImgAfterSave(data.id || editingId);
+        showFeedback(`✅ Meeting ${editingId ? 'updated' : 'saved'} successfully.`, 'success');
+        resetForm();
+        await loadMeetings();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to save meeting.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = editingId ? 'Update' : 'Save';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EDIT
+  ════════════════════════════════════ */
+  async function editMeeting(id) {
+    try {
+      const res  = await fetch(`/api/meetings/${id}`);
+      const data = await res.json();
+
+      editingId = id;
+      document.getElementById('formTitle').textContent = 'Edit Meeting';
+      document.getElementById('saveBtn').textContent   = 'Update Meeting';
+
+      setVal('meetingType',  data.meetingTypeId);
+      setVal('startTime',    data.startTime);
+      setVal('endTime',      data.endTime);
+      setVal('address1',     data.address1);
+      setVal('address2',     data.address2);
+      setVal('city',         data.city);
+      setVal('state',        data.state || '');
+      setVal('country',      data.country || 'USA');
+      setVal('pinCode',      data.pinCode);
+      setVal('note',         data.note);
+      setVal('occurrence',   data.occurrence);
+      setVal('endDate',      data.endDate);
+      // onOccurrenceChange shows/hides the Date vs Start Date fields.
+      onOccurrenceChange(data.occurrence || '');
+
+      // For One-time: restore meetingDate into the Date field.
+      // For Daily/Weekly/Monthly: restore meetingDate into the Start Date field.
+      const occ = data.occurrence || '';
+      if (occ === 'Daily' || occ === 'Weekly' || occ === 'Monthly') {
+        setVal('seriesStartDate', data.meetingDate || '');
+      } else {
+        setVal('meetingDate', data.meetingDate || '');
+      }
+
+      // Restore weekly day selection
+      if (data.occurrence === 'Weekly') {
+        setSelectedDays(data.weekDays || []);
+      }
+      // Restore monthly options
+      if (data.occurrence === 'Monthly') {
+        setSelectedMonths(data.monthMonths || []);
+        setVal('monthDayOfMonth',  data.monthDayOfMonth  != null ? String(data.monthDayOfMonth)  : '');
+        setVal('monthWeekOrdinal', data.monthWeekOrdinal != null ? String(data.monthWeekOrdinal) : '');
+        setVal('monthWeekDay',     data.monthWeekDay     != null ? String(data.monthWeekDay)     : '');
+      }
+
+      // Restore location picker
+      if (data.locationFamilyId) {
+        const loc = allLocations.find(l => l.locType === 'family' && l.id === data.locationFamilyId);
+        if (loc) {
+          selectedLocType = 'family';
+          selectedLocId   = loc.id;
+          document.getElementById('locationSearch').value = loc.displayName;
+          document.getElementById('locationClearBtn').classList.add('visible');
+          document.getElementById('addrSourceNote').style.display = '';
+        }
+      } else if (data.locationMemberId) {
+        const loc = allLocations.find(l => l.locType === 'member' && l.id === data.locationMemberId);
+        if (loc) {
+          selectedLocType = 'member';
+          selectedLocId   = loc.id;
+          document.getElementById('locationSearch').value =
+            loc.displayName + (loc.familyName ? ` — ${loc.familyName}` : '');
+          document.getElementById('locationClearBtn').classList.add('visible');
+          document.getElementById('addrSourceNote').style.display = '';
+        }
+      }
+
+      document.getElementById('doNotAutoDelete').checked = !!data.doNotAutoDelete;
+
+      // Restore image preview if this meeting has one
+      resetImgUpload();
+      if (data.hasImage) {
+        _imgEditingId = id;
+        showImgPreview(`/api/meetings/${id}/image?t=${Date.now()}`);
+      }
+
+      document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      showFeedback('❌ Failed to load meeting details.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     DELETE
+  ════════════════════════════════════ */
+  async function deleteMeeting(id) {
+    if (!confirm('Are you sure you want to delete this meeting?')) return;
+    try {
+      const res = await fetch(`/api/meetings/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showFeedback('Meeting deleted.', 'success');
+        if (editingId === id) resetForm();
+        await loadMeetings();
+      } else {
+        const data = await res.json();
+        showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     SELECT-ALL / DELETE SELECTED
+  ════════════════════════════════════ */
+  function toggleSelectAll(checked) {
+    document.querySelectorAll('.row-chk').forEach(c => c.checked = checked);
+    updateDeleteSelectedBtn();
+  }
+
+  function updateDeleteSelectedBtn() {
+    const anyChecked = document.querySelectorAll('.row-chk:checked').length > 0;
+    const btn = document.getElementById('deleteSelectedBtn');
+    const canDelete = !window.CGP_can || window.CGP_can('general.meetings.delete');
+    if (btn) btn.style.display = (anyChecked && canDelete) ? '' : 'none';
+    const allChk = document.getElementById('selectAllChk');
+    if (allChk) {
+      const all = document.querySelectorAll('.row-chk');
+      allChk.checked = all.length > 0 && all.length === document.querySelectorAll('.row-chk:checked').length;
+      allChk.indeterminate = anyChecked && !allChk.checked;
+    }
+  }
+
+  async function deleteSelected() {
+    const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => parseInt(c.dataset.id, 10));
+    if (!ids.length) return;
+    if (!confirm(`Are you sure you want to delete ${ids.length} selected meeting(s)?`)) return;
+    try {
+      const res = await fetch('/api/meetings/delete-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ids)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`${data.deleted} meeting(s) deleted.`, 'success');
+        await loadMeetings();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     AUTO-PURGE (>90 days)
+  ════════════════════════════════════ */
+  async function runAutoPurge() {
+    try {
+      const res = await fetch('/api/meetings/auto-purge', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.purged > 0) {
+          showFeedback(`Auto-deleted ${data.purged} meeting(s) older than 90 days.`, 'success');
+        }
+      }
+    } catch { /* silent — auto-purge failure should not disrupt the page */ }
+  }
+
+  /* ════════════════════════════════════
+     RESET FORM
+  ════════════════════════════════════ */
+  function resetForm() {
+    editingId = null;
+    document.getElementById('formTitle').textContent = 'Add Meeting';
+    document.getElementById('saveBtn').textContent   = 'Save';
+    document.getElementById('saveBtn').disabled      = false;
+
+    ['meetingType','meetingDate','seriesStartDate','startTime','endTime',
+     'address1','address2','city','state','pinCode','note','occurrence','endDate',
+     'monthDayOfMonth','monthWeekOrdinal','monthWeekDay'
+    ].forEach(id => setVal(id, ''));
+    setVal('country', 'USA');
+    document.getElementById('endDateField').classList.add('hidden');
+    document.getElementById('weeklyDayPanel').classList.add('hidden');
+    document.getElementById('monthlyPanel').classList.add('hidden');
+    document.getElementById('startDateField').classList.add('hidden');
+    document.getElementById('meetingDateField').classList.remove('hidden');
+    setSelectedDays([]);
+    setSelectedMonths([]);
+
+    clearLocation();
+
+    ['meetingType','meetingDate','seriesStartDate'].forEach(id => {
+      document.getElementById(id).classList.remove('invalid');
+    });
+    ['meetingTypeHint','meetingDateHint','occurrenceHint','seriesStartDateHint'].forEach(id => clearHint(id));
+    // Reset Start Date label back to "optional" for Weekly/Monthly default display
+    const startDateLabel = document.querySelector('#startDateField label');
+    if (startDateLabel) startDateLabel.innerHTML = 'Start Date <span style="font-weight:400;color:#888;">(optional)</span>';
+    const startDateNote = document.getElementById('seriesStartDateNote');
+    if (startDateNote) startDateNote.style.display = '';
+    document.getElementById('occurrence').value = 'One-time';
+    document.getElementById('doNotAutoDelete').checked = false;
+    resetImgUpload();
+  }
+
+  /* ════════════════════════════════════
+     DATE / TIME FORMATTERS
+  ════════════════════════════════════ */
+  // "2026-03-28" → "Wed, Mar 28, 2026"
+  function fmtMeetingDate(d) {
+    if (!d) return '—';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
+
+  /**
+   * Returns the effective display date for a recurring meeting, matching the
+   * server-side resolveEffectiveDate() logic:
+   *   - Daily  → today's date
+   *   - Weekly → next occurrence of the meeting's day-of-week on or after today
+   *              (rolls to next week if the day has already passed this week)
+   *   - One Time → the stored meetingDate unchanged
+   */
+  function effectiveMeetingDate(m) {
+    const occ = m.occurrence || 'One-time';
+    if (occ === 'Daily') {
+      // Show the series start date, not today
+      return m.meetingDate || todayStr();
+    }
+    if (occ === 'Weekly') {
+      if (!m.meetingDate) return m.meetingDate;
+      const stored = new Date(m.meetingDate + 'T00:00:00');
+      const targetDow = stored.getDay(); // 0=Sun … 6=Sat
+      const todayDate = new Date(todayStr() + 'T00:00:00');
+      const todayDow  = todayDate.getDay();
+      const diff = (targetDow - todayDow + 7) % 7; // days until next occurrence (0 = today)
+      const next = new Date(todayDate);
+      next.setDate(next.getDate() + diff);
+      return next.getFullYear() + '-'
+        + String(next.getMonth() + 1).padStart(2, '0') + '-'
+        + String(next.getDate()).padStart(2, '0');
+    }
+    if (occ === 'Monthly') {
+      // For monthly recurrences, show the stored meetingDate as the anchor date
+      return m.meetingDate;
+    }
+    // One-time / One Time / Once
+    return m.meetingDate;
+  }
+
+  // "19:30" → "7:30 PM"
+  function fmtMeetingTime(t) {
+    if (!t) return null;
+    const [hStr, mStr] = t.split(':');
+    const h = parseInt(hStr, 10);
+    const mins = mStr || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12  = h % 12 || 12;
+    return `${h12}:${mins} ${ampm}`;
+  }
+
+  /* ════════════════════════════════════
+     RENDER MEETINGS TABLE
+  ════════════════════════════════════ */
+  function renderMeetingsTable() {
+    const tbody = document.getElementById('meetingsTableBody');
+
+    const visible = allMeetings
+      .filter(m => isMeetingExpired(m) === showHistory)
+      .sort((a, b) => {
+        const dateA = effectiveMeetingDate(a) || '';
+        const dateB = effectiveMeetingDate(b) || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        // Same date — sort by start time ascending
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+
+    if (!visible.length) {
+      tbody.innerHTML = showHistory
+        ? '<tr><td colspan="10" class="empty-row">No past meetings found.</td></tr>'
+        : '<tr><td colspan="10" class="empty-row">No meetings scheduled yet.</td></tr>';
+      updateDeleteSelectedBtn();
+      return;
+    }
+
+    const rows = [];
+    let rowIndex = 0;
+    visible.forEach(m => {
+      const badgeClass = m.occurrence === 'Daily'   ? 'badge-daily'
+                       : m.occurrence === 'Weekly'  ? 'badge-weekly'
+                       : m.occurrence === 'Monthly' ? 'badge-monthly'
+                       : 'badge-one';
+
+      // Time: "7:30 PM – 8:45 PM"
+      const startFmt = fmtMeetingTime(m.startTime);
+      const endFmt   = fmtMeetingTime(m.endTime);
+      const timeDisplay = [startFmt, endFmt].filter(Boolean).join(' – ') || '—';
+
+      // Location: member/family name, or fall back to the stored address
+      let locName = '';
+      if (m.locationFamilyId) {
+        const fl = allLocations.find(l => l.locType === 'family' && l.id === m.locationFamilyId);
+        locName = fl?.displayName || '';
+      } else if (m.locationMemberId) {
+        const ml = allLocations.find(l => l.locType === 'member' && l.id === m.locationMemberId);
+        locName = ml?.displayName || '';
+      }
+      if (!locName) {
+        const addrParts = [
+          m.address1,
+          m.address2,
+          m.state ? (STATE_MAP[m.state] || m.state) : '',
+          m.country,
+          m.pinCode
+        ].filter(Boolean);
+        locName = addrParts.join(', ');
+      }
+
+      const noAutoDeleteIcon = m.doNotAutoDelete
+        ? '<span title="Won\'t be auto-deleted" style="font-size:11px;color:#43a047;margin-left:4px;">🔒</span>'
+        : '';
+
+      const p = window.CGP_PERMS || {};
+      const actionsBtns = `<div class="actions">
+            ${p['general.meetings.edit']   === false ? '' : `<button class="btn-action btn-edit-row"   onclick="editMeeting(${m.id})"                           title="Edit">📝</button>`}
+            ${p['general.meetings.notify'] === false ? '' : `<button class="btn-action btn-notify-row" onclick="openNotifyModal(${m.id},this.dataset.name)" data-name="${(m.meetingTypeName||'Meeting').replace(/"/g,'&quot;')}" title="Send Notification">📣</button>`}
+            ${p['general.meetings.delete'] === false ? '' : `<button class="btn-action btn-del-row"    onclick="deleteMeeting(${m.id})"                         title="Delete">🗑</button>`}
+          </div>`;
+
+      // All meetings: single row showing start date (and end date for recurring)
+      rowIndex++;
+      const dateDisplay = fmtMeetingDate(effectiveMeetingDate(m));
+      const imgCell = m.hasImage
+        ? `<td style="text-align:center;"><img class="img-thumb" src="/api/meetings/${m.id}/image?t=${Date.now()}" alt="" onclick="openImgModal('/api/meetings/${m.id}/image')" /></td>`
+        : `<td style="text-align:center;color:#ddd;font-size:16px;">—</td>`;
+
+      rows.push(`<tr>
+        <td style="text-align:center;"><input type="checkbox" class="row-chk" data-id="${m.id}" onchange="updateDeleteSelectedBtn()" /></td>
+        <td>${rowIndex}</td>
+        <td>${m.meetingTypeName || '—'}${noAutoDeleteIcon}</td>
+        <td style="white-space:nowrap;">${dateDisplay}</td>
+        <td style="white-space:nowrap;">${timeDisplay}</td>
+        <td>${locName || '—'}</td>
+        <td><span class="badge ${badgeClass}">${m.occurrence || '—'}</span></td>
+        <td>${m.endDate || '—'}</td>
+        ${imgCell}
+        <td>${actionsBtns}</td>
+      </tr>`);
+    });
+    tbody.innerHTML = rows.join('');
+    updateDeleteSelectedBtn();
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 4000);
+  }
+
+  /* ════════════════════════════════════
+     CATEGORY PANEL
+  ════════════════════════════════════ */
+  let catPanelOpen = false;
+  let catEditingId = null;
+  const catTypeMap  = {};
+
+  function toggleCategoryPanel() {
+    catPanelOpen = !catPanelOpen;
+    const panel = document.getElementById('categoryPanel');
+    panel.classList.toggle('visible', catPanelOpen);
+    if (catPanelOpen) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      loadCategories();
+    }
+  }
+
+  async function loadCategories() {
+    const tbody = document.getElementById('catTableBody');
+    try {
+      const res  = await fetch('/api/meeting-types');
+      const list = await res.json();
+      Object.keys(catTypeMap).forEach(k => delete catTypeMap[k]);
+      list.forEach(t => { catTypeMap[t.id] = t; });
+
+      // Also refresh the meeting-type dropdown
+      allMeetingTypes = list;
+      const sel = document.getElementById('meetingType');
+      const curVal = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      list.forEach(mt => {
+        const opt = document.createElement('option');
+        opt.value = mt.id; opt.textContent = mt.typeName;
+        sel.appendChild(opt);
+      });
+      sel.value = curVal;
+
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#bbb;padding:24px;">No categories yet. Add one above.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map((t, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${escHtml(t.typeName)}</td>
+          <td><div style="display:flex;gap:6px;">
+            <button class="btn-cat-edit" onclick="openCatEdit(${t.id})" title="Edit">✏️</button>
+            <button class="btn-cat-del"  onclick="deleteCat(${t.id})" title="Delete">🗑️</button>
+          </div></td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e53935;padding:24px;">Failed to load categories.</td></tr>';
+    }
+  }
+
+  async function addCategory() {
+    const input = document.getElementById('catNewName');
+    const hint  = document.getElementById('catNewNameHint');
+    const name  = input.value.trim();
+    if (!name) { hint.textContent = 'Category name is required.'; input.classList.add('invalid'); input.focus(); return; }
+    hint.textContent = ''; input.classList.remove('invalid');
+    const btn = document.getElementById('catAddBtn');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      const res  = await fetch('/api/meeting-types', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ typeName: name }) });
+      const data = await res.json();
+      if (res.ok) { input.value = ''; showCatFeedback(`✅ "${escHtml(name)}" added.`, 'success'); await loadCategories(); }
+      else { showCatFeedback(`❌ ${data.error || 'Failed to add.'}`, 'error'); }
+    } catch { showCatFeedback('❌ Network error.', 'error'); }
+    finally { btn.disabled = false; btn.textContent = '＋ Add'; }
+  }
+
+  function openCatEdit(id) {
+    const t = catTypeMap[id];
+    if (!t) return;
+    catEditingId = id;
+    document.getElementById('catEditName').value = t.typeName;
+    document.getElementById('catEditHint').textContent = '';
+    document.getElementById('catEditModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('catEditName').focus(), 80);
+  }
+
+  function closeCatModal() {
+    document.getElementById('catEditModal').style.display = 'none';
+    catEditingId = null;
+  }
+
+  async function saveCatEdit() {
+    const input = document.getElementById('catEditName');
+    const hint  = document.getElementById('catEditHint');
+    const name  = input.value.trim();
+    if (!name) { hint.textContent = 'Category name is required.'; input.focus(); return; }
+    hint.textContent = '';
+    const btn = document.getElementById('catEditSaveBtn');
+    btn.disabled = true; btn.textContent = 'Updating…';
+    try {
+      const res  = await fetch(`/api/meeting-types/${catEditingId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ typeName: name }) });
+      const data = await res.json();
+      if (res.ok) { closeCatModal(); showCatFeedback(`✅ Updated to "${escHtml(name)}".`, 'success'); await loadCategories(); }
+      else { showCatFeedback(`❌ ${data.error || 'Failed to update.'}`, 'error'); }
+    } catch { showCatFeedback('❌ Network error.', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Update'; }
+  }
+
+  async function deleteCat(id) {
+    const t = catTypeMap[id];
+    if (!confirm('Are you sure you want to delete this category?')) return;
+    try {
+      const res  = await fetch(`/api/meeting-types/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) { showCatFeedback(`Deleted.`, 'success'); await loadCategories(); }
+      else { showCatFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error'); }
+    } catch { showCatFeedback('❌ Network error.', 'error'); }
+  }
+
+  function showCatFeedback(msg, type) {
+    const el = document.getElementById('catFeedback');
+    el.textContent = msg;
+    el.className = `feedback ${type}`;
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 4000);
+  }
+
+  /* ════════════════════════════════════
+     NOTIFY MODAL
+  ════════════════════════════════════ */
+  let notifyMeetingId   = null;
+  let notifyMeetingName = '';
+
+  function openNotifyModal(id, name) {
+    notifyMeetingId   = id;
+    notifyMeetingName = name;
+
+    // Reset checkboxes to defaults (Email + Members pre-checked)
+    document.getElementById('notifyChanEmail').checked = true;
+    document.getElementById('notifyChanSms').checked   = false;
+    document.getElementById('notifyRcpMembers').checked = true;
+    document.getElementById('notifyRcpGuests').checked  = false;
+
+    document.getElementById('notifyMeetingLabel').textContent = name;
+    document.getElementById('notifyFeedback').textContent     = '';
+    document.getElementById('notifyFeedback').className       = 'feedback';
+    document.getElementById('notifyModal').style.display      = 'flex';
+  }
+
+  function closeNotifyModal() {
+    document.getElementById('notifyModal').style.display = 'none';
+    notifyMeetingId   = null;
+    notifyMeetingName = '';
+  }
+
+  async function confirmNotify() {
+    const channels   = [];
+    const recipients = [];
+
+    if (document.getElementById('notifyChanEmail').checked) channels.push('Email');
+    if (document.getElementById('notifyChanSms').checked)   channels.push('SMS');
+    if (document.getElementById('notifyRcpMembers').checked) recipients.push('Members');
+    if (document.getElementById('notifyRcpGuests').checked)  recipients.push('Guests');
+
+    if (!channels.length) {
+      showNotifyFeedback('Please select at least one channel (Email or SMS).', 'error');
+      return;
+    }
+    if (!recipients.length) {
+      showNotifyFeedback('Please select at least one recipient group.', 'error');
+      return;
+    }
+
+    // Build a human-readable confirmation message
+    const chanStr = channels.join(' & ');
+    const rcpStr  = recipients.join(' & ');
+    const ok = confirm(
+      `Send ${chanStr} to ${rcpStr} for the meeting:\n"${notifyMeetingName}"?\n\nThis will send notifications immediately.`
+    );
+    if (!ok) return;
+
+    const btn = document.getElementById('notifySendBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const res  = await fetch(`/api/meetings/${notifyMeetingId}/notify`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ channels, recipients })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const parts = [];
+        if (data.emailsSent > 0) parts.push(`${data.emailsSent} email${data.emailsSent !== 1 ? 's' : ''}`);
+        if (data.smsSent    > 0) parts.push(`${data.smsSent} SMS`);
+        const sent = parts.length ? parts.join(' & ') + ' sent.' : 'Notifications sent (recipients may have no contact info on file).';
+        showNotifyFeedback('✅ ' + sent, 'success');
+        setTimeout(closeNotifyModal, 2200);
+      } else {
+        showNotifyFeedback('❌ ' + (data.error || 'Failed to send notifications.'), 'error');
+      }
+    } catch {
+      showNotifyFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Send Now';
+    }
+  }
+
+  function showNotifyFeedback(msg, type) {
+    const el = document.getElementById('notifyFeedback');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+  }
+</script>
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  if (p['general.meetings.edit']     === false) hide('#meetingFormCard');
+  if (p['general.meetings.category'] === false) hide('#btnCategory,#categoryPanel');
+  // Re-render table so inline edit/delete/notify buttons reflect permissions
+  if (typeof renderMeetingsTable === 'function') renderMeetingsTable();
+};
+window.CGP_PAGE = { activePage: 'general/meetings', pageTitle: 'Meetings', openSection: 'general' };
+</script>
+<script>
+/* ════════════ Meeting Message Templates ════════════ */
+(function () {
+  'use strict';
+
+  var PLACEHOLDERS = ['Category','Date','Time','LocationName','LocationAddress','Notes','Image'];
+  var DATE_FORMATS = [
+    ['MM/dd/yyyy','03/06/2026'],
+    ['dd-MMM-yyyy','03-Jun-2026'],
+    ['MMMM dd, yyyy','June 03, 2026'],
+    ['EEEE, MMMM dd, yyyy','Monday, June 03, 2026'],
+    ['EEEE do MMMM yyyy','Monday 3rd June 2026'],
+    ['d MMM yyyy','3 Jun 2026']
+  ];
+  // US state numeric code (1=AL … 50=WY, alphabetical by name) → abbreviation.
+  var STATE_ABBR = {1:'AL',2:'AK',3:'AZ',4:'AR',5:'CA',6:'CO',7:'CT',8:'DE',9:'FL',10:'GA',
+    11:'HI',12:'ID',13:'IL',14:'IN',15:'IA',16:'KS',17:'KY',18:'LA',19:'ME',20:'MD',
+    21:'MA',22:'MI',23:'MN',24:'MS',25:'MO',26:'MT',27:'NE',28:'NV',29:'NH',30:'NJ',
+    31:'NM',32:'NY',33:'NC',34:'ND',35:'OH',36:'OK',37:'OR',38:'PA',39:'RI',40:'SC',
+    41:'SD',42:'TN',43:'TX',44:'UT',45:'VT',46:'VA',47:'WA',48:'WV',49:'WI',50:'WY'};
+
+  var TPLS = [];   // loaded templates
+
+  // ── renderer (mirrors validated logic) ──
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  function to12h(t){ if(!t) return ''; var p=String(t).split(':'); var H=parseInt(p[0],10), M=parseInt(p[1]||'0',10); if(isNaN(H)) return t; var ap=H>=12?'PM':'AM'; var h=H%12; if(h===0)h=12; return h+':'+String(M).padStart(2,'0')+' '+ap; }
+  function fmtTime(start,end,mode){ var s=to12h(start); if(!s) return ''; if(mode==='startEnd' && end){ var e=to12h(end); if(e) return s+' - '+e; } return s; }
+  function fmtDate(iso,key){
+    if(!iso) return '';
+    var a=String(iso).split('-'); var y=+a[0], m=+a[1], dd=+a[2]; if(!y||!m||!dd) return iso;
+    var dt=new Date(y,m-1,dd); var p2=function(n){return String(n).padStart(2,'0');};
+    var ord=function(n){ var s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+    switch(key){
+      case 'MM/dd/yyyy': return p2(m)+'/'+p2(dd)+'/'+y;
+      case 'dd-MMM-yyyy': return p2(dd)+'-'+MON[m-1]+'-'+y;
+      case 'MMMM dd, yyyy': return MONTHS[m-1]+' '+p2(dd)+', '+y;
+      case 'EEEE, MMMM dd, yyyy': return DOW[dt.getDay()]+', '+MONTHS[m-1]+' '+p2(dd)+', '+y;
+      case 'EEEE do MMMM yyyy': return DOW[dt.getDay()]+' '+ord(dd)+' '+MONTHS[m-1]+' '+y;
+      case 'd MMM yyyy': return dd+' '+MON[m-1]+' '+y;
+      default: return MONTHS[m-1]+' '+p2(dd)+', '+y;
+    }
+  }
+  function fmtAddress(d){
+    var lines=[]; var a1=(d.address1||'').trim(), a2=(d.address2||'').trim(), city=(d.city||'').trim(),
+        st=(d.stateAbbr||'').trim(), zip=(d.pinCode||'').trim(), country=(d.country||'').trim();
+    if(a1) lines.push(a1); if(a2) lines.push(a2);
+    var cl=''; if(city) cl=city; if(st) cl+=(cl?', ':'')+st; if(zip) cl+=(cl?' ':'')+zip;
+    if(cl) lines.push(cl); if(country) lines.push(country);
+    return lines.join('\n');
+  }
+  function renderMessage(tpl, d){
+    var vals={ Category:(d.category||'').trim(), Date:fmtDate(d.dateISO, tpl.dateFormat),
+      Time:fmtTime(d.startTime, d.endTime, tpl.timeFormat), LocationName:(d.locationName||'').trim(),
+      LocationAddress:fmtAddress(d), Notes:(d.note||'').trim(), Image: d.hasImage ? '[[IMAGE]]' : '' };
+    var body=String(tpl.body||'').replace(/\r\n/g,'\n');
+    var blocks=body.split(/\n[ \t]*\n/); var out=[];
+    blocks.forEach(function(block){
+      var meta=block.split('\n').map(function(raw){
+        var names=(raw.match(/\{(\w+)\}/g)||[]).map(function(s){return s.slice(1,-1);}).filter(function(n){return n in vals;});
+        var otherText=raw.replace(/\{(\w+)\}/g,'').trim();
+        var sub=raw.replace(/\{(\w+)\}/g,function(m,name){ return (name in vals)? vals[name] : m; });
+        return {names:names, otherText:otherText, sub:sub};
+      });
+      var blockKnown=[]; meta.forEach(function(l){ blockKnown=blockKnown.concat(l.names); });
+      var blockAllEmpty=blockKnown.length>0 && blockKnown.every(function(n){return vals[n]==='';});
+      var hasMeaningfulOther=meta.some(function(l){ return l.otherText!=='' && !/:$/.test(l.otherText); });
+      if(blockKnown.length>0 && blockAllEmpty && !hasMeaningfulOther) return;
+      var kept=[];
+      meta.forEach(function(l){
+        var lineAllEmpty=l.names.length>0 && l.names.every(function(n){return vals[n]==='';});
+        var subTrim=l.sub.trim(); var labelLike=subTrim==='' || /:$/.test(subTrim);
+        if(l.names.length>0 && lineAllEmpty && labelLike) return;
+        kept.push(l.sub.replace(/[ \t]+$/,''));
+      });
+      if(kept.join('').trim()==='') return;
+      out.push(kept.join('\n'));
+    });
+    return out.join('\n\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function $(id){ return document.getElementById(id); }
+
+  // ── current meeting form → render data ──
+  function currentMeetingData(){
+    var g=function(id){ var e=$(id); return e? e.value : ''; };
+    var occ=g('occurrence');
+    var dateISO=(occ==='One-time') ? g('meetingDate') : (g('seriesStartDate') || g('meetingDate'));
+    var mt=$('meetingType'); var category='';
+    if(mt && mt.selectedIndex>=0){ var opt=mt.options[mt.selectedIndex]; category = (opt && opt.value)? (opt.text||'').trim() : ''; }
+    var wrap=$('imgPreviewWrap'); var hasImage=!!(wrap && wrap.style.display!=='none');
+    var imgEl=$('imgPreview');
+    return { category:category, dateISO:dateISO, startTime:g('startTime'), endTime:g('endTime'),
+      locationName:(g('locationSearch')||'').trim(), address1:g('address1'), address2:g('address2'),
+      city:g('city'), stateAbbr:(STATE_ABBR[g('state')]||''), pinCode:g('pinCode'), country:g('country'),
+      note:g('note'), hasImage:hasImage, imageSrc: hasImage && imgEl ? imgEl.src : '' };
+  }
+
+  function selectedTemplate(){
+    var sel=$('msgTemplateSelect'); var id=sel? sel.value : '';
+    var t=TPLS.filter(function(x){return String(x.id)===String(id);})[0];
+    return t || TPLS[0] || {body:'',dateFormat:'MMMM dd, yyyy',timeFormat:'startEnd'};
+  }
+
+  // ── meeting-form preview ──
+  function updateMsgPreview(){
+    var panel=$('msgPreviewPanel'); if(!panel || panel.style.display==='none') return;
+    var data=currentMeetingData(); var txt=renderMessage(selectedTemplate(), data);
+    var imgEl=$('msgPreviewImg');
+    if(txt.indexOf('[[IMAGE]]')!==-1){
+      txt=txt.replace(/\[\[IMAGE\]\]/g,'').replace(/\n{3,}/g,'\n\n').trim();
+      if(imgEl){ imgEl.src=data.imageSrc||''; imgEl.style.display=data.imageSrc?'block':'none'; }
+    } else if(imgEl){ imgEl.style.display='none'; imgEl.src=''; }
+    $('msgPreviewText').textContent=txt;
+  }
+  function toggleMsgPreview(){
+    var panel=$('msgPreviewPanel'); if(!panel) return;
+    var show=panel.style.display==='none'; panel.style.display=show?'block':'none';
+    if(show) updateMsgPreview();
+  }
+
+  // ── load + select ──
+  function loadTemplates(){
+    return fetch('/api/meeting-templates').then(function(r){ return r.ok? r.json():[]; })
+      .catch(function(){ return []; })
+      .then(function(list){ TPLS = Array.isArray(list)? list : (list&&list.data)||[]; populateSelect(); return TPLS; });
+  }
+  function populateSelect(){
+    var sel=$('msgTemplateSelect'); if(!sel) return; var cur=sel.value;
+    sel.innerHTML=TPLS.map(function(t){ return '<option value="'+t.id+'">'+esc(t.name)+(t.isDefault?' (default)':'')+'</option>'; }).join('');
+    var def=TPLS.filter(function(t){return t.isDefault;})[0] || TPLS[0];
+    sel.value=(cur && TPLS.some(function(t){return String(t.id)===cur;})) ? cur : (def? String(def.id):'');
+    updateMsgPreview();
+  }
+
+  // ── manager modal ──
+  function fillDateFormatSelect(id){
+    var sel=$(id); if(!sel || sel._filled) return;
+    sel.innerHTML=DATE_FORMATS.map(function(f){ return '<option value="'+f[0]+'">'+f[1]+'</option>'; }).join('');
+    sel._filled=true;
+  }
+  function buildPlaceholderButtons(){
+    var host=$('tplPlaceholders'); if(!host) return;
+    host.innerHTML=PLACEHOLDERS.map(function(p){ return '<button type="button" class="btn-clear" style="padding:3px 8px;font-size:11px;" onclick="MMT.insert(\''+p+'\')">{'+p+'}</button>'; }).join('');
+  }
+  function tplFeedback(msg,kind){ var el=$('tplFeedback'); if(el){ el.textContent=msg||''; el.className='feedback'+(kind?(' '+kind):''); } }
+  function renderTplList(){
+    var host=$('tplList'); if(!host) return;
+    host.innerHTML=TPLS.map(function(t){
+      var star=t.isDefault?'⭐ ':'';
+      var actions = t.builtIn
+        ? '<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="MMT.edit('+t.id+')">Customize</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="MMT.setDefault('+t.id+')">Default</button>'
+        : '<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="MMT.edit('+t.id+')">Edit</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="MMT.setDefault('+t.id+')">Default</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;color:#b42424;" onclick="MMT.del('+t.id+')">Delete</button>';
+      return '<div style="padding:9px 10px;border-bottom:1px solid #f0eaee;">'
+        +'<div style="font-weight:600;font-size:13px;color:#5b3a4b;">'+star+esc(t.name)+(t.builtIn?' <span style="color:#aaa;font-weight:400;font-size:11px;">(built-in)</span>':'')+'</div>'
+        +'<div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">'+actions+'</div></div>';
+    }).join('');
+  }
+  function openManager(){
+    fillDateFormatSelect('tplDateFormat'); buildPlaceholderButtons(); renderTplList();
+    $('tplModal').style.display='flex'; tplFeedback('');
+    var sel=$('msgTemplateSelect');
+    var cur=TPLS.filter(function(t){return String(t.id)===String(sel&&sel.value);})[0];
+    if(cur && !cur.builtIn) editTpl(cur.id); else newTpl();
+  }
+  function closeManager(){ $('tplModal').style.display='none'; tplFeedback(''); }
+  function newTpl(){
+    $('tplEditId').value=''; $('tplEditorTitle').textContent='New template'; $('tplName').value='';
+    var def=TPLS.filter(function(t){return t.builtIn;})[0];
+    $('tplBody').value=def? (def.body||'') : '';
+    $('tplDateFormat').value='MMMM dd, yyyy'; $('tplTimeFormat').value='startEnd'; $('tplMakeDefault').checked=false;
+    previewEditor();
+  }
+  function editTpl(id){
+    var t=TPLS.filter(function(x){return String(x.id)===String(id);})[0]; if(!t) return;
+    if(t.builtIn){ $('tplEditId').value=''; $('tplEditorTitle').textContent='New template (from default)'; $('tplName').value=''; }
+    else { $('tplEditId').value=t.id; $('tplEditorTitle').textContent='Edit template'; $('tplName').value=t.name||''; }
+    $('tplBody').value=t.body||'';
+    $('tplDateFormat').value=t.dateFormat||'MMMM dd, yyyy'; $('tplTimeFormat').value=t.timeFormat||'startEnd';
+    $('tplMakeDefault').checked=!!t.isDefault && !t.builtIn;
+    previewEditor();
+  }
+  function previewEditor(){
+    var tpl={ body:$('tplBody').value, dateFormat:$('tplDateFormat').value, timeFormat:$('tplTimeFormat').value };
+    var data=currentMeetingData();
+    var txt=renderMessage(tpl,data).replace(/\[\[IMAGE\]\]/g, data.hasImage?'[image attached]':'');
+    $('tplPreviewText').textContent=txt;
+  }
+  function insert(name){
+    var ta=$('tplBody'); var ph='{'+name+'}'; var s=ta.selectionStart||0, e=ta.selectionEnd||0;
+    ta.value=ta.value.slice(0,s)+ph+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+ph.length;
+    previewEditor();
+  }
+  function saveTpl(){
+    var id=$('tplEditId').value;
+    var payload={ name:$('tplName').value.trim(), body:$('tplBody').value,
+      dateFormat:$('tplDateFormat').value, timeFormat:$('tplTimeFormat').value, makeDefault:$('tplMakeDefault').checked };
+    if(!payload.name){ tplFeedback('Please enter a template name.','error'); return; }
+    var url=id? '/api/meeting-templates/'+id : '/api/meeting-templates';
+    var method=id? 'PUT':'POST';
+    fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
+      .then(function(res){
+        if(!res.ok || res.j.error){ tplFeedback(res.j.error||'Save failed.','error'); return; }
+        var after = (id && payload.makeDefault) ? fetch('/api/meeting-templates/'+id+'/default',{method:'POST'}) : Promise.resolve();
+        after.then(function(){ tplFeedback('✅ Template saved.','success'); loadTemplates().then(renderTplList); });
+      })
+      .catch(function(){ tplFeedback('Network error.','error'); });
+  }
+  function delTpl(id){
+    if(!window.confirm('Delete this template?')) return;
+    fetch('/api/meeting-templates/'+id,{method:'DELETE'})
+      .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
+      .then(function(res){ if(!res.ok||res.j.error){ tplFeedback(res.j.error||'Delete failed.','error'); return; }
+        loadTemplates().then(function(){ renderTplList(); newTpl(); }); })
+      .catch(function(){ tplFeedback('Network error.','error'); });
+  }
+  function setDefaultTpl(id){
+    fetch('/api/meeting-templates/'+id+'/default',{method:'POST'})
+      .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
+      .then(function(res){ if(!res.ok||res.j.error){ tplFeedback(res.j.error||'Failed.','error'); return; }
+        loadTemplates().then(renderTplList); })
+      .catch(function(){ tplFeedback('Network error.','error'); });
+  }
+
+  // expose only the handlers referenced from markup
+  window.MMT = { edit:editTpl, del:delTpl, setDefault:setDefaultTpl, insert:insert };
+  window.updateMsgPreview = updateMsgPreview;
+  window.toggleMsgPreview = toggleMsgPreview;
+  window.openTplManager   = openManager;
+  window.closeTplManager  = closeManager;
+  window.tplNew           = newTpl;
+  window.tplEdit          = editTpl;
+  window.tplSave          = saveTpl;
+  window.tplPreview       = previewEditor;
+
+  // init
+  function start(){
+    fillDateFormatSelect('tplDateFormat');
+    loadTemplates();
+    document.addEventListener('input', function(){
+      var p=$('msgPreviewPanel'); if(p && p.style.display!=='none') updateMsgPreview();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script src="/voice-openai.js"></script>
+<script src="/meeting-voice.js"></script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Public Screens – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Ensure html + body fill the viewport so the .app flex container can give
+       the sidebar a non-zero height. Without this, the sidebar can collapse to
+       0px on browsers that don't promote 100vh correctly inside an unsized body. */
+    html, body { height: 100%; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+    
+
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main ── */
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; font-weight: 700; color: #673147; background: transparent; border: 1px solid #c5a0b5; border-radius: 7px; padding: 7px 14px; cursor: pointer; letter-spacing: .4px; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page ── */
+    
+    .page-header   { margin-bottom: 24px; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Generate card ── */
+    .gen-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; margin-bottom: 24px; overflow: hidden; }
+    .gen-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .gen-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; }
+    .gen-card-body { padding: 24px; }
+    .info-banner { display: flex; align-items: flex-start; gap: 10px; background: #f5eaef; border: 1px solid #d4a3b4; border-radius: 9px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #673147; }
+    .gen-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; }
+    /* ── Declaration options (membership form only) ── */
+    .decl-options { margin-top: 16px; background: #f9f7ff; border: 1px solid #d0c8f0; border-radius: 10px; padding: 16px 18px; display: none; }
+    .decl-options.show { display: block; }
+    .decl-options-title { font-size: 13px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+    .decl-check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .decl-check-row input[type=checkbox] { width: 15px; height: 15px; accent-color: #673147; flex-shrink: 0; cursor: pointer; }
+    .decl-check-row label { font-size: 13px; color: #333; cursor: pointer; font-weight: 500; }
+    .decl-textarea-wrap { display: none; }
+    .decl-textarea-wrap.show { display: block; }
+    .decl-textarea-wrap label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
+    .decl-textarea-wrap textarea { width: 100%; border: 1px solid #c5cae9; border-radius: 7px; padding: 9px 11px; font-size: 13px; color: #333; font-family: inherit; resize: vertical; min-height: 80px; outline: none; transition: border-color .2s; }
+    .decl-textarea-wrap textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .field select, .field input { border: 1px solid #ddd; border-radius: 7px; padding: 9px 10px; font-size: 13px; color: #333; outline: none; background: #fff; transition: border-color .2s; font-family: inherit; }
+    .field select:focus, .field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .btn-generate { background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 8px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s; }
+    .btn-generate:hover    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-generate:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── Generated link result ── */
+    .link-result { margin-top: 16px; background: #f5f6fb; border: 1px solid #c5cae9; border-radius: 10px; padding: 14px 18px; display: none; }
+    .link-result.show { display: block; }
+    .link-result-label { font-size: 11px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .link-url-row { display: flex; align-items: center; gap: 10px; }
+    .link-url-text { font-size: 13px; color: #333; font-family: monospace; flex: 1; word-break: break-all; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 12px; }
+    .btn-copy-link { background: #673147; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .15s; }
+    .btn-copy-link:hover { background: #4f2538; }
+
+    /* ── Links table ── */
+    .table-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; overflow: hidden; }
+    .table-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .table-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; flex: 1; }
+    .table-wrap { overflow-x: auto; }
+    .links-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .links-table th { background: #f5f6fa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8eaf0; white-space: nowrap; }
+    .links-table td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .links-table tr:last-child td { border-bottom: none; }
+    .links-table tr:hover td { background: #fafbfd; }
+    .empty-row { text-align: center; color: #bbb; padding: 32px !important; }
+    .url-cell { font-family: monospace; font-size: 11px; color: #673147; word-break: break-all; max-width: 260px; }
+    .status-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .status-active  { background: #e8f5e9; color: #2e7d32; }
+    .status-expired { background: #fff3e0; color: #e65100; }
+    .actions { display: flex; gap: 6px; }
+    .btn-copy-row { padding: 5px 7px; border-radius: 5px; border: 1px solid #673147; color: #673147; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-copy-row:hover { background: #eef0f8; }
+    .btn-revoke { padding: 5px 7px; border-radius: 5px; border: 1px solid #e53935; color: #e53935; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-revoke:hover { background: #ffebee; }
+
+    @media (max-width: 700px) {
+      .gen-form { grid-template-columns: 1fr; }
+      .page-content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">🖥️ Public Screens</div>
+        <div class="page-subtitle">Generate secure public links to share internal pages externally</div>
+      </div>
+
+      <!-- NTAG landing page entry -->
+      <div class="gen-card" style="border:1.5px solid #c5a0b5;">
+        <div class="gen-card-header"><span>📲</span><h3>NTAG Tap Landing Page</h3></div>
+        <div class="gen-card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;color:#555;font-size:13px;line-height:1.5;">
+            A branded, mobile-friendly public page visitors open by tapping an NTAG tag — with your logo, welcome message, and customizable buttons (Website, Give, Upcoming Events, Prayer, social, and more). Customize it, then write the generated link onto your tags.
+          </div>
+          <button class="btn-generate" onclick="window.location.href='/ntagLandingAdmin'">Customize NTAG Page →</button>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Generate Card -->
+      <div class="gen-card">
+        <div class="gen-card-header">
+          <span>🔗</span>
+          <h3>Generate a Public Link</h3>
+        </div>
+        <div class="gen-card-body">
+          <div class="info-banner">
+            ℹ️ Public links include your organization's encrypted client ID and allow read-only access to the selected page without requiring a login.
+          </div>
+          <div class="gen-form">
+            <div class="field">
+              <label for="pageSelect">Select Page <span style="color:#e53935;">*</span></label>
+              <select id="pageSelect" onchange="onPageSelectChange()">
+                <option value="">— Choose a page —</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="expiryDate">Expiration Date <span style="color:#aaa;font-weight:400;">(optional)</span></label>
+              <input type="date" id="expiryDate" />
+            </div>
+            <div>
+              <button class="btn-generate" id="generateBtn" onclick="generateLink()">Generate Link</button>
+            </div>
+          </div>
+
+          <!-- Declaration options — only visible when Membership Form is selected -->
+          <div class="decl-options" id="declOptions">
+            <div class="decl-options-title">📋 Membership Form Options</div>
+            <div class="decl-check-row">
+              <input type="checkbox" id="showDeclaration" onchange="onShowDeclChange()" />
+              <label for="showDeclaration">Show Declaration / Statement of Faith checkbox on the form</label>
+            </div>
+            <div class="decl-textarea-wrap" id="declTextareaWrap">
+              <label for="declarationText">Declaration Text <span style="color:#aaa;font-weight:400;">(shown to applicant)</span></label>
+              <textarea id="declarationText" placeholder="Enter the declaration or statement of faith text that applicants must read and accept…"></textarea>
+            </div>
+            <div style="margin-top:14px;">
+              <button type="button" class="btn-generate" onclick="downloadMembershipPdf()">🖨️ Print / Download Form (PDF)</button>
+              <span style="font-size:12px;color:#888;margin-left:8px;">Branded, print-ready membership form — includes the Declaration above when enabled.</span>
+            </div>
+          </div>
+          <script>
+            function downloadMembershipPdf(){
+              var show = document.getElementById('showDeclaration') && document.getElementById('showDeclaration').checked;
+              var decl = show ? (document.getElementById('declarationText').value || '').trim() : '';
+              var url = '/api/membership-form/pdf' + (decl ? ('?declaration=' + encodeURIComponent(decl)) : '');
+              window.open(url, '_blank');
+            }
+          </script>
+
+          <!-- Result box -->
+          <div class="link-result" id="linkResult">
+            <div class="link-result-label">✅ Public Link Generated</div>
+            <div class="link-url-row">
+              <div class="link-url-text" id="generatedUrl"></div>
+              <button class="btn-copy-link" onclick="copyGenerated()">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Links Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <span>📋</span>
+          <h3>Generated Links</h3>
+        </div>
+        <div class="table-wrap">
+          <table class="links-table">
+            <thead>
+              <tr>
+                <th>Page</th><th>Public URL</th><th>Status</th><th>Expires</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="linksTableBody">
+              <tr><td class="empty-row" colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  /* ════ NAVIGATION ════ */
+  
+
+  /* ════ STATE ════ */
+  let allLinks    = [];
+  let lastGenUrl  = '';
+
+  /* ════ INIT ════ */
+  (async function init() {
+    await Promise.all([loadAvailablePages(), loadLinks()]);
+  })();
+
+  /* ════ LOAD AVAILABLE PAGES ════ */
+  async function loadAvailablePages() {
+    try {
+      const res   = await fetch('/api/public-screens/pages');
+      if (!res.ok) return;
+      const pages = await res.json();
+      if (!Array.isArray(pages)) return;
+      const sel   = document.getElementById('pageSelect');
+      pages.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value       = p.url;
+        opt.textContent = p.label;
+        opt.dataset.label = p.label;
+        sel.appendChild(opt);
+      });
+    } catch { /* ignore — user will see empty select */ }
+  }
+
+  /* ════ LOAD LINKS ════ */
+  async function loadLinks() {
+    try {
+      const res = await fetch('/api/public-screens');
+      allLinks  = await res.json();
+      renderLinksTable(allLinks);
+    } catch { showFeedback('❌ Could not load generated links.', 'error'); }
+  }
+
+  function renderLinksTable(links) {
+    const tbody = document.getElementById('linksTableBody');
+    if (!links.length) {
+      tbody.innerHTML = `<tr><td class="empty-row" colspan="6">No public links generated yet.</td></tr>`;
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    tbody.innerHTML = links.map(l => {
+      const expired = l.expirationDate && l.expirationDate < today;
+      const status  = expired
+        ? `<span class="status-badge status-expired">Expired</span>`
+        : `<span class="status-badge status-active">Active</span>`;
+      const expiry  = l.expirationDate ? formatDate(l.expirationDate) : '<span style="color:#ccc;">Never</span>';
+      const created = l.createdDate ? formatDate(l.createdDate) : '—';
+      return `<tr>
+        <td style="font-weight:600;">${escHtml(l.pageLabel)}</td>
+        <td class="url-cell"><a href="${escHtml(l.publicUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(l.publicUrl)}</a></td>
+        <td>${status}</td>
+        <td>${expiry}</td>
+        <td>${created}</td>
+        <td>
+          <div class="actions">
+            <button class="btn-copy-row" onclick="copyUrl('${escJs(l.publicUrl)}', this)" title="Copy link"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            <button class="btn-revoke"   onclick="revokeLink(${l.id})" title="Delete link"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ════ PAGE SELECT CHANGE ════ */
+  const MEMBERSHIP_FORM_URL = '/membershipForm';
+  function onPageSelectChange() {
+    const sel  = document.getElementById('pageSelect');
+    const isMF = sel.value === MEMBERSHIP_FORM_URL;
+    document.getElementById('declOptions').classList.toggle('show', isMF);
+    if (!isMF) {
+      // Reset declaration options when switching away
+      document.getElementById('showDeclaration').checked = false;
+      document.getElementById('declTextareaWrap').classList.remove('show');
+      document.getElementById('declarationText').value = '';
+    }
+  }
+  function onShowDeclChange() {
+    const checked = document.getElementById('showDeclaration').checked;
+    document.getElementById('declTextareaWrap').classList.toggle('show', checked);
+  }
+
+  /* ════ GENERATE ════ */
+  async function generateLink() {
+    const sel       = document.getElementById('pageSelect');
+    const pageUrl   = sel.value;
+    const pageLabel = sel.options[sel.selectedIndex]?.dataset?.label || pageUrl;
+    const expiry    = document.getElementById('expiryDate').value || null;
+
+    if (!pageUrl) { showFeedback('❌ Please select a page.', 'error'); return; }
+
+    // Declaration options (only meaningful for Membership Form)
+    const isMF           = pageUrl === MEMBERSHIP_FORM_URL;
+    const showDeclaration = isMF && document.getElementById('showDeclaration').checked;
+    const declarationText = (isMF && showDeclaration)
+      ? (document.getElementById('declarationText').value.trim() || null)
+      : null;
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    document.getElementById('linkResult').classList.remove('show');
+
+    try {
+      const res  = await fetch('/api/public-screens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageUrl, pageLabel, expirationDate: expiry, showDeclaration, declarationText })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        lastGenUrl = data.publicUrl;
+        document.getElementById('generatedUrl').textContent = data.publicUrl;
+        document.getElementById('linkResult').classList.add('show');
+        showFeedback('✅ Public link generated successfully.', 'success');
+        await loadLinks();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to generate link.'}`, 'error');
+      }
+    } catch { showFeedback('❌ Network error.', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Generate Link'; }
+  }
+
+  /* ════ COPY ════ */
+  function copyGenerated() {
+    copyText(lastGenUrl, document.querySelector('#linkResult .btn-copy-link'));
+  }
+  function copyUrl(url, btn) { copyText(url, btn); }
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    }).catch(() => { alert('Copy failed. Please copy manually:\n' + text); });
+  }
+
+  /* ════ REVOKE ════ */
+  async function revokeLink(id) {
+    if (!confirm('Revoke this public link? It will no longer be accessible.')) return;
+    try {
+      const res = await fetch(`/api/public-screens/${id}`, { method: 'DELETE' });
+      if (res.ok) { showFeedback('Link revoked.', 'success'); await loadLinks(); }
+      else { const d = await res.json(); showFeedback(`❌ ${d.error || 'Failed to revoke.'}`, 'error'); }
+    } catch { showFeedback('❌ Network error.', 'error'); }
+  }
+
+  /* ════ HELPERS ════ */
+  function formatDate(s) {
+    if (!s) return '—';
+    const d = new Date(s + (s.length === 10 ? 'T00:00:00' : ''));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escHtml(s) { return esc(s); }
+  function escJs(s)   { return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg; el.className = 'feedback ' + type;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (type === 'success') setTimeout(() => { el.className = 'feedback'; }, 6000);
+  }
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'more/public-screens', pageTitle: 'Public Screens', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

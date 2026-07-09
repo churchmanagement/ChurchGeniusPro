@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Source</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Two-panel layout ────────────────────────────────── */
+    .panels { display: flex; gap: 20px; align-items: flex-start; }
+    .panel-left  { width: 340px; min-width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0; }
+    .panel-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
+
+    /* ── Panel card ──────────────────────────────────────── */
+    .panel-card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      overflow: hidden;
+    }
+    .panel-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .panel-card-title {
+      font-size: 13px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .6px;
+    }
+
+    /* ── Inline add row inside panel ─────────────────────── */
+    .panel-add { padding: 14px 18px; border-bottom: 1px solid #f0f0f0; }
+    .panel-add-row { display: flex; gap: 10px; align-items: center; }
+    .panel-add-row input {
+      flex: 1; padding: 9px 12px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .panel-add-row input::placeholder { color: #bbb; }
+    .panel-add-row input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .panel-add-row input.invalid { border-color: #e53935; }
+    .panel-hint { font-size: 11px; color: #e53935; min-height: 14px; margin-top: 4px; }
+    .btn-panel-add {
+      padding: 9px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-panel-add:hover { background: #4a5aae; }
+    .btn-panel-add:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Main Source list ────────────────────────────────── */
+    .source-list { padding: 8px 0; }
+    .source-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 18px; cursor: pointer;
+      transition: background .15s; border-left: 3px solid transparent;
+    }
+    .source-item:hover { background: #f5f6fa; }
+    .source-item.selected {
+      background: #eef0fb; border-left-color: #673147;
+    }
+    .source-item-name {
+      font-size: 14px; font-weight: 500; color: #333; flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;
+    }
+    .source-item.selected .source-item-name { color: #673147; font-weight: 600; }
+    .source-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+
+    /* ── Row actions (shared) ─────────────────────────────── */
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-edit:hover    { background: #3949ab; border-color: #3949ab; }
+    .btn-delete  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-delete:hover  { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Empty states ────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+
+    /* ── Sub sources table ───────────────────────────────── */
+    .sub-table-wrap { overflow-x: auto; }
+    .sub-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sub-table th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .sub-table td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .sub-table tr:last-child td { border-bottom: none; }
+    .sub-table tr:hover td { background: #fafbff; }
+    .sub-name  { font-weight: 500; font-size: 14px; }
+    .row-num   { font-size: 13px; color: #ccc; }
+
+    /* ── Selected source header in right panel ────────────── */
+    .selected-source-label {
+      font-size: 11px; color: #888; font-weight: 500; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .selected-source-name {
+      font-size: 14px; color: #673147; font-weight: 700; margin-top: 2px;
+    }
+
+    /* ── Modal overlay ───────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    /* ── Modal box ───────────────────────────────────────── */
+    .modal-box {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.22);
+      width: 440px; max-width: calc(100vw - 40px);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; background: #673147; flex-shrink: 0;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .modal-close {
+      font-size: 20px; color: rgba(255,255,255,.8); cursor: pointer;
+      line-height: 1; padding: 2px 6px; border-radius: 4px; transition: background .18s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.18); color: #fff; }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 14px 24px; border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0;
+    }
+
+    /* ── Modal form field ────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
+    .required-star { color: #e53935; margin-left: 2px; }
+    .field input {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .field input::placeholder { color: #bbb; }
+    .field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field input.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* ── Modal buttons ───────────────────────────────────── */
+    .btn-cancel {
+      padding: 10px 26px; border-radius: 7px;
+      font-size: 14px; font-weight: 500; color: #666;
+      border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s;
+    }
+    .btn-cancel:hover { background: #f5f6fa; }
+    .btn-save-modal {
+      padding: 10px 32px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+    }
+    .btn-save-modal:hover:not(:disabled) { background: #4a5aae; }
+    .btn-save-modal:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Source</div>
+          <div class="page-subtitle">Manage main sources and their sub-sources</div>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Two-panel layout ────────────────────────────── -->
+      <div class="panels">
+
+        <!-- ── LEFT: Main Sources ─────────────────────────── -->
+        <div class="panel-left">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <span class="panel-card-title">Main Sources</span>
+            </div>
+
+            <!-- Inline Add -->
+            <div class="panel-add">
+              <div class="panel-add-row">
+                <input type="text" id="newMainSourceName"
+                       placeholder="New source name…"
+                       onkeydown="if(event.key==='Enter') addMainSource()" />
+                <button class="btn-panel-add" id="addMainBtn" onclick="addMainSource()">＋ Add</button>
+              </div>
+              <div class="panel-hint" id="newMainSourceHint"></div>
+            </div>
+
+            <!-- Source list -->
+            <div class="source-list" id="mainSourceList">
+              <div class="empty-state">
+                <div class="empty-icon">📂</div>
+                <div class="empty-text">No sources yet. Add one above.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Sub Sources ─────────────────────────── -->
+        <div class="panel-right">
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <div>
+                <div class="selected-source-label" id="subPanelLabel">Sub Sources</div>
+                <div class="selected-source-name" id="subPanelSourceName" style="display:none;"></div>
+              </div>
+            </div>
+
+            <!-- Inline Add (hidden until a source is selected) -->
+            <div class="panel-add" id="subAddArea" style="display:none;">
+              <div class="panel-add-row">
+                <input type="text" id="newSubSourceName"
+                       placeholder="New sub-source name…"
+                       onkeydown="if(event.key==='Enter') addSubSource()" />
+                <button class="btn-panel-add" id="addSubBtn" onclick="addSubSource()">＋ Add</button>
+              </div>
+              <div class="panel-hint" id="newSubSourceHint"></div>
+            </div>
+
+            <!-- Sub source table / empty state -->
+            <div id="subSourceContent">
+              <div class="empty-state">
+                <div class="empty-icon">👈</div>
+                <div class="empty-text">Select a main source to view its sub-sources.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.panels -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ════════════ EDIT MODAL ════════════ -->
+<div class="modal-overlay" id="editModal" onclick="onOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Edit Source</span>
+      <button class="modal-close" onclick="closeModal()" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="editSourceName">Source Name <span class="required-star">*</span></label>
+        <input type="text" id="editSourceName"
+               placeholder="Enter source name"
+               onkeydown="if(event.key==='Enter') saveEdit()" />
+        <span class="field-hint" id="editSourceNameHint"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save-modal" id="modalSaveBtn" onclick="saveEdit()">Update</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allMainSources = [];
+  let allSubSources  = [];
+  const mainMap      = {};   // id → mainSource
+  const subMap       = {};   // id → subSource
+  let selectedMainId = null; // currently selected main source id
+
+  // Edit modal state
+  let editingType    = null; // 'main' | 'sub'
+  let editingId      = null;
+
+  /* ════════════════════════════════════
+     LOAD MAIN SOURCES
+  ════════════════════════════════════ */
+  async function loadMainSources() {
+    try {
+      const res = await fetch('/api/sources');
+      if (!res.ok) throw new Error('Server error');
+      allMainSources = await res.json();
+    } catch {
+      allMainSources = [];
+      showFeedback('❌ Failed to load sources from the server.', 'error');
+    }
+    Object.keys(mainMap).forEach(k => delete mainMap[k]);
+    allMainSources.forEach(s => { mainMap[s.id] = s; });
+    renderMainList();
+  }
+
+  /* ════════════════════════════════════
+     LOAD SUB SOURCES
+  ════════════════════════════════════ */
+  async function loadSubSources(mainSourceId) {
+    try {
+      const res = await fetch(`/api/sources/${mainSourceId}/sub-sources`);
+      if (!res.ok) throw new Error('Server error');
+      allSubSources = await res.json();
+    } catch {
+      allSubSources = [];
+      showFeedback('❌ Failed to load sub-sources from the server.', 'error');
+    }
+    Object.keys(subMap).forEach(k => delete subMap[k]);
+    allSubSources.forEach(s => { subMap[s.id] = s; });
+    renderSubContent();
+  }
+
+  /* ════════════════════════════════════
+     RENDER MAIN SOURCE LIST
+  ════════════════════════════════════ */
+  function renderMainList() {
+    const list = document.getElementById('mainSourceList');
+
+    if (allMainSources.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📂</div>
+          <div class="empty-text">No sources yet. Add one above.</div>
+        </div>`;
+      // Deselect if previously selected source no longer exists
+      if (selectedMainId !== null) {
+        selectedMainId = null;
+        renderSubContent();
+        updateRightPanelHeader();
+      }
+      return;
+    }
+
+    list.innerHTML = allMainSources.map(s => `
+      <div class="source-item ${selectedMainId === s.id ? 'selected' : ''}"
+           onclick="selectMainSource(${s.id})">
+        <span class="source-item-name" title="${escHtml(s.sourceName)}">${escHtml(s.sourceName)}</span>
+        <div class="source-item-actions">
+          <button class="btn-action btn-edit"
+                  onclick="event.stopPropagation(); openEditMainModal(${s.id})" title="Edit">📝</button>
+          <button class="btn-action btn-delete"
+                  onclick="event.stopPropagation(); deleteMainSource(${s.id})" title="Delete">🗑</button>
+        </div>
+      </div>`).join('');
+  }
+
+  /* ════════════════════════════════════
+     RENDER SUB SOURCE CONTENT
+  ════════════════════════════════════ */
+  function renderSubContent() {
+    const content  = document.getElementById('subSourceContent');
+    const addArea  = document.getElementById('subAddArea');
+
+    if (selectedMainId === null) {
+      addArea.style.display  = 'none';
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👈</div>
+          <div class="empty-text">Select a main source to view its sub-sources.</div>
+        </div>`;
+      return;
+    }
+
+    addArea.style.display = '';
+
+    if (allSubSources.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">No sub-sources yet. Add one above.</div>
+        </div>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="sub-table-wrap">
+        <table class="sub-table">
+          <thead>
+            <tr>
+              <th style="width:48px;">#</th>
+              <th>Sub Source Name</th>
+              <th style="width:150px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allSubSources.map((s, idx) => `
+              <tr>
+                <td class="row-num">${idx + 1}</td>
+                <td><span class="sub-name">${escHtml(s.sourceName)}</span></td>
+                <td>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn-action btn-edit"   onclick="openEditSubModal(${s.id})" title="Edit">📝</button>
+                    <button class="btn-action btn-delete" onclick="deleteSubSource(${s.id})" title="Delete">🗑</button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  /* ════════════════════════════════════
+     UPDATE RIGHT PANEL HEADER
+  ════════════════════════════════════ */
+  function updateRightPanelHeader() {
+    const label = document.getElementById('subPanelLabel');
+    const name  = document.getElementById('subPanelSourceName');
+    if (selectedMainId !== null && mainMap[selectedMainId]) {
+      label.textContent    = 'Sub Sources for';
+      name.textContent     = mainMap[selectedMainId].sourceName;
+      name.style.display   = '';
+    } else {
+      label.textContent    = 'Sub Sources';
+      name.style.display   = 'none';
+    }
+  }
+
+  /* ════════════════════════════════════
+     SELECT MAIN SOURCE
+  ════════════════════════════════════ */
+  async function selectMainSource(id) {
+    selectedMainId = id;
+    updateRightPanelHeader();
+    renderMainList();                  // re-render to highlight selected
+    document.getElementById('newSubSourceName').value = '';
+    document.getElementById('newSubSourceHint').textContent = '';
+    await loadSubSources(id);
+  }
+
+  /* ════════════════════════════════════
+     ADD MAIN SOURCE
+  ════════════════════════════════════ */
+  async function addMainSource() {
+    const input = document.getElementById('newMainSourceName');
+    const hint  = document.getElementById('newMainSourceHint');
+    const name  = input.value.trim();
+
+    if (!name) {
+      hint.textContent = 'Source name is required.';
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+    hint.textContent = '';
+    input.classList.remove('invalid');
+
+    const btn = document.getElementById('addMainBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res  = await fetch('/api/sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceName: name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        input.value = '';
+        showFeedback(`✅ Source "${escHtml(name)}" added successfully.`, 'success');
+        await loadMainSources();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to add source.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '＋ Add';
+    }
+  }
+
+  /* ════════════════════════════════════
+     ADD SUB SOURCE
+  ════════════════════════════════════ */
+  async function addSubSource() {
+    const input = document.getElementById('newSubSourceName');
+    const hint  = document.getElementById('newSubSourceHint');
+    const name  = input.value.trim();
+
+    if (!name) {
+      hint.textContent = 'Sub-source name is required.';
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+    hint.textContent = '';
+    input.classList.remove('invalid');
+
+    const btn = document.getElementById('addSubBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res  = await fetch(`/api/sources/${selectedMainId}/sub-sources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceName: name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        input.value = '';
+        showFeedback(`✅ Sub-source "${escHtml(name)}" added successfully.`, 'success');
+        await loadSubSources(selectedMainId);
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to add sub-source.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '＋ Add';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EDIT MODAL — open
+  ════════════════════════════════════ */
+  function openEditMainModal(id) {
+    const s = mainMap[id];
+    if (!s) return;
+    editingType = 'main';
+    editingId   = id;
+    document.getElementById('modalTitle').textContent    = 'Edit Main Source';
+    const input = document.getElementById('editSourceName');
+    input.value = s.sourceName;
+    input.classList.remove('invalid');
+    document.getElementById('editSourceNameHint').textContent = '';
+    document.getElementById('modalSaveBtn').textContent       = 'Update';
+    document.getElementById('modalSaveBtn').disabled          = false;
+    document.getElementById('editModal').classList.add('open');
+    setTimeout(() => input.focus(), 80);
+  }
+
+  function openEditSubModal(id) {
+    const s = subMap[id];
+    if (!s) return;
+    editingType = 'sub';
+    editingId   = id;
+    document.getElementById('modalTitle').textContent    = 'Edit Sub Source';
+    const input = document.getElementById('editSourceName');
+    input.value = s.sourceName;
+    input.classList.remove('invalid');
+    document.getElementById('editSourceNameHint').textContent = '';
+    document.getElementById('modalSaveBtn').textContent       = 'Update';
+    document.getElementById('modalSaveBtn').disabled          = false;
+    document.getElementById('editModal').classList.add('open');
+    setTimeout(() => input.focus(), 80);
+  }
+
+  function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+    editingType = null;
+    editingId   = null;
+  }
+
+  function onOverlayClick(event) {
+    if (event.target === document.getElementById('editModal')) closeModal();
+  }
+
+  /* ════════════════════════════════════
+     SAVE EDIT
+  ════════════════════════════════════ */
+  async function saveEdit() {
+    const input = document.getElementById('editSourceName');
+    const hint  = document.getElementById('editSourceNameHint');
+    const name  = input.value.trim();
+
+    if (!name) {
+      hint.textContent = 'Source name is required.';
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+    hint.textContent = '';
+    input.classList.remove('invalid');
+
+    const btn = document.getElementById('modalSaveBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Updating…';
+
+    try {
+      let url, body;
+      if (editingType === 'main') {
+        url  = `/api/sources/${editingId}`;
+        body = JSON.stringify({ sourceName: name });
+      } else {
+        url  = `/api/sub-sources/${editingId}`;
+        body = JSON.stringify({ sourceName: name });
+      }
+
+      const res  = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeModal();
+        showFeedback(`✅ Updated to "${escHtml(name)}" successfully.`, 'success');
+        if (editingType === 'main') {
+          await loadMainSources();
+          updateRightPanelHeader();  // refresh label if selected source was renamed
+        } else {
+          await loadSubSources(selectedMainId);
+        }
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to update.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Update';
+    }
+  }
+
+  /* ════════════════════════════════════
+     DELETE MAIN SOURCE
+  ════════════════════════════════════ */
+  async function deleteMainSource(id) {
+    const s    = mainMap[id];
+    const name = s ? s.sourceName : String(id);
+    if (!confirm('Are you sure you want to delete this source? This will also delete all its sub-sources.')) return;
+
+    try {
+      const res  = await fetch(`/api/sources/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${escHtml(name)}" and its sub-sources have been deleted.`, 'success');
+        // If we deleted the currently selected source, reset right panel
+        if (selectedMainId === id) {
+          selectedMainId = null;
+          allSubSources  = [];
+          updateRightPanelHeader();
+          renderSubContent();
+        }
+        await loadMainSources();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete source.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete source.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     DELETE SUB SOURCE
+  ════════════════════════════════════ */
+  async function deleteSubSource(id) {
+    const s    = subMap[id];
+    const name = s ? s.sourceName : String(id);
+    if (!confirm('Are you sure you want to delete this sub-source?')) return;
+
+    try {
+      const res  = await fetch(`/api/sub-sources/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${escHtml(name)}" has been deleted.`, 'success');
+        await loadSubSources(selectedMainId);
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete sub-source.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete sub-source.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    loadMainSources();
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'account-settings/transaction-type', pageTitle: 'Source', openSection: 'account-settings' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

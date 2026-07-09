@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Income</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .current-date-badge {
+      font-size: 13px; color: #666; background: #fff;
+      border: 1px solid #e8e8e8; border-radius: 20px;
+      padding: 6px 16px; white-space: nowrap; margin-top: 4px;
+    }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Card ────────────────────────────────────────────── */
+    .card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 22px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .6px;
+    }
+    .card-body { padding: 22px; }
+
+    /* ── Form grid ───────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px 24px;
+    }
+    .form-grid .span2 { grid-column: span 2; }
+
+    /* ── Field ───────────────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: 13px; font-weight: 600; color: #666;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .required-star { color: #e53935; margin-left: 2px; }
+    .field select,
+    .field input[type="text"],
+    .field input[type="date"],
+    .field input[type="number"],
+    .field textarea {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+      appearance: none; -webkit-appearance: none;
+    }
+    .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px; }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field input::placeholder,
+    .field textarea::placeholder { color: #bbb; }
+    .field select:focus,
+    .field input:focus,
+    .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field select.invalid,
+    .field input.invalid,
+    .field textarea.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* ── Contributor Combobox ────────────────────────────── */
+    .combo-wrap { position: relative; }
+    .combo-input {
+      width: 100%; padding: 10px 36px 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat right 12px center;
+      font-family: inherit;
+    }
+    .combo-input::placeholder { color: #bbb; }
+    .combo-input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .combo-input.open { border-radius: 7px 7px 0 0; border-bottom-color: transparent; }
+    .combo-input.invalid { border-color: #e53935; }
+    .combo-dropdown {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      background: #fff; border: 1.5px solid #673147; border-top: none;
+      border-radius: 0 0 7px 7px; max-height: 210px; overflow-y: auto;
+      z-index: 300; box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    }
+    .combo-dropdown.open { display: block; }
+    .combo-option {
+      padding: 10px 13px; cursor: pointer; font-size: 14px; color: #333;
+      transition: background .12s;
+    }
+    .combo-option:hover { background: #eef0fb; color: #673147; }
+    .combo-no-match {
+      padding: 10px 13px; font-size: 13px; color: #bbb;
+      font-style: italic; cursor: default;
+    }
+
+    /* ── Guest / Non-member contributor ─────────────────── */
+    .contributor-toggle-row {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 5px;
+    }
+    .contributor-toggle-row button {
+      font-size: 11px; color: #673147; font-weight: 600;
+      background: none; border: none; cursor: pointer; padding: 0;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .contributor-toggle-row button:hover { color: #3949ab; }
+    #guestNameWrap { display: none; }
+    #guestNameWrap input {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    #guestNameWrap input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    #guestNameWrap input.invalid { border-color: #e53935; }
+
+    /* ── Form actions ────────────────────────────────────── */
+    .form-actions {
+      display: flex; gap: 12px; justify-content: flex-end;
+      padding-top: 6px;
+    }
+    .btn-clear {
+      padding: 10px 28px; border-radius: 7px;
+      font-size: 14px; font-weight: 500; color: #666;
+      border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s;
+    }
+    .btn-clear:hover { background: #f5f6fa; }
+    .btn-save {
+      padding: 10px 34px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-save:hover:not(:disabled) { background: #673147; color: #fff; border-color: #673147; }
+    .btn-save:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Transactions table ──────────────────────────────── */
+    .table-controls {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .table-controls label { font-size: 13px; color: #666; }
+    .table-controls select {
+      padding: 5px 10px; border: 1.5px solid #e0e0e0;
+      border-radius: 6px; font-size: 13px; color: #333;
+      background: #fff; cursor: pointer; outline: none;
+    }
+    .table-wrap { overflow-x: auto; }
+    .txn-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .txn-table th {
+      text-align: left; padding: 12px 14px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .txn-table td {
+      padding: 11px 14px; border-bottom: 1px solid #f5f5f5;
+      color: #333; vertical-align: middle;
+    }
+    .txn-table tr:last-child td { border-bottom: none; }
+    .txn-table tr:hover td { background: #fafbff; }
+    .txn-amount { font-weight: 600; color: #2e7d32; }
+    .row-num { font-size: 13px; color: #ccc; }
+
+    /* ── Row action buttons ──────────────────────────────── */
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit    { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-edit:hover    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-delete  { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-delete:hover  { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+    .combo-dropdown::-webkit-scrollbar { width: 4px; }
+    .combo-dropdown::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Income</div>
+          <div class="page-subtitle">Record and manage contribution transactions</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button type="button" id="scanCheckBtn" class="btn-scan-check" onclick="CHECKSCAN.open()" title="Scan or upload a check to auto-fill this form">
+            📷 Scan Check
+          </button>
+          <div class="current-date-badge" id="currentDateBadge"></div>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Income Entry Form ──────────────────────────── -->
+      <div class="card" id="formCard">
+        <div class="card-header">
+          <span class="card-title" id="formCardTitle">Add Income</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+
+            <!-- Contributor — searchable combobox OR free-text guest name -->
+            <div class="field">
+              <label>Contributor</label>
+
+              <!-- Member combobox (default) -->
+              <div class="combo-wrap" id="memberComboWrap">
+                <input type="text" id="fContributorInput" class="combo-input"
+                       placeholder="Search contributor…"
+                       autocomplete="off"
+                       oninput="filterContributors()"
+                       onfocus="openContributorDropdown()"
+                       onblur="closeContributorDropdownDelay()" />
+                <div class="combo-dropdown" id="contributorDropdown"></div>
+              </div>
+
+              <!-- Guest / non-member free-text input (hidden by default) -->
+              <div id="guestNameWrap">
+                <input type="text" id="fGuestName" placeholder="Enter contributor name…" autocomplete="off" />
+              </div>
+
+              <!-- hidden stores the selected member ID -->
+              <input type="hidden" id="fContributor" />
+
+              <!-- Toggle row -->
+              <div class="contributor-toggle-row">
+                <button type="button" id="contributorToggleBtn" onclick="toggleGuestMode()">
+                  Not a church member? Enter name manually
+                </button>
+              </div>
+
+              <span class="field-hint" id="hContributor"></span>
+            </div>
+
+            <!-- Fund (Sub-Category) -->
+            <div class="field">
+              <label for="fFund">Fund (eg:Tithe) <span class="required-star">*</span></label>
+              <select id="fFund">
+                <option value="">— Select fund —</option>
+              </select>
+              <span class="field-hint" id="hFund"></span>
+            </div>
+
+            <!-- Date -->
+            <div class="field">
+              <label for="fDate">Date <span class="required-star">*</span></label>
+              <input type="date" id="fDate" />
+              <span class="field-hint" id="hDate"></span>
+            </div>
+
+            <!-- Method (Transaction Type) -->
+            <div class="field">
+              <label for="fMethod">Method (eg:Cash) <span class="required-star">*</span></label>
+              <select id="fMethod">
+                <option value="">— Select method —</option>
+              </select>
+              <span class="field-hint" id="hMethod"></span>
+            </div>
+
+            <!-- Ref No (always optional) -->
+            <div class="field">
+              <label for="fRefNo">Ref No</label>
+              <input type="text" id="fRefNo" placeholder="Cheque / reference number (optional)" />
+            </div>
+
+            <div class="field">
+              <label for="fNote">Notes</label>
+              <input type="text" id="fNote" placeholder="Short note…" />
+            </div>
+
+            <!-- Amount -->
+            <div class="field">
+              <label for="fAmount">Amount <span class="required-star">*</span></label>
+              <input type="number" id="fAmount" min="0.01" step="0.01" placeholder="0.00" />
+              <span class="field-hint" id="hAmount"></span>
+            </div>
+
+          </div><!-- /.form-grid -->
+
+          <!-- Recurring toggle -->
+          <div style="display:flex;align-items:center;gap:10px;margin-top:16px;
+                      padding:12px 14px;background:#f0f2ff;border:1px solid #c5cae9;
+                      border-radius:8px;">
+            <label class="toggle-row" title="Mark as recurring">
+              <input type="checkbox" class="toggle-checkbox" id="fQuickAdd" />
+              <span style="font-size:13px;color:#673147;font-weight:500;user-select:none;">
+                🔁 Recurring
+                <span style="font-size:13px;color:#777;font-weight:400;margin-left:4px;">
+                  — show this as a template in the Accountant dashboard Recurring Income panel
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-clear" onclick="clearForm()">Clear</button>
+            <button class="btn-save" id="saveBtn" onclick="saveIncome()">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Transactions Table ─────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Transactions</span>
+        </div>
+        <div class="table-wrap">
+          <div id="txnContent">
+            <div class="empty-state">
+              <div class="empty-icon">💰</div>
+              <div class="empty-text">No income records yet.</div>
+            </div>
+          </div>
+        </div>
+        <div id="loadMoreIncomeWrap" style="display:none;text-align:center;padding:14px 0 10px;">
+          <button id="loadMoreIncomeBtn" onclick="loadMoreIncome()"
+            style="padding:7px 28px;border-radius:8px;border:1px solid #c5cae9;background:#fff;
+                   color:#673147;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.3px;">
+            Load More ↓
+          </button>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allTransactions       = [];   // full list from server
+  let visibleIncomeCount    = 10;   // rows currently shown (Load More increments)
+  let contributors          = [];   // [{id, fullName}, …] from server
+  let selectedContributorId = null; // currently chosen contributor ID
+  let editingId             = null; // null = add mode, integer = edit mode
+  let guestMode             = false; // true = free-text guest name, false = member combobox
+
+  /* ════════════════════════════════════
+     GUEST MODE — toggle between member
+     combobox and free-text name input
+  ════════════════════════════════════ */
+  function toggleGuestMode(forceGuest) {
+    guestMode = (forceGuest !== undefined) ? forceGuest : !guestMode;
+
+    const comboWrap  = document.getElementById('memberComboWrap');
+    const guestWrap  = document.getElementById('guestNameWrap');
+    const toggleBtn  = document.getElementById('contributorToggleBtn');
+
+    if (guestMode) {
+      comboWrap.style.display  = 'none';
+      guestWrap.style.display  = 'block';
+      toggleBtn.textContent    = '← Back to member search';
+      // Clear member selection
+      selectedContributorId = null;
+      document.getElementById('fContributor').value      = '';
+      document.getElementById('fContributorInput').value = '';
+      document.getElementById('fContributorInput').classList.remove('invalid', 'open');
+      document.getElementById('contributorDropdown').classList.remove('open');
+    } else {
+      comboWrap.style.display  = 'block';
+      guestWrap.style.display  = 'none';
+      toggleBtn.textContent    = 'Not a church member? Enter name manually';
+      // Clear guest name
+      document.getElementById('fGuestName').value = '';
+      document.getElementById('fGuestName').classList.remove('invalid');
+    }
+    // Clear contributor hint on toggle
+    document.getElementById('hContributor').textContent = '';
+  }
+
+  /* ════════════════════════════════════
+     CURRENT DATE BADGE + DATE FIELD
+  ════════════════════════════════════ */
+  function todayString() {
+    const now  = new Date();
+    const yyyy = now.getFullYear();
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const dd   = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function setCurrentDate() {
+    const now  = new Date();
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('currentDateBadge').textContent = now.toLocaleDateString(undefined, opts);
+    document.getElementById('fDate').value = todayString();
+  }
+
+  /* ════════════════════════════════════
+     LOAD CONTRIBUTORS
+  ════════════════════════════════════ */
+  async function loadContributors() {
+    try {
+      const res  = await fetch('/api/income/contributors');
+      if (!res.ok) throw new Error();
+      contributors = await res.json();
+    } catch {
+      showFeedback('❌ Failed to load contributors.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     COMBOBOX — render dropdown list
+  ════════════════════════════════════ */
+  function renderContributorDropdown(list) {
+    const dd = document.getElementById('contributorDropdown');
+    if (list.length === 0) {
+      dd.innerHTML = '<div class="combo-no-match">No matches found</div>';
+    } else {
+      dd.innerHTML = list.map(c =>
+        `<div class="combo-option"
+              onmousedown="selectContributor(${c.id}, this.textContent.trim())">${escHtml(c.fullName)}</div>`
+      ).join('');
+    }
+  }
+
+  /* ════════════════════════════════════
+     COMBOBOX — open (on focus)
+  ════════════════════════════════════ */
+  function openContributorDropdown() {
+    const query    = document.getElementById('fContributorInput').value.toLowerCase();
+    const filtered = query
+      ? contributors.filter(c => c.fullName.toLowerCase().includes(query))
+      : contributors;
+    renderContributorDropdown(filtered);
+    document.getElementById('contributorDropdown').classList.add('open');
+    document.getElementById('fContributorInput').classList.add('open');
+  }
+
+  /* ════════════════════════════════════
+     COMBOBOX — filter (on input)
+  ════════════════════════════════════ */
+  function filterContributors() {
+    const query    = document.getElementById('fContributorInput').value.toLowerCase();
+    const filtered = contributors.filter(c => c.fullName.toLowerCase().includes(query));
+    renderContributorDropdown(filtered);
+    document.getElementById('contributorDropdown').classList.add('open');
+    // Clear selection while the user is still typing
+    selectedContributorId = null;
+    document.getElementById('fContributor').value = '';
+  }
+
+  /* ════════════════════════════════════
+     COMBOBOX — close (on blur, delayed
+     so mousedown on option fires first)
+  ════════════════════════════════════ */
+  function closeContributorDropdownDelay() {
+    setTimeout(() => {
+      document.getElementById('contributorDropdown').classList.remove('open');
+      document.getElementById('fContributorInput').classList.remove('open');
+    }, 200);
+  }
+
+  /* ════════════════════════════════════
+     COMBOBOX — select an item
+  ════════════════════════════════════ */
+  function selectContributor(id, name, skipAutoFill) {
+    selectedContributorId = id;
+    document.getElementById('fContributor').value        = id;
+    document.getElementById('fContributorInput').value   = name;
+    document.getElementById('contributorDropdown').classList.remove('open');
+    document.getElementById('fContributorInput').classList.remove('open');
+    document.getElementById('hContributor').textContent  = '';
+    document.getElementById('fContributorInput').classList.remove('invalid');
+
+    // Auto-fill from last income record (add mode only). Skipped for Scan Check,
+    // which must use ONLY the values read from the scanned check.
+    if (editingId === null && !skipAutoFill) {
+      autoFillFromLastIncome(id);
+    }
+  }
+
+  /* ════════════════════════════════════
+     AUTO-FILL from last income record
+  ════════════════════════════════════ */
+  async function autoFillFromLastIncome(memberId) {
+    try {
+      const res  = await fetch(`/api/income/member/${memberId}/last`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.id) {
+        // Pre-fill Fund, Method, Ref No, Amount, Note from last record
+        // Date is intentionally left as today
+        document.getElementById('fFund').value   = data.subSourceId       || '';
+        document.getElementById('fMethod').value = data.transactionTypeId || '';
+        document.getElementById('fRefNo').value  = data.refNo       || '';
+        document.getElementById('fAmount').value = data.amount      || '';
+        document.getElementById('fNote').value   = data.note        || '';
+      }
+    } catch { /* silent */ }
+  }
+
+  /* ════════════════════════════════════
+     LOAD SUB-SOURCES (FUND)
+  ════════════════════════════════════ */
+  async function loadSubSources() {
+    try {
+      const res  = await fetch('/api/income/sub-sources');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const sel  = document.getElementById('fFund');
+      const showMain = localStorage.getItem('showMainWithSub') !== 'false';
+      data.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value       = s.id;
+        opt.textContent = showMain
+          ? `${s.mainSourceName} / ${s.sourceName}`
+          : s.sourceName;
+        sel.appendChild(opt);
+      });
+    } catch {
+      showFeedback('❌ Failed to load fund sub-categories.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     LOAD TRANSACTION TYPES (METHOD)
+  ════════════════════════════════════ */
+  async function loadTransactionTypes() {
+    try {
+      const res  = await fetch('/api/transaction-types');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const sel  = document.getElementById('fMethod');
+      data.forEach(tt => {
+        const opt = document.createElement('option');
+        opt.value       = tt.id;
+        opt.textContent = tt.typeName;
+        sel.appendChild(opt);
+      });
+    } catch {
+      showFeedback('❌ Failed to load transaction types.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     LOAD TRANSACTIONS
+  ════════════════════════════════════ */
+  async function loadTransactions() {
+    try {
+      const res  = await fetch('/api/income');
+      if (!res.ok) throw new Error();
+      allTransactions = await res.json();
+    } catch {
+      allTransactions = [];
+      showFeedback('❌ Failed to load income records.', 'error');
+    }
+    visibleIncomeCount = 10;   // reset Load More on every fresh load
+    renderTransactions();
+  }
+
+  /* ════════════════════════════════════
+     RENDER TRANSACTIONS TABLE
+  ════════════════════════════════════ */
+  function loadMoreIncome() {
+    visibleIncomeCount += 10;
+    renderTransactions();
+  }
+
+  function renderTransactions() {
+    const rows    = allTransactions.slice(0, visibleIncomeCount);
+    const content = document.getElementById('txnContent');
+    /* show/hide Load More button */
+    const wrap = document.getElementById('loadMoreIncomeWrap');
+    if (wrap) wrap.style.display = allTransactions.length > visibleIncomeCount ? 'block' : 'none';
+
+    if (rows.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">💰</div>
+          <div class="empty-text">No income records yet. Add one above.</div>
+        </div>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <table class="txn-table">
+        <thead>
+          <tr>
+            <th style="width:44px;">#</th>
+            <th>Contributor</th>
+            <th>Fund</th>
+            <th>Date</th>
+            <th>Method</th>
+            <th>Ref No</th>
+            <th style="text-align:right;">Amount</th>
+            <th>Note</th>
+            <th style="width:130px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((t, idx) => `
+            <tr>
+              <td class="row-num">${idx + 1}${t.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}</td>
+              <td>${escHtml(t.memberName || t.guestName || '')}</td>
+              <td>${localStorage.getItem('showMainWithSub') !== 'false' ? escHtml(t.mainSourceName) + ' / ' + escHtml(t.subSourceName) : escHtml(t.subSourceName)}</td>
+              <td>${formatDate(t.incomeDate)}</td>
+              <td>${escHtml(t.method)}</td>
+              <td>${escHtml(t.refNo || '—')}</td>
+              <td class="txn-amount" style="text-align:right;">$${formatAmount(t.amount)}</td>
+              <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                  title="${escHtml(t.note || '')}">${escHtml(t.note || '—')}</td>
+              <td>
+                <div style="display:flex;gap:6px;">
+                  ${window.CGP_PERMS && window.CGP_PERMS['accounting.income.edit'] === false ? '' :
+                    `<button class="btn-action btn-edit" onclick="editIncome(${t.id})" title="Edit">📝</button>`}
+                  ${window.CGP_PERMS && window.CGP_PERMS['accounting.income.delete'] === false ? '' :
+                    `<button class="btn-action btn-delete" onclick="deleteIncome(${t.id})" title="Delete">🗑</button>`}
+                </div>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  /* ════════════════════════════════════
+     SAVE (Create or Update)
+  ════════════════════════════════════ */
+  async function saveIncome() {
+    if (!validateForm()) return;
+    if (editingId === null && !confirm('Do you want to add this income?')) return;
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled    = true;
+    btn.textContent = editingId !== null ? 'Updating…' : 'Saving…';
+
+    const payload = {
+      memberId:    (!guestMode && document.getElementById('fContributor').value)
+                     ? parseInt(document.getElementById('fContributor').value, 10) : null,
+      guestName:   guestMode
+                     ? (document.getElementById('fGuestName').value.trim() || null)
+                     : null,
+      subSourceId: parseInt(document.getElementById('fFund').value, 10),
+      incomeDate:        document.getElementById('fDate').value,
+      transactionTypeId: document.getElementById('fMethod').value ? parseInt(document.getElementById('fMethod').value, 10) : null,
+      refNo:             document.getElementById('fRefNo').value.trim() || null,
+      amount:      parseFloat(document.getElementById('fAmount').value),
+      note:        document.getElementById('fNote').value.trim() || null,
+      quickAdd:    document.getElementById('fQuickAdd').checked
+    };
+
+    try {
+      const url    = editingId !== null ? `/api/income/${editingId}` : '/api/income';
+      const method = editingId !== null ? 'PUT' : 'POST';
+      const res    = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const verb = editingId !== null ? 'updated' : 'saved';
+        showFeedback(`✅ Income record ${verb} successfully.`, 'success');
+        if (window.CHECKSCAN && data && data.id) {
+          try { await CHECKSCAN.afterSave(data.id); } catch (e) { /* image is best-effort */ }
+        }
+        clearForm();
+        await loadTransactions();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to save income record.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EDIT — load record into form
+  ════════════════════════════════════ */
+  function editIncome(id) {
+    const txn = allTransactions.find(t => t.id === id);
+    if (!txn) return;
+
+    editingId = id;
+    document.getElementById('formCardTitle').textContent = 'Edit Income';
+    document.getElementById('saveBtn').textContent       = 'Update';
+
+    // Contributor — switch to guest mode if this record has no member ID
+    if (!txn.memberId && txn.guestName) {
+      toggleGuestMode(true);
+      document.getElementById('fGuestName').value = txn.guestName;
+    } else {
+      toggleGuestMode(false);
+      selectedContributorId = txn.memberId || null;
+      document.getElementById('fContributor').value      = txn.memberId   || '';
+      document.getElementById('fContributorInput').value = txn.memberName || '';
+    }
+
+    document.getElementById('fFund').value      = txn.subSourceId       || '';
+    document.getElementById('fDate').value      = txn.incomeDate        || '';
+    document.getElementById('fMethod').value    = txn.transactionTypeId || '';
+    document.getElementById('fRefNo').value     = txn.refNo       || '';
+    document.getElementById('fAmount').value    = txn.amount      || '';
+    document.getElementById('fNote').value      = txn.note        || '';
+    document.getElementById('fQuickAdd').checked = !!txn.quickAdd;
+
+    // Scroll to form
+    document.getElementById('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ════════════════════════════════════
+     DELETE — soft-delete
+  ════════════════════════════════════ */
+  async function deleteIncome(id) {
+    const txn = allTransactions.find(t => t.id === id);
+    const lbl = txn ? `$${formatAmount(txn.amount)} — ${txn.memberName}` : `#${id}`;
+    if (!confirm('Are you sure you want to delete this record?')) return;
+
+    try {
+      const res  = await fetch(`/api/income/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback('✅ Income record deleted.', 'success');
+        if (editingId === id) clearForm();
+        await loadTransactions();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete income record.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete the record.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     VALIDATE FORM
+  ════════════════════════════════════ */
+  function validateForm() {
+    let valid        = true;
+    let firstInvalid = null;
+
+    function setErr(inputId, hintId, msg) {
+      const el = document.getElementById(inputId);
+      document.getElementById(hintId).textContent = msg;
+      el.classList.add('invalid');
+      if (!firstInvalid) firstInvalid = el;
+      valid = false;
+    }
+
+    function clearErr(inputId, hintId) {
+      document.getElementById(inputId).classList.remove('invalid');
+      document.getElementById(hintId).textContent = '';
+    }
+
+    // Fund
+    if (!document.getElementById('fFund').value) {
+      setErr('fFund', 'hFund', 'Fund is required.');
+    } else {
+      clearErr('fFund', 'hFund');
+    }
+
+    // Date
+    if (!document.getElementById('fDate').value) {
+      setErr('fDate', 'hDate', 'Date is required.');
+    } else {
+      clearErr('fDate', 'hDate');
+    }
+
+    // Method
+    if (!document.getElementById('fMethod').value) {
+      setErr('fMethod', 'hMethod', 'Method is required.');
+    } else {
+      clearErr('fMethod', 'hMethod');
+    }
+
+    // Amount
+    const amount = parseFloat(document.getElementById('fAmount').value);
+    if (!document.getElementById('fAmount').value || isNaN(amount) || amount <= 0) {
+      setErr('fAmount', 'hAmount', 'Amount must be greater than zero.');
+    } else {
+      clearErr('fAmount', 'hAmount');
+    }
+
+    // Ref No is never required — no validation
+
+    if (firstInvalid) firstInvalid.focus();
+    return valid;
+  }
+
+  /* ════════════════════════════════════
+     CLEAR FORM
+  ════════════════════════════════════ */
+  function clearForm() {
+    editingId             = null;
+    selectedContributorId = null;
+
+    document.getElementById('formCardTitle').textContent = 'Add Income';
+    document.getElementById('saveBtn').textContent       = 'Save';
+
+    // Reset contributor to member-search mode
+    toggleGuestMode(false);
+
+    document.getElementById('fContributor').value      = '';
+    document.getElementById('fContributorInput').value = '';
+
+    document.getElementById('fFund').value       = '';
+    document.getElementById('fMethod').value     = '';
+    document.getElementById('fRefNo').value      = '';
+    document.getElementById('fAmount').value     = '';
+    document.getElementById('fNote').value       = '';
+    document.getElementById('fQuickAdd').checked = false;
+
+    // Date always resets to today
+    document.getElementById('fDate').value = todayString();
+
+    // Clear all error states
+    ['fContributorInput','fGuestName','fFund','fDate','fMethod','fAmount'].forEach(id => {
+      document.getElementById(id).classList.remove('invalid');
+    });
+    ['hContributor','hFund','hDate','hMethod','hAmount'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
+  }
+
+  function formatAmount(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (async function init() {
+    setCurrentDate();
+    await Promise.all([loadContributors(), loadSubSources(), loadTransactionTypes()]);
+    await loadTransactions();
+
+    // Support ?edit=ID (dashboard) and ?editId=ID (reports) links
+    const params    = new URLSearchParams(window.location.search);
+    const editParam = params.get('editId') || params.get('edit');
+    if (editParam) {
+      const id = parseInt(editParam, 10);
+      if (!isNaN(id)) {
+        const txn = allTransactions.find(t => t.id === id);
+        if (txn) editIncome(id);
+      }
+    }
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'accounting/income', pageTitle: '', openSection: 'accounting' };
+window.CGP_applyPerms = function(p) {
+  if (p && p['accounting.income.edit'] === false) {
+    var fc = document.getElementById('formCard');
+    if (fc) fc.style.display = 'none';
+  }
+  if (typeof renderTable === 'function') renderTable();
+};
+window.CGP_PAGE = { activePage: 'accounting/income', pageTitle: 'Income', openSection: 'accounting' };
+</script>
+<!-- ══════════════════ SCAN CHECK ══════════════════ -->
+<style>
+  .btn-scan-check{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+    border:1.5px solid #673147;background:#673147;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .btn-scan-check:hover{background:#52283a;}
+  .cs-overlay{position:fixed;inset:0;background:rgba(40,20,30,.55);z-index:4000;display:none;
+    align-items:flex-start;justify-content:center;padding:32px 14px;overflow:auto;}
+  .cs-overlay.open{display:flex;}
+  .cs-modal{background:#fff;border-radius:14px;width:640px;max-width:100%;box-shadow:0 22px 60px rgba(0,0,0,.32);overflow:hidden;}
+  .cs-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #eee;}
+  .cs-title{font-size:16px;font-weight:700;color:#673147;}
+  .cs-x{border:none;background:none;font-size:22px;color:#999;cursor:pointer;line-height:1;}
+  .cs-body{padding:18px 20px;}
+  .cs-drop{border:2px dashed #d6c2cd;border-radius:12px;padding:26px 18px;text-align:center;color:#7a6a72;background:#fbf6f8;}
+  .cs-opts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
+  .cs-opt{display:inline-flex;align-items:center;gap:7px;padding:11px 18px;border-radius:9px;border:1.5px solid #673147;
+    background:#fff;color:#673147;font-size:13.5px;font-weight:600;cursor:pointer;}
+  .cs-opt:hover{background:#f3e9ef;}
+  .cs-note{font-size:12px;color:#999;margin-top:12px;text-align:center;}
+  .cs-spin{text-align:center;padding:26px;color:#888;font-size:14px;}
+  .cs-bar{height:6px;border-radius:4px;background:#eee;overflow:hidden;margin:12px auto 0;max-width:260px;}
+  .cs-bar > i{display:block;height:100%;width:0;background:#673147;transition:width .2s;}
+  .cs-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+  .cs-field{display:flex;flex-direction:column;gap:4px;}
+  .cs-field.full{grid-column:1/-1;}
+  .cs-field label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;display:flex;justify-content:space-between;align-items:center;}
+  .cs-field input,.cs-field select{padding:9px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;outline:none;background:#fff;}
+  .cs-field input:focus,.cs-field select:focus{border-color:#673147;}
+  .cs-field.low input{border-color:#e6a23c;background:#fff9ef;}
+  .cs-conf{font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;}
+  .cs-conf.hi{background:#e6f5ec;color:#1e7a44;} .cs-conf.mid{background:#fff4e0;color:#a06b00;} .cs-conf.lo{background:#fdeaea;color:#c0392b;}
+  .cs-warn{background:#fff4e0;border:1px solid #ffd98a;color:#8a5a00;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;}
+  .cs-err{background:#fdeaea;border:1px solid #f5b5b5;color:#b02a2a;border-radius:8px;padding:11px 13px;font-size:13px;margin-bottom:12px;}
+  .cs-matchbox{border:1px solid #eee;border-radius:8px;padding:8px;margin-top:4px;max-height:130px;overflow:auto;}
+  .cs-match{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .cs-match:hover{background:#f6eef2;}
+  .cs-match.sel{background:#efe3ea;font-weight:600;}
+  .cs-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px;}
+  .cs-btn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #c5a0b5;background:#fff;color:#673147;}
+  .cs-btn.solid{background:#673147;color:#fff;border-color:#673147;}
+  .cs-btn.ghost{border-color:#ddd;color:#666;}
+  @media(max-width:560px){ .cs-grid{grid-template-columns:1fr;} }
+</style>
+
+<div class="cs-overlay" id="csOverlay">
+  <div class="cs-modal">
+    <div class="cs-head">
+      <span class="cs-title">📷 Scan Check</span>
+      <button class="cs-x" onclick="CHECKSCAN.close()" title="Close">&times;</button>
+    </div>
+    <div class="cs-body" id="csBody"></div>
+  </div>
+</div>
+
+<!-- hidden file inputs: camera capture + library/file -->
+<input type="file" id="csCamera" accept="image/*" capture="environment" style="display:none" onchange="CHECKSCAN.onFile(this)">
+<input type="file" id="csUpload" accept="image/jpeg,image/png,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.heic,.heif,.pdf" style="display:none" onchange="CHECKSCAN.onFile(this)">
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   CHECKSCAN — capture/upload a check, OCR/extract, review & edit,
+   match contributor, populate the Income form, store the image on save.
+   PDFs are parsed server-side; photos are OCR'd in-browser (Tesseract.js)
+   with graceful fallback to manual entry.
+   ════════════════════════════════════════════════════════════════════ */
+window.CHECKSCAN = (function () {
+  'use strict';
+  var overlay, body;
+  var state = { file: null, data: null, contributorId: null };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function open(){
+    overlay = $('csOverlay'); body = $('csBody');
+    state = { file:null, data:null, contributorId:null, stream:null, _capCanvas:null };
+    renderChooser();
+    overlay.classList.add('open');
+  }
+  function close(){ stopWebcam(); state._capCanvas = null; if (overlay) overlay.classList.remove('open'); }
+
+  function renderChooser(msg){
+    body.innerHTML =
+      (msg ? '<div class="cs-err">'+esc(msg)+'</div>' : '') +
+      '<div class="cs-drop">'+
+        '<div style="font-size:30px;">🧾</div>'+
+        '<div style="font-weight:600;color:#5a4a52;margin-top:6px;">Take a photo of a check or upload an image / PDF</div>'+
+        '<div class="cs-opts">'+
+          '<button class="cs-opt" onclick="CHECKSCAN.pick(\'camera\')">📸 Take Photo</button>'+
+          '<button class="cs-opt" onclick="CHECKSCAN.pick(\'upload\')">📂 Upload Image / PDF</button>'+
+        '</div>'+
+        '<div class="cs-note">Supported: JPG, JPEG, PNG, HEIC, PDF (single check).</div>'+
+      '</div>';
+  }
+
+  function isMobile(){
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile;
+    return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || '');
+  }
+
+  function pick(which){
+    if (which === 'upload'){ $('csUpload').click(); return; }
+    // Camera: mobile uses the native device camera (capture input); desktop opens a live webcam.
+    if (isMobile()){ $('csCamera').click(); return; }
+    openWebcam();
+  }
+
+  // ── Desktop webcam capture (getUserMedia) ──
+  function openWebcam(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      renderChooser('Your browser doesn’t support webcam capture. Please upload an image instead.');
+      return;
+    }
+    body.innerHTML =
+      '<div style="text-align:center;">'+
+        '<video id="csVideo" autoplay playsinline muted style="width:100%;max-width:520px;border-radius:10px;background:#000;"></video>'+
+        '<div class="cs-note">Position the whole check in view, then capture.</div>'+
+        '<div class="cs-actions" style="justify-content:center;">'+
+          '<button class="cs-btn ghost" onclick="CHECKSCAN.closeWebcam()">Cancel</button>'+
+          '<button class="cs-btn solid" onclick="CHECKSCAN.capture()">📸 Capture</button>'+
+        '</div>'+
+      '</div>';
+    navigator.mediaDevices.getUserMedia({ video: { width:{ ideal:1600 }, height:{ ideal:1200 } }, audio:false })
+      .then(function(stream){
+        state.stream = stream;
+        var v = $('csVideo');
+        if (v){ v.srcObject = stream; var p = v.play && v.play(); if (p && p.catch) p.catch(function(){}); }
+      })
+      .catch(function(err){
+        stopWebcam();
+        var name = err && err.name;
+        if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError'){
+          renderChooser('Camera access is required to take a photo. Please allow camera permissions and try again.');
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError'){
+          renderChooser('No camera detected. Please upload an image instead.');
+        } else {
+          renderChooser('Could not open the webcam (' + (name || 'error') + '). Please upload an image instead.');
+        }
+      });
+  }
+
+  function capture(){
+    var v = $('csVideo');
+    if (!v || !v.videoWidth){ return; }
+    var canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+    canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+    stopWebcam();
+    state._capCanvas = canvas;
+    body.innerHTML =
+      '<div style="text-align:center;">'+
+        '<img src="'+canvas.toDataURL('image/jpeg', 0.92)+'" style="width:100%;max-width:520px;border-radius:10px;" alt="Captured check">'+
+        '<div class="cs-note">Make sure the whole check is sharp and readable.</div>'+
+        '<div class="cs-actions" style="justify-content:center;">'+
+          '<button class="cs-btn ghost" onclick="CHECKSCAN.pick(\'camera\')">↺ Retake</button>'+
+          '<button class="cs-btn solid" onclick="CHECKSCAN.useCaptured()">Use This Photo</button>'+
+        '</div>'+
+      '</div>';
+  }
+
+  function useCaptured(){
+    var canvas = state._capCanvas;
+    if (!canvas){ openWebcam(); return; }
+    canvas.toBlob(function(blob){
+      if (!blob){ renderChooser('Could not capture the photo. Please try again.'); return; }
+      var file;
+      try { file = new File([blob], 'webcam-check.jpg', { type:'image/jpeg' }); }
+      catch(e){ file = blob; file.name = 'webcam-check.jpg'; }
+      state.file = file; state._capCanvas = null;
+      scan(file);
+    }, 'image/jpeg', 0.92);
+  }
+
+  function stopWebcam(){
+    if (state.stream){ try { state.stream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){} state.stream = null; }
+  }
+  function closeWebcam(){ stopWebcam(); state._capCanvas = null; renderChooser(); }
+
+  function onFile(input){
+    var f = input.files && input.files[0];
+    input.value = '';
+    if (!f) return;
+    state.file = f;
+    scan(f);
+  }
+
+  function spinner(text, pct){
+    body.innerHTML = '<div class="cs-spin">'+esc(text)+
+      (pct!=null ? '<div class="cs-bar"><i style="width:'+pct+'%"></i></div>' : '')+'</div>';
+  }
+
+  function scan(file){
+    spinner('Reading the check…');
+    var fd = new FormData(); fd.append('file', file);
+    fetch('/api/income/check-scan', { method:'POST', body:fd })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok){ renderChooser(res.j.error || 'Could not read the file.'); return; }
+        var d = res.j;
+        if (d.readable === false && d.method === 'image-needs-ocr'){
+          // Photo → OCR in the browser, then parse on the server.
+          return browserOcr(file);
+        }
+        state.data = d; renderReview(d);
+      })
+      .catch(function(){ renderChooser('Upload failed. Please try again.'); });
+  }
+
+  // ── In-browser OCR for images (Tesseract.js, loaded on demand) ──
+  // Phone photos of checks are often rotated, which breaks OCR. We try all four
+  // orientations with light preprocessing (grayscale + contrast stretch) and keep
+  // whichever reads best — then populate whatever fields we can identify.
+  function browserOcr(file){
+    spinner('Preparing image…', 1);
+    loadTesseract().then(function(T){
+      if (!T){ showUnreadable('OCR could not load (offline?). You can enter the values manually.'); return; }
+      loadImage(file).then(function(img){
+        var angles = [0, 90, 270, 180];
+        var best = null;
+        (function next(i){
+          if (i >= angles.length){ finish(); return; }
+          var canvas = preprocess(img, angles[i]);
+          spinner('Scanning (orientation ' + (i+1) + ' of ' + angles.length + ')…', 0);
+          T.recognize(canvas, 'eng', { logger:function(m){
+            if (m.status === 'recognizing text'){ spinner('Scanning (orientation ' + (i+1) + ' of ' + angles.length + ')…', Math.round((m.progress||0)*100)); }
+          }}).then(function(out){
+            var text = (out && out.data && out.data.text) || '';
+            var conf = (out && out.data && out.data.confidence) || 0;
+            var hints = fieldHints(text);
+            var score = conf + hints * 15;
+            try { console.log('[CHECKSCAN] angle ' + angles[i] + ' · conf ' + Math.round(conf) + ' · hints ' + hints + '\n' + text); } catch(e){}
+            if (!best || score > best.score) best = { angle:angles[i], text:text, conf:conf, score:score, hints:hints };
+            if (hints >= 3 && conf >= 55){ finish(); return; }   // good enough — stop early
+            next(i + 1);
+          }).catch(function(){ next(i + 1); });
+        })(0);
+
+        function finish(){
+          if (!best || !best.text.trim()){ showUnreadable(); return; }
+          try { console.log('[CHECKSCAN] chosen orientation ' + best.angle + '° (conf ' + Math.round(best.conf) + ', hints ' + best.hints + ')'); } catch(e){}
+          spinner('Reading check details…');
+          fetch('/api/income/check-parse', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ text:best.text, ocrConfidence:best.conf }) })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              var hasFields = d && d.fields && Object.keys(d.fields).length > 0;
+              var hasMatch  = d && d.contributor && d.contributor.matches && d.contributor.matches.length > 0;
+              try { console.log('[CHECKSCAN] parsed fields:', d && d.fields); } catch(e){}
+              if (hasFields || hasMatch){ state.data = d; renderReview(d); }   // populate partial results
+              else { showUnreadable(); }
+            })
+            .catch(function(){ showUnreadable(); });
+        }
+      }).catch(function(){ showUnreadable(); });
+    });
+  }
+
+  function loadImage(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      img.onload  = function(){ resolve(img); };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Rotate to `angle`, scale to a good OCR size, grayscale, then BINARIZE with an
+  // Otsu threshold. Checks have a busy security-pattern background; binarizing drops
+  // that light background to white and keeps only the dark ink, which Tesseract reads
+  // far better than a contrast-stretched (and thus noisier) image.
+  function preprocess(img, angle){
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    // Target ~1800px on the long edge: downscale big photos, gently upscale small ones.
+    var target = 1800, scale = target / Math.max(w, h);
+    if (scale > 2) scale = 2;            // don't upscale excessively
+    var sw = Math.max(1, Math.round(w * scale)), sh = Math.max(1, Math.round(h * scale));
+    var rot = (angle % 180) !== 0;
+    var canvas = document.createElement('canvas');
+    canvas.width  = rot ? sh : sw;
+    canvas.height = rot ? sw : sh;
+    var ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(angle * Math.PI / 180);
+    ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    ctx.restore();
+    try {
+      var d = ctx.getImageData(0, 0, canvas.width, canvas.height), p = d.data, i, g;
+      var n = p.length >> 2;
+      var gray = new Uint8Array(n);
+      var hist = new Array(256); for (i = 0; i < 256; i++) hist[i] = 0;
+      for (i = 0; i < n; i++){
+        g = (p[i*4]*0.299 + p[i*4+1]*0.587 + p[i*4+2]*0.114) | 0;
+        if (g > 255) g = 255; gray[i] = g; hist[g]++;
+      }
+      // Otsu's threshold.
+      var sum = 0; for (i = 0; i < 256; i++) sum += i * hist[i];
+      var sumB = 0, wB = 0, max = 0, threshold = 128, mB, mF, between;
+      for (i = 0; i < 256; i++){
+        wB += hist[i]; if (wB === 0) continue;
+        var wF = n - wB; if (wF === 0) break;
+        sumB += i * hist[i];
+        mB = sumB / wB; mF = (sum - sumB) / wF;
+        between = wB * wF * (mB - mF) * (mB - mF);
+        if (between > max){ max = between; threshold = i; }
+      }
+      // Small positive bias so anti-aliased ink edges are captured as black (ink is the
+      // dark class; lowering the threshold would erase faint strokes).
+      var t = threshold + 4;
+      for (i = 0; i < n; i++){ var v = gray[i] <= t ? 0 : 255; p[i*4] = p[i*4+1] = p[i*4+2] = v; }
+      ctx.putImageData(d, 0, 0);
+    } catch(e){ /* getImageData can fail on tainted/large canvases; OCR still runs on the rotated image */ }
+    return canvas;
+  }
+
+  // Quick client-side count of how many check fields a text blob seems to contain.
+  function fieldHints(text){
+    var t = text || '', n = 0;
+    if (/\b\d{1,2}[\/\-.|]\d{1,2}[\/\-.|]\d{2,4}\b/.test(t)) n++;     // date
+    if (/\$|\b\d+[.\-]\d{2}\b/.test(t)) n++;                          // amount
+    if (/\bone\b|\bhundred\b|\/100|dollar/i.test(t)) n++;            // written amount
+    if (/\b\d{3,6}\b/.test(t)) n++;                                   // check / ref no
+    if (/tithe|offering|donation|memo|\bfor\b/i.test(t)) n++;        // memo
+    return n;
+  }
+
+  var _tess = null;
+  function loadTesseract(){
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (_tess) return _tess;
+    var urls = [
+      'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+      'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
+    ];
+    _tess = new Promise(function(resolve){
+      var settled = false;
+      function done(v){ if (!settled){ settled = true; resolve(v); } }
+      (function tryNext(i){
+        if (window.Tesseract) return done(window.Tesseract);
+        if (i >= urls.length) return done(null);
+        var s = document.createElement('script');
+        s.src = urls[i];
+        s.onload  = function(){ window.Tesseract ? done(window.Tesseract) : tryNext(i + 1); };
+        s.onerror = function(){ tryNext(i + 1); };
+        document.head.appendChild(s);
+      })(0);
+      setTimeout(function(){ done(window.Tesseract || null); }, 20000);
+    });
+    return _tess;
+  }
+
+  function showUnreadable(msg){
+    body.innerHTML =
+      '<div class="cs-err">'+ esc(msg || 'Unable to confidently read this check.') +'<br>Please retake the photo or enter the values manually.</div>'+
+      '<div class="cs-actions">'+
+        '<button class="cs-btn" onclick="CHECKSCAN.pick(\'camera\')">Retake Photo</button>'+
+        '<button class="cs-btn" onclick="CHECKSCAN.pick(\'upload\')">Upload Another Image</button>'+
+        '<button class="cs-btn solid" onclick="CHECKSCAN.manual()">Enter Values Manually</button>'+
+      '</div>';
+  }
+
+  // Open a blank review so the user can type values (image still saved with the record).
+  function manual(){
+    state.data = { fields:{}, confidence:{}, contributor:{matches:[],autoSelectId:null}, amountMismatch:false };
+    renderReview(state.data);
+  }
+
+  function confBadge(pct){
+    if (pct == null) return '';
+    var cls = pct >= 90 ? 'hi' : (pct >= 70 ? 'mid' : 'lo');
+    return '<span class="cs-conf '+cls+'">'+pct+'%</span>';
+  }
+  function lowClass(pct){ return (pct != null && pct < 70) ? ' low' : ''; }
+
+  function renderReview(d){
+    var f = d.fields || {}, c = d.confidence || {};
+    var ct = d.contributor || { matches:[], autoSelectId:null };
+    state.contributorId = ct.autoSelectId || null;
+
+    var warn = d.amountMismatch
+      ? '<div class="cs-warn">⚠️ The numeric amount and the written amount don’t match. Please confirm the correct amount.</div>' : '';
+    var lowAny = ['payorName','amount','date','checkNo'].some(function(k){ return c[k]!=null && c[k]<70; });
+    var lowMsg = lowAny ? '<div class="cs-warn">Some fields have low confidence (highlighted). Please review them.</div>' : '';
+
+    // Contributor matching block
+    var matchHtml;
+    var matches = ct.matches || [];
+    if (matches.length === 1 && state.contributorId){
+      matchHtml = '<div class="cs-matchbox"><div class="cs-match sel">✓ '+esc(matches[0].fullName)+' <span class="cs-conf hi">'+matches[0].score+'%</span></div></div>'+
+        '<div class="cs-note" style="text-align:left;">Matched automatically. Tap to change, or switch to a guest name.</div>';
+    } else if (matches.length > 1){
+      matchHtml = '<div class="cs-matchbox" id="csMatches">'+matches.map(function(m){
+        return '<div class="cs-match" data-id="'+m.id+'" onclick="CHECKSCAN.pickMatch(this,'+m.id+')">'+esc(m.fullName)+' '+confBadge(m.score)+'</div>';
+      }).join('')+'</div><div class="cs-note" style="text-align:left;">Multiple possible contributors — pick one.</div>';
+    } else if (f.payorName){
+      matchHtml = '<div class="cs-note" style="text-align:left;">No existing contributor matched “'+esc(f.payorName)+'”. It will be saved as a guest name (or add them in Families).</div>';
+    } else {
+      matchHtml = '<div class="cs-note" style="text-align:left;">No contributor detected — enter or search after populating.</div>';
+    }
+
+    body.innerHTML =
+      warn + lowMsg +
+      '<div class="cs-grid">'+
+        field('Contributor (Payor)', 'csName', f.payorName, c.payorName, true) +
+        '<div class="cs-field full">'+matchHtml+'</div>'+
+        field('Amount', 'csAmount', f.amount, c.amount, false) +
+        field('Date', 'csDate', f.dateDisplay || f.date, c.date, false) +
+        field('Ref No / Check No', 'csCheckNo', f.checkNo, c.checkNo, false) +
+        '<div class="cs-field"><label>Method</label><input id="csMethod" value="Check" readonly></div>'+
+        field('Notes / Memo', 'csMemo', f.memo, c.memo, true) +
+        (f.bank ? '<div class="cs-field full"><label>Bank (detected)</label><input id="csBank" value="'+esc(f.bank)+'" readonly></div>' : '') +
+      '</div>'+
+      '<div class="cs-actions">'+
+        '<button class="cs-btn ghost" onclick="CHECKSCAN.pick(\'upload\')">Upload Another</button>'+
+        '<button class="cs-btn ghost" onclick="CHECKSCAN.pick(\'camera\')">Retake</button>'+
+        '<button class="cs-btn solid" onclick="CHECKSCAN.apply()">Use These Values</button>'+
+      '</div>';
+  }
+
+  function field(label, id, val, conf, full){
+    return '<div class="cs-field'+(full?' full':'')+lowClass(conf)+'">'+
+      '<label>'+esc(label)+' '+confBadge(conf)+'</label>'+
+      '<input id="'+id+'" value="'+esc(val||'')+'"></div>';
+  }
+
+  function pickMatch(el, id){
+    var box = $('csMatches');
+    if (box) box.querySelectorAll('.cs-match').forEach(function(m){ m.classList.remove('sel'); });
+    el.classList.add('sel');
+    state.contributorId = id;
+  }
+
+  // Apply reviewed values to the Income form.
+  function apply(){
+    var name   = ($('csName')   ? $('csName').value   : '').trim();
+    var amount = ($('csAmount') ? $('csAmount').value : '').trim();
+    var dateD  = ($('csDate')   ? $('csDate').value   : '').trim();
+    var checkNo= ($('csCheckNo')? $('csCheckNo').value: '').trim();
+    var memo   = ($('csMemo')   ? $('csMemo').value   : '').trim();
+
+    // Use ONLY the values read from the scanned check. Clear any previously
+    // populated values first (e.g. from an earlier contributor auto-fill) so
+    // nothing carries over into this record.
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fRefNo').value  = '';
+    document.getElementById('fNote').value   = '';
+    var fundSel = document.getElementById('fFund'); if (fundSel) fundSel.value = '';
+
+    // Amount
+    if (amount){ var a = parseFloat(amount.replace(/[^0-9.]/g,'')); if (!isNaN(a)) document.getElementById('fAmount').value = a.toFixed(2); }
+    // Date → the form's date input needs yyyy-MM-dd
+    var iso = toIso(dateD) || (state.data && state.data.fields && state.data.fields.date) || '';
+    if (iso) document.getElementById('fDate').value = iso;
+    // Ref / Notes
+    if (checkNo) document.getElementById('fRefNo').value = checkNo;
+    if (memo)    document.getElementById('fNote').value  = memo;
+    // Method = Check
+    setMethodCheck();
+    // Contributor — select WITHOUT triggering the last-income auto-fill (3rd arg).
+    if (state.contributorId && typeof selectContributor === 'function'){
+      if (typeof toggleGuestMode === 'function') toggleGuestMode(false);
+      selectContributor(state.contributorId, name || '', true);
+    } else if (name){
+      // No match → guest name
+      if (typeof toggleGuestMode === 'function') toggleGuestMode(true);
+      var g = document.getElementById('fGuestName'); if (g) g.value = name;
+    }
+    close();
+    if (typeof showFeedback === 'function') showFeedback('🧾 Check details applied. Review and Save to record it.', 'success');
+    try { document.getElementById('formCard').scrollIntoView({behavior:'smooth', block:'start'}); } catch(e){}
+  }
+
+  function setMethodCheck(){
+    var sel = document.getElementById('fMethod');
+    if (!sel) return;
+    for (var i=0;i<sel.options.length;i++){
+      if (/check|cheque/i.test(sel.options[i].textContent)){ sel.selectedIndex = i; return; }
+    }
+  }
+
+  function toIso(s){
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    var m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (m){ var mo=+m[1],da=+m[2],y=m[3]; var yr=+y; if (y.length===2) yr=(yr>70?1900:2000)+yr;
+      return yr.toString().padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(da).padStart(2,'0'); }
+    var d = new Date(s); if (!isNaN(d.getTime())) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return '';
+  }
+
+  // Called by saveIncome() after a successful save — store the image with the record.
+  function afterSave(incomeId){
+    if (!state.file || !incomeId) { state.file = null; return Promise.resolve(); }
+    var fd = new FormData(); fd.append('file', state.file);
+    return fetch('/api/income/'+incomeId+'/check-image', { method:'POST', body:fd })
+      .catch(function(){ /* best-effort */ })
+      .then(function(){ state.file = null; });
+  }
+
+  return { open:open, close:close, pick:pick, onFile:onFile, manual:manual, apply:apply, pickMatch:pickMatch, afterSave:afterSave,
+           capture:capture, useCaptured:useCaptured, closeWebcam:closeWebcam };
+})();
+</script>
+
+<script src="/voice-core.js"></script>
+<script src="/voice-openai.js"></script>
+<script src="/income-voice.js"></script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

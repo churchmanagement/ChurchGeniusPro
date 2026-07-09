@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Accounting Reports — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* Ensure sidebar keeps its dark background on this page */
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    .page-header { margin-bottom: 24px; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    .reports-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+      max-width: 900px;
+    }
+
+    .report-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow .18s, transform .18s;
+      border: 1.5px solid transparent;
+    }
+    .report-card:hover {
+      box-shadow: 0 6px 24px rgba(103,49,71,.13);
+      border-color: #c5a8b8;
+      transform: translateY(-2px);
+    }
+
+    .report-icon {
+      width: 46px; height: 46px;
+      border-radius: 10px;
+      background: #f0e8ec;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .report-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #673147;
+    }
+
+    .report-desc {
+      font-size: 12.5px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .report-arrow {
+      margin-top: auto;
+      font-size: 18px;
+      color: #c5a8b8;
+      align-self: flex-end;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Accounting Reports</div>
+        <div class="page-subtitle">Select a report to view</div>
+      </div>
+
+      <div class="reports-grid">
+
+        <a class="report-card cgp-fav-able" href="/income-report"
+           data-fav-id="/income-report" data-fav-label="Income Reports" data-fav-href="/income-report"
+           data-fav-icon="📈" data-fav-perm="reports.income">
+          <div class="report-icon">📈</div>
+          <div class="report-name">Income Reports</div>
+          <div class="report-desc">View income summaries, tithes, offerings, and donations by date range or fund.</div>
+          <div class="report-arrow">→</div>
+        </a>
+
+        <a class="report-card cgp-fav-able" href="/expense-report"
+           data-fav-id="/expense-report" data-fav-label="Expense Report" data-fav-href="/expense-report"
+           data-fav-icon="📉" data-fav-perm="reports.expense">
+          <div class="report-icon">📉</div>
+          <div class="report-name">Expense Report</div>
+          <div class="report-desc">Review all expenses by category, purpose, and date range.</div>
+          <div class="report-arrow">→</div>
+        </a>
+
+        <a class="report-card cgp-fav-able" href="/transactions-report"
+           data-fav-id="/transactions-report" data-fav-label="Transactions Report" data-fav-href="/transactions-report"
+           data-fav-icon="🔄" data-fav-perm="reports.daterange">
+          <div class="report-icon">🔄</div>
+          <div class="report-name">Transactions Report</div>
+          <div class="report-desc">Combined income and expense transactions over a selected date range.</div>
+          <div class="report-arrow">→</div>
+        </a>
+
+        <a class="report-card cgp-fav-able" href="/tax-report"
+           data-fav-id="/tax-report" data-fav-label="Tax Report" data-fav-href="/tax-report"
+           data-fav-icon="🧾" data-fav-perm="reports.taxreport">
+          <div class="report-icon">🧾</div>
+          <div class="report-name">Tax Report</div>
+          <div class="report-desc">Year-end giving summaries per member for tax and donation receipts.</div>
+          <div class="report-arrow">→</div>
+        </a>
+
+        <a class="report-card cgp-fav-able" href="/financial-report"
+           data-fav-id="/financial-report" data-fav-label="Financial Reports" data-fav-href="/financial-report"
+           data-fav-icon="📊" data-fav-perm="reports.financial">
+          <div class="report-icon">📊</div>
+          <div class="report-name">Financial Reports</div>
+          <div class="report-desc">Comprehensive financial overview including income vs. expense by category and year.</div>
+          <div class="report-arrow">→</div>
+        </a>
+
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = {
+  activePage:  'accounting/reports',
+  pageTitle:   '',
+  openSection: 'accounting'
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

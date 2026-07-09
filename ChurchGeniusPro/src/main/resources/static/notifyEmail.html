@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Notify Email – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── App shell ── */
+    
+
+        /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+/* ── Main area ── */
+    
+
+    /* ── Topbar ── */
+    
+    
+    
+    .search-wrap { display: flex; align-items: center; gap: 8px; background: #f5f6fa; border-radius: 8px; padding: 6px 12px; }
+    .search-icon { color: #999; font-size: 14px; }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; width: 180px; }
+    
+    .tb-link, .tb-dropdown, .btn-admin-settings { font-size: 13px; background: #673147; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; }
+    .btn-admin-settings:hover { background: #3f4568; }
+
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+
+    /* ── Page content ── */
+    
+    .page-header { margin-bottom: 20px; }
+    .page-title { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .feedback.info    { display: block; background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+    /* ── Form card ── */
+    .form-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e8eaf0;
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .form-card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd;
+    }
+    .section-icon { font-size: 18px; }
+    .form-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; }
+    .form-card-body { padding: 20px; }
+
+    /* ── Sub-sections ── */
+    .sub-section { margin-bottom: 24px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: #673147; margin-bottom: 14px;
+      padding-bottom: 6px; border-bottom: 1px solid #eef0f8;
+    }
+
+    /* ── Form grid ── */
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .span-2 { grid-column: span 2; }
+
+    /* ── Fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .required-star { color: #e53935; }
+    .field input[type="text"],
+    .field input[type="email"],
+    .field select,
+    .field textarea {
+      border: 1px solid #ddd; border-radius: 7px; padding: 9px 11px;
+      font-size: 13px; color: #333; outline: none; background: #fff;
+      font-family: inherit; transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12);
+    }
+    .field input.invalid, .field select.invalid, .field textarea.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; }
+    .field-hint  { font-size: 11px; color: #e53935; min-height: 14px; }
+    .field-note  { font-size: 11px; color: #888; font-style: italic; }
+
+    /* ── Content editor ── */
+    .content-toolbar {
+      display: flex; gap: 4px; padding: 6px 8px;
+      border: 1px solid #ddd; border-bottom: none;
+      border-radius: 7px 7px 0 0; background: #f9f9f9;
+    }
+    .content-toolbar button {
+      padding: 3px 9px; font-size: 13px; border: 1px solid #ddd;
+      border-radius: 4px; background: #fff; cursor: pointer; color: #444;
+    }
+    .content-toolbar button:hover { background: #eef0f8; border-color: #673147; color: #673147; }
+    #contentEditor {
+      border: 1px solid #ddd; border-radius: 0 0 7px 7px;
+      padding: 10px 12px; min-height: 200px; outline: none;
+      font-size: 13px; font-family: inherit; line-height: 1.6;
+      background: #fff; overflow-y: auto;
+    }
+    #contentEditor:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    #contentEditor.invalid { border-color: #e53935; }
+
+    /* ── File upload ── */
+    .file-upload-zone {
+      border: 2px dashed #d0d4e8; border-radius: 10px; padding: 20px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+    }
+    .file-upload-zone:hover, .file-upload-zone.drag-over {
+      border-color: #673147; background: #eef0f8;
+    }
+    .file-upload-zone input[type="file"] { display: none; }
+    .file-upload-icon { font-size: 28px; margin-bottom: 6px; }
+    .file-upload-text { font-size: 13px; color: #666; }
+    .file-upload-text strong { color: #673147; cursor: pointer; }
+    .file-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .file-item {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border-radius: 6px; padding: 7px 10px;
+      font-size: 13px;
+    }
+    .file-item-icon { font-size: 16px; }
+    .file-item-name { flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item-size { color: #999; white-space: nowrap; }
+    .file-item-remove {
+      background: none; border: none; color: #ccc; font-size: 18px;
+      cursor: pointer; padding: 0 2px; line-height: 1;
+    }
+    .file-item-remove:hover { color: #e53935; }
+
+    /* ── Recipient pill ── */
+    .recipient-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #eef0f8; border: 1px solid #d0d4e8; border-radius: 20px;
+      padding: 5px 12px; font-size: 13px; color: #673147; font-weight: 600;
+      margin-top: 8px;
+    }
+    .recipient-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #673147; }
+
+    /* ── Tag input for group emails ── */
+    .email-tags-wrap {
+      border: 1px solid #ddd; border-radius: 7px; padding: 6px 8px;
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px;
+      background: #fff; cursor: text; transition: border-color .2s, box-shadow .2s;
+    }
+    .email-tags-wrap:focus-within { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .email-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #eef0f8; border: 1px solid #c5cae9; border-radius: 14px;
+      padding: 2px 8px; font-size: 13px; color: #3949ab;
+    }
+    .email-tag-remove {
+      background: none; border: none; color: #aaa; font-size: 14px;
+      cursor: pointer; padding: 0 1px; line-height: 1;
+    }
+    .email-tag-remove:hover { color: #e53935; }
+    .email-tag-input {
+      border: none; outline: none; font-size: 13px; min-width: 180px;
+      flex: 1; padding: 2px 4px; background: transparent;
+    }
+
+    /* ── Action bar ── */
+    .action-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 20px; border-top: 1px solid #eee; background: #fafbfd;
+    }
+    .btn-preview {
+      background: none; border: 1.5px solid #673147; border-radius: 8px;
+      padding: 9px 22px; font-size: 13px; font-weight: 600; color: #673147; cursor: pointer;
+    }
+    .btn-preview:hover { background: #eef0f8; }
+    .btn-send {
+      background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 8px;
+      padding: 9px 24px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-send:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+    .spacer { flex: 1; }
+
+    /* ── Conditional sections ── */
+    .conditional-section {
+      background: #fdf5f7; border: 1px solid #f0e0e7; border-radius: 10px;
+      padding: 16px; margin-top: 10px;
+    }
+
+    /* ── Preview Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; animation: fadeIn .15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal {
+      background: #fff; border-radius: 14px; width: 680px; max-width: 96vw;
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px; border-bottom: 1px solid #eee;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; color: #1e2139; }
+    .modal-close {
+      background: none; border: none; font-size: 22px; color: #aaa; cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: #333; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+    .modal-footer {
+      display: flex; gap: 10px; justify-content: flex-end;
+      padding: 14px 22px; border-top: 1px solid #eee; background: #fafbfd;
+      border-radius: 0 0 14px 14px;
+    }
+    .preview-row { display: flex; flex-direction: column; gap: 4px; }
+    .preview-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888; }
+    .preview-value { font-size: 13px; color: #333; }
+    .preview-recipient-list {
+      max-height: 150px; overflow-y: auto; border: 1px solid #eee; border-radius: 7px;
+      background: #fafbfd;
+    }
+    .preview-recipient-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-bottom: 1px solid #f5f5f5; font-size: 13px;
+    }
+    .preview-recipient-item:last-child { border-bottom: none; }
+    .preview-recipient-name { font-weight: 600; min-width: 130px; }
+    .preview-recipient-email { color: #777; }
+    .preview-content-box {
+      border: 1px solid #eee; border-radius: 7px; padding: 12px;
+      font-size: 13px; line-height: 1.6; max-height: 200px; overflow-y: auto;
+      background: #fafbfd;
+    }
+    .preview-file-list { display: flex; flex-direction: column; gap: 4px; }
+    .preview-file-item { font-size: 13px; color: #555; padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+    .modal-btn-cancel {
+      padding: 9px 22px; font-size: 13px; font-weight: 600; border-radius: 8px;
+      border: 1.5px solid #ddd; background: none; cursor: pointer; color: #666;
+    }
+    .modal-btn-send {
+      padding: 9px 24px; font-size: 13px; font-weight: 600; border-radius: 8px;
+      background: #673147; color: #fff; border: none; cursor: pointer;
+    }
+    .modal-btn-send:hover { background: #4f2538; }
+    .modal-btn-send:disabled { opacity: .6; cursor: not-allowed; }
+
+    @media (max-width: 700px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .span-2 { grid-column: span 1; }
+    }
+
+    /* ── Email settings panel ── */
+    #emailSettingsPanel .form-grid { grid-template-columns: repeat(2, 1fr); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div class="page-title">Email</div>
+          <div class="page-subtitle">Compose and send emails to church members, guests, or custom groups</div>
+        </div>
+        <button id="btnEmailSettings" onclick="toggleEmailSettings()"
+                style="padding:8px 18px;border-radius:7px;font-size:13px;font-weight:600;
+                       color:#673147;border:1.5px solid #c5cae9;background:#fff;cursor:pointer;
+                       white-space:nowrap;margin-top:2px;">
+          ⚙ Settings
+        </button>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ══ Compose Card ══════════════════════════════════════════════ -->
+      <div class="form-card">
+        <div class="form-card-body">
+
+          <!-- ── Recipients ── -->
+          <div class="sub-section">
+            <div class="sub-section-title">Recipients</div>
+            <div class="form-grid">
+
+              <!-- Recipient Type -->
+              <div class="field">
+                <label for="recipientType">Recipient Type <span class="required-star">*</span></label>
+                <select id="recipientType" onchange="onRecipientTypeChange(this.value)">
+                  <option value="">— Select Recipient Type —</option>
+                  <option value="members">Members</option>
+                  <option value="event-guests">Event Registrants</option>
+                  <option value="church-guests">Church Guests</option>
+                  <option value="group-email">Group Email</option>
+                </select>
+                <span class="field-hint" id="recipientTypeHint"></span>
+              </div>
+
+              <!-- Recipient summary pill -->
+              <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+                <div id="recipientPill" style="display:none;" class="recipient-pill">
+                  <span class="dot"></span>
+                  <span id="recipientPillText">0 recipients</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Event Guests – event selector -->
+            <div class="conditional-section" id="eventSection" style="display:none;">
+              <div class="field">
+                <label for="eventSelector">Select Event <span class="required-star">*</span></label>
+                <select id="eventSelector" onchange="onEventSelected(this.value)">
+                  <option value="">— Select an Event —</option>
+                </select>
+                <span class="field-note">The email will be sent to all registrants for the selected event.</span>
+              </div>
+            </div>
+
+            <!-- Group Email – tag email input -->
+            <div class="conditional-section" id="groupEmailSection" style="display:none;">
+              <div class="field">
+                <label>Recipient Email Addresses <span class="required-star">*</span></label>
+                <div class="email-tags-wrap" id="emailTagsWrap" onclick="document.getElementById('emailTagInput').focus()">
+                  <input type="text" id="emailTagInput"
+                         class="email-tag-input"
+                         placeholder="Type an email and press Enter or comma…"
+                         onkeydown="onEmailTagKeydown(event)"
+                         onblur="onEmailTagBlur()" />
+                </div>
+                <span class="field-note">Press <kbd>Enter</kbd> or <kbd>,</kbd> after each address.</span>
+                <span class="field-hint" id="groupEmailHint"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Email Content ── -->
+          <div class="sub-section">
+            <div class="sub-section-title">Email Content</div>
+            <div class="form-grid">
+
+              <!-- Subject -->
+              <div class="field span-2">
+                <label for="subject">Subject <span class="required-star">*</span></label>
+                <input type="text" id="subject" placeholder="Enter email subject…" />
+                <span class="field-hint" id="subjectHint"></span>
+              </div>
+
+              <!-- Content / Body -->
+              <div class="field span-2">
+                <label>Content <span class="required-star">*</span></label>
+                <div class="content-toolbar">
+                  <button type="button" title="Bold"     onclick="fmt('bold')"><b>B</b></button>
+                  <button type="button" title="Italic"   onclick="fmt('italic')"><i>I</i></button>
+                  <button type="button" title="Underline" onclick="fmt('underline')"><u>U</u></button>
+                  <button type="button" title="Unordered list" onclick="fmt('insertUnorderedList')">• List</button>
+                  <button type="button" title="Ordered list"   onclick="fmt('insertOrderedList')">1. List</button>
+                  <button type="button" title="Clear formatting" onclick="fmt('removeFormat')" style="margin-left:auto;">✕ Clear</button>
+                </div>
+                <div id="contentEditor" contenteditable="true"
+                     data-placeholder="Write your email body here…"
+                     oninput="onContentInput()"></div>
+                <span class="field-hint" id="contentHint"></span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ── Attachments ── -->
+          <div class="sub-section">
+            <div class="sub-section-title">Attach Files</div>
+            <div class="file-upload-zone" id="fileDropZone"
+                 onclick="document.getElementById('fileInput').click()"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <input type="file" id="fileInput" multiple onchange="onFilesSelected(this.files)" />
+              <div class="file-upload-icon">📎</div>
+              <div class="file-upload-text">
+                Drag &amp; drop files here, or <strong>click to browse</strong>
+              </div>
+              <div class="file-upload-text" style="font-size:11px;color:#bbb;margin-top:4px;">
+                Any file type · Up to 10 files
+              </div>
+            </div>
+            <div class="file-list" id="fileList"></div>
+          </div>
+
+        </div>
+
+        <!-- Action bar -->
+        <div class="action-bar">
+          <button class="btn-preview" onclick="openPreview()">🔍 Preview</button>
+          <span class="spacer"></span>
+          <button class="btn-send" id="sendBtn" onclick="sendEmail()">📨 Send Email</button>
+        </div>
+      </div>
+
+      <!-- ── Email Settings Panel ─────────────────────── -->
+      <div class="form-card" id="emailSettingsPanel" style="display:none;">
+        <div class="form-card-header" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="section-icon">⚙</span>
+            <h3>Email Settings</h3>
+          </div>
+          <button onclick="toggleEmailSettings()"
+                  style="padding:3px 10px;font-size: 13px;border:1px solid #ddd;border-radius:5px;color:#888;cursor:pointer;">✕ Close</button>
+        </div>
+        <div class="form-card-body">
+          <div class="feedback" id="settingsFeedback"></div>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="esDisplayName">Display Name</label>
+              <input type="text" id="esDisplayName" placeholder="e.g. Church Genius Pro" />
+              <span class="field-note">Sender name shown in email clients.</span>
+            </div>
+            <div class="field span-2">
+              <label for="esSignature">Email Signature</label>
+              <textarea id="esSignature" rows="3" placeholder="e.g. Blessings,&#10;The Church Office Team"></textarea>
+            </div>
+            <div class="field span-2">
+              <label for="esFooter">Footer Comments</label>
+              <textarea id="esFooter" rows="2" placeholder="e.g. © 2026 Church Genius Pro. All rights reserved."></textarea>
+            </div>
+            <div class="field">
+              <label for="esIncludeLogo">Include Logo in Email</label>
+              <select id="esIncludeLogo">
+                <option value="true">Yes – include org logo</option>
+                <option value="false">No – text only</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="esIncludeVerse">Include Daily Verse</label>
+              <select id="esIncludeVerse">
+                <option value="true">Yes – append daily verse</option>
+                <option value="false">No – omit verse</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="action-bar">
+          <span class="spacer"></span>
+          <button class="btn-preview" onclick="loadEmailSettings()" style="margin-right:4px;">↺ Reload</button>
+          <button class="btn-send" id="settingsSaveBtn" onclick="saveEmailSettings()">💾 Save Settings</button>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ══ Preview Modal ══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="previewOverlay" style="display:none;" onclick="closePreviewOnOverlay(event)">
+  <div class="modal" id="previewModal">
+    <div class="modal-header">
+      <h2>📋 Email Preview</h2>
+      <button class="modal-close" onclick="closePreview()">×</button>
+    </div>
+    <div class="modal-body" id="previewBody">
+      <!-- Populated by JS -->
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn-cancel" onclick="closePreview()">Close</button>
+      <button class="modal-btn-send" id="previewSendBtn" onclick="sendFromPreview()">📨 Send Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     PAGE STATE
+  ════════════════════════════════════ */
+  let recipientType   = '';
+  let selectedEventId = null;
+  let emailTags       = [];    // for Group Email
+  let attachedFiles   = [];    // DataTransfer / File objects
+  let resolvedRecipients = []; // cached from last API call
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    loadEvents();
+    setupContentEditorPlaceholder();
+  })();
+
+  async function loadEvents() {
+    try {
+      const res = await fetch('/api/notify/events');
+      const events = await res.json();
+      const sel = document.getElementById('eventSelector');
+      events.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = e.label;
+        sel.appendChild(opt);
+      });
+    } catch { /* no events yet */ }
+  }
+
+  /* ════════════════════════════════════
+     RECIPIENT TYPE CHANGE
+  ════════════════════════════════════ */
+  async function onRecipientTypeChange(type) {
+    recipientType   = type;
+    selectedEventId = null;
+    resolvedRecipients = [];
+
+    // Show / hide conditional sections
+    document.getElementById('eventSection').style.display =
+      (type === 'event-guests') ? '' : 'none';
+    document.getElementById('groupEmailSection').style.display =
+      (type === 'group-email') ? '' : 'none';
+
+    clearHint('recipientTypeHint');
+
+    // For non-group types, fetch and display recipient count.
+    // For event-guests, don't fetch until an event is chosen — just reset the pill.
+    if (type && type !== 'group-email' && type !== 'event-guests') {
+      await refreshRecipientPill(type, null);
+    } else if (type === 'event-guests') {
+      hidePill();
+    } else if (type === 'group-email') {
+      updateGroupEmailPill();
+    } else {
+      hidePill();
+    }
+  }
+
+  async function onEventSelected(eventId) {
+    selectedEventId = eventId ? parseInt(eventId) : null;
+    if (selectedEventId) {
+      await refreshRecipientPill('event-guests', selectedEventId);
+    }
+  }
+
+  async function refreshRecipientPill(type, eventId) {
+    try {
+      const url = `/api/notify/recipients?type=${type}` + (eventId ? `&eventId=${eventId}` : '');
+      const res  = await fetch(url);
+      resolvedRecipients = await res.json();
+      showPill(resolvedRecipients.length);
+    } catch {
+      showPill(0);
+    }
+  }
+
+  function showPill(count) {
+    const pill = document.getElementById('recipientPill');
+    document.getElementById('recipientPillText').textContent =
+      count === 0 ? 'No recipients found' : `${count} recipient${count === 1 ? '' : 's'}`;
+    pill.style.display = '';
+    pill.style.background = count === 0 ? '#fff3e0' : '#eef0f8';
+    pill.style.color       = count === 0 ? '#e65100' : '#673147';
+    pill.style.borderColor = count === 0 ? '#ffcc80' : '#d0d4e8';
+    pill.querySelector('.dot').style.background = count === 0 ? '#ff9800' : '#673147';
+  }
+
+  function hidePill() {
+    document.getElementById('recipientPill').style.display = 'none';
+  }
+
+  /* ════════════════════════════════════
+     GROUP EMAIL – TAG INPUT
+  ════════════════════════════════════ */
+  function onEmailTagKeydown(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addEmailTag(e.target.value.trim());
+    } else if (e.key === 'Backspace' && e.target.value === '' && emailTags.length) {
+      removeEmailTag(emailTags.length - 1);
+    }
+  }
+
+  function onEmailTagBlur() {
+    const v = document.getElementById('emailTagInput').value.trim();
+    if (v) addEmailTag(v);
+  }
+
+  function addEmailTag(email) {
+    const clean = email.replace(/,/g, '').trim();
+    if (!clean || !clean.includes('@')) {
+      if (clean) setHint('groupEmailHint', `"${clean}" is not a valid email address.`);
+      return;
+    }
+    clearHint('groupEmailHint');
+    if (!emailTags.includes(clean)) {
+      emailTags.push(clean);
+      renderEmailTags();
+    }
+    document.getElementById('emailTagInput').value = '';
+    updateGroupEmailPill();
+  }
+
+  function removeEmailTag(idx) {
+    emailTags.splice(idx, 1);
+    renderEmailTags();
+    updateGroupEmailPill();
+  }
+
+  function renderEmailTags() {
+    const wrap = document.getElementById('emailTagsWrap');
+    // Remove existing tags (keep the input)
+    Array.from(wrap.querySelectorAll('.email-tag')).forEach(t => t.remove());
+    const input = document.getElementById('emailTagInput');
+    emailTags.forEach((email, i) => {
+      const tag = document.createElement('span');
+      tag.className = 'email-tag';
+      tag.innerHTML = `${email}<button class="email-tag-remove" onclick="removeEmailTag(${i})" title="Remove">×</button>`;
+      wrap.insertBefore(tag, input);
+    });
+  }
+
+  function updateGroupEmailPill() {
+    if (recipientType === 'group-email') {
+      showPill(emailTags.length);
+    }
+  }
+
+  /* ════════════════════════════════════
+     CONTENT EDITOR
+  ════════════════════════════════════ */
+  function setupContentEditorPlaceholder() {
+    const el = document.getElementById('contentEditor');
+    el.addEventListener('focus', () => el.classList.add('focused'));
+    el.addEventListener('blur',  () => el.classList.remove('focused'));
+  }
+
+  function onContentInput() {
+    clearHint('contentHint');
+    document.getElementById('contentEditor').classList.remove('invalid');
+  }
+
+  function fmt(command) {
+    document.getElementById('contentEditor').focus();
+    document.execCommand(command, false, null);
+  }
+
+  function getContentHtml() {
+    return document.getElementById('contentEditor').innerHTML.trim();
+  }
+
+  function getContentText() {
+    return document.getElementById('contentEditor').innerText.trim();
+  }
+
+  /* ════════════════════════════════════
+     FILE UPLOAD
+  ════════════════════════════════════ */
+  function onFilesSelected(fileList) {
+    Array.from(fileList).forEach(f => {
+      if (attachedFiles.length < 10 && !attachedFiles.some(af => af.name === f.name && af.size === f.size)) {
+        attachedFiles.push(f);
+      }
+    });
+    renderFileList();
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('fileDropZone').classList.add('drag-over');
+  }
+
+  function onDragLeave() {
+    document.getElementById('fileDropZone').classList.remove('drag-over');
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('fileDropZone').classList.remove('drag-over');
+    onFilesSelected(e.dataTransfer.files);
+  }
+
+  function removeFile(idx) {
+    attachedFiles.splice(idx, 1);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('fileList');
+    list.innerHTML = attachedFiles.map((f, i) => {
+      const size = f.size < 1024 ? `${f.size} B`
+                 : f.size < 1048576 ? `${(f.size / 1024).toFixed(1)} KB`
+                 : `${(f.size / 1048576).toFixed(1)} MB`;
+      const icon = f.type.startsWith('image/') ? '🖼️'
+                 : f.type === 'application/pdf' ? '📄'
+                 : f.name.endsWith('.docx') || f.name.endsWith('.doc') ? '📝' : '📎';
+      return `<div class="file-item">
+        <span class="file-item-icon">${icon}</span>
+        <span class="file-item-name" title="${f.name}">${f.name}</span>
+        <span class="file-item-size">${size}</span>
+        <button class="file-item-remove" onclick="removeFile(${i})" title="Remove">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  /* ════════════════════════════════════
+     VALIDATION
+  ════════════════════════════════════ */
+  function validate() {
+    let ok = true;
+
+    if (!recipientType) {
+      setHint('recipientTypeHint', 'Please select a recipient type.');
+      document.getElementById('recipientType').classList.add('invalid');
+      ok = false;
+    } else {
+      clearHint('recipientTypeHint');
+      document.getElementById('recipientType').classList.remove('invalid');
+    }
+
+    if (recipientType === 'event-guests' && !selectedEventId) {
+      showFeedback('Please select an event for Event Registrants.', 'error');
+      ok = false;
+    }
+
+    if (recipientType === 'group-email' && emailTags.length === 0) {
+      setHint('groupEmailHint', 'Please add at least one recipient email address.');
+      ok = false;
+    } else {
+      clearHint('groupEmailHint');
+    }
+
+    if (!document.getElementById('subject').value.trim()) {
+      setHint('subjectHint', 'Subject is required.');
+      document.getElementById('subject').classList.add('invalid');
+      ok = false;
+    } else {
+      clearHint('subjectHint');
+      document.getElementById('subject').classList.remove('invalid');
+    }
+
+    if (!getContentText()) {
+      setHint('contentHint', 'Email content is required.');
+      document.getElementById('contentEditor').classList.add('invalid');
+      ok = false;
+    } else {
+      clearHint('contentHint');
+      document.getElementById('contentEditor').classList.remove('invalid');
+    }
+
+    return ok;
+  }
+
+  /* ════════════════════════════════════
+     PREVIEW
+  ════════════════════════════════════ */
+  async function openPreview() {
+    if (!validate()) return;
+
+    // For group-email, use emailTags as recipients; otherwise use cached/fetched
+    let recipients = resolvedRecipients;
+    if (recipientType === 'group-email') {
+      recipients = emailTags.map(e => ({ email: e, name: '' }));
+    } else if (recipients.length === 0) {
+      // Re-fetch if not yet cached
+      try {
+        const url = `/api/notify/recipients?type=${recipientType}` + (selectedEventId ? `&eventId=${selectedEventId}` : '');
+        const res = await fetch(url);
+        recipients = await res.json();
+        resolvedRecipients = recipients;
+      } catch { recipients = []; }
+    }
+
+    buildPreviewModal(recipients);
+    document.getElementById('previewOverlay').style.display = '';
+  }
+
+  function buildPreviewModal(recipients) {
+    const subject     = document.getElementById('subject').value;
+    const contentHtml = getContentHtml();
+    const typeLabel   = {
+      'members':       'All Members',
+      'event-guests':  'Event Registrants',
+      'church-guests': 'Church Guests',
+      'group-email':   'Custom Group Email'
+    }[recipientType] || recipientType;
+
+    // Build recipient list rows (max 50 visible)
+    const visibleMax = 50;
+    const shown      = recipients.slice(0, visibleMax);
+    const extra      = recipients.length - shown.length;
+    const recipientsHtml = recipients.length === 0
+      ? '<div class="preview-recipient-item" style="color:#aaa;">No recipients found</div>'
+      : shown.map(r =>
+          `<div class="preview-recipient-item">
+             ${r.name ? `<span class="preview-recipient-name">${r.name}</span>` : ''}
+             <span class="preview-recipient-email">${r.email}</span>
+           </div>`
+        ).join('')
+        + (extra > 0 ? `<div class="preview-recipient-item" style="color:#aaa;font-style:italic;">…and ${extra} more</div>` : '');
+
+    // Build file list
+    const filesHtml = attachedFiles.length === 0
+      ? '<span style="color:#aaa;font-size: 13px;">No attachments</span>'
+      : attachedFiles.map(f => `<div class="preview-file-item">📎 ${f.name}</div>`).join('');
+
+    document.getElementById('previewBody').innerHTML = `
+      <div class="preview-row">
+        <div class="preview-label">Recipient Type</div>
+        <div class="preview-value">${typeLabel}
+          <strong style="color:#673147;margin-left:6px;">(${recipients.length} recipient${recipients.length !== 1 ? 's' : ''})</strong>
+        </div>
+      </div>
+      <div class="preview-row">
+        <div class="preview-label">Recipients</div>
+        <div class="preview-recipient-list">${recipientsHtml}</div>
+      </div>
+      <div class="preview-row">
+        <div class="preview-label">Subject</div>
+        <div class="preview-value">${escapeHtml(subject)}</div>
+      </div>
+      <div class="preview-row">
+        <div class="preview-label">Content</div>
+        <div class="preview-content-box">${contentHtml}</div>
+      </div>
+      <div class="preview-row">
+        <div class="preview-label">Attachments</div>
+        <div class="preview-file-list">${filesHtml}</div>
+      </div>
+    `;
+  }
+
+  function closePreview() {
+    document.getElementById('previewOverlay').style.display = 'none';
+  }
+
+  function closePreviewOnOverlay(e) {
+    if (e.target === document.getElementById('previewOverlay')) closePreview();
+  }
+
+  async function sendFromPreview() {
+    closePreview();
+    await sendEmail();
+  }
+
+  /* ════════════════════════════════════
+     SEND
+  ════════════════════════════════════ */
+  async function sendEmail() {
+    if (!validate()) return;
+
+    const btn        = document.getElementById('sendBtn');
+    const previewBtn = document.getElementById('previewSendBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    if (previewBtn) { previewBtn.disabled = true; previewBtn.textContent = 'Sending…'; }
+
+    try {
+      const fd = new FormData();
+      fd.append('recipientType', recipientType);
+      if (selectedEventId) fd.append('eventId', selectedEventId);
+      if (recipientType === 'group-email') fd.append('manualEmails', emailTags.join(','));
+      fd.append('subject', document.getElementById('subject').value.trim());
+      fd.append('content', getContentHtml());
+      attachedFiles.forEach(f => fd.append('files', f));
+
+      const res  = await fetch('/api/notify/send', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (res.ok) {
+        showFeedback(`✅ ${data.message}`, 'success');
+        resetForm();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to send email.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '📨 Send Email';
+      if (previewBtn) { previewBtn.disabled = false; previewBtn.textContent = '📨 Send Now'; }
+    }
+  }
+
+  /* ════════════════════════════════════
+     RESET
+  ════════════════════════════════════ */
+  function resetForm() {
+    recipientType   = '';
+    selectedEventId = null;
+    emailTags       = [];
+    attachedFiles   = [];
+    resolvedRecipients = [];
+
+    document.getElementById('recipientType').value = '';
+    document.getElementById('eventSelector').value = '';
+    document.getElementById('subject').value       = '';
+    document.getElementById('contentEditor').innerHTML = '';
+    document.getElementById('fileInput').value     = '';
+    document.getElementById('eventSection').style.display      = 'none';
+    document.getElementById('groupEmailSection').style.display = 'none';
+    hidePill();
+    renderEmailTags();
+    renderFileList();
+
+    ['recipientTypeHint','subjectHint','contentHint','groupEmailHint'].forEach(id => clearHint(id));
+    ['recipientType','subject'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+    document.getElementById('contentEditor').classList.remove('invalid');
+  }
+
+  /* ════════════════════════════════════
+     UTILITIES
+  ════════════════════════════════════ */
+  function setHint(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+
+  function clearHint(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ════════════════════════════════════
+     EMAIL SETTINGS PANEL
+  ════════════════════════════════════ */
+  let emailSettingsOpen = false;
+
+  function toggleEmailSettings() {
+    emailSettingsOpen = !emailSettingsOpen;
+    const panel = document.getElementById('emailSettingsPanel');
+    panel.style.display = emailSettingsOpen ? '' : 'none';
+    if (emailSettingsOpen) {
+      loadEmailSettings();
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  async function loadEmailSettings() {
+    try {
+      const res  = await fetch('/api/email-settings');
+      if (!res.ok) return;
+      const d = await res.json();
+      document.getElementById('esDisplayName').value  = d.displayName  || '';
+      document.getElementById('esSignature').value    = d.signature    || '';
+      document.getElementById('esFooter').value       = d.footerComments|| '';
+      document.getElementById('esIncludeLogo').value  = d.includeLogo  === false ? 'false' : 'true';
+      document.getElementById('esIncludeVerse').value = d.includeDailyVerse === false ? 'false' : 'true';
+    } catch { /* ignore */ }
+  }
+
+  async function saveEmailSettings() {
+    const btn = document.getElementById('settingsSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const body = {
+      displayName:     document.getElementById('esDisplayName').value.trim(),
+      signature:       document.getElementById('esSignature').value.trim(),
+      footerComments:  document.getElementById('esFooter').value.trim(),
+      includeLogo:     document.getElementById('esIncludeLogo').value === 'true',
+      includeDailyVerse: document.getElementById('esIncludeVerse').value === 'true'
+    };
+    try {
+      const res  = await fetch('/api/email-settings', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const data = await res.json();
+      const fbEl = document.getElementById('settingsFeedback');
+      if (res.ok) {
+        fbEl.textContent = '✅ Settings saved successfully.';
+        fbEl.className   = 'feedback success';
+        setTimeout(() => { fbEl.className = 'feedback'; }, 3000);
+      } else {
+        fbEl.textContent = `❌ ${data.error || 'Failed to save settings.'}`;
+        fbEl.className   = 'feedback error';
+      }
+    } catch {
+      const fbEl = document.getElementById('settingsFeedback');
+      fbEl.textContent = '❌ Network error.';
+      fbEl.className   = 'feedback error';
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Save Settings';
+    }
+  }
+</script>
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  if (p['general.emailsettings'] === false) hide('#btnEmailSettings');
+};
+window.CGP_PAGE = { activePage: 'general/email', pageTitle: 'Notify Email', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

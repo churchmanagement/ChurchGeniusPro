@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Income Report — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;}
+    a{text-decoration:none;color:inherit;}
+    button{cursor:pointer;font-family:inherit;border:none;background:none;}
+    
+    /* Sidebar */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* Main */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    
+    /* Report page */
+    .rpt-header{margin-bottom:20px;}
+    .rpt-title{font-size:22px;font-weight:700;color:#673147;}
+    .rpt-sub{font-size:13px;color:#888;margin-top:4px;}
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px 24px;margin-bottom:20px;}
+    /* Filter grid — uses same .form-grid / .field classes as income.html to avoid mobile.css conflicts */
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;align-items:end;}
+    .form-grid .span2{grid-column:span 2;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.4px;}
+    .field input,.field select{width:100%;padding:10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;background:#fff;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;}
+    .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+    .field input:focus,.field select:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .btn-primary{padding:10px 22px;background:transparent;color:#673147;border:1px solid #c5a0b5;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;transition:background .18s,color .18s,border-color .18s;}
+    .btn-primary:hover{background:#673147;color:#fff;border-color:#673147;}
+    .btn-pdf{padding:10px 18px;background:#43a047;color:#fff;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn-pdf:hover{background:#2e7d32;}
+    /* Report table */
+    .rpt-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .rpt-actions-title{font-size:15px;font-weight:700;color:#673147;}
+    table.rpt{width:100%;border-collapse:collapse;font-size:13px;}
+    table.rpt th{background:#f5f6fa;color:#555;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:2px solid #eee;}
+    table.rpt td{padding:8px 12px;border-bottom:1px solid #f4f4f4;color:#333;}
+    table.rpt tr.member-hdr td{background:#e8eaf6;font-weight:700;color:#673147;}
+    table.rpt tr.sub-row td{padding-left:24px;}
+    table.rpt tr.member-total td{font-weight:700;color:#673147;background:#f9f9ff;}
+    table.rpt tr.grand-total td{font-weight:800;color:#fff;background:#673147;font-size:14px;}
+    table.rpt tr.section-total td{font-weight:700;color:#673147;background:#f0f2ff;}
+    .amt{text-align:right;}
+    .empty-msg{text-align:center;padding:32px;color:#bbb;font-size:13px;}
+    .act-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:none;cursor:pointer;font-size:13px;transition:background .15s;}
+    .act-btn.edit{background:#e8f0fe;color:#1a73e8;}.act-btn.edit:hover{background:#c5d8fb;}
+    .act-btn.del{background:#fce8e6;color:#d93025;margin-left:4px;}.act-btn.del:hover{background:#f7c6c3;}
+    @media print{.act-col{display:none!important;}}
+    /* downloadPDF() adds .pdf-hide to every .act-col before html2pdf captures
+       the report content, then removes it afterwards. @media print only applies
+       to the browser's print dialog — html2pdf renders the live DOM, so a
+       separate runtime class is needed to keep the Action column out of PDFs. */
+    .pdf-hide{display:none!important;}
+    /* Searchable member dropdown */
+    .srch-dd-wrap{position:relative;}
+    .srch-dd-input{width:100%;padding:10px 36px 10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;background:#fff;outline:none;transition:border-color .2s,box-shadow .2s;cursor:pointer;}
+    .srch-dd-input:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .srch-dd-arrow{position:absolute;right:13px;top:50%;transform:translateY(-50%);pointer-events:none;color:#aaa;font-size:11px;}
+    .srch-dd-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #673147;border-radius:7px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;display:none;}
+    .srch-dd-list.open{display:block;}
+    .srch-dd-search{padding:8px 10px;border-bottom:1px solid #f0f0f0;}
+    .srch-dd-search input{width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;outline:none;}
+    .srch-dd-search input:focus{border-color:#673147;}
+    .srch-dd-opt{padding:9px 13px;font-size:13px;color:#333;cursor:pointer;}
+    .srch-dd-opt:hover,.srch-dd-opt.active{background:#f5f0f3;color:#673147;}
+    .srch-dd-opt.placeholder{color:#aaa;}
+    .srch-dd-empty{padding:10px 13px;font-size:13px;color:#bbb;font-style:italic;}
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
+    @media print{.sidebar,.topbar,.filter-card,.rpt-actions .btn-pdf{display:none!important;}.page-content{padding:0;}.rpt-print-header{display:block!important;}}
+    @media(max-width:600px){
+      .card{padding:12px 10px;}
+      .form-grid{grid-template-columns:1fr;gap:10px;}
+      .form-grid .span2{grid-column:span 1;}
+      .btn-primary{width:100%;padding:12px;font-size:14px;}
+    }
+    .rpt-print-header{display:none;text-align:center;margin-bottom:16px;}
+    .rpt-print-header h2{font-size:18px;font-weight:700;}
+    .rpt-print-header p{font-size:13px;color:#555;}
+    .filter-section-divider{width:100%;border:none;border-top:1px dashed #e0e0e0;margin:10px 0 4px;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="rpt-header">
+        <div class="rpt-title">📄 Income Report</div>
+        <div class="rpt-sub">Individual income transactions for the selected date range, ordered by date. Export as PDF.</div>
+      </div>
+
+      <!-- Filter card -->
+      <div class="card filter-card">
+        <div class="form-grid">
+          <div class="field">
+            <label>Start Date</label>
+            <input type="date" id="startDate"/>
+          </div>
+          <div class="field">
+            <label>End Date</label>
+            <input type="date" id="endDate"/>
+          </div>
+          <div class="field span2">
+            <label>Quick Period</label>
+            <select id="quickPeriod" onchange="applyQuickPeriod()">
+              <option value="">Select period…</option>
+              <option value="ytd">Year to Date</option>
+              <option value="1">Last 1 month</option>
+              <option value="2">Last 2 months</option>
+              <option value="3">Last 3 months</option>
+              <option value="4">Last 4 months</option>
+              <option value="5">Last 5 months</option>
+            </select>
+          </div>
+        </div>
+        <!-- Optional filters row -->
+        <hr class="filter-section-divider"/>
+        <div class="form-grid" style="margin-top:6px;">
+          <div class="field">
+            <label>Member <span style="font-weight:400;text-transform:none;color:#aaa;">(optional)</span></label>
+            <div class="srch-dd-wrap" id="memberDdWrap">
+              <div class="srch-dd-input" id="memberDdDisplay" tabindex="0">All Members</div>
+              <span class="srch-dd-arrow">▼</span>
+              <div class="srch-dd-list" id="memberDdList">
+                <div class="srch-dd-search"><input type="text" id="memberDdSearch" placeholder="Search members…" autocomplete="off" /></div>
+                <div id="memberDdOpts"></div>
+              </div>
+            </div>
+            <input type="hidden" id="memberFilter" value="" />
+          </div>
+          <div class="field">
+            <label>Sub-Category <span style="font-weight:400;text-transform:none;color:#aaa;">(optional)</span></label>
+            <select id="subSourceFilter">
+              <option value="">All Sub-Categories</option>
+            </select>
+          </div>
+          <div class="field span2">
+            <button class="btn-primary" onclick="generateReport()">Generate Report</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report output -->
+      <div class="card" id="reportCard" style="display:none;">
+        <div class="rpt-actions">
+          <div class="rpt-actions-title" id="reportRangeLabel"></div>
+          <button class="btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
+        </div>
+        <div id="reportContent">
+          <div class="rpt-print-header">
+            <h2 id="printChurchName"></h2>
+            <p>Income Report</p>
+            <p id="printRange"></p>
+            <p id="printFilters" style="font-size: 13px;color:#777;margin-top:4px;"></p>
+          </div>
+          <div id="reportTable"></div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+/* ── Sidebar ─────────────────────────────────── */
+
+
+function visibleSections() {
+  if (localStorage.getItem('church') === 'true') return new Set(ROLE_SECTIONS['Church']);
+  return new Set(ROLE_SECTIONS[localStorage.getItem('role') || ''] || ROLE_SECTIONS['User']);
+}
+function toggleMenu(id){ if (openMenus.has(id)) { openMenus.delete(id); } else { openMenus.clear(); openMenus.add(id); } renderNav(); }
+
+/* ── Searchable Member Dropdown ──────────────── */
+function initMemberDropdown(items) {
+  const display  = document.getElementById('memberDdDisplay');
+  const list     = document.getElementById('memberDdList');
+  const search   = document.getElementById('memberDdSearch');
+  const optsWrap = document.getElementById('memberDdOpts');
+  const hidden   = document.getElementById('memberFilter');
+
+  function renderOpts(q) {
+    const filtered = items.filter(it => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+    optsWrap.innerHTML = '';
+    if (!filtered.length) {
+      optsWrap.innerHTML = '<div class="srch-dd-empty">No members found</div>';
+      return;
+    }
+    filtered.forEach(it => {
+      const div = document.createElement('div');
+      div.className = 'srch-dd-opt' + (it.id === hidden.value ? ' active' : '') + (!it.id ? ' placeholder' : '');
+      div.textContent = it.label;
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        hidden.value  = it.id;
+        display.textContent = it.label;
+        optsWrap.querySelectorAll('.srch-dd-opt').forEach(d => d.classList.remove('active'));
+        div.classList.add('active');
+        list.classList.remove('open');
+        search.value = '';
+        renderOpts('');
+      });
+      optsWrap.appendChild(div);
+    });
+  }
+
+  renderOpts('');
+
+  display.addEventListener('click', () => {
+    list.classList.toggle('open');
+    if (list.classList.contains('open')) { search.focus(); }
+  });
+  display.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { list.classList.toggle('open'); if (list.classList.contains('open')) search.focus(); } });
+
+  search.addEventListener('input', () => renderOpts(search.value));
+  search.addEventListener('keydown', e => { if (e.key === 'Escape') { list.classList.remove('open'); search.value = ''; renderOpts(''); } });
+
+  document.addEventListener('click', e => {
+    if (!document.getElementById('memberDdWrap').contains(e.target)) {
+      list.classList.remove('open');
+      search.value = '';
+      renderOpts('');
+    }
+  });
+}
+
+/* ── Init sidebar + load dropdowns ──────────── */
+(async function init(){
+
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const [membersRes, subRes] = await Promise.all([
+      fetch(`/api/income/contributors?clientId=${encodeURIComponent(clientId)}`),
+      fetch(`/api/income/sub-sources?clientId=${encodeURIComponent(clientId)}`)
+    ]);
+    const members = await membersRes.json();
+    const subs    = await subRes.json();
+
+    // Build searchable member dropdown
+    const memberItems = [{ id: '', label: 'All Members' }];
+    (members || []).forEach(m => {
+      memberItems.push({ id: String(m.id), label: (m.lastName ? m.lastName + ', ' + m.firstName : m.firstName) || '' });
+    });
+    initMemberDropdown(memberItems);
+
+    const sSel = document.getElementById('subSourceFilter');
+    const showMain = localStorage.getItem('showMainWithSub') !== 'false';
+    (subs || []).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      const subName  = s.sourceName || s.name || '';
+      const mainName = s.mainSourceName || '';
+      opt.textContent = (showMain && mainName) ? `${mainName} / ${subName}` : subName;
+      sSel.appendChild(opt);
+    });
+  } catch(e){ console.warn('Could not load filter dropdowns:', e); }
+})();
+
+/* ── Helpers ─────────────────────────────────── */
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(s){
+  if(!s) return '';
+  const [y,m,d] = s.split('-');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
+}
+
+/* ── Quick period ────────────────────────────── */
+function applyQuickPeriod(){
+  const val = document.getElementById('quickPeriod').value;
+  if (!val) return;
+  const today = new Date();
+  const end   = today.toISOString().slice(0,10);
+  let start;
+  if (val === 'ytd') {
+    start = `${today.getFullYear()}-01-01`;
+  } else {
+    const d = new Date(); d.setMonth(d.getMonth() - parseInt(val, 10));
+    start = d.toISOString().slice(0,10);
+  }
+  document.getElementById('endDate').value   = end;
+  document.getElementById('startDate').value = start;
+}
+
+/* ── Generate Report ─────────────────────────── */
+async function generateReport(){
+  const sd = document.getElementById('startDate').value;
+  const ed = document.getElementById('endDate').value;
+  if (!sd || !ed){ alert('Please select a date range.'); return; }
+  if (new Date(ed) < new Date(sd)){ alert('End date must be after start date.'); return; }
+  const diffYears = (new Date(ed) - new Date(sd)) / (1000*60*60*24*365);
+  if (diffYears > 5){ alert('Date range cannot exceed 5 years.'); return; }
+
+  const clientId    = localStorage.getItem('clientId') || '';
+  const memberId    = document.getElementById('memberFilter').value;
+  const subSourceId = document.getElementById('subSourceFilter').value;
+
+  let url = `/api/reports/income?startDate=${sd}&endDate=${ed}&clientId=${encodeURIComponent(clientId)}`;
+  if (memberId)    url += `&memberId=${memberId}`;
+  if (subSourceId) url += `&subSourceId=${subSourceId}`;
+
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    renderReport(data, sd, ed);
+  } catch(e){ alert('Failed to load report data.'); console.error(e); }
+}
+
+function truncate(s, n){ s = s || ''; return s.length > n ? s.slice(0, n) + '…' : s; }
+
+function renderReport(data, sd, ed){
+  const label = `${fmtDate(sd)} – ${fmtDate(ed)}`;
+  document.getElementById('reportRangeLabel').textContent = `Income Report · ${label}`;
+  document.getElementById('printRange').textContent       = label;
+  document.getElementById('printChurchName').textContent  = localStorage.getItem('churchName') || '';
+
+  const mSel = document.getElementById('memberFilter');
+  const sSel = document.getElementById('subSourceFilter');
+  const filterParts = [];
+  if (mSel.value) filterParts.push(`Member: ${document.getElementById('memberDdDisplay').textContent}`);
+  if (sSel.value) filterParts.push(`Sub-Category: ${sSel.options[sSel.selectedIndex].text}`);
+  document.getElementById('printFilters').textContent = filterParts.length ? 'Filters: ' + filterParts.join(' · ') : '';
+
+  const transactions   = (data.transactions || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const grand          = data.grandTotal   || 0;
+  const memberSelected = data.memberSelected;
+
+  if (!transactions.length) {
+    document.getElementById('reportTable').innerHTML =
+      '<div class="empty-msg">No income records found for the selected filters.</div>';
+    document.getElementById('reportCard').style.display = '';
+    return;
+  }
+
+  let rows = '';
+  transactions.forEach(tx => {
+    const editUrl = '/income';
+    const actCell = tx.id
+      ? `<td class="act-col" style="white-space:nowrap;">
+           <button class="act-btn edit" title="Edit" onclick="window.location.href='${editUrl}?editId=${tx.id}'">✏️</button>
+           <button class="act-btn del"  title="Delete" onclick="deleteIncome(${tx.id},this)">🗑</button>
+         </td>`
+      : '<td class="act-col"></td>';
+    rows += '<tr>';
+    rows += `<td>${esc(fmtDate(tx.date))}</td>`;
+    if (!memberSelected) rows += `<td>${esc(tx.contributor || '')}</td>`;
+    rows += `<td>${esc(tx.fund    || '')}</td>`;
+    rows += `<td>${esc(tx.method  || '')}</td>`;
+    rows += `<td>${esc(tx.refNo   || '')}</td>`;
+    rows += `<td title="${esc(tx.note || '')}">${esc(truncate(tx.note, 25))}</td>`;
+    rows += `<td class="amt">${fmt(tx.amount)}</td>`;
+    rows += actCell;
+    rows += '</tr>';
+  });
+
+  // Grand total row
+  const colspan = memberSelected ? 6 : 7;
+  rows += `<tr class="grand-total"><td colspan="${colspan}">Total</td><td class="amt">${fmt(grand)}</td><td class="act-col"></td></tr>`;
+
+  const contributorCol = memberSelected ? '' : '<th>Contributor</th>';
+  document.getElementById('reportTable').innerHTML = `
+    <div style="overflow-x:auto;">
+    <table class="rpt">
+      <thead><tr>
+        <th style="width:110px;">Date</th>
+        ${contributorCol}
+        <th>Fund</th>
+        <th style="width:110px;">Method</th>
+        <th style="width:90px;">Ref No</th>
+        <th style="width:160px;">Note</th>
+        <th class="amt" style="width:110px;">Amount</th>
+        <th class="act-col" style="width:72px;">Action</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>`;
+
+  document.getElementById('reportCard').style.display = '';
+}
+
+/* ── Delete income record ───────────────────── */
+async function deleteIncome(id, btn) {
+  if (!confirm('Delete this income record? This cannot be undone.')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/income/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      const row = btn.closest('tr');
+      row.style.transition = 'opacity .3s';
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 320);
+    } else {
+      alert('Delete failed. Please try again.');
+      btn.disabled = false;
+    }
+  } catch(e) { alert('Delete failed.'); btn.disabled = false; }
+}
+
+/* ── PDF Download ────────────────────────────── */
+function downloadPDF(){
+  const el  = document.getElementById('reportContent');
+  const sd  = document.getElementById('startDate').value;
+  const ed  = document.getElementById('endDate').value;
+  const opt = {
+    margin:       [10,10,10,10],
+    filename:     `income-report-${sd}-to-${ed}.pdf`,
+    image:        { type:'jpeg', quality:0.98 },
+    html2canvas:  { scale:2, useCORS:true },
+    jsPDF:        { unit:'mm', format:'a4', orientation:'portrait' }
+  };
+  // Show print header, hide the Action column (Edit/Delete buttons) — the
+  // PDF is a record of the report, not an interactive view, so action controls
+  // shouldn't appear. The Action header AND every Action cell share .act-col.
+  document.querySelector('.rpt-print-header').style.display = 'block';
+  const actCols = el.querySelectorAll('.act-col');
+  actCols.forEach(c => c.classList.add('pdf-hide'));
+  html2pdf().set(opt).from(el).save().then(() => {
+    document.querySelector('.rpt-print-header').style.display = 'none';
+    actCols.forEach(c => c.classList.remove('pdf-hide'));
+  }).catch(() => {
+    document.querySelector('.rpt-print-header').style.display = 'none';
+    actCols.forEach(c => c.classList.remove('pdf-hide'));
+  });
+}
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'accounting/income-report', pageTitle: 'Income Report', openSection: 'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,2674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro</title>
+  <style>
+    /* ── Reset ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ───────────────────────────────── */
+    
+
+    /* ── Sidebar ─────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ───────────────────────────────── */
+    
+
+    /* ── Top-bar ─────────────────────────────────── */
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    /* .tb-username removed */
+
+    /* ── Topbar logo ──────────────────────────────── */
+    .topbar-logo-wrap {
+      display: flex; align-items: center; height: 40px;
+      cursor: pointer; text-decoration: none; flex-shrink: 0;
+    }
+    .topbar-logo-inner { height: 36px; display: flex; align-items: center; }
+    .topbar-logo-inner img {
+      height: 36px; max-width: 160px; object-fit: contain; display: block;
+    }
+    .topbar-logo-fallback {
+      font-size: 14px; font-weight: 700; color: #673147;
+      overflow: hidden; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      max-height: 2.7em; max-width: 180px;
+    }
+    .btn-customize {
+      font-size: 13px; font-weight: 600; color: #673147;
+      padding: 5px 12px; border: 1px solid #c5cae9;
+      border-radius: 6px; background: #eef0fb; transition: background .15s;
+    }
+    .btn-customize:hover { background: #e0e4f8; }
+
+    /* ── Page content ────────────────────────────── */
+    
+
+    /* ── Dashboard sections ──────────────────────── */
+    .dash-section { }
+    .dash-body-section { padding: 0 24px; margin-bottom: 20px; }
+
+    /* ── AI Search bar ────────────────────────────── */
+    .ai-search-wrap { padding: 18px 24px 0; }
+    .ai-search-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; border: 2px solid #c5cae9; border-radius: 14px;
+      padding: 10px 16px; box-shadow: 0 2px 12px rgba(103,49,71,.1);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .ai-search-bar:focus-within { border-color: #673147; box-shadow: 0 0 0 4px rgba(103,49,71,.1); }
+    .ai-search-icon { font-size: 18px; flex-shrink: 0; }
+    .ai-search-input {
+      flex: 1; border: none; outline: none; font-size: 14px; color: #1e2139;
+      background: transparent; min-width: 0;
+    }
+    .ai-search-input::placeholder { color: #b0b8d0; }
+    .ai-search-btn {
+      background: transparent; color: #673147; border: none; border-radius: 9px;
+      padding: 7px 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+      flex-shrink: 0; white-space: nowrap; transition: background .15s, color .15s;
+    }
+    .ai-search-btn:hover    { background: #673147; color: #fff; }
+    .ai-search-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Results panel */
+    .ai-results-panel {
+      background: #fff; border-radius: 14px; margin-top: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.09); border: 1px solid #e8eaf0; overflow: hidden;
+    }
+    .ai-results-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 20px; border-bottom: 1px solid #f0f1f8; background: #fafbfe;
+    }
+    .ai-results-title { font-size: 13px; font-weight: 700; color: #1e2139; }
+    .ai-results-close {
+      background: none; border: none; cursor: pointer; font-size: 16px;
+      color: #b0b8d0; line-height: 1;
+    }
+    .ai-results-close:hover { color: #673147; }
+    .ai-answer {
+      padding: 14px 20px; font-size: 14px; color: #333; line-height: 1.6;
+      border-bottom: 1px solid #f3f4f9;
+    }
+    .ai-answer.ai-denied { color: #c62828; background: #ffebee; }
+    .ai-answer.ai-error  { color: #c62828; }
+    .ai-links-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px; padding: 14px 20px;
+    }
+    .ai-link-card {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: #f5f6fb; border-radius: 10px; padding: 12px 14px;
+      text-decoration: none; color: #1e2139;
+      border: 1px solid #eef0f8; transition: background .15s, border-color .15s;
+    }
+    .ai-link-card:hover { background: #eef0fb; border-color: #c5cae9; }
+    .ai-link-icon  { font-size: 20px; flex-shrink: 0; }
+    .ai-link-label { font-size: 13px; font-weight: 700; }
+    .ai-link-desc  { font-size: 11px; color: #9fa8c4; margin-top: 2px; }
+    .ai-table-wrap { padding: 0 20px 16px; overflow-x: auto; }
+    .ai-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ai-table th {
+      background: #f5f6fb; font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .4px; color: #9fa8c4; padding: 8px 12px; text-align: left;
+      border-bottom: 2px solid #eef0f8; white-space: nowrap;
+    }
+    .ai-table td { padding: 9px 12px; border-bottom: 1px solid #f3f4f9; vertical-align: middle; }
+    .ai-table tr:last-child td { border-bottom: none; }
+    .ai-table tbody tr:hover td { background: #fafbfe; }
+    .ai-events-list { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .ai-event-item {
+      display: flex; align-items: center; gap: 12px;
+      background: #f5f6fb; border-radius: 9px; padding: 10px 14px; font-size: 13px;
+    }
+    .ai-event-emoji { font-size: 18px; flex-shrink: 0; }
+    .ai-event-name  { font-weight: 600; color: #1e2139; flex: 1; }
+    .ai-event-badge {
+      font-size: 10px; background: #eef0fb; color: #673147;
+      border-radius: 4px; padding: 1px 7px; font-weight: 600; margin-left: 6px;
+    }
+    .ai-event-date  { font-size: 13px; color: #673147; font-weight: 600; white-space: nowrap; }
+    .ai-sections { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 14px; }
+    .ai-section-chip {
+      background: #eef0fb; color: #673147; border-radius: 20px;
+      padding: 4px 14px; font-size: 13px; font-weight: 700;
+    }
+
+    /* ── Banner ──────────────────────────────────── */
+    .banner {
+      background: #f5f6fa;
+      padding: 24px 28px 0;
+      position: relative; overflow: hidden;
+    }
+    .banner::before, .banner::after { display: none; }
+    .banner-greeting { font-size: 22px; font-weight: 700; color: #673147; margin-bottom: 20px; }
+
+    /* ── Stat cards (inside banner) ──────────────── */
+    .stat-cards {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; position: relative; z-index: 1;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e8eaf0;
+      border-radius: 12px; padding: 18px 20px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      transition: box-shadow .2s;
+    }
+    .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+    .stat-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .stat-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: #eef0fb;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .stat-label { font-size: 13px; color: #888; font-weight: 500; }
+    .stat-value { font-size: 30px; font-weight: 700; color: #673147; line-height: 1; margin-bottom: 6px; }
+    .stat-trend { font-size: 11px; color: #aaa; }
+    .stat-trend .up   { color: #2e7d32; font-weight: 600; }
+    .stat-trend .down { color: #c62828; font-weight: 600; }
+
+    /* wave below banner */
+    .banner-wave { display: block; width: 100%; height: 30px; }
+
+    /* ── Dashboard body ──────────────────────────── */
+    .dash-body { padding: 0 24px 28px; }
+
+    /* ── Row layouts ─────────────────────────────── */
+    .dash-row { display: grid; gap: 20px; margin-bottom: 20px; }
+    .cols-6-4 { grid-template-columns: 6fr 4fr; }
+    .cols-1   { grid-template-columns: 1fr; }
+    @media (max-width: 1100px) {
+      .stat-cards { grid-template-columns: repeat(2, 1fr); }
+      .cols-6-4   { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .stat-cards { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ───────────────────────────────────── */
+    .card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06); overflow: hidden;
+    }
+    .card-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 0;
+    }
+    .card-title { font-size: 15px; font-weight: 700; color: #673147; }
+    .card-sub   { font-size: 13px; color: #bbb; margin-top: 2px; }
+    .card-link  {
+      font-size: 13px; color: #673147; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+    }
+    .card-link:hover { text-decoration: underline; }
+    .card-body  { padding: 14px 20px 20px; }
+
+    /* ── Growth chart ────────────────────────────── */
+    #growthChart { width: 100%; display: block; }
+
+
+    /* ── Mini Event Calendar ─────────────────────── */
+    .cal-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .cal-nav-title { font-size: 13px; font-weight: 700; color: #673147; }
+    .cal-nav-btn {
+      font-size: 16px; color: #673147; padding: 2px 6px;
+      border-radius: 4px; transition: background .15s;
+    }
+    .cal-nav-btn:hover { background: #e8eaf6; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-dow {
+      text-align: center; font-size: 10px; font-weight: 700;
+      color: #aaa; text-transform: uppercase; padding: 2px 0 5px;
+    }
+    .cal-cell {
+      min-height: 32px; border-radius: 6px; padding: 3px 4px;
+      display: flex; flex-direction: column; align-items: center;
+      cursor: default; transition: background .15s;
+    }
+    .cal-cell.other-month .cal-day-num { color: #ddd; }
+    .cal-cell.today { background: #e8eaf6; }
+    .cal-day-num { font-size: 11px; font-weight: 600; color: #555; line-height: 1.3; }
+    .cal-cell.today .cal-day-num { color: #673147; font-weight: 700; }
+    .cal-dots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
+    .cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .cal-dot.meeting  { background: #42a5f5; }
+    .cal-dot.birthday { background: #f06292; }
+    .cal-dot.anniversary { background: #ab47bc; }
+
+    /* ── Upcoming Events list ────────────────────── */
+    .evt-list { display: flex; flex-direction: column; gap: 0; }
+    .evt-row {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 11px 0; border-bottom: 1px solid #f4f4f4;
+    }
+    .evt-row:last-child { border-bottom: none; }
+    .evt-date-box {
+      width: 42px; flex-shrink: 0; background: #e8eaf6;
+      border-radius: 8px; padding: 5px 4px; text-align: center;
+    }
+    .evt-day  { font-size: 18px; font-weight: 800; color: #673147; line-height: 1; }
+    .evt-mon  { font-size: 9px;  font-weight: 700; color: #7986cb; text-transform: uppercase; }
+    .evt-info { flex: 1; }
+    .evt-title { font-size: 13px; font-weight: 600; color: #333; }
+    .evt-time  { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .evt-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 9px;
+      border-radius: 10px; background: #e8eaf6; color: #673147;
+      align-self: center; flex-shrink: 0; white-space: nowrap;
+    }
+    .evt-empty { text-align: center; padding: 32px; color: #bbb; font-size: 13px; }
+
+    /* ── Member distribution bars ────────────────── */
+    .dist-row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .dist-row:last-child { margin-bottom: 0; }
+    .dist-label { font-size: 13px; color: #555; width: 62px; flex-shrink: 0; }
+    .dist-bar-wrap { flex: 1; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
+    .dist-bar { height: 100%; border-radius: 5px; }
+    .dist-pct { font-size: 11px; font-weight: 600; color: #555; width: 36px; text-align: right; flex-shrink: 0; }
+
+    /* ── Scrollbar ───────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    /* ════════════════════════════════════════
+       ACCOUNTANT DASHBOARD
+    ════════════════════════════════════════ */
+    .acct-summary {
+      display: flex; justify-content: center;
+      position: relative; z-index: 1;
+    }
+    .acct-sum-card {
+      background: rgba(255,255,255,.14); backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,.18); border-radius: 12px;
+      padding: 22px 48px 20px; text-align: center; min-width: 280px;
+    }
+    .acct-sum-label { font-size: 13px; color: rgba(255,255,255,.7); font-weight: 500; margin-bottom: 8px; }
+    .acct-sum-value { font-size: 24px; font-weight: 700; color: #fff; }
+    .acct-net-pos   { color: #69f0ae; }
+    .acct-net-neg   { color: #ff5252; }
+    .acct-section-hdr  { margin-bottom: 12px; }
+    .acct-section-title{ font-size: 15px; font-weight: 700; color: #673147; }
+    .acct-section-sub  { font-size: 13px; color: #aaa; margin-top: 2px; }
+    .acct-nav-btn { background:none;border:1px solid #ddd;border-radius:4px;width:22px;height:22px;font-size:16px;line-height:1;cursor:pointer;color:#673147;display:flex;align-items:center;justify-content:center;padding:0;transition:background .15s; }
+    .acct-nav-btn:hover { background:#f0f0ff; }
+    .acct-cats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 24px;
+    }
+    .acct-cat-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 16px 18px 14px; border-left: 4px solid #673147;
+      transition: box-shadow .2s, transform .15s;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .acct-cat-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.11); transform: translateY(-2px); }
+    .acct-cat-top    { display: flex; align-items: center; gap: 8px; }
+    .acct-cat-icon   { width: 28px; height: 28px; border-radius: 8px;
+                       display: flex; align-items: center; justify-content: center;
+                       font-size: 14px; flex-shrink: 0; }
+    .acct-cat-name   { font-size: 11px; font-weight: 700; color: #777;
+                       text-transform: uppercase; letter-spacing: .4px; line-height: 1.3; }
+    .acct-cat-amount { font-size: 20px; font-weight: 800; color: #673147; letter-spacing: -.3px; }
+    .acct-cat-pct    { font-size: 11px; color: #aaa; font-weight: 500; }
+    .activity-list { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
+    .activity-item {
+      display: flex; align-items: center; gap: 11px;
+      padding: 8px 0; border-bottom: 1px solid #f4f4f4; flex-shrink: 0;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .activity-dot.income  { background: #66bb6a; }
+    .activity-dot.expense { background: #ef5350; }
+    .activity-info  { flex: 1; min-width: 0; }
+    .activity-label { font-size: 13px; font-weight: 600; color: #333;
+                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-meta  { font-size: 11px; color: #aaa; margin-top: 1px; }
+    .activity-amount         { font-size: 13px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .activity-amount.income  { color: #2e7d32; }
+    .activity-amount.expense { color: #c62828; }
+    .bi-legend { display: flex; align-items: center; gap: 20px; margin-top: 10px; justify-content: center; }
+    .bi-leg-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+    .bi-leg-dot  { width: 12px; height: 12px; border-radius: 2px; }
+    .donut-panel    { display: flex; align-items: center; gap: 14px; }
+    .donut-svg-wrap { flex-shrink: 0; }
+    .donut-legend   { display: flex; flex-direction: column; gap: 5px; flex: 1; overflow: hidden; }
+    .donut-leg-row  { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #555; }
+    .donut-leg-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .donut-leg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .donut-leg-pct  { color: #aaa; flex-shrink: 0; }
+    .donut-leg-amt  { color: #673147; font-weight: 600; flex-shrink: 0; font-size: 10px; }
+    @media (max-width: 900px) {
+      .acct-cats    { grid-template-columns: repeat(2, 1fr); }
+      .acct-cat-amount { font-size: 17px; }
+    }
+
+    /* ── Quick Add panels ───────────────────── */
+    .qa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .qa-table th {
+      padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600;
+      color: #888; text-transform: uppercase; letter-spacing: .4px;
+      border-bottom: 1px solid #eee; background: #fafafa;
+    }
+    .qa-table td { padding: 8px 10px; border-bottom: 1px solid #f4f4f4; vertical-align: middle; }
+    .qa-table tr:last-child td { border-bottom: none; }
+    .qa-view  { color: #555; font-size: 13px; }
+    .qa-input {
+      width: 100%; padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 13px; font-family: inherit; outline: none;
+      transition: border-color .15s;
+    }
+    .qa-input:focus { border-color: #673147; }
+    .qa-input[type="number"] { max-width: 110px; }
+    .qa-input[type="date"]   { max-width: 118px; }
+    .qa-btn {
+      padding: 5px 14px; background: #673147; color: #fff; border: none;
+      border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .qa-btn:hover    { background: #4f2538; }
+    .qa-btn:disabled { background: #bbb; cursor: default; }
+    .qa-remove-btn {
+      padding: 4px 8px; background: none; color: #bbb; border: 1px solid #e0e0e0;
+      border-radius: 6px; font-size: 13px; cursor: pointer; line-height: 1;
+      transition: color .15s, border-color .15s; white-space: nowrap;
+      margin-left: 6px;
+    }
+    .qa-remove-btn:hover { color: #e53935; border-color: #e53935; }
+    .qa-empty {
+      text-align: center; padding: 24px; color: #bbb; font-size: 13px;
+    }
+
+    /* ── Recent Transactions table ──────────── */
+    .rt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rt-table th {
+      padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600;
+      color: #888; text-transform: uppercase; letter-spacing: .4px;
+      border-bottom: 1px solid #eee; background: #fafafa;
+    }
+    .rt-table td { padding: 8px 12px; border-bottom: 1px solid #f4f4f4; vertical-align: middle; }
+    .rt-table tr:last-child td { border-bottom: none; }
+    .rt-table tr:hover td { background: #f9f9fb; }
+    .rt-link {
+      color: #673147; font-size: 13px; text-decoration: none; font-weight: 500;
+    }
+    .rt-link:hover { text-decoration: underline; }
+    .rt-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .rt-badge.income  { background: #e8f5e9; color: #2e7d32; }
+    .rt-badge.expense { background: #ffebee; color: #c62828; }
+
+    /* ════════════════════════════════════════
+       INLINE EDIT MODE
+    ════════════════════════════════════════ */
+
+    /* ── Edit-mode banner ── */
+    #editModeBanner {
+      display: none; align-items: center; justify-content: space-between;
+      background: #673147; color: #fff;
+      padding: 9px 20px; font-size: 13px; font-weight: 600;
+      position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+    }
+    #editModeBanner.active { display: flex; }
+    #editModeBanner span { opacity: .85; font-weight: 400; }
+    #editModeBanner button {
+      background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);
+      color: #fff; border-radius: 6px; padding: 5px 14px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    #editModeBanner button:hover { background: rgba(255,255,255,.28); }
+
+    /* ── Section wrapper in edit mode ── */
+    .dash-section { position: relative; }
+    body.edit-mode .dash-section[data-sid] {
+      border: 2px dashed transparent;
+      border-radius: 10px; transition: border-color .15s, box-shadow .15s;
+    }
+    body.edit-mode .dash-section[data-sid]:hover {
+      border-color: #c5cae9;
+    }
+    body.edit-mode .dash-section[data-sid].drag-over {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.15);
+      background: rgba(103,49,71,.025);
+    }
+    body.edit-mode .dash-section[data-sid].dragging {
+      opacity: .35;
+    }
+
+    /* ── Per-section edit controls (shown in edit mode) ── */
+    .sec-edit-bar {
+      display: none;
+      position: absolute; top: 8px; right: 12px; z-index: 10;
+      align-items: center; gap: 6px;
+    }
+    body.edit-mode .sec-edit-bar { display: flex; }
+    .sec-drag-handle {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 4px 8px; font-size: 16px; color: #aaa; line-height: 1;
+      cursor: grab; user-select: none; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .sec-drag-handle:active { cursor: grabbing; }
+    .sec-remove-btn {
+      background: #fff; border: 1px solid #fecdd3; border-radius: 6px;
+      padding: 4px 9px; font-size: 12px; font-weight: 700;
+      color: #c62828; cursor: pointer; line-height: 1;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: background .15s;
+    }
+    .sec-remove-btn:hover { background: #ffebee; }
+    .sec-move-btn {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 3px 7px; font-size: 13px; font-weight: 700;
+      color: #673147; cursor: pointer; line-height: 1;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: background .15s;
+    }
+    .sec-move-btn:hover:not(:disabled) { background: #eef0fb; border-color: #c5cae9; }
+    .sec-move-btn:disabled { opacity: .3; cursor: not-allowed; box-shadow: none; }
+
+    /* ── Hidden-sections tray (shown at bottom in edit mode) ── */
+    #hiddenSectionsTray {
+      display: none; margin: 0 24px 24px;
+      background: #fff; border-radius: 10px;
+      border: 2px dashed #e0e0e0;
+      padding: 16px 20px;
+    }
+    body.edit-mode #hiddenSectionsTray { display: block; }
+    #hiddenSectionsTray.no-hidden { display: none !important; }
+    .hs-title {
+      font-size: 12px; font-weight: 700; color: #aaa;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px;
+    }
+    .hs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hs-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: #f5f6fb; border: 1px solid #e0e4f8;
+      border-radius: 20px; padding: 6px 14px;
+      font-size: 13px; color: #555;
+    }
+    .hs-chip-add {
+      background: none; border: none; cursor: pointer;
+      font-size: 16px; font-weight: 700; color: #673147;
+      line-height: 1; padding: 0 0 0 2px;
+    }
+    .hs-chip-add:hover { color: #4f2538; }
+
+    /* ── Floating edit FAB ── */
+    #editFab {
+      position: fixed; bottom: 28px; right: 24px; z-index: 100;
+      width: 48px; height: 48px; border-radius: 50%;
+      background: transparent; color: #673147; border: none;
+      font-size: 20px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(103,49,71,.35);
+      display: none; align-items: center; justify-content: center;
+      transition: background .15s, color .15s, transform .15s;
+    }
+    #editFab:hover { background: #673147; color: #fff; transform: scale(1.08); }
+    #editFab.active { background: transparent; color: #333; }
+    #editFab.active:hover { background: #333; color: #fff; }
+
+    /* ── Reset link inside tray ── */
+    .hs-reset-btn {
+      margin-top: 12px; background: none; border: none;
+      font-size: 12px; color: #aaa; cursor: pointer; padding: 0;
+    }
+    .hs-reset-btn:hover { color: #673147; text-decoration: underline; }
+
+    /* ── Mobile touch drag: no cursor changes needed ── */
+    @media (max-width: 768px) {
+      #editFab { bottom: 20px; right: 16px; }
+      #hiddenSectionsTray { margin: 0 12px 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar">
+      <div class="topbar-left">
+        <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
+       
+      </div>
+      <div class="topbar-right">
+        <button class="tb-logout" onclick="doLogout()">Log out</button>
+      </div>
+    </header>
+
+    <!-- Edit-mode sticky banner -->
+    <div id="editModeBanner">
+      <div>✏️ Edit Layout &nbsp;<span>Drag to reorder · ✕ to remove</span></div>
+      <button onclick="exitEditMode()">Done</button>
+    </div>
+
+    <main class="page-content" id="pageContent">
+
+      <!-- ── AI Search Bar ── -->
+      <div class="ai-search-wrap">
+        <div class="ai-search-bar">
+          <span class="ai-search-icon">✨</span>
+          <input type="text" id="aiSearchInput" class="ai-search-input"
+                 placeholder="Ask anything…"
+                 onkeydown="if(event.key==='Enter') runAiSearch()" />
+          <button class="ai-search-btn" id="aiSearchBtn" onclick="runAiSearch()">Search</button>
+        </div>
+        <div id="aiResultsWrap" style="display:none;"></div>
+      </div>
+
+      <!-- ── Banner Greeting (above all dashboard sections) ── -->
+      <div class="banner-greeting" id="bannerGreeting" style="display:none; padding: 18px 24px 0;"></div>
+      <div class="banner-sub" id="bannerSub" style="padding: 0 24px 12px; font-size:13px; color:#888;"></div>
+
+      <!-- ══════════════════════════════════════
+           UNIFIED DASHBOARD SECTIONS
+      ══════════════════════════════════════ -->
+      <div id="dashSections" style="display:none;">
+
+        <!-- ─── Admin: Banner + Stats ─── -->
+        <div class="dash-section" data-sid="s-admin-banner">
+          <div class="banner">
+            <div class="stat-cards" id="statCards"></div>
+            <svg class="banner-wave" viewBox="0 0 1440 30" preserveAspectRatio="none"
+                 xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,20 C360,0 1080,40 1440,20 L1440,30 L0,30 Z" fill="#f5f6fa"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ─── Admin: Church Growth + Event Calendar ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-admin-growth-calendar" style="padding-top:20px;">
+          <div class="dash-row" style="grid-template-columns:1fr 1fr;">
+            <!-- Church Growth -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title" id="growthTitle">Church Growth</div>
+                  <div class="card-sub">New members added per month</div>
+                </div>
+              </div>
+              <div class="card-body" style="padding-top:10px;">
+                <svg id="growthChart" viewBox="0 0 540 180" preserveAspectRatio="xMidYMid meet"></svg>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                  <div style="width:24px;height:3px;background:#673147;border-radius:2px;"></div>
+                  <span style="font-size:11px;color:#888;">Members added</span>
+                </div>
+              </div>
+            </div>
+            <!-- Event Calendar -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Calendar</div>
+                  <div class="card-sub" id="calSubLabel"></div>
+                </div>
+                <a class="card-link" href="/eventcalendar">View full ↗</a>
+              </div>
+              <div class="card-body" style="padding-top:8px;">
+                <div class="cal-nav">
+                  <button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button>
+                  <span class="cal-nav-title" id="calTitle"></span>
+                  <button class="cal-nav-btn" onclick="shiftCal(1)">›</button>
+                </div>
+                <div class="cal-grid" id="miniCal"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Admin: Upcoming Events + Member Distribution ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-admin-events-distribution">
+          <div class="dash-row cols-6-4">
+            <!-- Upcoming Events -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Upcoming Events</div>
+                  <div class="card-sub">Scheduled meetings and services</div>
+                </div>
+                <a class="card-link" href="/meetings">View all ↗</a>
+              </div>
+              <div class="card-body">
+                <div class="evt-list" id="upcomingList"></div>
+              </div>
+            </div>
+            <!-- Member Distribution -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Member Distribution</div>
+                  <div class="card-sub">Male · Female · Adults · Children</div>
+                </div>
+              </div>
+              <div class="card-body" id="distPanel"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Greeting Banner (Accountant-only, hidden for SuperAdmin) ─── -->
+        <div class="dash-section" data-sid="s-acct-banner">
+          <div class="banner">
+            <div class="banner-greeting" id="acctGreeting">Good morning</div>
+            <div class="banner-sub" id="acctSub">Here's your financial overview for today.</div>
+            <svg class="banner-wave" viewBox="0 0 1440 30" preserveAspectRatio="none"
+                 xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,20 C360,0 1080,40 1440,20 L1440,30 L0,30 Z" fill="#f5f6fa"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Net Balance ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-acct-net-balance" style="padding-top:20px;">
+          <div class="acct-section-hdr">
+            <div class="acct-section-title">Net Balance by Main Category</div>
+            <div class="acct-section-sub">Income minus expense per category</div>
+          </div>
+          <div class="acct-cats">
+            <div id="acctCatCards" style="display:contents;"></div>
+            <div id="acctSummary"></div>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Recurring Income ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-acct-income-qa" data-perm="accounting.income">
+          <div class="acct-section-hdr">
+            <div class="acct-section-title">Recurring Income</div>
+            <div class="acct-section-sub">Quickly record recurring income — set a transaction as recurring on the <a href="/income" style="color:#673147;">Income page</a></div>
+          </div>
+          <div class="card" style="overflow-x:auto;">
+            <div id="quickAddIncomePanel" style="min-width:600px;"></div>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Recurring Expense ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-acct-expense-qa" data-perm="accounting.expense">
+          <div class="acct-section-hdr">
+            <div class="acct-section-title">Recurring Expense</div>
+            <div class="acct-section-sub">Quickly record recurring expenses — set a transaction as recurring on the <a href="/expense" style="color:#673147;">Expense page</a></div>
+          </div>
+          <div class="card" style="overflow-x:auto;">
+            <div id="quickAddExpensePanel" style="min-width:600px;"></div>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Income + Expense Stats ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-acct-stats">
+          <div class="dash-row" style="grid-template-columns:1fr 1fr;">
+            <!-- Income Statistics donut -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Income Statistics</div>
+                  <div class="acct-month-nav" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                    <button class="acct-nav-btn" onclick="shiftStatMonth(-1)" title="Previous month">&#8249;</button>
+                    <span class="acct-month-label" id="incStatMonthLabel" style="font-size:12px;color:#888;min-width:80px;text-align:center;"></span>
+                    <button class="acct-nav-btn" onclick="shiftStatMonth(1)" title="Next month">&#8250;</button>
+                  </div>
+                </div>
+                <a class="card-link" href="/income">View all ↗</a>
+              </div>
+              <div class="card-body" style="padding-top:10px;">
+                <div class="donut-panel">
+                  <div class="donut-svg-wrap">
+                    <svg id="acctIncomePie" viewBox="0 0 140 140" style="width:140px;height:140px;display:block;"></svg>
+                  </div>
+                  <div class="donut-legend" id="acctIncomePieLeg"></div>
+                </div>
+              </div>
+            </div>
+            <!-- Expense Statistics donut -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Expense Statistics</div>
+                  <div class="acct-month-nav" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                    <button class="acct-nav-btn" onclick="shiftStatMonth(-1)" title="Previous month">&#8249;</button>
+                    <span class="acct-month-label" id="expStatMonthLabel" style="font-size:12px;color:#888;min-width:80px;text-align:center;"></span>
+                    <button class="acct-nav-btn" onclick="shiftStatMonth(1)" title="Next month">&#8250;</button>
+                  </div>
+                </div>
+                <a class="card-link" href="/expense">View all ↗</a>
+              </div>
+              <div class="card-body" style="padding-top:10px;">
+                <div class="donut-panel">
+                  <div class="donut-svg-wrap">
+                    <svg id="acctExpensePie" viewBox="0 0 140 140" style="width:140px;height:140px;display:block;"></svg>
+                  </div>
+                  <div class="donut-legend" id="acctExpensePieLeg"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Accountant: Recent Transactions + Bar Chart ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-acct-recent-barchart" style="padding-bottom:28px;">
+          <div class="dash-row" style="grid-template-columns:1fr 1fr;align-items:start;">
+            <!-- Recent Transactions -->
+            <div>
+              <div class="acct-section-hdr">
+                <div class="acct-section-title">Recent Transactions</div>
+                <div class="acct-section-sub">Latest income &amp; expense entries</div>
+              </div>
+              <div class="card">
+                <div id="acctRecentTxns"></div>
+              </div>
+            </div>
+            <!-- Bar Chart -->
+            <div>
+              <div class="acct-section-hdr">
+                <div>
+                  <div class="acct-section-title" id="acctBarTitle">Transactions</div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                    <button class="acct-nav-btn" onclick="shiftBarYear(-1)" title="Previous year">&#8249;</button>
+                    <span id="acctBarYearLabel" style="font-size:12px;color:#888;min-width:40px;text-align:center;"></span>
+                    <button class="acct-nav-btn" onclick="shiftBarYear(1)" title="Next year">&#8250;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body" style="padding-top:10px;">
+                  <svg id="acctBarChart" viewBox="0 0 560 200"
+                       preserveAspectRatio="xMidYMid meet"
+                       style="width:100%;display:block;"></svg>
+                  <div class="bi-legend">
+                    <div class="bi-leg-item">
+                      <div class="bi-leg-dot" style="background:#673147;"></div>Income
+                    </div>
+                    <div class="bi-leg-item">
+                      <div class="bi-leg-dot" style="background:#ef5350;"></div>Expense
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /#dashSections -->
+
+      <!-- ── Hidden Sections Tray (visible only in edit mode) ── -->
+      <div id="hiddenSectionsTray">
+        <div class="hs-title">Hidden Sections — tap + to restore</div>
+        <div class="hs-chips" id="hsTrayChips"></div>
+        <button class="hs-reset-btn" onclick="resetDashPrefs()">↺ Reset to default layout</button>
+      </div>
+
+      <!-- ── Generic welcome (non-Admin/Accountant roles) ── -->
+      <div id="genericWelcome" style="display:none;padding:40px 28px;">
+        <div style="background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);
+                    padding:40px;text-align:center;max-width:500px;margin:0 auto;">
+          <div style="font-size:48px;margin-bottom:16px;">⛪</div>
+          <div style="font-size:20px;font-weight:700;color:#673147;margin-bottom:8px;"
+               id="welcomeName">Welcome</div>
+          <div style="font-size:13px;color:#aaa;">
+            Use the navigation on the left to get started.
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ── Floating Edit FAB ── -->
+<button id="editFab" title="Edit layout" onclick="toggleEditMode()">✏️</button>
+
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  // Hide accounting dashboard sections based on permissions
+  var noIncome   = p['accounting.income']   === false;
+  var noExpense  = p['accounting.expense']  === false;
+  var noAccounting = noIncome && noExpense &&
+                     p['accounting.donation'] === false &&
+                     p['accounting.reports']  === false &&
+                     p['accounting.settings'] === false;
+  if (noAccounting) {
+    // No accounting access at all — hide all accounting dashboard sections
+    hide('[data-sid="s-acct-banner"]');
+    hide('[data-sid="s-acct-net-balance"]');
+    hide('[data-sid="s-acct-income-qa"]');
+    hide('[data-sid="s-acct-expense-qa"]');
+    hide('[data-sid="s-acct-stats"]');
+    hide('[data-sid="s-acct-recent-barchart"]');
+  } else {
+    // Partial accounting access. The Recurring Income/Expense widgets are hidden
+    // only when the VIEW permission (accounting.income / accounting.expense) is off.
+    // When only Add-or-Edit is off, the widget stays visible (view-only) and its
+    // Add/Remove buttons are hidden via data-perm="accounting.*.edit".
+    if (noIncome)  hide('[data-sid="s-acct-income-qa"]');
+    if (noExpense) hide('[data-sid="s-acct-expense-qa"]');
+    if (noIncome && noExpense) {
+      hide('[data-sid="s-acct-stats"]');
+      hide('[data-sid="s-acct-recent-barchart"]');
+    }
+  }
+};
+window.CGP_PAGE = { activePage: '', pageTitle: 'Home', openSection: '', customTopbar: true };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script src="/voice-openai.js"></script>
+<!-- Voice navigation + AI Search are now provided by the global ai-assistant.js
+     (loaded by shell.js on every page). home-voice.js / home-assist.js retired. -->
+
+<script>
+/* ══════════════════════════════════════════════
+   SIDEBAR — role-based navigation
+══════════════════════════════════════════════ */
+
+
+function visibleSections() {
+  var RS = window.CGP_ROLE_SECTIONS || {};
+  if (localStorage.getItem('church') === 'true') return new Set(RS['Church'] || []);
+  const role = localStorage.getItem('role') || '';
+  return new Set(RS[role] || RS['User'] || []);
+}
+
+async function doLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (_) { /* ignore */ }
+  localStorage.removeItem('rememberedUsername');
+  window.location.href = '/login';
+}
+
+/* ══════════════════════════════════════════════
+   DASHBOARD SECTION DEFINITIONS & PREFERENCES
+══════════════════════════════════════════════ */
+const SECTION_DEFS = [
+  { sid: 's-admin-banner',                label: 'Stats Overview',              roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-growth-calendar',       label: 'Church Growth & Calendar',    roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-events-distribution',   label: 'Events & Distribution',       roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-acct-banner',                 label: 'Financial Greeting',          roles: ['Accountant'] },
+  { sid: 's-acct-net-balance',            label: 'Net Balance',                 roles: ['Accountant','SuperAdmin'] },
+  { sid: 's-acct-income-qa',              label: 'Recurring Income',            roles: ['Accountant','SuperAdmin'] },
+  { sid: 's-acct-expense-qa',             label: 'Recurring Expense',           roles: ['Accountant','SuperAdmin'] },
+  { sid: 's-acct-stats',                  label: 'Income & Expense Stats',      roles: ['Accountant','SuperAdmin'] },
+  { sid: 's-acct-recent-barchart',        label: 'Recent Transactions & Chart', roles: ['Accountant','SuperAdmin'] },
+];
+
+/* ── Preference storage ───────────────────────────────────────────────────
+   localStorage is the fast-path cache (survives page refreshes without an
+   extra round-trip).  The database is the authoritative store — loaded once
+   on init and written back on every change (debounced 600 ms).            */
+
+function prefsKey() {
+  const uid = localStorage.getItem('appUserId') || localStorage.getItem('username') || 'u';
+  const cid = localStorage.getItem('clientId') || '';
+  return `dash_prefs_${cid}_${uid}`;
+}
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(prefsKey());
+    if (raw) {
+      const p = JSON.parse(raw);
+      return {
+        hidden: new Set(p.hidden || []),
+        order:  p.order  || SECTION_DEFS.map(s => s.sid)
+      };
+    }
+  } catch (_) {}
+  return { hidden: new Set(), order: SECTION_DEFS.map(s => s.sid) };
+}
+
+function savePrefs(prefs) {
+  /* 1. Persist to localStorage immediately for instant next-load UX */
+  localStorage.setItem(prefsKey(), JSON.stringify({
+    hidden: [...prefs.hidden],
+    order:  prefs.order
+  }));
+  /* 2. Debounce-save to database so the prefs survive logout/login */
+  scheduleDbSave(prefs);
+}
+
+/* ── Database persistence ─────────────────────────────────────────────── */
+let _dbSaveTimer = null;
+
+function scheduleDbSave(prefs) {
+  clearTimeout(_dbSaveTimer);
+  _dbSaveTimer = setTimeout(() => {
+    fetch('/api/dashboard/preferences', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        hiddenSections: JSON.stringify([...prefs.hidden]),
+        sectionOrder:   JSON.stringify(prefs.order)
+      })
+    }).catch(() => { /* non-critical — localStorage already saved */ });
+  }, 600);
+}
+
+/**
+ * Fetches preferences from the DB, merges into localStorage, and applies
+ * them to the dashboard.  Falls back to localStorage if the request fails.
+ */
+async function loadPrefsFromDb(role, isChurch) {
+  try {
+    const res = await fetch('/api/dashboard/preferences');
+    if (res.ok) {
+      const data = await res.json();
+      const hidden = JSON.parse(data.hiddenSections || '[]');
+      const order  = JSON.parse(data.sectionOrder   || '[]');
+      const prefs  = {
+        hidden: new Set(hidden),
+        order:  order.length ? order : SECTION_DEFS.map(s => s.sid)
+      };
+      /* Sync DB value into localStorage so fast-path is up-to-date */
+      localStorage.setItem(prefsKey(), JSON.stringify({
+        hidden: [...prefs.hidden],
+        order:  prefs.order
+      }));
+      applyDashPrefs(role, isChurch, prefs);
+      return;
+    }
+  } catch (_) { /* fall through */ }
+  /* Fallback: use whatever is in localStorage */
+  applyDashPrefs(role, isChurch);
+}
+
+/* Returns section IDs the current user role can see */
+function allowedSids(role, isChurch) {
+  const effectiveRole = isChurch ? 'Church' : (role || 'User');
+  return SECTION_DEFS.filter(s => s.roles.includes(effectiveRole)).map(s => s.sid);
+}
+
+/* Applies visibility + order to the #dashSections container */
+function applyDashPrefs(role, isChurch, prefOverride) {
+  const prefs      = prefOverride || loadPrefs();
+  const allowed    = allowedSids(role, isChurch);
+  const container  = document.getElementById('dashSections');
+
+  /* Build final ordered list: respect user-saved order, append any new sections */
+  const ordered = prefs.order.filter(sid => allowed.includes(sid))
+    .concat(allowed.filter(sid => !prefs.order.includes(sid)));
+
+  /* Move DOM nodes into the saved order */
+  ordered.forEach(sid => {
+    const el = container.querySelector(`[data-sid="${sid}"]`);
+    if (el) container.appendChild(el);
+  });
+
+  /* Apply visibility */
+  SECTION_DEFS.forEach(({ sid, pinned, alwaysTop }) => {
+    const el = container.querySelector(`[data-sid="${sid}"]`);
+    if (!el) return;
+    const roleAllowed  = allowed.includes(sid);
+    const userHidden   = prefs.hidden.has(sid);
+    el.style.display   = (roleAllowed && !userHidden) ? '' : 'none';
+  });
+}
+
+/* ══════════════════════════════════════════════
+   INLINE EDIT MODE  (drag-and-drop on dashboard)
+══════════════════════════════════════════════ */
+
+let _editMode   = false;
+let _dragSid    = null;   // mouse/pointer drag
+let _touchDragEl = null;  // touch drag ghost element
+
+function _custRole()     { return localStorage.getItem('role') || 'User'; }
+function _custIsChurch() { return localStorage.getItem('church') === 'true'; }
+
+/* ── Inject per-section edit controls once, lazily ── */
+function _ensureEditBars() {
+  document.querySelectorAll('#dashSections .dash-section[data-sid]').forEach(sec => {
+    if (sec.querySelector('.sec-edit-bar')) return; // already done
+    const sid       = sec.getAttribute('data-sid');
+    const def       = SECTION_DEFS.find(s => s.sid === sid);
+    const bar = document.createElement('div');
+    bar.className = 'sec-edit-bar';
+    bar.innerHTML = `<button class="sec-move-btn" data-move="up"   title="Move up"   onclick="moveSectionBy('${sid}',-1)">▲</button>
+         <button class="sec-move-btn" data-move="down" title="Move down" onclick="moveSectionBy('${sid}', 1)">▼</button>
+         <span class="sec-drag-handle" title="Drag to reorder">⠿</span>
+         <button class="sec-remove-btn" onclick="inlineHideSection('${sid}')">✕</button>`;
+    sec.prepend(bar);
+
+    /* Attach drag listeners (mouse) to the section element, triggered via handle */
+    sec.setAttribute('draggable', 'false'); // handle sets it
+    const handle = bar.querySelector('.sec-drag-handle');
+    if (handle) {
+      handle.addEventListener('mousedown', () => { sec.setAttribute('draggable', 'true'); });
+      handle.addEventListener('mouseleave', () => {
+        if (!_dragSid) sec.setAttribute('draggable', 'false');
+      });
+    }
+    sec.addEventListener('dragstart',  _onSecDragStart);
+    sec.addEventListener('dragover',   _onSecDragOver);
+    sec.addEventListener('dragleave',  _onSecDragLeave);
+    sec.addEventListener('drop',       _onSecDrop);
+    sec.addEventListener('dragend',    _onSecDragEnd);
+
+    /* Touch drag support */
+    sec.addEventListener('touchstart', _onSecTouchStart, { passive: true });
+  });
+  _updateArrows();
+}
+
+/* ── Update ▲/▼ disabled states based on current visible order ── */
+function _updateArrows() {
+  const visibleSecs = [...document.querySelectorAll('#dashSections .dash-section[data-sid]')]
+    .filter(el => el.style.display !== 'none');
+  const movable = visibleSecs;
+  movable.forEach((el, i) => {
+    const bar = el.querySelector('.sec-edit-bar');
+    if (!bar) return;
+    const upBtn   = bar.querySelector('[data-move="up"]');
+    const downBtn = bar.querySelector('[data-move="down"]');
+    if (upBtn)   upBtn.disabled   = (i === 0);
+    if (downBtn) downBtn.disabled = (i === movable.length - 1);
+  });
+}
+
+/* ── Move a section up (-1) or down (+1) ── */
+function moveSectionBy(sid, delta) {
+  const container  = document.getElementById('dashSections');
+  const allVisible = [...container.querySelectorAll('.dash-section[data-sid]')]
+    .filter(el => el.style.display !== 'none');
+  const movable = allVisible;
+  const idx = movable.findIndex(el => el.getAttribute('data-sid') === sid);
+  if (idx < 0) return;
+  const swapIdx = idx + delta;
+  if (swapIdx < 0 || swapIdx >= movable.length) return;
+
+  const elA = movable[idx];
+  const elB = movable[swapIdx];
+
+  /* Swap DOM positions */
+  if (delta === -1) {
+    container.insertBefore(elA, elB);
+  } else {
+    container.insertBefore(elA, elB.nextSibling);
+  }
+
+  /* Brief highlight to show which section moved */
+  elA.style.transition = 'box-shadow .3s';
+  elA.style.boxShadow  = '0 0 0 3px rgba(103,49,71,.25)';
+  setTimeout(() => { elA.style.boxShadow = ''; }, 500);
+
+  /* Persist and refresh arrow states */
+  const prefs  = loadPrefs();
+  prefs.order  = _domOrder();
+  savePrefs(prefs);
+  _updateArrows();
+}
+
+/* ── Enter / exit edit mode ── */
+function toggleEditMode() {
+  _editMode ? exitEditMode() : enterEditMode();
+}
+
+function enterEditMode() {
+  _editMode = true;
+  _ensureEditBars();
+  document.body.classList.add('edit-mode');
+  document.getElementById('editModeBanner').classList.add('active');
+  const fab = document.getElementById('editFab');
+  fab.classList.add('active');
+  fab.title = 'Exit edit mode';
+  fab.textContent = '✓';
+  _refreshHiddenTray();
+}
+
+function exitEditMode() {
+  _editMode = false;
+  document.body.classList.remove('edit-mode');
+  document.getElementById('editModeBanner').classList.remove('active');
+  const fab = document.getElementById('editFab');
+  fab.classList.remove('active');
+  fab.title = 'Edit layout';
+  fab.textContent = '✏️';
+}
+
+/* ── Hidden sections tray ── */
+function _refreshHiddenTray() {
+  const prefs    = loadPrefs();
+  const allowed  = allowedSids(_custRole(), _custIsChurch());
+  const hidden   = allowed.filter(sid => {
+    const def = SECTION_DEFS.find(s => s.sid === sid);
+    return def && prefs.hidden.has(sid);
+  });
+  const tray = document.getElementById('hiddenSectionsTray');
+  const chips = document.getElementById('hsTrayChips');
+  if (hidden.length === 0) {
+    tray.classList.add('no-hidden');
+    return;
+  }
+  tray.classList.remove('no-hidden');
+  chips.innerHTML = hidden.map(sid => {
+    const def = SECTION_DEFS.find(s => s.sid === sid);
+    return `<div class="hs-chip">
+      <span>${def ? def.label : sid}</span>
+      <button class="hs-chip-add" title="Restore section" onclick="inlineShowSection('${sid}')">＋</button>
+    </div>`;
+  }).join('');
+}
+
+/* ── Remove / restore section inline ── */
+function inlineHideSection(sid) {
+  const prefs = loadPrefs();
+  prefs.hidden.add(sid);
+  prefs.order = _domOrder();
+  savePrefs(prefs);
+  applyDashPrefs(_custRole(), _custIsChurch());
+  _refreshHiddenTray();
+  _updateArrows();
+}
+
+function inlineShowSection(sid) {
+  const prefs = loadPrefs();
+  prefs.hidden.delete(sid);
+  if (!prefs.order.includes(sid)) prefs.order.push(sid);
+  savePrefs(prefs);
+  applyDashPrefs(_custRole(), _custIsChurch());
+  _refreshHiddenTray();
+  _updateArrows();
+}
+
+/* ── Read current DOM order of visible sections ── */
+function _domOrder() {
+  return [...document.querySelectorAll('#dashSections .dash-section[data-sid]')]
+    .filter(el => el.style.display !== 'none')
+    .map(el => el.getAttribute('data-sid'));
+}
+
+/* ════════ Mouse drag-and-drop ════════ */
+function _onSecDragStart(e) {
+  if (!_editMode) { e.preventDefault(); return; }
+  _dragSid = this.getAttribute('data-sid');
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', _dragSid);
+}
+
+function _onSecDragOver(e) {
+  if (!_editMode || !_dragSid) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const target = this.getAttribute('data-sid');
+  if (target !== _dragSid) this.classList.add('drag-over');
+}
+
+function _onSecDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+function _onSecDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const targetSid = this.getAttribute('data-sid');
+  if (!_dragSid || _dragSid === targetSid) return;
+  _reorderSections(_dragSid, targetSid);
+}
+
+function _onSecDragEnd(e) {
+  this.classList.remove('dragging');
+  this.setAttribute('draggable', 'false');
+  document.querySelectorAll('.dash-section.drag-over').forEach(el => el.classList.remove('drag-over'));
+  _dragSid = null;
+}
+
+function _reorderSections(dragSid, targetSid) {
+  const container = document.getElementById('dashSections');
+  const dragEl    = container.querySelector(`[data-sid="${dragSid}"]`);
+  const targetEl  = container.querySelector(`[data-sid="${targetSid}"]`);
+  if (!dragEl || !targetEl) return;
+
+  const allSecs  = [...container.querySelectorAll('.dash-section[data-sid]')];
+  const dragIdx  = allSecs.indexOf(dragEl);
+  const targetIdx = allSecs.indexOf(targetEl);
+
+  if (dragIdx < targetIdx) container.insertBefore(dragEl, targetEl.nextSibling);
+  else                     container.insertBefore(dragEl, targetEl);
+
+  const prefs = loadPrefs();
+  prefs.order = _domOrder();
+  savePrefs(prefs);
+  _updateArrows();
+}
+
+/* ════════ Touch drag-and-drop (improved) ════════
+ *
+ * Design goals:
+ *  1. Ghost tracks the finger at the exact grab offset, not centered.
+ *  2. touchmove is non-passive so we can preventDefault() and stop page
+ *     scroll while a drag is in progress.
+ *  3. Drop target is determined by which visible section's mid-point the
+ *     finger is closest to — works even when the ghost covers the target.
+ *  4. Auto-scroll: when the finger is near the top or bottom viewport
+ *     edge the page scrolls automatically.
+ *  5. A thin "insert-before" indicator line shows exactly where the
+ *     dragged section will land.
+ *  6. A long-press (300 ms) on the entire section (not just the handle)
+ *     also starts a drag — friendlier on small screens.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+let _td = null; // active touch-drag state object
+
+/* Drop-indicator element (a thin colored line) — created lazily on first edit */
+let _dropIndicator = null;
+function _ensureDropIndicator() {
+  if (_dropIndicator) return;
+  const el = document.createElement('div');
+  el.id = 'tdDropIndicator';
+  el.style.cssText = `display:none;position:absolute;left:12px;right:12px;height:3px;
+    background:#673147;border-radius:2px;z-index:998;pointer-events:none;
+    box-shadow:0 0 6px rgba(103,49,71,.5);`;
+  const container = document.getElementById('dashSections');
+  container.style.position = 'relative';
+  container.appendChild(el);
+  _dropIndicator = el;
+}
+
+function _showDropIndicator(beforeEl) {
+  _ensureDropIndicator();
+  const container = document.getElementById('dashSections');
+  const cRect     = container.getBoundingClientRect();
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  if (!beforeEl) {
+    const all = _visibleMovable();
+    if (!all.length) { _dropIndicator.style.display = 'none'; return; }
+    const last = all[all.length - 1];
+    const r    = last.getBoundingClientRect();
+    _dropIndicator.style.top = (r.bottom - cRect.top + 4) + 'px';
+  } else {
+    const r = beforeEl.getBoundingClientRect();
+    _dropIndicator.style.top = (r.top - cRect.top - 4) + 'px';
+  }
+  _dropIndicator.style.display = 'block';
+}
+
+function _hideDropIndicator() {
+  if (_dropIndicator) _dropIndicator.style.display = 'none';
+}
+
+/* Returns all visible sections in DOM order */
+function _visibleMovable() {
+  return [...document.querySelectorAll('#dashSections .dash-section[data-sid]')]
+    .filter(el => el.style.display !== 'none')
+    .filter(el => {
+      const def = SECTION_DEFS.find(s => s.sid === el.getAttribute('data-sid'));
+      return true;
+    });
+}
+
+/* Given a clientY, find which movable section the finger is over and
+   whether it's in the top or bottom half (determines insert position) */
+function _findDropTarget(clientY) {
+  const movable = _visibleMovable();
+  for (const el of movable) {
+    const r   = el.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    if (clientY < r.bottom) {
+      return { el, before: clientY < mid };
+    }
+  }
+  return { el: movable[movable.length - 1] || null, before: false };
+}
+
+/* Auto-scroll speed when near viewport edges */
+const _SCROLL_ZONE = 80;  // px from edge
+const _SCROLL_SPEED = 10; // px per frame
+let   _scrollFrame  = null;
+
+function _startAutoScroll(clientY) {
+  cancelAnimationFrame(_scrollFrame);
+  const vH = window.innerHeight;
+  function step() {
+    if (!_td) return;
+    if (clientY < _SCROLL_ZONE) {
+      window.scrollBy(0, -_SCROLL_SPEED * (1 - clientY / _SCROLL_ZONE));
+    } else if (clientY > vH - _SCROLL_ZONE) {
+      window.scrollBy(0,  _SCROLL_SPEED * (1 - (vH - clientY) / _SCROLL_ZONE));
+    }
+    _scrollFrame = requestAnimationFrame(step);
+  }
+  _scrollFrame = requestAnimationFrame(step);
+}
+
+function _stopAutoScroll() {
+  cancelAnimationFrame(_scrollFrame);
+  _scrollFrame = null;
+}
+
+function _onSecTouchStart(e) {
+  if (!_editMode) return;
+
+  const handle  = e.target.closest('.sec-drag-handle');
+  const section = this;
+
+  /* Long-press on section body also starts drag (300 ms) */
+  let longPressTimer = null;
+  if (!handle) {
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      _initTouchDrag(e, section);
+    }, 300);
+
+    const cancelLP = () => {
+      clearTimeout(longPressTimer);
+      section.removeEventListener('touchend',    cancelLP);
+      section.removeEventListener('touchcancel', cancelLP);
+      section.removeEventListener('touchmove',   cancelLP);
+    };
+    section.addEventListener('touchend',    cancelLP, { once: true });
+    section.addEventListener('touchcancel', cancelLP, { once: true });
+    section.addEventListener('touchmove',   cancelLP, { once: true, passive: true });
+    return;
+  }
+
+  /* Immediate drag from handle */
+  _initTouchDrag(e, section);
+}
+
+function _initTouchDrag(e, section) {
+  if (_td) return; // already dragging
+  _ensureDropIndicator();
+
+  const touch = e.touches[0];
+  const rect  = section.getBoundingClientRect();
+
+  /* Grab offset: where on the section the finger landed */
+  const grabOffsetX = touch.clientX - rect.left;
+  const grabOffsetY = touch.clientY - rect.top;
+
+  /* Ghost: fixed clone that follows the finger */
+  const ghost = section.cloneNode(true);
+  ghost.style.cssText = `
+    position:fixed;
+    left:${rect.left}px;top:${rect.top}px;
+    width:${rect.width}px;
+    opacity:.75;pointer-events:none;z-index:1000;
+    border-radius:10px;
+    box-shadow:0 12px 32px rgba(0,0,0,.22);
+    transform:scale(1.02);
+    transition:transform .1s;
+    background:#fff;
+  `;
+  document.body.appendChild(ghost);
+
+  /* Dim the original */
+  section.style.opacity = '.25';
+  section.style.transition = 'opacity .15s';
+
+  /* Haptic feedback if available */
+  if (navigator.vibrate) navigator.vibrate(30);
+
+  _td = { section, ghost, grabOffsetX, grabOffsetY, lastY: touch.clientY };
+
+  const onMove = (ev) => {
+    ev.preventDefault(); // stop page scroll while dragging
+    const t = ev.touches[0];
+    _td.lastY = t.clientY;
+
+    /* Move ghost */
+    ghost.style.left = (t.clientX - grabOffsetX) + 'px';
+    ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
+
+    /* Auto-scroll */
+    _startAutoScroll(t.clientY);
+
+    /* Find drop target */
+    const { el, before } = _findDropTarget(t.clientY);
+    if (el && el !== section) {
+      _showDropIndicator(before ? el : el.nextElementSibling);
+    } else {
+      _hideDropIndicator();
+    }
+  };
+
+  const onEnd = (ev) => {
+    document.removeEventListener('touchmove',   onMove);
+    document.removeEventListener('touchend',    onEnd);
+    document.removeEventListener('touchcancel', onEnd);
+
+    _stopAutoScroll();
+    _hideDropIndicator();
+
+    ghost.remove();
+    section.style.opacity   = '';
+    section.style.transition = '';
+
+    const t = ev.changedTouches[0];
+    const { el, before } = _findDropTarget(t.clientY);
+
+    if (el && el !== section) {
+      const insertBefore = before ? el : el.nextElementSibling;
+      const container    = document.getElementById('dashSections');
+      if (insertBefore) container.insertBefore(section, insertBefore);
+      else              container.appendChild(section);
+
+      const prefs = loadPrefs();
+      prefs.order = _domOrder();
+      savePrefs(prefs);
+      _updateArrows();
+
+      /* Brief highlight */
+      section.style.boxShadow  = '0 0 0 3px rgba(103,49,71,.3)';
+      section.style.transition = 'box-shadow .4s';
+      setTimeout(() => { section.style.boxShadow = ''; section.style.transition = ''; }, 500);
+    }
+
+    _td = null;
+  };
+
+  /* Non-passive so we can preventDefault inside onMove */
+  document.addEventListener('touchmove',   onMove,   { passive: false });
+  document.addEventListener('touchend',    onEnd,    { passive: true  });
+  document.addEventListener('touchcancel', onEnd,    { passive: true  });
+}
+
+/* ════════ Reset ════════ */
+function resetDashPrefs() {
+  localStorage.removeItem(prefsKey());
+  fetch('/api/dashboard/preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hiddenSections: '[]', sectionOrder: '[]' })
+  }).catch(() => {});
+  applyDashPrefs(_custRole(), _custIsChurch());
+  _refreshHiddenTray();
+}
+
+/* ══════════════════════════════════════════════
+   DASHBOARD DATA
+══════════════════════════════════════════════ */
+async function loadDashboard() {
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const res  = await fetch(`/api/admin/dashboard?clientId=${encodeURIComponent(clientId)}`);
+    const data = await res.json();
+    renderBanner(data);
+    renderStatCards(data);
+    renderGrowthChart(data.membersByMonth || []);
+    // Congregation panel removed
+    renderDistribution(data);
+    renderUpcoming(data.upcomingMeetings || []);
+  } catch (e) {
+    console.error('Dashboard load failed', e);
+  }
+}
+
+/* ── Banner greeting ─────────────────────────── */
+function renderBanner(data) {
+  const hour  = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const name  = localStorage.getItem('firstName') || data.churchName || '';
+  const greetEl = document.getElementById('bannerGreeting');
+  greetEl.textContent = `${greet}${name ? ', ' + name : ''}`;
+  greetEl.style.display = '';
+  const _bannerSub = document.getElementById('bannerSub');
+  if (data.churchName && _bannerSub) {
+    _bannerSub.textContent = `Here's what's happening at ${data.churchName} today.`;
+  }
+}
+
+/* ── Stat cards ──────────────────────────────── */
+function renderStatCards(data) {
+  const cards = [
+    { icon:'👥', label:'Members',     value: data.totalMembers ?? 0, trend: `+${data.newMembers ?? 0} this month` },
+    { icon:'✨', label:'New Members', value: data.newMembers    ?? 0, trend: 'last 30 days' },
+    { icon:'👋', label:'Guests',      value: data.guests        ?? 0, trend: 'registered guests' },
+    { icon:'🏠', label:'Families',    value: data.families      ?? 0, trend: 'family units' },
+  ];
+  document.getElementById('statCards').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon">${c.icon}</div>
+        <div class="stat-label">${c.label}</div>
+      </div>
+      <div class="stat-value">${c.value.toLocaleString()}</div>
+      <div class="stat-trend">${c.trend}</div>
+    </div>`).join('');
+}
+
+/* ── Church Growth line chart (SVG) ──────────── */
+function renderGrowthChart(byMonth) {
+  const W = 540, H = 180;
+  const padL = 36, padR = 12, padT = 14, padB = 28;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const maxV = Math.max(...byMonth, 1);
+  const year = new Date().getFullYear();
+
+  document.getElementById('growthTitle').textContent = `Church Growth ${year}`;
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pts = byMonth.map((v, i) => {
+    const x = padL + (i / 11) * cW;
+    const y = padT + cH - (v / maxV) * cH;
+    return { x, y, v };
+  });
+
+  let html = '';
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const y   = padT + cH * (1 - t);
+    const lbl = Math.round(t * maxV);
+    html += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"
+                   stroke="#f0f0f0" stroke-width="1"/>`;
+    html += `<text x="${padL - 4}" y="${y.toFixed(1)}" text-anchor="end"
+                   dominant-baseline="middle" font-size="9" fill="#ccc">${lbl}</text>`;
+  });
+
+  const areaPath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+    + ` L${(padL + cW).toFixed(1)},${(padT + cH).toFixed(1)} L${padL},${(padT + cH).toFixed(1)} Z`;
+  html += `<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+             <stop offset="0%" stop-color="#673147" stop-opacity="0.18"/>
+             <stop offset="100%" stop-color="#673147" stop-opacity="0.01"/>
+           </linearGradient></defs>
+           <path d="${areaPath}" fill="url(#areaGrad)"/>`;
+
+  let linePath = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const cp1x = pts[i - 1].x + (pts[i].x - pts[i - 1].x) / 3;
+    const cp2x = pts[i].x     - (pts[i].x - pts[i - 1].x) / 3;
+    linePath += ` C${cp1x.toFixed(1)},${pts[i-1].y.toFixed(1)} `
+              +   `${cp2x.toFixed(1)},${pts[i].y.toFixed(1)} `
+              +   `${pts[i].x.toFixed(1)},${pts[i].y.toFixed(1)}`;
+  }
+  html += `<path d="${linePath}" fill="none" stroke="#673147" stroke-width="2.5" stroke-linejoin="round"/>`;
+
+  pts.forEach(p => {
+    html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4"
+                     fill="#fff" stroke="#673147" stroke-width="2"/>`;
+  });
+
+  months.forEach((m, i) => {
+    const x = padL + (i / 11) * cW;
+    html += `<text x="${x.toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="9" fill="#bbb">${m}</text>`;
+  });
+
+  document.getElementById('growthChart').innerHTML = html;
+}
+
+
+/* ── Member Distribution ─── */
+function renderDistribution(data) {
+  const male    = Number(data.maleCount   || 0);
+  const female  = Number(data.femaleCount || 0);
+  const adults  = Number(data.adultCount  || 0);
+  const children= Number(data.childCount  || 0);
+  const total   = male + female || 1;         // base for gender %
+  const totAC   = adults + children || 1;     // base for age %
+  const rows = [
+    { label:'Male',     count: male,     pct: Math.round(male     / total  * 100), color:'#673147' },
+    { label:'Female',   count: female,   pct: Math.round(female   / total  * 100), color:'#ec407a' },
+    { label:'Adults',   count: adults,   pct: Math.round(adults   / totAC  * 100), color:'#26c6da' },
+    { label:'Children', count: children, pct: Math.round(children / totAC  * 100), color:'#ffa726' },
+  ];
+  document.getElementById('distPanel').innerHTML = rows.map(r => `
+    <div class="dist-row">
+      <span class="dist-label">${r.label}</span>
+      <div class="dist-bar-wrap">
+        <div class="dist-bar" style="width:${r.pct}%;background:${r.color};"></div>
+      </div>
+      <span class="dist-pct">${r.count.toLocaleString()} <span style="color:#bbb;font-weight:400;">(${r.pct}%)</span></span>
+    </div>`).join('') +
+    `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #f4f4f4;">
+       <div style="display:flex;justify-content:space-between;font-size:13px;color:#888;">
+         <span>Total registered</span>
+         <strong style="color:#673147;">${(male + female).toLocaleString()}</strong>
+       </div>
+     </div>`;
+}
+
+/* ── Upcoming Events list ─────────────────────── */
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderUpcoming(meetings) {
+  const el = document.getElementById('upcomingList');
+  if (!meetings.length) {
+    el.innerHTML = '<div class="evt-empty">📅 No upcoming events scheduled.</div>';
+    return;
+  }
+  el.innerHTML = meetings.map(m => {
+    const d   = new Date(m.date + 'T00:00:00');
+    const day = d.getDate();
+    const mon = MON[d.getMonth()];
+    const timeStr = m.time
+      ? (m.endTime ? `${fmt24(m.time)} – ${fmt24(m.endTime)}` : fmt24(m.time))
+      : '';
+    return `<div class="evt-row">
+      <div class="evt-date-box">
+        <div class="evt-day">${day}</div>
+        <div class="evt-mon">${mon}</div>
+      </div>
+      <div class="evt-info">
+        <div class="evt-title">${esc(m.title)}</div>
+        ${timeStr ? `<div class="evt-time">🕐 ${timeStr}${m.city ? ' · ' + esc(m.city) : ''}</div>` : ''}
+      </div>
+      <span class="evt-badge">${esc(m.title)}</span>
+    </div>`;
+  }).join('');
+}
+
+function fmt24(t) {
+  if (!t) return '';
+  return t.split(':').slice(0, 2).join(':');
+}
+
+/* ══════════════════════════════════════════════
+   MINI CALENDAR
+══════════════════════════════════════════════ */
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth() + 1;
+let calEvMap = {};
+
+function shiftCal(delta) {
+  calMonth += delta;
+  if (calMonth > 12) { calMonth = 1;  calYear++; }
+  if (calMonth < 1)  { calMonth = 12; calYear--; }
+  loadCalEvents();
+}
+
+async function loadCalEvents() {
+  try {
+    const res  = await fetch(`/api/event-calendar/events?year=${calYear}&month=${calMonth}`);
+    const data = await res.json();
+    calEvMap = {};
+    (Array.isArray(data) ? data : []).forEach(ev => {
+      const key = ev.date ? ev.date.slice(0, 10) : null;
+      if (key) (calEvMap[key] = calEvMap[key] || []).push(ev);
+    });
+  } catch { calEvMap = {}; }
+  renderMiniCal();
+}
+
+function renderMiniCal() {
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  document.getElementById('calTitle').textContent    = `${MONTHS[calMonth-1]} ${calYear}`;
+  document.getElementById('calSubLabel').textContent = `${MONTHS[calMonth-1]} ${calYear}`;
+
+  const today      = new Date();
+  const firstDow   = new Date(calYear, calMonth - 1, 1).getDay();
+  const daysInM    = new Date(calYear, calMonth, 0).getDate();
+  const daysInPrev = new Date(calYear, calMonth - 1, 0).getDate();
+  const DOWS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  let html = DOWS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  for (let i = firstDow - 1; i >= 0; i--) {
+    html += `<div class="cal-cell other-month"><div class="cal-day-num">${daysInPrev - i}</div></div>`;
+  }
+  for (let d = 1; d <= daysInM; d++) {
+    const mm  = String(calMonth).padStart(2,'0');
+    const dd  = String(d).padStart(2,'0');
+    const key = `${calYear}-${mm}-${dd}`;
+    const evs = calEvMap[key] || [];
+    const isToday = d === today.getDate() && calMonth === today.getMonth() + 1 && calYear === today.getFullYear();
+    const dots = evs.slice(0, 3).map(ev => `<div class="cal-dot ${ev.type || 'meeting'}"></div>`).join('');
+    const titleAttr = evs.length > 0 ? ` title="${evs.map(ev => ev.title).join('\n').replace(/"/g, '&quot;')}"` : '';
+    html += `<div class="cal-cell ${isToday ? 'today' : ''}"${titleAttr}>
+               <div class="cal-day-num">${d}</div>
+               ${dots ? `<div class="cal-dots">${dots}</div>` : ''}
+             </div>`;
+  }
+  const totalCells = firstDow + daysInM;
+  const trailing   = (7 - (totalCells % 7)) % 7;
+  for (let d = 1; d <= trailing; d++) {
+    html += `<div class="cal-cell other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+  document.getElementById('miniCal').innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════
+   ACCOUNTANT DASHBOARD
+══════════════════════════════════════════════ */
+/* ── Stat month state ─────────────────────────────── */
+let _statYear  = new Date().getFullYear();
+let _statMonth = new Date().getMonth(); // 0-based index (0=Jan, 11=Dec)
+let _barYear   = new Date().getFullYear();
+let _cachedDashData = null; // store last dashboard response for re-render
+
+const STAT_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function shiftStatMonth(delta) {
+  _statMonth += delta;
+  if (_statMonth > 11) { _statMonth = 0;  _statYear++; }
+  if (_statMonth < 0)  { _statMonth = 11; _statYear--; }
+  renderStatPiesForMonth(_cachedDashData);
+}
+
+function shiftBarYear(delta) {
+  _barYear += delta;
+  document.getElementById('acctBarYearLabel').textContent = String(_barYear);
+  document.getElementById('acctBarTitle').textContent = `${_barYear} Transactions`;
+  fetchAndRenderBarForYear(_barYear);
+}
+
+async function fetchAndRenderBarForYear(year) {
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
+    const data = await res.json();
+    renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
+  } catch(e) { console.error('Bar chart year fetch error', e); }
+}
+
+function renderStatPiesForMonth(data) {
+  if (!data) return;
+  const monthIdx = _statMonth;
+  const monthName = STAT_MONTHS[monthIdx];
+  const yearLabel = `${monthName.slice(0,3)} ${_statYear}`;
+
+  const incLabel = document.getElementById('incStatMonthLabel');
+  const expLabel = document.getElementById('expStatMonthLabel');
+  if (incLabel) incLabel.textContent = yearLabel;
+  if (expLabel) expLabel.textContent = yearLabel;
+
+  // Income: sum each sub-category for the selected month
+  const incSubMonth = (data.incomeStatsBySubCategory || [])
+    .map(s => ({ name: s.name, total: Number((s.data || [])[monthIdx] || 0) }))
+    .filter(s => s.total > 0)
+    .sort((a, b) => b.total - a.total);
+  renderAcctPie('acctIncomePie', 'acctIncomePieLeg',
+    incSubMonth.length ? incSubMonth : [], INC_COLORS);
+
+  // Expense: use monthly expense breakdown if available
+  const expSubMonth = (data.expenseStatsByPurpose || data.expenseStatsByCategory || [])
+    .map(s => ({ name: s.name, total: Number((s.data || [])[monthIdx] || 0) }))
+    .filter(s => s.total > 0)
+    .sort((a, b) => b.total - a.total);
+  renderAcctPie('acctExpensePie', 'acctExpensePieLeg', expSubMonth, EXP_COLORS);
+}
+
+const INC_COLORS  = ['#42a5f5','#26c6da','#673147','#26a69a','#7986cb','#4fc3f7','#80cbc4'];
+const EXP_COLORS  = ['#ef5350','#ffa726','#ec407a','#ab47bc','#ff7043','#ffca28','#8d6e63'];
+const CAT_ACCENTS = ['#673147','#42a5f5','#26c6da','#26a69a','#7986cb','#66bb6a','#ffa726'];
+
+async function loadAccountantDashboard() {
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
+    const data = await res.json();
+    _cachedDashData = data;
+    renderAcctBanner(data);
+    renderAcctSummary(data);
+    renderAcctCatCards(data);
+    renderQuickAddIncome(data.quickAddIncome   || []);
+    renderQuickAddExpense(data.quickAddExpense || []);
+    renderRecentTxns(data.recentActivity || []);
+    // Stat pies: show current month
+    renderStatPiesForMonth(data);
+    // Bar chart: current year
+    document.getElementById('acctBarYearLabel').textContent = String(_barYear);
+    document.getElementById('acctBarTitle').textContent = `${_barYear} Transactions`;
+    renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
+  } catch(e) { console.error('Accountant dashboard error', e); }
+}
+
+function renderAcctBanner(data) {
+  const h    = new Date().getHours();
+  const g    = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const name = localStorage.getItem('firstName') || '';
+  const grEl = document.getElementById('acctGreeting');
+  const subEl = document.getElementById('acctSub');
+  if (grEl)  grEl.textContent  = `${g}${name ? ', ' + name : ''}`;
+  if (subEl && data.churchName) subEl.textContent = `Financial overview for ${data.churchName}.`;
+}
+
+function renderAcctSummary(data) {
+  const inc = Number(data.totalIncome  || 0);
+  const exp = Number(data.totalExpense || 0);
+  const net = inc - exp;
+  const netColor    = net >= 0 ? '#2e7d32' : '#c62828';
+  const borderColor = net >= 0 ? '#69f0ae' : '#ff5252';
+  document.getElementById('acctSummary').innerHTML = `
+    <div class="acct-cat-card" style="border-left-color:${borderColor};">
+      <div class="acct-cat-top">
+        <div class="acct-cat-icon" style="background:rgba(103,49,71,.12);font-size:15px;">📊</div>
+        <div class="acct-cat-name">NET BALANCE</div>
+      </div>
+      <div class="acct-cat-amount" style="color:${netColor};">
+        ${net >= 0 ? '+' : ''}${fmtCurrency(net)}
+      </div>
+      <div class="acct-cat-pct">Inc ${fmtCurrency(inc)} &nbsp;·&nbsp; Exp ${fmtCurrency(exp)}</div>
+    </div>`;
+}
+
+function renderAcctCatCards(data) {
+  const cats     = data.netBalanceByCategory || [];
+  const CAT_ICONS = ['💵','🎁','🏦','🙏','📦','💳','🏷️','💰','📥','🤝'];
+  if (cats.length === 0) {
+    document.getElementById('acctCatCards').innerHTML =
+      '<div style="color:#bbb;font-size:13px;">No categories found.</div>';
+    return;
+  }
+  document.getElementById('acctCatCards').innerHTML = cats.map((c, i) => {
+    const color    = CAT_ACCENTS[i % CAT_ACCENTS.length];
+    const icon     = CAT_ICONS[i % CAT_ICONS.length];
+    const net      = Number(c.netBalance || 0);
+    const inc      = Number(c.income     || 0);
+    const exp      = Number(c.expense    || 0);
+    const netColor = net >= 0 ? '#2e7d32' : '#c62828';
+    const bgRgba   = color + '22';
+    return `
+    <div class="acct-cat-card" style="border-left-color:${color};">
+      <div class="acct-cat-top">
+        <div class="acct-cat-icon" style="background:${bgRgba};">${icon}</div>
+        <div class="acct-cat-name">${esc(c.name)}</div>
+      </div>
+      <div class="acct-cat-amount" style="color:${netColor};">${net >= 0 ? '+' : ''}${fmtCurrency(net)}</div>
+      <div class="acct-cat-pct">Inc ${fmtCurrency(inc)} &nbsp;·&nbsp; Exp ${fmtCurrency(exp)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAcctBarChart(incByMonth, expByMonth) {
+  const W = 560, H = 200;
+  const padL = 46, padR = 8, padT = 10, padB = 28;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const inc  = incByMonth.map(Number);
+  const exp  = expByMonth.map(Number);
+  const maxV = Math.max(...inc, ...exp, 1);
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const grpW = cW / 12, bW = grpW * 0.28;
+  const fmtAmt = v => '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let html = '';
+  [0,.25,.5,.75,1].forEach(t => {
+    const y   = padT + cH * (1 - t);
+    const val = Math.round(t * maxV);
+    const lbl = val >= 1000 ? (val/1000).toFixed(0)+'k' : val;
+    html += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"
+                   stroke="#f0f0f0" stroke-width="1"/>
+             <text x="${padL-4}" y="${y.toFixed(1)}" text-anchor="end"
+                   dominant-baseline="middle" font-size="9" fill="#ccc">${lbl}</text>`;
+  });
+  months.forEach((m, i) => {
+    const gx = padL + i * grpW + grpW * 0.08;
+    const lx = padL + i * grpW + grpW / 2;
+    const iH = Math.max((inc[i] / maxV) * cH, 0);
+    const eH = Math.max((exp[i] / maxV) * cH, 0);
+    const tip = `Inc: ${fmtAmt(inc[i])} | Exp: ${fmtAmt(exp[i])}`;
+    html += `<rect class="bar-inc" x="${gx.toFixed(1)}" y="${(padT+cH-iH).toFixed(1)}"
+                   width="${bW.toFixed(1)}" height="${iH.toFixed(1)}" fill="#673147" rx="2"
+                   data-tip="${tip}" data-mon="${m}"/>
+             <rect class="bar-exp" x="${(gx+bW+2).toFixed(1)}" y="${(padT+cH-eH).toFixed(1)}"
+                   width="${bW.toFixed(1)}" height="${eH.toFixed(1)}" fill="#ef5350" rx="2"
+                   data-tip="${tip}" data-mon="${m}"/>
+             <text x="${lx.toFixed(1)}" y="${H-6}"
+                   text-anchor="middle" font-size="7.5" fill="#bbb">${m}</text>`;
+  });
+  const svgEl = document.getElementById('acctBarChart');
+  svgEl.innerHTML = html;
+
+  // ── Hover tooltips ───────────────────────────────────────────────────
+  let tip = document.getElementById('barChartTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'barChartTip';
+    tip.style.cssText =
+      'position:fixed;display:none;background:#1e2139;color:#fff;font-size:11px;font-weight:600;' +
+      'padding:5px 10px;border-radius:6px;pointer-events:none;z-index:9999;white-space:nowrap;' +
+      'box-shadow:0 2px 8px rgba(0,0,0,.3);';
+    document.body.appendChild(tip);
+  }
+  svgEl.querySelectorAll('[data-tip]').forEach(rect => {
+    rect.style.cursor = 'pointer';
+    rect.addEventListener('mouseenter', e => {
+      tip.textContent = rect.getAttribute('data-mon') + ' — ' + rect.getAttribute('data-tip');
+      tip.style.display = 'block';
+    });
+    rect.addEventListener('mousemove', e => {
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 28) + 'px';
+    });
+    rect.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+function renderAcctPie(svgId, legId, items, colors) {
+  const svgEl = document.getElementById(svgId);
+  const legEl = document.getElementById(legId);
+  if (!svgEl || !legEl) return;
+  const slices = items.slice(0, 7);
+  const total  = slices.reduce((s, c) => s + Number(c.total || 0), 0) || 1;
+  if (!slices.length) {
+    svgEl.innerHTML = `<text x="70" y="75" text-anchor="middle" font-size="11" fill="#ccc">No data</text>`;
+    legEl.innerHTML = '';
+    return;
+  }
+  const cx = 70, cy = 70, R = 54, IR = 30;
+  if (slices.length === 1) {
+    const col = colors[0];
+    svgEl.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${col}" stroke="#fff" stroke-width="1.5"/>` +
+                      `<circle cx="${cx}" cy="${cy}" r="${IR}" fill="#fff"/>`;
+    const val = Number(slices[0].total || 0);
+    const amt = '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    legEl.innerHTML = `<div class="donut-leg-row">
+      <div class="donut-leg-dot" style="background:${col};"></div>
+      <span class="donut-leg-name">${esc(slices[0].name)}</span>
+      <span class="donut-leg-amt">${amt}</span>
+      <span class="donut-leg-pct">100%</span>
+    </div>`;
+    return;
+  }
+  let angle = -Math.PI / 2, pieHtml = '';
+  slices.forEach((item, i) => {
+    const val   = Number(item.total || 0);
+    const sweep = (val / total) * 2 * Math.PI;
+    const end   = angle + sweep;
+    const big   = sweep > Math.PI ? 1 : 0;
+    const col   = colors[i % colors.length];
+    const x1 = cx + R * Math.cos(angle), y1 = cy + R * Math.sin(angle);
+    const x2 = cx + R * Math.cos(end),   y2 = cy + R * Math.sin(end);
+    const i1 = cx + IR * Math.cos(angle), j1 = cy + IR * Math.sin(angle);
+    const i2 = cx + IR * Math.cos(end),   j2 = cy + IR * Math.sin(end);
+    const d  = `M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${big} 1 ${x2.toFixed(1)},${y2.toFixed(1)}`
+             + ` L${i2.toFixed(1)},${j2.toFixed(1)} A${IR},${IR} 0 ${big} 0 ${i1.toFixed(1)},${j1.toFixed(1)} Z`;
+    pieHtml += `<path d="${d}" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+    angle = end;
+  });
+  svgEl.innerHTML = pieHtml;
+  legEl.innerHTML = slices.map((item, i) => {
+    const val = Number(item.total || 0);
+    const pct = Math.round(val / total * 100);
+    const amt = '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `<div class="donut-leg-row">
+      <div class="donut-leg-dot" style="background:${colors[i % colors.length]};"></div>
+      <span class="donut-leg-name">${esc(item.name)}</span>
+      <span class="donut-leg-amt">${amt}</span>
+      <span class="donut-leg-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════
+   QUICK ADD INCOME
+════════════════════════════════════ */
+let quickAddIncomeTemplates = [];
+
+function renderQuickAddIncome(templates) {
+  quickAddIncomeTemplates = templates;
+  const el = document.getElementById('quickAddIncomePanel');
+  if (!templates.length) {
+    el.innerHTML = '<div class="qa-empty">No recurring income record yet. Set an income record on the <a href="/income" style="color:#673147;">Income page</a>.</div>';
+    return;
+  }
+  const today = todayStr();
+  const rows  = templates.map((t, i) => {
+    const isCheck = (t.method || '').toLowerCase() === 'check';
+    return `<tr>
+      <td class="qa-view">${esc(t.memberName || '')}</td>
+      <td class="qa-view">${localStorage.getItem('showMainWithSub') !== 'false' && t.mainSourceName ? esc(t.mainSourceName) + ' / ' + esc(t.subSourceName || '') : esc(t.subSourceName || '')}</td>
+      <td class="qa-view">${esc(t.method || '')}</td>
+      <td><input class="qa-input" type="date" id="qai-date-${i}" value="${today}" /></td>
+      <td><input class="qa-input" type="number" id="qai-amt-${i}" min="0.01" step="0.01"
+           placeholder="0.00" value="${t.amount != null ? Number(t.amount).toFixed(2) : ''}" /></td>
+      <td>${isCheck
+        ? `<input class="qa-input" type="text" id="qai-ref-${i}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
+        : `<span style="color:#ccc;font-size: 13px;">—</span>`}</td>
+      <td><input class="qa-input" type="text" id="qai-note-${i}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
+      <td style="white-space:nowrap;">
+        <button class="qa-btn" id="qai-btn-${i}" data-perm="accounting.income.edit">Add</button>
+        <button class="qa-remove-btn" id="qai-rm-${i}" data-perm="accounting.income.edit" title="Remove from dashboard">✕</button>
+        <div id="qai-msg-${i}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
+          Transaction added successfully.
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="qa-table">
+    <thead><tr>
+      <th>Contributor</th><th>Fund</th><th>Method</th>
+      <th>Date</th><th>Amount</th><th>Ref No</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  templates.forEach((t, i) => {
+    const btn    = document.getElementById(`qai-btn-${i}`);
+    const rmBtn  = document.getElementById(`qai-rm-${i}`);
+    const dateEl = document.getElementById(`qai-date-${i}`);
+    const amtEl  = document.getElementById(`qai-amt-${i}`);
+    if (btn)    btn.addEventListener('click',  () => submitQuickAddIncome(i));
+    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddIncome(t.id, i));
+    if (dateEl) dateEl.addEventListener('input', () => resetQaiRow(i));
+    if (amtEl)  amtEl.addEventListener('input',  () => resetQaiRow(i));
+  });
+}
+
+function resetQaiRow(i) {
+  const btn = document.getElementById(`qai-btn-${i}`);
+  const msg = document.getElementById(`qai-msg-${i}`);
+  if (btn) { btn.disabled = false; btn.textContent = 'Add'; btn.style.background = ''; }
+  if (msg) { msg.style.display = 'none'; }
+}
+
+async function submitQuickAddIncome(rowIdx) {
+  const template = quickAddIncomeTemplates[rowIdx];
+  if (!template) return;
+  const dateEl = document.getElementById(`qai-date-${rowIdx}`);
+  const amtEl  = document.getElementById(`qai-amt-${rowIdx}`);
+  const refEl  = document.getElementById(`qai-ref-${rowIdx}`);
+  const noteEl = document.getElementById(`qai-note-${rowIdx}`);
+  const btn    = document.getElementById(`qai-btn-${rowIdx}`);
+  const msg    = document.getElementById(`qai-msg-${rowIdx}`);
+  const incomeDate = dateEl ? dateEl.value : '';
+  const amount     = amtEl  ? parseFloat(amtEl.value) : NaN;
+  const refNo      = refEl  ? refEl.value.trim() : null;
+  const note       = noteEl ? noteEl.value.trim() || null : null;
+  if (!incomeDate) { alert('Please enter a date.'); return; }
+  if (isNaN(amount) || amount <= 0) { alert('Please enter a valid amount.'); return; }
+  if (!confirm('Do you want to add this contribution?')) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await fetch('/api/income', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: template.memberId, subSourceId: template.subSourceId,
+        incomeDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
+      if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
+      if (refEl)  refEl.value  = '';
+      if (noteEl) noteEl.value = template.note || '';
+      if (msg) msg.style.display = '';
+      await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
+    } else {
+      alert(data.error || 'Failed to save income.');
+      btn.disabled = false; btn.textContent = 'Add';
+    }
+  } catch(e) {
+    alert('Network error. Please try again.');
+    btn.disabled = false; btn.textContent = 'Add';
+  }
+}
+
+async function removeQuickAddIncome(incomeId, rowIdx) {
+  if (!confirm('Do you want to remove this contribution from the dashboard? This will only remove it from the dashboard. You can add it back using the recurring checkbox.')) return;
+  const rmBtn = document.getElementById(`qai-rm-${rowIdx}`);
+  if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
+  try {
+    const res = await fetch(`/api/income/${incomeId}/unstar`, { method: 'PATCH' });
+    if (res.ok) {
+      // Remove row from DOM
+      const row = rmBtn ? rmBtn.closest('tr') : null;
+      if (row) row.remove();
+      // If table is now empty show the empty state message
+      quickAddIncomeTemplates = quickAddIncomeTemplates.filter((_, i) => i !== rowIdx);
+      if (!quickAddIncomeTemplates.length) {
+        document.getElementById('quickAddIncomePanel').innerHTML =
+          '<div class="qa-empty">No recurring income record yet. Set an income record on the <a href="/income" style="color:#673147;">Income page</a>.</div>';
+      }
+    } else {
+      if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
+      alert('Failed to remove. Please try again.');
+    }
+  } catch(e) {
+    if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
+    alert('Network error. Please try again.');
+  }
+}
+
+/* ════════════════════════════════════
+   QUICK ADD EXPENSE
+════════════════════════════════════ */
+let quickAddExpenseTemplates = [];
+
+function renderQuickAddExpense(templates) {
+  quickAddExpenseTemplates = templates;
+  const el = document.getElementById('quickAddExpensePanel');
+  if (!templates.length) {
+    el.innerHTML = '<div class="qa-empty">No recurring expense record yet. Set an expense record on the <a href="/expense" style="color:#673147;">Expense page</a>.</div>';
+    return;
+  }
+  const today = todayStr();
+  const rows  = templates.map((t, i) => {
+    const isCheck = (t.method || '').toLowerCase() === 'check';
+    return `<tr>
+      <td class="qa-view">${esc(t.purposeName || '')}</td>
+      <td class="qa-view">${esc(t.mainSourceName || '')}</td>
+      <td class="qa-view">${esc(t.method || '')}</td>
+      <td><input class="qa-input" type="date" id="qae-date-${i}" value="${today}" /></td>
+      <td><input class="qa-input" type="number" id="qae-amt-${i}" min="0.01" step="0.01"
+           placeholder="0.00" value="${t.amount != null ? Number(t.amount).toFixed(2) : ''}" /></td>
+      <td>${isCheck
+        ? `<input class="qa-input" type="text" id="qae-ref-${i}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
+        : `<span style="color:#ccc;font-size: 13px;">—</span>`}</td>
+      <td><input class="qa-input" type="text" id="qae-note-${i}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
+      <td style="white-space:nowrap;">
+        <button class="qa-btn" id="qae-btn-${i}" data-perm="accounting.expense.edit">Add</button>
+        <button class="qa-remove-btn" id="qae-rm-${i}" data-perm="accounting.expense.edit" title="Remove from dashboard">✕</button>
+        <div id="qae-msg-${i}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
+          Transaction added successfully.
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="qa-table">
+    <thead><tr>
+      <th>Expense</th><th>Fund</th><th>Method</th>
+      <th>Date</th><th>Amount</th><th>Ref No</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  templates.forEach((t, i) => {
+    const btn    = document.getElementById(`qae-btn-${i}`);
+    const rmBtn  = document.getElementById(`qae-rm-${i}`);
+    const dateEl = document.getElementById(`qae-date-${i}`);
+    const amtEl  = document.getElementById(`qae-amt-${i}`);
+    if (btn)    btn.addEventListener('click',  () => submitQuickAddExpense(i));
+    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddExpense(t.id, i));
+    if (dateEl) dateEl.addEventListener('input', () => resetQaeRow(i));
+    if (amtEl)  amtEl.addEventListener('input',  () => resetQaeRow(i));
+  });
+}
+
+function resetQaeRow(i) {
+  const btn = document.getElementById(`qae-btn-${i}`);
+  const msg = document.getElementById(`qae-msg-${i}`);
+  if (btn) { btn.disabled = false; btn.textContent = 'Add'; btn.style.background = ''; }
+  if (msg) { msg.style.display = 'none'; }
+}
+
+async function submitQuickAddExpense(rowIdx) {
+  const template = quickAddExpenseTemplates[rowIdx];
+  if (!template) return;
+  const dateEl    = document.getElementById(`qae-date-${rowIdx}`);
+  const amtEl     = document.getElementById(`qae-amt-${rowIdx}`);
+  const refEl     = document.getElementById(`qae-ref-${rowIdx}`);
+  const noteEl    = document.getElementById(`qae-note-${rowIdx}`);
+  const btn       = document.getElementById(`qae-btn-${rowIdx}`);
+  const msg       = document.getElementById(`qae-msg-${rowIdx}`);
+  const expenseDate = dateEl ? dateEl.value : '';
+  const amount      = amtEl  ? parseFloat(amtEl.value) : NaN;
+  const refNo       = refEl  ? refEl.value.trim() : null;
+  const note        = noteEl ? noteEl.value.trim() || null : null;
+  if (!expenseDate) { alert('Please enter a date.'); return; }
+  if (isNaN(amount) || amount <= 0) { alert('Please enter a valid amount.'); return; }
+  if (!confirm('Do you want to add this expense?')) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await fetch('/api/expense', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purposeId: template.purposeId, mainSourceId: template.mainSourceId,
+        expenseDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
+      if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
+      if (refEl)  refEl.value  = '';
+      if (noteEl) noteEl.value = template.note || '';
+      if (msg) msg.style.display = '';
+      await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
+    } else {
+      alert(data.error || 'Failed to save expense.');
+      btn.disabled = false; btn.textContent = 'Add';
+    }
+  } catch(e) {
+    alert('Network error. Please try again.');
+    btn.disabled = false; btn.textContent = 'Add';
+  }
+}
+
+async function removeQuickAddExpense(expenseId, rowIdx) {
+  if (!confirm('Do you want to remove this expense from the dashboard? This will only remove it from the dashboard. You can add it back using the recurring checkbox.')) return;
+  const rmBtn = document.getElementById(`qae-rm-${rowIdx}`);
+  if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
+  try {
+    const res = await fetch(`/api/expense/${expenseId}/unstar`, { method: 'PATCH' });
+    if (res.ok) {
+      // Remove row from DOM
+      const row = rmBtn ? rmBtn.closest('tr') : null;
+      if (row) row.remove();
+      // If table is now empty show the empty state message
+      quickAddExpenseTemplates = quickAddExpenseTemplates.filter((_, i) => i !== rowIdx);
+      if (!quickAddExpenseTemplates.length) {
+        document.getElementById('quickAddExpensePanel').innerHTML =
+          '<div class="qa-empty">No recurring expense record yet. Set an expense record on the <a href="/expense" style="color:#673147;">Expense page</a>.</div>';
+      }
+    } else {
+      if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
+      alert('Failed to remove. Please try again.');
+    }
+  } catch(e) {
+    if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
+    alert('Network error. Please try again.');
+  }
+}
+
+/* ════════════════════════════════════
+   RECENT TRANSACTIONS
+════════════════════════════════════ */
+/* ── Recent Transactions pagination state ─── */
+let allRecentActivity  = [];
+let recentTxPage       = 0;
+const RECENT_TX_SIZE   = 5;
+
+function renderRecentTxns(activity) {
+  allRecentActivity = activity;
+  recentTxPage      = 0;
+  drawRecentTxns();
+}
+
+function recentTxNav(dir) {
+  const maxPage = Math.ceil(allRecentActivity.length / RECENT_TX_SIZE) - 1;
+  recentTxPage  = Math.max(0, Math.min(maxPage, recentTxPage + dir));
+  drawRecentTxns();
+}
+
+function drawRecentTxns() {
+  const el = document.getElementById('acctRecentTxns');
+  if (!allRecentActivity.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:#bbb;font-size:13px;">No recent transactions.</div>';
+    return;
+  }
+  const total  = allRecentActivity.length;
+  const start  = recentTxPage * RECENT_TX_SIZE;
+  const end    = Math.min(start + RECENT_TX_SIZE, total);
+  const slice  = allRecentActivity.slice(start, end);
+  const hasPrev = recentTxPage > 0;
+  const hasNext = end < total;
+
+  const rows = slice.map(a => {
+    const isInc   = a.type === 'income';
+    const d       = a.date ? new Date(a.date + 'T00:00:00') : null;
+    const ds      = d ? `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` : '';
+    const editUrl = isInc ? `/income?edit=${a.id}` : `/expense?edit=${a.id}`;
+    const badge   = `<span class="rt-badge ${a.type}">${isInc ? 'Income' : 'Expense'}</span>`;
+    const amt     = `<span style="font-weight:700;color:${isInc ? '#2e7d32' : '#c62828'};">${isInc ? '+' : '-'}${fmtCurrency(a.amount)}</span>`;
+    return `<tr>
+      <td>${badge}</td>
+      <td>${esc(a.label)}${a.sub ? '<br><span style="font-size:11px;color:#aaa;">'+esc(a.sub)+'</span>' : ''}</td>
+      <td style="color:#777;font-size:13px;">${ds}</td>
+      <td style="color:#777;font-size:13px;">${esc(a.method || '')}</td>
+      <td style="text-align:right;">${amt}</td>
+      <td><a class="rt-link" href="${editUrl}">Edit ↗</a></td>
+    </tr>`;
+  }).join('');
+
+  const btnBase = 'padding:5px 16px;border-radius:6px;border:1px solid #ddd;font-size:13px;cursor:pointer;';
+  el.innerHTML = `<table class="rt-table">
+    <thead><tr>
+      <th>Type</th><th>Description</th><th>Date</th><th>Method</th><th style="text-align:right;">Amount</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 16px;border-top:1px solid #f0f0f0;">
+    <button onclick="recentTxNav(-1)" ${hasPrev ? '' : 'disabled'}
+      style="${btnBase}background:${hasPrev ? '#fff' : '#f9f9f9'};color:${hasPrev ? '#673147' : '#ccc'};">
+      ‹ Prev
+    </button>
+    <span style="font-size:12px;color:#999;">${start + 1}–${end} of ${total}</span>
+    <button onclick="recentTxNav(1)" ${hasNext ? '' : 'disabled'}
+      style="${btnBase}background:${hasNext ? '#fff' : '#f9f9f9'};color:${hasNext ? '#673147' : '#ccc'};">
+      Next ›
+    </button>
+  </div>`;
+}
+
+async function refreshRecentTxns() {
+  try {
+    const clientId = localStorage.getItem('clientId') || '';
+    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
+    const data = await res.json();
+    renderRecentTxns(data.recentActivity || []);   // resets to page 0
+  } catch(e) { /* non-critical */ }
+}
+
+async function refreshNetBalance() {
+  try {
+    const clientId = localStorage.getItem('clientId') || '';
+    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderAcctSummary(data);
+    renderAcctCatCards(data);
+  } catch(e) { /* non-critical */ }
+}
+
+function todayStr() {
+  const d   = new Date();
+  const m   = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/* ══════════════════════════════════════════════
+   AI SEARCH
+══════════════════════════════════════════════ */
+let _aiTimer = null;
+
+/* Returns true if the query looks like a help/how-to question rather than a data lookup. */
+function _isHelpQuery(q) {
+  const ql = q.toLowerCase();
+  const helpPhrases = [
+    'how do i','how to','how can i','what is','where is','where can i',
+    'how does','how do you','step','guide','help','tutorial','instructions',
+    'add child','register child','create event','assign volunteer','view contributions',
+    'record contribution','pledge campaign','add member','sunday school class',
+    'assign teacher','check-in','tax report','send email','bulk email',
+    'event reminder','add user','create group','worship planning','add a child',
+    'create an event','help center','navigate','how do i find','where do i go'
+  ];
+  return helpPhrases.some(p => ql.includes(p));
+}
+
+async function runAiSearch() {
+  const input = document.getElementById('aiSearchInput');
+  const btn   = document.getElementById('aiSearchBtn');
+  const wrap  = document.getElementById('aiResultsWrap');
+  const query = (input.value || '').trim();
+  if (!query) { input.focus(); return; }
+  btn.disabled = true; btn.textContent = '⏳ Searching…';
+  wrap.style.display = 'none';
+  clearTimeout(_aiTimer);
+  const timeoutPromise = new Promise((_, reject) => {
+    _aiTimer = setTimeout(() => reject(new Error('timeout')), 120000);
+  });
+  try {
+    // Route help/how-to queries to the help search API; data queries to AI search.
+    const endpoint = _isHelpQuery(query) ? '/api/help/search' : '/api/ai-search';
+    const fetchPromise = fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    }).then(r => r.json());
+    const data = await Promise.race([fetchPromise, timeoutPromise]);
+    clearTimeout(_aiTimer);
+    renderAiResults(data, query);
+  } catch (err) {
+    clearTimeout(_aiTimer);
+    const msg = err.message === 'timeout'
+      ? 'Unable to fetch the results. Please try again.'
+      : 'An error occurred. Please try again.';
+    renderAiResults({ intent: 'error', answer: msg, results: [], links: [] }, query);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Search';
+  }
+}
+
+function renderAiResults(data, query) {
+  const wrap     = document.getElementById('aiResultsWrap');
+  const intent   = data.intent || 'general';
+
+  // ── Help intent — render step-by-step guide ──────────────────────────
+  if (intent === 'help' || intent === 'help_nomatch') {
+    let html = `<div class="ai-results-panel">
+      <div class="ai-results-hdr">
+        <div class="ai-results-title">📚 ${esc(data.title || 'Help')} <em style="font-size:12px;color:#aaa;font-weight:400;">for: ${esc(query)}</em></div>
+        <button class="ai-results-close" onclick="document.getElementById('aiResultsWrap').style.display='none'" title="Close">✕</button>
+      </div>
+      <div class="ai-answer">${esc(data.answer || '')}</div>`;
+    if (data.steps && data.steps.length) {
+      html += `<div style="margin:12px 0 4px;font-size:11px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;">Step-by-Step</div>`;
+      data.steps.forEach((s, i) => {
+        html += `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:6px;font-size:13px;color:#444;line-height:1.5;">
+          <span style="background:#673147;color:#fff;font-size:11px;font-weight:700;border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;margin-top:1px;">${i+1}</span>
+          <span>${esc(s)}</span></div>`;
+      });
+    }
+    if (data.links && data.links.length) {
+      html += `<div style="margin-top:12px;font-size:11px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;">Quick Navigation</div>
+               <div class="ai-links-grid" style="margin-top:8px;">`;
+      data.links.forEach(lk => {
+        html += `<a class="ai-link-card" href="${esc(lk.url)}">
+          <span class="ai-link-icon">${esc(lk.icon || '📄')}</span>
+          <div>
+            <div class="ai-link-label">${esc(lk.label)}</div>
+            <div class="ai-link-desc">${esc(lk.description || '')}</div>
+          </div></a>`;
+      });
+      html += `</div>`;
+    }
+    // "Browse Help Center" footer link
+    html += `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0eaf2;font-size:12px;color:#888;">
+      Need more detail? <a href="/helpCenter" style="color:#673147;font-weight:700;">Open the full Help Center →</a>
+    </div>`;
+    if (data.related && data.related.length) {
+      html += `<div style="margin-top:8px;font-size:12px;color:#aaa;">Related: `;
+      data.related.forEach(r => {
+        html += `<span style="display:inline-block;background:#f5f6fa;color:#555;border-radius:6px;padding:3px 9px;font-size:12px;margin:2px;cursor:pointer;border:1px solid #e0e0e0;"
+                       onclick="document.getElementById('aiSearchInput').value='${esc(r)}';runAiSearch()">${esc(r)}</span>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+    wrap.innerHTML     = html;
+    wrap.style.display = 'block';
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+
+  // ── Default data-lookup rendering ────────────────────────────────────
+  const answerCls = intent === 'denied' ? ' ai-denied' : intent === 'error' ? ' ai-error' : '';
+  let html = `<div class="ai-results-panel">
+    <div class="ai-results-hdr">
+      <div class="ai-results-title">✨ Results for: <em>${esc(query)}</em></div>
+      <button class="ai-results-close" onclick="document.getElementById('aiResultsWrap').style.display='none'" title="Close">✕</button>
+    </div>
+    <div class="ai-answer${answerCls}">${esc(data.answer || '')}</div>`;
+  if (data.sections && data.sections.length) {
+    html += `<div class="ai-sections">`;
+    data.sections.forEach(s => { html += `<span class="ai-section-chip">${esc(s)}</span>`; });
+    html += `</div>`;
+  }
+  if (data.links && data.links.length) {
+    html += `<div class="ai-links-grid">`;
+    data.links.forEach(lk => {
+      html += `<a class="ai-link-card" href="${esc(lk.url)}">
+        <span class="ai-link-icon">${lk.icon || '📄'}</span>
+        <div>
+          <div class="ai-link-label">${esc(lk.label)}</div>
+          <div class="ai-link-desc">${esc(lk.description || '')}</div>
+        </div>
+      </a>`;
+    });
+    html += `</div>`;
+  }
+  if ((intent === 'income' || intent === 'expense') && data.results && data.results.length) {
+    html += `<div class="ai-table-wrap"><table class="ai-table"><thead><tr>`;
+    if (intent === 'income') {
+      html += `<th>Date</th><th>Member</th><th>Fund / Category</th><th>Amount</th><th>Method</th>`;
+    } else {
+      html += `<th>Fund</th><th>Purpose</th><th>Date</th><th>Amount</th><th>Method</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+    data.results.forEach(r => {
+      html += `<tr>`;
+      if (intent === 'income') {
+        html += `<td>${esc(r.date)}</td><td style="font-weight:600;">${esc(r.name)}</td>
+                 <td style="color:#673147;">${esc(r.fund)}</td>
+                 <td style="font-weight:700;color:#2e7d32;">${esc(r.amount)}</td>
+                 <td>${esc(r.method)}</td>`;
+      } else {
+        html += `<td style="color:#673147;">${esc(r.fund)}</td>
+                 <td>${esc(r.purpose)}</td><td>${esc(r.date)}</td>
+                 <td style="font-weight:700;color:#c62828;">${esc(r.amount)}</td>
+                 <td>${esc(r.method)}</td>`;
+      }
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+  if ((intent === 'birthday' || intent === 'anniversary' || intent === 'birthday_anniversary')
+       && data.results && data.results.length) {
+    html += `<div class="ai-events-list">`;
+    data.results.forEach(r => {
+      const emoji    = r.type === 'Anniversary' ? '💍' : '🎂';
+      const badge    = r.type ? `<span class="ai-event-badge">${esc(r.type)}</span>` : '';
+      const monthCap = r.monthName ? r.monthName.charAt(0).toUpperCase() + r.monthName.slice(1) : '';
+      const dateStr  = monthCap + (r.day ? ' ' + r.day : '') + (r.year ? ', ' + r.year : '');
+      html += `<div class="ai-event-item">
+        <span class="ai-event-emoji">${emoji}</span>
+        <span class="ai-event-name">${esc(r.name)}${badge}</span>
+        <span class="ai-event-date">${esc(dateStr)}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+  wrap.innerHTML     = html;
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ══════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════ */
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtCurrency(num) {
+  return '$' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+(function init() {
+  const isChurch = localStorage.getItem('church') === 'true';
+
+  /* ── Sidebar brand: show actual church name (max 2 lines) ── */
+  const cn = localStorage.getItem('churchName') || 'Church Genius';
+  const brandEl = document.querySelector('.brand-name');
+  if (brandEl) brandEl.textContent = cn;
+
+  /* ── Topbar logo: load org image only — do NOT fall back to church name text ── */
+  (async function loadTopbarLogo() {
+    const inner    = document.getElementById('topbarLogoInner');
+    const logoWrap = document.querySelector('.topbar-logo-wrap');
+    if (!inner) return;
+    try {
+      const res  = await fetch('/api/logo/meta');
+      const meta = await res.json();
+      if (meta.exists) {
+        inner.innerHTML = `<img src="/api/logo/image?t=${Date.now()}" alt="${cn}" />`;
+      } else {
+        // No logo uploaded — hide the topbar logo area entirely
+        if (logoWrap) logoWrap.style.display = 'none';
+      }
+    } catch (_) {
+      if (logoWrap) logoWrap.style.display = 'none';
+    }
+  })();
+
+  /* Determine role */
+  const role         = localStorage.getItem('role') || '';
+  const effectiveRole = isChurch ? 'Church' : role;
+  const myAllowed    = allowedSids(role, isChurch);
+
+  if (myAllowed.length === 0) {
+    /* Generic welcome for roles with no dashboard sections */
+    document.getElementById('dashSections').style.display  = 'none';
+    document.getElementById('genericWelcome').style.display = '';
+    const name = localStorage.getItem('firstName') || '';
+    document.getElementById('welcomeName').textContent =
+      `Welcome${name ? ', ' + name : ''}!`;
+    return;
+  }
+
+  /* Show dashboard + customize button */
+  document.getElementById('dashSections').style.display = '';
+  const _fab = document.getElementById('editFab');
+  if (_fab) _fab.style.display = '';
+
+  /* Load prefs from DB (authoritative), then kick off data loading */
+  const adminSids = ['s-admin-banner','s-admin-growth-calendar','s-admin-events-distribution'];
+  const acctSids  = ['s-acct-net-balance','s-acct-income-qa','s-acct-expense-qa',
+                     's-acct-stats','s-acct-recent-barchart'];
+
+  const needsAdmin = adminSids.some(sid => myAllowed.includes(sid));
+  const needsAcct  = acctSids.some(sid => myAllowed.includes(sid));
+
+  loadPrefsFromDb(role, isChurch).then(() => {
+    if (needsAdmin) { loadDashboard(); loadCalEvents(); }
+    if (needsAcct)  { loadAccountantDashboard(); }
+  });
+})();
+</script>
+<script>
+
+  function _priv(key) {
+    var p = window.userPrivileges;
+    if (!p) return true;
+    if (p.__superAdmin) return true;
+    return p[key] === true;
+  }
+
+  window.applyPagePrivileges = function() {
+    if (!_priv('dashboard.recurringIncome')) {
+      document.querySelectorAll('[data-sid="s-acct-income-qa"], #quickAddIncomePanel').forEach(function(el) { var s = el.closest ? el.closest('.dash-section') : el; if(s) s.style.display='none'; });
+    }
+    if (!_priv('dashboard.recurringExpense')) {
+      document.querySelectorAll('[data-sid="s-acct-expense-qa"], #quickAddExpensePanel').forEach(function(el) { var s = el.closest ? el.closest('.dash-section') : el; if(s) s.style.display='none'; });
+    }
+  };
+  document.addEventListener('privilegesReady', function() { window.applyPagePrivileges(); });
+  (function() {
+    ['renderDashboard','renderQuickAdd','renderAccountant','render'].forEach(function(fn) {
+      if (typeof window[fn] === 'function') {
+        var orig = window[fn];
+        window[fn] = function() { orig.apply(this, arguments); window.applyPagePrivileges && window.applyPagePrivileges(); };
+      }
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Attendance</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+  <style>
+    :root { --brand:#673147; --brand-dk:#4d2435; --line:#e6dde2; }
+    *, *::before, *::after { box-sizing:border-box; }
+    html, body { height:100%; }
+    body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f6fa; color:#333; }
+    a { text-decoration:none; color:inherit; } button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .page-title { font-size:22px; font-weight:700; color:#673147; }
+    .page-subtitle { font-size:13px; color:#aaa; margin-top:3px; }
+    .at-card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:18px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .at-card h3 { margin:0 0 12px; font-size:15px; color:var(--brand); }
+    .at-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+    .at-tab { border:1.5px solid #d7c9d0; background:#fff; color:#673147; font-weight:600; font-size:13.5px; padding:8px 16px; border-radius:9px; }
+    .at-tab.on { background:#673147; color:#fff; border-color:#673147; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:18px; }
+    .stat { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .stat .n { font-size:28px; font-weight:800; color:#673147; }
+    .stat .l { font-size:12.5px; color:#888; margin-top:3px; }
+    .charts { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    @media (max-width:760px){ .charts { grid-template-columns:1fr; } }
+    .ctrl-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
+    .ctrl { display:flex; flex-direction:column; }
+    .ctrl label { font-size:12px; font-weight:700; color:#666; margin-bottom:4px; }
+    .ctrl input, .ctrl select { padding:8px 10px; border:1.5px solid #ddd; border-radius:8px; font-size:13.5px; background:#fff; min-width:150px; }
+    .btn { border:none; border-radius:9px; background:var(--brand); color:#fff; font-size:13.5px; font-weight:700; padding:9px 16px; }
+    .btn:hover { background:var(--brand-dk); }
+    .btn.sm { padding:5px 11px; font-size:12px; }
+    .btn.ghost { background:#fff; color:var(--brand); border:1.5px solid #c5a0b5; }
+    .btn.danger { background:#fff; color:#c0392b; border:1.5px solid #f0bcc3; }
+    .method-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+    .mtab { border:1px solid #e0d3da; background:#fbf7f9; color:#555; font-weight:600; font-size:13px; padding:7px 13px; border-radius:999px; }
+    .mtab.on { background:#673147; color:#fff; border-color:#673147; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid #eee; vertical-align:middle; }
+    th { color:#888; font-size:11.5px; text-transform:uppercase; letter-spacing:.4px; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+    .pill.PRESENT { background:#e6f4ea; color:#1e7e34; } .pill.LATE { background:#fff4e0; color:#b26a00; }
+    .pill.ABSENT { background:#fbeaec; color:#c0392b; } .pill.EXCUSED { background:#eef4fd; color:#2c5fa3; }
+    .res { border:1px solid #eee; border-radius:8px; max-height:300px; overflow:auto; }
+    .res-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid #f3f0f2; }
+    .res-row .av { width:30px; height:30px; border-radius:50%; object-fit:cover; background:#eadfe6; display:flex; align-items:center; justify-content:center; color:#9a7d8b; font-weight:700; font-size:12px; }
+    .res-row .nm { font-weight:600; } .res-row .sub { color:#999; font-size:11px; }
+    .res-row .sp { margin-left:auto; display:flex; gap:6px; }
+    .msg { margin-top:10px; font-size:13px; border-radius:8px; padding:8px 11px; display:none; }
+    .msg.ok { background:#e8f6ec; color:#1e7e34; border:1px solid #bfe6c9; display:block; }
+    .msg.err { background:#fdecee; color:#c0392b; border:1px solid #f3c6cc; display:block; }
+    .cam-frame { width:100%; max-width:360px; min-height:220px; aspect-ratio:4/3; background:#000; border-radius:12px; overflow:hidden; margin:8px 0; }
+    .cam-frame video { width:100%!important; height:100%!important; object-fit:cover; }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal.open { display:flex; }
+    .modal .inner { background:#fff; border-radius:12px; padding:18px 20px; width:360px; max-width:92vw; text-align:center; }
+    .muted { color:#999; font-size:12px; }
+    .hide { display:none; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Attendance</div>
+          <div class="page-subtitle">Track check-ins, visitors, and attendance trends</div>
+        </div>
+      </div>
+
+      <div class="at-tabs">
+        <button class="at-tab on" data-tab="dashboard">📊 Dashboard</button>
+        <button class="at-tab" data-tab="checkin">✅ Check-In</button>
+        <button class="at-tab" data-tab="records">📋 Records</button>
+        <button class="at-tab" data-tab="reports">📈 Reports</button>
+      </div>
+
+      <!-- ───────── Dashboard ───────── -->
+      <section id="tab-dashboard">
+        <div class="stats" id="statCards"></div>
+        <div class="charts">
+          <div class="at-card"><h3>Weekly attendance trend</h3><canvas id="cWeekly" height="160"></canvas></div>
+          <div class="at-card"><h3>Monthly attendance trend</h3><canvas id="cMonthly" height="160"></canvas></div>
+          <div class="at-card"><h3>Attendance by service</h3><canvas id="cService" height="160"></canvas></div>
+          <div class="at-card"><h3>Attendance by ministry</h3><canvas id="cMinistry" height="160"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ───────── Check-In ───────── -->
+      <section id="tab-checkin" class="hide">
+        <div class="at-card">
+          <div class="ctrl-row">
+            <div class="ctrl"><label>Service / Event</label><select id="ciService"></select></div>
+            <div class="ctrl"><label>Status</label><select id="ciStatus"></select></div>
+            <div class="ctrl"><label>Ministry (optional)</label><input id="ciMinistry" type="text" placeholder="e.g. Choir"></div>
+            <div class="ctrl"><label>Campus / Location (optional)</label><input id="ciCampus" type="text" placeholder="Main campus"></div>
+          </div>
+          <div class="method-tabs">
+            <button class="mtab on" data-m="manual">🔎 Manual</button>
+            <button class="mtab" data-m="scan">📷 QR / Barcode</button>
+            <button class="mtab" data-m="family">👪 Family</button>
+            <button class="mtab" data-m="visitor">🙋 Visitor</button>
+          </div>
+          <div id="ciMsg" class="msg"></div>
+
+          <!-- Manual -->
+          <div id="m-manual" class="method">
+            <input id="manualSearch" type="text" placeholder="Search name, phone, email, or member ID…" style="width:100%;padding:9px 11px;border:1.5px solid #ddd;border-radius:8px;">
+            <div class="res" id="manualResults" style="margin-top:10px;"></div>
+          </div>
+
+          <!-- Scan -->
+          <div id="m-scan" class="method hide">
+            <label class="muted">USB / Bluetooth scanner — focus here and scan:</label>
+            <input id="scanInput" type="text" placeholder="Scan a member code…" autocomplete="off" style="width:100%;padding:9px 11px;border:1.5px solid #ddd;border-radius:8px;margin:4px 0 8px;">
+            <button class="btn ghost sm" id="camBtn" type="button">📷 Use camera</button>
+            <div id="camPanel" class="hide"><div id="camReader" class="cam-frame"></div><button class="btn ghost sm" id="camStop" type="button">Stop camera</button></div>
+          </div>
+
+          <!-- Family -->
+          <div id="m-family" class="method hide">
+            <input id="familySearch" type="text" placeholder="Search a family member to load the family…" style="width:100%;padding:9px 11px;border:1.5px solid #ddd;border-radius:8px;">
+            <div class="res" id="familyResults" style="margin-top:10px;"></div>
+            <div id="familyMembers" style="margin-top:12px;"></div>
+          </div>
+
+          <!-- Visitor -->
+          <div id="m-visitor" class="method hide">
+            <div class="ctrl-row">
+              <div class="ctrl"><label>Name *</label><input id="vName" type="text"></div>
+              <div class="ctrl"><label>Phone</label><input id="vPhone" type="tel"></div>
+              <div class="ctrl"><label>Email</label><input id="vEmail" type="email"></div>
+              <div class="ctrl"><label>Invited by</label><input id="vInvited" type="text"></div>
+              <div class="ctrl" style="flex:1;"><label>Address</label><input id="vAddress" type="text" style="width:100%"></div>
+            </div>
+            <button class="btn" id="vCheckIn" type="button" data-perm="general.attendance.edit">Check in visitor</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── Records ───────── -->
+      <section id="tab-records" class="hide">
+        <div class="at-card">
+          <div class="ctrl-row">
+            <div class="ctrl"><label>From</label><input id="rFrom" type="date"></div>
+            <div class="ctrl"><label>To</label><input id="rTo" type="date"></div>
+            <div class="ctrl"><label>Service</label><select id="rService"></select></div>
+            <div class="ctrl"><label>Status</label><select id="rStatus"></select></div>
+            <div class="ctrl"><label>Ministry</label><input id="rMinistry" type="text"></div>
+            <button class="btn" id="rApply" type="button">Apply</button>
+            <div style="margin-left:auto;display:flex;gap:6px;">
+              <button class="btn ghost sm" onclick="exportRecords('csv')">CSV</button>
+              <button class="btn ghost sm" onclick="exportRecords('xlsx')">Excel</button>
+              <button class="btn ghost sm" onclick="exportRecords('pdf')">PDF</button>
+            </div>
+          </div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Date</th><th>Check-In</th><th>Name</th><th>Type</th><th>Service</th><th>Ministry</th><th>Status</th><th></th></tr></thead>
+              <tbody id="recBody"><tr><td colspan="8" class="muted">Apply filters to load records.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── Reports ───────── -->
+      <section id="tab-reports" class="hide">
+        <div class="at-card">
+          <div class="ctrl-row">
+            <div class="ctrl"><label>From</label><input id="repFrom" type="date"></div>
+            <div class="ctrl"><label>To</label><input id="repTo" type="date"></div>
+            <button class="btn" id="repRun" type="button">Run</button>
+          </div>
+          <div class="method-tabs">
+            <button class="mtab on" data-r="members">Member Attendance</button>
+            <button class="mtab" data-r="families">Family Attendance</button>
+            <button class="mtab" data-r="ministry">Ministry</button>
+            <button class="mtab" data-r="events">Events</button>
+            <button class="mtab" data-r="visitors">Visitors</button>
+            <button class="mtab" data-r="trends">Trends</button>
+          </div>
+          <div id="repBody"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Member code modal -->
+<div class="modal" id="codeModal"><div class="inner">
+  <h3 style="margin-top:0;color:var(--brand);" id="codeName">Member code</h3>
+  <div id="codeQr" style="display:flex;justify-content:center;margin:6px 0;"></div>
+  <svg id="codeBar" style="max-width:100%;"></svg>
+  <div class="muted" id="codeText" style="margin-top:4px;"></div>
+  <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;">
+    <button class="btn ghost" type="button" onclick="printCode()">🖨 Print</button>
+    <button class="btn ghost" type="button" onclick="document.getElementById('codeModal').classList.remove('open')">Close</button>
+  </div>
+</div></div>
+
+<!-- Edit record modal -->
+<div class="modal" id="editModal"><div class="inner" style="text-align:left;">
+  <h3 style="margin-top:0;color:var(--brand);">Edit record</h3>
+  <input type="hidden" id="eId">
+  <div class="ctrl" style="margin-bottom:10px;"><label>Date</label><input id="eDate" type="date" style="width:100%"></div>
+  <div class="ctrl" style="margin-bottom:10px;"><label>Service</label><select id="eService" style="width:100%"></select></div>
+  <div class="ctrl" style="margin-bottom:10px;"><label>Status</label><select id="eStatus" style="width:100%"></select></div>
+  <div class="ctrl" style="margin-bottom:10px;"><label>Ministry</label><input id="eMinistry" type="text" style="width:100%"></div>
+  <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;">
+    <button class="btn" type="button" data-perm="general.attendance.edit" onclick="saveEdit()">Save</button>
+    <button class="btn ghost" type="button" onclick="document.getElementById('editModal').classList.remove('open')">Cancel</button>
+  </div>
+</div></div>
+
+<script>
+  window.CGP_PAGE = { activePage: 'general/attendance', pageTitle: 'Attendance', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>
+  var el = function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function get(u){ return fetch(u).then(function(r){ return r.ok?r.json():null; }); }
+  function post(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){ return r.json().then(function(j){return{ok:r.ok,j:j};}); }); }
+  function ciMsg(t,k){ var m=el('ciMsg'); m.textContent=t; m.className='msg '+k; if(k==='ok') setTimeout(function(){ m.className='msg'; }, 3500); }
+
+  var SERVICE_TYPES = [], STATUSES = [];
+
+  /* ── Tabs ── */
+  Array.prototype.forEach.call(document.querySelectorAll('.at-tab'), function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.at-tab').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      ['dashboard','checkin','records','reports'].forEach(function(t){ el('tab-'+t).classList.toggle('hide', t!==b.dataset.tab); });
+      if (b.dataset.tab==='dashboard') loadDashboard();
+      if (b.dataset.tab==='records') applyRecords();
+      if (b.dataset.tab==='reports') loadCurrentReport();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.mtab'), function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.mtab').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      ['manual','scan','family','visitor'].forEach(function(m){ el('m-'+m).classList.toggle('hide', m!==b.dataset.m); });
+      if (b.dataset.m!=='scan') stopCamera();
+      if (b.dataset.m==='scan') setTimeout(function(){ el('scanInput').focus(); }, 50);
+    });
+  });
+
+  /* ── Reference data ── */
+  Promise.all([ get('/api/attendance/service-types'), get('/api/attendance/statuses') ]).then(function(r){
+    SERVICE_TYPES = r[0]||[]; STATUSES = r[1]||['PRESENT','LATE','ABSENT','EXCUSED'];
+    function opts(list, withAll){ return (withAll?'<option value="">All</option>':'') + list.map(function(x){ var v=x.name||x; return '<option>'+esc(v)+'</option>'; }).join(''); }
+    el('ciService').innerHTML  = SERVICE_TYPES.map(function(t){ return '<option>'+esc(t.name)+'</option>'; }).join('');
+    el('eService').innerHTML   = el('ciService').innerHTML;
+    el('rService').innerHTML   = '<option value="">All</option>' + el('ciService').innerHTML;
+    el('ciStatus').innerHTML   = STATUSES.map(function(s){ return '<option>'+esc(s)+'</option>'; }).join('');
+    el('eStatus').innerHTML    = el('ciStatus').innerHTML;
+    el('rStatus').innerHTML    = '<option value="">All</option>' + el('ciStatus').innerHTML;
+  });
+
+  /* ── Dashboard ── */
+  var charts = {};
+  function loadDashboard(){
+    get('/api/attendance/dashboard').then(function(d){
+      d = d||{};
+      var cards = [
+        ['weekCount',"This week's attendance"],['monthCount',"This month's attendance"],
+        ['firstTimeVisitors','First-time visitors'],['returningVisitors','Returning visitors'],
+        ['membersPresent','Members present'],['volunteersPresent','Volunteers present']
+      ];
+      el('statCards').innerHTML = cards.map(function(c){ return '<div class="stat"><div class="n">'+(d[c[0]]||0)+'</div><div class="l">'+c[1]+'</div></div>'; }).join('');
+    });
+    drawChart('cWeekly','line','/api/attendance/trends/weekly','Attendance');
+    drawChart('cMonthly','line','/api/attendance/trends/monthly','Attendance');
+    drawChart('cService','bar','/api/attendance/trends/by-service','By service');
+    drawChart('cMinistry','bar','/api/attendance/trends/by-ministry','By ministry');
+  }
+  function drawChart(canvasId, type, url, label){
+    get(url).then(function(rows){
+      rows = rows||[];
+      var labels = rows.map(function(r){ return r.label; });
+      var data   = rows.map(function(r){ return r.value; });
+      if (charts[canvasId]) charts[canvasId].destroy();
+      charts[canvasId] = new Chart(el(canvasId).getContext('2d'), {
+        type: type,
+        data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: 'rgba(103,49,71,.55)', borderColor: '#673147', borderWidth: 2, tension: .3, fill: type==='line' }] },
+        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
+      });
+    });
+  }
+
+  /* ── Check-in context ── */
+  function ctx(){ return { serviceType: el('ciService').value, status: el('ciStatus').value, ministry: el('ciMinistry').value.trim(), campus: el('ciCampus').value.trim() }; }
+
+  /* ── Manual search + check-in ── */
+  function avatar(p){ if(p.photo) return '<img class="av" src="'+esc(p.photo)+'">'; var i=(p.name||'?').split(/\s+/).map(function(w){return w.charAt(0);}).slice(0,2).join('').toUpperCase(); return '<span class="av">'+esc(i)+'</span>'; }
+  var manualT;
+  el('manualSearch').addEventListener('input', function(){ clearTimeout(manualT); var q=this.value; manualT=setTimeout(function(){ runSearch(q,'manualResults',true); }, 250); });
+  function runSearch(q, target, withActions){
+    if(!q || q.length<1){ el(target).innerHTML=''; return; }
+    get('/api/attendance/search?q='+encodeURIComponent(q)).then(function(list){
+      list = list||[];
+      el(target).innerHTML = list.length ? list.map(function(p){
+        var sub=[p.email,p.phone].filter(Boolean).join(' · ');
+        var actions = '';
+        if (p.personType==='MEMBER') {
+          actions = '<button class="btn sm" data-perm="general.attendance.edit" onclick="checkInMember('+p.memberId+',\''+escq(p.name)+'\')">Check in</button>'
+                  + '<button class="btn sm ghost" onclick="showCode('+p.memberId+',\''+escq(p.name)+'\')">Code</button>'
+                  + (target==='familyResults'&&p.familyId?'<button class="btn sm ghost" onclick="loadFamily('+p.familyId+')">Family</button>':'');
+        }
+        return '<div class="res-row">'+avatar(p)+'<div><div class="nm">'+esc(p.name)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div><div class="sp">'+actions+'</div></div>';
+      }).join('') : '<div class="res-row muted">No matches.</div>';
+    });
+  }
+  function escq(s){ return String(s||'').replace(/'/g,"\\'"); }
+  window.checkInMember = function(memberId, name){
+    var c = ctx(); c.memberId = memberId; c.name = name; c.method = 'manual';
+    post('/api/attendance/check-in', c).then(function(res){ ciMsg(res.ok?('✓ '+name+' checked in for '+c.serviceType):(res.j.error||'Failed'), res.ok?'ok':'err'); });
+  };
+
+  /* ── Member code (QR + barcode) ── */
+  window.showCode = function(memberId, name){
+    get('/api/attendance/member-code/'+memberId).then(function(d){
+      el('codeName').textContent = name + ' — attendance code';
+      el('codeText').textContent = d.code;
+      el('codeQr').innerHTML = '';
+      try { new QRCode(el('codeQr'), { text: d.code, width: 150, height: 150 }); } catch(e){}
+      try { JsBarcode('#codeBar', d.code, { format:'CODE128', height:48, fontSize:12 }); } catch(e){}
+      el('codeModal').classList.add('open');
+    });
+  };
+  window.printCode = function(){
+    var w = window.open('','_blank','width=380,height=460'); if(!w) return;
+    w.document.write('<html><head><title>Code</title></head><body style="text-align:center;font-family:Arial;">'
+      + '<h3>'+esc(el('codeName').textContent)+'</h3>' + el('codeQr').innerHTML
+      + '<div>'+esc(el('codeText').textContent)+'</div></body></html>');
+    w.document.close(); setTimeout(function(){ w.print(); }, 300);
+  };
+
+  /* ── Scan (USB + camera) ── */
+  el('scanInput').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); var v=this.value.trim(); this.value=''; if(v) resolveScan(v); } });
+  function resolveScan(code){
+    get('/api/attendance/scan?code='+encodeURIComponent(code)).then(function(d){
+      if (d && d.memberId) checkInMember(d.memberId, d.name);
+      else ciMsg('No member matches that code.', 'err');
+    }).catch(function(){ ciMsg('Lookup failed.', 'err'); });
+  }
+  var qr=null, scanning=false;
+  el('camBtn').addEventListener('click', startCamera);
+  el('camStop').addEventListener('click', stopCamera);
+  function camError(err){
+    var name = (err && (err.name || err.message)) ? String(err.name || err.message) : '';
+    if(/NotAllowed|Permission|Denied/i.test(name))
+      return 'Camera permission was blocked. Allow camera access in your browser (address-bar icon) and try again, or use the USB scanner box.';
+    if(/NotFound|Devices|OverConstrained/i.test(name))
+      return 'No camera was found on this device. Use the USB scanner box instead.';
+    if(/NotReadable|TrackStart|InUse/i.test(name))
+      return 'The camera is in use by another app. Close it and try again.';
+    return 'Unable to start the camera. Check permissions, or use the USB scanner box.';
+  }
+  function startCamera(){
+    if(!window.Html5Qrcode || !window.isSecureContext){ ciMsg('Camera needs HTTPS/localhost. Use the USB scanner box instead.', 'err'); return; }
+    el('camPanel').classList.remove('hide'); scanning=true;
+    try { qr = new Html5Qrcode('camReader', { formatsToSupport: undefined, verbose:false }); } catch(e){ ciMsg('Scanner init failed.', 'err'); return; }
+    var onHit = function(t){ if(scanning){ stopCamera(); resolveScan(t); } };
+    var cfg = { fps:12, aspectRatio:1.3333 };
+    // Plain 'environment' (back) → 'user' (front) → explicit deviceId from getCameras().
+    // The nested {ideal:'environment'} constraint fails on many browsers, so avoid it.
+    qr.start({ facingMode:'environment' }, cfg, onHit, function(){})
+      .catch(function(){
+        if(!scanning) return;
+        qr.start({ facingMode:'user' }, cfg, onHit, function(){})
+          .catch(function(){
+            if(!scanning) return;
+            Html5Qrcode.getCameras().then(function(cams){
+              if(!scanning) return;
+              if(!cams || !cams.length){ ciMsg(camError({name:'NotFoundError'}), 'err'); stopCamera(); return; }
+              qr.start(cams[cams.length-1].id, cfg, onHit, function(){})
+                .catch(function(err){ ciMsg(camError(err), 'err'); stopCamera(); });
+            }).catch(function(err){ ciMsg(camError(err), 'err'); stopCamera(); });
+          });
+      });
+  }
+  function stopCamera(){
+    scanning=false; el('camPanel').classList.add('hide');
+    if(qr){ var i=qr; qr=null; try{ i.stop().then(function(){ try{i.clear();}catch(e){} }).catch(function(){}); }catch(e){} }
+  }
+
+  /* ── Family ── */
+  var familyT;
+  el('familySearch').addEventListener('input', function(){ clearTimeout(familyT); var q=this.value; familyT=setTimeout(function(){ runSearch(q,'familyResults',true); }, 250); });
+  window.loadFamily = function(familyId){
+    get('/api/attendance/family/'+familyId+'/members').then(function(list){
+      list = list||[];
+      el('familyMembers').innerHTML = '<div class="at-card" style="margin:0;"><b>Family members</b><div style="margin:8px 0;">'
+        + list.map(function(m){ return '<label style="display:block;margin:4px 0;"><input type="checkbox" class="fm" value="'+m.memberId+'" data-name="'+esc(m.name)+'" checked> '+esc(m.name)+'</label>'; }).join('')
+        + '</div><button class="btn" type="button" data-perm="general.attendance.edit" onclick="familyCheckIn('+familyId+')">Check in selected</button></div>';
+    });
+  };
+  window.familyCheckIn = function(familyId){
+    var ids = Array.prototype.slice.call(document.querySelectorAll('#familyMembers .fm:checked')).map(function(c){ return parseInt(c.value); });
+    if(!ids.length){ ciMsg('Select at least one family member.', 'err'); return; }
+    var c = ctx(); c.familyId = familyId; c.memberIds = ids;
+    post('/api/attendance/family-check-in', c).then(function(res){ ciMsg(res.ok?('✓ Checked in '+res.j.checkedIn+' family member(s)'):(res.j.error||'Failed'), res.ok?'ok':'err'); el('familyMembers').innerHTML=''; });
+  };
+
+  /* ── Visitor ── */
+  el('vCheckIn').addEventListener('click', function(){
+    var c = ctx();
+    c.name=el('vName').value.trim(); c.phone=el('vPhone').value.trim(); c.email=el('vEmail').value.trim();
+    c.address=el('vAddress').value.trim(); c.invitedBy=el('vInvited').value.trim();
+    if(!c.name){ ciMsg('Visitor name is required.', 'err'); return; }
+    post('/api/attendance/visitor-check-in', c).then(function(res){
+      if(res.ok){ ciMsg('✓ '+c.name+' checked in — '+res.j.classification, 'ok'); ['vName','vPhone','vEmail','vAddress','vInvited'].forEach(function(id){ el(id).value=''; }); }
+      else ciMsg(res.j.error||'Failed', 'err');
+    });
+  });
+
+  /* ── Records ── */
+  function recParams(){
+    var p = [];
+    if(el('rFrom').value) p.push('from='+el('rFrom').value);
+    if(el('rTo').value)   p.push('to='+el('rTo').value);
+    if(el('rService').value) p.push('service='+encodeURIComponent(el('rService').value));
+    if(el('rStatus').value)  p.push('status='+encodeURIComponent(el('rStatus').value));
+    if(el('rMinistry').value.trim()) p.push('ministry='+encodeURIComponent(el('rMinistry').value.trim()));
+    return p.join('&');
+  }
+  el('rApply').addEventListener('click', applyRecords);
+  function applyRecords(){
+    get('/api/attendance/records?'+recParams()).then(function(rows){
+      rows = rows||[];
+      el('recBody').innerHTML = rows.length ? rows.map(function(a){
+        return '<tr>'
+          + '<td>'+esc(a.date)+'</td><td>'+esc(a.checkIn||'')+'</td><td>'+esc(a.name||'')+'</td>'
+          + '<td>'+esc(a.personType)+'</td><td>'+esc(a.serviceType||'')+'</td><td>'+esc(a.ministry||'')+'</td>'
+          + '<td><span class="pill '+esc(a.status)+'">'+esc(a.status)+'</span></td>'
+          + '<td style="white-space:nowrap;"><button class="btn sm ghost" data-perm="general.attendance.edit" onclick="editRec('+a.id+')">Edit</button> '
+          + '<button class="btn sm danger" data-perm="general.attendance.delete" onclick="delRec('+a.id+')">Delete</button></td></tr>';
+      }).join('') : '<tr><td colspan="8" class="muted">No records match the filters.</td></tr>';
+    });
+  }
+  var _recCache = {};
+  window.editRec = function(id){
+    get('/api/attendance/records?'+recParams()).then(function(rows){
+      var a = (rows||[]).find(function(x){ return x.id===id; }); if(!a) return;
+      el('eId').value = id; el('eDate').value = a.date||''; el('eService').value = a.serviceType||'';
+      el('eStatus').value = a.status||'PRESENT'; el('eMinistry').value = a.ministry||'';
+      el('editModal').classList.add('open');
+    });
+  };
+  window.saveEdit = function(){
+    var id = el('eId').value;
+    fetch('/api/attendance/records/'+id, { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ attendanceDate:el('eDate').value, serviceType:el('eService').value, status:el('eStatus').value, ministry:el('eMinistry').value.trim() }) })
+      .then(function(){ el('editModal').classList.remove('open'); applyRecords(); });
+  };
+  window.delRec = function(id){
+    if(!confirm('Delete this attendance record?')) return;
+    fetch('/api/attendance/records/'+id, { method:'DELETE' }).then(function(){ applyRecords(); });
+  };
+  window.exportRecords = function(fmt){ window.open('/api/attendance/records/export?format='+fmt+'&'+recParams(), '_blank'); };
+
+  /* ── Reports ── */
+  var curReport = 'members';
+  Array.prototype.forEach.call(document.querySelectorAll('#tab-reports .mtab'), function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#tab-reports .mtab').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on'); curReport = b.dataset.r; loadCurrentReport();
+    });
+  });
+  el('repRun').addEventListener('click', loadCurrentReport);
+  function repRange(){ var p=[]; if(el('repFrom').value)p.push('from='+el('repFrom').value); if(el('repTo').value)p.push('to='+el('repTo').value); return p.join('&'); }
+  function tableHtml(cols, rows){
+    return '<div style="overflow:auto;"><table><thead><tr>'+cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr></thead><tbody>'
+      + (rows.length ? rows.map(function(r){ return '<tr>'+r.map(function(c){return '<td>'+(c==null?'':esc(c))+'</td>';}).join('')+'</tr>'; }).join('')
+                     : '<tr><td colspan="'+cols.length+'" class="muted">No data.</td></tr>')
+      + '</tbody></table></div>';
+  }
+  function exportBtn(id){ return '<div style="text-align:right;margin-top:8px;"><button class="btn ghost sm" onclick="csvFromTable(\''+id+'\')">⬇ Export CSV</button></div>'; }
+  window.csvFromTable = function(wrapId){
+    var t = el(wrapId).querySelector('table'); if(!t) return;
+    var lines = Array.prototype.map.call(t.querySelectorAll('tr'), function(tr){
+      return Array.prototype.map.call(tr.querySelectorAll('th,td'), function(td){ return '"'+td.textContent.replace(/"/g,'""')+'"'; }).join(',');
+    }).join('\n');
+    var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(lines);
+    a.download='attendance-report.csv'; a.click();
+  };
+
+  function loadCurrentReport(){
+    var body = el('repBody'); body.innerHTML = '<div class="muted">Loading…</div>';
+    var rng = repRange();
+    if (curReport==='members') {
+      get('/api/attendance/reports/members?'+rng).then(function(rows){ rows=rows||[];
+        body.innerHTML = '<div id="repTbl">' + tableHtml(['Member','Attendance %','Attended / Days','Last attendance','Consecutive absences'],
+          rows.map(function(r){ return [r.name, r.percentage+'%', r.attended+' / '+r.totalDays, r.lastAttendance||'—', r.consecutiveAbsences]; })) + '</div>' + exportBtn('repTbl');
+      });
+    } else if (curReport==='families') {
+      get('/api/attendance/reports/families?'+rng).then(function(rows){ rows=rows||[];
+        body.innerHTML = '<div id="repTbl">' + tableHtml(['Family','Check-ins','Members attended','Last attendance'],
+          rows.map(function(r){ return [r.family, r.checkIns, r.membersAttended, r.lastAttendance||'—']; })) + '</div>' + exportBtn('repTbl');
+      });
+    } else if (curReport==='ministry' || curReport==='events') {
+      get('/api/attendance/reports/'+curReport+'?'+rng).then(function(rows){ rows=rows||[];
+        body.innerHTML = '<canvas id="repChart" height="120" style="max-height:260px;margin-bottom:14px;"></canvas><div id="repTbl">'
+          + tableHtml([curReport==='ministry'?'Ministry':'Service / Event','Attendance'], rows.map(function(r){ return [r.label, r.value]; })) + '</div>' + exportBtn('repTbl');
+        if (charts.repChart) charts.repChart.destroy();
+        charts.repChart = new Chart(el('repChart').getContext('2d'), { type:'bar',
+          data:{ labels:rows.map(function(r){return r.label;}), datasets:[{ data:rows.map(function(r){return r.value;}), backgroundColor:'rgba(103,49,71,.55)', borderColor:'#673147', borderWidth:2 }] },
+          options:{ plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, ticks:{precision:0} } } } });
+      });
+    } else if (curReport==='visitors') {
+      get('/api/attendance/reports/visitors').then(function(d){ d=d||{};
+        function vTable(title,list,id){ return '<h3>'+esc(title)+' ('+(list||[]).length+')</h3><div id="'+id+'">'
+          + tableHtml(['Name','Phone','Email','First visit','Last visit','Visits'],
+            (list||[]).map(function(v){ return [v.name, v.phone, v.email, v.firstVisit||'—', v.lastVisit||'—', v.visits]; })) + '</div>' + exportBtn(id); }
+        body.innerHTML = vTable('First-time visitors', d.firstTime, 'vt1')
+          + vTable('Returning visitors', d.returning, 'vt2')
+          + vTable('Visitors requiring follow-up', d.followUp, 'vt3');
+      });
+    } else if (curReport==='trends') {
+      body.innerHTML = '<div class="charts">'
+        + '<div class="at-card"><h3>Weekly</h3><canvas id="rtW" height="150"></canvas></div>'
+        + '<div class="at-card"><h3>Monthly</h3><canvas id="rtM" height="150"></canvas></div>'
+        + '<div class="at-card"><h3>Yearly</h3><canvas id="rtY" height="150"></canvas></div></div>';
+      drawChart('rtW','line','/api/attendance/trends/weekly','Weekly');
+      drawChart('rtM','line','/api/attendance/trends/monthly','Monthly');
+      drawChart('rtY','bar','/api/attendance/trends/yearly','Yearly');
+    }
+  }
+
+  // default record range = last 30 days
+  (function(){ var t=new Date(), f=new Date(Date.now()-30*86400000);
+    function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+    el('rTo').value=iso(t); el('rFrom').value=iso(f);
+    el('repTo').value=iso(t); el('repFrom').value=iso(new Date(Date.now()-90*86400000)); })();
+
+  loadDashboard();
+</script>
+</body>
+</html>

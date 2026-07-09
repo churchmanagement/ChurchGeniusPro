@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test logging config. Keeps Spring Boot's normal console output, but silences
+  the noisy Testcontainers "Could not find a valid Docker environment" probe
+  errors that appear when Docker isn't running (those tests are simply skipped
+  via @Testcontainers(disabledWithoutDocker = true), not failed).
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+
+  <!-- Quiet the Docker-detection noise produced during skipped integration tests. -->
+  <logger name="org.testcontainers.dockerclient.DockerClientProviderStrategy" level="OFF"/>
+  <logger name="org.testcontainers.dockerclient" level="WARN"/>
+  <logger name="com.github.dockerjava" level="OFF"/>
+</configuration>

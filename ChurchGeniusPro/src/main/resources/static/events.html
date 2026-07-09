@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Events — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .page-header-left { flex: 1; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn-primary { padding: 9px 18px; background: #673147; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: none; transition: background .15s; white-space: nowrap; }
+    .btn-primary:hover { background: #4f2538; }
+    .btn-secondary { padding: 9px 16px; background: #fff; color: #555; border: 1.5px solid #dde0ec; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: border-color .15s, color .15s; white-space: nowrap; }
+    .btn-secondary:hover { border-color: #673147; color: #673147; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .filter-bar input[type="search"], .filter-bar select {
+      border: 1.5px solid #dde0ec; border-radius: 8px; padding: 8px 12px;
+      font-size: 13px; color: #333; background: #fff; outline: none;
+      transition: border-color .2s;
+    }
+    .filter-bar input[type="search"] { min-width: 200px; flex: 1; max-width: 320px; }
+    .filter-bar input[type="search"]:focus,
+    .filter-bar select:focus { border-color: #673147; }
+
+    /* ── Upcoming / Past tabs ── */
+    .event-view-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .event-view-tab {
+      padding: 8px 18px; border: 1.5px solid #e0d5db; background: #fff; color: #673147;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .event-view-tab:hover { border-color: #c5a8b8; }
+    .event-view-tab.active { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Stats row ── */
+    .stats-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+    .stat-card {
+      background: #fff; border-radius: 12px; padding: 16px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06); flex: 1; min-width: 120px; max-width: 180px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-card .num  { font-size: 26px; font-weight: 700; color: #673147; }
+    .stat-card .lbl  { font-size: 12px; color: #888; }
+
+    /* ── Event cards grid ── */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    /* ── Event card ── */
+    .event-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      overflow: hidden;
+      border: 1.5px solid transparent;
+      transition: box-shadow .18s, border-color .18s, transform .18s;
+      display: flex; flex-direction: column;
+      position: relative;
+      cursor: pointer;
+    }
+    .event-card:hover { box-shadow: 0 8px 24px rgba(103,49,71,.12); border-color: #c5a8b8; transform: translateY(-2px); }
+
+    .event-card-accent { height: 4px; background: #673147; }
+    .event-card-accent.multi { background: #e65100; }
+
+    .event-card-banner {
+      width: 100%; height: 120px; object-fit: cover; display: none;
+    }
+
+    .event-card-body { padding: 18px 18px 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+    .event-card-name { font-size: 15px; font-weight: 700; color: #1e2139; line-height: 1.3; }
+
+    .event-card-meta { display: flex; flex-direction: column; gap: 4px; }
+    .event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #666; }
+    .event-meta-row .icon { font-size: 14px; flex-shrink: 0; }
+
+    .event-type-badge {
+      display: inline-block; padding: 2px 9px; border-radius: 20px;
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+      background: #f0e8ec; color: #673147;
+    }
+    .event-type-badge.multi { background: #fff3e0; color: #e65100; }
+
+    .event-card-actions {
+      padding: 10px 18px 14px;
+      display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f4f4f8;
+    }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-state p  { font-size: 14px; }
+
+    /* ── Loading ── */
+    .loading-row { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Delete confirm modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 14px; padding: 28px 28px 22px; max-width: 400px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,.18); }
+    .modal-title { font-size: 17px; font-weight: 700; color: #1e2139; margin-bottom: 10px; }
+    .modal-body  { font-size: 14px; color: #555; margin-bottom: 22px; line-height: 1.55; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-danger { padding: 9px 18px; background: #e53935; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }
+    .btn-danger:hover { background: #b71c1c; }
+
+    /* ── Registrations modal ── */
+    .reg-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2000; align-items:center; justify-content:center; }
+    .reg-modal-overlay.open { display:flex; }
+    .reg-modal { background:#fff; border-radius:14px; width:94%; max-width:860px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .reg-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #eee; }
+    .reg-modal-title { font-size:16px; font-weight:700; color:#1e2139; }
+    .reg-modal-close { background:none; border:none; font-size:22px; cursor:pointer; color:#888; padding:0 4px; line-height:1; }
+    .reg-modal-close:hover { color:#333; }
+    .reg-modal-body { flex:1; overflow-y:auto; padding:20px 24px; }
+    .reg-modal-footer { padding:12px 24px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px; }
+    .pub-link-box { background:#eef0f8; border-radius:8px; padding:10px 14px; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+    .pub-link-box a { color:#673147; font-size:13px; word-break:break-all; flex:1; }
+    .reg-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .reg-table th { background:#f5f6fa; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#888; padding:8px 12px; text-align:left; border-bottom:2px solid #e8eaf0; }
+    .reg-table td { padding:9px 12px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+    .reg-table tr:last-child td { border-bottom:none; }
+    .reg-table tr:hover td { background:#fafbfd; }
+    .reg-empty { text-align:center; color:#bbb; padding:24px !important; font-style:italic; }
+    /* ── Registration Reminder modal ── */
+    .rr-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2100; align-items:center; justify-content:center; }
+    .rr-modal-overlay.open { display:flex; }
+    .rr-modal { background:#fff; border-radius:14px; width:94%; max-width:640px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+    .rr-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #eee; }
+    .rr-modal-title { font-size:16px; font-weight:700; color:#1e2139; }
+    .rr-modal-body { flex:1; overflow-y:auto; padding:20px 24px; }
+    .rr-modal-footer { padding:12px 24px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px; }
+    .rr-toggle-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .rr-toggle-row input[type="checkbox"] { width:18px; height:18px; accent-color:#673147; cursor:pointer; }
+    .rr-toggle-row label { font-size:14px; font-weight:600; color:#333; cursor:pointer; }
+    .rr-days-row { display:flex; align-items:center; gap:8px; margin-bottom:18px; font-size:13px; color:#555; }
+    .rr-days-row input { width:70px; border:1.5px solid #dde0ec; border-radius:8px; padding:7px 10px; font-size:13px; outline:none; }
+    .rr-days-row input:focus { border-color:#673147; }
+    .rr-contacts-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#888; margin-bottom:8px; }
+    .rr-hint { font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.5; }
+    .rr-contact-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+    .rr-contact-row input { flex:1; border:1.5px solid #dde0ec; border-radius:8px; padding:8px 12px; font-size:13px; outline:none; min-width:0; }
+    .rr-contact-row input:focus { border-color:#673147; }
+    .rr-remove-btn { color:#c62828; font-size:16px; padding:4px 8px; border-radius:6px; }
+    .rr-remove-btn:hover { background:#fdecea; }
+    .rr-disabled-area { opacity:.45; pointer-events:none; }
+    .rr-feedback { font-size:13px; margin-top:10px; display:none; }
+    .rr-feedback.error { display:block; color:#c62828; }
+    .rr-feedback.success { display:block; color:#2e7d32; }
+    /* Midwest static card accent */
+    .event-card-accent.midwest { background: #1565c0; }
+    .event-type-badge.midwest { background: #e3f2fd; color: #1565c0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .events-grid { grid-template-columns: 1fr; }
+      .stats-row .stat-card { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title">Events</div>
+          <div class="page-subtitle">Manage all church events, registrations, and details</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="window.location.href='/event'">＋ New Event</button>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedback"></div>
+
+      <!-- Stats row -->
+      <div class="stats-row" id="statsRow" style="display:none;">
+        <div class="stat-card"><div class="num" id="statTotal">0</div><div class="lbl">Total Events</div></div>
+        <div class="stat-card"><div class="num" id="statUpcoming">0</div><div class="lbl">Upcoming</div></div>
+        <div class="stat-card"><div class="num" id="statMulti">0</div><div class="lbl">Multi-Day</div></div>
+      </div>
+
+      <!-- Upcoming vs Past tabs -->
+      <div class="event-view-tabs" id="eventViewTabs">
+        <button type="button" class="event-view-tab active" id="viewUpcomingTab" onclick="setEventView('upcoming')">Upcoming &amp; Today</button>
+        <button type="button" class="event-view-tab" id="viewPastTab" onclick="setEventView('past')">Past</button>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input type="search" id="searchInput" placeholder="🔍 Search events…" oninput="filterCards()" />
+        <select id="typeFilter" onchange="filterCards()">
+          <option value="">All Types</option>
+          <option value="One Day">One Day</option>
+          <option value="Multiple Days">Multi-Day</option>
+        </select>
+        <select id="sortFilter" onchange="filterCards()">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="name">Name A–Z</option>
+        </select>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading-row" id="loadingRow">Loading events…</div>
+
+      <!-- Cards grid -->
+      <div class="events-grid" id="eventsGrid" style="display:none;"></div>
+
+      <!-- Empty state -->
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="icon">📅</div>
+        <p>No events found. <a href="/event" style="color:#673147;font-weight:600;">Create your first event →</a></p>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- Registrations modal -->
+<div class="reg-modal-overlay" id="regModal2">
+  <div class="reg-modal">
+    <div class="reg-modal-header">
+      <div class="reg-modal-title" id="regModalTitle">Registrants</div>
+      <button class="reg-modal-close" onclick="closeRegModal2()">✕</button>
+    </div>
+    <div class="reg-modal-body">
+      <div class="pub-link-box" id="regPubLinkBox" style="display:none;">
+        <span>🔗</span>
+        <a id="regPubLinkAnchor" href="#" target="_blank"></a>
+        <button class="btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('regPubLinkAnchor').href)">Copy</button>
+      </div>
+      <!-- RSVP / attendance summary (computed dynamically from registrants) -->
+      <div id="regSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin-bottom:16px;"></div>
+      <div style="overflow-x:auto;">
+        <table class="reg-table">
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Adults</th><th>Kids</th><th>Attending</th><th>Checked In</th><th>Note</th></tr>
+          </thead>
+          <tbody id="regModalBody">
+            <tr><td class="reg-empty" colspan="9">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="reg-modal-footer">
+      <button class="btn-secondary btn-sm" onclick="window.location.href='/event-details?eventId=' + currentRegId">📋 Full Report</button>
+      <button class="btn-secondary btn-sm" onclick="closeRegModal2()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Registration Reminder modal -->
+<div class="rr-modal-overlay" id="rrModal">
+  <div class="rr-modal">
+    <div class="rr-modal-header">
+      <div class="rr-modal-title" id="rrModalTitle">Registration Reminder</div>
+      <button class="reg-modal-close" onclick="closeRrModal()">✕</button>
+    </div>
+    <div class="rr-modal-body">
+      <div class="rr-toggle-row">
+        <input type="checkbox" id="rrEnabled" onchange="rrToggleArea()" />
+        <label for="rrEnabled">Send Reminder Before Registration Deadline</label>
+      </div>
+      <div id="rrConfigArea" class="rr-disabled-area">
+        <div class="rr-days-row">
+          <span>Send reminder</span>
+          <input type="number" id="rrDays" min="0" max="365" value="5" />
+          <span>day(s) before the event</span>
+        </div>
+      </div>
+      <div class="rr-contacts-label">Contacts (Reminders &amp; Invitations)</div>
+      <div class="rr-hint">
+        Each entry needs an email, a phone number, or both. On the reminder date,
+        anyone on this list who has <strong>not yet registered for this event</strong> receives an
+        email (if an email is given) and/or an SMS (if a phone is given). People who are already
+        registered are skipped automatically, and no one is ever reminded twice.
+        The same list is used for event invitations below.
+      </div>
+      <div id="rrContactRows"></div>
+      <button class="btn-secondary btn-sm" onclick="rrAddRow()">＋ Add Contact</button>
+
+      <!-- Invitations (independent of the reminder toggle) -->
+      <div style="margin-top:18px;border-top:1px solid #eee;padding-top:14px;">
+        <div class="rr-contacts-label">Event Invitation</div>
+        <div class="rr-hint">
+          Sends a "You're Invited" email and/or SMS with the RSVP link to every contact above
+          (email → email invite, phone → SMS invite, both → both). Each person is only ever
+          invited once per event — re-sending reaches newly added contacts only.
+        </div>
+        <button type="button" class="btn-primary btn-sm" id="rrInviteBtn" onclick="rrSendInvite()" disabled>📨 Send Invite</button>
+      </div>
+      <div class="rr-feedback" id="rrFeedback"></div>
+
+      <!-- Attempt log (audit) -->
+      <div style="margin-top:20px;border-top:1px solid #eee;padding-top:14px;">
+        <button type="button" class="btn-secondary btn-sm" id="rrLogToggleBtn" onclick="rrToggleLogs()">📜 View Attempt Log</button>
+        <button type="button" class="btn-secondary btn-sm" id="rrRunNowBtn" onclick="rrRunNow()" title="Runs the reminder immediately (saved settings), skipping the date check. People already registered or already reminded are never messaged twice.">🚀 Send Reminder</button>
+        <div id="rrLogArea" style="display:none;margin-top:12px;">
+          <div class="rr-hint">
+            Every reminder attempt for this event — sent or skipped — with the reason.
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="reg-table">
+              <thead>
+                <tr><th>When</th><th>Type</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Reason</th></tr>
+              </thead>
+              <tbody id="rrLogBody">
+                <tr><td class="reg-empty" colspan="6">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="rr-modal-footer">
+      <button class="btn-secondary btn-sm" onclick="closeRrModal()">Cancel</button>
+      <button class="btn-primary btn-sm" id="rrSaveBtn" onclick="saveRrConfig()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div class="modal-title">Delete Event?</div>
+    <div class="modal-body" id="deleteModalBody">This action cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger" id="confirmDeleteBtn" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var allEvents      = [];
+  var midwestConfig  = null;   // cached MidReg Meet config — null until loaded
+  var deleteId       = null;
+  var deleteName     = '';
+
+  // Numeric state IDs → two-letter abbreviations (matches event.html select option values)
+  var STATE_ABBR = {
+    '1':'AL','2':'AK','3':'AZ','4':'AR','5':'CA','6':'CO','7':'CT','8':'DE',
+    '9':'FL','10':'GA','11':'HI','12':'ID','13':'IL','14':'IN','15':'IA',
+    '16':'KS','17':'KY','18':'LA','19':'ME','20':'MD','21':'MA','22':'MI',
+    '23':'MN','24':'MS','25':'MO','26':'MT','27':'NE','28':'NV','29':'NH',
+    '30':'NJ','31':'NM','32':'NY','33':'NC','34':'ND','35':'OH','36':'OK',
+    '37':'OR','38':'PA','39':'RI','40':'SC','41':'SD','42':'TN','43':'TX',
+    '44':'UT','45':'VT','46':'VA','47':'WA','48':'WV','49':'WI','50':'WY'
+  };
+  function stateLabel(v) {
+    if (!v) return '';
+    var s = String(v);
+    return STATE_ABBR[s] || s;
+  }
+
+  // ── Permissions ───────────────────────────────────────────────────────
+  // session.js calls this with either the parsed permissions object or null.
+  // For Member-portal sessions (role === 'Member') we align with PERM_TREE
+  // (general.events.* is NOT a Member default) and hide create/edit buttons
+  // unless memberPrivileges explicitly grants the key.
+  window.CGP_applyPerms = function(p) {
+    var role = localStorage.getItem('role') || '';
+    var hideNewEvent = false;
+    if (role === 'Member') {
+      hideNewEvent = !(p && p['general.events.edit'] === true);
+    } else {
+      hideNewEvent = !!(p && p['general.events.edit'] === false);
+    }
+    if (hideNewEvent) {
+      document.querySelectorAll('.btn-primary[onclick*="/event"]').forEach(function(el) { el.style.display = 'none'; });
+    }
+    if (typeof filterCards === 'function') filterCards();
+  };
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────
+  // Both APIs are fetched in parallel so neither can race-clobber the other.
+  // midwestConfig is stored at module scope so filterCards() always re-adds it.
+  (async function init() {
+    try {
+      var results = await Promise.allSettled([
+        fetch('/api/events').then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); }),
+        fetch('/api/mid-reg-meet/config').then(function(r) { return r.ok ? r.json() : null; })
+      ]);
+
+      // Events result
+      if (results[0].status === 'fulfilled') {
+        allEvents = results[0].value || [];
+      } else {
+        showFeedback('Failed to load events. Please refresh.', 'error');
+      }
+
+      // Midwest config result — only store if it has an eventName
+      if (results[1].status === 'fulfilled' && results[1].value && results[1].value.eventName) {
+        midwestConfig = results[1].value;
+      }
+
+      renderStats();
+      filterCards();
+    } catch (e) {
+      showFeedback('Failed to load events. Please refresh.', 'error');
+    } finally {
+      document.getElementById('loadingRow').style.display = 'none';
+      document.getElementById('statsRow').style.display   = '';
+    }
+  })();
+
+  // Re-fetches only the regular events list (used after delete); midwest config is preserved.
+  async function loadEvents() {
+    try {
+      var res = await fetch('/api/events');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      allEvents = await res.json();
+      renderStats();
+      filterCards();
+    } catch (e) {
+      showFeedback('Failed to load events. Please refresh.', 'error');
+    }
+  }
+
+  function renderStats() {
+    var today    = new Date().toISOString().slice(0, 10);
+    var upcoming = allEvents.filter(function(ev) {
+      if (ev.eventType === 'Multiple Days') return true;
+      return ev.eventDate && ev.eventDate >= today;
+    }).length;
+    var multi = allEvents.filter(function(ev) { return ev.eventType === 'Multiple Days'; }).length;
+    // +1 for midwest card when present
+    var midOffset = midwestConfig ? 1 : 0;
+    document.getElementById('statTotal').textContent    = allEvents.length + midOffset;
+    document.getElementById('statUpcoming').textContent = upcoming + midOffset;
+    document.getElementById('statMulti').textContent    = multi;
+  }
+
+  // 'upcoming' = present + future events (default); 'past' = events whose last day is before today.
+  var eventTimeView = 'upcoming';
+  function setEventView(v) {
+    eventTimeView = v;
+    document.getElementById('viewUpcomingTab').classList.toggle('active', v === 'upcoming');
+    document.getElementById('viewPastTab').classList.toggle('active', v === 'past');
+    filterCards();
+  }
+
+  // The event's effective END date (ISO yyyy-MM-dd): for multi-day, the latest day; else eventDate.
+  function eventEndDate(ev) {
+    if (ev.eventType === 'Multiple Days' && Array.isArray(ev.days) && ev.days.length) {
+      var dates = ev.days.map(function(d) { return d.eventDate || d.date; }).filter(Boolean).sort();
+      if (dates.length) return dates[dates.length - 1];
+    }
+    return ev.eventDate || null;
+  }
+
+  // Present/future when the event has no date (treat as upcoming) or ends today or later.
+  function isUpcomingEvent(ev) {
+    var end = eventEndDate(ev);
+    if (!end) return true;
+    var today = new Date().toISOString().slice(0, 10);
+    return end >= today;
+  }
+
+  function filterCards() {
+    var q    = (document.getElementById('searchInput').value || '').toLowerCase();
+    var type = document.getElementById('typeFilter').value;
+    var sort = document.getElementById('sortFilter').value;
+
+    var filtered = allEvents.filter(function(ev) {
+      var nameMatch = (ev.eventName || '').toLowerCase().indexOf(q) >= 0 ||
+                      (ev.eventCode || '').toLowerCase().indexOf(q) >= 0 ||
+                      (ev.city || '').toLowerCase().indexOf(q) >= 0;
+      var typeMatch = !type || ev.eventType === type;
+      var timeMatch = eventTimeView === 'past' ? !isUpcomingEvent(ev) : isUpcomingEvent(ev);
+      return nameMatch && typeMatch && timeMatch;
+    });
+
+    filtered.sort(function(a, b) {
+      if (sort === 'name')   return (a.eventName || '').localeCompare(b.eventName || '');
+      if (sort === 'oldest') return (a.id || 0) - (b.id || 0);
+      return (b.id || 0) - (a.id || 0); // newest
+    });
+
+    var grid  = document.getElementById('eventsGrid');
+    var empty = document.getElementById('emptyState');
+
+    // Midwest card is prepended on the Upcoming view when config is available.
+    var midwestHtml = (midwestConfig && eventTimeView !== 'past') ? buildMidwestCard(midwestConfig) : '';
+
+    // Midwest search match: show it when no text filter, or query matches name/city
+    if (midwestConfig && q) {
+      var mName = (midwestConfig.eventName || '').toLowerCase();
+      var mCity = (midwestConfig.city || '').toLowerCase();
+      if (mName.indexOf(q) < 0 && mCity.indexOf(q) < 0) {
+        midwestHtml = ''; // hide if search query doesn't match
+      }
+    }
+
+    var hasCards = filtered.length > 0 || midwestHtml !== '';
+    if (!hasCards) {
+      grid.style.display  = 'none';
+      empty.style.display = '';
+    } else {
+      empty.style.display = 'none';
+      grid.style.display  = '';
+      grid.innerHTML = midwestHtml + filtered.map(buildCard).join('');
+    }
+  }
+
+  /**
+   * True when the current user is allowed to use a permission-gated action.
+   *
+   * Staff roles (Admin/Accountant/User/SuperAdmin) and church accounts use
+   * opt-in denial against window.CGP_PERMS: action shows unless the key is
+   * explicitly false. Member portal sessions, by contrast, are aligned with
+   * PERM_TREE — general.events.* is NOT in their defaults — so the action
+   * only shows when the key is explicitly true in their memberPrivileges
+   * (surfaced via window.CGP_PERMS by session.js).
+   */
+  function canDoEventAction(key) {
+    var role = localStorage.getItem('role') || '';
+    if (role === 'Member') {
+      return !!(window.CGP_PERMS && window.CGP_PERMS[key] === true);
+    }
+    return !window.CGP_PERMS || window.CGP_PERMS[key] !== false;
+  }
+
+  function buildCard(ev) {
+    var isMulti = ev.eventType === 'Multiple Days';
+    // Load the banner from the cached image endpoint (lazily) instead of inlining base64.
+    var banner  = (ev.hasImage && ev.encryptedId)
+      ? '<img class="event-card-banner" src="/api/event-register/' + encodeURIComponent(ev.encryptedId) + '/image" alt="" loading="lazy" style="display:block;" />'
+      : (ev.imageData ? '<img class="event-card-banner" src="' + esc(ev.imageData) + '" alt="" loading="lazy" style="display:block;" />' : '');
+
+    // ── Date / schedule rows ──────────────────────────────────────────────────
+    var scheduleHtml = '';
+    if (isMulti && Array.isArray(ev.days) && ev.days.length) {
+      // Show each day on its own line: "Sep 25 @ 6:00 PM – 9:00 PM"
+      ev.days.forEach(function(d) {
+        var dayLabel = (d.eventDate || d.date) ? formatCardDate(d.eventDate || d.date) : '—';
+        var times = d.startTime
+          ? ' @ ' + formatTime(d.startTime) + (d.endTime ? ' – ' + formatTime(d.endTime) : '')
+          : '';
+        scheduleHtml += '<div class="event-meta-row"><span class="icon">📅</span>' + esc(dayLabel + times) + '</div>';
+      });
+    } else {
+      var dateStr = ev.eventDate ? formatCardDate(ev.eventDate) : '—';
+      var timeStr = ev.startTime ? ' @ ' + formatTime(ev.startTime) + (ev.endTime ? ' – ' + formatTime(ev.endTime) : '') : '';
+      scheduleHtml = '<div class="event-meta-row"><span class="icon">📅</span>' + esc(dateStr + timeStr) + '</div>';
+    }
+
+    // ── Full address ──────────────────────────────────────────────────────────
+    var stateAbbr = stateLabel(ev.state);
+    var addrLine1 = [ev.address1, ev.address2].filter(Boolean).join(', ');
+    var addrLine2 = [ev.city, stateAbbr, ev.pinCode].filter(Boolean).join(', ');
+    if (ev.country && ev.country !== 'USA') addrLine2 += (addrLine2 ? ', ' : '') + ev.country;
+    var locHtml = '';
+    if (addrLine1 || addrLine2) {
+      var loc = [addrLine1, addrLine2].filter(Boolean).join(' · ');
+      locHtml = '<div class="event-meta-row"><span class="icon">📍</span>' + esc(loc) + '</div>';
+    } else if (ev.city) {
+      locHtml = '<div class="event-meta-row"><span class="icon">📍</span>' + esc([ev.city, stateAbbr, ev.country].filter(Boolean).join(', ')) + '</div>';
+    }
+
+    // onclick on the card body navigates to details; buttons inside use stopPropagation
+    return '<div class="event-card" onclick="window.location.href=\'/event-details?eventId=' + ev.id + '\'">' +
+      '<div class="event-card-accent' + (isMulti ? ' multi' : '') + '"></div>' +
+      banner +
+      '<div class="event-card-body">' +
+        '<div class="event-card-name">' + esc(ev.eventName) + '</div>' +
+        '<span class="event-type-badge' + (isMulti ? ' multi' : '') + '">' + esc(ev.eventType || 'One Day') + '</span>' +
+        '<div class="event-card-meta">' +
+          scheduleHtml +
+          locHtml +
+          (ev.fee ? '<div class="event-meta-row"><span class="icon">💰</span>' + esc(ev.fee) + '</div>' : '') +
+          (ev.eventCode ? '<div class="event-meta-row"><span class="icon">🔑</span><code style="font-size:11px;color:#673147;">' + esc(ev.eventCode) + '</code></div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="event-card-actions" onclick="event.stopPropagation()">' +
+        (canDoEventAction('general.eventcheckin') ? '<button class="btn-primary btn-sm" onclick="window.location.href=\'/event-checkin-admin?eventId=' + ev.id + '\'">✅ Check-In</button>' : '') +
+        (canDoEventAction('general.events.edit')     ? '<button class="btn-secondary btn-sm" onclick="window.location.href=\'/event?id=' + ev.id + '\'">✏️ Edit</button>' : '') +
+        '<button class="btn-secondary btn-sm" onclick="openRegModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\'' + (ev.encryptedId ? ',\'' + esc(ev.encryptedId) + '\'' : ',null') + ')">👥 Registrants</button>' +
+        (canDoEventAction('general.events.emailsms') ? '<button class="btn-secondary btn-sm" onclick="window.location.href=\'/event-volunteers?eventId=' + ev.id + '\'">🙋 Volunteers</button>' : '') +
+        (canDoEventAction('general.events.edit')     ? '<button class="btn-secondary btn-sm" onclick="openRrModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\')">Invite</button>' : '') +
+        (ev.registrationLink ? '<button class="btn-secondary btn-sm" onclick="copyLink(\'' + esc(ev.registrationLink) + '\')">🔗 Link</button>' : '') +
+        (canDoEventAction('general.events.delete')   ? '<button class="btn-secondary btn-sm" style="color:#c62828;border-color:#f5c6cb;" onclick="openDeleteModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\')">🗑️</button>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  // Builds the Midwest Meet card as an HTML string from the cached config object.
+  // Called inside filterCards() on every render so the card is always present.
+  function buildMidwestCard(d) {
+    var dateHtml = d.eventDate
+      ? '<div class="event-meta-row"><span class="icon">📅</span>' + esc(d.eventDate) + '</div>'
+      : '';
+    var locParts = [d.venueName, d.city, d.state].filter(Boolean);
+    var locHtml  = locParts.length
+      ? '<div class="event-meta-row"><span class="icon">📍</span>' + esc(locParts.join(', ')) + '</div>'
+      : '';
+    var feeHtml  = d.registrationFee
+      ? '<div class="event-meta-row"><span class="icon">💰</span>' + esc(d.registrationFee) + '</div>'
+      : '';
+    return '<div class="event-card" onclick="window.location.href=\'/midRegMeet\'">' +
+      '<div class="event-card-accent midwest"></div>' +
+      '<div class="event-card-body">' +
+        '<div class="event-card-name">' + esc(d.eventName) + '</div>' +
+        '<span class="event-type-badge midwest">Midwest Meet</span>' +
+        '<div class="event-card-meta">' + dateHtml + locHtml + feeHtml + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function formatCardDate(dateStr) {
+    if (!dateStr) return '';
+    // dateStr is "YYYY-MM-DD"; parse without timezone shift
+    var parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var m = parseInt(parts[1], 10) - 1;
+    var d = parseInt(parts[2], 10);
+    return months[m] + ' ' + d + ', ' + parts[0];
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function formatTime(t) {
+    if (!t) return '';
+    var parts = t.split(':');
+    var h = parseInt(parts[0], 10), m = parts[1] || '00';
+    return (h % 12 || 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+  }
+  function copyLink(link) {
+    navigator.clipboard.writeText(link).then(function() {
+      showFeedback('Registration link copied to clipboard!', 'success');
+    }).catch(function() {
+      prompt('Copy this link:', link);
+    });
+  }
+  function showFeedback(msg, type) {
+    var el = document.getElementById('feedback');
+    el.textContent  = msg;
+    el.className    = 'feedback ' + type;
+    setTimeout(function() { el.className = 'feedback'; }, 4000);
+  }
+
+  // ── Delete modal ────────────────────────────────────────────────────────
+  function openDeleteModal(id, name) {
+    deleteId   = id;
+    deleteName = name;
+    document.getElementById('deleteModalBody').textContent =
+      'Are you sure you want to delete "' + name + '"? All registrations will also be removed. This cannot be undone.';
+    document.getElementById('deleteModal').classList.add('open');
+  }
+  function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('open');
+    deleteId = null;
+  }
+  async function confirmDelete() {
+    if (!deleteId) return;
+    var btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled   = true;
+    btn.textContent = 'Deleting…';
+    try {
+      var res = await fetch('/api/events/' + deleteId, { method: 'DELETE' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      closeDeleteModal();
+      allEvents = allEvents.filter(function(ev) { return ev.id !== deleteId; });
+      renderStats();
+      filterCards();
+      showFeedback('Event "' + deleteName + '" deleted.', 'success');
+    } catch (e) {
+      showFeedback('Failed to delete event. Please try again.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Delete';
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+  });
+
+
+  // ── Registrations modal ─────────────────────────────────────────────────
+  var currentRegId = null;
+
+  function openRegModal(eventId, eventName, encryptedId) {
+    currentRegId = eventId;
+    document.getElementById('regModalTitle').textContent = (eventName || 'Event') + ' — Registrants';
+    var pubBox = document.getElementById('regPubLinkBox');
+    var pubAnchor = document.getElementById('regPubLinkAnchor');
+    if (encryptedId && pubAnchor) {
+      var url = window.location.origin + '/event-register/' + encodeURIComponent(encryptedId);
+      pubAnchor.href = url;
+      pubAnchor.textContent = url;
+      if (pubBox) pubBox.style.display = '';
+    } else {
+      if (pubBox) pubBox.style.display = 'none';
+    }
+    document.getElementById('regModal2').classList.add('open');
+    loadRegistrations(eventId);
+  }
+  function closeRegModal2() {
+    document.getElementById('regModal2').classList.remove('open');
+    currentRegId = null;
+  }
+  async function loadRegistrations(eventId) {
+    var tbody = document.getElementById('regModalBody');
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Loading…</td></tr>';
+    var sumEl = document.getElementById('regSummary'); if (sumEl) sumEl.innerHTML = '';
+    try {
+      var res = await fetch('/api/events/' + eventId + '/registrations');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var regs = await res.json();
+      if (!Array.isArray(regs)) regs = [];
+      renderRegSummary(regs);           // always show totals (zeros when empty)
+      if (!regs.length) {
+        tbody.innerHTML = '<tr><td class="reg-empty" colspan="9">No registrations yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = regs.map(function(r, i) {
+        var att = r.attending === true
+          ? '<span style="color:#2e7d32;font-weight:600;">✅ Yes</span>'
+          : r.attending === false
+            ? '<span style="color:#c62828;font-weight:600;">❌ No</span>'
+            : '<span style="color:#f57f17;font-weight:600;">🤔 Maybe</span>';
+        return '<tr>' +
+          '<td>' + (i+1) + '</td>' +
+          '<td>' + esc((r.firstName||'') + ' ' + (r.lastName||'')) + '</td>' +
+          '<td>' + esc(r.email||'—') + '</td>' +
+          '<td>' + esc(r.phone||'—') + '</td>' +
+          '<td>' + (r.adults||0) + '</td>' +
+          '<td>' + (r.kids||0) + '</td>' +
+          '<td>' + att + '</td>' +
+          '<td>' + (r.checkedIn ? '\u2705' : '\u2014') + '</td>' +
+          '<td style="max-width:120px;font-size:12px;">' + esc(r.note||'') + '</td>' +
+          '</tr>';
+      }).join('');
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="9" style="color:#c62828;padding:16px;">Failed to load registrations.</td></tr>';
+    }
+  }
+  // Compute + render the attendance/RSVP summary from the registrant data.
+  function renderRegSummary(regs) {
+    var totalAdults = 0, totalKids = 0, yes = 0, maybe = 0, no = 0;
+    regs.forEach(function(r) {
+      totalAdults += Number(r.adults) || 0;
+      totalKids   += Number(r.kids)   || 0;
+      if (r.attending === true) yes++;
+      else if (r.attending === false) no++;
+      else maybe++;   // null / undefined = "Maybe"
+    });
+    var totalRegistrants = totalAdults + totalKids;
+    function card(label, value, color, bg) {
+      return '<div style="background:' + bg + ';border:1px solid ' + color + '33;border-radius:10px;padding:12px 8px;text-align:center;">' +
+        '<div style="font-size:22px;font-weight:800;color:' + color + ';line-height:1;">' + value + '</div>' +
+        '<div style="font-size:11px;color:#666;margin-top:6px;font-weight:600;">' + label + '</div></div>';
+    }
+    var el = document.getElementById('regSummary');
+    if (!el) return;
+    el.innerHTML =
+      card('Total Adults',      totalAdults,      '#673147', '#faf5f7') +
+      card('Total Kids',        totalKids,        '#673147', '#faf5f7') +
+      card('Total Registrants', totalRegistrants, '#673147', '#f0e0e7') +
+      card('Attending (Yes)',   yes,              '#2e7d32', '#e8f5e9') +
+      card('Maybe',             maybe,            '#f57f17', '#fff8e1') +
+      card('Declined (No)',     no,               '#c62828', '#fdecea');
+  }
+
+  document.getElementById('regModal2').addEventListener('click', function(e) {
+    if (e.target === document.getElementById('regModal2')) closeRegModal2();
+  });
+
+  // ── Registration Reminder modal ────────────────────────────────────────
+  var rrEventId = null;
+
+  function openRrModal(eventId, eventName) {
+    rrEventId = eventId;
+    document.getElementById('rrModalTitle').textContent = (eventName || 'Event') + ' — Registration Reminder';
+    rrShowFeedback('', '');
+    document.getElementById('rrEnabled').checked = false;
+    document.getElementById('rrDays').value = 5;
+    document.getElementById('rrContactRows').innerHTML = '';
+    document.getElementById('rrLogArea').style.display = 'none';
+    document.getElementById('rrLogToggleBtn').textContent = '📜 View Attempt Log';
+    rrToggleArea();
+    document.getElementById('rrModal').classList.add('open');
+    fetch('/api/events/' + eventId + '/registration-reminder')
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(cfg) {
+        document.getElementById('rrEnabled').checked = !!cfg.enabled;
+        if (cfg.daysBefore != null) document.getElementById('rrDays').value = cfg.daysBefore;
+        (cfg.contacts || []).forEach(function(c) { rrAddRow(c.email, c.phone); });
+        if (!(cfg.contacts || []).length) rrAddRow();
+        rrToggleArea();
+      })
+      .catch(function() {
+        rrAddRow();
+        rrShowFeedback('Could not load current settings — saving will overwrite them.', 'error');
+      });
+  }
+
+  function closeRrModal() {
+    document.getElementById('rrModal').classList.remove('open');
+    rrEventId = null;
+  }
+
+  function rrToggleArea() {
+    var on = document.getElementById('rrEnabled').checked;
+    document.getElementById('rrConfigArea').classList.toggle('rr-disabled-area', !on);
+  }
+
+  function rrAddRow(email, phone) {
+    var row = document.createElement('div');
+    row.className = 'rr-contact-row';
+    row.innerHTML =
+      '<input type="email" class="rr-email" placeholder="Email (optional)" value="' + esc(email || '') + '" />' +
+      '<input type="tel" class="rr-phone" placeholder="Phone (optional)" value="' + esc(phone || '') + '" />' +
+      '<button type="button" class="rr-remove-btn" title="Remove" onclick="this.parentNode.remove(); rrUpdateInviteBtn();">✕</button>';
+    document.getElementById('rrContactRows').appendChild(row);
+    rrUpdateInviteBtn();
+  }
+
+  // Collects contact rows: {contacts:[{email,phone}], invalid:bool, validCount:int}
+  function rrCollectContacts() {
+    var contacts = [], invalid = false, validCount = 0;
+    document.querySelectorAll('#rrContactRows .rr-contact-row').forEach(function(row) {
+      var email = row.querySelector('.rr-email').value.trim();
+      var phone = row.querySelector('.rr-phone').value.trim();
+      if (!email && !phone) return;                 // ignore blank rows
+      var emailOk = !email || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+      var phoneOk = !phone || phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '').length === 10;
+      if (!emailOk || !phoneOk) invalid = true;
+      else validCount++;
+      contacts.push({ email: email || null, phone: phone || null });
+    });
+    return { contacts: contacts, invalid: invalid, validCount: validCount };
+  }
+
+  // Send Invite is enabled only when at least one fully valid contact exists.
+  function rrUpdateInviteBtn() {
+    var c = rrCollectContacts();
+    var btn = document.getElementById('rrInviteBtn');
+    if (btn) btn.disabled = !(c.validCount > 0 && !c.invalid);
+  }
+
+  // Live re-validation while typing in any contact row.
+  document.getElementById('rrContactRows').addEventListener('input', rrUpdateInviteBtn);
+
+  function rrShowFeedback(msg, type) {
+    var el = document.getElementById('rrFeedback');
+    el.textContent = msg;
+    el.className = 'rr-feedback' + (type ? ' ' + type : '');
+  }
+
+  async function saveRrConfig() {
+    if (!rrEventId) return;
+    var enabled  = document.getElementById('rrEnabled').checked;
+    var days     = parseInt(document.getElementById('rrDays').value, 10);
+    var col      = rrCollectContacts();
+    var contacts = col.contacts;
+    var invalid  = col.invalid;
+    if (enabled && (isNaN(days) || days < 0)) {
+      rrShowFeedback('Enter how many days before the event the reminder should be sent.', 'error');
+      return;
+    }
+    if (enabled && !contacts.length) {
+      rrShowFeedback('Add at least one contact (email or phone), or turn the reminder off.', 'error');
+      return;
+    }
+    if (invalid) {
+      rrShowFeedback('Please fix invalid email addresses or phone numbers (US 10-digit).', 'error');
+      return;
+    }
+    var btn = document.getElementById('rrSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      var res = await fetch('/api/events/' + rrEventId + '/registration-reminder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enabled, daysBefore: isNaN(days) ? null : days, contacts: contacts })
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      closeRrModal();
+      showFeedback('Registration reminder settings saved.', 'success');
+    } catch (e) {
+      rrShowFeedback(e.message || 'Failed to save. Please try again.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+  }
+
+  // ── Send Invite ─────────────────────────────────────────────────────
+  async function rrSendInvite() {
+    if (!rrEventId) return;
+    var col = rrCollectContacts();
+    if (col.invalid) {
+      rrShowFeedback('Please fix invalid email addresses or phone numbers (US 10-digit) before inviting.', 'error');
+      return;
+    }
+    if (!col.validCount) {
+      rrShowFeedback('Add at least one contact with a valid email or phone number.', 'error');
+      return;
+    }
+    if (!confirm('Send the event invitation (with RSVP link) to the contacts listed?\n\n' +
+                 'Anyone already invited to this event will be skipped automatically.')) return;
+
+    var btn = document.getElementById('rrInviteBtn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      // Save the current list first so invitations use exactly what is on screen.
+      var enabled = document.getElementById('rrEnabled').checked;
+      var days    = parseInt(document.getElementById('rrDays').value, 10);
+      var saveRes = await fetch('/api/events/' + rrEventId + '/registration-reminder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enabled, daysBefore: isNaN(days) ? null : days, contacts: col.contacts })
+      });
+      var saveData = await saveRes.json().catch(function() { return {}; });
+      if (!saveRes.ok) throw new Error(saveData.error || ('Save failed: HTTP ' + saveRes.status));
+
+      var res = await fetch('/api/events/' + rrEventId + '/registration-reminder/invite', { method: 'POST' });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      if (data.processed) {
+        rrShowFeedback('Invitations: ' + (data.emailsSent || 0) + ' email(s) and ' + (data.smsSent || 0) +
+                       ' SMS sent, ' + (data.skipped || 0) + ' skipped' +
+                       (data.failed ? ', ' + data.failed + ' failed' : '') + '.', 'success');
+      } else {
+        rrShowFeedback('Nothing sent — ' + (data.skipReason || 'unknown reason') + '.', 'error');
+      }
+      if (document.getElementById('rrLogArea').style.display !== 'none') rrLoadLogs();
+    } catch (e) {
+      rrShowFeedback(e.message || 'Failed to send invitations.', 'error');
+    } finally {
+      btn.textContent = '📨 Send Invite';
+      rrUpdateInviteBtn();
+    }
+  }
+
+  // ── Manual run ("Send Now") ─────────────────────────────────────────
+  async function rrRunNow() {
+    if (!rrEventId) return;
+    if (!confirm('Run the registration reminder for this event NOW using the last saved settings?\n\n' +
+                 'Contacts who already registered — or were already reminded — are skipped automatically.')) return;
+    var btn = document.getElementById('rrRunNowBtn');
+    btn.disabled = true; btn.textContent = 'Running…';
+    try {
+      var res = await fetch('/api/events/' + rrEventId + '/registration-reminder/run?force=true', { method: 'POST' });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      if (data.processed) {
+        rrShowFeedback('Done: ' + (data.emailsSent || 0) + ' email(s) and ' + (data.smsSent || 0) +
+                       ' SMS sent, ' + (data.skipped || 0) + ' skipped' +
+                       (data.failed ? ', ' + data.failed + ' failed' : '') + '.', 'success');
+      } else {
+        rrShowFeedback('Nothing sent — ' + (data.skipReason || 'unknown reason') + '.', 'error');
+      }
+      // Refresh the attempt log if it is open
+      if (document.getElementById('rrLogArea').style.display !== 'none') rrLoadLogs();
+    } catch (e) {
+      rrShowFeedback(e.message || 'Failed to run the reminder.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '🚀 Send Reminder';
+    }
+  }
+
+  // ── Attempt log ─────────────────────────────────────────────────────
+  function rrToggleLogs() {
+    var area = document.getElementById('rrLogArea');
+    var btn  = document.getElementById('rrLogToggleBtn');
+    var open = area.style.display !== 'none';
+    if (open) {
+      area.style.display = 'none';
+      btn.textContent = '📜 View Attempt Log';
+      return;
+    }
+    area.style.display = '';
+    btn.textContent = '📜 Hide Attempt Log';
+    rrLoadLogs();
+  }
+
+  async function rrLoadLogs() {
+    if (!rrEventId) return;
+    var tbody = document.getElementById('rrLogBody');
+    tbody.innerHTML = '<tr><td class="reg-empty" colspan="6">Loading…</td></tr>';
+    try {
+      var res = await fetch('/api/events/' + rrEventId + '/registration-reminder/logs');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var logs = await res.json();
+      if (!Array.isArray(logs) || !logs.length) {
+        tbody.innerHTML = '<tr><td class="reg-empty" colspan="6">No attempts yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = logs.map(function(l) {
+        var when = l.createdDate ? new Date(l.createdDate).toLocaleString() : '—';
+        var status = l.status === 'SENT'
+          ? '<span style="color:#2e7d32;font-weight:600;">✅ Sent</span>'
+          : l.status === 'FAILED'
+            ? '<span style="color:#c62828;font-weight:600;">❌ Failed</span>'
+            : '<span style="color:#f57f17;font-weight:600;">⏭ Skipped</span>';
+        var type = l.messageType === 'INVITE' ? '💌 Invite' : '🔔 Reminder';
+        return '<tr>' +
+          '<td style="white-space:nowrap;">' + esc(when) + '</td>' +
+          '<td style="white-space:nowrap;">' + type + '</td>' +
+          '<td>' + (l.channel === 'SMS' ? '📱 SMS' : '✉️ Email') + '</td>' +
+          '<td>' + esc(l.recipient || '—') + '</td>' +
+          '<td>' + status + '</td>' +
+          '<td style="font-size:12px;color:#666;">' + esc(l.reason || '') + '</td>' +
+          '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c62828;padding:14px;">Failed to load the attempt log.</td></tr>';
+    }
+  }
+
+  document.getElementById('rrModal').addEventListener('click', function(e) {
+    if (e.target === document.getElementById('rrModal')) closeRrModal();
+  });
+
+window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTitle: 'Events' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

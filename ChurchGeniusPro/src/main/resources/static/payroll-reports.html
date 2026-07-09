@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Payroll Reports — ChurchGenius Pro</title>
+<link rel="stylesheet" href="/mobile.css" />
+<link rel="stylesheet" href="/shell.css" />
+<style>
+  :root { --brand:#673147; --brand-soft:#fdf5f7; --line:#e6dde2; --muted:#888; }
+  * { box-sizing:border-box; }
+  /* Keep the shared side navigation identical to the rest of the app */
+  button { cursor: pointer; font-family: inherit; border: none; background: none; }
+  .sidebar { background: #673147 !important; }
+  .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+  .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+  body { margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#333; background:#faf7f8; }
+  .wrap { max-width:1040px; margin:0 auto; padding:22px 18px 60px; }
+  .nav { display:flex; gap:14px; font-size:13px; margin-bottom:14px; }
+  .nav a { color:var(--brand); text-decoration:none; font-weight:600; }
+  .nav a.active { text-decoration:underline; }
+  h1 { font-size:22px; color:var(--brand); margin:0 0 4px; }
+  h2 { font-size:15px; color:var(--brand); margin:0 0 10px; }
+  .sub { font-size:13px; color:var(--muted); margin:0 0 16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+  label { font-size:12px; font-weight:600; color:#6a4a57; }
+  input, select { padding:8px 9px; border:1px solid #d7c9d0; border-radius:7px; font-size:13px; background:#fff; }
+  .toolbar { display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:12px; }
+  .btn { cursor:pointer; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:6px; padding:8px 12px; font-size:12px; font-weight:600; text-decoration:none; display:inline-block; }
+  .btn.solid { background:var(--brand); color:#fff; }
+  .btn.sm { padding:4px 8px; font-size:11px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead tr { background:#f5f1f3; }
+  th,td { text-align:left; padding:7px 9px; border-bottom:1px solid #eee; white-space:nowrap; }
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .liab { display:flex; flex-wrap:wrap; gap:16px; margin:6px 0 12px; }
+  .liab div span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .liab div b { font-size:15px; color:#673147; }
+  .msg { font-size:13px; padding:12px; border-radius:8px; }
+  .msg.info { background:var(--brand-soft); color:#6a4a57; } .msg.err { background:#fdeaea; color:#b42424; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+<div class="wrap">
+  <a href="/payroll" class="btn" style="text-decoration:none;display:inline-block;margin-bottom:12px;">&#8592; Back to Payroll</a>
+  <div class="nav">
+    <a href="/payroll/employees">Employees</a>
+    <a href="/payroll/runs">Payroll runs</a>
+    <a href="/payroll/reports" class="active">Reports</a>
+    <a href="/payroll/activity">Activity</a>
+  </div>
+  <h1>Payroll Reports</h1>
+  <p class="sub">Year-end W-2 export and per-run payroll register &amp; tax liability.</p>
+
+  <div class="card">
+    <h2>Year-end W-2</h2>
+    <div class="toolbar">
+      <div><label>Tax year</label><br><input id="w2Year" type="number" style="width:110px;" value="2026"/></div>
+      <a class="btn solid" id="csvBtn" href="#">Download W-2 CSV (all)</a>
+      <button class="btn" id="w2Refresh">Refresh table</button>
+    </div>
+    <div id="w2Area"><div class="msg info">Loading…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Payroll register &amp; tax liability</h2>
+    <div class="toolbar">
+      <div><label>Run</label><br><select id="runSelect" style="min-width:340px;"><option value="">Loading runs…</option></select></div>
+    </div>
+    <div id="runReport"><div class="msg info">Select a run to see its register and tax liability.</div></div>
+  </div>
+</div>
+
+<script>
+  var fmt = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+  function money(v){ return v==null?'—':fmt.format(Number(v)); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  async function getJson(url){
+    var res = await fetch(url);
+    if (res.status === 401) throw new Error('auth');
+    var data = await res.json().catch(function(){ return {}; });
+    if (!res.ok || data.status === 'error') throw new Error(data.message || ('Failed ('+res.status+')'));
+    return data.data;
+  }
+
+  // ── W-2 ──
+  function year(){ var y = parseInt(document.getElementById('w2Year').value,10); return isNaN(y)? new Date().getFullYear() : y; }
+  function updateCsvLink(){ document.getElementById('csvBtn').setAttribute('href','/api/payroll/reports/w2/csv?year='+year()); }
+
+  async function loadW2(){
+    updateCsvLink();
+    var area = document.getElementById('w2Area');
+    try {
+      var emps = await getJson('/api/payroll/employees');
+      if (!emps.length){ area.innerHTML = '<div class="msg info">No employees yet.</div>'; return; }
+      var yr = year();
+      var results = await Promise.all(emps.map(function(e){
+        return getJson('/api/payroll/employees/'+e.id+'/ytd?year='+yr)
+          .then(function(d){ return { e:e, d:d }; })
+          .catch(function(){ return { e:e, d:null }; });
+      }));
+      var rows = results.filter(function(r){ return r.d && (Number(r.d.ytdGross||0) > 0); }).map(function(r){
+        var w = (r.d.w2)||{};
+        return '<tr><td>'+esc(r.e.fullName)+'</td>'
+          + '<td class="num">'+money(w.box1_wages)+'</td>'
+          + '<td class="num">'+money(w.box2_federalIncomeTax)+'</td>'
+          + '<td class="num">'+money(w.box3_socialSecurityWages)+'</td>'
+          + '<td class="num">'+money(w.box4_socialSecurityTax)+'</td>'
+          + '<td class="num">'+money(w.box5_medicareWages)+'</td>'
+          + '<td class="num">'+money(w.box6_medicareTax)+'</td>'
+          + '<td class="num">'+money(w.box17_stateIncomeTax)+'</td>'
+          + '<td><a class="btn sm" href="/api/payroll/employees/'+r.e.id+'/w2/pdf?year='+yr+'" target="_blank" rel="noopener">W-2 PDF</a></td>'
+          + '</tr>';
+      }).join('');
+      area.innerHTML = rows
+        ? '<table><thead><tr><th>Employee</th><th class="num">Box 1</th><th class="num">Box 2</th>'
+          + '<th class="num">Box 3</th><th class="num">Box 4</th><th class="num">Box 5</th><th class="num">Box 6</th>'
+          + '<th class="num">Box 17</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+        : '<div class="msg info">No employees had wages in '+yr+'.</div>';
+    } catch(e){
+      area.innerHTML = e.message==='auth'
+        ? '<div class="msg err">Please <a href="/login.html">sign in</a>.</div>'
+        : '<div class="msg err">Failed to load W-2 data.</div>';
+    }
+  }
+
+  // ── Run register + tax liability ──
+  async function loadRuns(){
+    var sel = document.getElementById('runSelect');
+    try {
+      var runs = await getJson('/api/payroll/runs');
+      sel.innerHTML = runs.length
+        ? '<option value="">— Select a run —</option>' + runs.map(function(r){
+            return '<option value="'+r.id+'">'+esc((r.payDate||'')+' · '+(r.payFrequency||'')+' · '+(r.status||''))+'</option>'; }).join('')
+        : '<option value="">No runs yet</option>';
+    } catch(e){ sel.innerHTML = '<option value="">'+(e.message==='auth'?'Not signed in':'Failed to load')+'</option>'; }
+  }
+
+  async function loadRunReport(runId){
+    var area = document.getElementById('runReport');
+    if (!runId){ area.innerHTML = '<div class="msg info">Select a run to see its register and tax liability.</div>'; return; }
+    area.innerHTML = '<div class="msg info">Loading…</div>';
+    try {
+      var reg = await getJson('/api/payroll/runs/'+runId+'/register');
+      var liab = await getJson('/api/payroll/runs/'+runId+'/tax-liability');
+      var liabHtml = '<div class="liab">'
+        + liabItem('Federal income tax', liab.federalIncomeTax)
+        + liabItem('Social Security', liab.socialSecurity)
+        + liabItem('Medicare', liab.medicare)
+        + liabItem('Add\'l Medicare', liab.additionalMedicare)
+        + liabItem('State income tax', liab.stateIncomeTax)
+        + liabItem('Local tax', liab.localTax)
+        + '</div>';
+      var rows = reg.length ? reg.map(function(s){
+        return '<tr'+(s.voided?' style="color:#bbb;text-decoration:line-through;"':'')+'>'
+          + '<td>'+esc(s.employeeName||'—')+'</td>'
+          + '<td class="num">'+money(s.grossEarnings)+'</td>'
+          + '<td class="num">'+money(s.federalWithholding)+'</td>'
+          + '<td class="num">'+money(s.socialSecurity)+'</td>'
+          + '<td class="num">'+money(s.medicare)+'</td>'
+          + '<td class="num">'+money(s.stateWithholding)+'</td>'
+          + '<td class="num">'+money(s.preTaxDeductions)+'</td>'
+          + '<td class="num">'+money(s.postTaxDeductions)+'</td>'
+          + '<td class="num">'+money(s.netPay)+'</td></tr>';
+      }).join('') : '<tr><td colspan="9" style="color:#aaa;">No paystubs in this run.</td></tr>';
+      area.innerHTML = '<div style="font-size:12px;font-weight:700;color:#673147;margin-bottom:4px;">Employer tax liability</div>'
+        + liabHtml
+        + '<div style="font-size:12px;font-weight:700;color:#673147;margin:8px 0 4px;">Payroll register</div>'
+        + '<table><thead><tr><th>Employee</th><th class="num">Gross</th><th class="num">Fed</th>'
+        + '<th class="num">SS</th><th class="num">Medicare</th><th class="num">State</th>'
+        + '<th class="num">Pre-tax</th><th class="num">Post-tax</th><th class="num">Net</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table>';
+    } catch(e){
+      area.innerHTML = e.message==='auth'
+        ? '<div class="msg err">Please <a href="/login.html">sign in</a>.</div>'
+        : '<div class="msg err">'+esc(e.message)+'</div>';
+    }
+  }
+  function liabItem(label, val){ return '<div><span>'+esc(label)+'</span><b>'+money(val)+'</b></div>'; }
+
+  document.getElementById('w2Refresh').addEventListener('click', loadW2);
+  document.getElementById('w2Year').addEventListener('change', function(){ updateCsvLink(); loadW2(); });
+  document.getElementById('runSelect').addEventListener('change', function(){ loadRunReport(this.value); });
+
+  updateCsvLink();
+  loadW2();
+  loadRuns();
+</script>
+    </main>
+  </div>
+</div>
+<script>
+window.CGP_PAGE = { activePage:'accounting/payroll', pageTitle:'Payroll Reports', openSection:'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

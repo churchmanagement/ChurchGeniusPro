@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Volunteers — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    /* ── Tabs ── */
+    .tab-bar { display:flex; gap:4px; margin-bottom:20px; background:#fff;
+      border-radius:10px; padding:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); flex-wrap:wrap; }
+    .tab-btn { padding:8px 18px; border-radius:7px; font-size:13px; font-weight:600;
+      color:#888; transition:background .15s,color .15s; }
+    .tab-btn.active { background:#673147; color:#fff; }
+    .tab-btn:hover:not(.active) { background:#f0e8ec; color:#673147; }
+    .tab-pane { display:none; } .tab-pane.active { display:block; }
+    /* ── Cards ── */
+    .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07);
+      padding:20px; margin-bottom:16px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+    .card-title { font-size:15px; font-weight:700; color:#673147; }
+    /* ── Stat cards ── */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px; }
+    .stat-card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07);
+      padding:18px 20px; display:flex; flex-direction:column; gap:4px; }
+    .stat-num { font-size:28px; font-weight:800; color:#673147; }
+    .stat-label { font-size:12px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+    /* ── Buttons ── */
+    .btn { padding:7px 16px; border-radius:8px; font-size:13px; font-weight:600;
+      transition:background .15s; border:none; cursor:pointer; }
+    .btn-primary { background:#673147; color:#fff; } .btn-primary:hover { background:#4f2538; }
+    .btn-secondary { background:#f0f0f0; color:#444; } .btn-secondary:hover { background:#e0e0e0; }
+    .btn-danger { background:#fdecea; color:#c62828; } .btn-danger:hover { background:#f8c4c0; }
+    .btn-success { background:#e8f5e9; color:#2e7d32; } .btn-success:hover { background:#c8e6c9; }
+    .btn-amber  { background:#fff8e1; color:#e65100; } .btn-amber:hover  { background:#ffecb3; }
+    .btn-sm { padding:4px 10px; font-size:12px; border-radius:6px; }
+    .btn-xs { padding:2px 8px; font-size:11px; border-radius:5px; }
+    /* ── Forms ── */
+    .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .form-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:140px; }
+    .form-group.full { flex:0 0 100%; }
+    label { font-size:12px; font-weight:600; color:#555; }
+    input[type=text], input[type=email], input[type=number], input[type=date], select, textarea {
+      padding:7px 10px; border:1px solid #ddd; border-radius:7px; font-size:13px;
+      font-family:inherit; width:100%; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:#673147; }
+    textarea { resize:vertical; min-height:60px; }
+    /* ── Table ── */
+    .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .data-table th { background:#f5f0f3; color:#673147; font-weight:700; padding:9px 12px;
+      text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+    .data-table td { padding:9px 12px; border-bottom:1px solid #f0eaf0; vertical-align:middle; }
+    .data-table tr:hover td { background:#fdf8fa; }
+    .data-table .act { display:flex; gap:5px; flex-wrap:wrap; }
+    /* ── Items ── */
+    .item-row { display:flex; align-items:center; gap:8px; padding:8px 12px;
+      border:1px solid #ece6ee; border-radius:8px; margin-bottom:6px; background:#fdfafd; }
+    .item-name { flex:1; font-size:13px; font-weight:600; }
+    .item-sub  { font-size:11px; color:#888; }
+    /* ── Chips ── */
+    .chip { display:inline-block; background:#f0e8ec; color:#673147; border-radius:10px;
+      padding:2px 10px; font-size:11px; font-weight:600; }
+    .chip-green { background:#e8f5e9; color:#2e7d32; }
+    .chip-amber { background:#fff8e1; color:#e65100; }
+    .chip-blue  { background:#e3f2fd; color:#1565c0; }
+    .chip-red   { background:#fdecea; color:#c62828; }
+    .chip-grey  { background:#f0f0f0; color:#666; }
+    /* ── Search bar ── */
+    .search-bar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .search-input { flex:1; min-width:180px; padding:7px 12px; border:1px solid #ddd;
+      border-radius:8px; font-size:13px; }
+    .search-input:focus { outline:none; border-color:#673147; }
+    /* ── Skills tags ── */
+    .skill-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+    .skill-tag { background:#f0e8ec; color:#673147; border-radius:12px; padding:2px 10px; font-size:11px; }
+    /* ── Role chips (volunteer assigned roles) ── */
+    .role-chips { display:flex; flex-wrap:wrap; gap:4px; }
+    .role-chip { display:inline-flex; align-items:center; gap:4px; background:#e8f5e9; color:#2e7d32;
+      border-radius:10px; padding:2px 8px; font-size:11px; font-weight:600; }
+    .role-chip-remove { cursor:pointer; font-size:10px; opacity:.7; border:none; background:none;
+      color:#c62828; padding:0 0 0 2px; line-height:1; }
+    .role-chip-remove:hover { opacity:1; }
+    /* ── Role multi-select panel ── */
+    .role-picker-wrap { position:relative; }
+    .role-picker-input { width:100%; padding:6px 10px; border:1px solid #ddd; border-radius:7px;
+      font-size:13px; cursor:pointer; background:#fff; }
+    .role-picker-input:focus { outline:none; border-color:#673147; }
+    .role-picker-dropdown { display:none; position:absolute; left:0; right:0; top:calc(100% + 4px);
+      background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.12);
+      z-index:200; max-height:200px; overflow-y:auto; }
+    .role-picker-dropdown.open { display:block; }
+    .role-picker-option { padding:8px 12px; font-size:13px; cursor:pointer; display:flex;
+      align-items:center; gap:8px; }
+    .role-picker-option:hover { background:#f5f0f3; }
+    .role-picker-option.selected { color:#673147; font-weight:600; }
+    .role-picker-check { font-size:12px; color:#673147; width:14px; }
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:40px 20px; color:#aaa; font-size:14px; }
+    .empty-icon { font-size:36px; margin-bottom:10px; }
+    .section-divider { border:none; border-top:1px solid #eee; margin:16px 0; }
+    /* ── Toast ── */
+    #toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      background:#323232; color:#fff; padding:10px 22px; border-radius:24px;
+      font-size:13px; font-weight:600; z-index:9999; display:none; }
+    /* ── Modal ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:5000; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:#fff; border-radius:14px; padding:28px; width:100%;
+      max-width:560px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .modal-title { font-size:16px; font-weight:700; color:#673147; margin-bottom:18px; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+    @media(max-width:600px) { .stats-grid { grid-template-columns:1fr 1fr; } .modal-box { padding:18px; } }
+    /* ── Compose modal ── */
+    .compose-type-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .compose-type-tab { padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600;
+      border:2px solid #ddd; color:#666; cursor:pointer; background:#fff; transition:.15s; }
+    .compose-type-tab.active { border-color:#673147; background:#673147; color:#fff; }
+    .cmp-recipients { background:#f5f6fa; border-radius:8px; padding:8px 10px;
+      font-size:12px; color:#555; margin-bottom:12px; max-height:60px; overflow-y:auto; }
+    .cmp-field { margin-bottom:12px; }
+    .cmp-field label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
+    .cmp-field input, .cmp-field textarea {
+      width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:8px;
+      font-size:13px; font-family:inherit; resize:vertical; }
+    .cmp-field textarea { min-height:100px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content" style="padding:24px;">
+
+  <h2 style="font-size:20px;font-weight:700;color:#673147;margin-bottom:20px;">🙋 Volunteer Setup</h2>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('overview',this)">📊 Overview</button>
+    <button class="tab-btn" onclick="showTab('members',this)">👥 Members</button>
+    <button class="tab-btn" onclick="showTab('roles',this)">🏷️ Roles</button>
+    <button class="tab-btn" onclick="showTab('roster',this)">📅 Schedule</button>
+    <button class="tab-btn" onclick="showTab('assignments',this)">📋 Assignments</button>
+  </div>
+
+  <!-- == OVERVIEW =================================================== -->
+  <div id="tab-overview" class="tab-pane active">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num" id="statVolunteers">—</div><div class="stat-label">Volunteers</div></div>
+      <div class="stat-card"><div class="stat-num" id="statRoles">—</div><div class="stat-label">Roles</div></div>
+      <div class="stat-card"><div class="stat-num" id="statAssignments">—</div><div class="stat-label">Total Assignments</div></div>
+      <div class="stat-card"><div class="stat-num" id="statPending">—</div><div class="stat-label">Pending Confirmations</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Recent Assignments</span>
+        <button class="btn btn-secondary btn-sm" onclick="showTab('roster',document.querySelectorAll('.tab-btn')[3])">View All</button>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Volunteer</th><th>Role</th><th>Event</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+      <div id="recentEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>No assignments yet.
+      </div>
+    </div>
+  </div>
+
+  <!-- == ROLES ======================================================= -->
+  <div id="tab-roles" class="tab-pane">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Volunteer Roles</span>
+        <button class="btn btn-primary btn-sm" onclick="openRoleModal(null)">+ Add Role</button>
+      </div>
+      <div id="roleList"></div>
+      <div id="roleEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">🏷️</div>No roles yet. Add roles like "Registration", "Food Service", "Parking".
+      </div>
+    </div>
+  </div>
+
+  <!-- == MEMBERS ====================================================== -->
+  <div id="tab-members" class="tab-pane">
+
+    <!-- Add from Existing Members -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-title">Add Volunteer from Existing Members</span></div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px;">Search for a church member to add as a volunteer.</p>
+      <div class="search-bar">
+        <input class="search-input" id="memberSearch" placeholder="Search by name, email, or phone…" oninput="filterMemberList()" style="flex:1;">
+      </div>
+      <div id="memberSearchResults" style="max-height:280px;overflow-y:auto;margin-top:6px;"></div>
+    </div>
+
+    <!-- Add New Volunteer Manually -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Add New Volunteer Manually</span></div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px;">Add a volunteer who is not yet in the member directory.</p>
+      <div class="form-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="nfFirstName" placeholder="First name"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="nfLastName" placeholder="Last name"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="nfEmail" placeholder="email@example.com"></div>
+        <div class="form-group"><label>Phone</label><input type="text" id="nfPhone" placeholder="Phone number"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Skills / Interests</label><input type="text" id="nfSkills" placeholder="e.g. Music, Hospitality, Tech"></div>
+        <div class="form-group"><label>Availability</label><input type="text" id="nfAvailability" placeholder="e.g. Weekends, Sunday AM"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+        <button class="btn btn-primary" onclick="saveManualVolunteer()">+ Add Volunteer</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- == SCHEDULE ====================================================== -->
+  <div id="tab-roster" class="tab-pane">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Volunteer Schedule</span>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" id="rosterSearch" placeholder="Search by name, role, skill…" oninput="renderRoster()">
+      </div>
+      <table class="data-table" id="rosterTable">
+        <thead><tr>
+          <th>Name</th>
+          <th>Assigned Roles</th>
+          <th>Skills / Interests</th>
+          <th>Availability</th>
+          <th>Status</th>
+          <th>Assignments</th>
+        </tr></thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+      <div id="rosterEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">👥</div>No volunteers yet. Members can sign up via their member portal.
+      </div>
+    </div>
+  </div>
+
+  <!-- == ASSIGNMENTS ================================================== -->
+  <div id="tab-assignments" class="tab-pane">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Volunteer Assignments</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;" onclick="volAssignGroupEmail()">📧 Group Email</button>
+          <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="volAssignGroupSms()">💬 Group SMS</button>
+          <button class="btn btn-primary btn-sm" onclick="openAssignModal(null)">+ Add Assignment</button>
+        </div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" id="assignSearch" placeholder="Search by volunteer or event…" oninput="renderAssignments()">
+        <select id="assignStatusFilter" onchange="renderAssignments()" style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="declined">Declined</option>
+          <option value="maybe">Maybe</option>
+        </select>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Volunteer</th><th>Role</th><th>Event</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="assignBody"></tbody>
+      </table>
+      <div id="assignEmpty" class="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>No assignments found.
+      </div>
+    </div>
+  </div>
+
+
+    </main>
+  </div>
+</div>
+
+<!-- == ROLE MODAL ====================================================== -->
+<div class="modal-overlay" id="roleModal">
+  <div class="modal-box">
+    <div class="modal-title" id="roleModalTitle">Add Volunteer Role</div>
+    <input type="hidden" id="roleId">
+    <div class="form-row">
+      <div class="form-group full"><label>Role Name *</label><input type="text" id="rRoleName" placeholder="e.g. Registration, Parking, Sound System"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Ministry Area</label><input type="text" id="rMinistry" placeholder="e.g. Hospitality, Media, Security"></div>
+      <div class="form-group"><label>Max Capacity</label><input type="number" id="rMaxCap" placeholder="Leave blank for unlimited" min="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group full"><label>Description</label><textarea id="rDesc" placeholder="Skills required, responsibilities…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('roleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRole()">Save Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- == MANAGE VOLUNTEER ROLES MODAL =================================== -->
+<div class="modal-overlay" id="volRoleModal">
+  <div class="modal-box">
+    <div class="modal-title" id="volRoleModalTitle">Manage Roles</div>
+    <input type="hidden" id="vrProfileId">
+    <p style="font-size:13px;color:#666;margin-bottom:14px;">
+      Select one or more roles for this volunteer. Changes are saved immediately.
+    </p>
+
+    <!-- Current assigned roles -->
+    <div style="margin-bottom:14px;">
+      <label style="display:block;margin-bottom:8px;">Currently Assigned Roles</label>
+      <div id="vrCurrentRoles" class="role-chips" style="min-height:30px;">
+        <span style="color:#aaa;font-size:12px;">No roles assigned.</span>
+      </div>
+    </div>
+
+    <!-- Role search / add -->
+    <div style="margin-bottom:14px;">
+      <label style="display:block;margin-bottom:8px;">Add a Role</label>
+      <div class="role-picker-wrap" id="vrPickerWrap">
+        <input type="text" class="role-picker-input" id="vrSearch"
+               placeholder="Search roles…"
+               oninput="filterVrDropdown()"
+               onfocus="openVrDropdown()"
+               autocomplete="off">
+        <div class="role-picker-dropdown" id="vrDropdown"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('volRoleModal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- == COMPOSE MODAL ================================================ -->
+<div class="modal-overlay" id="volCmpModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title" id="volCmpTitle">✉️ Compose Message</div>
+    <div class="compose-type-tabs">
+      <button class="compose-type-tab active" id="volCmpTabEmail" onclick="volCmpSwitchTab('email')">📧 Email</button>
+      <button class="compose-type-tab" id="volCmpTabSms" onclick="volCmpSwitchTab('sms')">💬 SMS</button>
+    </div>
+    <div class="cmp-recipients" id="volCmpRecipients">To: —</div>
+    <div id="volCmpEmailSection">
+      <div class="cmp-field">
+        <label>Subject</label>
+        <input type="text" id="volCmpSubject" placeholder="Email subject…" />
+      </div>
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="volCmpEmailBody" placeholder="Type your email message here…"></textarea>
+      </div>
+    </div>
+    <div id="volCmpSmsSection" style="display:none;">
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="volCmpSmsBody" placeholder="Type your SMS message here…"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="volCmpClose()">Cancel</button>
+      <button class="btn btn-primary" onclick="volCmpSend()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- == ASSIGNMENT MODAL ================================================ -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal-box">
+    <div class="modal-title" id="assignModalTitle">📋 Add Assignment</div>
+    <input type="hidden" id="amAssignId">
+    <div class="form-row">
+      <div class="form-group full">
+        <label>Volunteer *</label>
+        <select id="amVolunteer" style="width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="">— Select volunteer —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group full">
+        <label>Role</label>
+        <select id="amRole" style="width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="">— No specific role —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group full"><label>Event / Context</label><input type="text" id="amEventLabel" placeholder="e.g. Sunday Service, Kids Ministry…"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label><input type="date" id="amDate"></div>
+      <div class="form-group"><label>Shift Time</label><input type="text" id="amShiftTime" placeholder="e.g. 8:00am – 11:00am"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group full">
+        <label>Status</label>
+        <select id="amStatus" style="width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="declined">Declined</option>
+          <option value="maybe">Maybe</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group full"><label>Notes</label><textarea id="amNotes" placeholder="Any additional notes…" rows="2"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeAssignModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">Save Assignment</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===================================================================
+   DATA
+=================================================================== */
+var allRoles       = [];
+var allAssignments = [];
+var allProfiles    = [];
+
+/* ===================================================================
+   TAB NAV
+=================================================================== */
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'overview')     loadOverview();
+  if (name === 'roles')        loadRoles();
+  if (name === 'members')      loadMembersTab();
+  if (name === 'roster')       loadProfiles();
+  if (name === 'assignments')  { loadProfiles(); loadAssignments(); }
+}
+
+/* ===================================================================
+   TOAST / MODAL
+=================================================================== */
+function toast(msg, isErr) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isErr ? '#c62828' : '#323232';
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.style.display = 'none'; }, 3200);
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(function(m){
+  m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('open'); });
+});
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Compose modal ── */
+var _volCmpRecipients = [];
+var _volCmpMode = 'email';
+
+function volCmpSwitchTab(tab) {
+  _volCmpMode = tab;
+  document.getElementById('volCmpTabEmail').classList.toggle('active', tab === 'email');
+  document.getElementById('volCmpTabSms').classList.toggle('active', tab === 'sms');
+  document.getElementById('volCmpEmailSection').style.display = tab === 'email' ? '' : 'none';
+  document.getElementById('volCmpSmsSection').style.display   = tab === 'sms'   ? '' : 'none';
+  volCmpUpdateTo();
+}
+
+function volCmpUpdateTo() {
+  var list = _volCmpRecipients.filter(function(r){ return _volCmpMode === 'email' ? r.email : r.phone; });
+  var label = list.map(function(r){ return r.name + (_volCmpMode === 'email' ? ' <' + r.email + '>' : ' (' + r.phone + ')'); }).join(', ');
+  document.getElementById('volCmpRecipients').textContent = 'To: ' + (label || '(none)');
+}
+
+function volCmpOpen(recipients, tab, subject, msg) {
+  _volCmpRecipients = recipients;
+  _volCmpMode = tab || 'email';
+  document.getElementById('volCmpSubject').value   = subject || '';
+  document.getElementById('volCmpEmailBody').value = msg || '';
+  document.getElementById('volCmpSmsBody').value   = msg || '';
+  document.getElementById('volCmpTitle').textContent = recipients.length === 1
+    ? (tab === 'sms' ? '💬 SMS to ' + recipients[0].name : '✉️ Email to ' + recipients[0].name)
+    : (tab === 'sms' ? '💬 Group SMS' : '📧 Group Email');
+  volCmpSwitchTab(_volCmpMode);
+  document.getElementById('volCmpModal').classList.add('open');
+}
+
+function volCmpClose() {
+  document.getElementById('volCmpModal').classList.remove('open');
+}
+
+function volCmpSend() {
+  if (_volCmpMode === 'email') {
+    var subject = document.getElementById('volCmpSubject').value.trim() || 'Volunteer Update';
+    var body    = document.getElementById('volCmpEmailBody').value.trim();
+    var targets = _volCmpRecipients.filter(function(r){ return r.email; });
+    if (!targets.length) { toast('No email addresses available', true); return; }
+    var sendBtn = document.querySelector('#volCmpModal .btn-primary');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    fetch('/api/volunteers/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: targets.map(function(r){ return r.email; }),
+        subject: subject,
+        body: body
+      })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+      if (d.success) {
+        volCmpClose();
+        toast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+      } else {
+        toast(d.error || 'Failed to send email', true);
+      }
+    }).catch(function(){
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+      toast('Network error — could not send email', true);
+    });
+  } else {
+    var msg     = document.getElementById('volCmpSmsBody').value.trim();
+    var targets = _volCmpRecipients.filter(function(r){ return r.phone; });
+    if (!targets.length) { toast('No phone numbers available', true); return; }
+    var sendBtn = document.querySelector('#volCmpModal .btn-primary');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    fetch('/api/volunteers/send-sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: targets.map(function(r){ return r.phone; }),
+        body: msg
+      })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+      if (d.success) {
+        volCmpClose();
+        toast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+      } else {
+        toast(d.error || 'Failed to send SMS', true);
+      }
+    }).catch(function(){
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+      toast('Network error — could not send SMS', true);
+    });
+  }
+}
+
+function volAssignEmail(email, name) {
+  volCmpOpen([{name: name, email: email, phone: ''}], 'email',
+    'Volunteer Update',
+    'Dear ' + name + ',\n\nThank you for volunteering with us. We appreciate your dedication and service!\n\nGod bless,\nChurch Team');
+}
+
+function volAssignSms(phone, name) {
+  volCmpOpen([{name: name, email: '', phone: phone}], 'sms', '',
+    'Hi ' + name + ', thank you for volunteering with us! We\'ll be in touch with more details. God bless!');
+}
+
+function volAssignGroupEmail() {
+  var list = allAssignments.filter(function(a){ return a.memberEmail; }).map(function(a){
+    return { name: a.memberName || 'Volunteer', email: a.memberEmail, phone: a.memberPhone || '' };
+  });
+  // Deduplicate by email
+  var seen = {};
+  list = list.filter(function(r){ if (seen[r.email]) return false; seen[r.email]=true; return true; });
+  if (!list.length) { toast('No volunteers with email addresses', true); return; }
+  volCmpOpen(list, 'email', 'Volunteer Update',
+    'Dear Volunteers,\n\nThank you for your dedication and service to our church! We appreciate each one of you.\n\nGod bless,\nChurch Team');
+}
+
+function volAssignGroupSms() {
+  var list = allAssignments.filter(function(a){ return a.memberPhone; }).map(function(a){
+    return { name: a.memberName || 'Volunteer', email: a.memberEmail || '', phone: a.memberPhone };
+  });
+  // Deduplicate by phone
+  var seen = {};
+  list = list.filter(function(r){ if (seen[r.phone]) return false; seen[r.phone]=true; return true; });
+  if (!list.length) { toast('No volunteers with phone numbers', true); return; }
+  volCmpOpen(list, 'sms', '', 'Hi, thank you for volunteering with us! We\'ll be in touch with more details. God bless!');
+}
+
+/* ===================================================================
+   OVERVIEW
+=================================================================== */
+function loadOverview() {
+  fetch('/api/volunteers/summary').then(function(r){ return r.json(); }).then(function(d){
+    document.getElementById('statVolunteers').textContent  = d.totalVolunteers   != null ? d.totalVolunteers   : '—';
+    document.getElementById('statRoles').textContent       = d.totalRoles        != null ? d.totalRoles        : '—';
+    document.getElementById('statAssignments').textContent = d.totalAssignments  != null ? d.totalAssignments  : '—';
+    document.getElementById('statPending').textContent     = d.pendingConfirmations != null ? d.pendingConfirmations : '—';
+  }).catch(function(e){ console.error(e); });
+
+  fetch('/api/volunteers/assignments').then(function(r){ return r.json(); }).then(function(list){
+    var recent = list.slice(0, 10);
+    var tbody = document.getElementById('recentBody');
+    if (recent.length === 0) {
+      tbody.innerHTML = '';
+      document.getElementById('recentEmpty').style.display = '';
+      return;
+    }
+    document.getElementById('recentEmpty').style.display = 'none';
+    tbody.innerHTML = recent.map(function(a){
+      return '<tr>'
+        + '<td><strong>' + esc(a.memberName || '—') + '</strong></td>'
+        + '<td>' + (a.roleName ? '<span class="chip">' + esc(a.roleName) + '</span>' : '—') + '</td>'
+        + '<td>' + esc(a.eventLabel || '—') + '</td>'
+        + '<td style="font-size:12px;">' + esc(a.eventDate || '—') + '</td>'
+        + '<td><select class="assign-status-sel" data-id="' + a.id + '" onchange="updateAssignStatus(this)" style="font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:6px;">'
+        + '<option value="pending"'   + (a.assignmentStatus==='pending'   ?' selected':'') + '>Pending</option>'
+        + '<option value="confirmed"' + (a.assignmentStatus==='confirmed' ?' selected':'') + '>Confirmed</option>'
+        + '<option value="declined"'  + (a.assignmentStatus==='declined'  ?' selected':'') + '>Declined</option>'
+        + '<option value="maybe"'     + (a.assignmentStatus==='maybe'     ?' selected':'') + '>Maybe</option>'
+        + '</select></td>'
+        + '</tr>';
+    }).join('');
+  }).catch(function(e){ console.error(e); });
+}
+
+/* ===================================================================
+   ROLES
+=================================================================== */
+function loadRoles() {
+  return fetch('/api/volunteers/roles').then(function(r){ return r.json(); }).then(function(d){
+    allRoles = d;
+    renderRoles();
+  }).catch(function(e){ console.error(e); });
+}
+
+function renderRoles() {
+  var list = document.getElementById('roleList');
+  if (!list) return;
+  if (allRoles.length === 0) {
+    list.innerHTML = '';
+    document.getElementById('roleEmpty').style.display = '';
+    return;
+  }
+  document.getElementById('roleEmpty').style.display = 'none';
+  list.innerHTML = allRoles.map(function(r){
+    return '<div class="item-row">'
+      + '<div style="flex:1">'
+      + '<div class="item-name">🏷️ ' + esc(r.roleName) + (r.ministry ? ' <span class="chip chip-blue" style="margin-left:4px;">' + esc(r.ministry) + '</span>' : '') + '</div>'
+      + '<div class="item-sub">'
+      + (r.maxCapacity ? 'Max: ' + r.maxCapacity + ' volunteers' : 'Unlimited capacity')
+      + (r.description ? ' · ' + esc(r.description) : '')
+      + '</div></div>'
+      + '<button class="btn btn-secondary btn-xs" onclick="openRoleModal(' + r.id + ')">Edit</button>'
+      + '<button class="btn btn-danger btn-xs" onclick="deleteRole(' + r.id + ')">Delete</button>'
+      + '</div>';
+  }).join('');
+}
+
+function openRoleModal(id) {
+  document.getElementById('roleModalTitle').textContent = id ? 'Edit Role' : 'Add Volunteer Role';
+  document.getElementById('roleId').value = id || '';
+  if (id) {
+    var r = allRoles.find(function(x){ return x.id === id; });
+    if (r) {
+      document.getElementById('rRoleName').value = r.roleName   || '';
+      document.getElementById('rMinistry').value = r.ministry   || '';
+      document.getElementById('rMaxCap').value   = r.maxCapacity != null ? r.maxCapacity : '';
+      document.getElementById('rDesc').value     = r.description || '';
+    }
+  } else {
+    ['rRoleName','rMinistry','rMaxCap','rDesc'].forEach(function(f){ document.getElementById(f).value = ''; });
+  }
+  openModal('roleModal');
+}
+
+function saveRole() {
+  var name = document.getElementById('rRoleName').value.trim();
+  if (!name) { toast('Role name is required', true); return; }
+  var body = {
+    id:          document.getElementById('roleId').value || null,
+    roleName:    name,
+    ministry:    document.getElementById('rMinistry').value.trim() || null,
+    maxCapacity: document.getElementById('rMaxCap').value || null,
+    description: document.getElementById('rDesc').value.trim() || null
+  };
+  fetch('/api/volunteers/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+  .then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) { closeModal('roleModal'); toast('Role saved!'); loadRoles(); }
+    else toast(d.error || 'Error', true);
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function deleteRole(id) {
+  if (!confirm('Delete this role?')) return;
+  fetch('/api/volunteers/roles/' + id, { method:'DELETE' })
+  .then(function(){ toast('Role deleted'); loadRoles(); })
+  .catch(function(){ toast('Error', true); });
+}
+
+/* ===================================================================
+   MEMBERS TAB
+=================================================================== */
+var allMembersFlat = [];   // flat list of members loaded from /api/members
+
+function loadMembersTab() {
+  if (allMembersFlat.length > 0) { filterMemberList(); return; }
+  var resultsEl = document.getElementById('memberSearchResults');
+  resultsEl.innerHTML = '<div style="color:#aaa;font-size:13px;padding:10px 0;">Loading members…</div>';
+  fetch('/api/members').then(function(r){ return r.json(); }).then(function(data){
+    allMembersFlat = Array.isArray(data) ? data.filter(function(m){ return m.id; }) : [];
+    filterMemberList();
+  }).catch(function(){ resultsEl.innerHTML = '<div style="color:#c62828;font-size:13px;">Could not load members.</div>'; });
+}
+
+function filterMemberList() {
+  var q = (document.getElementById('memberSearch') ? document.getElementById('memberSearch').value : '').trim().toLowerCase();
+  var list = allMembersFlat;
+  if (q) list = list.filter(function(m){
+    var name  = ((m.firstName||'') + ' ' + (m.lastName||'')).toLowerCase();
+    var email = (m.email||'').toLowerCase();
+    var phone = (m.phone||'').toLowerCase();
+    return name.indexOf(q) >= 0 || email.indexOf(q) >= 0 || phone.indexOf(q) >= 0;
+  });
+  var resultsEl = document.getElementById('memberSearchResults');
+  if (!list.length) {
+    resultsEl.innerHTML = '<div style="color:#aaa;font-style:italic;font-size:13px;padding:8px 0;">' +
+      (q ? 'No members match "' + esc(q) + '".' : 'No members found.') + '</div>';
+    return;
+  }
+  var shown = list.slice(0, 30);
+  resultsEl.innerHTML = shown.map(function(m){
+    var name = ((m.firstName||'') + ' ' + (m.lastName||'')).trim() || '—';
+    var alreadyVol = allProfiles.some(function(p){ return p.familyMemberId === m.id || p.familyMemberId === String(m.id); });
+    return '<div class="item-row">'
+      + '<div style="flex:1">'
+      + '<div class="item-name">' + esc(name) + (alreadyVol ? ' <span class="chip chip-green" style="margin-left:6px;">Volunteer</span>' : '') + '</div>'
+      + '<div class="item-sub">' + (m.email ? esc(m.email) : '') + (m.phone ? (m.email ? ' · ' : '') + esc(m.phone) : '') + '</div>'
+      + '</div>'
+      + (alreadyVol
+        ? '<span style="font-size:12px;color:#2e7d32;font-weight:600;">Already a volunteer</span>'
+        : '<button class="btn btn-primary btn-sm" onclick="addMemberAsVolunteer(' + m.id + ',\'' + esc(name) + '\')">+ Add as Volunteer</button>')
+      + '</div>';
+  }).join('');
+  if (list.length > 30) {
+    resultsEl.innerHTML += '<div style="font-size:12px;color:#aaa;padding:6px 0 0;">Showing 30 of ' + list.length + '. Refine your search to see more.</div>';
+  }
+}
+
+function addMemberAsVolunteer(memberId, memberName) {
+  if (!confirm('Add ' + memberName + ' as a volunteer?')) return;
+  fetch('/api/volunteers/profiles/from-member', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ familyMemberId: memberId })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success || d.id) {
+      toast('✅ ' + memberName + ' added as volunteer!');
+      loadProfiles().then(function(){ filterMemberList(); loadOverview(); });
+    } else {
+      toast(d.error || 'Error adding volunteer', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function saveManualVolunteer() {
+  var firstName = document.getElementById('nfFirstName').value.trim();
+  if (!firstName) { toast('First name is required', true); return; }
+  var body = {
+    firstName:    firstName,
+    lastName:     document.getElementById('nfLastName').value.trim()     || null,
+    email:        document.getElementById('nfEmail').value.trim()        || null,
+    phone:        document.getElementById('nfPhone').value.trim()        || null,
+    skills:       document.getElementById('nfSkills').value.trim()       || null,
+    availability: document.getElementById('nfAvailability').value.trim() || null
+  };
+  fetch('/api/volunteers/profiles/manual', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success || d.id) {
+      toast('✅ Volunteer added!');
+      ['nfFirstName','nfLastName','nfEmail','nfPhone','nfSkills','nfAvailability'].forEach(function(id){
+        document.getElementById(id).value = '';
+      });
+      loadProfiles();
+      loadOverview();
+    } else {
+      toast(d.error || 'Error adding volunteer', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+/* ===================================================================
+   SCHEDULE  (roster)
+=================================================================== */
+function loadProfiles() {
+  return fetch('/api/volunteers/profiles').then(function(r){ return r.json(); }).then(function(d){
+    allProfiles = d;
+    renderRoster();
+  }).catch(function(e){ console.error(e); });
+}
+
+function renderRoster() {
+  var q = (document.getElementById('rosterSearch') ? document.getElementById('rosterSearch').value : '').toLowerCase();
+  var list = allProfiles;
+  if (q) list = list.filter(function(p){
+    var name = ((p.firstName||'') + ' ' + (p.lastName||'')).toLowerCase();
+    var skills = (p.skills||'').toLowerCase();
+    var roles = (p.roles||[]).map(function(r){ return (r.roleName||'').toLowerCase(); }).join(' ');
+    return name.indexOf(q) >= 0 || skills.indexOf(q) >= 0 || roles.indexOf(q) >= 0;
+  });
+  var tbody = document.getElementById('rosterBody');
+  if (list.length === 0) {
+    tbody.innerHTML = '';
+    document.getElementById('rosterEmpty').style.display = '';
+    return;
+  }
+  document.getElementById('rosterEmpty').style.display = 'none';
+
+  tbody.innerHTML = list.map(function(p){
+    var name = ((p.firstName || '') + ' ' + (p.lastName || '')).trim() || '—';
+    var skills = (p.skills || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    var skillHtml = skills.length > 0
+      ? '<div class="skill-tags">' + skills.map(function(s){ return '<span class="skill-tag">' + esc(s) + '</span>'; }).join('') + '</div>'
+      : '<span style="color:#bbb">—</span>';
+    var statusChipHtml = p.status === 'Active'
+      ? '<span class="chip chip-green">Active</span>'
+      : '<span class="chip chip-grey">Inactive</span>';
+
+    // Assigned roles chips
+    var roles = p.roles || [];
+    var rolesHtml = roles.length > 0
+      ? '<div class="role-chips">' + roles.map(function(r){
+          return '<span class="role-chip">'
+            + esc(r.roleName)
+            + '<button class="role-chip-remove" title="Remove role" onclick="removeProfileRole(' + p.id + ',' + r.id + ',\'' + esc(r.roleName) + '\')">✕</button>'
+            + '</span>';
+        }).join('') + '</div>'
+      : '<span style="color:#bbb;font-size:12px;">No roles</span>';
+
+    return '<tr>'
+      + '<td><strong>' + esc(name) + '</strong>'
+      + (p.email ? '<div style="font-size:11px;color:#888;">' + esc(p.email) + '</div>' : '')
+      + '</td>'
+      + '<td>'
+      + rolesHtml
+      + '<button class="btn btn-secondary btn-xs" style="margin-top:5px;" onclick="openVolRoleModal(' + p.id + ',\'' + esc(name) + '\')">✏️ Edit Roles</button>'
+      + '</td>'
+      + '<td>' + skillHtml + '</td>'
+      + '<td style="font-size:12px;">' + esc(p.availability || '—') + '</td>'
+      + '<td>' + statusChipHtml + '</td>'
+      + '<td style="text-align:center;font-weight:700;color:#673147;">—</td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ===================================================================
+   VOLUNTEER ROLE MANAGEMENT MODAL
+=================================================================== */
+var _vrProfileId   = null;
+var _vrAssigned    = [];     // [{id, roleId, roleName}] — current state for this volunteer
+
+function openVolRoleModal(profileId, volunteerName) {
+  _vrProfileId = profileId;
+  _vrAssigned  = [];
+  document.getElementById('vrProfileId').value = profileId;
+  document.getElementById('volRoleModalTitle').textContent = 'Manage Roles — ' + volunteerName;
+  document.getElementById('vrSearch').value = '';
+
+  // Load current roles for this volunteer from the already-fetched profile list
+  var p = allProfiles.find(function(x){ return x.id === profileId || x.id === String(profileId); });
+  if (p && p.roles) {
+    _vrAssigned = p.roles.slice(); // shallow copy
+  }
+
+  renderVrCurrentRoles();
+  filterVrDropdown();
+  openModal('volRoleModal');
+}
+
+function renderVrCurrentRoles() {
+  var el = document.getElementById('vrCurrentRoles');
+  if (!_vrAssigned.length) {
+    el.innerHTML = '<span style="color:#aaa;font-size:12px;">No roles assigned.</span>';
+    return;
+  }
+  el.innerHTML = _vrAssigned.map(function(r){
+    return '<span class="role-chip">'
+      + esc(r.roleName)
+      + '<button class="role-chip-remove" title="Remove" onclick="vrRemoveRole(' + r.id + ')">✕</button>'
+      + '</span>';
+  }).join('');
+}
+
+function vrRemoveRole(linkId) {
+  if (!_vrProfileId) return;
+  fetch('/api/volunteers/profiles/' + _vrProfileId + '/roles/' + linkId, { method: 'DELETE' })
+  .then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      _vrAssigned = _vrAssigned.filter(function(r){ return r.id !== linkId; });
+      renderVrCurrentRoles();
+      filterVrDropdown();
+      // Update in-memory profile data so the roster reflects immediately
+      var p = allProfiles.find(function(x){ return x.id === _vrProfileId || x.id === String(_vrProfileId); });
+      if (p) p.roles = _vrAssigned.slice();
+      renderRoster();
+      toast('Role removed');
+    } else {
+      toast(d.error || 'Error', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function vrAddRole(roleId, roleName) {
+  if (!_vrProfileId) return;
+  // Check not already assigned
+  var alreadyAssigned = _vrAssigned.some(function(r){ return r.roleId === roleId || r.roleId === String(roleId); });
+  if (alreadyAssigned) { toast('Role already assigned', true); return; }
+
+  fetch('/api/volunteers/profiles/' + _vrProfileId + '/roles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roleId: roleId })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      var newLink = { id: d.id, roleId: roleId, roleName: roleName };
+      _vrAssigned.push(newLink);
+      renderVrCurrentRoles();
+      filterVrDropdown();
+      // Update in-memory profile data
+      var p = allProfiles.find(function(x){ return x.id === _vrProfileId || x.id === String(_vrProfileId); });
+      if (p) p.roles = _vrAssigned.slice();
+      renderRoster();
+      toast('✅ Role assigned');
+    } else {
+      toast(d.error || 'Error', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function openVrDropdown() {
+  filterVrDropdown();
+  document.getElementById('vrDropdown').classList.add('open');
+}
+
+function filterVrDropdown() {
+  var q = (document.getElementById('vrSearch') ? document.getElementById('vrSearch').value : '').trim().toLowerCase();
+  var dd = document.getElementById('vrDropdown');
+  dd.classList.add('open');
+
+  var assignedRoleIds = _vrAssigned.map(function(r){ return String(r.roleId); });
+  var filtered = allRoles.filter(function(r){
+    if (q && (r.roleName||'').toLowerCase().indexOf(q) < 0 && (r.ministry||'').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    dd.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:#aaa;">No roles found. Add roles in the Roles tab.</div>';
+    return;
+  }
+
+  dd.innerHTML = filtered.map(function(r){
+    var isSelected = assignedRoleIds.indexOf(String(r.id)) >= 0;
+    return '<div class="role-picker-option' + (isSelected ? ' selected' : '') + '" onclick="' + (isSelected ? '' : 'vrAddRole(' + r.id + ',\'' + esc(r.roleName) + '\')') + '">'
+      + '<span class="role-picker-check">' + (isSelected ? '✓' : '') + '</span>'
+      + '<span>' + esc(r.roleName) + (r.ministry ? ' <span style="font-size:11px;color:#888;">— ' + esc(r.ministry) + '</span>' : '') + '</span>'
+      + (isSelected ? '<span style="font-size:11px;color:#2e7d32;margin-left:auto;">Assigned</span>' : '')
+      + '</div>';
+  }).join('');
+}
+
+// Close VR dropdown on outside click
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('vrPickerWrap');
+  var dd   = document.getElementById('vrDropdown');
+  if (dd && wrap && !wrap.contains(e.target)) {
+    dd.classList.remove('open');
+  }
+});
+
+/* ===================================================================
+   REMOVE ROLE FROM ROSTER ROW (inline ✕ button)
+=================================================================== */
+function removeProfileRole(profileId, linkId, roleName) {
+  if (!confirm('Remove role "' + roleName + '" from this volunteer?')) return;
+  fetch('/api/volunteers/profiles/' + profileId + '/roles/' + linkId, { method: 'DELETE' })
+  .then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      var p = allProfiles.find(function(x){ return x.id === profileId || x.id === String(profileId); });
+      if (p && p.roles) {
+        p.roles = p.roles.filter(function(r){ return r.id !== linkId; });
+      }
+      renderRoster();
+      toast('Role removed');
+    } else {
+      toast(d.error || 'Error', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+/* ===================================================================
+   EDIT PROFILE MODAL
+=================================================================== */
+function openEditProfileModal(profileId, name) {
+  var p = allProfiles.find(function(x){ return x.id === profileId; });
+  if (!p) return;
+  document.getElementById('epProfileId').value  = profileId;
+  document.getElementById('editProfileTitle').textContent = '✏️ Edit — ' + name;
+  document.getElementById('epSkills').value       = p.skills       || '';
+  document.getElementById('epAvailability').value = p.availability || '';
+  document.getElementById('epStatus').value       = p.status       || 'Active';
+  document.getElementById('epNotes').value        = p.notes        || '';
+  document.getElementById('editProfileModal').classList.add('open');
+}
+
+function saveProfile() {
+  var profileId = document.getElementById('epProfileId').value;
+  if (!profileId) return;
+  var body = {
+    skills:       document.getElementById('epSkills').value.trim()       || null,
+    availability: document.getElementById('epAvailability').value.trim() || null,
+    status:       document.getElementById('epStatus').value              || 'Active',
+    notes:        document.getElementById('epNotes').value.trim()        || null
+  };
+  fetch('/api/volunteers/profiles/' + profileId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success || d.id) {
+      toast('Profile updated!');
+      closeModal('editProfileModal');
+      loadProfiles();
+    } else {
+      toast(d.error || 'Error updating profile', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function deleteProfile(profileId, name) {
+  if (!confirm('Remove ' + name + ' from volunteers? This cannot be undone.')) return;
+  fetch('/api/volunteers/profiles/' + profileId, { method: 'DELETE' })
+  .then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) {
+      toast('Volunteer removed');
+      loadProfiles();
+      loadOverview();
+    } else {
+      toast(d.error || 'Error', true);
+    }
+  }).catch(function(){ toast('Server error', true); });
+}
+
+/* =========================================================================
+   ASSIGNMENTS
+========================================================================= */
+function loadAssignments() {
+  fetch('/api/volunteers/assignments').then(function(r){ return r.json(); }).then(function(d){
+    allAssignments = d;
+    renderAssignments();
+  }).catch(function(e){ console.error(e); });
+}
+
+function renderAssignments() {
+  var tbody = document.getElementById('assignBody');
+  if (!tbody) return;
+  if (!allAssignments.length) {
+    tbody.innerHTML = '';
+    var empty = document.getElementById('assignEmpty');
+    if (empty) empty.style.display = '';
+    return;
+  }
+  var empty = document.getElementById('assignEmpty');
+  if (empty) empty.style.display = 'none';
+  tbody.innerHTML = allAssignments.map(function(a){
+    return '<tr>'
+      + '<td><strong>' + esc(a.memberName || '--') + '</strong></td>'
+      + '<td>' + (a.roleName ? '<span class="chip">' + esc(a.roleName) + '</span>' : '--') + '</td>'
+      + '<td>' + esc(a.eventLabel || '--') + '</td>'
+      + '<td style="font-size:12px;">' + esc(a.eventDate || '--') + '</td>'
+      + '<td><select class="assign-status-sel" data-id="' + a.id + '" onchange="updateAssignStatus(this)" style="font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:6px;">'
+      + '<option value="pending"'   + (a.assignmentStatus==='pending'   ?' selected':'') + '>Pending</option>'
+      + '<option value="confirmed"' + (a.assignmentStatus==='confirmed' ?' selected':'') + '>Confirmed</option>'
+      + '<option value="declined"'  + (a.assignmentStatus==='declined'  ?' selected':'') + '>Declined</option>'
+      + '<option value="maybe"'     + (a.assignmentStatus==='maybe'     ?' selected':'') + '>Maybe</option>'
+      + '</select></td>'
+      + '<td>'
+      + (a.memberEmail ? '<button class="btn btn-secondary btn-xs" onclick="volAssignEmail(\'' + esc(a.memberEmail) + '\',\'' + esc(a.memberName||'') + '\')">Email</button> ' : '')
+      + (a.memberPhone ? '<button class="btn btn-secondary btn-xs" onclick="volAssignSms(\'' + esc(a.memberPhone) + '\',\'' + esc(a.memberName||'') + '\')">SMS</button> ' : '')
+      + '<button class="btn btn-danger btn-xs" onclick="deleteAssignment(' + a.id + ')">Remove</button>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function updateAssignStatus(sel) {
+  var id     = sel.dataset.id;
+  var status = sel.value;
+  fetch('/api/volunteers/assignments/' + id + '/status', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ status: status })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.success) toast('Status updated');
+    else toast(d.error || 'Error', true);
+  }).catch(function(){ toast('Server error', true); });
+}
+
+function deleteAssignment(id) {
+  if (!confirm('Remove this assignment?')) return;
+  fetch('/api/volunteers/assignments/' + id, { method: 'DELETE' })
+  .then(function(){ toast('Assignment removed'); loadAssignments(); loadOverview(); })
+  .catch(function(){ toast('Error', true); });
+}
+
+/* -- INIT ----------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', function() {
+  loadOverview();
+  loadRoles();
+  loadProfiles();
+});
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'general/volunteers', pageTitle: 'Volunteers', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

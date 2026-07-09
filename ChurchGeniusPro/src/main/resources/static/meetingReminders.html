@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Meeting Reminders</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    .search-wrap { display: flex; align-items: center; gap: 8px; background: #f5f6fa; border: 1px solid #e8e8e8; border-radius: 20px; padding: 7px 16px; }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .feedback { padding: 12px 20px; border-radius: 7px; font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none; }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); margin-bottom: 20px; overflow: hidden; }
+    .card-header { display: flex; align-items: center; gap: 10px; padding: 16px 22px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .card-icon { font-size: 18px; }
+    .card-header h3 { font-size: 15px; font-weight: 600; color: #673147; flex: 1; }
+    .card-body { padding: 22px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .span-2 { grid-column: span 2; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .4px; }
+    .required-star { color: #e53935; }
+    .field input[type="text"], .field input[type="date"], .field select, .field textarea {
+      width: 100%; padding: 10px 13px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none; background: #fff; font-family: inherit;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .check-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; }
+    .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #673147; cursor: pointer; flex-shrink: 0; }
+    .check-row label { font-size: 13px; color: #444; cursor: pointer; font-weight: 500; }
+    .recipients-box { border: 1.5px solid #e8eaf6; border-radius: 8px; padding: 14px 18px; background: #fdf5f7; }
+    .recipients-title { font-size: 11px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0e0e7; }
+    .action-bar { display: flex; gap: 10px; align-items: center; padding: 14px 22px; border-top: 1px solid #f0f0f0; background: #fafbfd; }
+    .btn-save { padding: 10px 28px; border-radius: 7px; font-size: 14px; font-weight: 600; color: #fff; background: #673147; transition: background .18s; }
+    .btn-save:hover { background: #4a5aae; }
+    .btn-clear { padding: 10px 22px; border-radius: 7px; font-size: 14px; font-weight: 500; color: #666; border: 1.5px solid #e0e0e0; transition: background .18s; }
+    .btn-clear:hover { background: #f5f6fa; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #f0f0f0; white-space: nowrap; }
+    td { padding: 13px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+    .badge-enabled  { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #e8f5e9; color: #2e7d32; }
+    .badge-disabled { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #ffebee; color: #c62828; }
+    .actions { display: flex; gap: 6px; }
+    .btn-edit   { padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #fff; background: #673147; border: 1.5px solid #673147; transition: background .18s; }
+    .btn-edit:hover   { background: #3949ab; border-color: #3949ab; }
+    .btn-delete { padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #fff; background: #673147; border: 1.5px solid #673147; transition: background .18s; }
+    .btn-delete:hover { background: #3949ab; border-color: #3949ab; }
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d4e8; border-radius: 4px; }
+    @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } .span-2 { grid-column: span 1; } }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Meeting Reminders</div>
+          <div class="page-subtitle">Send reminders to members and guests before a scheduled meeting</div>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📅</span>
+          <h3 id="formCardTitle">Add Meeting Reminder</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+
+            <!-- Meeting dropdown -->
+            <div class="field span-2">
+              <label for="meetingId">Meeting <span class="required-star">*</span></label>
+              <select id="meetingId">
+                <option value="">— Select a meeting —</option>
+              </select>
+              <span class="field-hint" id="meetingHint"></span>
+            </div>
+
+            <!-- Recipients -->
+            <div class="span-2">
+              <div class="recipients-box">
+                <div class="recipients-title">Recipients</div>
+                <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                  <div class="check-row">
+                    <input type="checkbox" id="rcpMembers" />
+                    <label for="rcpMembers">Members</label>
+                  </div>
+                  <div class="check-row">
+                    <input type="checkbox" id="rcpGuests" />
+                    <label for="rcpGuests">Guests</label>
+                  </div>
+                </div>
+              </div>
+              <span class="field-hint" id="recipientsHint"></span>
+            </div>
+
+            <!-- Disable -->
+            <div class="field span-2">
+              <label>Status</label>
+              <div class="check-row">
+                <input type="checkbox" id="disableFlag" />
+                <label for="disableFlag">Disable this reminder</label>
+              </div>
+            </div>
+
+            <!-- Note -->
+            <div class="field span-2">
+              <label for="noteText">Note</label>
+              <textarea id="noteText" rows="3" placeholder="Enter any additional notes…"></textarea>
+            </div>
+
+          </div>
+        </div>
+        <div class="action-bar">
+          <button class="btn-save" id="saveBtn" onclick="saveReminder()">💾 Save</button>
+          <button class="btn-clear" onclick="clearForm()">✕ Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h3>Meeting Reminders List</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Meeting</th>
+                <th>Date</th>
+                <th>Recipients</th>
+                <th>Status</th>
+                <th>Note</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="remindersBody">
+              <tr><td colspan="7"><div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <div class="empty-text">No meeting reminders yet. Add one above.</div>
+              </div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  
+
+  let reminders = [];
+  let meetings  = [];
+  let editingId = null;
+
+  (async function init() {
+    await Promise.all([loadMeetingOptions(), loadReminders()]);
+  })();
+
+  async function loadMeetingOptions() {
+    try {
+      const res  = await fetch('/api/meetings');
+      meetings   = await res.json();
+      const sel  = document.getElementById('meetingId');
+      sel.innerHTML = '<option value="">— Select a meeting —</option>' +
+        meetings.map(m => `<option value="${m.id}">${escHtml(m.meetingTypeName)} — ${fmtDate(m.meetingDate)}</option>`).join('');
+    } catch (e) { showFeedback('Failed to load meetings.', 'error'); }
+  }
+
+  async function loadReminders() {
+    try {
+      const res = await fetch('/api/reminders/meeting');
+      reminders = await res.json();
+      renderTable();
+    } catch (e) { showFeedback('Failed to load reminders.', 'error'); }
+  }
+
+  function buildRecipients() {
+    const parts = [];
+    if (document.getElementById('rcpMembers').checked) parts.push('Members');
+    if (document.getElementById('rcpGuests').checked)  parts.push('Guests');
+    return parts.join(',');
+  }
+
+  function applyRecipients(str) {
+    const parts = (str || '').split(',');
+    document.getElementById('rcpMembers').checked = parts.includes('Members');
+    document.getElementById('rcpGuests').checked  = parts.includes('Guests');
+  }
+
+  function clearForm() {
+    document.getElementById('meetingId').value     = '';
+    document.getElementById('rcpMembers').checked  = false;
+    document.getElementById('rcpGuests').checked   = false;
+    document.getElementById('disableFlag').checked = false;
+    document.getElementById('noteText').value      = '';
+    ['meetingHint', 'recipientsHint'].forEach(id => { document.getElementById(id).textContent = ''; });
+    document.getElementById('meetingId').classList.remove('invalid');
+    document.getElementById('formCardTitle').textContent = 'Add Meeting Reminder';
+    document.getElementById('saveBtn').textContent = '💾 Save';
+    editingId = null;
+  }
+
+  function validate() {
+    let ok = true;
+    if (!document.getElementById('meetingId').value) {
+      document.getElementById('meetingHint').textContent = 'Please select a meeting.';
+      document.getElementById('meetingId').classList.add('invalid');
+      ok = false;
+    } else {
+      document.getElementById('meetingHint').textContent = '';
+      document.getElementById('meetingId').classList.remove('invalid');
+    }
+    const rcpMembers = document.getElementById('rcpMembers').checked;
+    const rcpGuests  = document.getElementById('rcpGuests').checked;
+    if (!rcpMembers && !rcpGuests) {
+      document.getElementById('recipientsHint').textContent = 'Select at least one recipient group.';
+      ok = false;
+    } else {
+      document.getElementById('recipientsHint').textContent = '';
+    }
+    return ok;
+  }
+
+  async function saveReminder() {
+    if (!validate()) return;
+    const body = {
+      meetingId:  parseInt(document.getElementById('meetingId').value, 10),
+      recipients: buildRecipients(),
+      disabled:   document.getElementById('disableFlag').checked,
+      note:       document.getElementById('noteText').value.trim()
+    };
+    try {
+      const url    = editingId ? `/api/reminders/meeting/${editingId}` : '/api/reminders/meeting';
+      const method = editingId ? 'PUT' : 'POST';
+      const res    = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const data   = await res.json();
+      if (!res.ok) { showFeedback(data.error || 'Save failed.', 'error'); return; }
+      showFeedback(editingId ? '✅ Updated successfully.' : '✅ Saved successfully.', 'success');
+      clearForm();
+      await loadReminders();
+    } catch (e) { showFeedback('Network error.', 'error'); }
+  }
+
+  function editReminder(id) {
+    const r = reminders.find(x => x.id === id);
+    if (!r) return;
+    editingId = id;
+    document.getElementById('meetingId').value     = r.meetingId || '';
+    applyRecipients(r.recipients);
+    document.getElementById('disableFlag').checked = !!r.disabled;
+    document.getElementById('noteText').value      = r.note || '';
+    document.getElementById('formCardTitle').textContent = 'Edit Meeting Reminder';
+    document.getElementById('saveBtn').textContent = '💾 Update';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function deleteReminder(id) {
+    if (!confirm('Are you sure you want to delete this reminder?')) return;
+    try {
+      const res = await fetch(`/api/reminders/meeting/${id}`, { method: 'DELETE' });
+      if (!res.ok) { showFeedback('Delete failed.', 'error'); return; }
+      if (editingId === id) clearForm();
+      showFeedback('Deleted.', 'success');
+      await loadReminders();
+    } catch (e) { showFeedback('Network error.', 'error'); }
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }); }
+    catch { return d; }
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('remindersBody');
+    if (!reminders.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No meeting reminders yet. Add one above.</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = reminders.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escHtml(r.meetingLabel || '—')}</td>
+        <td>${fmtDate(r.meetingDate)}</td>
+        <td>${escHtml(r.recipients || '—')}</td>
+        <td><span class="${r.disabled ? 'badge-disabled' : 'badge-enabled'}">${r.disabled ? 'Disabled' : 'Enabled'}</span></td>
+        <td>${escHtml(r.note) || '—'}</td>
+        <td><div class="actions">
+          <button class="btn-edit"   onclick="editReminder(${r.id})">Edit</button>
+          <button class="btn-delete" onclick="deleteReminder(${r.id})">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg; el.className = `feedback ${type}`;
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 4000);
+  }
+  function escHtml(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'reminders/event', pageTitle: 'Meeting Reminders', openSection: 'reminders' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

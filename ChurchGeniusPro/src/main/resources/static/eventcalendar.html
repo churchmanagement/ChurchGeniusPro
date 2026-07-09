@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Calendar</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Google Calendar sync button ─────────────────────── */
+    .btn-gcal {
+      display: inline-flex; align-items: center;
+      padding: 8px 16px; border-radius: 8px;
+      background: #fff; color: #1a73e8;
+      border: 1.5px solid #1a73e8; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background .18s, color .18s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-gcal:hover { background: #e8f0fe; }
+
+    /* ── Google Calendar sync panel ──────────────────────── */
+    .gcal-panel {
+      background: #fff; border-radius: 12px; border: 1.5px solid #e8f0fe;
+      box-shadow: 0 2px 12px rgba(26,115,232,.1);
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .gcal-panel-header {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px 20px; border-bottom: 1px solid #f0f4ff;
+      background: #f8fbff;
+    }
+    .gcal-panel-body { padding: 20px; }
+    .gcal-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+    .gcal-step { display: flex; align-items: flex-start; gap: 10px; }
+    .gcal-step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #1a73e8; color: #fff;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .gcal-step-text { font-size: 13px; color: #555; line-height: 1.5; }
+    .gcal-url-row { display: flex; gap: 8px; }
+    .gcal-url-input {
+      flex: 1; border: 1.5px solid #ddd; border-radius: 7px;
+      padding: 8px 12px; font-size: 12px; color: #333;
+      font-family: 'Courier New', monospace; background: #fafafa;
+      min-width: 0;
+    }
+    .gcal-url-input:focus { outline: none; border-color: #1a73e8; }
+    .gcal-copy-btn {
+      padding: 8px 16px; border-radius: 7px;
+      background: #1a73e8; color: #fff;
+      border: none; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .18s; white-space: nowrap; flex-shrink: 0;
+    }
+    .gcal-copy-btn:hover { background: #1557b0; }
+    .btn-gcal-add {
+      display: inline-flex; align-items: center;
+      padding: 8px 16px; border-radius: 7px;
+      background: #1a73e8; color: #fff;
+      font-size: 13px; font-weight: 600;
+      border: none; text-decoration: none; cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-gcal-add:hover { background: #1557b0; }
+    .btn-ics-download {
+      display: inline-flex; align-items: center;
+      padding: 8px 16px; border-radius: 7px;
+      background: #fff; color: #673147;
+      border: 1.5px solid #c5a0b5; font-size: 13px; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-ics-download:hover { background: #fdf5f8; }
+    .gcal-note {
+      margin-top: 16px; padding: 12px 14px;
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+      font-size: 12px; color: #78350f; line-height: 1.5;
+    }
+
+    /* ── Calendar card ───────────────────────────────────── */
+    .cal-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.08); overflow: hidden;
+    }
+
+    /* ── Calendar toolbar ────────────────────────────────── */
+    .cal-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+      flex-wrap: wrap; gap: 10px;
+    }
+    .cal-nav { display: flex; align-items: center; gap: 10px; }
+    .cal-month-label {
+      font-size: 18px; font-weight: 700; color: #673147;
+      min-width: 220px; text-align: center;
+    }
+    .btn-nav {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #673147;
+      border: 1.5px solid #e0e0e0; transition: background .18s;
+    }
+    .btn-nav:hover { background: #e8eaf6; border-color: #673147; }
+    .btn-today {
+      padding: 8px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; transition: background .18s, color .18s;
+    }
+    .btn-today:hover { background: #673147; color: #fff; }
+
+    /* ── View toggle ──────────────────────────────────────── */
+    .view-toggle {
+      display: flex; gap: 4px;
+      background: #f0f1f8; border-radius: 8px; padding: 4px;
+    }
+    .btn-view {
+      padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      color: #888; transition: all .18s;
+    }
+    .btn-view.active { background: #fff; color: #673147; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    .btn-view:hover:not(.active) { color: #673147; }
+
+    /* ── Legend ──────────────────────────────────────────── */
+    .cal-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .legend-dot.birthday    { background: #e91e63; }
+    .legend-dot.anniversary { background: #7b1fa2; }
+    .legend-dot.meeting     { background: #1565c0; }
+    .legend-dot.churchevent { background: #2e7d32; }
+
+    /* ── Day-of-week header ──────────────────────────────── */
+    .cal-dow {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .cal-dow-cell {
+      padding: 10px 4px; text-align: center;
+      font-size: 11px; font-weight: 700; color: #999;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .cal-dow-cell.weekend { color: #c5cae9; }
+
+    /* ── Monthly grid ───────────────────────────────────── */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .cal-cell {
+      min-height: 108px; padding: 8px 6px 6px;
+      border-right: 1px solid #f5f5f5; border-bottom: 1px solid #f5f5f5;
+      cursor: pointer; transition: background .15s; position: relative;
+    }
+    .cal-cell:nth-child(7n) { border-right: none; }
+    .cal-cell:hover { background: #fafbff; }
+    .cal-cell.selected { background: #e8eaf6; }
+    .cal-cell.other-month { background: #fafafa; }
+    .cal-cell.other-month .cal-day-num { color: #ddd; }
+    .cal-cell.today .cal-day-num {
+      background: #673147; color: #fff;
+      border-radius: 50%; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-day-num {
+      font-size: 13px; font-weight: 600; color: #444;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .cal-events { display: flex; flex-direction: column; gap: 2px; }
+
+    /* ── Weekly grid ────────────────────────────────────── */
+    .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .week-cell {
+      min-height: 160px; padding: 8px 6px 6px;
+      border-right: 1px solid #f5f5f5; border-bottom: 1px solid #f5f5f5;
+      cursor: pointer; transition: background .15s; position: relative;
+    }
+    .week-cell:nth-child(7n) { border-right: none; }
+    .week-cell:hover { background: #fafbff; }
+    .week-cell.selected { background: #e8eaf6; }
+    .week-cell.today .cal-day-num {
+      background: #673147; color: #fff;
+      border-radius: 50%; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .week-date-label { font-size: 10px; color: #aaa; text-align: center; margin-bottom: 4px; }
+
+    /* ── Yearly grid ────────────────────────────────────── */
+    .year-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; padding: 16px;
+    }
+    .mini-month { border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden; }
+    .mini-month-header {
+      background: #f5f6fa; padding: 8px 10px;
+      font-size: 12px; font-weight: 700; color: #673147; text-align: center;
+    }
+    .mini-dow-row {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .mini-dow-cell { text-align: center; font-size: 9px; font-weight: 700; color: #bbb; padding: 4px 0; }
+    .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .mini-cell {
+      text-align: center; padding: 3px 0; font-size: 10px; color: #666;
+      cursor: pointer; border-radius: 3px; transition: background .12s;
+      position: relative;
+    }
+    .mini-cell:hover { background: #eef0f8; color: #673147; }
+    .mini-cell.other-month { color: #ddd; }
+    .mini-cell.today { background: #673147; color: #fff; border-radius: 50%; }
+    .mini-cell.has-events::after {
+      content: ''; display: block; width: 4px; height: 4px;
+      border-radius: 50%; background: #e91e63;
+      margin: 1px auto 0;
+    }
+
+    /* ── Event chips ──────────────────────────────────────── */
+    .chip {
+      display: flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%; line-height: 1.4;
+    }
+    .chip-icon { flex-shrink: 0; font-size: 10px; }
+    .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip.birthday    { background: #fce4ec; color: #c2185b; }
+    .chip.anniversary { background: #f3e5f5; color: #6a1b9a; }
+    .chip.meeting     { background: #e3f2fd; color: #1565c0; }
+    .chip.churchevent { background: #e8f5e9; color: #2e7d32; }
+    .chip-more { font-size: 10px; color: #888; padding: 2px 4px; font-style: italic; }
+
+    /* ── Detail panel ────────────────────────────────────── */
+    .detail-panel {
+      display: none; border-top: 2px solid #e8eaf6;
+      background: #f9f9ff; padding: 20px 24px;
+    }
+    .detail-panel.open { display: block; }
+    .detail-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .detail-title { font-size: 14px; font-weight: 700; color: #673147; }
+    .btn-add-meeting {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 7px;
+      background: #673147; color: #fff;
+      font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-add-meeting:hover { background: #4a5aae; }
+    .detail-list { display: flex; flex-direction: column; gap: 8px; }
+    .detail-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fff; border-radius: 8px;
+      padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .detail-badge {
+      min-width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .detail-badge.birthday    { background: #fce4ec; }
+    .detail-badge.anniversary { background: #f3e5f5; }
+    .detail-badge.meeting     { background: #e3f2fd; }
+    .detail-info { flex: 1; min-width: 0; }
+    .detail-item-title { font-size: 14px; font-weight: 600; color: #333; }
+    .detail-item-sub   { font-size: 13px; color: #888; margin-top: 2px; }
+    .detail-empty { font-size: 13px; color: #bbb; font-style: italic; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .cal-empty { text-align: center; padding: 52px 20px; color: #bbb; grid-column: 1 / -1; }
+
+    /* ── Add-meeting modal ───────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 800;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 14px;
+      width: min(680px, 96vw); max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid #f0f0f0;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; color: #673147; }
+    .btn-modal-close {
+      width: 32px; height: 32px; border-radius: 50%; font-size: 18px; color: #888;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .btn-modal-close:hover { background: #f0f0f0; color: #333; }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer {
+      display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+      padding: 14px 24px; border-top: 1px solid #f0f0f0;
+    }
+
+    /* ── Form helpers (reused from meeting.html style) ─── */
+    .sub-section { margin-bottom: 20px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: #673147; margin-bottom: 12px;
+      padding-bottom: 6px; border-bottom: 1px solid #eef0f8;
+    }
+    .form-grid { display: grid; gap: 14px; }
+    .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .required-star { color: #e53935; }
+    .field input, .field select, .field textarea {
+      border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px;
+      font-size: 13px; color: #333; outline: none; background: #fff;
+      transition: border-color .2s, box-shadow .2s; width: 100%;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12);
+    }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .end-date-field { transition: opacity .2s; }
+    .end-date-field.hidden { opacity: .35; pointer-events: none; }
+    .check-row { display: flex; align-items: center; gap: 8px; }
+    .btn-save {
+      background: #673147; color: #fff; border: none; border-radius: 8px;
+      padding: 9px 24px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-cancel {
+      background: none; border: 1px solid #ddd; border-radius: 8px;
+      padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer;
+    }
+    .btn-cancel:hover { background: #f5f5f5; }
+    .modal-feedback {
+      padding: 8px 14px; border-radius: 7px; font-size: 13px;
+      margin-bottom: 14px; display: none;
+    }
+    .modal-feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .modal-feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    @media (max-width: 900px) { .year-grid { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 600px) {
+      .year-grid { grid-template-columns: repeat(2,1fr); }
+      .form-grid.cols-2, .form-grid.cols-3 { grid-template-columns: 1fr; }
+      .span-2, .span-3 { grid-column: span 1; }
+    }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Calendar</div>
+          <div class="page-subtitle">Birthdays, anniversaries and upcoming meetings</div>
+        </div>
+        <button class="btn-gcal" id="btnGcal" onclick="toggleGcalPanel()">
+          <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png"
+               onerror="this.style.display='none'"
+               alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">
+          Sync with Google Calendar
+        </button>
+      </div>
+
+      <!-- Google Calendar Sync Panel -->
+      <div class="gcal-panel" id="gcalPanel" style="display:none;">
+        <div class="gcal-panel-header">
+          <span style="font-size:18px;">📅</span>
+          <div>
+            <div style="font-weight:700;color:#1e2139;font-size:15px;">Google Calendar Sync</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">Subscribe to this church calendar in Google Calendar — events stay in sync automatically.</div>
+          </div>
+          <button onclick="toggleGcalPanel()" style="margin-left:auto;font-size:18px;color:#aaa;background:none;border:none;cursor:pointer;line-height:1;">&#x2715;</button>
+        </div>
+        <div class="gcal-panel-body">
+          <div class="gcal-steps">
+            <div class="gcal-step">
+              <div class="gcal-step-num">1</div>
+              <div class="gcal-step-text">Copy the calendar feed URL below</div>
+            </div>
+            <div class="gcal-step">
+              <div class="gcal-step-num">2</div>
+              <div class="gcal-step-text">Open <strong>Google Calendar</strong> → Other Calendars → <strong>"From URL"</strong></div>
+            </div>
+            <div class="gcal-step">
+              <div class="gcal-step-num">3</div>
+              <div class="gcal-step-text">Paste the URL and click <strong>Add Calendar</strong> — events sync automatically!</div>
+            </div>
+          </div>
+
+          <div class="gcal-url-row">
+            <input type="text" id="icsUrlInput" class="gcal-url-input" readonly placeholder="Loading feed URL…" />
+            <button class="gcal-copy-btn" onclick="copyIcsUrl()" id="gcalCopyBtn" title="Copy URL">
+              📋 Copy
+            </button>
+          </div>
+          <div id="gcalCopyMsg" style="font-size:12px;color:#2e7d32;margin-top:6px;display:none;">✅ Copied to clipboard!</div>
+
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <a id="gcalAddLink" href="#" target="_blank" rel="noopener" class="btn-gcal-add" onclick="return openGcalAdd()">
+              <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png"
+                   onerror="this.style.display='none'"
+                   alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;">
+              Open in Google Calendar
+            </a>
+            <a id="icsDownloadLink" href="#" download="church-calendar.ics" class="btn-ics-download">
+              ⬇ Download .ics File
+            </a>
+          </div>
+          <div class="gcal-note">
+            💡 <strong>Tip:</strong> The feed URL updates automatically whenever new meetings are added.
+            Once subscribed in Google Calendar, your calendar stays in sync — no manual re-import needed.
+          </div>
+
+          <!-- iPhone Calendar -->
+          <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e8f0fe;">
+            <div style="font-weight:700;color:#1e2139;font-size:14px;margin-bottom:10px;">🍎 Sync to iPhone Calendar</div>
+            <div class="gcal-steps">
+              <div class="gcal-step">
+                <div class="gcal-step-num">1</div>
+                <div class="gcal-step-text">Copy the calendar feed URL above</div>
+              </div>
+              <div class="gcal-step">
+                <div class="gcal-step-num">2</div>
+                <div class="gcal-step-text">Open <strong>iPhone Settings</strong> → Apps → Calendar → <strong>Calendar Accounts</strong></div>
+              </div>
+              <div class="gcal-step">
+                <div class="gcal-step-num">3</div>
+                <div class="gcal-step-text">Tap <strong>Add Account</strong> → Other → <strong>Add Subscribed Calendar</strong></div>
+              </div>
+              <div class="gcal-step">
+                <div class="gcal-step-num">4</div>
+                <div class="gcal-step-text">Paste the URL and tap <strong>Save</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar Card -->
+      <div class="cal-card">
+
+        <!-- Toolbar -->
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="btn-nav" onclick="navPrev()" title="Previous">&#8249;</button>
+            <div class="cal-month-label" id="navLabel"></div>
+            <button class="btn-nav" onclick="navNext()" title="Next">&#8250;</button>
+            <button class="btn-today" onclick="goToToday()">Today</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div class="view-toggle">
+              <button class="btn-view active" id="btnMonthly" onclick="setView('monthly')">Monthly</button>
+              <button class="btn-view"        id="btnWeekly"  onclick="setView('weekly')">Weekly</button>
+              <button class="btn-view"        id="btnYearly"  onclick="setView('yearly')">Yearly</button>
+            </div>
+            <div class="cal-legend">
+              <div class="legend-item"><div class="legend-dot birthday"></div> Birthday</div>
+              <div class="legend-item"><div class="legend-dot anniversary"></div> Anniversary</div>
+              <div class="legend-item"><div class="legend-dot meeting"></div> Meeting</div>
+              <div class="legend-item"><div class="legend-dot churchevent"></div> Event</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Day-of-week headers (hidden for yearly view) -->
+        <div class="cal-dow" id="calDow">
+          <div class="cal-dow-cell weekend">Sun</div>
+          <div class="cal-dow-cell">Mon</div>
+          <div class="cal-dow-cell">Tue</div>
+          <div class="cal-dow-cell">Wed</div>
+          <div class="cal-dow-cell">Thu</div>
+          <div class="cal-dow-cell">Fri</div>
+          <div class="cal-dow-cell weekend">Sat</div>
+        </div>
+
+        <!-- Grid area (monthly / weekly / yearly) -->
+        <div id="calGrid"></div>
+
+        <!-- Detail panel (shown on day click) -->
+        <div class="detail-panel" id="detailPanel">
+          <div class="detail-header">
+            <div class="detail-title" id="detailTitle">Events</div>
+            <button class="btn-add-meeting" onclick="openAddMeetingModal()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Add Meeting
+            </button>
+          </div>
+          <div class="detail-list" id="detailList"></div>
+        </div>
+
+      </div><!-- /.cal-card -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ══════════════ ADD MEETING MODAL ══════════════ -->
+<div class="modal-overlay" id="addMeetingModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Add Meeting</h2>
+      <button class="btn-modal-close" onclick="closeAddMeetingModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-feedback" id="modalFeedback"></div>
+
+      <!-- Meeting Details -->
+      <div class="sub-section">
+        <div class="sub-section-title">Meeting Details</div>
+        <div class="form-grid cols-2" style="margin-bottom:14px;">
+          <div class="field">
+            <label for="mMeetingType">Category <span class="required-star">*</span></label>
+            <select id="mMeetingType">
+              <option value="">— Select Category —</option>
+            </select>
+            <span class="field-hint" id="mMeetingTypeHint"></span>
+          </div>
+          <div class="field">
+            <label for="mLocation">Location</label>
+            <input type="text" id="mLocation" placeholder="Location (optional)" />
+          </div>
+        </div>
+        <div class="form-grid cols-3">
+          <div class="field">
+            <label for="mDate">Date <span class="required-star">*</span></label>
+            <input type="date" id="mDate" />
+            <span class="field-hint" id="mDateHint"></span>
+          </div>
+          <div class="field">
+            <label for="mStartTime">Start Time</label>
+            <input type="time" id="mStartTime" />
+          </div>
+          <div class="field">
+            <label for="mEndTime">End Time</label>
+            <input type="time" id="mEndTime" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="sub-section">
+        <div class="sub-section-title">Schedule</div>
+        <div class="form-grid cols-2">
+          <div class="field">
+            <label for="mOccurrence">Occurrence</label>
+            <select id="mOccurrence" onchange="onModalOccurrenceChange(this.value)">
+              <option value="One Time" selected>One Time</option>
+              <option value="Daily">Daily</option>
+              <option value="Weekly">Weekly</option>
+            </select>
+          </div>
+          <div class="field end-date-field hidden" id="mEndDateField">
+            <label for="mEndDate">End Date</label>
+            <input type="date" id="mEndDate" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="sub-section">
+        <div class="sub-section-title">Notes</div>
+        <div class="field" style="margin-bottom:10px;">
+          <label for="mNote">Note</label>
+          <textarea id="mNote" placeholder="Additional notes or agenda…"></textarea>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="mDoNotAutoDelete" />
+          <label for="mDoNotAutoDelete" style="font-size:13px;color:#555;">Don't auto-delete (exempt from 90-day purge)</label>
+        </div>
+      </div>
+
+    </div><!-- /.modal-body -->
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeAddMeetingModal()">Cancel</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="saveMeetingFromCalendar()">Save Meeting</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  const TODAY      = new Date();
+  let curView      = 'monthly';  // 'monthly' | 'weekly' | 'yearly'
+  let curYear      = TODAY.getFullYear();
+  let curMonth     = TODAY.getMonth() + 1;   // 1-based
+  // Week start (Sunday of the current week)
+  let curWeekStart = getWeekStart(TODAY);
+  let events       = [];     // fetched events for current period
+  let yearEvents   = {};     // { 'YYYY-MM-DD': [event, ...] } for yearly view
+  let selectedDay  = null;   // ISO date string or null
+  let meetingTypes = [];     // from /api/meeting-types
+
+  /* ════════════════════════════════════
+     VIEW MANAGEMENT
+  ════════════════════════════════════ */
+  function setView(view) {
+    curView = view;
+    selectedDay = null;
+    document.getElementById('btnMonthly').classList.toggle('active', view === 'monthly');
+    document.getElementById('btnWeekly').classList.toggle('active', view === 'weekly');
+    document.getElementById('btnYearly').classList.toggle('active', view === 'yearly');
+    document.getElementById('calDow').style.display = (view === 'yearly') ? 'none' : '';
+    load();
+  }
+
+  /* ════════════════════════════════════
+     NAVIGATION
+  ════════════════════════════════════ */
+  function navPrev() {
+    if (curView === 'monthly') {
+      if (curMonth === 1) { curMonth = 12; curYear--; } else { curMonth--; }
+    } else if (curView === 'weekly') {
+      curWeekStart = new Date(curWeekStart.getTime() - 7 * 86400000);
+    } else {
+      curYear--;
+    }
+    selectedDay = null;
+    load();
+  }
+
+  function navNext() {
+    if (curView === 'monthly') {
+      if (curMonth === 12) { curMonth = 1; curYear++; } else { curMonth++; }
+    } else if (curView === 'weekly') {
+      curWeekStart = new Date(curWeekStart.getTime() + 7 * 86400000);
+    } else {
+      curYear++;
+    }
+    selectedDay = null;
+    load();
+  }
+
+  function goToToday() {
+    curYear      = TODAY.getFullYear();
+    curMonth     = TODAY.getMonth() + 1;
+    curWeekStart = getWeekStart(TODAY);
+    selectedDay  = null;
+    load();
+  }
+
+  /* ════════════════════════════════════
+     LOAD
+  ════════════════════════════════════ */
+  async function load() {
+    updateNavLabel();
+    closeDetail();
+
+    if (curView === 'yearly') {
+      await loadYear();
+      renderYear();
+    } else if (curView === 'weekly') {
+      await loadWeek();
+      renderWeek();
+    } else {
+      await loadMonth();
+      renderGrid();
+    }
+  }
+
+  async function loadMonth() {
+    try {
+      const res = await fetch(`/api/event-calendar/events?year=${curYear}&month=${curMonth}`);
+      events = res.ok ? await res.json() : [];
+    } catch { events = []; }
+  }
+
+  async function loadWeek() {
+    // Load the month(s) that intersect the week
+    const endDate = new Date(curWeekStart.getTime() + 6 * 86400000);
+    const months = new Set();
+    months.add(`${curWeekStart.getFullYear()}-${curWeekStart.getMonth() + 1}`);
+    months.add(`${endDate.getFullYear()}-${endDate.getMonth() + 1}`);
+    let all = [];
+    for (const key of months) {
+      const [y, m] = key.split('-').map(Number);
+      try {
+        const res = await fetch(`/api/event-calendar/events?year=${y}&month=${m}`);
+        if (res.ok) all = all.concat(await res.json());
+      } catch {}
+    }
+    events = all;
+  }
+
+  async function loadYear() {
+    yearEvents = {};
+    const fetches = [];
+    for (let m = 1; m <= 12; m++) {
+      fetches.push(
+        fetch(`/api/event-calendar/events?year=${curYear}&month=${m}`)
+          .then(r => r.ok ? r.json() : [])
+          .catch(() => [])
+          .then(evts => evts.forEach(e => {
+            if (!yearEvents[e.date]) yearEvents[e.date] = [];
+            yearEvents[e.date].push(e);
+          }))
+      );
+    }
+    await Promise.all(fetches);
+  }
+
+  /* ════════════════════════════════════
+     NAV LABEL
+  ════════════════════════════════════ */
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function updateNavLabel() {
+    const el = document.getElementById('navLabel');
+    if (curView === 'monthly') {
+      el.textContent = `${MONTH_NAMES[curMonth - 1]} ${curYear}`;
+    } else if (curView === 'weekly') {
+      const end = new Date(curWeekStart.getTime() + 6 * 86400000);
+      const startStr = curWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr   = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      el.textContent = `${startStr} – ${endStr}`;
+    } else {
+      el.textContent = String(curYear);
+    }
+  }
+
+  /* ════════════════════════════════════
+     RENDER — MONTHLY
+  ════════════════════════════════════ */
+  function renderGrid() {
+    const grid = document.getElementById('calGrid');
+    grid.className = 'cal-grid';
+
+    const byDay    = buildByDay(events);
+    const firstDow = new Date(curYear, curMonth - 1, 1).getDay();
+    const daysInMonth  = new Date(curYear, curMonth, 0).getDate();
+    const prevMonthDays = new Date(curYear, curMonth - 1, 0).getDate();
+    const todayStr = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+
+    let cells = [];
+
+    for (let i = firstDow - 1; i >= 0; i--) {
+      const d = prevMonthDays - i;
+      const m = curMonth === 1 ? 12 : curMonth - 1;
+      const y = curMonth === 1 ? curYear - 1 : curYear;
+      cells.push(makeCell(y, m, d, true, byDay, todayStr, false));
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(makeCell(curYear, curMonth, d, false, byDay, todayStr, false));
+    }
+    const trailing = (7 - (cells.length % 7)) % 7;
+    for (let d = 1; d <= trailing; d++) {
+      const m = curMonth === 12 ? 1 : curMonth + 1;
+      const y = curMonth === 12 ? curYear + 1 : curYear;
+      cells.push(makeCell(y, m, d, true, byDay, todayStr, false));
+    }
+
+    grid.innerHTML = cells.join('');
+  }
+
+  /* ════════════════════════════════════
+     RENDER — WEEKLY
+  ════════════════════════════════════ */
+  function renderWeek() {
+    const grid = document.getElementById('calGrid');
+    grid.className = 'week-grid';
+
+    const byDay    = buildByDay(events);
+    const todayStr = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+
+    let html = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(curWeekStart.getTime() + i * 86400000);
+      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      const dateStr  = isoDate(y, m, day);
+      const dayEvts  = byDay[dateStr] || [];
+      const isToday  = dateStr === todayStr;
+      const isSel    = dateStr === selectedDay;
+
+      let cls = 'week-cell';
+      if (isToday) cls += ' today';
+      if (isSel)   cls += ' selected';
+
+      const numCls = 'cal-day-num';
+      const dayLabel = `<div class="week-date-label">${DAY_NAMES[d.getDay()]}</div>`;
+      const dayNum   = `<div class="${numCls}">${day}</div>`;
+      const chips    = chipsBlock(dayEvts);
+
+      html += `<div class="${cls}" onclick="selectDay('${dateStr}')">
+                 ${dayLabel}${dayNum}
+                 <div class="cal-events">${chips}</div>
+               </div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  /* ════════════════════════════════════
+     RENDER — YEARLY
+  ════════════════════════════════════ */
+  function renderYear() {
+    const grid = document.getElementById('calGrid');
+    grid.className = 'year-grid';
+
+    const todayStr = isoDate(TODAY.getFullYear(), TODAY.getMonth() + 1, TODAY.getDate());
+    let html = '';
+
+    for (let m = 1; m <= 12; m++) {
+      const daysInMonth  = new Date(curYear, m, 0).getDate();
+      const firstDow     = new Date(curYear, m - 1, 1).getDay();
+      const prevDays     = new Date(curYear, m - 1, 0).getDate();
+
+      html += `<div class="mini-month">
+        <div class="mini-month-header">${MONTH_NAMES[m - 1]}</div>
+        <div class="mini-dow-row">
+          <div class="mini-dow-cell">S</div><div class="mini-dow-cell">M</div>
+          <div class="mini-dow-cell">T</div><div class="mini-dow-cell">W</div>
+          <div class="mini-dow-cell">T</div><div class="mini-dow-cell">F</div>
+          <div class="mini-dow-cell">S</div>
+        </div>
+        <div class="mini-cal-grid">`;
+
+      // Leading blanks
+      for (let i = firstDow - 1; i >= 0; i--) {
+        const d = prevDays - i;
+        const pm = m === 1 ? 12 : m - 1;
+        const py = m === 1 ? curYear - 1 : curYear;
+        html += `<div class="mini-cell other-month">${d}</div>`;
+      }
+      // Days
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr  = isoDate(curYear, m, d);
+        const isToday  = dateStr === todayStr;
+        const hasEvts  = !!(yearEvents[dateStr] && yearEvents[dateStr].length);
+        let cls = 'mini-cell';
+        if (isToday)  cls += ' today';
+        if (hasEvts)  cls += ' has-events';
+        html += `<div class="${cls}" onclick="onYearCellClick('${dateStr}')">${d}</div>`;
+      }
+      // Trailing
+      const total = firstDow + daysInMonth;
+      const trail = (7 - (total % 7)) % 7;
+      for (let d = 1; d <= trail; d++) {
+        html += `<div class="mini-cell other-month">${d}</div>`;
+      }
+
+      html += `</div></div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  /* ════════════════════════════════════
+     YEAR CELL CLICK → switch to monthly
+  ════════════════════════════════════ */
+  function onYearCellClick(dateStr) {
+    const [y, m] = dateStr.split('-').map(Number);
+    curYear   = y;
+    curMonth  = m;
+    curView   = 'monthly';
+    selectedDay = dateStr;
+    document.getElementById('btnMonthly').classList.add('active');
+    document.getElementById('btnWeekly').classList.remove('active');
+    document.getElementById('btnYearly').classList.remove('active');
+    document.getElementById('calDow').style.display = '';
+    loadMonth().then(() => {
+      renderGrid();
+      showDetail(dateStr);
+    });
+    updateNavLabel();
+  }
+
+  /* ════════════════════════════════════
+     CELL BUILDER (monthly)
+  ════════════════════════════════════ */
+  function makeCell(y, m, d, otherMonth, byDay, todayStr, isWeek) {
+    const dateStr = isoDate(y, m, d);
+    const dayEvts = byDay[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    const isSel   = dateStr === selectedDay;
+
+    let classes = 'cal-cell';
+    if (otherMonth) classes += ' other-month';
+    if (isToday)    classes += ' today';
+    if (isSel)      classes += ' selected';
+
+    const tooltip = dayEvts.length
+      ? ` title="${dayEvts.map(e => e.title).join('\n').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"`
+      : '';
+
+    return `<div class="${classes}"${tooltip} onclick="selectDay('${dateStr}')">
+              <div class="cal-day-num">${d}</div>
+              <div class="cal-events">${chipsBlock(dayEvts)}</div>
+            </div>`;
+  }
+
+  function chipsBlock(dayEvts) {
+    const MAX = 3;
+    const shown = dayEvts.slice(0, MAX);
+    const more  = dayEvts.length - MAX;
+    return shown.map(e => chipHtml(e)).join('') +
+           (more > 0 ? `<div class="chip-more">+${more} more</div>` : '');
+  }
+
+  function chipHtml(e) {
+    return `<div class="chip ${e.type}">
+              <span class="chip-icon">${typeIcon(e.type)}</span>
+              <span class="chip-label">${escHtml(e.title)}</span>
+            </div>`;
+  }
+
+  /* ════════════════════════════════════
+     DAY SELECTION & DETAIL PANEL
+  ════════════════════════════════════ */
+  function selectDay(dateStr) {
+    if (selectedDay === dateStr) {
+      selectedDay = null;
+      closeDetail();
+      if (curView === 'monthly') renderGrid();
+      else if (curView === 'weekly') renderWeek();
+      return;
+    }
+    selectedDay = dateStr;
+    if (curView === 'monthly') renderGrid();
+    else if (curView === 'weekly') renderWeek();
+    showDetail(dateStr);
+  }
+
+  function showDetail(dateStr) {
+    const panel = document.getElementById('detailPanel');
+    const title = document.getElementById('detailTitle');
+    const list  = document.getElementById('detailList');
+
+    const dayEvts = events.filter(e => e.date === dateStr);
+
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const label = new Date(y, m - 1, d)
+      .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    title.textContent = label;
+
+    if (dayEvts.length === 0) {
+      list.innerHTML = `<div class="detail-empty">No events on this day.</div>`;
+    } else {
+      list.innerHTML = dayEvts.map(e => {
+        const sub = e.time
+          ? `<div class="detail-item-sub">🕐 ${escHtml(e.time)}</div>`
+          : `<div class="detail-item-sub">${typeLabel(e.type)}</div>`;
+        return `<div class="detail-item">
+                  <div class="detail-badge ${e.type}">${typeIcon(e.type)}</div>
+                  <div class="detail-info">
+                    <div class="detail-item-title">${escHtml(e.title)}</div>
+                    ${sub}
+                  </div>
+                </div>`;
+      }).join('');
+    }
+
+    panel.classList.add('open');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function closeDetail() {
+    document.getElementById('detailPanel').classList.remove('open');
+  }
+
+  /* ════════════════════════════════════
+     ADD MEETING MODAL
+  ════════════════════════════════════ */
+  async function loadMeetingTypes() {
+    if (meetingTypes.length) return;
+    try {
+      const res = await fetch('/api/meeting-types');
+      meetingTypes = res.ok ? await res.json() : [];
+    } catch { meetingTypes = []; }
+  }
+
+  function populateMeetingTypeSelect() {
+    const sel = document.getElementById('mMeetingType');
+    sel.innerHTML = '<option value="">— Select Category —</option>' +
+      meetingTypes.map(t => `<option value="${t.id}">${escHtml(t.name || t.meetingType || String(t.id))}</option>`).join('');
+  }
+
+  function openAddMeetingModal() {
+    // Prefill date from selected day
+    const dateInput = document.getElementById('mDate');
+    dateInput.value = selectedDay || '';
+
+    // Load meeting types then open
+    loadMeetingTypes().then(() => {
+      populateMeetingTypeSelect();
+    });
+
+    // Reset form fields
+    document.getElementById('mMeetingType').value = '';
+    document.getElementById('mLocation').value = '';
+    document.getElementById('mStartTime').value = '';
+    document.getElementById('mEndTime').value = '';
+    document.getElementById('mOccurrence').value = 'One Time';
+    document.getElementById('mEndDate').value = '';
+    document.getElementById('mEndDateField').classList.add('hidden');
+    document.getElementById('mNote').value = '';
+    document.getElementById('mDoNotAutoDelete').checked = false;
+    document.getElementById('mMeetingTypeHint').textContent = '';
+    document.getElementById('mDateHint').textContent = '';
+    hideFeedback();
+
+    document.getElementById('addMeetingModal').classList.add('open');
+  }
+
+  function closeAddMeetingModal() {
+    document.getElementById('addMeetingModal').classList.remove('open');
+  }
+
+  function onModalOccurrenceChange(val) {
+    document.getElementById('mEndDateField').classList.toggle('hidden', val === 'One Time');
+  }
+
+  async function saveMeetingFromCalendar() {
+    const typeVal  = document.getElementById('mMeetingType').value;
+    const dateVal  = document.getElementById('mDate').value;
+    let valid = true;
+
+    document.getElementById('mMeetingTypeHint').textContent = '';
+    document.getElementById('mDateHint').textContent = '';
+
+    if (!typeVal) {
+      document.getElementById('mMeetingTypeHint').textContent = 'Category is required.';
+      document.getElementById('mMeetingType').classList.add('invalid');
+      valid = false;
+    } else {
+      document.getElementById('mMeetingType').classList.remove('invalid');
+    }
+    if (!dateVal) {
+      document.getElementById('mDateHint').textContent = 'Date is required.';
+      document.getElementById('mDate').classList.add('invalid');
+      valid = false;
+    } else {
+      document.getElementById('mDate').classList.remove('invalid');
+    }
+    if (!valid) return;
+
+    const occurrence = document.getElementById('mOccurrence').value;
+    const payload = {
+      meetingTypeId:   parseInt(typeVal, 10),
+      location:        document.getElementById('mLocation').value.trim() || null,
+      meetingDate:     dateVal,
+      startTime:       document.getElementById('mStartTime').value || null,
+      endTime:         document.getElementById('mEndTime').value || null,
+      occurrence:      occurrence,
+      endDate:         occurrence !== 'One Time' ? (document.getElementById('mEndDate').value || null) : null,
+      note:            document.getElementById('mNote').value.trim() || null,
+      doNotAutoDelete: document.getElementById('mDoNotAutoDelete').checked
+    };
+
+    const btn = document.getElementById('modalSaveBtn');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showFeedback('Meeting saved successfully.', 'success');
+        setTimeout(() => {
+          closeAddMeetingModal();
+          // Reload current view to show the new meeting
+          if (curView === 'monthly') loadMonth().then(renderGrid);
+          else if (curView === 'weekly') loadWeek().then(renderWeek);
+        }, 900);
+      } else {
+        const err = await res.text();
+        showFeedback('Error saving meeting: ' + (err || res.status), 'error');
+      }
+    } catch (e) {
+      showFeedback('Network error. Please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('modalFeedback');
+    el.textContent = msg;
+    el.className = 'modal-feedback ' + type;
+  }
+  function hideFeedback() {
+    const el = document.getElementById('modalFeedback');
+    el.className = 'modal-feedback';
+  }
+
+  // Close modal on overlay click
+  document.getElementById('addMeetingModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddMeetingModal();
+  });
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function buildByDay(evtArr) {
+    const map = {};
+    evtArr.forEach(e => {
+      if (!map[e.date]) map[e.date] = [];
+      map[e.date].push(e);
+    });
+    return map;
+  }
+
+  function getWeekStart(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay()); // Sunday
+    return d;
+  }
+
+  function isoDate(y, m, d) {
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function typeIcon(type) {
+    if (type === 'birthday')    return '🎂';
+    if (type === 'anniversary') return '💍';
+    return '📅';
+  }
+
+  function typeLabel(type) {
+    if (type === 'birthday')    return 'Birthday';
+    if (type === 'anniversary') return 'Wedding Anniversary';
+    return 'Meeting';
+  }
+
+  function escHtml(str) {
+    return (str == null ? '' : String(str))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ════════════════════════════════════
+     GOOGLE CALENDAR SYNC PANEL
+  ════════════════════════════════════ */
+  function toggleGcalPanel() {
+    const panel = document.getElementById('gcalPanel');
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) initGcalPanel();
+  }
+
+  // Cached public ICS URL (fetched once per page load)
+  let _gcalPublicIcsUrl = null;
+
+  async function initGcalPanel() {
+    // Show a loading placeholder while we fetch the token
+    const icsInput = document.getElementById('icsUrlInput');
+    const dlLink   = document.getElementById('icsDownloadLink');
+    const gcalLink = document.getElementById('gcalAddLink');
+    if (icsInput) icsInput.value = 'Loading…';
+
+    if (!_gcalPublicIcsUrl) {
+      try {
+        // Fetch an encrypted cid for the current org — this URL requires no user session
+        // so Google Calendar (and other calendar apps) can subscribe to it freely.
+        const res = await fetch('/api/event-calendar/ics-token');
+        if (res.ok) {
+          const data = await res.json();
+          _gcalPublicIcsUrl = window.location.origin
+            + '/api/event-calendar/public-ics?cid='
+            + encodeURIComponent(data.cid);
+        }
+      } catch (e) { /* leave null */ }
+    }
+
+    // Fallback to the session-authenticated URL if token fetch fails
+    const icsUrl = _gcalPublicIcsUrl || (window.location.origin + '/api/event-calendar/ics');
+
+    if (icsInput) icsInput.value = icsUrl;
+    if (dlLink)   dlLink.href = icsUrl;
+    if (gcalLink) {
+      gcalLink.href = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(icsUrl);
+    }
+  }
+
+  function copyIcsUrl() {
+    const input = document.getElementById('icsUrlInput');
+    if (!input || !input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+      const msg = document.getElementById('gcalCopyMsg');
+      if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
+      const btn = document.getElementById('gcalCopyBtn');
+      if (btn) { const orig = btn.textContent; btn.textContent = '✅ Copied!'; setTimeout(() => { btn.textContent = orig; }, 2500); }
+    }).catch(() => {
+      // Fallback for older browsers
+      input.select();
+      document.execCommand('copy');
+    });
+  }
+
+  function openGcalAdd() {
+    const input = document.getElementById('icsUrlInput');
+    const url = (input && input.value && input.value !== 'Loading…') ? input.value : null;
+    if (!url) return false;
+    const encoded = encodeURIComponent(url);
+    window.open('https://calendar.google.com/calendar/r?cid=' + encoded, '_blank', 'noopener');
+    return false;
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    load();
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'general/event-calendar', pageTitle: '', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

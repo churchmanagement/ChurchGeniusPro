@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 240">
+
+  <!-- "Church" — bold purple, top-left -->
+  <text x="28" y="108"
+        font-family="'Arial Black','Franklin Gothic Heavy','Impact',sans-serif"
+        font-size="74" font-weight="900" fill="#5a2d52"
+        letter-spacing="-2">Church</text>
+
+  <!-- "Genius" — bold gold/orange, continuing on same line -->
+  <text x="278" y="108"
+        font-family="'Arial Black','Franklin Gothic Heavy','Impact',sans-serif"
+        font-size="74" font-weight="900" fill="#d4860a"
+        letter-spacing="-2">Genius</text>
+
+  <!-- Sparkle/star on the "i" of Genius — small gold starburst -->
+  <g transform="translate(358, 30)">
+    <line x1="0" y1="-7" x2="0" y2="7"   stroke="#d4860a" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-7" y1="0" x2="7" y2="0"   stroke="#d4860a" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-5" y1="-5" x2="5" y2="5"  stroke="#d4860a" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="5" y1="-5" x2="-5" y2="5"  stroke="#d4860a" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <!-- "Pro" — bold purple, bottom-right, offset -->
+  <text x="330" y="175"
+        font-family="'Arial Black','Franklin Gothic Heavy','Impact',sans-serif"
+        font-size="70" font-weight="900" fill="#5a2d52"
+        letter-spacing="-2">Pro</text>
+
+  <!-- Gold swoosh (outer, wider arc) -->
+  <path d="M 32 152 C 120 205, 280 210, 470 145"
+        stroke="#d4860a" stroke-width="5.5" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Purple swoosh (inner, tighter arc) -->
+  <path d="M 55 165 C 150 212, 295 215, 468 162"
+        stroke="#5a2d52" stroke-width="4" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Gold swoosh right-end upward flick -->
+  <path d="M 462 143 C 472 138, 478 130, 474 122"
+        stroke="#d4860a" stroke-width="4" fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Purple swoosh right-end flick -->
+  <path d="M 463 160 C 472 155, 476 148, 472 140"
+        stroke="#5a2d52" stroke-width="3" fill="none"
+        stroke-linecap="round"/>
+
+</svg>

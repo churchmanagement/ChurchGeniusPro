@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <title>Baptism Certificate – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 14px; display: flex; align-items: center; gap: 14px; }
+    .page-back {
+      display: flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border-radius: 8px;
+      background: #fff; border: 1px solid #e0e0e0;
+      font-size: 16px; color: #555; flex-shrink: 0;
+      transition: background .15s, border-color .15s;
+    }
+    .page-back:hover { background: #f0e8ec; border-color: #c5a8b8; color: #673147; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Action bar ── */
+    .action-bar {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 10px 14px; margin-bottom: 14px;
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    }
+    .btn-action {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      transition: background .15s, opacity .15s;
+    }
+    .btn-action:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary  { background: #673147; color: #fff; }
+    .btn-primary:hover:not(:disabled)  { background: #4f2538; }
+    .btn-secondary { background: #f0f0f0; color: #444; }
+    .btn-secondary:hover:not(:disabled) { background: #e2e2e2; }
+    .btn-outline { background: #fff; color: #673147; border: 1.5px solid #c5a8b8; }
+    .btn-outline:hover:not(:disabled)  { background: #f0e8ec; }
+    .action-spacer { flex: 1; }
+
+    /* ── Two-column layout ── */
+    .cert-layout { display: flex; gap: 20px; align-items: flex-start; }
+    .cert-left   { flex: 1; min-width: 0; }
+    .cert-right  { width: 294px; flex-shrink: 0; }
+
+    /* ════════════════════════════════════════════════════
+       CERTIFICATE CANVAS — 900×636 px (A4 landscape ratio)
+       Background image = the original SVG design rendered to JPEG
+       All text elements are absolutely-positioned HTML overlays
+    ════════════════════════════════════════════════════ */
+    .cert-canvas-wrap {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      padding: 6px; width: 100%; overflow: hidden;
+    }
+    .cert-scale-host {
+      position: relative; width: 100%;
+      aspect-ratio: 297 / 210; overflow: hidden;
+    }
+    #certificate {
+      position: absolute; top: 0; left: 0;
+      width: 900px; height: 636px;
+      transform-origin: top left;
+      overflow: hidden;
+      background: url('/cert_bg_baptism.jpg?v=cleantitle3') center/cover no-repeat;
+    }
+
+    /* ── Overlay text elements ── */
+    /* Background image is clean (all sample text removed from SVG before render).
+       All text zones are blank — just position HTML overlays, no cover divs needed. */
+
+    /* Arched title overlay: vector text drawn over the (now title-free) background.
+       Fills the certificate's 900×636 coordinate box so it scales and prints with it. */
+    .cert-title-svg {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;            /* fills #certificate so it scales with screen, print & PDF */
+      pointer-events: none; overflow: visible;
+    }
+    .cert-title-svg text {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 31px;
+      letter-spacing: 4px;
+      /* Crisper edges in both screen preview and print/PDF rasterization. */
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    /* Logo: centered over baked logo */
+    .cert-logo-override {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 119px;
+      width: 96px; height: 96px;
+      border-radius: 50%; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cert-logo-override img {
+      width: 100%; height: 100%; object-fit: contain;
+      display: block;
+    }
+
+    /* Candidate name: above the long diamond line. */
+    .cert-name {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 210px; width: 740px; height: 100px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Great Vibes', cursive;
+      font-size: 56px; color: #1a1035;
+      text-align: center; line-height: 1;
+      white-space: nowrap; overflow: hidden;
+    }
+
+    /* Body paragraph: just below the long diamond line. */
+    .cert-para {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 328px; width: 650px;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 16px; color: #2e266d;
+      text-align: center; line-height: 1.6;
+    }
+
+    /* Pastor name: above the short signature line (~y=462).
+       height 18px → top = 444. */
+    .cert-pastor-name-wrap {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 456px; width: 440px;
+      display: flex; align-items: flex-end; justify-content: center;
+      height: 18px;
+      background: transparent !important; border: none !important;
+      box-shadow: none !important; outline: none !important;
+    }
+    .cert-pastor-name {
+      font-family: 'Cinzel', serif;
+      font-weight: 700; font-size: 12px;
+      color: #2e266d; text-align: center; line-height: 1;
+      background: transparent !important; border: none !important;
+      box-shadow: none !important; outline: none !important;
+      padding: 0; margin: 0;
+    }
+
+    /* Pastor title: below the short signature line (~y=476). */
+    .cert-pastor-title-wrap {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 478px; width: 440px;
+      display: flex; align-items: flex-start; justify-content: center;
+      background: transparent !important; border: none !important;
+      box-shadow: none !important; outline: none !important;
+    }
+    .cert-pastor-title {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 12px; color: #2e266d; text-align: center;
+      background: transparent !important; border: none !important;
+      box-shadow: none !important; outline: none !important;
+      padding: 0; margin: 0;
+    }
+
+    /* Scripture: anchored at the bottom of the certificate. */
+    .cert-scripture {
+      position: absolute;
+      left: 50%; transform: translateX(-50%);
+      top: 540px; width: 570px;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-style: italic; font-size: 11.5px;
+      color: #2e266d; text-align: center;
+      line-height: 1.55;
+    }
+
+    /* ── Edit Panel ── */
+    .edit-panel { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+    .edit-panel-header { background: #673147; padding: 14px 18px; display: flex; align-items: center; gap: 8px; }
+    .edit-panel-header h3 { font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .5px; }
+    .edit-panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; max-height: 82vh; overflow-y: auto; }
+
+    .ep-field { display: flex; flex-direction: column; gap: 4px; }
+    .ep-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .4px; }
+    .ep-input {
+      width: 100%; padding: 7px 10px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; color: #333; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .ep-input:focus { border-color: #673147; }
+    textarea.ep-input { resize: vertical; min-height: 58px; }
+    .ep-controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .ep-select {
+      padding: 5px 8px; border: 1.5px solid #e0e0e0; border-radius: 6px;
+      font-size: 12px; color: #333; outline: none; background: #fff; cursor: pointer;
+      transition: border-color .2s; flex: 1;
+    }
+    .ep-select:focus { border-color: #673147; }
+    .ep-color { width: 28px; height: 28px; border: 1.5px solid #e0e0e0; border-radius: 6px; cursor: pointer; padding: 2px; flex-shrink: 0; }
+    .ep-toggle {
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;
+      background: #f0f0f0; color: #555; border: 1.5px solid #e0e0e0;
+      transition: background .15s, color .15s;
+    }
+    .ep-toggle.active { background: #673147; color: #fff; border-color: #673147; }
+
+    /* Member search dropdown */
+    .search-wrap { position: relative; }
+    .search-inner {
+      display: flex; align-items: center;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      overflow: hidden; transition: border-color .2s;
+    }
+    .search-inner:focus-within { border-color: #673147; }
+    .search-inner input {
+      flex: 1; padding: 7px 10px; border: none; outline: none;
+      font-size: 13px; color: #333; background: transparent; font-family: inherit;
+    }
+    .search-clear {
+      padding: 5px 8px; font-size: 14px; color: #ccc; background: none; border: none;
+      cursor: pointer; line-height: 1; transition: color .15s;
+    }
+    .search-clear:hover { color: #e53935; }
+    .dropdown {
+      position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.12); max-height: 200px; overflow-y: auto;
+      z-index: 200; display: none;
+    }
+    .dropdown.open { display: block; }
+    .dd-item {
+      padding: 8px 12px; font-size: 13px; cursor: pointer;
+      border-bottom: 1px solid #f5f5f5; transition: background .1s;
+    }
+    .dd-item:last-child { border-bottom: none; }
+    .dd-item:hover, .dd-item.hi { background: #f0e8ec; }
+    .dd-empty { padding: 12px; font-size: 13px; color: #bbb; text-align: center; }
+
+    /* Selected badge */
+    .selected-badge {
+      display: none; align-items: center; gap: 8px;
+      background: #f0e8ec; border: 1px solid #c5a8b8;
+      border-radius: 7px; padding: 6px 10px; margin-top: 4px;
+    }
+    .selected-badge.show { display: flex; }
+    .selected-badge-name { font-size: 13px; font-weight: 600; color: #673147; flex: 1; }
+    .selected-badge-rm { font-size: 14px; color: #c5a8b8; cursor: pointer; padding: 1px 5px; border-radius: 4px; transition: color .15s; }
+    .selected-badge-rm:hover { color: #e53935; }
+
+    /* Or divider */
+    .or-div {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: #ccc; font-weight: 700;
+    }
+    .or-div::before, .or-div::after { content: ''; flex: 1; border-top: 1px solid #eee; }
+
+    /* Section divider in panel */
+    .ep-section-title {
+      font-size: 11px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1px solid #f0e8ec; padding-bottom: 5px;
+    }
+
+    /* ── Print ── */
+    @media print {
+      /* Landscape page (certificate is 297×210), tight margins, no browser chrome. */
+      @page { size: landscape; margin: 8mm; }
+      html, body { background: #fff !important; }
+
+      /* App chrome outside the page content. */
+      .sidebar, .topbar, .app-footer { display: none !important; }
+
+      /* Show ONLY the certificate: hide every other direct child of the page
+         content — this catches the globally-injected AI search box (#aaHost) and
+         any other injected toolbars/panels, current or future. */
+      main.page-content > *:not(.cert-layout) { display: none !important; }
+
+      /* Belt-and-suspenders: explicitly hide the known non-certificate elements
+         (AI assistant / search box, voice controls, page header, actions, side panel). */
+      #aaHost, .aa-host, #aaBar, .aa-controls, #aiResultsWrap, .aa-searchbar,
+      .aa-hintrow, .aa-guide, .aa-toast, .ai-search-wrap,
+      .page-header, .action-bar, .cert-right { display: none !important; }
+
+      /* Let the certificate take the full printable area, centered. */
+      .app, .page-content { display: block !important; }
+      .page-content { padding: 0 !important; margin: 0 !important; }
+      .cert-layout { display: block !important; margin: 0 !important; }
+      .cert-left { width: 100% !important; }
+      .cert-canvas-wrap { box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; background: #fff !important; }
+      .cert-scale-host { aspect-ratio: 297 / 210 !important; width: 100% !important; height: auto !important; }
+      #certificate { transform: none !important; width: 100% !important; height: 100% !important; position: static !important; }
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    @media (max-width: 960px) {
+      .cert-layout { flex-direction: column; }
+      .cert-right  { width: 100%; }
+      .edit-panel-body { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <a href="/certificates" class="page-back" title="Back">←</a>
+        <div>
+          <div class="page-title">Baptism Certificate</div>
+          <div class="page-subtitle">Certificate Preview</div>
+        </div>
+      </div>
+
+      <!-- Action bar -->
+      <div class="action-bar">
+        <button class="btn-action btn-primary" id="downloadBtn" onclick="downloadPdf()">⬇ Download PDF</button>
+        <button class="btn-action btn-outline" onclick="printCert()">🖨 Print</button>
+        <div class="action-spacer"></div>
+        <button class="btn-action btn-secondary" onclick="resetDefaults()">↺ Reset</button>
+      </div>
+
+      <div class="cert-layout">
+
+        <!-- ── LEFT: Certificate preview ── -->
+        <div class="cert-left">
+          <div class="cert-canvas-wrap">
+            <div class="cert-scale-host" id="certScaleHost">
+              <div id="certificate">
+
+                <!-- Arched title: crisp vector text (replaces the rasterized baked
+                     title so the leading "C" and trailing "M" are never clipped and
+                     the curves stay smooth at any zoom and in print/PDF). -->
+                <svg class="cert-title-svg" viewBox="0 0 900 636" preserveAspectRatio="xMidYMid meet" aria-label="Certificate of Baptism">
+                  <defs>
+                    <path id="certTitleArc" d="M 175 150 A 520 520 0 0 1 725 150" fill="none"/>
+                  </defs>
+                  <text text-anchor="middle" fill="#1a1035">
+                    <textPath href="#certTitleArc" startOffset="50%">CERTIFICATE OF BAPTISM</textPath>
+                  </text>
+                </svg>
+
+                <!-- Logo overlay (shows church logo when available; baked logo shows through otherwise) -->
+                <div class="cert-logo-override" id="logoWrap"></div>
+
+                <!-- Candidate name: just above the long diamond line -->
+                <div class="cert-name" id="certCandidateName">Candidate Name</div>
+
+                <!-- Body text: just below the long diamond line -->
+                <div class="cert-para" id="certBodyText">
+                  was baptized by immersion in the name of the Father, and the Son,<br/>
+                  and the Holy Spirit on <span id="certDateSpan">—</span><br/>
+                  at <span id="certChurchSpan">—</span>
+                </div>
+
+                <!-- Pastor name: above the short signature line -->
+                <div class="cert-pastor-name-wrap">
+                  <div class="cert-pastor-name" id="certPastorName"></div>
+                </div>
+                <!-- Pastor title: below the short signature line -->
+                <div class="cert-pastor-title-wrap">
+                  <div class="cert-pastor-title" id="certPastorTitle">Church Pastor</div>
+                </div>
+
+                <!-- Scripture: anchored at the bottom of the certificate -->
+                <div class="cert-scripture" id="certScripture">
+                  "So in Christ Jesus you are all children of God through faith, for all of you who were<br/>
+                  baptized into Christ have clothed yourselves with Christ"<br/>
+                  Galatians 3:26–27
+                </div>
+
+              </div><!-- /#certificate -->
+            </div>
+          </div>
+        </div><!-- /.cert-left -->
+
+        <!-- ── RIGHT: Edit panel ── -->
+        <div class="cert-right">
+          <div class="edit-panel">
+            <div class="edit-panel-header">
+              <span style="font-size:14px;">✏️</span>
+              <h3>Edit Certificate</h3>
+            </div>
+            <div class="edit-panel-body">
+
+              <div class="ep-section-title">Candidate</div>
+
+              <!-- Member search -->
+              <div class="ep-field">
+                <label class="ep-label">Search Member</label>
+                <div class="search-wrap" id="searchWrap">
+                  <div class="search-inner">
+                    <input type="text" id="memberSearch" placeholder="Type a name…"
+                           autocomplete="off"
+                           oninput="onSearchInput(this.value)"
+                           onkeydown="onSearchKey(event)"
+                           onfocus="onSearchFocus()" />
+                    <button class="search-clear" id="searchClearBtn" onclick="clearSearch()" style="display:none;">✕</button>
+                  </div>
+                  <div class="dropdown" id="dropdownList"></div>
+                </div>
+                <div class="selected-badge" id="selBadge">
+                  <span class="selected-badge-name" id="selBadgeName"></span>
+                  <button class="selected-badge-rm" onclick="clearSelection()" title="Remove">✕</button>
+                </div>
+              </div>
+
+              <div class="or-div">OR</div>
+
+              <div class="ep-field">
+                <label class="ep-label">Enter Name Manually</label>
+                <input type="text" class="ep-input" id="epManualName"
+                       placeholder="Full name of candidate"
+                       oninput="onManualName(this.value)" />
+              </div>
+
+              <div class="ep-section-title">Name Style</div>
+
+              <div class="ep-field">
+                <div class="ep-controls">
+                  <select class="ep-select" id="epNameFont" onchange="applyNameStyle()">
+                    <option value="'Great Vibes', cursive">Great Vibes</option>
+                    <option value="'EB Garamond', Georgia, serif">Garamond</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="Georgia, serif">Georgia</option>
+                  </select>
+                  <input type="color" class="ep-color" id="epNameColor" value="#1a1035" oninput="applyNameStyle()" title="Name color" />
+                  <button class="ep-toggle" id="epNameBold"   onclick="toggleNameStyle('bold')"   title="Bold">B</button>
+                  <button class="ep-toggle" id="epNameItalic" onclick="toggleNameStyle('italic')" title="Italic" style="font-style:italic;">I</button>
+                </div>
+              </div>
+
+              <div class="ep-section-title">Pastor</div>
+
+              <div class="ep-field">
+                <label class="ep-label">Pastor Name</label>
+                <input type="text" class="ep-input" id="epPastorName"
+                       oninput="syncText('certPastorName', this.value)" />
+              </div>
+
+              <div class="ep-field">
+                <label class="ep-label">Pastor Title</label>
+                <input type="text" class="ep-input" id="epPastorTitle"
+                       oninput="syncText('certPastorTitle', this.value)" />
+              </div>
+
+              <div class="ep-section-title">Text Overrides</div>
+
+              <div class="ep-field">
+                <label class="ep-label">Body Text Override</label>
+                <textarea class="ep-input" id="epBodyCustom" rows="3"
+                          placeholder="Leave blank to auto-generate…"
+                          oninput="onBodyOverride(this.value)"></textarea>
+                <div style="font-size:11px;color:#aaa;margin-top:1px;">Leave blank to auto-generate.</div>
+              </div>
+
+              <div class="ep-field">
+                <label class="ep-label">Scripture</label>
+                <textarea class="ep-input" id="epScripture" rows="4"
+                          oninput="syncHtml('certScripture', this.value)"></textarea>
+              </div>
+
+            </div><!-- /.edit-panel-body -->
+          </div><!-- /.edit-panel -->
+        </div><!-- /.cert-right -->
+
+      </div><!-- /.cert-layout -->
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- html2canvas + jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* ════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════ */
+const CERT_W = 900, CERT_H = 636;
+let allMembers = [], filteredMembers = [], selectedMember = null;
+let ddHighlight = -1, nameBold = false, nameItalic = false, bodyCustom = '';
+
+/* ════════════════════════════════════════════════════
+   SCALING
+════════════════════════════════════════════════════ */
+function scaleCert() {
+  const host  = document.getElementById('certScaleHost');
+  const scale = host.clientWidth / CERT_W;
+  document.getElementById('certificate').style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', scaleCert);
+
+/* ════════════════════════════════════════════════════
+   MEMBER SEARCH
+════════════════════════════════════════════════════ */
+async function loadMembers() {
+  try {
+    const res = await fetch('/api/members?search=&showDeleted=false&showInactive=false');
+    if (!res.ok) return;
+    const data = await res.json();
+    allMembers = Array.isArray(data) ? data : [];
+  } catch (_) {}
+}
+
+function onSearchInput(val) {
+  document.getElementById('searchClearBtn').style.display = val ? '' : 'none';
+  if (selectedMember && val !== fullName(selectedMember)) clearSelection(false);
+  filterDD(val);
+}
+function onSearchFocus() { filterDD(document.getElementById('memberSearch').value); }
+function filterDD(val) {
+  const q = val.trim().toLowerCase();
+  const list = document.getElementById('dropdownList');
+  if (!q) { closeDD(); return; }
+  filteredMembers = allMembers.filter(m => fullName(m).toLowerCase().includes(q)).slice(0, 50);
+  list.innerHTML = filteredMembers.length
+    ? filteredMembers.map((m, i) => `<div class="dd-item" onmousedown="pickMember(${i})" onmouseover="hiDD(${i})">${escHtml(fullName(m))}</div>`).join('')
+    : '<div class="dd-empty">No members found</div>';
+  list.classList.add('open'); ddHighlight = -1;
+}
+function closeDD() { document.getElementById('dropdownList').classList.remove('open'); ddHighlight = -1; }
+function hiDD(i) { ddHighlight = i; document.querySelectorAll('.dd-item').forEach((el,j) => el.classList.toggle('hi', j===i)); }
+function onSearchKey(e) {
+  const list = document.getElementById('dropdownList');
+  if (!list.classList.contains('open')) return;
+  if (e.key==='ArrowDown') { e.preventDefault(); hiDD(Math.min(ddHighlight+1, filteredMembers.length-1)); }
+  else if (e.key==='ArrowUp')  { e.preventDefault(); hiDD(Math.max(ddHighlight-1, 0)); }
+  else if (e.key==='Enter')    { e.preventDefault(); if (ddHighlight>=0) pickMember(ddHighlight); }
+  else if (e.key==='Escape')   closeDD();
+}
+function pickMember(i) {
+  selectedMember = filteredMembers[i];
+  const name = fullName(selectedMember);
+  document.getElementById('memberSearch').value = name;
+  document.getElementById('searchClearBtn').style.display = '';
+  document.getElementById('selBadgeName').textContent = name;
+  document.getElementById('selBadge').classList.add('show');
+  document.getElementById('epManualName').value = '';
+  closeDD(); applyName(name);
+}
+function clearSelection(resetInput=true) {
+  selectedMember = null;
+  if (resetInput) { document.getElementById('memberSearch').value = ''; document.getElementById('searchClearBtn').style.display='none'; }
+  document.getElementById('selBadge').classList.remove('show'); closeDD();
+}
+function clearSearch() { clearSelection(true); applyName('Candidate Name'); }
+document.addEventListener('click', e => { if (!document.getElementById('searchWrap').contains(e.target)) closeDD(); });
+function onManualName(val) { if (selectedMember) clearSelection(false); applyName(val || 'Candidate Name'); }
+function fullName(m) { return [m.firstName, m.lastName].filter(Boolean).join(' ') || m.name || ''; }
+
+/* ════════════════════════════════════════════════════
+   CERTIFICATE FIELD SYNC
+════════════════════════════════════════════════════ */
+function applyName(val) {
+  document.getElementById('certCandidateName').textContent = val || 'Candidate Name';
+  applyNameStyle();
+}
+function syncText(id, val) { const el=document.getElementById(id); if(el) el.textContent = val||''; }
+function syncHtml(id, val) { const el=document.getElementById(id); if(el) el.innerHTML=(val||'').replace(/\n/g,'<br/>'); }
+// Internal state for auto-populated church info (set by loadChurchInfo)
+let _certChurch = '—';
+let _certCity   = '—';
+let _certDate   = '—';
+
+function syncDate(val) {
+  if (!val) { _certDate = '—'; updateBody(); return; }
+  const d = new Date(val+'T00:00:00');
+  _certDate = d.toLocaleDateString('en-US', {year:'numeric', month:'long', day:'2-digit'});
+  updateBody();
+}
+function updateBody() {
+  if (bodyCustom) return;
+  document.getElementById('certBodyText').innerHTML =
+    `was baptized by immersion in the name of the Father, and the Son,<br/>` +
+    `and the Holy Spirit on ${_certDate}<br/>` +
+    `at ${_certChurch}`;
+}
+function onBodyOverride(val) {
+  bodyCustom = val.trim();
+  if (bodyCustom) syncHtml('certBodyText', val); else updateBody();
+}
+
+/* ════════════════════════════════════════════════════
+   NAME STYLE
+════════════════════════════════════════════════════ */
+function applyNameStyle() {
+  const el = document.getElementById('certCandidateName');
+  el.style.fontFamily = document.getElementById('epNameFont').value;
+  el.style.color      = document.getElementById('epNameColor').value;
+  el.style.fontWeight = nameBold   ? '700'    : 'normal';
+  el.style.fontStyle  = nameItalic ? 'italic' : 'normal';
+}
+function toggleNameStyle(type) {
+  if (type==='bold')   { nameBold=!nameBold;     document.getElementById('epNameBold').classList.toggle('active',nameBold); }
+  else                 { nameItalic=!nameItalic;  document.getElementById('epNameItalic').classList.toggle('active',nameItalic); }
+  applyNameStyle();
+}
+
+/* ════════════════════════════════════════════════════
+   RESET
+════════════════════════════════════════════════════ */
+function resetDefaults() {
+  bodyCustom = '';
+  setVal('epBodyCustom','');
+  setVal('epNameFont',"'Great Vibes', cursive");
+  setVal('epNameColor','#1a1035');
+  nameBold = nameItalic = false;
+  document.getElementById('epNameBold').classList.remove('active');
+  document.getElementById('epNameItalic').classList.remove('active');
+  applyNameStyle(); updateBody();
+}
+
+/* ════════════════════════════════════════════════════
+   PRINT / PDF
+════════════════════════════════════════════════════ */
+function printCert() { window.print(); }
+
+async function downloadPdf() {
+  const btn = document.getElementById('downloadBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '⏳ Generating…';
+
+  const certEl = document.getElementById('certificate');
+  const prev   = certEl.style.transform;
+  certEl.style.transform = 'none';
+
+  try {
+    const canvas = await html2canvas(certEl, {
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: null, logging: false,
+      width: CERT_W, height: CERT_H,
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0,
+      pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+    const safe = (document.getElementById('certCandidateName').textContent || 'baptism')
+      .replace(/[^a-zA-Z0-9\s]/g,'').trim().replace(/\s+/g,'_');
+    pdf.save(`Baptism_Certificate_${safe}.pdf`);
+  } catch(e) {
+    console.error(e);
+    alert('PDF generation failed. Please use Print instead.');
+  } finally {
+    certEl.style.transform = prev;
+    btn.disabled = false; btn.innerHTML = orig;
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════ */
+function setVal(id, val) { const el=document.getElementById(id); if(el) el.value=val; }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════ */
+async function init() {
+  await document.fonts.ready;
+  scaleCert();
+
+  // Default date = today (auto-set on certificate; no input field)
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  syncDate(todayStr);
+
+  // Default pastor — blank until user fills in
+  setVal('epPastorName',''); setVal('epPastorTitle','Church Pastor');
+  syncText('certPastorName',''); syncText('certPastorTitle','Church Pastor');
+
+  // Default scripture
+  const defScript = '"So in Christ Jesus you are all children of God through faith, for all of you who were\nbaptized into Christ have clothed yourselves with Christ"\nGalatians 3:26–27';
+  setVal('epScripture', defScript); syncHtml('certScripture', defScript);
+
+  // Load church info, logo, members
+  await loadChurchInfo();
+  loadLogo();
+  await loadMembers();
+}
+
+async function loadChurchInfo() {
+  let churchName = '', cityState = '';
+  try {
+    const r = await fetch('/api/email-settings');
+    if (r.ok) { const d=await r.json(); if(d.displayName) churchName=d.displayName; }
+  } catch(_) {}
+  try {
+    const rs = await fetch('/api/session');
+    if (rs.ok) {
+      const sess = await rs.json();
+      const cid = sess.appClientId || sess.clientId || '';
+      if (cid) {
+        const rp = await fetch(`/api/churchregistration/prefill?clientId=${encodeURIComponent(cid)}`);
+        if (rp.ok) {
+          const d = await rp.json();
+          cityState = [d.city, d.state].filter(Boolean).join(', ');
+          if (!churchName && d.churchName) churchName = d.churchName;
+        }
+      }
+    }
+  } catch(_) {}
+  if (churchName) _certChurch = churchName;
+  if (cityState)  _certCity   = cityState;
+  updateBody();
+}
+
+function loadLogo() {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const wrap = document.getElementById('logoWrap');
+    wrap.innerHTML = '';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+    wrap.appendChild(img);
+  };
+  img.onerror = () => {
+    // No custom logo — baked logo in background shows through
+  };
+  img.src = '/api/logo/image?' + Date.now();
+}
+
+init();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/certificates', openSection: 'more', pageTitle: 'Certificates' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

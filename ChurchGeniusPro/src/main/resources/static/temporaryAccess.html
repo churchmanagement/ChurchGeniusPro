@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Temporary Access</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+  <style>
+    :root { --brand:#673147; --brand-dk:#4d2435; --line:#e6dde2; }
+    /* Reset — must match the other pages exactly so shell.css renders the
+       sidebar/nav identically. The `border:none; background:none` on button is
+       what stops nav buttons showing default OS button chrome (the white nav). */
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body { height:100%; }
+    body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f6fa; color:#333; }
+    a { text-decoration:none; color:inherit; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .page-title  { font-size:22px; font-weight:700; color:#673147; }
+    .page-subtitle { font-size:13px; color:#aaa; margin-top:3px; }
+    .ta-card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:20px;
+               box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .ta-card h3 { margin:0 0 14px; font-size:15px; color:var(--brand); }
+    .ta-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .ta-card label { display:block; font-size:12px; font-weight:700; color:#666; margin-bottom:5px; }
+    .ta-card input, .ta-card select { width:100%; padding:9px 11px; border:1.5px solid #ddd; border-radius:8px; font-size:13.5px; background:#fff; font-family:inherit; }
+    .ta-card input:focus, .ta-card select:focus { border-color:var(--brand); outline:none; }
+    /* Searchable holder combo */
+    .ta-combo { position:relative; }
+    .ta-combo-dd { position:absolute; left:0; right:0; top:100%; z-index:60; background:#fff; border:1px solid #ddd;
+                  border-radius:8px; max-height:260px; overflow:auto; box-shadow:0 8px 22px rgba(0,0,0,.14); display:none; margin-top:3px; }
+    .ta-combo-dd.open { display:block; }
+    .ta-opt { display:flex; align-items:center; gap:9px; padding:7px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #f3f0f2; }
+    .ta-opt:last-child { border-bottom:none; }
+    .ta-opt:hover, .ta-opt.active { background:#f5eef1; }
+    .ta-opt .av { width:28px; height:28px; border-radius:50%; object-fit:cover; background:#eadfe6; flex:0 0 auto;
+                  display:flex; align-items:center; justify-content:center; color:#9a7d8b; font-size:12px; font-weight:700; }
+    .ta-opt .nm { font-weight:600; color:#333; }
+    .ta-opt .sub { color:#999; font-size:11px; }
+    .ta-opt-tag { margin-left:auto; font-size:10px; color:#1e7e34; background:#e6f4ea; border-radius:999px; padding:1px 7px; }
+    .ta-empty { padding:10px; color:#aaa; font-size:12.5px; }
+    /* Badge preview */
+    .ta-badge-wrap { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+    .ta-badge-col { flex:1 1 240px; min-width:240px; }
+    .badge-preview { width:200px; margin:8px auto 0; border:1px solid #ddd; border-radius:10px; background:#fff;
+                     padding:12px 10px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,.08); font-family:Arial,sans-serif; color:#000; }
+    .badge-preview .b-logo { max-width:110px; max-height:40px; object-fit:contain; margin:0 auto 5px; display:block; }
+    .badge-preview .b-church { font-size:13px; font-weight:800; }
+    .badge-preview .b-tag { font-size:9px; letter-spacing:1px; color:#666; text-transform:uppercase; margin:2px 0 6px; }
+    .badge-preview .b-photo { width:66px; height:66px; border-radius:8px; object-fit:cover; border:1px solid #ccc; margin:4px auto; display:block; }
+    .badge-preview .b-holder { font-size:13px; font-weight:800; margin-top:2px; }
+    .badge-preview .b-role { font-size:11px; font-weight:700; color:#673147; }
+    .badge-preview .b-phone { font-size:10px; color:#222; margin-top:1px; }
+    .badge-preview .b-bc { height:36px; margin:8px auto 2px; background:repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 4px); width:80%; border-radius:2px; }
+    .badge-preview .b-exp { font-size:9px; font-weight:700; color:#333; margin-top:4px; }
+    .badge-preview .b-contact { font-size:8.5px; color:#555; margin-top:6px; border-top:1px dashed #ccc; padding-top:5px; line-height:1.5; }
+    .badge-preview .b-empty { color:#bbb; font-size:11px; padding:18px 0; }
+    .ta-pages { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+    .ta-pages label { display:flex; align-items:center; gap:6px; font-weight:500; font-size:13px; color:#444;
+                      border:1px solid #e0d3da; border-radius:999px; padding:6px 12px; cursor:pointer; margin:0; }
+    .ta-pages input { width:auto; }
+    .ta-btn { border:none; border-radius:9px; background:var(--brand); color:#fff; font-size:13.5px; font-weight:700;
+              padding:10px 18px; cursor:pointer; }
+    .ta-btn:hover { background:var(--brand-dk); }
+    .ta-btn.sm { padding:5px 11px; font-size:12px; }
+    .ta-btn.ghost { background:#fff; color:var(--brand); border:1.5px solid #c5a0b5; }
+    .ta-btn.danger { background:#fff; color:#c0392b; border:1.5px solid #f0bcc3; }
+    .ta-card table { width:100%; border-collapse:collapse; font-size:13px; }
+    .ta-card th, .ta-card td { text-align:left; padding:9px 8px; border-bottom:1px solid #eee; vertical-align:middle;
+                               overflow-wrap:anywhere; word-break:break-word; }
+    .ta-card th { color:#888; font-size:11.5px; text-transform:uppercase; letter-spacing:.4px; }
+    .ta-pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700; }
+    .ta-pill.ACTIVE { background:#e6f4ea; color:#1e7e34; }
+    .ta-pill.EXPIRED { background:#fbeaec; color:#c0392b; }
+    .ta-pill.REVOKED { background:#eee; color:#777; }
+    .ta-pill.SCHEDULED { background:#eef4fd; color:#2c5fa3; }
+    .ta-actions { display:flex; gap:6px; flex-wrap:nowrap; align-items:center; justify-content:flex-end; }
+    .ta-card td:last-child { white-space:nowrap; width:1%; }
+    .ta-btn.sm { display:inline-flex; align-items:center; gap:2px; line-height:1; white-space:nowrap; }
+    .ta-btn.sm.ta-extend { font-weight:700; }
+    /* ── Mobile: stack the passes table into per-row cards so nothing overflows ── */
+    @media (max-width:600px) {
+      .ta-card { padding:14px 12px; }
+      #passList, #passList tbody { display:block; width:100%; }
+      .ta-card table thead { display:none; }                 /* column headers hidden; each cell self-labels */
+      #passList tr { display:block; border:1px solid var(--line); border-radius:10px;
+                     padding:8px 10px; margin-bottom:10px; }
+      #passList td { display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+                     padding:6px 0; border:none; text-align:right; }
+      #passList td[data-label]::before { content:attr(data-label); flex:0 0 38%; text-align:left;
+                     font-weight:700; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+      #passList td.ta-actions-cell { white-space:normal; width:auto; }   /* override desktop nowrap/1% */
+      #passList td.ta-actions-cell .ta-actions { flex-wrap:wrap; justify-content:flex-end; }
+      /* The loading / "no passes" placeholder row spans full width with no label. */
+      #passList td[colspan] { justify-content:center; text-align:center; }
+      #passList td[colspan]::before { content:none; }
+    }
+    .ta-msg { margin-top:12px; font-size:13px; border-radius:8px; padding:9px 11px; display:none; }
+    .ta-msg.ok { background:#e8f6ec; color:#1e7e34; border:1px solid #bfe6c9; display:block; }
+    .ta-msg.err { background:#fdecee; color:#c0392b; border:1px solid #f3c6cc; display:block; }
+    .ta-codebox { margin-top:14px; padding:14px; border:1px dashed #c5a0b5; border-radius:10px; background:#faf5f7; display:none; }
+    .ta-codebox b { font-size:26px; letter-spacing:5px; color:var(--brand); }
+    .ta-modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .ta-modal .inner { background:#fff; border-radius:12px; padding:18px 20px; width:520px; max-width:92vw; max-height:80vh; overflow:auto; }
+    .ta-muted { color:#999; font-size:12px; }
+    @media (max-width:680px){ .ta-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Temporary Access</div>
+          <div class="page-subtitle">Time-limited badge + code access — no temporary usernames to manage</div>
+        </div>
+        <button type="button" style="background:#4d2435;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;"
+                onclick="window.location.href='/ntagAccess'">🔑 NTAG Login</button>
+      </div>
+
+      <!-- Create -->
+      <div class="ta-card">
+        <h3>Create temporary access</h3>
+        <div class="ta-grid">
+          <div class="ta-combo">
+            <label>Holder name</label>
+            <input id="holderName" type="text" autocomplete="off" placeholder="Search members &amp; volunteers, or type a name" />
+            <input type="hidden" id="holderPhoto" />
+            <div id="holderDropdown" class="ta-combo-dd"></div>
+          </div>
+          <div><label>Email (sends the code)</label><input id="email" type="email" placeholder="jane@example.com" /></div>
+          <div><label>Phone number</label><input id="phone" type="tel" placeholder="(555) 123-4567" /></div>
+          <div>
+            <label>Role / title</label>
+            <select id="role">
+              <option value="">— Select —</option>
+              <option>Volunteer</option><option>Usher</option><option>Registration</option><option>Greeter</option>
+              <option>Security</option><option>Media</option><option>Childcare</option><option>Hospitality</option>
+              <option>Guest</option>
+              <option value="__other">Other (type below)</option>
+            </select>
+            <input id="roleCustom" type="text" placeholder="Custom role / title" style="display:none;margin-top:6px;" />
+          </div>
+          <div><label>Start</label><input id="startDateTime" type="datetime-local" /></div>
+          <div><label>End</label><input id="endDateTime" type="datetime-local" /></div>
+        </div>
+        <label style="margin-top:14px;">Permitted pages</label>
+        <div id="pages" class="ta-pages"></div>
+
+        <label style="margin-top:14px;">Badge display options <span class="ta-muted" style="font-weight:400;">(all on by default; blank values are never shown)</span></label>
+        <div id="badgeOptions" class="ta-pages"></div>
+
+        <div class="ta-badge-wrap">
+          <div class="ta-badge-col">
+            <div style="margin-top:16px;"><button id="createBtn" class="ta-btn" type="button">Generate access &amp; badge</button></div>
+            <div id="createMsg" class="ta-msg"></div>
+            <div id="codeBox" class="ta-codebox">
+              <div>Share this <b id="genCode"></b></div>
+              <div class="ta-muted" style="margin-top:6px;">Shown once — it is stored hashed and cannot be retrieved later. The code was also emailed if an address was provided.</div>
+              <div style="margin-top:12px;"><button id="printNewBtn" class="ta-btn ghost" type="button">🖨 Print badge</button></div>
+            </div>
+          </div>
+          <div class="ta-badge-col">
+            <label style="margin-top:16px;">Badge preview</label>
+            <div id="badgePreview" class="badge-preview"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="ta-card">
+        <h3>Active &amp; recent passes</h3>
+        <table>
+          <thead><tr><th>Holder</th><th>Window</th><th>Status</th><th>Remaining</th><th>Pages</th><th></th></tr></thead>
+          <tbody id="passList"><tr><td colspan="6" class="ta-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Audit modal -->
+<div class="ta-modal" id="auditModal"><div class="inner">
+  <h3 style="margin-top:0;color:var(--brand);">Login / logout history</h3>
+  <table class="ta-card-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Login</th>
+      <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Logout</th>
+      <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Device</th>
+      <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">IP</th></tr></thead>
+    <tbody id="auditBody"></tbody></table>
+  <div style="margin-top:14px;text-align:right;"><button class="ta-btn ghost" type="button" onclick="document.getElementById('auditModal').style.display='none'">Close</button></div>
+</div></div>
+
+<script>
+  // Tell the shell which nav entry is active so the ADMIN section auto-expands and
+  // "Temporary Access" highlights — consistent with every other page.
+  window.CGP_PAGE = { activePage: 'admin/temporary-access', pageTitle: 'Temporary Access', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>
+  var catalog = [];
+  var lastCreated = null;
+  var el = function (id) { return document.getElementById(id); };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function nowLocal(offsetMin) {
+    var d = new Date(Date.now() + (offsetMin || 0) * 60000);
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function fmtRemaining(sec) {
+    if (sec <= 0) return '—';
+    var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+    return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm');
+  }
+  function fmtWindow(s, e) {
+    function f(x){ if(!x) return '?'; var d=new Date(x); return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+    return f(s) + ' → ' + f(e);
+  }
+
+  fetch('/api/temp-access/catalog').then(function(r){ return r.json(); }).then(function(c){
+    catalog = c || [];
+    el('pages').innerHTML = catalog.map(function(p){
+      return '<label><input type="checkbox" value="'+esc(p.key)+'"> '+esc(p.label)+'</label>';
+    }).join('');
+  });
+  el('startDateTime').value = nowLocal(0);
+  el('endDateTime').value   = nowLocal(240);
+
+  /* ── Searchable holder dropdown (members + general volunteers) ── */
+  var people = [];
+  fetch('/api/temp-access/people').then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){ people = list || []; });
+
+  function avatar(p) {
+    if (p.photo) return '<img class="av" src="'+esc(p.photo)+'" alt="">';
+    var initials = (p.name||'?').split(/\s+/).map(function(w){ return w.charAt(0); }).slice(0,2).join('').toUpperCase();
+    return '<span class="av">'+esc(initials)+'</span>';
+  }
+  function renderHolderDropdown(q) {
+    var dd = el('holderDropdown');
+    var ql = (q||'').toLowerCase();
+    var matches = people.filter(function(p){ return !ql || (p.name||'').toLowerCase().indexOf(ql) !== -1; }).slice(0, 40);
+    if (!matches.length) { dd.innerHTML = '<div class="ta-empty">No matching member or volunteer — type a name to enter manually.</div>'; dd.classList.add('open'); return; }
+    dd.innerHTML = matches.map(function(p, i){
+      var sub = [p.email, p.phone].filter(Boolean).join(' · ');
+      return '<div class="ta-opt" data-i="'+people.indexOf(p)+'">'+avatar(p)
+        + '<div><div class="nm">'+esc(p.name)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</div>'
+        + (p.isVolunteer ? '<span class="ta-opt-tag">Volunteer</span>' : '') + '</div>';
+    }).join('');
+    dd.classList.add('open');
+    Array.prototype.forEach.call(dd.querySelectorAll('.ta-opt'), function(row){
+      row.addEventListener('mousedown', function(e){ e.preventDefault(); selectPerson(people[+row.getAttribute('data-i')]); });
+    });
+  }
+  function selectPerson(p) {
+    if (!p) return;
+    el('holderName').value = p.name || '';
+    el('holderPhoto').value = p.photo || '';
+    if (!p.isChild && p.email) el('email').value = p.email;   // skip email auto-fill for child-role members
+    if (p.phone) el('phone').value = p.phone;
+    if (p.isVolunteer) { el('role').value = 'Volunteer'; el('roleCustom').style.display = 'none'; }
+    el('holderDropdown').classList.remove('open');
+    if (typeof renderPreview === 'function') renderPreview();
+  }
+  el('holderName').addEventListener('focus', function(){ renderHolderDropdown(this.value); });
+  el('holderName').addEventListener('input', function(){ el('holderPhoto').value = ''; renderHolderDropdown(this.value); });
+  el('holderName').addEventListener('blur', function(){ setTimeout(function(){ el('holderDropdown').classList.remove('open'); }, 150); });
+
+  /* ── Role: show custom input when "Other" is chosen ── */
+  el('role').addEventListener('change', function(){
+    el('roleCustom').style.display = (this.value === '__other') ? 'block' : 'none';
+    if (this.value === '__other') el('roleCustom').focus();
+  });
+  function resolveRole() {
+    var v = el('role').value;
+    if (v === '__other') return el('roleCustom').value.trim();
+    return v;
+  }
+
+  /* ── Badge display options + live preview ── */
+  var BADGE_FIELDS = [
+    {key:'churchName',    label:'Church Name'},
+    {key:'churchLogo',    label:'Church Logo'},
+    {key:'holderName',    label:'Holder Name'},
+    {key:'role',          label:'Role'},
+    {key:'holderPhone',   label:"Holder's Phone Number"},
+    {key:'churchPhone',   label:'Church Phone Number'},
+    {key:'churchEmail',   label:'Church Email Address'},
+    {key:'churchWebsite', label:'Church Website'},
+    {key:'holderPhoto',   label:'Holder Photo'},
+    {key:'expiration',    label:'Expiration Date & Time'}
+  ];
+  el('badgeOptions').innerHTML = BADGE_FIELDS.map(function(f){
+    return '<label><input type="checkbox" value="'+f.key+'" checked> '+esc(f.label)+'</label>';
+  }).join('');
+  function selectedBadgeFields(){
+    return Array.prototype.slice.call(document.querySelectorAll('#badgeOptions input:checked')).map(function(c){ return c.value; });
+  }
+  function bfOn(key){ var c = document.querySelector('#badgeOptions input[value="'+key+'"]'); return c ? c.checked : true; }
+
+  var churchInfo = {};
+  fetch('/api/temp-access/church-info').then(function(r){ return r.ok ? r.json() : {}; })
+    .then(function(ci){ churchInfo = ci || {}; renderPreview(); });
+
+  function renderPreview(){
+    var pv = el('badgePreview'); if (!pv) return;
+    var holder = el('holderName').value.trim();
+    var role   = resolveRole();
+    var phone  = el('phone').value.trim();
+    var photo  = el('holderPhoto').value || '';
+    var end    = el('endDateTime').value;
+    var parts = [];
+    if (bfOn('churchLogo') && churchInfo.hasLogo) parts.push('<img class="b-logo" src="/api/temp-access/logo" onerror="this.style.display=\'none\'">');
+    if (bfOn('churchName') && churchInfo.churchName) parts.push('<div class="b-church">'+esc(churchInfo.churchName)+'</div>');
+    parts.push('<div class="b-tag">Temporary Access</div>');
+    if (bfOn('holderPhoto') && photo)  parts.push('<img class="b-photo" src="'+esc(photo)+'">');
+    if (bfOn('holderName') && holder)  parts.push('<div class="b-holder">'+esc(holder)+'</div>');
+    if (bfOn('role') && role)          parts.push('<div class="b-role">'+esc(role)+'</div>');
+    if (bfOn('holderPhone') && phone)  parts.push('<div class="b-phone">'+esc(phone)+'</div>');
+    parts.push('<div class="b-bc"></div>');
+    if (bfOn('expiration') && end)     parts.push('<div class="b-exp">Expires: '+esc(fmtDateTime(end))+'</div>');
+    var contact = [];
+    if (bfOn('churchPhone')   && churchInfo.churchPhone)   contact.push('☎ '+esc(churchInfo.churchPhone));
+    if (bfOn('churchEmail')   && churchInfo.churchEmail)   contact.push('✉ '+esc(churchInfo.churchEmail));
+    if (bfOn('churchWebsite') && churchInfo.churchWebsite) contact.push('🌐 '+esc(churchInfo.churchWebsite));
+    if (contact.length) parts.push('<div class="b-contact">'+contact.join('<br>')+'</div>');
+    pv.innerHTML = parts.length > 2 ? parts.join('') : '<div class="b-empty">Fill in details to preview the badge.</div>';
+  }
+  ['holderName','email','phone','role','roleCustom','startDateTime','endDateTime'].forEach(function(id){
+    var e = el(id); if (e) { e.addEventListener('input', renderPreview); e.addEventListener('change', renderPreview); }
+  });
+  el('badgeOptions').addEventListener('change', renderPreview);
+  renderPreview();
+
+  el('createBtn').addEventListener('click', function(){
+    var pages = Array.prototype.slice.call(document.querySelectorAll('#pages input:checked')).map(function(c){ return c.value; });
+    var body = {
+      holderName: el('holderName').value.trim(),
+      email:      el('email').value.trim(),
+      phone:      el('phone').value.trim(),
+      role:       resolveRole(),
+      holderPhoto: el('holderPhoto').value || '',
+      badgeFields: selectedBadgeFields(),
+      startDateTime: el('startDateTime').value,
+      endDateTime:   el('endDateTime').value,
+      pages: pages
+    };
+    el('createMsg').className = 'ta-msg'; el('codeBox').style.display = 'none';
+    el('createBtn').disabled = true;
+    fetch('/api/temp-access', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        el('createBtn').disabled = false;
+        if (!res.ok) { el('createMsg').textContent = res.j.error || 'Could not create access.'; el('createMsg').className = 'ta-msg err'; return; }
+        lastCreated = res.j;
+        el('createMsg').textContent = 'Access created' + (body.email ? ' and code emailed.' : '.'); el('createMsg').className = 'ta-msg ok';
+        el('genCode').textContent = res.j.accessCode;
+        el('codeBox').style.display = 'block';
+        loadList();
+      }).catch(function(){ el('createBtn').disabled = false; el('createMsg').textContent = 'Network error.'; el('createMsg').className='ta-msg err'; });
+  });
+  // Print the just-created badge using the full badge endpoint (logo/photo/church info).
+  el('printNewBtn').addEventListener('click', function(){ if (lastCreated) printById(lastCreated.id); });
+
+  function loadList() {
+    fetch('/api/temp-access').then(function(r){ return r.json(); }).then(function(rows){
+      if (!rows || !rows.length) { el('passList').innerHTML = '<tr><td colspan="6" class="ta-muted">No passes yet.</td></tr>'; return; }
+      el('passList').innerHTML = rows.map(function(a){
+        var labels = (a.permissions||[]).map(function(k){ var p = catalog.find(function(x){return x.key===k;}); return p ? p.label : k; }).join(', ');
+        return '<tr>'
+          + '<td data-label="Holder">'+esc(a.holderName||'—')+'</td>'
+          + '<td data-label="Window">'+fmtWindow(a.startDateTime, a.endDateTime)+'</td>'
+          + '<td data-label="Status"><span class="ta-pill '+esc(a.status)+'">'+esc(a.status)+'</span></td>'
+          + '<td data-label="Remaining">'+fmtRemaining(a.remainingSeconds||0)+'</td>'
+          + '<td class="ta-muted" data-label="Pages">'+esc(labels)+'</td>'
+          + '<td class="ta-actions-cell" data-label="Actions"><div class="ta-actions">'
+          + '<button class="ta-btn sm ghost" title="Print badge" aria-label="Print badge" onclick="printById('+a.id+')">🖨️</button>'
+          + '<button class="ta-btn sm ghost ta-extend" title="Extend 1 hour" aria-label="Extend 1 hour" onclick="extendPass('+a.id+')">⏱️+1h</button>'
+          + '<button class="ta-btn sm ghost" title="Login/logout history" aria-label="Audit" onclick="auditPass('+a.id+')">📜</button>'
+          + (a.status==='REVOKED' ? '' : '<button class="ta-btn sm danger" title="Revoke access" aria-label="Revoke" onclick="revokePass('+a.id+')">🚫</button>')
+          + '<button class="ta-btn sm danger" title="Delete pass" aria-label="Delete" onclick="deletePass('+a.id+')">🗑️</button>'
+          + '</div></td></tr>';
+      }).join('');
+    });
+  }
+
+  window.extendPass = function(id){
+    fetch('/api/temp-access/'+id+'/extend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ addMinutes: 60 }) })
+      .then(function(r){ return r.json(); }).then(function(){ loadList(); });
+  };
+  window.revokePass = function(id){
+    if (!confirm('Revoke this access now? Any active session ends immediately.')) return;
+    fetch('/api/temp-access/'+id+'/revoke', { method:'POST' }).then(function(){ loadList(); });
+  };
+  window.deletePass = function(id){
+    if (!confirm('Delete this holder/pass? This removes it from the list and ends any active session.')) return;
+    fetch('/api/temp-access/'+id, { method:'DELETE' }).then(function(){ loadList(); });
+  };
+  window.auditPass = function(id){
+    fetch('/api/temp-access/'+id+'/audit').then(function(r){ return r.json(); }).then(function(rows){
+      el('auditBody').innerHTML = (rows && rows.length)
+        ? rows.map(function(a){
+            function f(x){ return x ? new Date(x).toLocaleString() : '—'; }
+            return '<tr><td style="padding:8px;border-bottom:1px solid #f1f1f1;">'+f(a.loginTime)+'</td><td style="padding:8px;border-bottom:1px solid #f1f1f1;">'+f(a.logoutTime)+'</td><td class="ta-muted" style="padding:8px;border-bottom:1px solid #f1f1f1;max-width:180px;overflow:hidden;text-overflow:ellipsis;">'+esc((a.deviceInfo||'').slice(0,60))+'</td><td style="padding:8px;border-bottom:1px solid #f1f1f1;">'+esc(a.ipAddress||'')+'</td></tr>';
+          }).join('')
+        : '<tr><td colspan="4" class="ta-muted" style="padding:8px;">No logins yet.</td></tr>';
+      el('auditModal').style.display = 'flex';
+    });
+  };
+  window.printById = function(id){
+    fetch('/api/temp-access/'+id+'/badge').then(function(r){ return r.json(); }).then(function(a){ printBadge(a, null); });
+  };
+
+  function fmtDateTime(x){ if(!x) return ''; var d=new Date(x); return d.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); }
+
+  function printBadge(a) {
+    var w = window.open('', '_blank', 'width=420,height=640');
+    if (!w) { alert('Please allow pop-ups to print the badge.'); return; }
+
+    // A field is shown only if it was selected (empty list = all selected, for
+    // backward compatibility) AND has a value.
+    var bf = a.badgeFields || [];
+    function show(key){ return (!bf.length || bf.indexOf(key) !== -1); }
+
+    var church  = show('churchName')  ? esc(a.churchName || 'ChurchGenius Pro') : '';
+    var holder  = show('holderName')  ? esc(a.holderName || '') : '';
+    var role    = show('role')        ? esc(a.role  || '') : '';
+    var hPhone  = show('holderPhone') ? esc(a.phone || '') : '';
+    var photo   = show('holderPhoto') ? (a.holderPhoto || '') : '';
+    var expires = show('expiration')  ? fmtDateTime(a.endDateTime) : '';
+    var logoTag = show('churchLogo')  ? '<img class="logo" src="/api/temp-access/logo" onerror="this.style.display=\'none\'"/>' : '';
+
+    // Church contact line (only the selected parts that exist).
+    var contact = [];
+    if (show('churchPhone')   && a.churchPhone)   contact.push('☎ ' + esc(a.churchPhone));
+    if (show('churchEmail')   && a.churchEmail)   contact.push('✉ ' + esc(a.churchEmail));
+    if (show('churchWebsite') && a.churchWebsite) contact.push('🌐 ' + esc(a.churchWebsite));
+
+    var html =
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Badge</title>'
+      + '<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>'
+      + '<style>@page{size:58mm auto;margin:0;} body{margin:0;font-family:Arial,sans-serif;width:58mm;text-align:center;padding:6px 4px;color:#000;}'
+      + '.logo{max-width:120px;max-height:46px;object-fit:contain;margin:2px auto 3px;display:block;}'
+      + '.church{font-size:13px;font-weight:800;} .tag{font-size:9.5px;letter-spacing:1px;color:#444;margin:2px 0 5px;text-transform:uppercase;}'
+      + '.photo{width:74px;height:74px;border-radius:8px;object-fit:cover;border:1px solid #ccc;margin:3px auto 4px;display:block;}'
+      + '.holder{font-size:13px;font-weight:800;margin:2px 0;} .role{font-size:11px;font-weight:700;color:#673147;margin-bottom:2px;}'
+      + '.phone{font-size:10px;color:#222;margin-bottom:5px;}'
+      + '.expires{font-size:9.5px;color:#333;margin-top:5px;font-weight:700;}'
+      + '.contact{font-size:8.5px;color:#444;margin-top:6px;border-top:1px dashed #bbb;padding-top:5px;line-height:1.5;}'
+      + 'svg{max-width:100%;} </style></head><body>'
+      + logoTag
+      + (church ? '<div class="church">'+church+'</div>' : '')
+      + '<div class="tag">Temporary Access</div>'
+      + (photo ? '<img class="photo" src="'+esc(photo)+'" onerror="this.style.display=\'none\'"/>' : '')
+      + (holder ? '<div class="holder">'+holder+'</div>' : '')
+      + (role   ? '<div class="role">'+role+'</div>' : '')
+      + (hPhone ? '<div class="phone">'+hPhone+'</div>' : '')
+      + '<svg id="bc"></svg>'
+      + (expires ? '<div class="expires">Expires: '+esc(expires)+'</div>' : '')
+      + (contact.length ? '<div class="contact">'+contact.join('<br>')+'</div>' : '')
+      + '<script>function go(){try{JsBarcode("#bc","'+esc(a.barcodeValue)+'",{format:"CODE128",height:46,fontSize:11,margin:0});}catch(e){}'
+      + 'setTimeout(function(){window.print();},300);} if(window.JsBarcode){go();}else{window.addEventListener("load",go);}<\/script>'
+      + '</body></html>';
+    w.document.write(html);
+    w.document.close();
+  }
+
+  loadList();
+</script>
+</body>
+</html>

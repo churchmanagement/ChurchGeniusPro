@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Follow-Ups — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .page-header-left { flex: 1; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn-primary   { padding: 9px 18px; background: #673147; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: none; transition: background .15s; white-space: nowrap; }
+    .btn-primary:hover { background: #4f2538; }
+    .btn-secondary { padding: 8px 14px; background: #fff; color: #555; border: 1.5px solid #dde0ec; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: border-color .15s, color .15s; white-space: nowrap; }
+    .btn-secondary:hover { border-color: #673147; color: #673147; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+    .btn-danger { padding: 9px 18px; background: #e53935; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }
+    .btn-danger:hover { background: #b71c1c; }
+
+    /* ── Stat pills ── */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+    .stat-pill { background: #fff; border-radius: 10px; padding: 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,.06); flex: 1; min-width: 100px; max-width: 160px; cursor: pointer; border: 1.5px solid transparent; transition: border-color .15s; }
+    .stat-pill:hover, .stat-pill.active { border-color: #673147; }
+    .stat-pill .num { font-size: 22px; font-weight: 700; color: #673147; }
+    .stat-pill .lbl { font-size: 11.5px; color: #888; margin-top: 2px; }
+    .stat-pill.pending-pill .num { color: #e65100; }
+    .stat-pill.missed-pill  .num { color: #c62828; }
+    .stat-pill.done-pill    .num { color: #2e7d32; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .filter-bar input[type="search"], .filter-bar select { border: 1.5px solid #dde0ec; border-radius: 8px; padding: 7px 12px; font-size: 13px; color: #333; background: #fff; outline: none; transition: border-color .2s; }
+    .filter-bar input[type="search"] { min-width: 200px; flex: 1; max-width: 300px; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: #673147; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Table card ── */
+    .table-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th { background: #f5f6fb; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #888; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8eaf0; white-space: nowrap; }
+    .data-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f8; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fdf7f9; }
+    .empty-row td { text-align: center; color: #bbb; padding: 40px !important; font-style: italic; }
+
+    /* ── Priority / status chips ── */
+    .chip { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+    .chip-urgent  { background: #ffebee; color: #b71c1c; }
+    .chip-high    { background: #fff3e0; color: #e65100; }
+    .chip-medium  { background: #e3f2fd; color: #1565c0; }
+    .chip-low     { background: #f3e5f5; color: #6a1b9a; }
+    .chip-pending   { background: #fff8e1; color: #f57f17; }
+    .chip-completed { background: #e8f5e9; color: #2e7d32; }
+    .chip-missed    { background: #ffebee; color: #c62828; }
+
+    /* ── Action column ── */
+    .row-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 14px; padding: 26px 26px 20px; max-width: 520px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,.18); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 17px; font-weight: 700; color: #1e2139; margin-bottom: 18px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+    /* ── Form fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .field input, .field select, .field textarea { border: 1.5px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #333; outline: none; background: #fff; transition: border-color .2s, box-shadow .2s; font-family: inherit; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ── Loading ── */
+    .loading-row { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+    @media (max-width: 600px) {
+      .stats-row .stat-pill { max-width: none; }
+      .form-row { grid-template-columns: 1fr; }
+      .data-table { font-size: 12px; }
+    }
+
+    /* ── Assigned-To searchable dropdown ── */
+    .assignee-drop { display:none; position:absolute; left:0; right:0; top:100%; z-index:30; margin-top:4px;
+      background:#fff; border:1px solid #e2e4ee; border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.14); overflow:hidden; }
+    .assignee-drop.open { display:block; }
+    .assignee-drop-head { display:flex; justify-content:flex-end; padding:7px 10px; border-bottom:1px solid #f0f1f7; background:#fafbfe; }
+    .assignee-inactive-toggle { font-size:11.5px; color:#666; display:flex; align-items:center; gap:5px; cursor:pointer; }
+    .assignee-list { max-height:240px; overflow-y:auto; }
+    .assignee-row { display:flex; align-items:center; gap:10px; padding:8px 12px; cursor:pointer; border-bottom:1px solid #f5f6fb; }
+    .assignee-row:hover { background:#f5f1f4; }
+    .assignee-row .a-main { flex:1; min-width:0; }
+    .assignee-row .a-name { font-size:13px; font-weight:600; color:#1e2139; }
+    .assignee-row .a-sub { font-size:11px; color:#8a90a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .a-badge { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; padding:2px 7px; border-radius:9px; }
+    .a-badge.member { background:#e3f2fd; color:#1565c0; }
+    .a-badge.volunteer { background:#e8f5e9; color:#2e7d32; }
+    .a-badge.both { background:#ede7f6; color:#5e35b1; }
+    .a-inactive-tag { font-size:9.5px; color:#b26a00; font-weight:700; }
+    .assignee-empty { padding:12px; font-size:12.5px; color:#9aa; text-align:center; }
+    .assignee-add-btn { width:100%; border:none; border-top:1px solid #eef0f6; background:#faf7f9; color:#673147;
+      font-weight:700; font-size:12.5px; padding:10px; cursor:pointer; text-align:left; }
+    .assignee-add-btn:hover { background:#f1e8ee; }
+    .addvol-panel { display:none; margin-top:8px; border:1px solid #e2e4ee; border-radius:10px; padding:14px; background:#fafbfe; }
+    .addvol-panel.open { display:block; }
+    .addvol-title { font-size:13px; font-weight:700; color:#673147; margin-bottom:8px; }
+    .addvol-msg { font-size:12px; min-height:1px; margin-top:4px; }
+    .addvol-msg.err { color:#c0392b; }
+    .addvol-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title">Follow-Ups</div>
+          <div class="page-subtitle">Track and manage follow-up tasks for members, visitors, and prayer requests</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openModal()">＋ New Follow-Up</button>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+
+      <!-- Stats -->
+      <div class="stats-row" id="statsRow">
+        <div class="stat-pill" onclick="setStatusFilter('')"      id="pill-all">     <div class="num" id="cnt-all">—</div><div class="lbl">All</div></div>
+        <div class="stat-pill pending-pill" onclick="setStatusFilter('PENDING')"   id="pill-pending">  <div class="num" id="cnt-pending">—</div><div class="lbl">Pending</div></div>
+        <div class="stat-pill missed-pill"  onclick="setStatusFilter('MISSED')"    id="pill-missed">   <div class="num" id="cnt-missed">—</div><div class="lbl">Missed</div></div>
+        <div class="stat-pill done-pill"    onclick="setStatusFilter('COMPLETED')" id="pill-completed"><div class="num" id="cnt-completed">—</div><div class="lbl">Completed</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input type="search" id="searchInput" placeholder="🔍 Search title, assigned to…" oninput="renderTable()" />
+        <select id="priorityFilter" onchange="renderTable()">
+          <option value="">All Priorities</option>
+          <option value="URGENT">Urgent</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
+        <select id="sortFilter" onchange="renderTable()">
+          <option value="due">Due Date</option>
+          <option value="priority">Priority</option>
+          <option value="newest">Newest</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="loading-row" id="loadingRow">Loading follow-ups…</div>
+        <div style="overflow-x:auto;" id="tableWrap" style="display:none;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Assigned To</th>
+                <th>Linked</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">New Follow-Up</div>
+    <div class="field">
+      <label>Title <span style="color:#e53935;">*</span></label>
+      <input type="text" id="fTitle" placeholder="e.g. Call John re: prayer request" maxlength="255" />
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="fDesc" placeholder="Additional notes…"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Priority</label>
+        <select id="fPriority">
+          <option value="LOW">Low</option>
+          <option value="MEDIUM" selected>Medium</option>
+          <option value="HIGH">High</option>
+          <option value="URGENT">Urgent</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Due Date</label>
+        <input type="date" id="fDueDate" />
+      </div>
+    </div>
+    <div class="field" id="assigneeField" style="position:relative;">
+      <label>Assigned To</label>
+      <input type="hidden" id="fAssignedTo" />
+      <input type="text" id="fAssignedSearch" placeholder="Search members & volunteers by name, email, phone…"
+             maxlength="150" autocomplete="off" oninput="onAssigneeInput()" onfocus="openAssigneeDrop()" />
+      <div id="assigneeDrop" class="assignee-drop">
+        <div class="assignee-drop-head">
+          <label class="assignee-inactive-toggle">
+            <input type="checkbox" id="assigneeShowInactive" onchange="renderAssignees()" /> Show inactive
+          </label>
+        </div>
+        <div id="assigneeList" class="assignee-list"></div>
+        <button type="button" class="assignee-add-btn" onclick="openAddVolunteer()">＋ Add New Volunteer</button>
+      </div>
+      <!-- Inline Add New Volunteer form -->
+      <div id="addVolPanel" class="addvol-panel">
+        <div class="addvol-title">Add New Volunteer</div>
+        <div class="form-row">
+          <div class="field"><label>First Name</label><input type="text" id="avFirst" maxlength="100" /></div>
+          <div class="field"><label>Last Name</label><input type="text" id="avLast" maxlength="100" /></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Email</label><input type="email" id="avEmail" maxlength="150" /></div>
+          <div class="field"><label>Phone</label><input type="tel" id="avPhone" maxlength="40" /></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Role <span style="color:#999;">(optional)</span></label><input type="text" id="avRole" maxlength="100" /></div>
+          <div class="field"><label>Notes <span style="color:#999;">(optional)</span></label><input type="text" id="avNotes" maxlength="255" /></div>
+        </div>
+        <div id="avMsg" class="addvol-msg"></div>
+        <div class="addvol-actions">
+          <button type="button" class="btn-secondary" onclick="closeAddVolunteer()">Cancel</button>
+          <button type="button" class="btn-primary" id="avSaveBtn" onclick="saveNewVolunteer()">Save Volunteer</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Linked Type</label>
+        <select id="fLinkedType">
+          <option value="">— None —</option>
+          <option value="MEMBER">Member</option>
+          <option value="VISITOR">Visitor</option>
+          <option value="PRAYER_REQUEST">Prayer Request</option>
+          <option value="DONATION">Donation</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Linked Label</label>
+        <input type="text" id="fLinkedLabel" placeholder="e.g. Jane Smith" maxlength="255" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="saveBtn" onclick="saveFollowUp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-title">Delete Follow-Up?</div>
+    <div style="font-size:14px;color:#555;margin-bottom:20px;" id="deleteModalBody">This cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger" id="confirmDeleteBtn" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var allItems   = [];
+  var editId     = null;
+  var deleteId   = null;
+  var statusFilter = '';
+
+  // ── Boot ──────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', init);
+
+  async function init() {
+    try {
+      var res = await fetch('/api/followups');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      allItems = await res.json();
+      updateStats();
+      document.getElementById('loadingRow').style.display = 'none';
+      document.getElementById('tableWrap').style.display  = '';
+      renderTable();
+    } catch(e) {
+      document.getElementById('loadingRow').textContent = 'Failed to load follow-ups.';
+      showFeedback('Error loading follow-ups: ' + e.message, 'error');
+    }
+  }
+
+  function updateStats() {
+    document.getElementById('cnt-all').textContent       = allItems.length;
+    document.getElementById('cnt-pending').textContent   = allItems.filter(function(i){ return i.status === 'PENDING'; }).length;
+    document.getElementById('cnt-missed').textContent    = allItems.filter(function(i){ return i.status === 'MISSED'; }).length;
+    document.getElementById('cnt-completed').textContent = allItems.filter(function(i){ return i.status === 'COMPLETED'; }).length;
+  }
+
+  function setStatusFilter(s) {
+    statusFilter = s;
+    document.querySelectorAll('.stat-pill').forEach(function(p){ p.classList.remove('active'); });
+    var pill = document.getElementById('pill-' + (s || 'all').toLowerCase());
+    if (pill) pill.classList.add('active');
+    renderTable();
+  }
+
+  function renderTable() {
+    var q   = (document.getElementById('searchInput').value || '').toLowerCase();
+    var pri = document.getElementById('priorityFilter').value;
+    var srt = document.getElementById('sortFilter').value;
+
+    var filtered = allItems.filter(function(i) {
+      var matchQ   = !q || (i.title || '').toLowerCase().indexOf(q) >= 0 || (i.assignedTo || '').toLowerCase().indexOf(q) >= 0;
+      var matchPri = !pri || i.priority === pri;
+      var matchSt  = !statusFilter || i.status === statusFilter;
+      return matchQ && matchPri && matchSt;
+    });
+
+    var PRIO_ORDER = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    filtered.sort(function(a, b) {
+      if (srt === 'priority') return (PRIO_ORDER[a.priority] || 2) - (PRIO_ORDER[b.priority] || 2);
+      if (srt === 'newest')   return (b.id || 0) - (a.id || 0);
+      // due date — nulls last
+      var da = a.dueDate || '9999', db = b.dueDate || '9999';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+    var tbody = document.getElementById('tableBody');
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No follow-ups found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(function(item) {
+      var priCls   = { URGENT: 'chip-urgent', HIGH: 'chip-high', MEDIUM: 'chip-medium', LOW: 'chip-low' }[item.priority] || 'chip-medium';
+      var stCls    = { COMPLETED: 'chip-completed', MISSED: 'chip-missed', PENDING: 'chip-pending' }[item.status] || 'chip-pending';
+      var due      = item.dueDate ? formatDate(item.dueDate) : '—';
+      var linked   = item.linkedType ? (item.linkedType.replace(/_/g,' ') + (item.linkedLabel ? ': ' + esc(item.linkedLabel) : '')) : '—';
+      var isPending = item.status !== 'COMPLETED';
+
+      return '<tr>' +
+        '<td style="max-width:220px;"><strong>' + esc(item.title) + '</strong>' +
+          (item.description ? '<div style="font-size:11.5px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">' + esc(item.description) + '</div>' : '') +
+        '</td>' +
+        '<td><span class="chip ' + priCls + '">' + esc(item.priority || 'MEDIUM') + '</span></td>' +
+        '<td><span class="chip ' + stCls  + '">' + esc(item.status  || 'PENDING') + '</span></td>' +
+        '<td>' + due + '</td>' +
+        '<td>' + esc(item.assignedTo || '—') + '</td>' +
+        '<td style="font-size:12px;">' + esc(linked) + '</td>' +
+        '<td><div class="row-actions">' +
+          (isPending ? '<button class="btn-secondary btn-sm" onclick="markComplete(' + item.id + ')">✔ Done</button>' : '') +
+          '<button class="btn-secondary btn-sm" onclick="openEditModal(' + item.id + ')">✏️</button>' +
+          '<button class="btn-secondary btn-sm" style="color:#c62828;border-color:#f5c6cb;" onclick="openDeleteModal(' + item.id + ',\'' + esc(item.title).replace(/'/g,"\\'") + '\')">🗑️</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ── Mark Complete ──────────────────────────────────────────────────────
+  async function markComplete(id) {
+    try {
+      var res = await fetch('/api/followups/' + id + '/complete', { method: 'POST' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var idx = allItems.findIndex(function(i){ return i.id === id; });
+      if (idx >= 0) allItems[idx].status = 'COMPLETED';
+      updateStats(); renderTable();
+      showFeedback('Follow-up marked as completed.', 'success');
+    } catch(e) {
+      showFeedback('Failed to mark complete: ' + e.message, 'error');
+    }
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────────
+  function openModal() {
+    editId = null;
+    document.getElementById('modalTitle').textContent = 'New Follow-Up';
+    document.getElementById('fTitle').value       = '';
+    document.getElementById('fDesc').value        = '';
+    document.getElementById('fPriority').value    = 'MEDIUM';
+    document.getElementById('fDueDate').value     = '';
+    setAssignee('');
+    document.getElementById('fLinkedType').value  = '';
+    document.getElementById('fLinkedLabel').value = '';
+    document.getElementById('saveBtn').textContent = 'Save';
+    document.getElementById('modalOverlay').classList.add('open');
+    loadAssignees();
+  }
+
+  function openEditModal(id) {
+    var item = allItems.find(function(i){ return i.id === id; });
+    if (!item) return;
+    editId = id;
+    document.getElementById('modalTitle').textContent = 'Edit Follow-Up';
+    document.getElementById('fTitle').value       = item.title       || '';
+    document.getElementById('fDesc').value        = item.description || '';
+    document.getElementById('fPriority').value    = item.priority    || 'MEDIUM';
+    document.getElementById('fDueDate').value     = item.dueDate     ? item.dueDate.slice(0, 10) : '';
+    setAssignee(item.assignedTo || '');
+    document.getElementById('fLinkedType').value  = item.linkedType  || '';
+    document.getElementById('fLinkedLabel').value = item.linkedLabel || '';
+    document.getElementById('saveBtn').textContent = 'Update';
+    document.getElementById('modalOverlay').classList.add('open');
+    loadAssignees();
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    closeAssigneeDrop();
+    closeAddVolunteer();
+  }
+
+  // ── Assigned-To searchable dropdown ────────────────────────────────────
+  var assignees = [];
+  var assigneesLoaded = false;
+
+  function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function setAssignee(value) {
+    document.getElementById('fAssignedTo').value     = value || '';
+    document.getElementById('fAssignedSearch').value = value || '';
+  }
+
+  async function loadAssignees() {
+    if (assigneesLoaded) return;
+    try {
+      var res = await fetch('/api/followups/assignees');
+      if (res.ok) { assignees = await res.json(); assigneesLoaded = true; }
+    } catch (e) { /* leave free-text entry working */ }
+  }
+
+  function openAssigneeDrop() {
+    document.getElementById('addVolPanel').classList.remove('open');
+    document.getElementById('assigneeDrop').classList.add('open');
+    renderAssignees();
+  }
+  function closeAssigneeDrop() {
+    var d = document.getElementById('assigneeDrop'); if (d) d.classList.remove('open');
+  }
+
+  // Typing keeps the free-text value (so a typed name still saves) AND filters the list.
+  function onAssigneeInput() {
+    document.getElementById('fAssignedTo').value = document.getElementById('fAssignedSearch').value.trim();
+    openAssigneeDrop();
+  }
+
+  function renderAssignees() {
+    var box = document.getElementById('assigneeList');
+    var q = document.getElementById('fAssignedSearch').value.trim().toLowerCase();
+    var showInactive = document.getElementById('assigneeShowInactive').checked;
+    var list = assignees.filter(function (a) {
+      if (a.inactive && !showInactive) return false;
+      if (!q) return true;
+      var hay = [a.name, a.firstName, a.lastName, a.email, a.phone].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    if (!list.length) {
+      box.innerHTML = '<div class="assignee-empty">' +
+        (assignees.length ? 'No matching member or volunteer.' : 'No members or volunteers yet.') +
+        '</div>';
+      return;
+    }
+    box.innerHTML = list.slice(0, 200).map(function (a) {
+      var badge = a.type === 'Both' ? 'both' : (a.isVolunteer ? 'volunteer' : 'member');
+      var sub = [a.email, a.phone].filter(Boolean).join(' · ');
+      return '<div class="assignee-row" onclick="selectAssignee(' + jsStr(a.name) + ')">' +
+               '<div class="a-main">' +
+                 '<div class="a-name">' + escA(a.name) +
+                   (a.inactive ? ' <span class="a-inactive-tag">(inactive)</span>' : '') + '</div>' +
+                 (sub ? '<div class="a-sub">' + escA(sub) + '</div>' : '') +
+               '</div>' +
+               '<span class="a-badge ' + badge + '">' + escA(a.type) + '</span>' +
+             '</div>';
+    }).join('');
+  }
+  function jsStr(s){ return "'" + String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
+
+  function selectAssignee(name) {
+    setAssignee(name);
+    closeAssigneeDrop();
+  }
+
+  // ── Inline Add New Volunteer ───────────────────────────────────────────
+  function openAddVolunteer() {
+    closeAssigneeDrop();
+    var typed = document.getElementById('fAssignedSearch').value.trim();
+    var parts = typed.split(/\s+/);
+    document.getElementById('avFirst').value = parts[0] || '';
+    document.getElementById('avLast').value  = parts.slice(1).join(' ') || '';
+    document.getElementById('avEmail').value = '';
+    document.getElementById('avPhone').value = '';
+    document.getElementById('avRole').value  = '';
+    document.getElementById('avNotes').value = '';
+    document.getElementById('avMsg').textContent = '';
+    document.getElementById('addVolPanel').classList.add('open');
+    document.getElementById('avFirst').focus();
+  }
+  function closeAddVolunteer() {
+    var p = document.getElementById('addVolPanel'); if (p) p.classList.remove('open');
+  }
+
+  async function saveNewVolunteer() {
+    var first = document.getElementById('avFirst').value.trim();
+    var last  = document.getElementById('avLast').value.trim();
+    var msg   = document.getElementById('avMsg');
+    if (!first && !last) { msg.textContent = 'First or last name is required.'; msg.className = 'addvol-msg err'; return; }
+    var body = {
+      firstName: first, lastName: last,
+      email: document.getElementById('avEmail').value.trim(),
+      phone: document.getElementById('avPhone').value.trim(),
+      role:  document.getElementById('avRole').value.trim(),
+      notes: document.getElementById('avNotes').value.trim()
+    };
+    var btn = document.getElementById('avSaveBtn'); btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      var res = await fetch('/api/followups/volunteers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      if (!res.ok) { var er = await res.json().catch(function(){return{};}); throw new Error(er.error || ('HTTP ' + res.status)); }
+      var v = await res.json();
+      assignees.push(v);                              // add to in-memory directory
+      assignees.sort(function (a, b) { return String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()); });
+      setAssignee(v.name);                            // auto-select in Assigned To
+      closeAddVolunteer();
+      showFeedback('Volunteer added and assigned.', 'success');
+    } catch (e) {
+      msg.textContent = 'Could not add volunteer: ' + e.message; msg.className = 'addvol-msg err';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Volunteer';
+    }
+  }
+
+  // Close the dropdown when clicking outside the Assigned-To field.
+  document.addEventListener('click', function (e) {
+    var field = document.getElementById('assigneeField');
+    if (field && !field.contains(e.target)) closeAssigneeDrop();
+  });
+
+  async function saveFollowUp() {
+    var title = document.getElementById('fTitle').value.trim();
+    if (!title) { document.getElementById('fTitle').focus(); return; }
+
+    var payload = {
+      title:       title,
+      description: document.getElementById('fDesc').value.trim(),
+      priority:    document.getElementById('fPriority').value,
+      dueDate:     document.getElementById('fDueDate').value || null,
+      assignedTo:  document.getElementById('fAssignedTo').value.trim(),
+      linkedType:  document.getElementById('fLinkedType').value || null,
+      linkedLabel: document.getElementById('fLinkedLabel').value.trim() || null
+    };
+
+    var btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+      var url    = editId ? '/api/followups/' + editId : '/api/followups';
+      var method = editId ? 'PUT' : 'POST';
+      var res    = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var saved = await res.json();
+
+      if (editId) {
+        var idx = allItems.findIndex(function(i){ return i.id === editId; });
+        if (idx >= 0) allItems[idx] = saved;
+      } else {
+        allItems.unshift(saved);
+      }
+      updateStats(); renderTable();
+      closeModal();
+      showFeedback(editId ? 'Follow-up updated.' : 'Follow-up created.', 'success');
+    } catch(e) {
+      showFeedback('Save failed: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = editId ? 'Update' : 'Save';
+    }
+  }
+
+  // ── Delete ─────────────────────────────────────────────────────────────
+  function openDeleteModal(id, name) {
+    deleteId = id;
+    document.getElementById('deleteModalBody').textContent = 'Delete "' + name + '"? This cannot be undone.';
+    document.getElementById('deleteModal').classList.add('open');
+  }
+  function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); deleteId = null; }
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    var btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      var res = await fetch('/api/followups/' + deleteId, { method: 'DELETE' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      allItems = allItems.filter(function(i){ return i.id !== deleteId; });
+      updateStats(); renderTable();
+      closeDeleteModal();
+      showFeedback('Follow-up deleted.', 'success');
+    } catch(e) {
+      showFeedback('Delete failed: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Delete';
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function formatDate(d) {
+    if (!d) return '—';
+    try { var dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch(e) { return d; }
+  }
+  function showFeedback(msg, type) {
+    var el = document.getElementById('feedback');
+    el.textContent = msg; el.className = 'feedback ' + type;
+    if (type === 'success') setTimeout(function(){ el.className = 'feedback'; }, 4000);
+  }
+
+  // Close modals on overlay click
+  document.getElementById('modalOverlay').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
+  document.getElementById('deleteModal').addEventListener('click',  function(e){ if (e.target === this) closeDeleteModal(); });
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'more/followups', openSection: 'more', pageTitle: 'Follow-Ups' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

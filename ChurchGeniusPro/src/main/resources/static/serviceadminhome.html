@@ -1,0 +1,2496 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <title>Church Genius Pro – Service Admin Home</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background-color: #f5f6fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #333;
+    }
+
+    button { cursor: pointer; font-family: inherit; border: none; }
+
+    /* ── Top bar ──────────────────────────────────────── */
+    .topbar {
+      background: #3a5a9b;
+      color: #fff;
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .topbar-brand img { height: 32px; }
+
+    .admin-chip {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    .btn-logout {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+    /* ── Main layout ──────────────────────────────────── */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Section header row ───────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .btn-primary {
+      background: #3a5a9b;
+      color: #fff;
+      border-radius: 7px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #3d1d2b; }
+
+    /* ── Form panel ───────────────────────────────────── */
+    .form-panel {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+      overflow: hidden;
+      display: none;
+    }
+    .form-panel.open { display: block; }
+
+    .panel-header {
+      background: #673147;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-header h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-close-panel {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.8);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .btn-close-panel:hover { color: #fff; }
+
+    .panel-body { padding: 24px; }
+
+    .form-section { margin-bottom: 24px; }
+    .form-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #673147;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e8eaf6;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 20px;
+    }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .span-2 { grid-column: span 2; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .required-star { color: #e53935; margin-left: 2px; }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 13px;
+      color: #333;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: #fff;
+      font-family: inherit;
+    }
+    .field input::placeholder,
+    .field textarea::placeholder { color: #bbb; }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: #673147;
+      box-shadow: 0 0 0 3px rgba(103,49,71,0.1);
+    }
+    .field input.invalid,
+    .field select.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    .field textarea { resize: vertical; min-height: 72px; }
+
+    .field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 30px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+    .input-group input { flex: 1; }
+    .input-group select { width: 110px; flex-shrink: 0; }
+
+    .form-feedback {
+      padding: 10px 16px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      margin-bottom: 16px;
+    }
+    .form-feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .form-feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+      margin-top: 8px;
+    }
+
+    .btn-cancel-form {
+      background: #fff;
+      color: #666;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 7px;
+      padding: 9px 22px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.18s;
+    }
+    .btn-cancel-form:hover { background: #f5f6fa; }
+
+    .btn-submit-form {
+      background: #3a5a9b;
+      color: #fff;
+      border-radius: 7px;
+      padding: 9px 28px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.18s;
+    }
+    .btn-submit-form:hover:not(:disabled) { background: #3d1d2b; }
+    .btn-submit-form:disabled { opacity: 0.65; cursor: not-allowed; }
+
+    /* ── Client list card ─────────────────────────────── */
+    .list-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    .list-card-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .list-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .client-count {
+      background: #e8eaf6;
+      color: #673147;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ── Table ────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead tr { background: #fdf5f7; }
+    thead th {
+      padding: 11px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+
+    tbody tr { transition: background 0.15s; }
+    tbody tr:hover { background: #fafbff; }
+    tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* ── Status badges ────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-active   { background: #e8f5e9; color: #2e7d32; }
+    .badge-hold     { background: #fff8e1; color: #f57f17; }
+    .badge-inactive { background: #fce4ec; color: #c62828; }
+    .badge-approved { background: #e8f5e9; color: #1b5e20; }
+    .badge-pending  { background: #fff3e0; color: #e65100; }
+    .badge-free     { background: #e3f2fd; color: #0d47a1; }
+    .badge-limited  { background: #f3e5f5; color: #4a148c; }
+    .badge-full     { background: #e8f5e9; color: #1b5e20; }
+
+    /* ── Action buttons ───────────────────────────────── */
+    .actions { display: flex; gap: 6px; align-items: center; }
+
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 600; cursor: pointer;
+      transition: background .18s, color .18s, opacity .15s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-action:hover { opacity: 0.85; }
+
+    .btn-approve    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-approve:hover { background: #3949ab; border-color: #3949ab; }
+    .btn-reapprove  { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+    .btn-reapprove:hover { background: #1b5e20; border-color: #1b5e20; }
+    .btn-edit    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-edit:hover    { background: #3949ab; border-color: #3949ab; }
+    .btn-delete  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-delete:hover  { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Empty state ──────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: #aaa;
+      font-size: 14px;
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+    /* ── Loading ──────────────────────────────────────── */
+    .loading { text-align: center; padding: 32px; color: #aaa; font-size: 13px; }
+
+    /* ── Toast notification ───────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      padding: 13px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+    #toast.toast-success { background: #43a047; }
+    #toast.toast-error   { background: #e53935; }
+
+    /* ── Delete confirm overlay ───────────────────────── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.open { display: flex; }
+    .confirm-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 32px;
+      max-width: 380px;
+      width: 90%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+    .confirm-box h4 { font-size: 16px; color: #1a1a2e; margin-bottom: 10px; }
+    .confirm-box p  { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 22px; }
+    .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+    .btn-confirm-cancel {
+      padding: 9px 24px; border-radius: 7px; font-size: 13px; font-weight: 500;
+      border: 1.5px solid #e0e0e0; color: #666; background: #fff; transition: background 0.18s;
+    }
+    .btn-confirm-cancel:hover { background: #f5f6fa; }
+    .btn-confirm-delete {
+      padding: 9px 24px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      background: #e53935; color: #fff; border: none; transition: opacity 0.18s;
+    }
+    .btn-confirm-delete:hover { opacity: 0.88; }
+
+    @media (max-width: 768px) {
+      .form-grid        { grid-template-columns: 1fr; }
+      .form-grid.cols-3 { grid-template-columns: 1fr; }
+      .form-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+      .span-2           { grid-column: span 1; }
+      .main             { padding: 16px; }
+    }
+    /* ── Backup scope radio cards ── */
+    .scope-label-selected {
+      border-color: #673147 !important;
+      background: #fdf5f7 !important;
+      color: #673147 !important;
+    }
+    /* ── Backup log status badges ── */
+    .bkp-success { background:#e8f5e9; color:#2e7d32; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+    .bkp-failure { background:#ffebee; color:#c62828; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+    .bkp-partial { background:#fff8e1; color:#f57f17; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Bar ───────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <img src="/logo.png" alt="Church Genius Pro" />
+    <span>Church Genius Pro</span>
+    <span class="admin-chip">Service Admin</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="btn-logout" id="btnEtlImport" onclick="window.location.href='/etlImport'"
+            title="AI-assisted data import">⤓ Data Import</button>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── Register Panel ─────────────────────────────────── -->
+  <div>
+    <div class="section-header">
+      <span class="section-title">Client Management</span>
+      <button class="btn-primary" id="btnNewClient">+ Register New Client</button>
+    </div>
+
+    <!-- Form panel (hidden by default) -->
+    <div class="form-panel" id="formPanel">
+      <div class="panel-header">
+        <h3 id="panelTitle">Register New Client</h3>
+        <button class="btn-close-panel" id="btnClosePanel" title="Close">&times;</button>
+      </div>
+      <div class="panel-body">
+        <div class="form-feedback" id="formFeedback"></div>
+
+        <form id="clientForm" novalidate>
+          <input type="hidden" id="editId" />
+
+          <!-- Contact -->
+          <div class="form-section">
+            <div class="form-section-title">Contact Information</div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="name">Name <span class="required-star">*</span></label>
+                <input type="text" id="name" placeholder="Full name" />
+                <span class="field-hint" id="nameHint"></span>
+              </div>
+              <div class="field">
+                <label for="churchName">Church Name <span class="required-star">*</span></label>
+                <input type="text" id="churchName" placeholder="Church name" />
+                <span class="field-hint" id="churchNameHint"></span>
+              </div>
+              <div class="field">
+                <label for="email">Email <span class="required-star">*</span></label>
+                <input type="email" id="email" placeholder="Email address" />
+                <span class="field-hint" id="emailHint"></span>
+              </div>
+              <div class="field">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" placeholder="Phone number" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div class="form-section">
+            <div class="form-section-title">Address</div>
+            <div class="form-grid">
+              <div class="field span-2">
+                <label for="addressLine1">Address Line 1</label>
+                <input type="text" id="addressLine1" placeholder="Street address" />
+              </div>
+              <div class="field span-2">
+                <label for="addressLine2">Address Line 2</label>
+                <input type="text" id="addressLine2" placeholder="Apt, suite, unit (optional)" />
+              </div>
+              <div class="field">
+                <label for="city">City</label>
+                <input type="text" id="city" placeholder="City" />
+              </div>
+              <div class="field">
+                <label for="state">State</label>
+                <select id="state">
+                  <option value="">— Select State —</option>
+                  <option value="AL">AL – Alabama</option><option value="AK">AK – Alaska</option>
+                  <option value="AZ">AZ – Arizona</option><option value="AR">AR – Arkansas</option>
+                  <option value="CA">CA – California</option><option value="CO">CO – Colorado</option>
+                  <option value="CT">CT – Connecticut</option><option value="DE">DE – Delaware</option>
+                  <option value="FL">FL – Florida</option><option value="GA">GA – Georgia</option>
+                  <option value="HI">HI – Hawaii</option><option value="ID">ID – Idaho</option>
+                  <option value="IL">IL – Illinois</option><option value="IN">IN – Indiana</option>
+                  <option value="IA">IA – Iowa</option><option value="KS">KS – Kansas</option>
+                  <option value="KY">KY – Kentucky</option><option value="LA">LA – Louisiana</option>
+                  <option value="ME">ME – Maine</option><option value="MD">MD – Maryland</option>
+                  <option value="MA">MA – Massachusetts</option><option value="MI">MI – Michigan</option>
+                  <option value="MN">MN – Minnesota</option><option value="MS">MS – Mississippi</option>
+                  <option value="MO">MO – Missouri</option><option value="MT">MT – Montana</option>
+                  <option value="NE">NE – Nebraska</option><option value="NV">NV – Nevada</option>
+                  <option value="NH">NH – New Hampshire</option><option value="NJ">NJ – New Jersey</option>
+                  <option value="NM">NM – New Mexico</option><option value="NY">NY – New York</option>
+                  <option value="NC">NC – North Carolina</option><option value="ND">ND – North Dakota</option>
+                  <option value="OH">OH – Ohio</option><option value="OK">OK – Oklahoma</option>
+                  <option value="OR">OR – Oregon</option><option value="PA">PA – Pennsylvania</option>
+                  <option value="RI">RI – Rhode Island</option><option value="SC">SC – South Carolina</option>
+                  <option value="SD">SD – South Dakota</option><option value="TN">TN – Tennessee</option>
+                  <option value="TX">TX – Texas</option><option value="UT">UT – Utah</option>
+                  <option value="VT">VT – Vermont</option><option value="VA">VA – Virginia</option>
+                  <option value="WA">WA – Washington</option><option value="WV">WV – West Virginia</option>
+                  <option value="WI">WI – Wisconsin</option><option value="WY">WY – Wyoming</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="country">Country</label>
+                <select id="country">
+                  <option value="USA" selected>USA – United States</option>
+                  <option value="CAN">CAN – Canada</option>
+                  <option value="GBR">GBR – United Kingdom</option>
+                  <option value="AUS">AUS – Australia</option>
+                  <option value="IND">IND – India</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pinCode">Pin / Zip Code</label>
+                <input type="text" id="pinCode" placeholder="Zip / pin code" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Website & Social Media -->
+          <div class="form-section">
+            <div class="form-section-title">Website &amp; Social Media <span style="font-weight:400;color:#999;font-size:12px;">(optional)</span></div>
+            <div class="form-grid cols-2">
+              <div class="field">
+                <label for="websiteUrl">Website URL</label>
+                <input type="url" id="websiteUrl" placeholder="https://yourchurch.org" />
+              </div>
+              <div class="field">
+                <label for="facebookUrl">Facebook URL</label>
+                <input type="url" id="facebookUrl" placeholder="https://facebook.com/yourchurch" />
+              </div>
+              <div class="field">
+                <label for="instagramUrl">Instagram URL</label>
+                <input type="url" id="instagramUrl" placeholder="https://instagram.com/yourchurch" />
+              </div>
+              <div class="field">
+                <label for="youtubeUrl">YouTube URL</label>
+                <input type="url" id="youtubeUrl" placeholder="https://youtube.com/@yourchurch" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Subscription -->
+          <div class="form-section">
+            <div class="form-section-title">Subscription Details</div>
+            <div class="form-grid cols-4">
+              <div class="field">
+                <label for="activePeriod">Active Period <span class="required-star">*</span></label>
+                <div class="input-group">
+                  <input type="number" id="activePeriod" placeholder="e.g. 12" min="1" />
+                  <select id="activePeriodUnit">
+                    <option value="MONTHS">Months</option>
+                    <option value="YEARS">Years</option>
+                  </select>
+                </div>
+                <span class="field-hint" id="activePeriodHint"></span>
+              </div>
+              <div class="field">
+                <label for="startDate">Start Date <span class="required-star">*</span></label>
+                <input type="date" id="startDate" />
+                <span class="field-hint" id="startDateHint"></span>
+              </div>
+              <div class="field">
+                <label for="endDateDisplay">End Date (auto)</label>
+                <input type="text" id="endDateDisplay" readonly placeholder="Calculated" style="background:#fdf5f7;color:#666;" />
+              </div>
+              <div class="field">
+                <label for="subscriptionType">Subscription Type</label>
+                <select id="subscriptionType">
+                  <option value="FREE">Free</option>
+                  <option value="LIMITED">Limited</option>
+                  <option value="FULL">Full</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="paymentStatus">Payment Status</label>
+                <select id="paymentStatus">
+                  <option value="NOT_REQUIRED">Not Required</option>
+                  <option value="PENDING" selected>Pending</option>
+                  <option value="PAID">Paid</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="status">Status</label>
+                <select id="status">
+                  <option value="Active" selected>Active</option>
+                  <option value="Hold">Hold</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-section">
+            <div class="form-section-title">Additional Notes</div>
+            <div class="field">
+              <label for="note">Note</label>
+              <textarea id="note" placeholder="Any additional notes…"></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-cancel-form" id="btnCancelForm">Cancel</button>
+            <button type="submit" class="btn-submit-form" id="btnSubmitForm">Register Client</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Registered Clients List ────────────────────────── -->
+  <div class="list-card">
+    <div class="list-card-header">
+      <span class="list-card-title">Registered Clients</span>
+      <span class="client-count" id="clientCount">0</span>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <div class="loading" id="loadingMsg">Loading clients…</div>
+    </div>
+  </div>
+
+  <!-- ── Public Website Visitors ───────────────────────── -->
+  <div class="list-card" id="webStatsCard">
+    <div class="list-card-header">
+      <span class="list-card-title">🌐 Public Website Visitors</span>
+      <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="loadWebStats()">↻ Refresh</button>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Visits to the public marketing pages (<code>/web/home</code>, <code>/web/features</code>, …). Counted on every page view.
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Page</th>
+              <th style="text-align:right;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Visitors</th>
+              <th style="text-align:right;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Last 30 Days</th>
+              <th style="text-align:left;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Last Visit</th>
+            </tr>
+          </thead>
+          <tbody id="webStatsBody">
+            <tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Database Backup Configuration ────────────────── -->
+  <div class="list-card" id="backupCard">
+    <div class="list-card-header">
+      <span class="list-card-title">🗄️ Database Backup Configuration</span>
+      <button class="btn-primary" id="btnRunNow" style="font-size:12px;padding:6px 16px;">▶ Run Backup Now</button>
+    </div>
+    <div style="padding:24px;">
+
+      <div class="form-feedback" id="bkpFeedback" style="margin-bottom:16px;"></div>
+
+      <!-- Schedule interval -->
+      <div class="form-section">
+        <div class="form-section-title">Backup Schedule</div>
+        <div class="form-grid cols-3">
+          <div class="field">
+            <label for="bkpInterval">Backup Interval</label>
+            <select id="bkpInterval">
+              <option value="0">Disabled (no automatic backup)</option>
+              <option value="1">Every 1 month</option>
+              <option value="3">Every 3 months</option>
+              <option value="6">Every 6 months</option>
+              <option value="9">Every 9 months</option>
+              <option value="12">Every 12 months</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Next Scheduled Backup</label>
+            <input type="text" id="bkpNextRun" readonly placeholder="—" style="background:#f5f6fa;color:#888;" />
+          </div>
+          <div class="field">
+            <label>Last Backup Run</label>
+            <input type="text" id="bkpLastRun" readonly placeholder="Never" style="background:#f5f6fa;color:#888;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Table scope -->
+      <div class="form-section">
+        <div class="form-section-title">Tables to Back Up</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#333;padding:10px 16px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:.15s;" id="scopeAllLabel">
+            <input type="radio" name="bkpScope" value="ALL" id="scopeAll" style="accent-color:#673147;" />
+            📦 All Tables
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#333;padding:10px 16px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:.15s;" id="scopeFamilyLabel">
+            <input type="radio" name="bkpScope" value="FAMILY" id="scopeFamily" style="accent-color:#673147;" />
+            👨‍👩‍👧 Family &amp; Member Tables
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#333;padding:10px 16px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:.15s;" id="scopeIncomeLabel">
+            <input type="radio" name="bkpScope" value="INCOME" id="scopeIncome" style="accent-color:#673147;" />
+            💰 Income &amp; Expense Tables
+          </label>
+        </div>
+        <p style="font-size:11px;color:#aaa;margin-top:8px;">Backup tables are created as <code style="background:#f0e8ec;padding:1px 5px;border-radius:4px;color:#673147;">&lt;table&gt;_bkp_YYYYMMDD</code> in the same database.</p>
+      </div>
+
+      <!-- Notification emails -->
+      <div class="form-section">
+        <div class="form-section-title">Notification Emails</div>
+        <div class="field" style="max-width:600px;">
+          <label for="bkpEmails">Recipient Email Addresses <span style="font-weight:400;color:#aaa;">(comma-separated)</span></label>
+          <input type="text" id="bkpEmails" placeholder="admin@example.com, backup@church.org" />
+          <span style="font-size:11px;color:#888;margin-top:3px;">These addresses will receive a success or failure email after each backup run.</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end;padding-top:8px;border-top:1px solid #f0f0f0;">
+        <button class="btn-submit-form" id="btnSaveBackup" style="background:#673147;">Save Backup Settings</button>
+      </div>
+    </div>
+
+    <!-- Recent backup log -->
+    <div style="border-top:1px solid #f0f0f0;padding:0 24px 24px;">
+      <div style="font-size:13px;font-weight:700;color:#673147;margin:18px 0 12px;">Recent Backup History</div>
+      <div class="table-wrap">
+        <table id="bkpLogTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#fdf5f7;">
+              <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;">Date &amp; Time</th>
+              <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;">Status</th>
+              <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;">Scope</th>
+              <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;">Message</th>
+              <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #eee;">Notified</th>
+            </tr>
+          </thead>
+          <tbody id="bkpLogBody">
+            <tr><td colspan="5" style="text-align:center;color:#bbb;padding:24px;">No backup history yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Restore section -->
+    <div style="border-top:2px solid #fdecea;padding:20px 24px 24px;background:#fffafa;border-radius:0 0 12px 12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#c62828;margin-bottom:3px;">⚠️ Restore Data from Backup</div>
+          <div style="font-size:12px;color:#888;">Overwrites current live data with a previous snapshot. This action cannot be undone.</div>
+        </div>
+        <button class="btn-confirm-delete" id="btnOpenRestore" style="background:#c62828;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          🔄 Restore from Backup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Test / Demo Data Loader ────────────────────────── -->
+  <div class="list-card" id="testDataCard" style="margin-top:24px;">
+    <div class="list-card-header">
+      <span class="list-card-title">🧪 Test / Demo Data</span>
+      <button class="btn-primary" id="btnOpenLoadTestData" style="font-size:12px;padding:6px 16px;">
+        ➕ Load Test Data
+      </button>
+    </div>
+    <div style="padding:20px 24px;">
+      <p style="font-size:13px;color:#555;line-height:1.55;margin-bottom:14px;">
+        Generates a self-contained demo tenant (clientId of the form
+        <code style="background:#f4eef1;padding:1px 6px;border-radius:4px;">DEMO-&lt;timestamp&gt;</code>)
+        populated with sample members, families, contributions, events, ministries,
+        meetings, kids ministry, pledge campaigns, transactions, and login users
+        for every role. All rows are scoped to that clientId so clearing later is
+        a clean drop.
+      </p>
+
+      <div class="form-feedback" id="tdFeedback" style="margin-bottom:14px;"></div>
+
+      <!-- Existing demo tenants — drives the Clear control. -->
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;">
+        <div class="field" style="flex:1;min-width:260px;">
+          <label for="tdClearTarget" style="font-weight:700;font-size:12px;color:#333;display:block;margin-bottom:6px;">
+            Existing demo tenants
+          </label>
+          <select id="tdClearTarget" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="">— No demo tenants loaded —</option>
+          </select>
+        </div>
+        <button id="btnClearTestData" disabled
+                style="background:#c62828;color:#fff;border:none;padding:9px 18px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;opacity:.55;">
+          🗑 Clear Selected
+        </button>
+        <button id="btnRefreshTestData"
+                style="background:#fff;color:#673147;border:1.5px solid #c5a0b5;padding:9px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">
+          ↻ Refresh
+        </button>
+      </div>
+
+      <!-- Latest load — per-entity counts for the most recent run. -->
+      <div id="tdLatestPanel" style="display:none;border:1px solid #e6dde2;border-radius:8px;overflow:hidden;margin-bottom:18px;">
+        <div style="padding:12px 16px;background:#fdf5f7;border-bottom:1px solid #f0e0e7;">
+          <div style="font-size:13px;font-weight:700;color:#673147;">
+            ✅ Latest demo tenant created
+          </div>
+          <div style="font-size:12px;color:#555;margin-top:3px;">
+            Client ID: <code id="tdLatestClientId" style="background:#fff;padding:1px 6px;border-radius:4px;"></code>
+            · <span id="tdLatestChurchName"></span>
+          </div>
+        </div>
+        <div style="padding:14px 16px;">
+          <div style="font-size:12px;font-weight:700;color:#333;margin-bottom:8px;">Records Created</div>
+          <div id="tdCountsGrid"
+               style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- All demo tenants — full credential history, re-fetched on every
+           page load so credentials persist across refreshes (Spec #1). -->
+      <div id="tdHistoryPanel">
+        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px;">
+          📋 Demo Tenant Credentials
+          <span style="font-size:11px;color:#888;font-weight:400;margin-left:6px;">
+            (re-fetched from the signup table on every load)
+          </span>
+        </div>
+        <div id="tdHistoryBody">
+          <div style="font-size:13px;color:#888;padding:20px;text-align:center;background:#faf6f8;border-radius:8px;">
+            Loading existing demo tenants…
+          </div>
+        </div>
+      </div>
+
+      <!-- Deletion audit trail — persistent, queryable record of every demo-tenant
+           clear performed by a service admin. -->
+      <div id="tdAuditPanel" style="margin-top:20px;">
+        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span>🧾 Demo Tenant Deletion Audit Log
+            <span style="font-size:11px;color:#888;font-weight:400;margin-left:6px;">(who deleted what, and when)</span>
+          </span>
+          <button type="button" id="btnRefreshAudit"
+                  style="border:1px solid #ccc;background:#fff;color:#555;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;">↻ Refresh</button>
+        </div>
+        <div id="tdAuditBody">
+          <div style="font-size:13px;color:#888;padding:16px;text-align:center;background:#faf6f8;border-radius:8px;">
+            Loading deletion history…
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Load Test Data Confirm Overlay ──────────────────── -->
+  <div class="overlay" id="loadTestOverlay">
+    <div class="confirm-box" style="max-width:480px;width:90%;">
+      <h4 style="color:#673147;">🧪 Load Test Data</h4>
+      <p style="font-size:13px;color:#555;line-height:1.5;">
+        A new demo tenant will be created and populated with sample records
+        across every module (members, families, contributions, events,
+        ministries, attendance, kids ministry, pledge campaigns, transactions,
+        users). Existing data is not touched.
+      </p>
+      <p style="font-size:12px;color:#888;margin-top:8px;">
+        Continue?
+      </p>
+      <div class="confirm-actions" style="gap:10px;">
+        <button class="btn-confirm-cancel" id="btnCancelLoadTest">Cancel</button>
+        <button id="btnConfirmLoadTest"
+                style="background:#673147;color:#fff;border:none;padding:9px 22px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">
+          ✅ Load Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Clear Test Data Confirm Overlay ──────────────────── -->
+  <div class="overlay" id="clearTestOverlay">
+    <div class="confirm-box" style="max-width:540px;width:92%;">
+      <h4 style="color:#c62828;">Confirm Demo Tenant Data Deletion</h4>
+      <p style="font-size:13px;color:#444;line-height:1.55;">
+        You are about to <strong>permanently delete all data</strong> associated with the
+        selected demo tenant. <strong style="color:#c62828;">This action cannot be undone.</strong>
+      </p>
+      <p style="font-size:13px;color:#444;line-height:1.55;">
+        All records belonging to the selected tenant
+        (<strong id="tdClearTenantName"></strong> —
+        Client ID <code id="tdClearTargetLabel" style="background:#fdf0f0;padding:1px 6px;border-radius:4px;color:#c62828;"></code>
+        / App Client ID <code id="tdClearAppClientLabel" style="background:#fdf0f0;padding:1px 6px;border-radius:4px;color:#c62828;"></code>)
+        will be permanently removed, including members, families, events, donations,
+        accounting records, attendance, volunteers, communications, and all other
+        tenant-specific data.
+      </p>
+      <p style="font-size:12px;color:#2e7d32;line-height:1.5;margin-top:6px;">
+        ✓ No data belonging to any other tenant will be affected.
+      </p>
+      <p style="font-size:12px;color:#888;margin-top:8px;">Are you sure you want to continue?</p>
+      <div class="confirm-actions" style="gap:10px;">
+        <button class="btn-confirm-cancel" id="btnCancelClearTest">Cancel</button>
+        <button id="btnConfirmClearTest"
+                style="background:#c62828;color:#fff;border:none;padding:9px 22px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">
+          🗑 Delete Permanently
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .main -->
+
+<!-- ── Restore Backup Modal ───────────────────────────────── -->
+<div class="overlay" id="restoreOverlay">
+  <div class="confirm-box" style="max-width:500px;width:90%;">
+    <h4 style="color:#c62828;">⚠️ Restore Data from Backup</h4>
+    <div style="background:#fdecea;border:1.5px solid #ef9a9a;border-radius:8px;padding:14px 16px;margin-bottom:18px;">
+      <p style="margin:0 0 6px;font-weight:700;color:#b71c1c;font-size:13px;">This action is irreversible.</p>
+      <p style="margin:0;font-size:13px;color:#c62828;line-height:1.6;">
+        Restoring a backup will <strong>overwrite all current live data</strong> in the selected tables with the data from the chosen snapshot date. Any records added or changed since that backup date will be permanently lost.
+      </p>
+    </div>
+    <div class="field" style="margin-bottom:18px;">
+      <label for="restoreDateSelect" style="font-weight:700;font-size:13px;color:#333;">Select Backup Date to Restore</label>
+      <select id="restoreDateSelect" style="margin-top:6px;width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;">
+        <option value="">— Loading available snapshots… —</option>
+      </select>
+      <span style="font-size:11px;color:#888;margin-top:4px;display:block;">Only dates with existing backup tables in the database are listed.</span>
+    </div>
+    <div id="restoreFeedback" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:6px;font-size:13px;"></div>
+    <div class="confirm-actions" style="gap:10px;">
+      <button class="btn-confirm-cancel" id="btnCancelRestore">Cancel</button>
+      <button id="btnConfirmRestore" style="background:#c62828;color:#fff;border:none;padding:9px 22px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">
+        🔄 Restore Now
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Confirmation Overlay ───────────────────────── -->
+<div class="overlay" id="deleteOverlay">
+  <div class="confirm-box">
+    <h4>Delete Client</h4>
+    <p>Are you sure you want to delete this client? This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" id="btnCancelDelete">Cancel</button>
+      <button class="btn-confirm-delete" id="btnConfirmDelete" title="Delete">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script>
+  /* ── Auth guard ─────────────────────────────────────── */
+  if (!localStorage.getItem('serviceAdminLoggedIn')) {
+    window.location.href = '/serviceadminlogin';
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', function () {
+    localStorage.removeItem('serviceAdminLoggedIn');
+    window.location.href = '/serviceadminlogin';
+  });
+
+  /* ── Toast helper ───────────────────────────────────── */
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = 'show toast-' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; }, 3500);
+  }
+
+  /* ── Today's date as ISO string ─────────────────────── */
+  function todayIso() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  /* ── Compute end date ───────────────────────────────── */
+  function computeEndDate(startIso, period, unit) {
+    if (!startIso || !period || period <= 0) return '';
+    const d = new Date(startIso);
+    if (unit === 'YEARS') {
+      d.setFullYear(d.getFullYear() + parseInt(period));
+    } else {
+      d.setMonth(d.getMonth() + parseInt(period));
+    }
+    return d.toISOString().split('T')[0];
+  }
+
+  /* ── Auto-compute end date on input ─────────────────── */
+  function updateEndDate() {
+    const start  = document.getElementById('startDate').value;
+    const period = document.getElementById('activePeriod').value;
+    const unit   = document.getElementById('activePeriodUnit').value;
+    document.getElementById('endDateDisplay').value = computeEndDate(start, period, unit);
+  }
+
+  document.getElementById('startDate').addEventListener('change', updateEndDate);
+  document.getElementById('activePeriod').addEventListener('input', updateEndDate);
+  document.getElementById('activePeriodUnit').addEventListener('change', updateEndDate);
+
+  /* ── Form panel open / close ────────────────────────── */
+  function openPanel(title) {
+    document.getElementById('panelTitle').textContent = title;
+    document.getElementById('formPanel').classList.add('open');
+    document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth' });
+    clearFormFeedback();
+  }
+
+  function closePanel() {
+    document.getElementById('formPanel').classList.remove('open');
+    resetForm();
+  }
+
+  function openPanel(title) {
+    document.getElementById('panelTitle').textContent = title;
+    document.getElementById('formPanel').classList.add('open');
+  }
+
+  function closePanel() {
+    document.getElementById('formPanel').classList.remove('open');
+    resetForm();
+    editingId = null;
+  }
+
+  document.getElementById('btnNewClient').addEventListener('click', function () {
+    resetForm();
+    editingId = null;
+    document.getElementById('startDate').value = todayIso();
+    document.getElementById('btnSubmitForm').textContent = 'Register Client';
+    openPanel('Register New Client');
+  });
+
+  document.getElementById('btnClosePanel').addEventListener('click', closePanel);
+  document.getElementById('btnCancelForm').addEventListener('click', closePanel);
+
+  /* ── Form validation helpers ────────────────────────── */
+  function setError(id, hintId, msg) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('invalid');
+    const h = document.getElementById(hintId);
+    if (h) h.textContent = msg;
+    return false;
+  }
+  function clearError(id, hintId) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('invalid');
+    const h = document.getElementById(hintId);
+    if (h) h.textContent = '';
+  }
+
+  function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  function clearFormFeedback() {
+    const fb = document.getElementById('formFeedback');
+    fb.className = 'form-feedback';
+    fb.textContent = '';
+  }
+
+  function showFormFeedback(msg, type) {
+    const fb = document.getElementById('formFeedback');
+    fb.textContent = msg;
+    fb.className = 'form-feedback ' + type;
+  }
+
+  /* ── Reset form ─────────────────────────────────────── */
+  function resetForm() {
+    document.getElementById('clientForm').reset();
+    document.getElementById('editId').value = '';
+    document.getElementById('startDate').value = todayIso();
+    document.getElementById('endDateDisplay').value = '';
+    document.getElementById('country').value = 'USA';
+    clearFormFeedback();
+    ['nameHint','churchNameHint','emailHint','activePeriodHint','startDateHint']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    ['name','churchName','email','activePeriod','startDate']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
+  }
+
+  /* ── Populate form for edit ─────────────────────────── */
+  function populateForm(c) {
+    document.getElementById('editId').value          = c.id;
+    document.getElementById('name').value            = c.name || '';
+    document.getElementById('churchName').value      = c.churchName || '';
+    document.getElementById('email').value           = c.email || '';
+    document.getElementById('phone').value           = c.phone || '';
+    document.getElementById('addressLine1').value    = c.addressLine1 || '';
+    document.getElementById('addressLine2').value    = c.addressLine2 || '';
+    document.getElementById('city').value            = c.city || '';
+    document.getElementById('state').value           = c.state || '';
+    document.getElementById('country').value         = c.country || 'USA';
+    document.getElementById('pinCode').value         = c.pinCode || '';
+    document.getElementById('websiteUrl').value      = c.websiteUrl || '';
+    document.getElementById('facebookUrl').value     = c.facebookUrl || '';
+    document.getElementById('instagramUrl').value    = c.instagramUrl || '';
+    document.getElementById('youtubeUrl').value      = c.youtubeUrl || '';
+    document.getElementById('activePeriod').value    = c.activePeriod || '';
+    document.getElementById('activePeriodUnit').value= c.activePeriodUnit || 'MONTHS';
+    document.getElementById('startDate').value       = c.startDate ? c.startDate.split('T')[0] : '';
+    document.getElementById('endDateDisplay').value  = c.endDate ? c.endDate.split('T')[0] : '';
+    document.getElementById('paymentStatus').value   = c.paymentStatus || 'PENDING';
+    document.getElementById('subscriptionType').value= c.subscriptionType || 'FREE';
+    document.getElementById('note').value            = c.note || '';
+    document.getElementById('status').value          = c.status || 'Active';
+  }
+
+  /* ── Collect form payload ───────────────────────────── */
+  function collectPayload() {
+    return {
+      name:             document.getElementById('name').value.trim(),
+      churchName:       document.getElementById('churchName').value.trim(),
+      email:            document.getElementById('email').value.trim(),
+      phone:            document.getElementById('phone').value.trim(),
+      addressLine1:     document.getElementById('addressLine1').value.trim(),
+      addressLine2:     document.getElementById('addressLine2').value.trim(),
+      city:             document.getElementById('city').value.trim(),
+      state:            document.getElementById('state').value,
+      country:          document.getElementById('country').value,
+      pinCode:          document.getElementById('pinCode').value.trim(),
+      websiteUrl:       document.getElementById('websiteUrl').value.trim(),
+      facebookUrl:      document.getElementById('facebookUrl').value.trim(),
+      instagramUrl:     document.getElementById('instagramUrl').value.trim(),
+      youtubeUrl:       document.getElementById('youtubeUrl').value.trim(),
+      activePeriod:     parseInt(document.getElementById('activePeriod').value) || null,
+      activePeriodUnit: document.getElementById('activePeriodUnit').value,
+      startDate:        document.getElementById('startDate').value,
+      paymentStatus:    document.getElementById('paymentStatus').value,
+      subscriptionType: document.getElementById('subscriptionType').value,
+      note:             document.getElementById('note').value.trim(),
+      status:           document.getElementById('status').value,
+    };
+  }
+
+  /* ── Validate form ──────────────────────────────────── */
+  function validateForm() {
+    let valid = true;
+    const name       = document.getElementById('name').value.trim();
+    const churchName = document.getElementById('churchName').value.trim();
+    const email      = document.getElementById('email').value.trim();
+    const period     = document.getElementById('activePeriod').value;
+    const startDate  = document.getElementById('startDate').value;
+
+    if (!name)       valid = setError('name',       'nameHint',       'Name is required.');
+    else             clearError('name',       'nameHint');
+
+    if (!churchName) valid = setError('churchName', 'churchNameHint', 'Church name is required.');
+    else             clearError('churchName', 'churchNameHint');
+
+    if (!email)           valid = setError('email', 'emailHint', 'Email is required.');
+    else if (!isValidEmail(email)) valid = setError('email', 'emailHint', 'Enter a valid email address.');
+    else                  clearError('email', 'emailHint');
+
+    if (!period || parseInt(period) <= 0)
+      valid = setError('activePeriod', 'activePeriodHint', 'Enter a valid active period.');
+    else clearError('activePeriod', 'activePeriodHint');
+
+    if (!startDate) valid = setError('startDate', 'startDateHint', 'Start date is required.');
+    else            clearError('startDate', 'startDateHint');
+
+    return valid;
+  }
+
+  /* ── Form submit ────────────────────────────────────── */
+  document.getElementById('clientForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearFormFeedback();
+
+    if (!validateForm()) {
+      showFormFeedback('Please fix the errors above.', 'error');
+      return;
+    }
+
+    const editId  = document.getElementById('editId').value;
+    const payload = collectPayload();
+    const isEdit  = !!editId;
+    const url     = isEdit ? `/api/serviceadmin/clients/${editId}` : '/api/serviceadmin/clients';
+    const method  = isEdit ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('btnSubmitForm');
+    btn.disabled    = true;
+    btn.textContent = isEdit ? 'Saving…' : 'Registering…';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        showToast(isEdit ? 'Client updated successfully.' : 'Client registered successfully.');
+        closePanel();
+        loadClients();
+      } else {
+        showFormFeedback(data.message || 'An error occurred. Please try again.', 'error');
+      }
+    } catch (err) {
+      showFormFeedback('Unable to connect. Please try again.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Register Client';
+    }
+  });
+
+  /* ── Delete overlay ─────────────────────────────────── */
+  let pendingDeleteId = null;
+
+  document.getElementById('btnCancelDelete').addEventListener('click', function () {
+    document.getElementById('deleteOverlay').classList.remove('open');
+    pendingDeleteId = null;
+  });
+
+  document.getElementById('btnConfirmDelete').addEventListener('click', async function () {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    document.getElementById('deleteOverlay').classList.remove('open');
+    pendingDeleteId = null;
+
+    try {
+      const res  = await fetch(`/api/serviceadmin/clients/${id}/delete`, { method: 'PATCH' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('Client deleted.');
+        loadClients();
+      } else {
+        showToast(data.message || 'Delete failed.', 'error');
+      }
+    } catch (err) {
+      showToast('Unable to connect.', 'error');
+    }
+  });
+
+  /* ── Status badge helper ────────────────────────────── */
+  function statusBadge(status) {
+    const map = { Active: 'badge-active', Hold: 'badge-hold', Inactive: 'badge-inactive' };
+    return `<span class="badge ${map[status] || ''}">${status || '—'}</span>`;
+  }
+  function approvedBadge(approved) {
+    return approved
+      ? `<span class="badge badge-approved">Yes</span>`
+      : `<span class="badge badge-pending">No</span>`;
+  }
+  function subBadge(type) {
+    const map = { FREE: 'badge-free', LIMITED: 'badge-limited', FULL: 'badge-full' };
+    const label = type ? (type.charAt(0) + type.slice(1).toLowerCase()) : '—';
+    return `<span class="badge ${map[type] || ''}">${label}</span>`;
+  }
+  function fmt(date) {
+    if (!date) return '—';
+    return date.split('T')[0];
+  }
+
+  /* ── Render table ───────────────────────────────────── */
+  function renderTable(clients) {
+    document.getElementById('clientCount').textContent = clients.length;
+    const wrap = document.getElementById('tableWrap');
+
+    if (!clients.length) {
+      wrap.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No clients registered yet. Click <strong>Register New Client</strong> to get started.</p>
+      </div>`;
+      return;
+    }
+
+    const rows = clients.map(c => `
+      <tr>
+        <td>${esc(c.name)}</td>
+        <td>${esc(c.churchName)}</td>
+        <td>${esc(c.email)}</td>
+        <td>${formatPhone(c.phone)}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td>${approvedBadge(c.approved)}</td>
+        <td>${subBadge(c.subscriptionType)}</td>
+        <td>${fmt(c.startDate)}</td>
+        <td>${fmt(c.endDate)}</td>
+        <td>
+          <div class="actions">
+            ${!c.approved
+              ? `<button class="btn-action btn-approve" onclick="doApprove(${c.id})">Approve</button>`
+              : `<button class="btn-action btn-reapprove" onclick="doReapprove(${c.id})" title="Send a new registration link">↻ Reapprove</button>`}
+            <button class="btn-action btn-edit" onclick="doEdit(${c.id})" title="Edit">📝</button>
+            <button class="btn-action" style="background:#5c6bc0;color:#fff;" onclick="openAiSettings(${c.id})" title="OpenAI voice & vision limits">🤖 AI</button>
+            <button class="btn-action" style="background:#00897b;color:#fff;" onclick="openVoiceSettings(${c.id})" title="Voice feature controls">🎙 Voice</button>
+            <button class="btn-action" style="background:#673147;color:#fff;" onclick="openPlaidSettings(${c.id})" title="Bank sync (Plaid) controls">🏦 Bank</button>
+            <button class="btn-action btn-delete" onclick="doDelete(${c.id})" title="Delete">🗑</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Church</th><th>Email</th>
+            <th>Phone</th><th>Status</th><th>Approved</th><th>Subscription</th>
+            <th>Start Date</th><th>End Date</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function esc(str) {
+    if (!str) return '—';
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ── Load clients ───────────────────────────────────── */
+  let allClients = [];
+  let editingId  = null;
+
+  async function loadClients() {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="loading">Loading clients…</div>';
+    try {
+      const res  = await fetch('/api/serviceadmin/clients');
+      const data = await res.json();
+      allClients = data.data || [];
+      renderTable(allClients);
+    } catch (err) {
+      document.getElementById('tableWrap').innerHTML =
+        '<div class="loading" style="color:#e53935;">Failed to load clients.</div>';
+    }
+  }
+
+  /* ── Approve ────────────────────────────────────────── */
+  async function doApprove(id) {
+    if (!confirm('Send approval email and activate this client?')) return;
+    try {
+      const res  = await fetch(`/api/serviceadmin/clients/${id}/approve`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('Client approved and welcome email sent.');
+        loadClients();
+      } else {
+        showToast(data.message || 'Approval failed.', 'error');
+      }
+    } catch (err) {
+      showToast('Unable to connect.', 'error');
+    }
+  }
+
+  /* ── Reapprove ──────────────────────────────────────── */
+  async function doReapprove(id) {
+    if (!confirm('This will deactivate any existing registration link and send a new one to the client. Continue?')) return;
+    try {
+      const res  = await fetch(`/api/serviceadmin/clients/${id}/reapprove`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('New registration link sent. Previous link deactivated.');
+        loadClients();
+      } else {
+        showToast(data.message || 'Reapproval failed.', 'error');
+      }
+    } catch (err) {
+      showToast('Unable to connect.', 'error');
+    }
+  }
+
+  /* ── Edit ───────────────────────────────────────────── */
+  function doEdit(id) {
+    const client = allClients.find(c => c.id === id);
+    if (!client) return;
+    resetForm();
+    editingId = id;
+    document.getElementById('editId').value          = id;
+    document.getElementById('name').value            = client.name            || '';
+    document.getElementById('churchName').value      = client.churchName      || '';
+    document.getElementById('email').value           = client.email           || '';
+    document.getElementById('phone').value           = client.phone           || '';
+    document.getElementById('addressLine1').value    = client.addressLine1    || client.address || '';
+    document.getElementById('addressLine2').value    = client.addressLine2    || '';
+    document.getElementById('city').value            = client.city            || '';
+    document.getElementById('state').value           = client.state           || '';
+    document.getElementById('country').value         = client.country         || 'USA';
+    document.getElementById('pinCode').value         = client.pinCode         || client.zip || '';
+    document.getElementById('websiteUrl').value      = client.websiteUrl      || '';
+    document.getElementById('facebookUrl').value     = client.facebookUrl     || '';
+    document.getElementById('instagramUrl').value    = client.instagramUrl    || '';
+    document.getElementById('youtubeUrl').value      = client.youtubeUrl      || '';
+    document.getElementById('activePeriod').value    = client.activePeriod    || '';
+    document.getElementById('activePeriodUnit').value= client.activePeriodUnit|| 'MONTHS';
+    document.getElementById('startDate').value       = client.startDate       || '';
+    document.getElementById('subscriptionType').value= client.subscriptionType|| 'FULL';
+    document.getElementById('paymentStatus').value   = client.paymentStatus   || 'PENDING';
+    document.getElementById('status').value          = client.status          || 'Active';
+    document.getElementById('note').value            = client.note            || client.notes || '';
+    document.getElementById('btnSubmitForm').textContent = 'Save Changes';
+    openPanel('Edit Client');
+  }
+
+  /* ── Delete ─────────────────────────────────────────── */
+  async function doDelete(id) {
+    if (!confirm('Delete this client? This action cannot be undone.')) return;
+    try {
+      const res  = await fetch(`/api/serviceadmin/clients/${id}/delete`, { method: 'PATCH' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('Client deleted.');
+        loadClients();
+      } else {
+        showToast(data.message || 'Delete failed.', 'error');
+      }
+    } catch (err) {
+      showToast('Unable to connect.', 'error');
+    }
+  }
+
+  /* ── Helpers ─────────────────────────────────────────── */
+  function formatPhone(p) {
+    if (!p) return '—';
+    const d = p.replace(/\D/g, '');
+    if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+    return p;
+  }
+
+  /* ── Init clients ────────────────────────────────────── */
+  loadClients();
+
+  /* ════════════════════════════════════════════════════════
+     PUBLIC WEBSITE VISITOR STATISTICS
+     ════════════════════════════════════════════════════════ */
+  async function loadWebStats() {
+    const tbody = document.getElementById('webStatsBody');
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>';
+    try {
+      const res  = await fetch('/api/serviceadmin/public-page-stats');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+      const pages = data.pages || [];
+      if (!pages.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">No visits recorded yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = pages.map(p => {
+        const last = p.lastVisit ? new Date(p.lastVisit).toLocaleString() : '—';
+        return '<tr>'
+          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;font-weight:600;">' + p.page + '</td>'
+          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#673147;">' + Number(p.visitors || 0).toLocaleString() + '</td>'
+          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;text-align:right;color:#666;">' + Number(p.last30Days || 0).toLocaleString() + '</td>'
+          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;">' + last + '</td>'
+          + '</tr>';
+      }).join('')
+      + '<tr><td style="padding:9px 12px;font-weight:700;">Total</td>'
+      + '<td style="padding:9px 12px;text-align:right;font-weight:800;color:#673147;">' + Number(data.total || 0).toLocaleString() + '</td>'
+      + '<td colspan="2"></td></tr>';
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#c62828;text-align:center;">'
+        + (e.message || 'Failed to load statistics.') + '</td></tr>';
+    }
+  }
+  window.loadWebStats = loadWebStats;
+  loadWebStats();
+
+  /* ════════════════════════════════════════════════════════
+     BACKUP CONFIGURATION
+  ════════════════════════════════════════════════════════ */
+
+  /* Highlight the selected scope card */
+  document.querySelectorAll('input[name="bkpScope"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+      document.querySelectorAll('.scope-card').forEach(c => c.classList.remove('scope-label-selected'));
+      if (this.checked) {
+        const lbl = this.closest('label');
+        if (lbl) lbl.classList.add('scope-label-selected');
+      }
+    });
+  });
+
+  async function loadBackupConfig() {
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/config');
+      const data = await res.json();
+      if (!res.ok) return;
+      document.getElementById('bkpInterval').value  = String(data.intervalMonths || 0);
+      document.getElementById('bkpEmails').value    = data.notifyEmails || '';
+      document.getElementById('bkpNextRun').value   = data.nextRunDate  || '—';
+      document.getElementById('bkpLastRun').value   = data.lastRunDate  || '—';
+      const scope = (data.tableScope || 'ALL').toUpperCase();
+      const radio = document.querySelector(`input[name="bkpScope"][value="${scope}"]`);
+      if (radio) {
+        radio.checked = true;
+        const lbl = radio.closest('label');
+        if (lbl) {
+          document.querySelectorAll('.scope-card').forEach(c => c.classList.remove('scope-label-selected'));
+          lbl.classList.add('scope-label-selected');
+        }
+      }
+    } catch (err) {
+      console.warn('loadBackupConfig error', err);
+    }
+  }
+
+  function showBkpFeedback(msg, type) {
+    const el = document.getElementById('bkpFeedback');
+    if (!el) return;
+    if (!msg) { el.textContent = ''; el.style.display = 'none'; return; }
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.background   = type === 'error' ? '#fdecea' : '#e8f5e9';
+    el.style.color        = type === 'error' ? '#c62828' : '#2e7d32';
+    el.style.border       = `1px solid ${type === 'error' ? '#ef9a9a' : '#a5d6a7'}`;
+    el.style.borderRadius = '6px';
+    el.style.padding      = '10px 14px';
+    el.style.fontSize     = '13px';
+    el.style.marginTop    = '10px';
+  }
+
+  /* Save config */
+  document.getElementById('btnSaveBackup').addEventListener('click', async function () {
+    showBkpFeedback('', '');
+    const intervalMonths = parseInt(document.getElementById('bkpInterval').value, 10) || 0;
+    const tableScope     = (document.querySelector('input[name="bkpScope"]:checked') || {}).value || 'ALL';
+    const notifyEmails   = document.getElementById('bkpEmails').value.trim();
+    this.disabled = true;
+    this.textContent = 'Saving…';
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/config', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ intervalMonths, tableScope, notifyEmails })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showBkpFeedback('✅ Backup configuration saved.' + (data.nextRunDate ? ' Next run: ' + data.nextRunDate : ''), 'success');
+        document.getElementById('bkpNextRun').value = data.nextRunDate || '—';
+      } else {
+        showBkpFeedback('❌ ' + (data.message || 'Save failed.'), 'error');
+      }
+    } catch (err) {
+      showBkpFeedback('❌ Unable to connect to server.', 'error');
+    } finally {
+      this.disabled = false;
+      this.textContent = 'Save Backup Settings';
+    }
+  });
+
+  /* Run Now */
+  document.getElementById('btnRunNow').addEventListener('click', async function () {
+    if (!confirm('Run a database backup right now? This may take a moment.')) return;
+    showBkpFeedback('', '');
+    this.disabled = true;
+    this.textContent = '⏳ Running…';
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/run', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        const st   = (data.result || '').toUpperCase();
+        const type = st === 'SUCCESS' ? 'success' : 'error';
+        showBkpFeedback(`${st === 'SUCCESS' ? '✅' : st === 'PARTIAL' ? '⚠️' : '❌'} ${data.message || st}`, type);
+        loadBackupLogs();
+        loadBackupConfig();
+      } else {
+        showBkpFeedback('❌ ' + (data.message || 'Backup failed.'), 'error');
+      }
+    } catch (err) {
+      showBkpFeedback('❌ Unable to connect to server.', 'error');
+    } finally {
+      this.disabled = false;
+      this.textContent = '▶ Run Backup Now';
+
+    }
+  });
+
+  /* Load backup logs */
+  async function loadBackupLogs() {
+    const tbody = document.getElementById('bkpLogBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:12px;">Loading…</td></tr>';
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/logs');
+      const data = await res.json();
+      const logs = data.data || [];
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:12px;">No backup runs recorded yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = logs.map(l => {
+        const st  = (l.status || '').toUpperCase();
+        const cls = st === 'SUCCESS' ? 'bkp-success' : st === 'PARTIAL' ? 'bkp-partial' : 'bkp-failure';
+        const icon = st === 'SUCCESS' ? '✅' : st === 'PARTIAL' ? '⚠️' : '❌';
+        const runAt = l.runAt ? l.runAt.replace('T', ' ').slice(0, 16) : '—';
+        const msg   = (l.message || '').length > 80 ? l.message.slice(0, 80) + '…' : (l.message || '—');
+        return `<tr>
+          <td>${runAt}</td>
+          <td><span class="${cls}">${icon} ${st}</span></td>
+          <td>${l.tableScope || 'ALL'}</td>
+          <td style="font-size:12px;color:#555;">${msg}</td>
+          <td style="font-size:12px;color:#888;">${l.notifiedEmails || '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#e53935;padding:12px;">Failed to load backup history.</td></tr>';
+    }
+  }
+
+  /* Init backup section */
+  (function initBackup() {
+    const defaultRadio = document.querySelector('input[name="bkpScope"]:checked');
+    if (defaultRadio) {
+      const lbl = defaultRadio.closest('label');
+      if (lbl) lbl.classList.add('scope-label-selected');
+    }
+    loadBackupConfig();
+    loadBackupLogs();
+  })();
+
+  /* ════════════════════════════════════════════════════════
+     RESTORE
+  ════════════════════════════════════════════════════════ */
+
+  async function openRestoreModal() {
+    const sel = document.getElementById('restoreDateSelect');
+    const fb  = document.getElementById('restoreFeedback');
+    fb.style.display = 'none';
+    sel.innerHTML = '<option value="">— Loading… —</option>';
+    document.getElementById('restoreOverlay').classList.add('open');
+
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/snapshots');
+      const data = await res.json();
+      const dates = data.data || [];
+      if (dates.length === 0) {
+        sel.innerHTML = '<option value="">— No backup snapshots found —</option>';
+      } else {
+        sel.innerHTML = dates.map(d => {
+          // Format YYYYMMDD → YYYY-MM-DD for readability
+          const fmt = d.length === 8
+              ? d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8)
+              : d;
+          return `<option value="${d}">${fmt}</option>`;
+        }).join('');
+      }
+    } catch (err) {
+      sel.innerHTML = '<option value="">— Failed to load snapshots —</option>';
+    }
+  }
+
+  function closeRestoreModal() {
+    document.getElementById('restoreOverlay').classList.remove('open');
+  }
+
+  function showRestoreFeedback(msg, type) {
+    const el = document.getElementById('restoreFeedback');
+    el.textContent   = msg;
+    el.style.display = 'block';
+    el.style.background = type === 'error' ? '#fdecea' : '#e8f5e9';
+    el.style.color      = type === 'error' ? '#c62828' : '#2e7d32';
+    el.style.border     = `1px solid ${type === 'error' ? '#ef9a9a' : '#a5d6a7'}`;
+  }
+
+  document.getElementById('btnOpenRestore').addEventListener('click', openRestoreModal);
+  document.getElementById('btnCancelRestore').addEventListener('click', closeRestoreModal);
+  document.getElementById('restoreOverlay').addEventListener('click', function (e) {
+    if (e.target === this) closeRestoreModal();
+  });
+
+  document.getElementById('btnConfirmRestore').addEventListener('click', async function () {
+    const dateSuffix = document.getElementById('restoreDateSelect').value;
+    if (!dateSuffix) {
+      showRestoreFeedback('Please select a backup date.', 'error');
+      return;
+    }
+
+    const fmt = dateSuffix.slice(0,4) + '-' + dateSuffix.slice(4,6) + '-' + dateSuffix.slice(6,8);
+    if (!confirm(
+      `⚠️ FINAL WARNING\n\nYou are about to restore all data from the backup taken on ${fmt}.\n\n` +
+      `This will permanently overwrite your current live data and cannot be undone.\n\n` +
+      `Type OK to proceed or Cancel to abort.`
+    )) return;
+
+    this.disabled    = true;
+    this.textContent = '⏳ Restoring…';
+    document.getElementById('restoreFeedback').style.display = 'none';
+
+    try {
+      const res  = await fetch('/api/serviceadmin/backup/restore', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ dateSuffix })
+      });
+      const data = await res.json();
+      if (res.ok && data.status !== 'error') {
+        const st   = (data.status || '').toUpperCase();
+        const icon = st === 'SUCCESS' ? '✅' : st === 'PARTIAL' ? '⚠️' : '❌';
+        const type = st === 'SUCCESS' ? 'success' : 'error';
+        showRestoreFeedback(`${icon} ${data.message || st}`, type);
+        if (st === 'SUCCESS') {
+          setTimeout(closeRestoreModal, 2500);
+        }
+      } else {
+        showRestoreFeedback('❌ ' + (data.message || 'Restore failed.'), 'error');
+      }
+    } catch (err) {
+      showRestoreFeedback('❌ Unable to connect to server.', 'error');
+    } finally {
+      this.disabled    = false;
+      this.textContent = '🔄 Restore Now';
+    }
+  });
+
+  /* ════════════════════════════════════════════════════════════════════
+     TEST / DEMO DATA LOADER
+     ════════════════════════════════════════════════════════════════════ */
+
+  function tdShowFeedback(msg, kind) {
+    var el = document.getElementById('tdFeedback');
+    if (!el) return;
+    if (!msg) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.style.padding = '10px 14px';
+    el.style.borderRadius = '6px';
+    el.style.fontSize = '13px';
+    el.style.fontWeight = '600';
+    if (kind === 'success') {
+      el.style.background = '#e8f5e9'; el.style.color = '#2e7d32'; el.style.border = '1px solid #c8e6c9';
+    } else if (kind === 'error') {
+      el.style.background = '#ffebee'; el.style.color = '#c62828'; el.style.border = '1px solid #ffcdd2';
+    } else {
+      el.style.background = '#fff8e1'; el.style.color = '#a05a00'; el.style.border = '1px solid #ffe0a3';
+    }
+    el.textContent = msg;
+  }
+
+  /* Tiny HTML escape helper for safe string interpolation in the history table. */
+  function tdEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+    });
+  }
+
+  /* Pretty-print the per-entity count grid (latest-load panel only). */
+  function tdRenderCounts(counts) {
+    var grid = document.getElementById('tdCountsGrid');
+    if (!grid) return;
+    var labels = {
+      church: 'Church',  users: 'Users / Roles', funds: 'Funds',
+      transactionTypes: 'Transaction Types', families: 'Families',
+      members: 'Members', contributions: 'Contributions',
+      events: 'Events', ministries: 'Ministries', meetings: 'Meetings',
+      kidsMinistry: 'Kids Ministry', pledgeCampaigns: 'Pledge Campaigns',
+      pledges: 'Pledges'
+    };
+    grid.innerHTML = Object.keys(counts).map(function(k){
+      return '<div style="background:#faf6f8;border:1px solid #ecdee6;border-radius:6px;padding:8px 10px;">'
+        + '<div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;">'
+          + (labels[k] || k) + '</div>'
+        + '<div style="font-size:16px;font-weight:700;color:#673147;margin-top:2px;">' + counts[k] + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* Role badge colours for the credentials table. */
+  var ROLE_BADGE = {
+    'Church':       'background:#e8f5e9;color:#2e7d32;',
+    'SuperAdmin':   'background:#e3f2fd;color:#1565c0;',
+    'Admin':        'background:#e8eaf6;color:#3949ab;',
+    'Accountant':   'background:#fff8e1;color:#f57f17;',
+    'User':         'background:#f3e5f5;color:#6a1b9a;',
+    'Member Portal':'background:#fce4ec;color:#ad1457;',
+    'Child Portal': 'background:#fff3e0;color:#e65100;',
+  };
+  function tdRoleBadge(role) {
+    // Strip the "(linked)" suffix used on staff rows for display
+    var displayRole = (role || '').replace(' (linked)', '').trim();
+    // Map legacy role names to display labels
+    var label = displayRole;
+    if (label === 'Member (portal)') label = 'Member Portal';
+    if (label === 'Child (portal)')  label = 'Child Portal';
+    var style = ROLE_BADGE[label] || 'background:#eceff1;color:#546e7a;';
+    return '<span style="' + style + 'font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;">' + tdEsc(label) + '</span>';
+  }
+
+  /* Render the persisted credential history. One section per demo tenant.
+     Columns: Role | Username | Password | Member Name | Client ID
+     Username and Password cells support click-to-copy. */
+  function tdRenderHistory(demos) {
+    var body = document.getElementById('tdHistoryBody');
+    if (!body) return;
+    if (!demos || !demos.length) {
+      body.innerHTML = '<div style="font-size:13px;color:#888;padding:20px;text-align:center;background:#faf6f8;border-radius:8px;">'
+        + 'No demo tenants exist yet. Click <strong>Load Test Data</strong> above to create one.</div>';
+      return;
+    }
+    body.innerHTML = demos.map(function(t){
+      var creds = t.credentials || [];
+      // Click-to-copy cell — highlights briefly on copy.
+      var copyCell = function(v) {
+        var escaped = tdEsc(v);
+        var safeVal = (v || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return '<td style="padding:8px 10px;border:1px solid #e0e0e0;font-family:Menlo,Consolas,monospace;font-size:12px;cursor:pointer;white-space:nowrap;" '
+             + 'title="Click to copy" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + safeVal + '\');this.style.background=\'#fdf5f7\';var me=this;setTimeout(function(){me.style.background=\'\';},700);">'
+             + escaped
+             + '<span style="margin-left:5px;color:#bbb;font-size:10px;">⎘</span></td>';
+      };
+      // Password cell — normally click-to-copy. For legacy demo logins whose
+      // plaintext was never stored, show a "Reset & reveal" button instead.
+      var pwdCell = function(r) {
+        var p = r.password || '';
+        if (p.indexOf('(unavailable') === 0) {
+          var u = (r.username || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return '<td style="padding:8px 10px;border:1px solid #e0e0e0;font-size:12px;white-space:nowrap;">'
+               + '<span style="color:#b07;font-style:italic;">unavailable</span>'
+               + '<button type="button" onclick="tdResetPassword(\'' + u + '\',this)" '
+               + 'style="margin-left:8px;border:1px solid #673147;background:#fff;color:#673147;border-radius:5px;'
+               + 'padding:2px 9px;font-size:11px;font-weight:600;cursor:pointer;">Reset &amp; reveal</button></td>';
+        }
+        return copyCell(p);
+      };
+      var rows = creds.map(function(r){
+        var memberName = r.memberName || '';
+        var clientId   = r.clientId  || t.clientId || '';
+        return '<tr>'
+          + '<td style="padding:8px 10px;border:1px solid #e0e0e0;">' + tdRoleBadge(r.role) + '</td>'
+          + copyCell(r.username)
+          + pwdCell(r)
+          + '<td style="padding:8px 10px;border:1px solid #e0e0e0;color:#555;">'
+            + (memberName ? tdEsc(memberName) : '<span style="color:#ccc;">—</span>') + '</td>'
+          + '<td style="padding:8px 10px;border:1px solid #e0e0e0;font-family:Menlo,Consolas,monospace;font-size:11px;color:#888;">'
+            + tdEsc(clientId) + '</td>'
+          + '</tr>';
+      }).join('');
+      var emptyRow = '<tr><td colspan="5" style="padding:14px;text-align:center;color:#aaa;border:1px solid #e0e0e0;">No signup rows found for this tenant.</td></tr>';
+      return '<div style="border:1px solid #e6dde2;border-radius:8px;overflow:hidden;margin-bottom:14px;">'
+        + '<div style="padding:10px 14px;background:#fdf5f7;border-bottom:1px solid #f0e0e7;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;">'
+          + '<div>'
+            + '<div style="font-size:13px;font-weight:700;color:#673147;">' + tdEsc(t.churchName || '(unnamed church)') + '</div>'
+            + '<div style="font-size:12px;color:#555;margin-top:2px;">Client ID: <code style="background:#fff;padding:1px 6px;border-radius:4px;">' + tdEsc(t.clientId) + '</code></div>'
+          + '</div>'
+          + '<div style="font-size:11px;color:#888;">' + creds.length + ' login' + (creds.length === 1 ? '' : 's') + '</div>'
+        + '</div>'
+        + '<div style="overflow-x:auto;">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+          + '<thead><tr style="background:#f5f6fa;">'
+            + '<th style="text-align:left;padding:8px 10px;border:1px solid #e0e0e0;white-space:nowrap;">Role</th>'
+            + '<th style="text-align:left;padding:8px 10px;border:1px solid #e0e0e0;white-space:nowrap;">Username</th>'
+            + '<th style="text-align:left;padding:8px 10px;border:1px solid #e0e0e0;white-space:nowrap;">Password</th>'
+            + '<th style="text-align:left;padding:8px 10px;border:1px solid #e0e0e0;white-space:nowrap;">Member Name</th>'
+            + '<th style="text-align:left;padding:8px 10px;border:1px solid #e0e0e0;white-space:nowrap;">Client ID</th>'
+          + '</tr></thead>'
+          + '<tbody>' + (rows || emptyRow) + '</tbody>'
+        + '</table>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* Reset & reveal: generate a new password for a legacy demo login whose
+     plaintext was never stored, then refresh so the new value shows (copyable). */
+  async function tdResetPassword(username, btn) {
+    if (!username) return;
+    if (!confirm('Reset the password for "' + username + '"?\n\nA new password will be generated. The old password (if any) will stop working.')) return;
+    var orig = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+    try {
+      var res = await fetch('/api/serviceadmin/test-data/reset-password?username=' + encodeURIComponent(username), { method: 'POST' });
+      var data = await res.json();
+      if (res.ok && data.status === 'success') {
+        await tdRefreshList(); // re-renders the row with the new copyable password
+        tdShowFeedback('✅ Password reset for ' + username + '. New password: ' + (data.data && data.data.password), 'success');
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = orig; }
+        tdShowFeedback('❌ ' + ((data && data.message) || 'Could not reset the password.'), 'error');
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+      tdShowFeedback('❌ Could not reset the password: ' + e.message, 'error');
+    }
+  }
+
+  /* Re-fetch the demo-tenant list. Drives the Clear dropdown AND the
+     persistent credentials history (Spec #1). */
+  async function tdRefreshList() {
+    var sel = document.getElementById('tdClearTarget');
+    var btn = document.getElementById('btnClearTestData');
+    try {
+      var res = await fetch('/api/serviceadmin/test-data/list');
+      var data = await res.json();
+      var demos = (data && data.demoClients) || [];
+      // Dropdown
+      sel.innerHTML = demos.length
+        ? '<option value="">— Select a tenant to clear —</option>' +
+          demos.map(function(d){
+            return '<option value="' + tdEsc(d.clientId) + '">' + tdEsc(d.clientId)
+                 + (d.churchName ? ' (' + tdEsc(d.churchName) + ')' : '') + '</option>';
+          }).join('')
+        : '<option value="">— No demo tenants loaded —</option>';
+      btn.disabled = true;
+      btn.style.opacity = '.55';
+      // Persistent history table
+      tdRenderHistory(demos);
+    } catch (err) {
+      console.warn('tdRefreshList error', err);
+      document.getElementById('tdHistoryBody').innerHTML =
+        '<div style="font-size:13px;color:#c62828;padding:14px;background:#ffebee;border-radius:6px;">Failed to load demo tenants from the server.</div>';
+    }
+  }
+
+  /* Enable Clear button only when a target is picked. */
+  document.getElementById('tdClearTarget').addEventListener('change', function(){
+    var btn = document.getElementById('btnClearTestData');
+    var has = !!this.value;
+    btn.disabled = !has;
+    btn.style.opacity = has ? '1' : '.55';
+  });
+
+  document.getElementById('btnRefreshTestData').addEventListener('click', tdRefreshList);
+
+  /* Open Load-confirm overlay. */
+  document.getElementById('btnOpenLoadTestData').addEventListener('click', function(){
+    document.getElementById('loadTestOverlay').classList.add('open');
+  });
+  document.getElementById('btnCancelLoadTest').addEventListener('click', function(){
+    document.getElementById('loadTestOverlay').classList.remove('open');
+  });
+
+  /* Open Clear-confirm overlay. */
+  document.getElementById('btnClearTestData').addEventListener('click', function(){
+    var sel = document.getElementById('tdClearTarget');
+    var target = sel.value;
+    if (!target) return;
+    // The option text is "DEMO-xxxx (Church Name)" — pull the name out for the dialog.
+    var optTxt = (sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].text) || target;
+    var nm = optTxt.match(/\(([^)]*)\)\s*$/);
+    document.getElementById('tdClearTenantName').textContent   = (nm && nm[1]) ? nm[1] : '(unnamed church)';
+    document.getElementById('tdClearTargetLabel').textContent  = target;   // Client ID
+    document.getElementById('tdClearAppClientLabel').textContent = target; // App Client ID (same value for a tenant)
+    document.getElementById('clearTestOverlay').classList.add('open');
+  });
+  document.getElementById('btnCancelClearTest').addEventListener('click', function(){
+    document.getElementById('clearTestOverlay').classList.remove('open');
+  });
+
+  /* Confirm Load — call API and render results. */
+  document.getElementById('btnConfirmLoadTest').addEventListener('click', async function(){
+    var overlay = document.getElementById('loadTestOverlay');
+    var btn = this;
+    btn.disabled = true; btn.textContent = '⏳ Loading…';
+    tdShowFeedback('', '');
+    try {
+      var res  = await fetch('/api/serviceadmin/test-data/load', { method: 'POST' });
+      var json = await res.json();
+      if (!res.ok || json.status !== 'success') {
+        tdShowFeedback('❌ ' + (json.message || 'Failed to load test data.'), 'error');
+        return;
+      }
+      var data = json.data || {};
+      // Populate the "latest run" summary panel — credentials live in the
+      // history table below, so this just shows the counts.
+      document.getElementById('tdLatestPanel').style.display = 'block';
+      document.getElementById('tdLatestClientId').textContent   = data.clientId   || '';
+      document.getElementById('tdLatestChurchName').textContent = data.churchName || '';
+      tdRenderCounts(data.counts || {});
+      tdShowFeedback('✅ Demo tenant ' + data.clientId + ' created with ' +
+                     (data.credentials ? data.credentials.length : 0) + ' login(s).', 'success');
+      // The new tenant's credentials appear inside the history table after this.
+      tdRefreshList();
+    } catch (err) {
+      tdShowFeedback('❌ Unable to reach the server.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '✅ Load Now';
+      overlay.classList.remove('open');
+    }
+  });
+
+  /* Confirm Clear — call API and refresh. */
+  document.getElementById('btnConfirmClearTest').addEventListener('click', async function(){
+    var overlay = document.getElementById('clearTestOverlay');
+    var target  = document.getElementById('tdClearTarget').value;
+    if (!target) { overlay.classList.remove('open'); return; }
+    var btn = this;
+    btn.disabled = true; btn.textContent = '⏳ Clearing…';
+    tdShowFeedback('', '');
+    try {
+      var res  = await fetch('/api/serviceadmin/test-data/clear/' + encodeURIComponent(target),
+                             { method: 'POST' });
+      var json = await res.json();
+      if (!res.ok || json.status !== 'success') {
+        tdShowFeedback('❌ ' + (json.message || 'Failed to clear test data.'), 'error');
+        return;
+      }
+      // Show total + per-module deleted counts returned by the backend.
+      var d = (json.data && json.data.deleted) || {};
+      var total = (json.data && json.data.total != null)
+        ? json.data.total
+        : Object.keys(d).reduce(function(s, k){ return s + (d[k] || 0); }, 0);
+      var parts = Object.keys(d).filter(function(k){ return d[k] > 0; })
+        .map(function(k){ return k + ': ' + d[k]; });
+      var summary = parts.length ? '  —  ' + parts.join(', ') : '';
+      tdShowFeedback('🗑 Permanently deleted ' + total + ' record(s) for ' + target + summary, 'success');
+      // If the cleared tenant matched the "latest run" panel, hide that panel.
+      // The history table refresh below will drop it from the list naturally.
+      if (document.getElementById('tdLatestClientId').textContent === target) {
+        document.getElementById('tdLatestPanel').style.display = 'none';
+      }
+      tdRefreshList();
+      tdLoadAudit();      // a new deletion just happened — refresh the audit viewer
+    } catch (err) {
+      tdShowFeedback('❌ Unable to reach the server.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '🗑 Delete Permanently';
+      overlay.classList.remove('open');
+    }
+  });
+
+  /* Load + render the persistent deletion audit trail (newest first). */
+  async function tdLoadAudit() {
+    var body = document.getElementById('tdAuditBody');
+    if (!body) return;
+    try {
+      var res  = await fetch('/api/serviceadmin/test-data/deletion-audit');
+      var json = await res.json();
+      var rows = (json && json.audits) || [];
+      if (!rows.length) {
+        body.innerHTML = '<div style="font-size:13px;color:#888;padding:16px;text-align:center;background:#faf6f8;border-radius:8px;">'
+          + 'No demo-tenant deletions have been recorded yet.</div>';
+        return;
+      }
+      var when = function(iso){ try { return new Date(iso).toLocaleString(); } catch(e){ return iso || ''; } };
+      var counts = function(json){
+        if (!json) return '';
+        try {
+          var o = JSON.parse(json);
+          return Object.keys(o).filter(function(k){ return o[k] > 0; })
+            .map(function(k){ return k + ': ' + o[k]; }).join(', ');
+        } catch(e){ return tdEsc(json); }
+      };
+      body.innerHTML =
+          '<div style="overflow-x:auto;">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+        + '<thead><tr style="background:#f5f6fa;">'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;">When</th>'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;">Tenant</th>'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;">Client ID / App Client ID</th>'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;">Performed By</th>'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;">Total</th>'
+        +   '<th style="text-align:left;padding:7px 9px;border:1px solid #e0e0e0;">Per-module counts</th>'
+        + '</tr></thead><tbody>'
+        + rows.map(function(r){
+            return '<tr>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;white-space:nowrap;color:#555;">' + tdEsc(when(r.deletedAt)) + '</td>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;">' + tdEsc(r.tenantName || '(unnamed)') + '</td>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;font-family:Menlo,Consolas,monospace;font-size:11px;color:#673147;">' + tdEsc(r.clientId || '') + '</td>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;color:#333;">' + tdEsc(r.performedBy || '') + '</td>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;font-weight:700;color:#c62828;">' + (r.totalDeleted != null ? r.totalDeleted : '') + '</td>'
+              + '<td style="padding:7px 9px;border:1px solid #e0e0e0;color:#777;font-size:11px;">' + tdEsc(counts(r.counts)) + '</td>'
+              + '</tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    } catch (err) {
+      body.innerHTML = '<div style="font-size:13px;color:#c62828;padding:14px;background:#ffebee;border-radius:6px;">Failed to load the deletion audit log.</div>';
+    }
+  }
+  var _btnRefreshAudit = document.getElementById('btnRefreshAudit');
+  if (_btnRefreshAudit) _btnRefreshAudit.addEventListener('click', tdLoadAudit);
+
+  /* Boot — populate the demo-tenant dropdown and audit log on page load. */
+  tdRefreshList();
+  tdLoadAudit();
+
+  /* ══ OpenAI voice + vision usage limits ══════════════════════════════════ */
+  let aiSettingsClientId = null;   // service_client.id of the church being edited
+
+  function openAiSettings(id) {
+    aiSettingsClientId = id;
+    const c = allClients.find(x => x.id === id);
+    document.getElementById('aiModalChurch').textContent = (c && c.churchName) ? c.churchName : 'Church';
+    document.getElementById('aiModalMsg').textContent = 'Loading…';
+    document.getElementById('aiModalBody').style.opacity = '0.4';
+    document.getElementById('aiModalOverlay').style.display = 'flex';
+    fetch('/api/serviceadmin/clients/' + id + '/openai')
+      .then(r => r.json())
+      .then(res => {
+        if (res.status !== 'success') { document.getElementById('aiModalMsg').textContent = res.message || 'Failed to load.'; return; }
+        fillAiModal(res.data);
+        document.getElementById('aiModalMsg').textContent = '';
+        document.getElementById('aiModalBody').style.opacity = '1';
+      })
+      .catch(() => { document.getElementById('aiModalMsg').textContent = 'Failed to load.'; });
+  }
+
+  function closeAiSettings() {
+    document.getElementById('aiModalOverlay').style.display = 'none';
+    aiSettingsClientId = null;
+  }
+
+  function fillAiModal(d) {
+    document.getElementById('aiVoiceEnabled').checked   = !!d.voiceEnabled;
+    document.getElementById('aiVoiceLimit').value       = d.voiceLimitMinutes != null ? d.voiceLimitMinutes : 30;
+    const usedMin = Math.round((d.voiceUsedSeconds || 0) / 60 * 10) / 10;
+    document.getElementById('aiVoiceUsed').textContent  = usedMin + ' min used';
+    document.getElementById('aiVisionEnabled').checked  = !!d.visionEnabled;
+    document.getElementById('aiVisionLimit').value      = d.visionLimitUploads != null ? d.visionLimitUploads : 1000;
+    document.getElementById('aiVisionUsed').textContent = (d.visionUsedUploads || 0) + ' uploads used';
+    document.getElementById('aiMaxFileSize').value      = d.maxFileSizeMb != null ? d.maxFileSizeMb : 5;
+    document.getElementById('aiMaxPages').value         = d.maxPagesPerUpload != null ? d.maxPagesPerUpload : 2;
+    document.getElementById('aiMaxRes').value           = d.maxImageResolutionPx != null ? d.maxImageResolutionPx : 2000;
+    document.getElementById('aiAutoResize').checked     = !!d.autoResizeImages;
+    document.getElementById('aiJpegQuality').value      = d.jpegQuality != null ? d.jpegQuality : 85;
+  }
+
+  function saveAiSettings() {
+    if (aiSettingsClientId == null) return;
+    const body = {
+      voiceEnabled:         document.getElementById('aiVoiceEnabled').checked,
+      voiceLimitMinutes:    parseInt(document.getElementById('aiVoiceLimit').value) || 0,
+      visionEnabled:        document.getElementById('aiVisionEnabled').checked,
+      visionLimitUploads:   parseInt(document.getElementById('aiVisionLimit').value) || 0,
+      maxFileSizeMb:        parseInt(document.getElementById('aiMaxFileSize').value) || 5,
+      maxPagesPerUpload:    parseInt(document.getElementById('aiMaxPages').value) || 1,
+      maxImageResolutionPx: parseInt(document.getElementById('aiMaxRes').value) || 2000,
+      autoResizeImages:     document.getElementById('aiAutoResize').checked,
+      jpegQuality:          parseInt(document.getElementById('aiJpegQuality').value) || 85
+    };
+    const btn = document.getElementById('aiSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    fetch('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+      if (res.status === 'success') { fillAiModal(res.data); showToast('OpenAI settings saved.'); }
+      else showToast(res.message || 'Save failed.', true);
+    }).catch(() => showToast('Save failed.', true))
+      .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
+  }
+
+  function resetAiUsage(kind) {
+    if (aiSettingsClientId == null) return;
+    if (!confirm('Reset ' + kind + ' usage for this church to zero?')) return;
+    fetch('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai/reset-' + kind, { method: 'POST' })
+      .then(r => r.json()).then(res => {
+        if (res.status === 'success') { fillAiModal(res.data); showToast(kind.charAt(0).toUpperCase() + kind.slice(1) + ' usage reset.'); }
+        else showToast(res.message || 'Reset failed.', true);
+      }).catch(() => showToast('Reset failed.', true));
+  }
+
+  window.openAiSettings = openAiSettings;
+  window.closeAiSettings = closeAiSettings;
+  window.saveAiSettings = saveAiSettings;
+  window.resetAiUsage = resetAiUsage;
+
+  /* ══ Per-church Voice feature controls ══════════════════════════════════════ */
+  let voiceSettingsClientId = null;
+
+  function openVoiceSettings(id) {
+    voiceSettingsClientId = id;
+    const c = allClients.find(x => x.id === id);
+    document.getElementById('vfModalChurch').textContent = (c && c.churchName) ? c.churchName : 'Church';
+    document.getElementById('vfModalMsg').textContent = 'Loading…';
+    document.getElementById('vfModalBody').style.opacity = '0.4';
+    document.getElementById('voiceModalOverlay').style.display = 'flex';
+    fetch('/api/serviceadmin/clients/' + id + '/voice')
+      .then(r => r.json())
+      .then(res => {
+        if (res.status !== 'success') { document.getElementById('vfModalMsg').textContent = res.message || 'Failed to load.'; return; }
+        fillVoiceModal(res.data);
+        document.getElementById('vfModalMsg').textContent = '';
+        document.getElementById('vfModalBody').style.opacity = '1';
+      })
+      .catch(() => { document.getElementById('vfModalMsg').textContent = 'Failed to load.'; });
+  }
+
+  function closeVoiceSettings() {
+    document.getElementById('voiceModalOverlay').style.display = 'none';
+    voiceSettingsClientId = null;
+  }
+
+  function fillVoiceModal(d) {
+    document.getElementById('vfVoice').checked    = d.voice        !== false;
+    document.getElementById('vfType').checked     = d.voiceType    !== false;
+    document.getElementById('vfCommand').checked  = d.voiceCommand !== false;
+    document.getElementById('vfConverse').checked = d.converse     !== false;
+    document.getElementById('vfHelp').checked     = d.voiceHelp    !== false;
+    document.getElementById('vfDebug').checked    = d.voiceDebug   !== false;
+    applyVoiceDeps();
+  }
+
+  /* Enforce the dependency rules live in the modal:
+     - Parent off  → all sub-features unchecked + disabled.
+     - Any of Type/Command/Converse off → Help + Debug unchecked + disabled. */
+  function applyVoiceDeps() {
+    const v   = document.getElementById('vfVoice').checked;
+    const t   = document.getElementById('vfType');
+    const cmd = document.getElementById('vfCommand');
+    const con = document.getElementById('vfConverse');
+    const help = document.getElementById('vfHelp');
+    const dbg  = document.getElementById('vfDebug');
+
+    [t, cmd, con].forEach(el => {
+      el.disabled = !v;
+      if (!v) el.checked = false;
+    });
+    const primaryAllOn = v && t.checked && cmd.checked && con.checked;
+    [help, dbg].forEach(el => {
+      el.disabled = !primaryAllOn;
+      if (!primaryAllOn) el.checked = false;
+    });
+  }
+
+  function saveVoiceSettings() {
+    if (voiceSettingsClientId == null) return;
+    const body = {
+      voice:        document.getElementById('vfVoice').checked,
+      voiceType:    document.getElementById('vfType').checked,
+      voiceCommand: document.getElementById('vfCommand').checked,
+      converse:     document.getElementById('vfConverse').checked,
+      voiceHelp:    document.getElementById('vfHelp').checked,
+      voiceDebug:   document.getElementById('vfDebug').checked
+    };
+    const btn = document.getElementById('vfSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    fetch('/api/serviceadmin/clients/' + voiceSettingsClientId + '/voice', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+      if (res.status === 'success') { fillVoiceModal(res.data); showToast('Voice settings saved.'); }
+      else showToast(res.message || 'Save failed.', true);
+    }).catch(() => showToast('Save failed.', true))
+      .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
+  }
+
+  window.openVoiceSettings  = openVoiceSettings;
+  window.closeVoiceSettings = closeVoiceSettings;
+  window.saveVoiceSettings  = saveVoiceSettings;
+  window.applyVoiceDeps     = applyVoiceDeps;
+
+  /* ══ Plaid / Bank Sync per-church controls ═══════════════════════════════ */
+  let plaidClientDbId = null;
+
+  function openPlaidSettings(id) {
+    plaidClientDbId = id;
+    document.getElementById('plaidModalMsg').textContent = 'Loading…';
+    document.getElementById('plaidAccounts').innerHTML = '';
+    document.getElementById('plaidModalOverlay').style.display = 'flex';
+    fetch('/api/serviceadmin/clients/' + id + '/plaid')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'success') fillPlaidModal(d); else document.getElementById('plaidModalMsg').textContent = d.message || 'Load failed.'; })
+      .catch(() => { document.getElementById('plaidModalMsg').textContent = 'Load failed.'; });
+  }
+  function closePlaidSettings() {
+    document.getElementById('plaidModalOverlay').style.display = 'none';
+    plaidClientDbId = null;
+  }
+  function fillPlaidModal(d) {
+    document.getElementById('plaidModalMsg').textContent = '';
+    document.getElementById('plaidEnabled').checked = !!d.plaidEnabled;
+    document.getElementById('plaidSyncEnabled').checked = !!d.syncEnabled;
+    applyPlaidDeps();
+    const items = d.items || [];
+    const el = document.getElementById('plaidAccounts');
+    if (!items.length) { el.innerHTML = '<div style="font-size:13px;color:#999;padding:8px 0;">No banks connected.</div>'; return; }
+    el.innerHTML = items.map(it => {
+      const accts = (it.accounts || []).map(a => esc(a.name || '') + ' ••' + esc(a.mask || '')).join(', ');
+      return '<div style="border:1px solid #e0d4db;border-radius:8px;padding:10px 12px;margin-bottom:8px;">'
+        + '<div style="font-weight:600;color:#673147;">' + esc(it.institutionName || it.institutionId || 'Bank') + '</div>'
+        + '<div style="font-size:12px;color:#888;">' + esc(accts || '—') + '</div>'
+        + '<div style="font-size:11px;color:#888;margin:4px 0;">Status: ' + esc(it.status || '') + '</div>'
+        + '<button onclick="forceDisconnect(' + it.id + ')" style="border:1px solid #f5c6c0;background:#fdecea;color:#c62828;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">Force disconnect</button>'
+        + '</div>';
+    }).join('');
+  }
+  function applyPlaidDeps() {
+    const on = document.getElementById('plaidEnabled').checked;
+    const sync = document.getElementById('plaidSyncEnabled');
+    sync.disabled = !on;
+    if (!on) sync.checked = false;
+  }
+  function savePlaidSettings() {
+    if (plaidClientDbId == null) return;
+    const btn = document.getElementById('plaidSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const body = {
+      plaidEnabled: document.getElementById('plaidEnabled').checked,
+      syncEnabled: document.getElementById('plaidSyncEnabled').checked
+    };
+    fetch('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+      if (res.status === 'success') showToast('Bank sync settings saved.');
+      else showToast(res.message || 'Save failed.', true);
+    }).catch(() => showToast('Save failed.', true))
+      .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
+  }
+  function forceDisconnect(itemId) {
+    if (plaidClientDbId == null) return;
+    if (!confirm('Force-disconnect this bank connection? Imported transactions already in review are kept.')) return;
+    fetch('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid/items/' + itemId + '/disconnect', { method: 'POST' })
+      .then(r => r.json()).then(res => {
+        if (res.status === 'success') { showToast('Bank disconnected.'); openPlaidSettings(plaidClientDbId); }
+        else showToast(res.message || 'Disconnect failed.', true);
+      }).catch(() => showToast('Disconnect failed.', true));
+  }
+
+  window.openPlaidSettings  = openPlaidSettings;
+  window.closePlaidSettings = closePlaidSettings;
+  window.savePlaidSettings  = savePlaidSettings;
+  window.applyPlaidDeps     = applyPlaidDeps;
+  window.forceDisconnect    = forceDisconnect;
+
+</script>
+
+<!-- ══ OpenAI Voice + Vision settings modal ══════════════════════════════════ -->
+<div id="aiModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="padding:16px 22px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#3f4568;">🤖 OpenAI Usage — <span id="aiModalChurch">Church</span></div>
+        <div style="font-size:12px;color:#999;">Voice command minutes &amp; Vision upload limits</div>
+      </div>
+      <button onclick="closeAiSettings()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#999;">&times;</button>
+    </div>
+    <div id="aiModalBody" style="padding:18px 22px;">
+      <div id="aiModalMsg" style="font-size:13px;color:#888;margin-bottom:8px;"></div>
+
+      <div style="border:1px solid #e8eaf6;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-weight:700;color:#5c6bc0;margin-bottom:10px;">🎤 Voice Commands</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;">
+          <input type="checkbox" id="aiVoiceEnabled" /> Voice enabled
+        </label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label style="font-size:13px;color:#555;">Limit (minutes)
+            <input type="number" id="aiVoiceLimit" min="0" style="width:90px;margin-left:6px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" />
+          </label>
+          <span id="aiVoiceUsed" style="font-size:13px;color:#2e7d32;font-weight:600;">0 min used</span>
+          <button onclick="resetAiUsage('voice')" style="border:1px solid #c5a0b5;background:#fff;color:#673147;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">Reset usage</button>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e8eaf6;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-weight:700;color:#5c6bc0;margin-bottom:10px;">🖼 Vision Uploads</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;">
+          <input type="checkbox" id="aiVisionEnabled" /> Vision enabled
+        </label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <label style="font-size:13px;color:#555;">Max uploads
+            <input type="number" id="aiVisionLimit" min="0" style="width:90px;margin-left:6px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" />
+          </label>
+          <span id="aiVisionUsed" style="font-size:13px;color:#2e7d32;font-weight:600;">0 uploads used</span>
+          <button onclick="resetAiUsage('vision')" style="border:1px solid #c5a0b5;background:#fff;color:#673147;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">Reset usage</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;color:#555;">
+          <label>Max file size (MB)<input type="number" id="aiMaxFileSize" min="1" style="width:100%;margin-top:3px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" /></label>
+          <label>Max pages / upload<input type="number" id="aiMaxPages" min="1" style="width:100%;margin-top:3px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" /></label>
+          <label>Max resolution (px)<input type="number" id="aiMaxRes" min="500" style="width:100%;margin-top:3px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" /></label>
+          <label>JPEG quality (%)<input type="number" id="aiJpegQuality" min="40" max="100" style="width:100%;margin-top:3px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;" /></label>
+          <label style="display:flex;align-items:center;gap:8px;grid-column:1 / -1;"><input type="checkbox" id="aiAutoResize" /> Auto-resize images before sending to OpenAI</label>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="closeAiSettings()" style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;">Cancel</button>
+        <button id="aiSaveBtn" onclick="saveAiSettings()" style="border:none;background:#673147;color:#fff;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Voice feature controls modal ══════════════════════════════════════════ -->
+<div id="voiceModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="padding:16px 22px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#00695c;">🎙 Voice Features — <span id="vfModalChurch">Church</span></div>
+        <div style="font-size:12px;color:#999;">Enable or disable voice features for this church</div>
+      </div>
+      <button onclick="closeVoiceSettings()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#999;">&times;</button>
+    </div>
+    <div id="vfModalBody" style="padding:18px 22px;">
+      <div id="vfModalMsg" style="font-size:13px;color:#888;margin-bottom:8px;"></div>
+
+      <!-- Parent toggle -->
+      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#00695c;padding:12px 14px;border:1px solid #b2dfdb;border-radius:10px;background:#e0f2f1;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="vfVoice" onchange="applyVoiceDeps()" style="width:18px;height:18px;" /> Voice
+        <span style="font-size:12px;font-weight:400;color:#558;margin-left:auto;">Master switch — off hides all voice features</span>
+      </label>
+
+      <!-- Sub-features -->
+      <div style="border:1px solid #e8eaf6;border-radius:10px;padding:8px 16px 14px;margin-bottom:16px;">
+        <div style="font-size:12px;color:#999;margin:8px 0 6px;">Voice subsections</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;border-bottom:1px solid #f3f3f6;cursor:pointer;">
+          <input type="checkbox" id="vfType" onchange="applyVoiceDeps()" /> 🔎 Voice Type
+          <span style="font-size:11px;color:#aaa;margin-left:auto;">Type / AI-search buttons</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;border-bottom:1px solid #f3f3f6;cursor:pointer;">
+          <input type="checkbox" id="vfCommand" onchange="applyVoiceDeps()" /> 🎤 Voice Command
+          <span style="font-size:11px;color:#aaa;margin-left:auto;">Microphone buttons</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;border-bottom:1px solid #f3f3f6;cursor:pointer;">
+          <input type="checkbox" id="vfConverse" onchange="applyVoiceDeps()" /> 🗣 Converse
+          <span style="font-size:11px;color:#aaa;margin-left:auto;">Conversational AI</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;border-bottom:1px solid #f3f3f6;cursor:pointer;">
+          <input type="checkbox" id="vfHelp" onchange="applyVoiceDeps()" /> ❔ Voice Help
+          <span style="font-size:11px;color:#aaa;margin-left:auto;">Needs Type + Command + Converse</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;cursor:pointer;">
+          <input type="checkbox" id="vfDebug" onchange="applyVoiceDeps()" /> 🐞 Voice Debug
+          <span style="font-size:11px;color:#aaa;margin-left:auto;">Needs Type + Command + Converse</span>
+        </label>
+      </div>
+
+      <div style="font-size:11px;color:#999;line-height:1.5;margin-bottom:14px;">
+        Disabling <strong>Voice Type</strong>, <strong>Voice Command</strong>, or <strong>Converse</strong> automatically
+        turns off <strong>Voice Help</strong> and <strong>Voice Debug</strong>. Turning off the master <strong>Voice</strong>
+        switch hides everything. Changes apply to all users of this church across the app.
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="closeVoiceSettings()" style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;">Cancel</button>
+        <button id="vfSaveBtn" onclick="saveVoiceSettings()" style="border:none;background:#00897b;color:#fff;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ Plaid / Bank Sync controls modal ══════════════════════════════════════ -->
+<div id="plaidModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:12px;max-width:540px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="padding:16px 22px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#673147;">🏦 Bank Sync (Plaid)</div>
+        <div style="font-size:12px;color:#999;">Enable Plaid and manage bank connections for this church</div>
+      </div>
+      <button onclick="closePlaidSettings()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#999;">&times;</button>
+    </div>
+    <div style="padding:18px 22px;">
+      <div id="plaidModalMsg" style="font-size:13px;color:#888;margin-bottom:8px;"></div>
+
+      <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#673147;padding:12px 14px;border:1px solid #e0d4db;border-radius:10px;background:#faf5f7;margin-bottom:10px;cursor:pointer;">
+        <input type="checkbox" id="plaidEnabled" onchange="applyPlaidDeps()" style="width:18px;height:18px;" /> Plaid enabled
+        <span style="font-size:12px;font-weight:400;color:#886;margin-left:auto;">Master switch for bank sync</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;padding:10px 14px;border:1px solid #eee;border-radius:10px;margin-bottom:16px;cursor:pointer;">
+        <input type="checkbox" id="plaidSyncEnabled" /> Automatic transaction sync
+        <span style="font-size:11px;color:#aaa;margin-left:auto;">Off = webhooks acknowledged but no new imports</span>
+      </label>
+
+      <div style="font-size:12px;color:#999;margin:6px 0 6px;">Connected banks</div>
+      <div id="plaidAccounts"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button onclick="closePlaidSettings()" style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;">Cancel</button>
+        <button id="plaidSaveBtn" onclick="savePlaidSettings()" style="border:none;background:#673147;color:#fff;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

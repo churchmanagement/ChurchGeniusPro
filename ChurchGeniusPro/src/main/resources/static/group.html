@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Groups</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Add card ────────────────────────────────────────── */
+    .add-card {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 22px 24px; margin-bottom: 20px;
+    }
+    .add-card-title {
+      font-size: 13px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 1px solid #e8eaf6;
+    }
+    .add-row { display: flex; align-items: flex-end; gap: 14px; }
+    .add-field { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 5px; }
+    .add-field label {
+      font-size: 13px; font-weight: 600; color: #666;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .required-star { color: #e53935; margin-left: 2px; }
+    .add-field input {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .add-field input::placeholder { color: #bbb; }
+    .add-field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .add-field input.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .btn-add-group {
+      padding: 10px 26px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+      white-space: nowrap; flex-shrink: 0;
+      /* Offset = field-hint min-height (14px) + add-field gap (5px)
+         so the button's bottom aligns with the input's bottom. */
+      margin-bottom: 19px;
+    }
+    .btn-add-group:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-add-group:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Card / Table ────────────────────────────────────── */
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; margin-bottom: 20px; }
+    .table-wrap { overflow-x: auto; }
+    .groups-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .groups-table th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .groups-table td { padding: 13px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .groups-table tr:last-child td { border-bottom: none; }
+    .groups-table tr:hover td { background: #fafbff; }
+    .groups-table tr.selected-row td { background: #eef0fb; }
+    .group-name { font-weight: 500; font-size: 14px; }
+    .row-num    { font-size: 13px; color: #ccc; }
+    .member-count-badge {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 11px; font-weight: 600; background: #e8eaf6; color: #673147;
+    }
+
+    /* ── Row actions ─────────────────────────────────────── */
+    .actions { display: flex; gap: 6px; }
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit    { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-edit:hover    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-delete  { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-delete:hover  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-members {
+      background: transparent; color: #673147; border-color: #c5a0b5;
+      width: 34px; height: 34px; padding: 4px;
+      border-radius: 8px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-members:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-members svg  { display: block; flex-shrink: 0; fill: currentColor; }
+
+    /* ── Member checkbox ─────────────────────────────────── */
+    .chk-select {
+      width: 16px; height: 16px; accent-color: #673147;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .chk-col { text-align: center; }
+    .sel-info { font-size: 13px; color: rgba(255,255,255,.85); font-weight: 400; margin-left: 6px; }
+
+    /* ── Members panel ───────────────────────────────────── */
+    .members-panel {
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      margin-bottom: 20px; overflow: hidden;
+      display: none;
+    }
+    .members-panel.open { display: block; }
+    .members-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      background: #f0f3ff;
+      border-bottom: 1px solid #e0e4f5;
+    }
+    .members-panel-title {
+      font-size: 14px; font-weight: 700; color: #673147;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .members-panel-actions { display: flex; gap: 8px; }
+    .btn-email-group {
+      padding: 7px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+      white-space: nowrap;
+    }
+    .btn-email-group:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-close-panel {
+      padding: 6px 10px; border-radius: 6px; color: #888;
+      font-size: 14px; transition: background .18s;
+    }
+    .btn-close-panel:hover { background: #e0e0e0; color: #333; }
+
+    /* ── Existing-member picker (now first) ─────────────── */
+    .add-existing-wrap {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 20px 12px; background: #fafbff;
+    }
+
+    /* ── No-email HoH notice ─────────────────────────────── */
+    .no-email-notice {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 8px 20px 10px; background: #fffbf0;
+      border-top: 1px solid #fde8a0; font-size: 13px;
+    }
+    .no-email-msg { color: #b45309; font-weight: 500; }
+    .no-email-option { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #555; }
+    .no-email-option input[type="checkbox"] { cursor: pointer; }
+
+    /* ── Add new member row (now second) ─────────────────── */
+    .add-member-row {
+      padding: 10px 20px 14px; background: #fafbff;
+      border-top: 1px solid #f0f0f0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .add-member-fields {
+      display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    /* ── Email toolbar above members table ───────────────── */
+    .email-toolbar {
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 10px 16px 6px;
+    }
+    .or-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; font-weight: 700; color: #ccc;
+      text-transform: uppercase; letter-spacing: .5px;
+      white-space: nowrap;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; display: block; height: 1px; width: 24px; background: #e8e8e8;
+    }
+    .picker-outer { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
+    .member-picker-input {
+      width: 100%; padding: 9px 36px 9px 12px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; color: #333; outline: none;
+      font-family: inherit; background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .member-picker-input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .picker-clear {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 15px; color: #bbb; cursor: pointer; line-height: 1;
+      display: none;
+    }
+    .picker-clear.visible { display: block; }
+    .picker-clear:hover { color: #888; }
+    .picker-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.13);
+      max-height: 230px; overflow-y: auto; z-index: 300;
+      display: none;
+    }
+    .picker-dropdown.open { display: block; }
+    .picker-item {
+      padding: 9px 14px; cursor: pointer; border-bottom: 1px solid #f5f5f5;
+      transition: background .14s;
+    }
+    .picker-item:last-child { border-bottom: none; }
+    .picker-item:hover, .picker-item.focused { background: #eef0fb; }
+    .picker-item-name  { font-size: 13px; font-weight: 500; color: #333; }
+    .picker-item-email { font-size: 11px; color: #888; margin-top: 1px; }
+    .picker-no-results { padding: 14px; text-align: center; font-size: 13px; color: #bbb; }
+    .btn-add-existing {
+      padding: 9px 20px; border-radius: 7px; flex-shrink: 0;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s; white-space: nowrap;
+    }
+    .btn-add-existing:hover:not(:disabled) { background: #673147; color: #fff; border-color: #673147; }
+    .btn-add-existing:disabled { opacity: .5; cursor: not-allowed; }
+    .add-member-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
+    .add-member-field label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .4px; }
+    .add-member-field input {
+      padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s; background: #fff; font-family: inherit;
+    }
+    .add-member-field input::placeholder { color: #bbb; }
+    .add-member-field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .add-member-field input.invalid { border-color: #e53935; }
+    .btn-add-member {
+      padding: 9px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-add-member:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-add-member:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Members table ───────────────────────────────────── */
+    .members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .members-table th {
+      text-align: left; padding: 11px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1.5px solid #f0f0f0; white-space: nowrap; background: #fafbff;
+    }
+    .members-table td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .members-table tr:last-child td { border-bottom: none; }
+    .members-table tr:hover td { background: #fafbff; }
+    .member-full-name { font-weight: 500; }
+    .member-email { color: #3949ab; font-size: 13px; }
+
+    /* ── Member feedback ─────────────────────────────────── */
+    .member-feedback {
+      padding: 10px 20px; font-size: 13px; font-weight: 500; display: none;
+    }
+    .member-feedback.error   { background: #ffebee; color: #c62828; display: block; }
+    .member-feedback.success { background: #e8f5e9; color: #2e7d32; display: block; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 36px 20px; color: #bbb; }
+    .empty-icon  { font-size: 36px; margin-bottom: 10px; }
+    .empty-text  { font-size: 13px; }
+
+    /* ── Modal overlay ───────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    /* ── Modal box ───────────────────────────────────────── */
+    .modal-box {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.22);
+      width: 480px; max-width: calc(100vw - 40px);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-box.wide { width: 600px; }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; background: #673147; flex-shrink: 0;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .modal-close {
+      font-size: 20px; color: rgba(255,255,255,.8); cursor: pointer;
+      line-height: 1; padding: 2px 6px; border-radius: 4px; transition: background .18s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.18); color: #fff; }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .modal-footer {
+      padding: 14px 24px; border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0;
+    }
+
+    /* ── Modal form fields ───────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
+    .field input:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field input.invalid, .field textarea.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; min-height: 120px; }
+    .field-row { display: flex; gap: 14px; }
+    .field-row .field { flex: 1; }
+
+    /* ── Modal buttons ───────────────────────────────────── */
+    .btn-cancel {
+      padding: 10px 26px; border-radius: 7px;
+      font-size: 14px; font-weight: 500; color: #666;
+      border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s;
+    }
+    .btn-cancel:hover { background: #f5f6fa; }
+    .btn-save-modal {
+      padding: 10px 32px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+    }
+    .btn-save-modal:hover:not(:disabled) { background: #4a5aae; }
+    .btn-save-modal:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── File input ──────────────────────────────────────── */
+    .file-label {
+      font-size: 13px; font-weight: 600; color: #666;
+      text-transform: uppercase; letter-spacing: .4px;
+      display: block; margin-bottom: 5px;
+    }
+    .file-input-wrap {
+      border: 1.5px dashed #c5cae9; border-radius: 7px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      transition: border-color .2s; background: #fafbff;
+    }
+    .file-input-wrap:hover { border-color: #673147; }
+    .file-input-wrap input[type="file"] { display: none; }
+    .file-input-icon { font-size: 20px; }
+    .file-input-text { font-size: 13px; color: #888; }
+    .file-selected { font-size: 13px; color: #3949ab; font-weight: 600; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Groups</div>
+          <div class="page-subtitle">Define and manage church groups and their members</div>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Add Group card ─────────────────────────────── -->
+      <div class="add-card">
+        <div class="add-row">
+          <div class="add-field">
+            <label for="newGroupName">Group Name <span class="required-star">*</span></label>
+            <input type="text" id="newGroupName"
+                   placeholder="e.g. Youth Group, Women's Ministry, Choir…"
+                   onkeydown="if(event.key==='Enter') addGroup()" />
+            <span class="field-hint" id="newGroupNameHint"></span>
+          </div>
+          <button class="btn-add-group" id="addBtn" onclick="addGroup()">＋ Add Group</button>
+        </div>
+      </div>
+
+      <!-- ── Groups table card ──────────────────────────── -->
+      <div class="card">
+        <div class="table-wrap">
+          <table class="groups-table">
+            <thead>
+              <tr>
+                <th style="width:52px;">#</th>
+                <th>Group Name</th>
+                <th style="width:90px;">Members</th>
+                <th style="width:270px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="groupsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Members Panel ──────────────────────────────── -->
+      <div class="members-panel" id="membersPanel">
+        <div class="members-panel-header">
+          <div class="members-panel-title">
+            <span>👥</span>
+            <span id="membersPanelTitle">Group Members</span>
+          </div>
+          <div class="members-panel-actions">
+            <button class="btn-close-panel" onclick="closePanel()" title="Close">✕</button>
+          </div>
+        </div>
+
+        <!-- Member feedback -->
+        <div class="member-feedback" id="memberFeedbackMsg"></div>
+
+        <!-- Add from existing church member (shown first) -->
+        <div class="add-existing-wrap">
+          <span class="or-divider">Add from existing members</span>
+          <div class="picker-outer">
+            <input type="text" class="member-picker-input" id="existingMemberSearch"
+                   placeholder="Search by name or email…"
+                   oninput="onPickerInput()" onfocus="onPickerFocus()"
+                   autocomplete="off" />
+            <span class="picker-clear" id="pickerClear" onclick="clearPicker()" title="Clear">✕</span>
+            <div class="picker-dropdown" id="pickerDropdown"></div>
+          </div>
+          <button class="btn-add-existing" id="addExistingBtn"
+                  onclick="addExistingMember()" disabled>＋ Add to Group</button>
+        </div>
+
+        <!-- No-email notice: shown when selected existing member has no email -->
+        <div class="no-email-notice" id="noEmailNotice" style="display:none;">
+          <span class="no-email-msg">⚠ This member has no email address.</span>
+          <label class="no-email-option">
+            <input type="checkbox" id="useHohEmail" onchange="onUseHohEmailChange()" />
+            Use Head of Household email: <strong id="hohEmailDisplay"></strong>
+          </label>
+        </div>
+
+        <!-- Add New Member (shown second) -->
+        <div class="add-member-row">
+          <span class="or-divider">Or add a new member</span>
+          <div class="add-member-fields">
+            <div class="add-member-field">
+              <label for="mFirstName">First Name <span class="required-star">*</span></label>
+              <input type="text" id="mFirstName" placeholder="First name"
+                     onkeydown="if(event.key==='Enter') addMember()" />
+            </div>
+            <div class="add-member-field">
+              <label for="mLastName">Last Name <span class="required-star">*</span></label>
+              <input type="text" id="mLastName" placeholder="Last name"
+                     onkeydown="if(event.key==='Enter') addMember()" />
+            </div>
+            <div class="add-member-field" style="flex:2; min-width:200px;">
+              <label for="mEmail">Email</label>
+              <input type="email" id="mEmail" placeholder="email@example.com (optional)"
+                     onkeydown="if(event.key==='Enter') addMember()" />
+            </div>
+            <button class="btn-add-member" id="addMemberBtn" onclick="addMember()">＋ Add Member</button>
+          </div>
+        </div>
+
+        <!-- Members table -->
+        <div class="table-wrap">
+          <!-- Email Selected toolbar above the table -->
+          <div class="email-toolbar" id="emailToolbar">
+            <button class="btn-email-group" onclick="openEmailModal()">
+              ✉ Email Selected<span class="sel-info" id="selInfo"></span>
+            </button>
+          </div>
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th class="chk-col" style="width:40px;">
+                  <input type="checkbox" class="chk-select" id="selectAllMembers"
+                         title="Select all" onchange="toggleSelectAll(this)" />
+                </th>
+                <th>Name</th>
+                <th>Email</th>
+                <th style="width:150px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="membersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ════════════ EDIT GROUP MODAL ════════════ -->
+<div class="modal-overlay" id="editGroupModal" onclick="onOverlayClick(event,'editGroupModal')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Group</span>
+      <button class="modal-close" onclick="closeModal('editGroupModal')" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="editGroupName">Group Name <span class="required-star">*</span></label>
+        <input type="text" id="editGroupName"
+               placeholder="Enter group name"
+               onkeydown="if(event.key==='Enter') saveEditGroup()" />
+        <span class="field-hint" id="editGroupNameHint"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('editGroupModal')">Cancel</button>
+      <button class="btn-save-modal" id="editGroupSaveBtn" onclick="saveEditGroup()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ EDIT MEMBER MODAL ════════════ -->
+<div class="modal-overlay" id="editMemberModal" onclick="onOverlayClick(event,'editMemberModal')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Edit Member</span>
+      <button class="modal-close" onclick="closeModal('editMemberModal')" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field">
+          <label for="editMemberFirst">First Name <span class="required-star">*</span></label>
+          <input type="text" id="editMemberFirst" placeholder="First name"
+                 onkeydown="if(event.key==='Enter') saveEditMember()" />
+          <span class="field-hint" id="editMemberFirstHint"></span>
+        </div>
+        <div class="field">
+          <label for="editMemberLast">Last Name <span class="required-star">*</span></label>
+          <input type="text" id="editMemberLast" placeholder="Last name"
+                 onkeydown="if(event.key==='Enter') saveEditMember()" />
+          <span class="field-hint" id="editMemberLastHint"></span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="editMemberEmail">Email</label>
+        <input type="email" id="editMemberEmail" placeholder="email@example.com (optional)"
+               onkeydown="if(event.key==='Enter') saveEditMember()" />
+        <span class="field-hint" id="editMemberEmailHint"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('editMemberModal')">Cancel</button>
+      <button class="btn-save-modal" id="editMemberSaveBtn" onclick="saveEditMember()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ EMAIL MODAL ════════════ -->
+<div class="modal-overlay" id="emailModal" onclick="onOverlayClick(event,'emailModal')">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title" id="emailModalTitle">Email Group</span>
+      <button class="modal-close" onclick="closeModal('emailModal')" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="emailSubject">Subject <span class="required-star">*</span></label>
+        <input type="text" id="emailSubject" placeholder="Email subject…" />
+        <span class="field-hint" id="emailSubjectHint"></span>
+      </div>
+      <div class="field">
+        <label for="emailBody">Message <span class="required-star">*</span></label>
+        <textarea id="emailBody" placeholder="Type your message here…"></textarea>
+        <span class="field-hint" id="emailBodyHint"></span>
+      </div>
+      <div>
+        <span class="file-label">Attachment (optional)</span>
+        <label class="file-input-wrap" for="emailAttachment" id="fileLabel">
+          <input type="file" id="emailAttachment" onchange="onFileChange()" />
+          <span class="file-input-icon">📎</span>
+          <span class="file-input-text" id="fileInputText">Click to attach a file…</span>
+        </label>
+      </div>
+      <div style="font-size: 13px; color:#888; line-height:1.5;">
+        This email will be sent to all members of <strong id="emailGroupName"></strong> as BCC.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('emailModal')">Cancel</button>
+      <button class="btn-save-modal" id="emailSendBtn" onclick="sendEmail()">✉ Send Email</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allGroups      = [];
+  const groupMap     = {};   // id → group
+  let editingGroupId = null;
+  let editingMemberId = null;
+
+  // Members panel state
+  let activeGroupId   = null;  // currently expanded group
+  let allMembers      = [];    // members of activeGroupId
+  const memberMap     = {};    // id → member
+
+  /* ════════════════════════════════════
+     LOAD GROUPS
+  ════════════════════════════════════ */
+  async function loadGroups() {
+    try {
+      const res = await fetch('/api/groups');
+      if (!res.ok) throw new Error('Server error');
+      allGroups = await res.json();
+    } catch {
+      allGroups = [];
+      showFeedback('❌ Failed to load groups from the server.', 'error');
+    }
+    Object.keys(groupMap).forEach(k => delete groupMap[k]);
+    allGroups.forEach(g => { groupMap[g.id] = g; });
+    renderGroupsTable();
+  }
+
+  /* ════════════════════════════════════
+     RENDER GROUPS TABLE
+  ════════════════════════════════════ */
+  function renderGroupsTable() {
+    const tbody = document.getElementById('groupsTableBody');
+
+    if (allGroups.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="4">
+          <div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <div class="empty-text">No groups yet. Add one above to get started.</div>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allGroups.map((g, idx) => {
+      const isActive = g.id === activeGroupId;
+      return `
+        <tr class="${isActive ? 'selected-row' : ''}">
+          <td class="row-num">${idx + 1}</td>
+          <td><span class="group-name">${escHtml(g.groupName)}</span></td>
+          <td><span class="member-count-badge" id="memberCount-${g.id}">—</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn-action btn-members"
+                      onclick="toggleMembers(${g.id})" title="Members">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              </button>
+              ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.edit'] === false ? '' :
+                `<button class="btn-action btn-edit" onclick="openEditGroupModal(${g.id})" title="Edit">📝</button>`}
+              ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.delete'] === false ? '' :
+                `<button class="btn-action btn-delete" onclick="deleteGroup(${g.id})" title="Delete">🗑</button>`}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Load member counts asynchronously
+    allGroups.forEach(g => loadMemberCount(g.id));
+  }
+
+  async function loadMemberCount(groupId) {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/members`);
+      if (!res.ok) return;
+      const members = await res.json();
+      const el = document.getElementById(`memberCount-${groupId}`);
+      if (el) el.textContent = members.length;
+    } catch { /* ignore */ }
+  }
+
+  /* ════════════════════════════════════
+     ADD GROUP
+  ════════════════════════════════════ */
+  async function addGroup() {
+    const input = document.getElementById('newGroupName');
+    const hint  = document.getElementById('newGroupNameHint');
+    const name  = input.value.trim();
+
+    if (!name) {
+      hint.textContent = 'Group name is required.';
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+    hint.textContent = '';
+    input.classList.remove('invalid');
+
+    const btn = document.getElementById('addBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res  = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName: name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        input.value = '';
+        showFeedback(`✅ Group "${escHtml(name)}" added successfully.`, 'success');
+        await loadGroups();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to add group.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '＋ Add Group';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EDIT GROUP MODAL
+  ════════════════════════════════════ */
+  function openEditGroupModal(id) {
+    const g = groupMap[id];
+    if (!g) return;
+    editingGroupId = id;
+
+    const input = document.getElementById('editGroupName');
+    input.value = g.groupName;
+    input.classList.remove('invalid');
+    document.getElementById('editGroupNameHint').textContent = '';
+    document.getElementById('editGroupSaveBtn').disabled     = false;
+    document.getElementById('editGroupSaveBtn').textContent  = 'Update';
+    openModal('editGroupModal');
+    setTimeout(() => input.focus(), 80);
+  }
+
+  async function saveEditGroup() {
+    const input = document.getElementById('editGroupName');
+    const hint  = document.getElementById('editGroupNameHint');
+    const name  = input.value.trim();
+
+    if (!name) {
+      hint.textContent = 'Group name is required.';
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+    hint.textContent = '';
+    input.classList.remove('invalid');
+
+    const btn = document.getElementById('editGroupSaveBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Updating…';
+
+    try {
+      const res  = await fetch(`/api/groups/${editingGroupId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupName: name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeModal('editGroupModal');
+        showFeedback(`✅ Group updated to "${escHtml(name)}" successfully.`, 'success');
+        if (activeGroupId === editingGroupId) {
+          document.getElementById('membersPanelTitle').textContent = `Members — ${escHtml(name)}`;
+        }
+        await loadGroups();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to update group.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Update';
+    }
+  }
+
+  /* ════════════════════════════════════
+     DELETE GROUP
+  ════════════════════════════════════ */
+  async function deleteGroup(id) {
+    const g    = groupMap[id];
+    const name = g ? g.groupName : String(id);
+    if (!confirm('Are you sure you want to delete this group?')) return;
+
+    try {
+      const res  = await fetch(`/api/groups/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${escHtml(name)}" has been deleted.`, 'success');
+        if (activeGroupId === id) closePanel();
+        await loadGroups();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete group.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete group.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     MEMBERS PANEL — open / close / toggle
+  ════════════════════════════════════ */
+  async function toggleMembers(groupId) {
+    if (activeGroupId === groupId) {
+      closePanel();
+    } else {
+      await openMembersPanel(groupId);
+    }
+  }
+
+  async function openMembersPanel(groupId) {
+    activeGroupId = groupId;
+    const g = groupMap[groupId] || {};
+    document.getElementById('membersPanelTitle').textContent =
+      `Members — ${escHtml(g.groupName || String(groupId))}`;
+    document.getElementById('emailGroupName').textContent =
+      escHtml(g.groupName || String(groupId));
+
+    // Clear add-member form
+    ['mFirstName','mLastName','mEmail'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.classList.remove('invalid');
+    });
+
+    document.getElementById('membersPanel').classList.add('open');
+    renderGroupsTable();   // re-render to show selected-row highlight & active button
+    await loadChurchMembers();
+    await loadMembers();
+
+    // Scroll to panel
+    document.getElementById('membersPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function closePanel() {
+    activeGroupId = null;
+    resetPicker();
+    document.getElementById('membersPanel').classList.remove('open');
+    renderGroupsTable();
+  }
+
+  /* ════════════════════════════════════
+     LOAD MEMBERS
+  ════════════════════════════════════ */
+  async function loadMembers() {
+    if (!activeGroupId) return;
+    try {
+      const res = await fetch(`/api/groups/${activeGroupId}/members`);
+      if (!res.ok) throw new Error('Server error');
+      allMembers = await res.json();
+    } catch {
+      allMembers = [];
+      showMemberFeedback('❌ Failed to load members.', 'error');
+    }
+    Object.keys(memberMap).forEach(k => delete memberMap[k]);
+    allMembers.forEach(m => { memberMap[m.id] = m; });
+    renderMembersTable();
+  }
+
+  /* ════════════════════════════════════
+     RENDER MEMBERS TABLE
+  ════════════════════════════════════ */
+  function renderMembersTable() {
+    const tbody = document.getElementById('membersTableBody');
+
+    // Reset select-all checkbox
+    const selectAll = document.getElementById('selectAllMembers');
+    if (selectAll) selectAll.checked = false;
+    updateSelInfo();
+
+    if (allMembers.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="4">
+          <div class="empty-state">
+            <div class="empty-icon">👤</div>
+            <div class="empty-text">No members in this group yet. Add one above.</div>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allMembers.map((m, idx) => {
+      const hasEmail = !!(m.email && m.email.trim());
+      const chkAttrs = hasEmail ? '' : ' disabled style="opacity:.35;cursor:not-allowed;" title="No email — cannot be selected for emailing"';
+      return `
+      <tr>
+        <td class="chk-col">
+          <input type="checkbox" class="chk-select member-chk" data-id="${m.id}"
+                 onchange="onMemberChkChange()"${chkAttrs} />
+        </td>
+        <td><div class="member-full-name">${window.CGP_memberNameHtml ? window.CGP_memberNameHtml(m.firstName, m.lastName, m.nickname) : (escHtml(m.firstName) + ' ' + escHtml(m.lastName))}</div></td>
+        <td><span class="member-email">${m.email ? escHtml(m.email) : '<em style="color:#ccc;">no email</em>'}</span></td>
+        <td>
+          <div class="actions">
+            ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.edit'] === false ? '' :
+              `<button class="btn-action btn-edit" onclick="openEditMemberModal(${m.id})" title="Edit">📝</button>`}
+            ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.delete'] === false ? '' :
+              `<button class="btn-action btn-delete" onclick="removeMember(${m.id})" title="Remove">✕</button>`}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ════════════════════════════════════
+     ADD MEMBER
+  ════════════════════════════════════ */
+  async function addMember() {
+    if (!activeGroupId) return;
+
+    const fnEl  = document.getElementById('mFirstName');
+    const lnEl  = document.getElementById('mLastName');
+    const emEl  = document.getElementById('mEmail');
+
+    let valid = true;
+    [fnEl, lnEl, emEl].forEach(el => el.classList.remove('invalid'));
+
+    if (!fnEl.value.trim()) { fnEl.classList.add('invalid'); valid = false; }
+    if (!lnEl.value.trim()) { lnEl.classList.add('invalid'); valid = false; }
+
+    if (!valid) {
+      showMemberFeedback('⚠ Please fill in all required fields.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('addMemberBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res  = await fetch(`/api/groups/${activeGroupId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: fnEl.value.trim(),
+          lastName:  lnEl.value.trim(),
+          email:     emEl.value.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fnEl.value = ''; lnEl.value = ''; emEl.value = '';
+        showMemberFeedback(`✅ Member added successfully.`, 'success');
+        await loadMembers();
+        await loadMemberCount(activeGroupId);
+        // Update badge in groups table
+        const badge = document.getElementById(`memberCount-${activeGroupId}`);
+        if (badge) badge.textContent = allMembers.length;
+      } else {
+        showMemberFeedback(`❌ ${data.error || 'Failed to add member.'}`, 'error');
+      }
+    } catch {
+      showMemberFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '＋ Add Member';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EDIT MEMBER MODAL
+  ════════════════════════════════════ */
+  function openEditMemberModal(id) {
+    const m = memberMap[id];
+    if (!m) return;
+    editingMemberId = id;
+
+    document.getElementById('editMemberFirst').value  = m.firstName;
+    document.getElementById('editMemberLast').value   = m.lastName;
+    document.getElementById('editMemberEmail').value  = m.email;
+    ['editMemberFirst','editMemberLast','editMemberEmail'].forEach(fid => {
+      document.getElementById(fid).classList.remove('invalid');
+    });
+    ['editMemberFirstHint','editMemberLastHint','editMemberEmailHint'].forEach(hid => {
+      document.getElementById(hid).textContent = '';
+    });
+    document.getElementById('editMemberSaveBtn').disabled    = false;
+    document.getElementById('editMemberSaveBtn').textContent = 'Update';
+    openModal('editMemberModal');
+    setTimeout(() => document.getElementById('editMemberFirst').focus(), 80);
+  }
+
+  async function saveEditMember() {
+    const fnEl  = document.getElementById('editMemberFirst');
+    const lnEl  = document.getElementById('editMemberLast');
+    const emEl  = document.getElementById('editMemberEmail');
+    const fnHint = document.getElementById('editMemberFirstHint');
+    const lnHint = document.getElementById('editMemberLastHint');
+    const emHint = document.getElementById('editMemberEmailHint');
+
+    let valid = true;
+    fnHint.textContent = ''; lnHint.textContent = ''; emHint.textContent = '';
+    fnEl.classList.remove('invalid'); lnEl.classList.remove('invalid'); emEl.classList.remove('invalid');
+
+    if (!fnEl.value.trim()) { fnHint.textContent = 'Required.'; fnEl.classList.add('invalid'); valid = false; }
+    if (!lnEl.value.trim()) { lnHint.textContent = 'Required.'; lnEl.classList.add('invalid'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('editMemberSaveBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Updating…';
+
+    try {
+      const res  = await fetch(`/api/group-members/${editingMemberId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: fnEl.value.trim(),
+          lastName:  lnEl.value.trim(),
+          email:     emEl.value.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeModal('editMemberModal');
+        showMemberFeedback('✅ Member updated successfully.', 'success');
+        await loadMembers();
+      } else {
+        showMemberFeedback(`❌ ${data.error || 'Failed to update member.'}`, 'error');
+        closeModal('editMemberModal');
+      }
+    } catch {
+      showMemberFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Update';
+    }
+  }
+
+  /* ════════════════════════════════════
+     REMOVE MEMBER
+  ════════════════════════════════════ */
+  async function removeMember(id) {
+    const m    = memberMap[id];
+    const name = m ? `${m.firstName} ${m.lastName}` : String(id);
+    if (!confirm('Are you sure you want to remove this member from the group?')) return;
+
+    try {
+      const res  = await fetch(`/api/group-members/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showMemberFeedback(`"${escHtml(name)}" has been removed.`, 'success');
+        await loadMembers();
+        await loadMemberCount(activeGroupId);
+      } else {
+        showMemberFeedback(`❌ ${data.error || 'Failed to remove member.'}`, 'error');
+      }
+    } catch {
+      showMemberFeedback('❌ Network error — could not remove member.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     EMAIL MODAL
+  ════════════════════════════════════ */
+  // Holds the emails chosen at modal-open time so sendEmail() uses the same set.
+  let pendingBccEmails = [];
+
+  function openEmailModal() {
+    if (!activeGroupId) return;
+
+    const selected = [...new Set(getSelectedEmails())];
+    if (selected.length === 0) {
+      showMemberFeedback('⚠ Please select at least one member to email.', 'error');
+      return;
+    }
+    pendingBccEmails = selected;
+
+    const g = groupMap[activeGroupId] || {};
+    document.getElementById('emailModalTitle').textContent =
+      `Email Group — ${escHtml(g.groupName || '')}`;
+    document.getElementById('emailGroupName').textContent =
+      `${selected.length} selected member${selected.length === 1 ? '' : 's'} of ${escHtml(g.groupName || '')}`;
+    document.getElementById('emailSubject').value  = '';
+    document.getElementById('emailBody').value     = '';
+    document.getElementById('emailAttachment').value = '';
+    document.getElementById('fileInputText').textContent = 'Click to attach a file…';
+    document.getElementById('fileInputText').className  = 'file-input-text';
+    ['emailSubject','emailBody'].forEach(id => {
+      document.getElementById(id).classList.remove('invalid');
+    });
+    ['emailSubjectHint','emailBodyHint'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+    document.getElementById('emailSendBtn').disabled    = false;
+    document.getElementById('emailSendBtn').textContent = '✉ Send Email';
+    openModal('emailModal');
+    setTimeout(() => document.getElementById('emailSubject').focus(), 80);
+  }
+
+  function onFileChange() {
+    const file = document.getElementById('emailAttachment').files[0];
+    const textEl = document.getElementById('fileInputText');
+    if (file) {
+      textEl.textContent = file.name;
+      textEl.className   = 'file-selected';
+    } else {
+      textEl.textContent = 'Click to attach a file…';
+      textEl.className   = 'file-input-text';
+    }
+  }
+
+  async function sendEmail() {
+    const subEl  = document.getElementById('emailSubject');
+    const bodyEl = document.getElementById('emailBody');
+    const subHint  = document.getElementById('emailSubjectHint');
+    const bodyHint = document.getElementById('emailBodyHint');
+
+    let valid = true;
+    subHint.textContent = ''; bodyHint.textContent = '';
+    subEl.classList.remove('invalid'); bodyEl.classList.remove('invalid');
+
+    if (!subEl.value.trim())  { subHint.textContent  = 'Subject is required.';  subEl.classList.add('invalid');  valid = false; }
+    if (!bodyEl.value.trim()) { bodyHint.textContent = 'Message is required.'; bodyEl.classList.add('invalid'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('emailSendBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const bccEmails = pendingBccEmails;
+      const formData  = new FormData();
+      formData.append('subject',   subEl.value.trim());
+      formData.append('body',      bodyEl.value.trim());
+      formData.append('bccEmails', JSON.stringify(bccEmails));
+
+      const fileInput = document.getElementById('emailAttachment');
+      if (fileInput.files[0]) {
+        formData.append('attachment', fileInput.files[0]);
+      }
+
+      const res  = await fetch('/api/groups/email', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        closeModal('emailModal');
+        showMemberFeedback(`✅ Email sent to ${bccEmails.length} member(s).`, 'success');
+      } else {
+        showMemberFeedback(`❌ ${data.error || 'Failed to send email.'}`, 'error');
+        closeModal('emailModal');
+      }
+    } catch {
+      showMemberFeedback('❌ Network error — could not send email.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '✉ Send Email';
+    }
+  }
+
+  /* ════════════════════════════════════
+     EXISTING MEMBER PICKER
+  ════════════════════════════════════ */
+  let allChurchMembers     = [];   // loaded once from /api/members
+  let selectedExisting     = null; // member object chosen from dropdown
+  let pickerMatches        = [];   // current filtered list
+
+  async function loadChurchMembers() {
+    if (allChurchMembers.length > 0) return;
+    try {
+      const res = await fetch('/api/members');
+      if (!res.ok) throw new Error();
+      allChurchMembers = await res.json();
+    } catch {
+      allChurchMembers = [];
+    }
+  }
+
+  function onPickerInput() {
+    selectedExisting = null;
+    document.getElementById('addExistingBtn').disabled = true;
+    const q = document.getElementById('existingMemberSearch').value.trim();
+    document.getElementById('pickerClear').classList.toggle('visible', q.length > 0);
+    renderPickerDropdown(q.toLowerCase());
+  }
+
+  function onPickerFocus() {
+    const q = document.getElementById('existingMemberSearch').value.trim().toLowerCase();
+    renderPickerDropdown(q);
+  }
+
+  function renderPickerDropdown(q) {
+    const dd = document.getElementById('pickerDropdown');
+
+    // Build a set of "firstName|lastName" keys for members already in the group.
+    // We intentionally do NOT dedup purely by email because family members often
+    // share the same email address — using email alone would exclude siblings/spouses.
+    const currentNames = new Set(
+      allMembers.map(m =>
+        ((m.firstName || '').trim().toLowerCase() + '|' + (m.lastName || '').trim().toLowerCase())
+      )
+    );
+
+    pickerMatches = allChurchMembers.filter(m => {
+      // Exclude members already in the group by name match
+      const nameKey = ((m.firstName || '').trim().toLowerCase() + '|' + (m.lastName || '').trim().toLowerCase());
+      if (currentNames.has(nameKey)) return false;
+      if (!q) return true;
+      const full = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ').toLowerCase();
+      return full.includes(q) || (m.email || '').toLowerCase().includes(q);
+    }).slice(0, 25);
+
+    if (pickerMatches.length === 0) {
+      dd.innerHTML = `<div class="picker-no-results">No matching members found</div>`;
+    } else {
+      dd.innerHTML = pickerMatches.map((m, i) => {
+        const legal = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+        const nk = (m.nickname || m.otherName || '').trim();
+        const fullHtml = escHtml(legal) + (nk ? ` <span class="cgp-nickname">(${escHtml(nk)})</span>` : '');
+        const emailLine = m.email
+          ? `<div class="picker-item-email">${escHtml(m.email)}</div>`
+          : `<div class="picker-item-email" style="color:#ccc;font-style:italic;">no email</div>`;
+        return `<div class="picker-item" data-idx="${i}" onclick="selectExistingMember(${i})">
+                  <div class="picker-item-name">${fullHtml}</div>
+                  ${emailLine}
+                </div>`;
+      }).join('');
+    }
+    dd.classList.add('open');
+  }
+
+  function selectExistingMember(idx) {
+    const m = pickerMatches[idx];
+    if (!m) return;
+    selectedExisting = m;
+    const full = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+    document.getElementById('existingMemberSearch').value = m.email ? `${full}  —  ${m.email}` : full;
+    document.getElementById('pickerClear').classList.add('visible');
+    document.getElementById('pickerDropdown').classList.remove('open');
+
+    // Show HoH email option if this member has no email
+    const noticeEl = document.getElementById('noEmailNotice');
+    const hohEl    = document.getElementById('hohEmailDisplay');
+    const useHohChk = document.getElementById('useHohEmail');
+    useHohChk.checked = false;
+
+    if (!m.email && m.familyId) {
+      // Find the HoH (or any member with email) in the same family
+      const hohMember = allChurchMembers.find(cm =>
+        cm.familyId === m.familyId &&
+        cm.email &&
+        (cm.role === 'Head' || cm.role === 'Head of Household')
+      ) || allChurchMembers.find(cm =>
+        cm.familyId === m.familyId && cm.email
+      );
+
+      if (hohMember) {
+        hohEl.textContent = hohMember.email;
+        noticeEl.style.display = '';
+        // Can't add without email unless user opts into HoH email
+        document.getElementById('addExistingBtn').disabled = true;
+      } else {
+        // No family email found — allow adding without email
+        hohEl.textContent = '';
+        noticeEl.style.display = 'none';
+        document.getElementById('addExistingBtn').disabled = false;
+      }
+    } else {
+      hohEl.textContent = '';
+      noticeEl.style.display = 'none';
+      document.getElementById('addExistingBtn').disabled = false;
+    }
+  }
+
+  function onUseHohEmailChange() {
+    const useHoh = document.getElementById('useHohEmail').checked;
+    document.getElementById('addExistingBtn').disabled = !useHoh;
+  }
+
+  function clearPicker() {
+    selectedExisting = null;
+    document.getElementById('existingMemberSearch').value = '';
+    document.getElementById('pickerClear').classList.remove('visible');
+    document.getElementById('pickerDropdown').classList.remove('open');
+    document.getElementById('addExistingBtn').disabled = true;
+    document.getElementById('noEmailNotice').style.display = 'none';
+    document.getElementById('useHohEmail').checked = false;
+    document.getElementById('hohEmailDisplay').textContent = '';
+  }
+
+  function resetPicker() {
+    clearPicker();
+    pickerMatches = [];
+  }
+
+  async function addExistingMember() {
+    if (!selectedExisting || !activeGroupId) return;
+    const m   = selectedExisting;
+    const btn = document.getElementById('addExistingBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    // Resolve email: use member's own email, or HoH email if checkbox selected
+    let resolvedEmail = (m.email || '').trim();
+    if (!resolvedEmail) {
+      const useHoh = document.getElementById('useHohEmail').checked;
+      if (useHoh) {
+        resolvedEmail = document.getElementById('hohEmailDisplay').textContent.trim();
+      }
+    }
+
+    try {
+      const res  = await fetch(`/api/groups/${activeGroupId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: (m.firstName || '').trim(),
+          lastName:  (m.lastName  || '').trim(),
+          email:     resolvedEmail
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const full = [m.firstName, m.lastName].filter(Boolean).join(' ');
+        resetPicker();
+        btn.disabled    = false;
+        btn.textContent = '＋ Add to Group';
+        showMemberFeedback(`✅ ${escHtml(full)} added to the group.`, 'success');
+        await loadMembers();
+        await loadMemberCount(activeGroupId);
+      } else {
+        showMemberFeedback(`❌ ${data.error || 'Failed to add member.'}`, 'error');
+        btn.disabled    = false;
+        btn.textContent = '＋ Add to Group';
+      }
+    } catch {
+      showMemberFeedback('❌ Network error — could not reach the server.', 'error');
+      btn.disabled    = false;
+      btn.textContent = '＋ Add to Group';
+    }
+  }
+
+  /* ════════════════════════════════════
+     SELECTION HELPERS
+  ════════════════════════════════════ */
+  function toggleSelectAll(masterChk) {
+    document.querySelectorAll('.member-chk').forEach(chk => {
+      chk.checked = masterChk.checked;
+    });
+    updateSelInfo();
+  }
+
+  function onMemberChkChange() {
+    const all     = document.querySelectorAll('.member-chk');
+    const checked = document.querySelectorAll('.member-chk:checked');
+    const master  = document.getElementById('selectAllMembers');
+    if (master) {
+      master.checked       = checked.length === all.length && all.length > 0;
+      master.indeterminate = checked.length > 0 && checked.length < all.length;
+    }
+    updateSelInfo();
+  }
+
+  function getSelectedEmails() {
+    const ids = [...document.querySelectorAll('.member-chk:checked')]
+                  .map(chk => parseInt(chk.dataset.id, 10));
+    return ids.map(id => memberMap[id]?.email).filter(Boolean);
+  }
+
+  function updateSelInfo() {
+    const count = document.querySelectorAll('.member-chk:checked').length;
+    const total = allMembers.length;
+    const el    = document.getElementById('selInfo');
+    if (!el) return;
+    el.textContent = total > 0
+      ? `(${count} of ${total})`
+      : '';
+  }
+
+  /* ════════════════════════════════════
+     MODAL HELPERS
+  ════════════════════════════════════ */
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    if (id === 'editGroupModal')  editingGroupId  = null;
+    if (id === 'editMemberModal') editingMemberId = null;
+  }
+
+  function onOverlayClick(event, id) {
+    if (event.target === document.getElementById(id)) closeModal(id);
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  function showMemberFeedback(msg, type) {
+    const el = document.getElementById('memberFeedbackMsg');
+    el.textContent = msg;
+    el.className   = `member-feedback ${type}`;
+    setTimeout(() => { if (el.textContent === msg) el.className = 'member-feedback'; }, 5000);
+  }
+
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (function init() {
+    loadGroups();
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        ['emailModal', 'editMemberModal', 'editGroupModal'].forEach(closeModal);
+        document.getElementById('pickerDropdown').classList.remove('open');
+      }
+    });
+
+    // Close picker dropdown when clicking outside the picker area
+    document.addEventListener('click', e => {
+      const outer = document.getElementById('existingMemberSearch')?.closest('.picker-outer');
+      if (outer && !outer.contains(e.target)) {
+        document.getElementById('pickerDropdown').classList.remove('open');
+      }
+    });
+  })();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/groups', pageTitle: '', openSection: 'admin' };
+window.CGP_applyPerms = function(p) {
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  if (p) {
+    if (p['admin.groups.edit']  === false) hide('#addBtn,#addExistingBtn,#addMemberBtn');
+    if (p['admin.email.delete'] === false) hide('.btn-email-group');
+  }
+  if (typeof renderGroupsTable === 'function') renderGroupsTable();
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

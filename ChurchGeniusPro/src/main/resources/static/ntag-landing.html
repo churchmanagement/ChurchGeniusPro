@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <title>Welcome</title>
+  <style>
+    :root { --brand:#673147; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+           background:#f3eef1; color:#222; min-height:100vh; }
+    .wrap { max-width:480px; margin:0 auto; min-height:100vh; background:#fff; display:flex; flex-direction:column; }
+    .hero { position:relative; background:var(--brand); color:#fff; text-align:center; padding:30px 20px 26px; }
+    .hero.has-banner { padding:0; }
+    .banner { width:100%; max-height:230px; object-fit:cover; display:block; }
+    .logo { width:84px; height:84px; border-radius:50%; object-fit:cover; background:#fff; border:3px solid rgba(255,255,255,.85);
+            margin:0 auto 12px; display:block; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+    .overlay-name { position:absolute; left:0; right:0; bottom:0; padding:14px; background:linear-gradient(transparent,rgba(0,0,0,.55)); }
+    .church-name { font-size:23px; font-weight:800; letter-spacing:.2px; }
+    .welcome { font-size:14px; opacity:.95; margin-top:6px; line-height:1.5; }
+    .welcome-light { color:#fff; }
+    .body { padding:20px 18px 30px; flex:1; }
+    .btns { display:flex; flex-direction:column; gap:13px; }
+    .lbtn { display:flex; align-items:center; gap:14px; width:100%; text-decoration:none; color:#1e2139;
+            background:#fff; border:1.5px solid #eadfe5; border-radius:14px; padding:15px 18px; font-size:16px; font-weight:600;
+            box-shadow:0 2px 10px rgba(103,49,71,.06); transition:transform .1s, box-shadow .15s, border-color .15s; cursor:pointer; }
+    .lbtn:active { transform:scale(.985); }
+    .lbtn .ic { font-size:24px; width:30px; text-align:center; flex:0 0 auto; }
+    .lbtn .arrow { margin-left:auto; color:#c5a8b8; font-size:18px; }
+    .social-foot { display:flex; flex-wrap:wrap; justify-content:center; gap:13px; padding:20px 16px 6px; border-top:1px solid #f0e7ec; margin-top:6px; }
+    .social-foot a { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                     font-size:23px; text-decoration:none; background:#f4eef1; border:1px solid #e8dde4;
+                     box-shadow:0 2px 8px rgba(0,0,0,.06); transition:transform .1s; }
+    .social-foot a:active { transform:scale(.9); }
+    /* Brand-icon links (Facebook, YouTube, …) show the mark itself — no grey chip. */
+    .social-foot a.brand { background:transparent; border:none; box-shadow:none; }
+    .social-foot a.brand svg { display:block; width:46px; height:46px; }
+    .foot { text-align:center; font-size:11px; color:#b3b3b3; padding:14px; }
+    .state { text-align:center; padding:60px 24px; color:#888; }
+    .spinner { width:34px; height:34px; border:3px solid #e6dde2; border-top-color:var(--brand); border-radius:50%;
+               animation:spin .8s linear infinite; margin:0 auto 14px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <div class="state"><div class="spinner"></div>Loading…</div>
+  </div>
+
+  <script>
+    (function () {
+      function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      // Official-style brand SVG for known social keys (same 48px footprint as the
+      // emoji icons). Returns '' for keys we don't have a brand mark for.
+      function brandIcon(key){
+        switch ((key||'').toLowerCase()) {
+          case 'facebook':
+            return '<svg viewBox="0 0 24 24" aria-hidden="true">'
+              + '<path fill="#0866FF" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/>'
+              + '<path fill="#fff" d="M16.67 15.56l.53-3.49h-3.33V9.82c0-.96.47-1.89 1.96-1.89h1.51V4.96s-1.37-.24-2.68-.24c-2.74 0-4.53 1.67-4.53 4.69v2.66H7.08v3.49h3.05V24a12.13 12.13 0 0 0 3.74 0v-8.44h2.8z"/>'
+              + '</svg>';
+          case 'youtube':
+            return '<svg viewBox="0 0 24 24" aria-hidden="true">'
+              + '<path fill="#FF0000" d="M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51A3.02 3.02 0 0 0 23.5 17.8 31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8z"/>'
+              + '<path fill="#fff" d="M9.6 15.6l6.27-3.6L9.6 8.4z"/>'
+              + '</svg>';
+        }
+        return '';
+      }
+      var params = new URLSearchParams(location.search);
+      var cid = params.get('c') || params.get('cid') || '';
+      var wrap = document.getElementById('wrap');
+
+      if (!cid) { wrap.innerHTML = '<div class="state">This page link is invalid.</div>'; return; }
+
+      fetch('/api/public/ntag-landing?cid=' + encodeURIComponent(cid))
+        .then(function (r) { if (!r.ok) throw new Error('unavailable'); return r.json(); })
+        .then(render)
+        .catch(function () { wrap.innerHTML = '<div class="state">This page is currently unavailable.</div>'; });
+
+      function render(d) {
+        var brand = d.themeColor || '#673147';
+        document.documentElement.style.setProperty('--brand', brand);
+        document.title = d.churchName || 'Welcome';
+
+        var hero;
+        if (d.bannerImage) {
+          hero = '<div class="hero has-banner"><img class="banner" src="' + esc(d.bannerImage) + '" alt="" />'
+               + '<div class="overlay-name"><div class="church-name">' + esc(d.churchName) + '</div></div></div>'
+               + (d.welcomeMessage ? '<div style="padding:14px 18px 0;text-align:center;"><div class="welcome" style="color:#555;">' + esc(d.welcomeMessage) + '</div></div>' : '');
+        } else {
+          hero = '<div class="hero">'
+               + (d.logo ? '<img class="logo" src="' + esc(d.logo) + '" alt="" />' : '')
+               + '<div class="church-name">' + esc(d.churchName) + '</div>'
+               + (d.welcomeMessage ? '<div class="welcome welcome-light">' + esc(d.welcomeMessage) + '</div>' : '')
+               + '</div>';
+        }
+
+        var all = d.buttons || [];
+        var main   = all.filter(function (b) { return sectionOf(b) === 'main'; });
+        var social = all.filter(function (b) { return sectionOf(b) === 'social'; });
+
+        var mainHtml = main.map(function (b) {
+          return '<a class="lbtn" href="' + esc(b.url) + '" target="_blank" rel="noopener" '
+               + 'onclick="return CGP_click(this, \'' + esc(b.key) + '\', \'' + esc((b.label||'').replace(/\'/g,"")) + '\')">'
+               + '<span class="ic">' + esc(b.icon || '🔗') + '</span><span>' + esc(b.label) + '</span><span class="arrow">›</span></a>';
+        }).join('');
+
+        var socialHtml = social.map(function (b) {
+          var bi = brandIcon(b.key);
+          return '<a href="' + esc(b.url) + '" target="_blank" rel="noopener" title="' + esc(b.label) + '" aria-label="' + esc(b.label) + '"'
+               + (bi ? ' class="brand"' : '') + ' '
+               + 'onclick="return CGP_click(this, \'' + esc(b.key) + '\', \'' + esc((b.label||'').replace(/\'/g,"")) + '\')">'
+               + (bi || esc(b.icon || '🔗')) + '</a>';
+        }).join('');
+
+        var bodyHtml = mainHtml || (socialHtml ? '' : '<div class="state">No links have been set up yet.</div>');
+        wrap.innerHTML = hero
+          + '<div class="body"><div class="btns">' + bodyHtml + '</div></div>'
+          + (socialHtml ? '<div class="social-foot">' + socialHtml + '</div>' : '')
+          + '<div class="foot">Powered by Church Genius Pro</div>';
+      }
+
+      // Footer = social/communication links; everything else is a main action button.
+      // Honors an explicit section, else infers from the button key (back-compat).
+      function sectionOf(b) {
+        var s = (b.section || '').toLowerCase();
+        if (s === 'social' || s === 'footer') return 'social';
+        if (s === 'main') return 'main';
+        return ['facebook','instagram','youtube','x','twitter','whatsapp','linkedin','email']
+                 .indexOf((b.key || '').toLowerCase()) >= 0 ? 'social' : 'main';
+      }
+
+      // Track the click (best-effort) then let the link proceed.
+      window.CGP_click = function (a, key, label) {
+        try {
+          var payload = JSON.stringify({ cid: cid, type: 'click', buttonKey: key, label: label });
+          if (navigator.sendBeacon) navigator.sendBeacon('/api/public/ntag-landing/track', new Blob([payload], { type: 'application/json' }));
+          else fetch('/api/public/ntag-landing/track', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive: true });
+        } catch (e) {}
+        return true;
+      };
+    })();
+  </script>
+</body>
+</html>

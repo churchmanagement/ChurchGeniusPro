@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Devanagari&family=Noto+Sans+Kannada&display=swap" rel="stylesheet" />
+  <title>Song Book</title>
+  <style>
+    :root { --brand:#673147; --paper:#fbf7f3;
+      --ml:'Noto Sans Malayalam','Noto Sans Tamil','Noto Sans Telugu','Noto Sans Devanagari','Noto Sans Kannada', Georgia,'Times New Roman',serif; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+           background:linear-gradient(160deg,#4a2336,#7a3a55); color:#2a2230; min-height:100vh; }
+    .wrap { max-width:780px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; color:#fff; gap:8px; position:sticky; top:0; z-index:30; }
+    .book-name { font-size:15px; font-weight:700; flex:1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .topbtn { background:rgba(255,255,255,.16); color:#fff; border:none; border-radius:9px; padding:8px 11px; font-size:13px; font-weight:600; cursor:pointer; }
+    .topbtn:active { transform:scale(.96); }
+    .stage { flex:1; padding:8px 14px 92px; overflow:hidden; }
+    .page { background:var(--paper); border-radius:16px; box-shadow:0 14px 40px rgba(0,0,0,.28); min-height:70vh; padding:30px 26px; position:relative; display:flex; flex-direction:column; }
+    .page.anim { animation:slidein .3s ease; }
+    .page.imgpage { padding:8px; background:#fff; align-items:center; justify-content:center; }
+    .full-img { width:100%; max-height:80vh; object-fit:contain; display:block; margin:auto; }
+    .page.imgpage.bleed { padding:0; overflow:hidden; }
+    .full-img.bleed { width:100%; height:100%; min-height:70vh; max-height:none; object-fit:cover; border-radius:16px; }
+    @keyframes slidein { from { opacity:0; transform:translateX(var(--dir,24px)); } to { opacity:1; transform:none; } }
+    .pageno { position:absolute; bottom:12px; left:0; right:0; text-align:center; font-size:11px; color:#b08aa0; font-weight:700; letter-spacing:1px; }
+
+    /* cover */
+    .cover { align-items:center; justify-content:center; text-align:center; background-size:cover; background-position:center; }
+    .cover .c-logo { width:84px; height:84px; border-radius:50%; object-fit:contain; background:#fff; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+    .cover .c-title { font-size:40px; font-weight:800; line-height:1.1; margin-bottom:14px; font-family:var(--ml); }
+    .cover .c-church { font-size:18px; font-weight:600; margin-bottom:6px; font-family:var(--ml); }
+    .cover .c-sub { font-size:16px; opacity:.9; } .cover .c-meta { font-size:14px; opacity:.78; margin-top:10px; }
+    .cover .c-foot { position:absolute; bottom:26px; left:0; right:0; font-size:12px; opacity:.65; }
+
+    /* toc */
+    .toc-title { font-size:24px; font-weight:800; color:var(--brand); text-align:center; margin-bottom:18px; }
+    .toc-sec { font-size:15px; font-weight:800; color:var(--brand); text-transform:uppercase; letter-spacing:.6px; margin:16px 0 6px; font-family:var(--ml); }
+    .toc-item { display:flex; align-items:flex-end; gap:6px; padding:7px 2px; cursor:pointer; font-family:var(--ml); }
+    .toc-item:hover .toc-name { color:var(--brand); }
+    .toc-name { font-size:15px; color:#33293a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .toc-dots { flex:1; border-bottom:2px dotted #cbb9c4; margin-bottom:4px; min-width:18px; }
+    .toc-pg { font-size:13px; font-weight:700; color:#8a6e7c; }
+
+    /* section divider */
+    .divider { align-items:center; justify-content:center; text-align:center; }
+    .divider .d-label { font-size:12px; letter-spacing:3px; text-transform:uppercase; color:#b08aa0; font-weight:700; margin-bottom:10px; }
+    .divider .d-name { font-size:34px; font-weight:800; color:var(--brand); font-family:var(--ml); line-height:1.2; }
+    .divider .d-rule { width:60px; height:3px; background:var(--brand); border-radius:2px; margin:16px auto 0; opacity:.5; }
+
+    /* song */
+    .song-no { font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:#b08aa0; font-weight:700; }
+    .song-sec { font-size:12px; color:#9a7d8c; font-weight:700; margin-top:2px; font-family:var(--ml); }
+    .song-title { font-size:26px; font-weight:800; color:var(--brand); margin:8px 0 16px; line-height:1.25; font-family:var(--ml); }
+    .song-title::after { content:''; display:block; width:54px; height:3px; background:var(--brand); border-radius:2px; margin-top:12px; opacity:.5; }
+    .lyrics { font-family:var(--ml); font-size:18px; line-height:1.8; color:#33293a; flex:1; }
+    .lyrics p { margin:0 0 16px; } .lyrics strong{font-weight:700;} .lyrics em{font-style:italic;}
+    .no-lyrics { font-style:italic; color:#b3a4ad; }
+
+    .nav { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
+           border-top:1px solid #eadfe5; display:flex; align-items:center; gap:10px; padding:12px 16px; max-width:780px; margin:0 auto; z-index:30; }
+    .nav button { flex:1; padding:12px; border:none; border-radius:11px; font-size:15px; font-weight:700; cursor:pointer; }
+    .nav .prev { background:#f0e8ec; color:var(--brand); } .nav .next { background:var(--brand); color:#fff; }
+    .nav .toc { flex:0 0 auto; background:#efe3ea; color:var(--brand); padding:12px 14px; }
+    .nav button:disabled { opacity:.4; cursor:not-allowed; }
+    .progress { font-size:13px; font-weight:700; color:#8a6e7c; min-width:60px; text-align:center; }
+
+    .state { color:#fff; text-align:center; padding:80px 24px; }
+    .spinner { width:34px;height:34px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;}
+    @keyframes spin { to { transform:rotate(360deg);} }
+
+    @media print { body{background:#fff;} .topbar,.nav{display:none!important;} .stage{padding:0;overflow:visible;} .page{display:none;}
+      #printAll{display:block!important;} .pb-page{page-break-after:always;padding:18px 6px;}
+      .pb-cover{text-align:center;padding-top:90px;} .pb-cover .t{font-size:38px;font-weight:800;color:var(--brand);font-family:var(--ml);}
+      .pb-cover .c{font-size:18px;font-weight:600;margin-top:8px;} .pb-cover .m{font-size:14px;color:#555;margin-top:6px;}
+      .pb-sec{font-size:22px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:1px;text-align:center;padding-top:120px;font-family:var(--ml);}
+      .pb-toc-title{font-size:24px;font-weight:800;color:var(--brand);text-align:center;margin-bottom:16px;}
+      .pb-toc-sec{font-weight:800;color:var(--brand);margin:12px 0 4px;text-transform:uppercase;font-family:var(--ml);}
+      .pb-toc-item{display:flex;justify-content:space-between;padding:3px 0;font-family:var(--ml);}
+      .pb-title{font-size:20px;font-weight:700;color:var(--brand);border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:8px;font-family:var(--ml);}
+      .pb-lyrics{font-family:var(--ml);font-size:14px;line-height:1.55;}
+      .pb-imgpage{padding:0;text-align:center;display:flex;align-items:center;justify-content:center;}
+      .pb-imgpage img{max-width:100%;max-height:96vh;object-fit:contain;}
+      .pb-page.pb-imgpage.bleed{padding:0;}
+      .pb-imgpage.bleed img{width:100%;height:100vh;max-width:none;max-height:none;object-fit:cover;} }
+    #printAll{display:none;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <button class="topbtn" id="tocBtn" onclick="goToc()" style="display:none;">☰ Contents</button>
+      <div class="book-name" id="bookName">Song Book</div>
+      <button class="topbtn" id="printBtn" onclick="doPrint()" style="display:none;">🖨</button>
+    </div>
+    <div class="stage" id="stage"><div class="state"><div class="spinner"></div>Loading song book…</div></div>
+  </div>
+
+  <div class="nav" id="nav" style="display:none;">
+    <button class="prev" id="prevBtn" onclick="go(-1)">‹ Prev</button>
+    <button class="toc" onclick="goToc()">☰</button>
+    <div class="progress" id="progress"></div>
+    <button class="next" id="nextBtn" onclick="go(1)">Next ›</button>
+  </div>
+
+  <div id="printAll"></div>
+
+  <script>
+  let PAGES = [], TOC = [], COVER = {}, idx = 0, tocPage = 1, TOKEN = null;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function qp(k){ return new URLSearchParams(location.search).get(k); }
+  // resolve display mode for a custom page image: 'fill' crops to cover, otherwise fit (contain). Default fit.
+  function imgFill(kind){ const c=COVER||{}; const m = kind==='cover' ? (c.coverFit||(c.coverFullBleed?'fill':'fit')) : (c.lastFit||(c.lastFullBleed?'fill':'fit')); return m==='fill'; }
+  function fmtDate(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?iso:d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
+
+  async function init(){
+    const t=qp('t'); if(!t){ stageMsg('This song book link is invalid.'); return; } TOKEN=t;
+    try{
+      const r=await fetch('/api/public/songbook?t='+encodeURIComponent(t));
+      if(!r.ok) throw 0;
+      const d=await r.json();
+      document.title=d.bookTitle||'Song Book';
+      document.getElementById('bookName').textContent=d.bookTitle||'Song Book';
+      build(d);
+      if(PAGES.length<=2){ stageMsg('This song book has no songs yet.'); return; }
+      buildPrint();
+      document.getElementById('nav').style.display='flex';
+      document.getElementById('tocBtn').style.display='';
+      document.getElementById('printBtn').style.display='';
+      show(0);
+    }catch(e){ stageMsg('This song book is currently unavailable.'); }
+  }
+  function stageMsg(m){ document.getElementById('stage').innerHTML='<div class="state">'+esc(m)+'</div>'; }
+
+  function build(d){
+    COVER=d.cover||{}; COVER.bookTitle=d.bookTitle;
+    PAGES=[{type:'cover'},{type:'toc'}]; TOC=[]; tocPage=1;   // page index 1 = TOC
+    (d.sections||[]).forEach(sec=>{
+      if(!sec.songs||!sec.songs.length) return;
+      PAGES.push({type:'section', name:sec.name});
+      const items=[];
+      sec.songs.forEach(s=>{ const i=PAGES.length; PAGES.push({type:'song', title:s.title, language:s.language, lyricsHtml:s.lyricsHtml, section:sec.name}); items.push({title:s.title, idx:i}); });
+      TOC.push({name:sec.name, items});
+    });
+    if(COVER.customLast) PAGES.push({type:'lastimg'});   // uploaded back/end page
+  }
+
+  function show(i){
+    idx=Math.max(0,Math.min(i,PAGES.length-1));
+    const p=PAGES[idx]; let html='';
+    if(p.type==='cover') html=coverHtml();
+    else if(p.type==='lastimg'){ const b=imgFill('last')?' bleed':''; html=`<div class="page imgpage anim${b}"><img class="full-img${b}" src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=last"/></div>`; }
+    else if(p.type==='toc') html=tocHtml();
+    else if(p.type==='section') html=`<div class="page divider anim"><div class="d-label">Section</div><div class="d-name">${esc(p.name)}</div><div class="d-rule"></div><div class="pageno">${idx+1}</div></div>`;
+    else {
+      const lyr=(p.lyricsHtml&&p.lyricsHtml.trim())?p.lyricsHtml:'<p class="no-lyrics">Lyrics not provided.</p>';
+      html=`<div class="page anim"><div class="song-no">Page ${idx+1}${p.language?' · '+esc(p.language):''}</div>`+
+           `<div class="song-sec">${esc(p.section||'')}</div><div class="song-title">${esc(p.title)}</div>`+
+           `<div class="lyrics">${lyr}</div><div class="pageno">${idx+1}</div></div>`;
+    }
+    document.getElementById('stage').innerHTML=html;
+    document.getElementById('progress').textContent=(idx+1)+' / '+PAGES.length;
+    document.getElementById('prevBtn').disabled=idx===0;
+    document.getElementById('nextBtn').disabled=idx===PAGES.length-1;
+    document.getElementById('stage').scrollTop=0;
+  }
+  function coverHtml(){ const c=COVER;
+    if(c.customCover){ const b=imgFill('cover')?' bleed':''; return `<div class="page imgpage anim${b}"><img class="full-img${b}" src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=cover"/></div>`; }
+    const bg = c.bgImage ? `background:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28)),url('${c.bgImage}') center/cover;` : `background:${c.bgColor||'var(--paper)'};`;
+    const col = c.textColor||'#2a2230';
+    const logo = (c.showLogo!==false) ? `<img class="c-logo" src="/api/logo/image" onerror="this.style.display='none'"/>` : '';
+    return `<div class="page cover anim" style="${bg}color:${col}">`+
+      logo+
+      `<div class="c-title" style="color:${c.primaryColor||'#673147'}">${esc(c.title||c.bookTitle||'Song Book')}</div>`+
+      (c.churchName?`<div class="c-church">${esc(c.churchName)}</div>`:'')+
+      (c.subtitle?`<div class="c-sub">${esc(c.subtitle)}</div>`:'')+
+      (c.theme?`<div class="c-meta">${esc(c.theme)}</div>`:'')+
+      (c.eventDate?`<div class="c-meta">${esc(fmtDate(c.eventDate))}</div>`:'')+
+      (c.footerText?`<div class="c-foot">${esc(c.footerText)}</div>`:'')+
+      `<div class="pageno">1</div></div>`;
+  }
+  function tocHtml(){
+    let body=TOC.map(g=>`<div class="toc-sec">${esc(g.name)}</div>`+
+      g.items.map(it=>`<div class="toc-item" onclick="show(${it.idx})"><span class="toc-name">${esc(it.title)}</span><span class="toc-dots"></span><span class="toc-pg">${it.idx+1}</span></div>`).join('')
+    ).join('');
+    return `<div class="page anim"><div class="toc-title">Table of Contents</div>${body}<div class="pageno">2</div></div>`;
+  }
+  function go(dir){ document.getElementById('stage').style.setProperty('--dir', dir>0?'24px':'-24px'); show(idx+dir); }
+  function goToc(){ go(0); show(tocPage); }
+
+  function buildPrint(){
+    let html='';
+    const c=COVER;
+    if(c.customCover){ const b=imgFill('cover')?' bleed':''; html+=`<div class="pb-page pb-imgpage${b}"><img src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=cover"/></div>`; }
+    else {
+      html+=`<div class="pb-page pb-cover"><div class="t" style="color:${c.primaryColor||'#673147'}">${esc(c.title||c.bookTitle||'Song Book')}</div>`+
+        (c.churchName?`<div class="c">${esc(c.churchName)}</div>`:'')+(c.subtitle?`<div class="m">${esc(c.subtitle)}</div>`:'')+
+        (c.theme?`<div class="m">${esc(c.theme)}</div>`:'')+(c.eventDate?`<div class="m">${esc(fmtDate(c.eventDate))}</div>`:'')+`</div>`;
+    }
+    html+=`<div class="pb-page"><div class="pb-toc-title">Table of Contents</div>`+
+      TOC.map(g=>`<div class="pb-toc-sec">${esc(g.name)}</div>`+g.items.map(it=>`<div class="pb-toc-item"><span>${esc(it.title)}</span><span>${it.idx+1}</span></div>`).join('')).join('')+`</div>`;
+    for(let i=2;i<PAGES.length;i++){ const p=PAGES[i];
+      if(p.type==='section') html+=`<div class="pb-page pb-sec">${esc(p.name)}</div>`;
+      else if(p.type==='lastimg'){ const b=imgFill('last')?' bleed':''; html+=`<div class="pb-page pb-imgpage${b}"><img src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=last"/></div>`; }
+      else if(p.type==='song') html+=`<div class="pb-page"><div class="pb-title">${esc(p.title)}${p.language?' · '+esc(p.language):''}</div><div class="pb-lyrics">${p.lyricsHtml||'<em>(no lyrics)</em>'}</div></div>`;
+    }
+    document.getElementById('printAll').innerHTML=html;
+  }
+  async function doPrint(){
+    const imgs=[...document.querySelectorAll('#printAll img')];
+    await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=im.onerror=r;})));
+    window.print();
+  }
+
+  document.addEventListener('keydown', e=>{ if(e.key==='ArrowRight') go(1); if(e.key==='ArrowLeft') go(-1); });
+  let sx=null;
+  document.addEventListener('touchstart', e=>{ sx=e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e=>{ if(sx==null) return; const dx=e.changedTouches[0].clientX-sx; if(Math.abs(dx)>60) go(dx<0?1:-1); sx=null; }, {passive:true});
+
+  init();
+  </script>
+</body>
+</html>

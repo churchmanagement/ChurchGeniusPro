@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Private Page Access — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:20px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; }
+    .card-body { padding:20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .toggle-row { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:#1e2139; }
+    input[type=checkbox] { width:17px; height:17px; cursor:pointer; accent-color:#673147; }
+    input[type=text], textarea, select { border:1.5px solid #dde0ec; border-radius:8px; padding:9px 12px; font-size:13px; color:#1e2139; outline:none; background:#fff; font-family:inherit; }
+    input[type=text]:focus, textarea:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; }
+    .net { border:1px solid #eef0f6; border-radius:10px; padding:14px; margin-bottom:12px; }
+    .net .name { font-weight:700; color:#1e2139; }
+    .net textarea { width:100%; min-height:64px; margin-top:6px; font-family:'Courier New',monospace; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:11px; font-weight:700; }
+    .pill.on { background:#e8f5e9; color:#2e7d32; } .pill.off { background:#fdecea; color:#c62828; }
+    .page-rule { display:flex; flex-direction:column; gap:8px; padding:14px 0; border-bottom:1px solid #f3f4f9; }
+    .page-rule:last-child { border-bottom:none; }
+    .net-checks { display:flex; flex-wrap:wrap; gap:12px; }
+    .net-checks label { font-size:12.5px; display:flex; align-items:center; gap:5px; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:8px 10px; text-align:left; border-bottom:2px solid #eef0f8; }
+    td { padding:8px 10px; border-bottom:1px solid #f3f4f9; }
+    .st-BLOCKED { color:#c62828; font-weight:700; } .st-ALLOWED { color:#2e7d32; font-weight:700; } .st-OVERRIDE { color:#8a6d00; font-weight:700; }
+    .warn { background:#fff8e1; border:1px solid #ffe082; color:#8a6d00; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-top:10px; }
+    .feedback { padding:10px 16px; border-radius:9px; font-size:13px; margin-bottom:16px; display:none; }
+    .feedback.ok { display:block; background:#e8f5e9; color:#2e7d32; } .feedback.err { display:block; background:#ffebee; color:#c62828; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-title">🔒 Private Page Access</div>
+      <div class="page-subtitle">Restrict sensitive pages to your approved church networks (matched by IP address).</div>
+
+      <div class="feedback" id="fb"></div>
+
+      <!-- Master switch -->
+      <div class="card">
+        <div class="card-header"><span>⚙️</span><h2>Master Setting</h2></div>
+        <div class="card-body">
+          <label class="toggle-row"><input type="checkbox" id="masterEnabled" onchange="saveSetting()"> Enable Private Page Access</label>
+          <p class="muted" style="margin:10px 0 0;">When off, no page is restricted. A web server can't see Wi-Fi names — each network is matched by the IP address/range it presents to the server.</p>
+          <label class="toggle-row" style="margin-top:12px;font-weight:500;font-size:13px;">
+            <input type="checkbox" id="trustProxy" onchange="saveSetting()"> Behind a proxy/CDN — read client IP from <code>X-Forwarded-For</code> (recommended for production)
+          </label>
+        </div>
+      </div>
+
+      <!-- Networks -->
+      <div class="card">
+        <div class="card-header"><span>📶</span><h2>Approved Networks</h2>
+          <button class="btn-sec" onclick="addNetwork()">＋ Add Network</button></div>
+        <div class="card-body">
+          <p class="muted">Add the public IP address(es) or CIDR range(s) each church network uses (one per line). Examples: <code>203.0.113.7</code>, <code>10.0.0.0/24</code>.</p>
+          <div id="networks" style="margin-top:14px;"></div>
+          <div class="row" style="margin-top:6px;">
+            <button class="btn-sec" onclick="detectMyIp()">📍 Detect my IP</button>
+            <span class="muted" id="myIpHint"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page rules -->
+      <div class="card">
+        <div class="card-header"><span>📄</span><h2>Restricted Pages</h2></div>
+        <div class="card-body">
+          <p class="muted">Mark a page Private and choose which approved networks may reach it. Leave all networks unchecked-but-enabled to allow <em>any</em> approved network. Administrators always retain access (logged as an override).</p>
+          <div id="pageRules" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Audit -->
+      <div class="card">
+        <div class="card-header"><span>🧾</span><h2>Access Audit</h2>
+          <button class="btn-sec" onclick="loadAudit()">↻ Refresh</button></div>
+        <div class="card-body">
+          <div class="row" id="auditSummary" style="margin-bottom:12px;"></div>
+          <div style="overflow:auto;max-height:46vh;border:1px solid #eef0f6;border-radius:8px;">
+            <table>
+              <thead><tr><th>When</th><th>User</th><th>IP</th><th>Page</th><th>Status</th><th>Reason</th></tr></thead>
+              <tbody id="auditBody"><tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No access attempts logged yet.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  let CFG = { enabled:false, trustProxy:true, networks:[], pages:[] };
+
+  function fb(msg, ok) { const e=document.getElementById('fb'); e.textContent=msg; e.className='feedback '+(ok?'ok':'err'); setTimeout(()=>{e.className='feedback';}, 4000); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/private-access/config');
+      CFG = await r.json();
+      document.getElementById('masterEnabled').checked = !!CFG.enabled;
+      document.getElementById('trustProxy').checked = CFG.trustProxy !== false;
+      renderNetworks(); renderPages(); loadAudit();
+    } catch { fb('Could not load configuration.', false); }
+  }
+
+  async function saveSetting() {
+    const body = { enabled: document.getElementById('masterEnabled').checked,
+                   trustProxy: document.getElementById('trustProxy').checked };
+    const r = await fetch('/api/private-access/setting', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (r.ok) { CFG.enabled = body.enabled; CFG.trustProxy = body.trustProxy; fb('Setting saved.', true); }
+    else fb('Could not save setting.', false);
+  }
+
+  function renderNetworks() {
+    const box = document.getElementById('networks');
+    if (!CFG.networks.length) { box.innerHTML = '<p class="muted">No networks yet. Add your church Wi-Fi network(s) above.</p>'; renderPages(); return; }
+    box.innerHTML = CFG.networks.map(n => `
+      <div class="net" data-id="${n.id}">
+        <div class="row">
+          <input type="text" class="net-name" value="${esc(n.name)}" placeholder="e.g. Church Staff Wi-Fi" style="flex:1;min-width:200px;" />
+          <label class="toggle-row" style="font-size:12px;"><input type="checkbox" class="net-enabled" ${n.enabled?'checked':''}> Enabled</label>
+          <button class="btn-sec" onclick="saveNetwork(${n.id})">Save</button>
+          <button class="btn-danger" onclick="deleteNetwork(${n.id})">Delete</button>
+        </div>
+        <textarea class="net-ranges" placeholder="One IP or CIDR per line, e.g.&#10;203.0.113.7&#10;10.0.0.0/24">${esc(n.ipRanges||'')}</textarea>
+      </div>`).join('');
+  }
+
+  function netDiv(id){ return document.querySelector(`.net[data-id="${id}"]`); }
+
+  async function saveNetwork(id) {
+    const d = netDiv(id);
+    const body = { id, name: d.querySelector('.net-name').value.trim() || 'Network',
+                   ipRanges: d.querySelector('.net-ranges').value, enabled: d.querySelector('.net-enabled').checked };
+    const r = await fetch('/api/private-access/networks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (r.ok) { await load(); fb('Network saved.', true); } else fb('Could not save network.', false);
+  }
+
+  async function addNetwork() {
+    const r = await fetch('/api/private-access/networks', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name:'New Network', ipRanges:'', enabled:true }) });
+    if (r.ok) { await load(); } else fb('Could not add network.', false);
+  }
+
+  async function deleteNetwork(id) {
+    if (!confirm('Delete this network? Pages relying only on it may block everyone.')) return;
+    const r = await fetch('/api/private-access/networks/' + id, { method:'DELETE' });
+    if (r.ok) { await load(); fb('Network deleted.', true); } else fb('Could not delete.', false);
+  }
+
+  async function detectMyIp() {
+    const r = await fetch('/api/private-access/my-ip');
+    const d = await r.json();
+    document.getElementById('myIpHint').textContent = 'Your current IP: ' + (d.ip || 'unknown') + ' — paste it into a network above.';
+  }
+
+  function renderPages() {
+    const box = document.getElementById('pageRules');
+    const hasPreAuth = CFG.pages.some(p => p.preAuth);
+    let banner = '';
+    if (hasPreAuth && CFG.loginToken) {
+      // Encrypted, dynamic temporary-access link — the secure entry point for Temp Login.
+      // The page is no longer linked publicly; staff/kiosks reach it only via this URL.
+      const link = window.location.origin + '/private-access?c=' + encodeURIComponent(CFG.loginToken);
+      banner = `<div class="warn" style="background:#eef4ff;border-color:#b9d0ff;color:#274690;">
+        🔗 <strong>Temporary Access link (encrypted):</strong> <code style="word-break:break-all;">${esc(link)}</code>
+        <button class="btn-sec" style="margin-left:8px;" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(link)}')">Copy</button>
+        <div style="margin-top:6px;">Share this dynamic link (or bookmark it on check-in kiosks) instead of exposing a static <code>/tempLogin</code> URL. When <em>Enable Private Page Access</em> is on, this page is restricted to your approved networks. The restriction applies per church only when the visitor uses <em>this</em> link or a remembered device — other churches are never affected. Loopback and the break-glass token always bypass.</div>
+      </div>`;
+    }
+    box.innerHTML = banner + CFG.pages.map(p => {
+      const checks = CFG.networks.map(n =>
+        `<label><input type="checkbox" class="pn-${p.key}" value="${n.id}" ${(p.networkIds||[]).includes(n.id)?'checked':''} ${n.enabled?'':'disabled'}> ${esc(n.name)}</label>`).join('');
+      const warn = (p.enabled && !CFG.networks.some(n=>n.enabled)) ?
+        `<div class="warn">⚠ This page is Private but you have no enabled networks — everyone except admins will be blocked. Add a network above.</div>` : '';
+      const note = p.preAuth ? `<div class="muted" style="color:#8a6d00;">Pre-login page — gated only when this church can be identified from the request (the encrypted link <code>?c=</code> or a remembered device). Requires both this checkbox and <em>Enable Private Page Access</em> above.</div>` : '';
+      return `<div class="page-rule">
+        <label class="toggle-row"><input type="checkbox" class="pe-${p.key}" ${p.enabled?'checked':''} onchange="saveRule('${p.key}')"> ${esc(p.label)}</label>
+        ${note}
+        <div class="muted">Allowed networks (none checked = any approved network):</div>
+        <div class="net-checks" onchange="saveRule('${p.key}')">${checks || '<span class="muted">Add a network first.</span>'}</div>
+        ${warn}
+      </div>`;
+    }).join('');
+  }
+
+  async function saveRule(key) {
+    const peEl = document.querySelector('.pe-'+key);
+    const enabled = peEl ? peEl.checked : false;
+    const ids = Array.from(document.querySelectorAll('.pn-'+key+':checked')).map(c => parseInt(c.value,10));
+    const r = await fetch('/api/private-access/rules', { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pageKey:key, enabled, networkIds:ids }) });
+    if (r.ok) { const pg = CFG.pages.find(p=>p.key===key); if (pg){ pg.enabled=enabled; pg.networkIds=ids; } renderPages(); fb('Rule saved.', true); }
+    else fb('Could not save rule.', false);
+  }
+
+  async function loadAudit() {
+    try {
+      const r = await fetch('/api/private-access/audit?limit=150');
+      const d = await r.json();
+      const s = d.summary || {};
+      document.getElementById('auditSummary').innerHTML =
+        `<span class="pill off">Blocked: ${s.blocked||0}</span> <span class="pill on">Allowed: ${s.allowed||0}</span> <span class="pill" style="background:#fff8e1;color:#8a6d00;">Overrides: ${s.override||0}</span>`;
+      const rows = d.recent || [];
+      const tb = document.getElementById('auditBody');
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No access attempts logged yet.</td></tr>'; return; }
+      tb.innerHTML = rows.map(x => `<tr>
+        <td>${x.time ? esc(new Date(x.time).toLocaleString()) : '—'}</td>
+        <td>${esc(x.username||'—')}</td>
+        <td style="font-family:monospace;">${esc(x.ip||'—')}</td>
+        <td>${esc(x.page||'—')}</td>
+        <td class="st-${esc(x.status)}">${esc(x.status)}</td>
+        <td class="muted">${esc(x.reason||'')}</td></tr>`).join('');
+    } catch { /* ignore */ }
+  }
+
+  load();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'admin/private-access', pageTitle: 'Private Page Access', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

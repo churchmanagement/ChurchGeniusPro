@@ -1,0 +1,15 @@
+# OWASP ZAP baseline rule configuration (TAB-separated: ruleId<TAB>action<TAB>comment).
+# action = IGNORE | WARN | FAIL. Tune as the app hardens; keep auth/headers as FAIL.
+# Docs: https://www.zaproxy.org/docs/docker/baseline-scan/
+10015	WARN	Incomplete or no cache-control header (static assets)
+10027	IGNORE	Information disclosure - suspicious comments (dev comments in static JS)
+10096	IGNORE	Timestamp disclosure (build/version strings)
+10109	WARN	Modern web application
+10094	WARN	Base64 disclosure (encrypted client-id tokens are expected in URLs)
+10038	FAIL	Content Security Policy (CSP) header must be present (CspFilter)
+10020	FAIL	Anti-clickjacking header missing
+10021	FAIL	X-Content-Type-Options header missing
+40012	FAIL	Cross Site Scripting (Reflected)
+40014	FAIL	Cross Site Scripting (Persistent)
+40018	FAIL	SQL Injection
+90022	FAIL	Application Error disclosure

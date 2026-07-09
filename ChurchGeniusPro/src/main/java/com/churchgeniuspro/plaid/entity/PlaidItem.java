@@ -1,0 +1,85 @@
+package com.churchgeniuspro.plaid.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.Data;
+import lombok.ToString;
+
+import java.util.Date;
+
+/**
+ * A connected institution login ("Item" in Plaid terminology). Holds the
+ * encrypted Plaid access token and the incremental sync cursor.
+ *
+ * <p>The raw access token is never stored, logged, or returned to a client —
+ * only its AES-256-GCM ciphertext is persisted in {@code access_token_enc}.
+ */
+@Data
+@ToString(exclude = {"accessTokenEnc", "syncCursor"})
+@Entity
+@Table(name = "plaid_item",
+        uniqueConstraints = @UniqueConstraint(name = "uq_plaid_item_item_id",
+                columnNames = {"item_id"}))
+public class PlaidItem {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "plaid_item_seq")
+    @SequenceGenerator(name = "plaid_item_seq", sequenceName = "plaid_item_id_seq", allocationSize = 1)
+    @Column(name = "id", nullable = false, updatable = false)
+    private Integer id;
+
+    @Column(name = "client_id", nullable = false, length = 100)
+    private String clientId;
+
+    /** app_user.id of the person who linked this item. */
+    @Column(name = "created_by_user_id")
+    private Integer createdByUserId;
+
+    /** Plaid item_id. */
+    @Column(name = "item_id", nullable = false, length = 200)
+    private String itemId;
+
+    /** AES-256-GCM encrypted Plaid access_token (base64 of IV + ciphertext). */
+    @Column(name = "access_token_enc", nullable = false, columnDefinition = "TEXT")
+    private String accessTokenEnc;
+
+    @Column(name = "institution_id", length = 100)
+    private String institutionId;
+
+    @Column(name = "institution_name", length = 200)
+    private String institutionName;
+
+    /** ACTIVE, LOGIN_REQUIRED, ERROR, DEGRADED, DISCONNECTED. */
+    @Column(name = "status", length = 30)
+    private String status;
+
+    /** Last Plaid error code, e.g. ITEM_LOGIN_REQUIRED. */
+    @Column(name = "error_code", length = 100)
+    private String errorCode;
+
+    /** Cursor for the /transactions/sync incremental endpoint. */
+    @Column(name = "sync_cursor", columnDefinition = "TEXT")
+    private String syncCursor;
+
+    @Column(name = "last_synced_date")
+    private Date lastSyncedDate;
+
+    @Column(name = "delete_flag", nullable = false)
+    private boolean deleteFlag;
+
+    @Column(name = "created_date", nullable = false, updatable = false)
+    private Date createdDate;
+
+    @PrePersist
+    void onCreate() {
+        this.createdDate = new Date();
+        if (this.status == null) this.status = "ACTIVE";
+    }
+}

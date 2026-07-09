@@ -1,0 +1,534 @@
+2026-06-17T16:17:50.203-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 23044 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T16:17:50.211-05:00 DEBUG 23044 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T16:17:50.212-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T16:18:07.797-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T16:18:08.489-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T16:18:08.535-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T16:18:08.538-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T16:18:08.558-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T16:18:11.547-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T16:18:11.548-05:00  WARN 23044 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T16:18:12.911-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T16:18:13.794-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T16:18:14.924-05:00  INFO 23044 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T16:18:15.600-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T16:18:15.864-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T16:18:16.855-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T16:18:16.902-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T16:18:16.969-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T16:18:17.072-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T16:18:17.174-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T16:18:17.275-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T16:18:17.380-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T16:18:17.481-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T16:18:17.583-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T16:18:17.685-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T16:18:17.787-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T16:18:18.095-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T16:18:18.198-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T16:18:18.402-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T16:18:18.724-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T16:18:18.915-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T16:18:20.211-05:00 DEBUG 23044 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T16:18:20.340-05:00  INFO 23044 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 30.628 seconds (process running for 32.785)
+2026-06-17T16:18:21.887-05:00  WARN 23044 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T16:18:22.090-05:00  INFO 23044 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T16:18:22.292-05:00  INFO 23044 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T16:18:22.499-05:00  INFO 23044 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T17:34:23.204-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 12640 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T17:34:23.206-05:00 DEBUG 12640 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T17:34:23.207-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T17:34:36.664-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T17:34:37.238-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T17:34:37.281-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T17:34:37.283-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T17:34:37.301-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T17:34:40.417-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T17:34:40.417-05:00  WARN 12640 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T17:34:41.595-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T17:34:42.359-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T17:34:43.441-05:00  INFO 12640 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T17:34:44.136-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T17:34:44.373-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T17:34:45.358-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T17:34:45.431-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T17:34:45.533-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T17:34:45.637-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T17:34:45.739-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T17:34:45.841-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T17:34:45.943-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T17:34:46.045-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T17:34:46.148-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T17:34:46.250-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T17:34:46.355-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T17:34:46.658-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T17:34:46.769-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T17:34:46.967-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T17:34:47.246-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T17:34:47.375-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T17:34:48.595-05:00 DEBUG 12640 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T17:34:48.703-05:00  INFO 12640 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 25.791 seconds (process running for 27.03)
+2026-06-17T17:34:50.142-05:00  WARN 12640 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T17:34:50.345-05:00  INFO 12640 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T17:34:50.551-05:00  INFO 12640 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T17:34:50.697-05:00  INFO 12640 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T20:41:16.225-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 17752 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T20:41:16.227-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T20:41:16.228-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T20:41:29.778-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T20:41:30.400-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T20:41:30.452-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T20:41:30.456-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T20:41:30.482-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T20:41:33.720-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T20:41:33.721-05:00  WARN 17752 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T20:41:35.297-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T20:41:35.968-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T20:41:37.207-05:00  INFO 17752 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T20:41:37.964-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T20:41:38.148-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T20:41:39.347-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T20:41:39.449-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T20:41:39.552-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T20:41:39.655-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T20:41:39.756-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T20:41:39.858-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T20:41:39.961-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T20:41:40.064-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T20:41:40.167-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T20:41:40.269-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T20:41:40.370-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T20:41:40.576-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T20:41:40.679-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T20:41:40.825-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T20:41:40.985-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T20:41:41.190-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T20:41:42.420-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T20:41:42.821-05:00  INFO 17752 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 27.015 seconds (process running for 31.054)
+2026-06-17T20:41:44.161-05:00  WARN 17752 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T20:41:44.364-05:00  INFO 17752 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T20:41:44.528-05:00  INFO 17752 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T20:41:44.671-05:00  INFO 17752 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T20:41:45.790-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T20:41:45.919-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T20:41:46.223-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T20:41:46.238-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T20:41:46.255-05:00 DEBUG 17752 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:45:40.346-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 5648 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T22:45:40.347-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T22:45:40.348-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T22:46:04.446-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T22:46:05.205-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T22:46:05.257-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T22:46:05.259-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T22:46:05.291-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T22:46:17.627-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T22:46:17.627-05:00  WARN 5648 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T22:46:24.870-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T22:46:25.160-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T22:46:27.300-05:00  INFO 5648 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T22:46:31.303-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T22:46:31.449-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T22:46:32.987-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T22:46:33.087-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T22:46:33.190-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T22:46:33.292-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T22:46:33.396-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T22:46:33.600-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T22:46:33.703-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T22:46:33.907-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T22:46:34.010-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T22:46:34.112-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T22:46:34.215-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T22:46:34.418-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T22:46:34.475-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T22:46:34.544-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T22:46:34.726-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T22:46:34.935-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T22:46:36.577-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:46:39.426-05:00  INFO 5648 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 59.382 seconds (process running for 66.715)
+2026-06-17T22:46:41.793-05:00  WARN 5648 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T22:46:42.005-05:00  INFO 5648 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T22:46:42.152-05:00  INFO 5648 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T22:46:42.303-05:00  INFO 5648 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T22:46:44.010-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:46:44.171-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:46:45.999-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:46:46.122-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:46:46.229-05:00 DEBUG 5648 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:51:59.614-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 14740 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T22:51:59.619-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T22:51:59.621-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T22:52:11.396-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T22:52:12.060-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T22:52:12.192-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T22:52:12.194-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T22:52:12.220-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T22:52:16.336-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T22:52:16.337-05:00  WARN 14740 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T22:52:18.200-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T22:52:18.526-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T22:52:20.192-05:00  INFO 14740 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T22:52:21.126-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T22:52:21.326-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T22:52:22.784-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T22:52:22.887-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T22:52:22.988-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T22:52:23.055-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T22:52:23.195-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T22:52:23.296-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T22:52:23.330-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T22:52:23.399-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T22:52:23.489-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T22:52:23.604-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T22:52:23.706-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T22:52:24.012-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T22:52:24.116-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T22:52:24.320-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T22:52:24.628-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T22:52:24.832-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T22:52:26.006-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:52:26.460-05:00  INFO 14740 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 27.362 seconds (process running for 31.583)
+2026-06-17T22:52:28.398-05:00  WARN 14740 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T22:52:28.519-05:00  INFO 14740 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T22:52:28.725-05:00  INFO 14740 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T22:52:28.928-05:00  INFO 14740 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T22:52:30.165-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:52:30.737-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:52:34.561-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:52:34.755-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T22:52:34.903-05:00 DEBUG 14740 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:04.511-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 8076 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T23:02:04.512-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T23:02:04.513-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T23:02:25.107-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T23:02:25.770-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T23:02:25.844-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T23:02:25.848-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T23:02:25.879-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T23:02:31.344-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T23:02:31.344-05:00  WARN 8076 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T23:02:33.927-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T23:02:34.258-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T23:02:36.472-05:00  INFO 8076 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T23:02:37.862-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T23:02:38.142-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T23:02:40.051-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T23:02:40.086-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T23:02:40.143-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T23:02:40.243-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T23:02:40.359-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T23:02:40.460-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T23:02:40.565-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T23:02:40.660-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T23:02:40.725-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T23:02:40.872-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T23:02:40.894-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T23:02:41.275-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T23:02:41.306-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T23:02:41.475-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T23:02:41.785-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T23:02:41.990-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T23:02:44.009-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:45.181-05:00  INFO 8076 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 40.993 seconds (process running for 47.406)
+2026-06-17T23:02:46.401-05:00  WARN 8076 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T23:02:46.503-05:00  INFO 8076 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T23:02:46.709-05:00  INFO 8076 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T23:02:46.865-05:00  INFO 8076 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T23:02:47.939-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:48.064-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:49.740-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:49.850-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:02:49.966-05:00 DEBUG 8076 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:04.033-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 3280 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T23:06:04.034-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T23:06:04.034-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T23:06:17.495-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T23:06:18.071-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T23:06:18.143-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T23:06:18.159-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T23:06:18.175-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T23:06:22.569-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T23:06:22.570-05:00  WARN 3280 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T23:06:25.431-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T23:06:25.722-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T23:06:26.903-05:00  INFO 3280 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T23:06:27.607-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T23:06:27.853-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T23:06:28.917-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T23:06:29.019-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T23:06:29.122-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T23:06:29.224-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T23:06:29.327-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T23:06:29.429-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T23:06:29.532-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T23:06:29.635-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T23:06:29.736-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T23:06:29.840-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T23:06:29.940-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T23:06:30.247-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T23:06:30.351-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T23:06:30.557-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T23:06:30.863-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T23:06:31.068-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T23:06:32.365-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:32.764-05:00  INFO 3280 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 28.979 seconds (process running for 34.612)
+2026-06-17T23:06:34.551-05:00  WARN 3280 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T23:06:34.755-05:00  INFO 3280 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T23:06:34.958-05:00  INFO 3280 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T23:06:35.164-05:00  INFO 3280 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T23:06:36.262-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:36.811-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:39.583-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:39.693-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:06:39.819-05:00 DEBUG 3280 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:10:39.854-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 10896 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T23:10:39.855-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T23:10:39.855-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T23:10:56.100-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T23:10:57.425-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T23:10:57.876-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T23:10:57.897-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T23:10:58.187-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T23:11:09.085-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T23:11:09.085-05:00  WARN 10896 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T23:11:15.178-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T23:11:16.047-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T23:11:17.646-05:00  INFO 10896 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T23:11:19.819-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T23:11:20.264-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T23:11:22.499-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T23:11:22.600-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T23:11:22.702-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T23:11:22.804-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T23:11:22.907-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T23:11:23.009-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T23:11:23.113-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T23:11:23.214-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T23:11:23.317-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T23:11:23.356-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T23:11:23.419-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T23:11:23.727-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T23:11:23.783-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T23:11:24.035-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T23:11:24.342-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T23:11:24.546-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T23:11:26.227-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:11:27.160-05:00  INFO 10896 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 47.583 seconds (process running for 52.824)
+2026-06-17T23:11:28.981-05:00  WARN 10896 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T23:11:29.154-05:00  INFO 10896 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T23:11:29.360-05:00  INFO 10896 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T23:11:29.563-05:00  INFO 10896 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T23:11:30.759-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:11:31.264-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:11:33.677-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:11:33.797-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:11:33.968-05:00 DEBUG 10896 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:23:34.507-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Starting ChurchGeniusProApplicationTests using Java 25.0.2 with PID 22996 (started by meetc in C:\workspace\ChurchGeniusPro\ChurchGeniusPro)
+2026-06-17T23:23:34.508-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Running with Spring Boot v4.0.6, Spring v7.0.7
+2026-06-17T23:23:34.509-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : The following 1 profile is active: "prod"
+2026-06-17T23:24:00.529-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 08001
+2026-06-17T23:24:00.529-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.error             : The connection attempt failed.
+2026-06-17T23:24:00.532-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc                   : HHH100046: Could not obtain connection to query JDBC database metadata
+
+org.hibernate.exception.JDBCConnectionException: Unable to obtain isolated JDBC connection [The connection attempt failed.] [n/a]
+	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:80) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:34) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:115) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:101) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcIsolationDelegate.delegateWork(JdbcIsolationDelegate.java:51) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.getJdbcEnvironmentUsingJdbcMetadata(JdbcEnvironmentInitiator.java:366) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.getJdbcEnvironment(JdbcEnvironmentInitiator.java:143) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:120) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:80) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.boot.registry.internal.StandardServiceRegistryImpl.initiateService(StandardServiceRegistryImpl.java:133) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.createService(AbstractServiceRegistryImpl.java:260) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.initializeService(AbstractServiceRegistryImpl.java:235) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.getService(AbstractServiceRegistryImpl.java:212) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.boot.model.relational.Database.<init>(Database.java:44) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.getDatabase(InFlightMetadataCollectorImpl.java:251) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.boot.internal.InFlightMetadataCollectorImpl.<init>(InFlightMetadataCollectorImpl.java:203) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.boot.model.process.spi.MetadataBuildingProcess.complete(MetadataBuildingProcess.java:172) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.metadata(EntityManagerFactoryBuilderImpl.java:1392) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.populateSessionFactoryBuilder(EntityManagerFactoryBuilderImpl.java:1472) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1454) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:93) ~[spring-orm-7.0.7.jar:7.0.7]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:443) ~[spring-orm-7.0.7.jar:7.0.7]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:436) ~[spring-orm-7.0.7.jar:7.0.7]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:411) ~[spring-orm-7.0.7.jar:7.0.7]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:419) ~[spring-orm-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1864) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1813) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:603) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.7.jar:7.0.7]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:977) ~[spring-context-7.0.7.jar:7.0.7]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621) ~[spring-context-7.0.7.jar:7.0.7]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756) ~[spring-boot-4.0.6.jar:4.0.6]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445) ~[spring-boot-4.0.6.jar:4.0.6]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:321) ~[spring-boot-4.0.6.jar:4.0.6]
+	at org.springframework.boot.test.context.SpringBootContextLoader.lambda$loadContext$2(SpringBootContextLoader.java:155) ~[spring-boot-test-4.0.6.jar:4.0.6]
+	at org.springframework.util.function.ThrowingSupplier.get(ThrowingSupplier.java:58) ~[spring-core-7.0.7.jar:7.0.7]
+	at org.springframework.util.function.ThrowingSupplier.get(ThrowingSupplier.java:46) ~[spring-core-7.0.7.jar:7.0.7]
+	at org.springframework.boot.SpringApplication.withHook(SpringApplication.java:1465) ~[spring-boot-4.0.6.jar:4.0.6]
+	at org.springframework.boot.test.context.SpringBootContextLoader$ContextLoaderHook.run(SpringBootContextLoader.java:600) ~[spring-boot-test-4.0.6.jar:4.0.6]
+	at org.springframework.boot.test.context.SpringBootContextLoader.loadContext(SpringBootContextLoader.java:155) ~[spring-boot-test-4.0.6.jar:4.0.6]
+	at org.springframework.boot.test.context.SpringBootContextLoader.loadContext(SpringBootContextLoader.java:114) ~[spring-boot-test-4.0.6.jar:4.0.6]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContextInternal(DefaultCacheAwareContextLoaderDelegate.java:247) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.lambda$loadContext$0(DefaultCacheAwareContextLoaderDelegate.java:167) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.cache.DefaultContextCache.put(DefaultContextCache.java:214) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:160) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.support.DefaultTestContext.getApplicationContext(DefaultTestContext.java:128) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.web.ServletTestExecutionListener.setUpRequestContextIfNecessary(ServletTestExecutionListener.java:200) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.web.ServletTestExecutionListener.prepareTestInstance(ServletTestExecutionListener.java:139) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.TestContextManager.prepareTestInstance(TestContextManager.java:260) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.springframework.test.context.junit.jupiter.SpringExtension.postProcessTestInstance(SpringExtension.java:242) ~[spring-test-7.0.7.jar:7.0.7]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$invokeTestInstancePostProcessors$1(ClassBasedTestDescriptor.java:423) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.executeAndMaskThrowable(ClassBasedTestDescriptor.java:428) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$invokeTestInstancePostProcessors$0(ClassBasedTestDescriptor.java:422) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:197) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[na:na]
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[na:na]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.invokeTestInstancePostProcessors(ClassBasedTestDescriptor.java:422) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$instantiateAndPostProcessTestInstance$0(ClassBasedTestDescriptor.java:334) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.instantiateAndPostProcessTestInstance(ClassBasedTestDescriptor.java:333) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$testInstancesProvider$1(ClassBasedTestDescriptor.java:322) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.Optional.orElseGet(Optional.java:364) ~[na:na]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$testInstancesProvider$0(ClassBasedTestDescriptor.java:321) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.TestInstancesProvider.getTestInstances(TestInstancesProvider.java:27) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$prepare$0(TestMethodTestDescriptor.java:127) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:126) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$prepare$0(NodeTestTask.java:144) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.prepare(NodeTestTask.java:144) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:110) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.5.jar:3.5.5]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.5.jar:3.5.5]
+Caused by: org.postgresql.util.PSQLException: The connection attempt failed.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:385) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:57) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.10.jar:42.7.10]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.checkFailFast(HikariPool.java:576) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.<init>(HikariPool.java:97) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:111) ~[HikariCP-7.0.2.jar:na]
+	at org.hibernate.engine.jdbc.connections.internal.DataSourceConnectionProvider.getConnection(DataSourceConnectionProvider.java:137) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator$ConnectionProviderJdbcConnectionAccess.obtainConnection(JdbcEnvironmentInitiator.java:508) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcIsolationDelegate.delegateWork(JdbcIsolationDelegate.java:48) ~[hibernate-core-7.2.12.Final.jar:7.2.12.Final]
+	... 128 common frames omitted
+Caused by: java.net.SocketTimeoutException: Connect timed out
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:547) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:659) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:261) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:122) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:146) ~[postgresql-42.7.10.jar:42.7.10]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:289) ~[postgresql-42.7.10.jar:42.7.10]
+	... 142 common frames omitted
+
+2026-06-17T23:24:00.553-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-17T23:24:01.096-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.FollowUp.dueDate.
+2026-06-17T23:24:01.335-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamily.createdDate.
+2026-06-17T23:24:01.348-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.MembershipFamilyMember.createdDate.
+2026-06-17T23:24:01.401-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.deprecation            : HHH90000033: Encountered use of deprecated annotation [interface jakarta.persistence.Temporal] at com.churchgeniuspro.hibernate.PrayerSchedule.lastSentDate.
+2026-06-17T23:24:14.118-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-06-17T23:24:14.118-05:00  WARN 22996 --- [ChurchGeniusPro] [main] org.hibernate.orm.jdbc.warn              : constraint "uq_worship_assignment_client_group_date" of relation "worship_assignment" does not exist, skipping
+2026-06-17T23:24:20.200-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.VisionCheckService           : [Vision] OpenAI vision OCR ENABLED (model=gpt-4o).
+2026-06-17T23:24:20.798-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.config.DatabaseIndexInitializer      : DatabaseIndexInitializer: 7 index statement(s) executed.
+2026-06-17T23:24:24.283-05:00  INFO 22996 --- [ChurchGeniusPro] [main] com.churchgeniuspro.service.SmsService   : SmsService: Twilio initialized (from=+18449252978)
+2026-06-17T23:24:27.847-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.WebPushService               : [WebPush] Initialized — push notifications enabled.
+2026-06-17T23:24:28.593-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.OpenAiVoiceService           : [Voice] OpenAI voice ENABLED (transcribe=whisper-1, command=gpt-4o-mini).
+2026-06-17T23:24:33.334-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS guardian_member_id INTEGER
+2026-06-17T23:24:33.437-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ADD COLUMN IF NOT EXISTS family_checkin_code VARCHAR(20)
+2026-06-17T23:24:33.539-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.hibernate.KmCheckinSchemaMigrator    : km_checkin migration applied: ALTER TABLE km_checkin ALTER COLUMN child_id DROP NOT NULL
+2026-06-17T23:24:33.641-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: CREATE TABLE IF NOT EXISTS prayer_volunteer (  id BIGINT PRIMARY KEY,   client_id VARCHAR(100) NOT NULL,   family_member_id INTEGER,   role VARCHAR(100),   active BOOLEAN NOT NULL DEFAULT true,   delete_flag BOOLEAN NOT NULL DEFAULT false,   created_date TIMESTAMP)
+2026-06-17T23:24:33.743-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ALTER COLUMN family_member_id DROP NOT NULL
+2026-06-17T23:24:33.847-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS first_name   VARCHAR(100)
+2026-06-17T23:24:33.948-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS last_name    VARCHAR(100)
+2026-06-17T23:24:34.050-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS phone        VARCHAR(50)
+2026-06-17T23:24:34.152-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS email        VARCHAR(200)
+2026-06-17T23:24:34.256-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS notes        TEXT
+2026-06-17T23:24:34.359-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.h.PrayerVolunteerSchemaMigrator      : prayer_volunteer migration applied: ALTER TABLE prayer_volunteer ADD COLUMN IF NOT EXISTS availability VARCHAR(200)
+2026-06-17T23:24:34.564-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: legacy single-column email unique constraints removed (if any).
+2026-06-17T23:24:34.666-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: constraint 'uq_app_user_email_role' on 'app_user' dropped (if it existed).
+2026-06-17T23:24:34.871-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping income backfill (method=false, transaction_type_id=true).
+2026-06-17T23:24:35.178-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping expense backfill (method=false, transaction_type_id=true).
+2026-06-17T23:24:35.382-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.service.SchemaFixService             : SchemaFixService: skipping member_ref backfill (column absent).
+2026-06-17T23:24:36.700-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:24:37.381-05:00  INFO 22996 --- [ChurchGeniusPro] [main] c.c.ChurchGeniusProApplicationTests      : Started ChurchGeniusProApplicationTests in 63.171 seconds (process running for 70.383)
+2026-06-17T23:24:38.969-05:00  WARN 22996 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: could not seed service admin — StatementCallback; bad SQL grammar [INSERT INTO signup (username, password, role, church, active, deleted, client_id) VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', 'ServiceAdmin', false, true, false, 'SERVICEADMIN') ON CONFLICT (username) DO NOTHING]
+2026-06-17T23:24:39.172-05:00  INFO 22996 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_registration_id_seq (next id = 129).
+2026-06-17T23:24:39.376-05:00  INFO 22996 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence meeting_message_template_id_seq (next id = 1).
+2026-06-17T23:24:39.582-05:00  INFO 22996 --- [ChurchGeniusPro] [main] com.churchgeniuspro.DataSeeder           : DataSeeder: re-synced sequence event_email_template_id_seq (next id = 1).
+2026-06-17T23:24:40.576-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:24:41.103-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:24:43.139-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:24:43.267-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-06-17T23:24:43.412-05:00 DEBUG 22996 --- [ChurchGeniusPro] [main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice

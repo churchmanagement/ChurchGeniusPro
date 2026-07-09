@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>NTAG Login — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:20px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; }
+    .card-body { padding:20px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .field { display:flex; flex-direction:column; gap:5px; }
+    .field.full { grid-column:span 2; }
+    label { font-size:12.5px; font-weight:600; color:#6070a0; }
+    input,select,textarea { border:1.5px solid #dde0ec; border-radius:8px; padding:9px 12px; font-size:13px; color:#1e2139; outline:none; background:#fff; font-family:inherit; }
+    input:focus,select:focus,textarea:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .toggle { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:#1e2139; }
+    input[type=checkbox] { width:16px; height:16px; accent-color:#673147; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:7px 13px; font-size:12.5px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:8px; padding:6px 11px; font-size:12px; font-weight:600; }
+    .perm-list { display:flex; flex-wrap:wrap; gap:10px; }
+    .perm-list label { font-weight:500; display:flex; align-items:center; gap:5px; font-size:12.5px; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:9px 10px; text-align:left; border-bottom:2px solid #eef0f8; }
+    td { padding:9px 10px; border-bottom:1px solid #f3f4f9; vertical-align:middle; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:11px; font-weight:700; }
+    .pill.on { background:#e8f5e9; color:#2e7d32; } .pill.off { background:#fdecea; color:#c62828; }
+    .feedback { padding:10px 16px; border-radius:9px; font-size:13px; margin-bottom:16px; display:none; }
+    .feedback.ok { display:block; background:#e8f5e9; color:#2e7d32; } .feedback.err { display:block; background:#ffebee; color:#c62828; }
+    .muted { color:#8a8a8a; font-size:12px; }
+    .nfc-row { display:flex; gap:8px; align-items:stretch; }
+    .nfc-row input { flex:1; }
+    @media (max-width:640px){ .grid{ grid-template-columns:1fr; } .field.full{ grid-column:span 1; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-title">🔑 NTAG Login</div>
+      <div class="page-subtitle">Register NFC tags for three-factor temporary login (tap + PIN + email code). Works on Android Chrome; other devices use the manual ID / badge fallback.</div>
+
+      <div class="feedback" id="fb"></div>
+
+      <!-- Register / Assign -->
+      <div class="card">
+        <div class="card-header"><span>➕</span><h2 id="formTitle">Register an NTAG Tag</h2></div>
+        <div class="card-body">
+          <input type="hidden" id="editId" />
+          <div class="grid">
+            <div class="field full">
+              <label>NTAG serial <span class="muted">(tap the tag to read it, or type it)</span></label>
+              <div class="nfc-row">
+                <input type="text" id="ntagSerial" placeholder="e.g. 04A2B3C4D5E6" />
+                <button class="btn-sec" id="scanBtn" type="button" onclick="scanTag()">📶 Tap tag</button>
+              </div>
+            </div>
+            <div class="field"><label>Holder name</label><input type="text" id="holderName" placeholder="Full name" /></div>
+            <div class="field"><label>Email <span class="muted">(for OTP)</span></label><input type="email" id="email" placeholder="email@example.com" /></div>
+            <div class="field"><label>Phone</label><input type="text" id="phone" placeholder="(optional)" /></div>
+            <div class="field"><label>Link to user <span class="muted">(optional)</span></label>
+              <select id="userId"><option value="">— none —</option></select></div>
+            <div class="field"><label>Session role</label>
+              <select id="role"><option value="User">User</option><option value="Admin">Admin</option></select></div>
+            <div class="field"><label>6-digit PIN <span class="muted">(when PIN required)</span></label>
+              <input type="text" id="pin" inputmode="numeric" maxlength="6" placeholder="••••••" /></div>
+            <div class="field"><label>Factors</label>
+              <div style="display:flex;gap:16px;align-items:center;padding-top:6px;">
+                <span class="toggle"><input type="checkbox" id="requirePin" checked> Require PIN</span>
+                <span class="toggle"><input type="checkbox" id="requireOtp" checked> Require email OTP</span>
+              </div>
+            </div>
+            <div class="field"><label>Valid from</label><input type="datetime-local" id="validFrom" /></div>
+            <div class="field"><label>Valid until</label><input type="datetime-local" id="validUntil" /></div>
+            <div class="field full"><label>Allowed pages</label><div class="perm-list" id="permList"></div></div>
+          </div>
+          <div style="margin-top:18px;display:flex;gap:10px;">
+            <button class="btn" onclick="save()">Save Tag</button>
+            <button class="btn-sec" onclick="resetForm()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registered tags -->
+      <div class="card">
+        <div class="card-header"><span>🏷️</span><h2>Registered Tags</h2><button class="btn-sec" onclick="loadList()">↻ Refresh</button></div>
+        <div class="card-body" style="overflow:auto;">
+          <table>
+            <thead><tr><th>Holder</th><th>Serial</th><th>Email</th><th>Factors</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No tags registered yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card">
+        <div class="card-header"><span>🧾</span><h2>Login History</h2><button class="btn-sec" onclick="loadHistory()">↻ Refresh</button></div>
+        <div class="card-body" style="overflow:auto;max-height:42vh;">
+          <table>
+            <thead><tr><th>When</th><th>Holder</th><th>Serial</th><th>IP</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody id="histRows"><tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No NTAG logins yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  let CATALOG = [], PEOPLE = [];
+  function fb(m, ok){ const e=document.getElementById('fb'); e.textContent=m; e.className='feedback '+(ok?'ok':'err'); setTimeout(()=>{e.className='feedback';}, 4000); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function val(id){ return document.getElementById(id).value.trim(); }
+
+  async function init() {
+    try { CATALOG = await (await fetch('/api/temp-access/catalog')).json(); } catch { CATALOG = []; }
+    try { PEOPLE  = await (await fetch('/api/temp-access/people')).json(); } catch { PEOPLE = []; }
+    renderPerms(); renderPeople(); loadList(); loadHistory();
+  }
+  function renderPerms(selected) {
+    const sel = selected || [];
+    document.getElementById('permList').innerHTML = CATALOG.map(p =>
+      `<label><input type="checkbox" class="perm" value="${esc(p.key)}" ${sel.includes(p.key)?'checked':''}> ${esc(p.label)}</label>`).join('') || '<span class="muted">No pages available.</span>';
+  }
+  function renderPeople() {
+    const opts = ['<option value="">— none —</option>'].concat(PEOPLE.map(p =>
+      `<option value="${esc(p.userId||p.id||'')}">${esc(p.name||p.holderName||'')}${p.email?(' — '+esc(p.email)):''}</option>`));
+    document.getElementById('userId').innerHTML = opts.join('');
+  }
+  function selectedPerms(){ return Array.from(document.querySelectorAll('.perm:checked')).map(c=>c.value); }
+
+  async function scanTag() {
+    if (!('NDEFReader' in window)) { fb('This browser can’t read NFC. Use Android Chrome, or type the serial.', false); return; }
+    try {
+      const reader = new NDEFReader();
+      await reader.scan();
+      fb('Tap the NTAG tag on the back of your phone…', true);
+      reader.onreading = (e) => {
+        const serial = (e.serialNumber || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        if (serial) { document.getElementById('ntagSerial').value = serial; fb('Tag read ✓', true); }
+      };
+    } catch (err) { fb('Could not start NFC scan: ' + (err && err.message || err), false); }
+  }
+
+  async function save() {
+    const id = val('editId');
+    const body = {
+      ntagSerial: val('ntagSerial'), holderName: val('holderName'), email: val('email'), phone: val('phone'),
+      userId: val('userId'), role: val('role'), pin: val('pin'),
+      requirePin: document.getElementById('requirePin').checked,
+      requireOtp: document.getElementById('requireOtp').checked,
+      permissions: selectedPerms().join(','),
+      validFrom: val('validFrom') || null, validUntil: val('validUntil') || null
+    };
+    const url = id ? ('/api/ntag/' + id) : '/api/ntag';
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const j = await r.json().catch(()=>({}));
+    if (r.ok) { fb(id ? 'Tag updated.' : 'Tag registered.', true); resetForm(); loadList(); }
+    else fb(j.error || 'Could not save the tag.', false);
+  }
+
+  function resetForm() {
+    ['editId','ntagSerial','holderName','email','phone','pin','validFrom','validUntil'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('userId').value=''; document.getElementById('role').value='User';
+    document.getElementById('requirePin').checked = true; document.getElementById('requireOtp').checked = true;
+    document.getElementById('formTitle').textContent = 'Register an NTAG Tag';
+    renderPerms([]);
+  }
+
+  function edit(c) {
+    document.getElementById('editId').value = c.id;
+    document.getElementById('ntagSerial').value = c.ntagSerial || '';
+    document.getElementById('holderName').value = c.holderName || '';
+    document.getElementById('email').value = c.email || '';
+    document.getElementById('phone').value = c.phone || '';
+    document.getElementById('userId').value = c.userId || '';
+    document.getElementById('role').value = c.role || 'User';
+    document.getElementById('requirePin').checked = c.requirePin !== false;
+    document.getElementById('requireOtp').checked = c.requireOtp !== false;
+    document.getElementById('validFrom').value = (c.validFrom||'').slice(0,16);
+    document.getElementById('validUntil').value = (c.validUntil||'').slice(0,16);
+    document.getElementById('formTitle').textContent = 'Edit NTAG Tag — ' + (c.holderName||'');
+    renderPerms((c.permissions||'').split(',').filter(Boolean));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  let LIST = [];
+  async function loadList() {
+    try { LIST = await (await fetch('/api/ntag')).json(); } catch { LIST = []; }
+    const tb = document.getElementById('rows');
+    if (!LIST.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No tags registered yet.</td></tr>'; return; }
+    tb.innerHTML = LIST.map(c => {
+      const revoked = c.status === 'Revoked';
+      const status = revoked ? '<span class="pill off">Revoked</span>' : (c.ntagEnabled ? '<span class="pill on">Enabled</span>' : '<span class="pill off">Disabled</span>');
+      const factors = ['NFC'].concat(c.requirePin?['PIN']:[]).concat(c.requireOtp?['OTP']:[]).join(' + ');
+      return `<tr>
+        <td style="font-weight:600;">${esc(c.holderName||'—')}</td>
+        <td style="font-family:monospace;">${esc(c.ntagSerial)}</td>
+        <td>${esc(c.email||'—')}</td>
+        <td>${esc(factors)}</td>
+        <td>${status}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-sec" onclick='edit(${JSON.stringify(c)})'>Edit</button>
+          <button class="btn-sec" onclick="toggleEnabled(${c.id}, ${!c.ntagEnabled})">${c.ntagEnabled?'Disable':'Enable'}</button>
+          <button class="btn-sec" onclick="resetPin(${c.id})">Reset PIN</button>
+          <button class="btn-sec" onclick="viewHistory(${c.id})">History</button>
+          ${revoked?'':`<button class="btn-danger" onclick="revoke(${c.id})">Revoke</button>`}
+          <button class="btn-danger" onclick="del(${c.id})">Delete</button>
+        </td></tr>`;
+    }).join('');
+  }
+
+  async function toggleEnabled(id, enabled) {
+    const r = await fetch('/api/ntag/'+id+'/enabled', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled}) });
+    if (r.ok) { fb('Updated.', true); loadList(); } else fb('Could not update.', false);
+  }
+  async function resetPin(id) {
+    const pin = prompt('Enter a new 6-digit PIN for this tag:');
+    if (pin == null) return;
+    if (!/^\d{6}$/.test(pin)) { fb('PIN must be 6 digits.', false); return; }
+    const r = await fetch('/api/ntag/'+id+'/pin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin}) });
+    if (r.ok) fb('PIN reset.', true); else { const j=await r.json().catch(()=>({})); fb(j.error||'Could not reset PIN.', false); }
+  }
+  async function revoke(id) {
+    if (!confirm('Revoke this tag now? The holder will be unable to log in (use for a lost tag).')) return;
+    const r = await fetch('/api/ntag/'+id+'/revoke', { method:'POST' });
+    if (r.ok) { fb('Tag revoked.', true); loadList(); } else fb('Could not revoke.', false);
+  }
+  async function del(id) {
+    if (!confirm('Delete this tag registration permanently?')) return;
+    const r = await fetch('/api/ntag/'+id, { method:'DELETE' });
+    if (r.ok) { fb('Deleted.', true); loadList(); } else fb('Could not delete.', false);
+  }
+
+  async function loadHistory() { renderHistory(await fetchHist('/api/ntag/history?limit=150')); }
+  async function viewHistory(id) { renderHistory(await fetchHist('/api/ntag/'+id+'/history?limit=100')); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+  async function fetchHist(url){ try { return await (await fetch(url)).json(); } catch { return []; } }
+  function renderHistory(rows) {
+    const tb = document.getElementById('histRows');
+    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No NTAG logins yet.</td></tr>'; return; }
+    const cls = s => s==='SUCCESS'?'on':'off';
+    tb.innerHTML = rows.map(h => `<tr>
+      <td>${h.time?esc(new Date(h.time).toLocaleString()):'—'}</td>
+      <td>${esc(h.holderName||'—')}</td>
+      <td style="font-family:monospace;">${esc(h.serial||'—')}</td>
+      <td style="font-family:monospace;">${esc(h.ip||'—')}</td>
+      <td><span class="pill ${cls(h.status)}">${esc(h.status)}</span></td>
+      <td class="muted">${esc(h.reason||'')}</td></tr>`).join('');
+  }
+
+  init();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'admin/ntag-access', pageTitle: 'NTAG Login', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

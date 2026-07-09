@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <!-- Rich-text editor for Event Note (loaded from cdnjs — allowed by CSP) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Events – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+    
+
+        /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+/* ── Main area ── */
+    
+    
+    
+    
+    .search-wrap { display: flex; align-items: center; gap: 8px; background: #f5f6fa; border-radius: 8px; padding: 6px 12px; }
+    .search-icon { color: #999; font-size: 14px; }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; width: 180px; }
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; font-weight: 700; color: #673147; background: transparent; border: none; border-radius: 7px; padding: 7px 14px; cursor: pointer; letter-spacing: .4px; transition: background .15s, color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; }
+
+    /* ── Page ── */
+    
+    .page-header { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .page-header-text { flex: 1; }
+    .page-title { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+    .btn-back { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 8px 16px; font-size: 13px; color: #555; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s, border-color .15s; }
+    .btn-back:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Cards ── */
+    .form-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; margin-bottom: 20px; overflow: hidden; }
+    .form-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .section-icon { font-size: 18px; }
+    .form-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; flex: 1; }
+    .form-card-body { padding: 20px; }
+    .sub-section { margin-bottom: 20px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #673147; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #eef0f8; }
+
+    /* ── Form grid ── */
+    .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .required-star { color: #e53935; }
+    .field input[type="date"], .field input[type="time"] { width: 100%; min-width: 0; box-sizing: border-box; }
+    .field input, .field select, .field textarea { border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px; font-size: 13px; color: #333; outline: none; background: #fff; transition: border-color .2s, box-shadow .2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12); }
+    .field input.invalid { border-color: #e53935; }
+    .field textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* ── Input with button ── */
+    .input-btn-wrap { display: flex; gap: 8px; }
+    .input-btn-wrap input { flex: 1; }
+    .btn-inline { padding: 8px 14px; font-size: 13px; border-radius: 7px; border: 1px solid #673147; color: #673147; background: none; cursor: pointer; white-space: nowrap; }
+    .btn-inline:hover { background: #eef0f8; }
+
+    /* ── Register link display ── */
+    .reg-url-box { background: #eef0f8; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+    .reg-url-text { font-size: 13px; color: #673147; flex: 1; word-break: break-all; }
+    .btn-copy { padding: 4px 10px; font-size: 11px; border-radius: 5px; border: 1px solid #673147; color: #673147; background: none; cursor: pointer; }
+    .btn-copy:hover { background: #dde1f9; }
+
+    /* ── Checkbox field ── */
+    .check-field { display: flex; align-items: center; gap: 8px; }
+    .check-field input[type="checkbox"] { accent-color: #673147; width: 15px; height: 15px; flex-shrink: 0; }
+    .check-field label { font-size: 13px; color: #444; cursor: pointer; }
+
+    /* ── Radio group ── */
+    .radio-group { display: flex; gap: 20px; align-items: center; padding: 4px 0; }
+    .radio-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; color: #333; cursor: pointer; }
+    .radio-group input[type="radio"]:not(.toggle-checkbox) { accent-color: #673147; width: 14px; height: 14px; }
+
+    /* ── Day rows ── */
+    .days-container { display: flex; flex-direction: column; gap: 12px; }
+    .day-row {
+      background: #fafbfd; border: 1px solid #eef0f8; border-radius: 10px;
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .day-row-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    .day-label {
+      font-size: 11px; font-weight: 700; color: #673147;
+      background: #eef0fb; border-radius: 5px; padding: 3px 10px;
+      letter-spacing: .4px; text-transform: uppercase;
+    }
+    /* Date / Start / End take equal flex space; the remove button is a fixed-width
+       column on the right so it lines up with the inputs in the same row. */
+    .day-row-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .day-field { display: flex; flex-direction: column; gap: 4px; }
+    .day-field label {
+      font-size: 12px; font-weight: 600; color: #666;
+    }
+    .day-field input[type="date"],
+    .day-field input[type="time"] {
+      border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px;
+      font-size: 13px; color: #333; outline: none; background: #fff;
+      transition: border-color .2s, box-shadow .2s; width: 100%;
+    }
+    .day-field input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .day-food-wrap {
+      display: flex; align-items: center; gap: 8px; padding-top: 2px;
+    }
+    .day-food-wrap input[type="checkbox"] {
+      accent-color: #673147; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
+    }
+    .day-food-wrap label { font-size: 13px; color: #555; cursor: pointer; }
+    /* ✕ button: square icon, matches the height of the inputs (~36px) so the
+       bottom edges line up cleanly inside .day-row-fields. */
+    .btn-remove-day {
+      background: none; border: 1px solid #e53935; color: #e53935;
+      border-radius: 7px; cursor: pointer;
+      font-size: 14px; line-height: 1; transition: background .15s;
+      width: 36px; height: 36px;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+    .btn-remove-day:hover { background: #ffebee; }
+    .btn-add-day {
+      background: none; border: 1px dashed #673147; color: #673147;
+      border-radius: 8px; padding: 9px 18px; cursor: pointer; font-size: 13px;
+      font-weight: 600; margin-top: 4px; transition: background .15s;
+    }
+    .btn-add-day:hover { background: #eef0f8; }
+    @media (max-width: 600px) {
+      /* On narrow screens the inputs stack vertically; pin the ✕ button to the
+         top-right of the row so it stays compact and aligned. */
+      .day-row-fields { grid-template-columns: 1fr; }
+      .btn-remove-day { justify-self: end; }
+    }
+
+    /* ── Image ── */
+    .img-preview { margin-top: 8px; max-width: 120px; max-height: 90px; border-radius: 6px; border: 1px solid #ddd; display: none; }
+
+    /* ── Action bar ── */
+    .action-bar { display: flex; align-items: center; gap: 12px; justify-content: flex-end; padding: 14px 20px; background: #fff; border-top: 1px solid #eee; border-radius: 0 0 12px 12px; }
+    .btn-save { background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 8px; padding: 9px 24px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .btn-save:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-clear { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer; }
+    .btn-clear:hover { background: #f5f5f5; }
+
+    /* ── Events table ── */
+    .table-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; overflow: hidden; }
+    .table-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .table-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; }
+    .events-table-wrap { overflow-x: auto; }
+    .events-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .events-table th { background: #f5f6fa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8eaf0; white-space: nowrap; }
+    .events-table td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .events-table tr:last-child td { border-bottom: none; }
+    .events-table tr:hover td { background: #fafbfd; }
+    .tbl-btn { display:inline-block; padding:4px 11px; font-size:12px; font-weight:600; border-radius:6px; border:1px solid #c5a0b5; background:#fff; color:#673147; cursor:pointer; transition:background .15s,color .15s; white-space:nowrap; }
+    .tbl-btn:hover { background:#673147; color:#fff; border-color:#673147; }
+    .tbl-btn-del { border-color:#e57373; color:#c62828; }
+    .tbl-btn-del:hover { background:#c62828; color:#fff; border-color:#c62828; }
+    .empty-row { text-align: center; color: #bbb; padding: 32px !important; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-one   { background: #e8eaf6; color: #673147; }
+    .badge-multi { background: #e3f2fd; color: #1565c0; }
+    .reg-counts { font-size: 13px; color: #555; white-space: nowrap; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-edit-row { padding: 4px 12px; font-size: 13px; border-radius: 5px; border: 1px solid #673147; color: #fff; background: #673147; cursor: pointer; white-space: nowrap; }
+    .btn-edit-row:hover { background: #3949ab; border-color: #3949ab; }
+    .btn-del-row { padding: 4px 12px; font-size: 13px; border-radius: 5px; border: 1px solid #673147; color: #fff; background: #673147; cursor: pointer; white-space: nowrap; }
+    .btn-del-row:hover { background: #3949ab; border-color: #3949ab; }
+    .btn-reg-row { padding: 4px 12px; font-size: 13px; border-radius: 5px; border: 1px solid #26a69a; color: #26a69a; background: none; cursor: pointer; white-space: nowrap; }
+    .btn-reg-row:hover { background: #e0f2f1; }
+    .reg-url-cell { font-size: 13px; }
+    .reg-url-cell a { color: #673147; text-decoration: none; }
+    .reg-url-cell a:hover { text-decoration: underline; }
+
+    /* ── Registrations Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 500; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #eee; }
+    .modal-title { font-size: 16px; font-weight: 700; color: #1e2139; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #888; padding: 0 4px; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .modal-footer { padding: 12px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; }
+    .pub-link-box { background: #eef0f8; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .pub-link-box a { color: #673147; font-size: 13px; word-break: break-all; flex: 1; }
+    .reg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .reg-table th { background: #f5f6fa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #888; padding: 8px 12px; text-align: left; border-bottom: 2px solid #e8eaf0; }
+    .reg-table td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .reg-table tr:hover td { background: #fafbfd; }
+    .reg-empty { text-align: center; color: #bbb; padding: 24px !important; }
+    .totals-row td { font-weight: 700; background: #f5f6fa; font-size: 13px; }
+    .att-yes { color: #2e7d32; font-weight: 600; }
+    .att-no  { color: #c62828; font-weight: 600; }
+    .modal-feedback { font-size: 13px; color: #c62828; margin-bottom: 10px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) { .form-grid { grid-template-columns: repeat(2, 1fr); } .span-3 { grid-column: span 2; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .span-2,.span-3 { grid-column: span 1; } }
+
+    /* ── Volunteer Assignment ── */
+    .vol-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .vol-search-wrap { position:relative; flex:1; min-width:180px; }
+    .vol-search-input {
+      width:100%; border:1.5px solid #ddd; border-radius:8px; padding:9px 12px;
+      font-size:13px; outline:none; background:#fff; transition:border-color .2s;
+    }
+    .vol-search-input:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .vol-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:50;
+      background:#fff; border:1.5px solid #dde0ec; border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,.12); max-height:240px; overflow-y:auto; display:none;
+    }
+    .vol-dropdown.open { display:block; }
+    .vol-option {
+      padding:9px 14px; cursor:pointer; font-size:13px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .vol-option:hover { background:#f5f0f3; }
+    .vol-option .vol-name { font-weight:600; color:#222; }
+    .vol-option .vol-meta { font-size:11px; color:#888; }
+    .vol-no-results { padding:12px 14px; color:#aaa; font-style:italic; font-size:13px; }
+    .btn-add-manual { background:transparent; color:#673147; border:none; border-radius:8px;
+      padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:background .15s,color .15s; }
+    .btn-add-manual:hover { background:#673147; color:#fff; }
+    /* Roles section above the volunteer table */
+    .vol-roles-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;
+      background:#fdf7fa; border:1px solid #e8d0da; border-radius:10px; padding:10px 14px; }
+    .vol-roles-bar-label { font-size:12px; font-weight:700; color:#673147; white-space:nowrap; }
+    .vol-role-chip { display:inline-flex; align-items:center; gap:4px; background:#fff;
+      border:1.5px solid #c4839a; border-radius:20px; padding:3px 10px; font-size:12px; color:#673147; }
+    .vol-role-chip button { background:none; border:none; color:#c4839a; font-size:14px; cursor:pointer;
+      padding:0; line-height:1; }
+    .vol-role-chip button:hover { color:#c62828; }
+    .vol-role-add-wrap { display:flex; gap:6px; align-items:center; }
+    .vol-role-add-input { border:1.5px solid #ddd; border-radius:8px; padding:5px 10px; font-size:12px;
+      outline:none; width:150px; }
+    .vol-role-add-input:focus { border-color:#673147; }
+    .vol-role-add-btn { background:transparent; color:#673147; border:none; border-radius:8px;
+      padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; transition:background .15s,color .15s; }
+    .vol-role-add-btn:hover { background:#673147; color:#fff; }
+    /* Volunteer table */
+    .vol-table-wrap { overflow-x:auto; margin-top:4px; }
+    .vol-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .vol-table th { background:#f5edf1; color:#673147; font-weight:700; font-size:12px;
+      padding:8px 10px; text-align:left; border-bottom:2px solid #e8d0da; white-space:nowrap; }
+    .vol-table td { padding:8px 10px; border-bottom:1px solid #f0eaed; vertical-align:middle; }
+    .vol-table tr:last-child td { border-bottom:none; }
+    .vol-table tr:hover td { background:#fdf7fa; }
+    .vol-empty-row td { color:#bbb; font-style:italic; text-align:center; padding:18px; }
+    .vol-status-sel { font-size:12px; border:1px solid #ddd; border-radius:6px;
+      padding:3px 8px; background:#fff; cursor:pointer; }
+    .vol-status-sel.pending  { border-color:#f59e0b; color:#92400e; background:#fffbeb; }
+    .vol-status-sel.confirmed{ border-color:#16a34a; color:#14532d; background:#f0fdf4; }
+    .vol-status-sel.declined { border-color:#dc2626; color:#7f1d1d; background:#fef2f2; }
+    .vol-status-sel.maybe    { border-color:#7c3aed; color:#4c1d95; background:#f5f3ff; }
+    .vol-roles-cell { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+    .vol-role-tag { display:inline-block; background:#f5edf1; color:#673147;
+      border-radius:12px; padding:2px 9px; font-size:11px; font-weight:600; }
+    .vol-role-add-tag-btn { background:#fff; border:1.5px dashed #c4839a; color:#c4839a;
+      border-radius:12px; padding:2px 8px; font-size:11px; cursor:pointer; }
+    .vol-role-add-tag-btn:hover { background:#fdf7fa; color:#673147; }
+    .vol-act-btn { background:none; border:none; padding:4px 7px; border-radius:6px;
+      cursor:pointer; font-size:14px; color:#555; transition:.15s; }
+    .vol-act-btn:hover { background:#f0eaed; color:#673147; }
+    .vol-act-btn.del:hover { background:#ffeaea; color:#c62828; }
+    /* Group actions bar */
+    .vol-group-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .btn-group-email { background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px;
+      padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+    .btn-group-email:hover { background:#c8e6c9; }
+    .btn-group-sms { background:#e3f2fd; color:#1565c0; border:none; border-radius:8px;
+      padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+    .btn-group-sms:hover { background:#bbdefb; }
+    /* Compose modal */
+    .compose-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:5000; align-items:center; justify-content:center; }
+    .compose-modal-overlay.open { display:flex; }
+    .compose-modal-box { background:#fff; border-radius:14px; padding:28px; width:100%;
+      max-width:520px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .compose-modal-title { font-size:16px; font-weight:700; color:#673147; margin-bottom:14px; }
+    .compose-type-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .compose-type-tab { padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600;
+      border:2px solid #ddd; color:#666; cursor:pointer; background:#fff; transition:.15s; }
+    .compose-type-tab.active { border-color:#673147; background:#673147; color:#fff; }
+    .cmp-recipients { background:#f5f6fa; border-radius:8px; padding:8px 10px;
+      font-size:12px; color:#555; margin-bottom:12px; max-height:60px; overflow-y:auto; }
+    .cmp-field { margin-bottom:12px; }
+    .cmp-field label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
+    .cmp-field input, .cmp-field textarea {
+      width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:8px;
+      font-size:13px; font-family:inherit; resize:vertical; }
+    .cmp-field textarea { min-height:100px; }
+    .cmp-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+    /* Edit volunteer modal */
+    .vol-edit-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:4000; align-items:center; justify-content:center; }
+    .vol-edit-overlay.open { display:flex; }
+    .vol-edit-box { background:#fff; border-radius:14px; padding:26px; width:100%;
+      max-width:480px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .vol-edit-title { font-size:15px; font-weight:700; color:#673147; margin-bottom:16px; }
+    .vol-edit-row { margin-bottom:12px; }
+    .vol-edit-row label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
+    .vol-edit-row input, .vol-edit-row select { width:100%; padding:8px 10px;
+      border:1px solid #ddd; border-radius:8px; font-size:13px; font-family:inherit; }
+    .vol-edit-row input:focus, .vol-edit-row select:focus { outline:none; border-color:#673147; }
+    .vol-edit-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+    /* Role picker in edit modal */
+    .vol-role-picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .vol-role-picker-chip { display:inline-flex; align-items:center; gap:4px;
+      border-radius:20px; padding:4px 12px; font-size:12px; cursor:pointer;
+      border:1.5px solid #ddd; color:#555; background:#fff; transition:.15s; }
+    .vol-role-picker-chip.selected { border-color:#673147; background:#f5edf1; color:#673147; font-weight:600; }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <button class="btn-back" onclick="window.location.href='/events'">← Back</button>
+        <div class="page-header-text">
+          <div class="page-title">Add / Edit Event</div>
+          <div class="page-subtitle">Create and manage church events</div>
+        </div>
+        <button class="btn-save" type="button" onclick="openEvtTplManager()" style="white-space:nowrap;">✉️ RSVP Email Templates</button>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ══ EVENT FORM ══ -->
+      <div class="form-card">
+        <div class="form-card-header">
+          <span class="section-icon">✏️</span>
+          <h3 id="formTitle">Add Event</h3>
+        </div>
+        <div class="form-card-body">
+
+          <!-- Event Details -->
+          <div class="sub-section">
+            <div class="sub-section-title">Event Details</div>
+            <div class="form-grid">
+              <div class="field span-2">
+                <label for="eventName">Event Name <span class="required-star">*</span></label>
+                <input type="text" id="eventName" placeholder="e.g. Annual Church Picnic" />
+                <span class="field-hint" id="eventNameHint"></span>
+              </div>
+              <div class="field">
+                <label for="eventCode">Event ID / Code</label>
+                <div class="input-btn-wrap">
+                  <input type="text" id="eventCode" placeholder="e.g. EVT-A3B7C2" />
+                  <button class="btn-inline" type="button" onclick="generateCode()" title="Generate unique code">Generate</button>
+                </div>
+              </div>
+              <div class="field span-3">
+                <label>Event Type <span class="required-star">*</span></label>
+                <div class="radio-group" style="gap:16px;">
+                  <label class="toggle-row">
+                    <input type="radio" class="toggle-checkbox" name="eventType" value="One Day" checked onchange="onEventTypeChange(this.value)" />
+                    <span class="toggle-label">One Day</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="radio" class="toggle-checkbox" name="eventType" value="Multiple Days" onchange="onEventTypeChange(this.value)" />
+                    <span class="toggle-label">Multiple Days</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- One Day schedule -->
+          <div class="sub-section" id="oneDaySection">
+            <div class="sub-section-title">Schedule</div>
+            <div class="form-grid">
+              <div class="field"><label for="eventDate">Date</label><input type="date" id="eventDate" /></div>
+              <div class="field"><label for="startTime">Start Time</label><input type="time" id="startTime" /></div>
+              <div class="field"><label for="endTime">End Time</label><input type="time" id="endTime" /></div>
+            </div>
+          </div>
+
+          <!-- Multiple Days schedule -->
+          <div class="sub-section" id="multiDaySection" style="display:none;">
+            <div class="sub-section-title">Days Schedule</div>
+            <div class="days-container" id="daysContainer"></div>
+            <button class="btn-add-day" type="button" onclick="addDayRow()">+ Add Day</button>
+          </div>
+
+          <!-- Registration -->
+          <div class="sub-section">
+            <div class="sub-section-title">Registration</div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="registrationEndDate">Registration End Date</label>
+                <input type="date" id="registrationEndDate" />
+              </div>
+              <div class="field">
+                <label for="fee">Registration Fee</label>
+                <input type="text" id="fee" placeholder="e.g. Free / $10" />
+              </div>
+              <div class="field">
+                <label for="maxCapacity">Max Capacity</label>
+                <input type="number" id="maxCapacity" placeholder="Unlimited if blank" min="0" />
+              </div>
+              <!-- Show registrants toggle -->
+              <div class="field span-3" style="padding-top:4px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="showRegistrants" checked />
+                  <span class="toggle-label">Show "Who else is attending?" section on public registration page</span>
+                </label>
+              </div>
+              <!-- Allow Maybe RSVP -->
+              <div class="field span-3" style="padding-top:2px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="allowMaybeRsvp" />
+                  <span class="toggle-label">Allow "Maybe" as an RSVP option on the public registration page</span>
+                </label>
+              </div>
+              <!-- Generate Registration ID -->
+              <div class="field span-3" style="padding-top:2px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="generateRegistrationId" />
+                  <span class="toggle-label">Generate a unique Registration ID for each attendee (shown &amp; printable at check-in)</span>
+                </label>
+              </div>
+              <!-- Generate QR code -->
+              <div class="field span-3" style="padding-top:2px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="generateQrCode" />
+                  <span class="toggle-label">Generate a unique QR Code for each registrant — scan it at check-in to find &amp; check in the attendee</span>
+                </label>
+              </div>
+              <!-- Print note -->
+              <div class="field span-3" style="padding-top:0;">
+                <span class="toggle-label" style="font-size:12px;color:#888;">When either option is enabled, volunteers can print a name/ticket label (with the Registration ID and/or QR Code) to a connected mini printer from the Check-In screen.</span>
+              </div>
+              <!-- Self check-in -->
+              <div class="field span-3" style="padding-top:2px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="selfCheckinEnabled" />
+                  <span class="toggle-label">Enable self check-in — allow registrants to check in from their mobile device via an "I'm Here" button</span>
+                </label>
+              </div>
+              <!-- Registration link is shown in the All Events table, not here -->
+            </div>
+          </div>
+
+          <!-- Location -->
+          <div class="sub-section">
+            <div class="sub-section-title">Location</div>
+            <div class="form-grid">
+              <div class="field span-2"><label for="address1">Address 1</label><input type="text" id="address1" placeholder="Street address" /></div>
+              <div class="field"><label for="address2">Address 2</label><input type="text" id="address2" placeholder="Apt, Suite, etc." /></div>
+              <div class="field"><label for="city">City</label><input type="text" id="city" placeholder="City" /></div>
+              <div class="field">
+                <label for="state">State</label>
+                <select id="state">
+                  <option value="">— Select State —</option>
+                  <option value="1">AL – Alabama</option><option value="2">AK – Alaska</option><option value="3">AZ – Arizona</option><option value="4">AR – Arkansas</option><option value="5">CA – California</option><option value="6">CO – Colorado</option><option value="7">CT – Connecticut</option><option value="8">DE – Delaware</option><option value="9">FL – Florida</option><option value="10">GA – Georgia</option><option value="11">HI – Hawaii</option><option value="12">ID – Idaho</option><option value="13">IL – Illinois</option><option value="14">IN – Indiana</option><option value="15">IA – Iowa</option><option value="16">KS – Kansas</option><option value="17">KY – Kentucky</option><option value="18">LA – Louisiana</option><option value="19">ME – Maine</option><option value="20">MD – Maryland</option><option value="21">MA – Massachusetts</option><option value="22">MI – Michigan</option><option value="23">MN – Minnesota</option><option value="24">MS – Mississippi</option><option value="25">MO – Missouri</option><option value="26">MT – Montana</option><option value="27">NE – Nebraska</option><option value="28">NV – Nevada</option><option value="29">NH – New Hampshire</option><option value="30">NJ – New Jersey</option><option value="31">NM – New Mexico</option><option value="32">NY – New York</option><option value="33">NC – North Carolina</option><option value="34">ND – North Dakota</option><option value="35">OH – Ohio</option><option value="36">OK – Oklahoma</option><option value="37">OR – Oregon</option><option value="38">PA – Pennsylvania</option><option value="39">RI – Rhode Island</option><option value="40">SC – South Carolina</option><option value="41">SD – South Dakota</option><option value="42">TN – Tennessee</option><option value="43">TX – Texas</option><option value="44">UT – Utah</option><option value="45">VT – Vermont</option><option value="46">VA – Virginia</option><option value="47">WA – Washington</option><option value="48">WV – West Virginia</option><option value="49">WI – Wisconsin</option><option value="50">WY – Wyoming</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="country">Country</label>
+                <select id="country">
+                  <option value="USA" selected>USA – United States</option>
+                  <option value="CAN">CAN – Canada</option><option value="GBR">GBR – United Kingdom</option><option value="AUS">AUS – Australia</option><option value="IND">IND – India</option><option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div class="field"><label for="pinCode">Pin / Zip Code</label><input type="text" id="pinCode" placeholder="Zip / Pin" /></div>
+            </div>
+          </div>
+
+          <!-- Host Information -->
+          <div class="sub-section">
+            <div class="sub-section-title">Host Information</div>
+            <div class="form-grid">
+              <div class="field"><label for="hostName">Host Name</label><input type="text" id="hostName" placeholder="Contact person name" /></div>
+              <div class="field"><label for="hostPhone">Phone Number</label><input type="tel" id="hostPhone" placeholder="+1 (555) 000-0000" /></div>
+              <div class="field"><label for="hostEmail">Email</label><input type="email" id="hostEmail" placeholder="host@church.org" /></div>
+              <div class="field span-3"><label for="hostNote">Note</label><textarea id="hostNote" placeholder="Any additional host notes…"></textarea></div>
+            </div>
+          </div>
+
+          <!-- Additional Details -->
+          <div class="sub-section">
+            <div class="sub-section-title">Additional Details</div>
+            <div class="form-grid">
+              <!-- Food -->
+              <div class="field span-3" style="padding-top:4px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="foodAvailable" onchange="onFoodAvailableChange()" />
+                  <span class="toggle-label">Is Food Available?</span>
+                </label>
+              </div>
+              <!-- Food items list (shown when food is available) -->
+              <div id="foodItemsSection" style="display:none;grid-column:1/-1;margin-top:2px;">
+                <div style="background:#f1f8e9;border:1px solid #c5e1a5;border-radius:9px;padding:14px 16px;">
+                  <div style="font-size: 13px;font-weight:700;color:#558b2f;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">🍽️ Food Options</div>
+                  <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <input type="text" id="foodItemInput" placeholder="e.g. Vegetarian Pasta, Chicken Biryani…"
+                           style="flex:1;border:1px solid #c5e1a5;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addFoodItem();}" />
+                    <button type="button" onclick="addFoodItem()"
+                            style="background:#558b2f;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Add</button>
+                  </div>
+                  <div id="foodItemsList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px;">
+                    <span style="font-size: 13px;color:#aaa;font-style:italic;" id="foodItemsEmpty">No food items added yet.</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Accommodation -->
+              <div class="field span-3" style="padding-top:4px;">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="accommodationAvailable" onchange="onAccomChange()" />
+                  <span class="toggle-label">Is Accommodation Available?</span>
+                </label>
+              </div>
+              <!-- Accommodation detail fields (shown only when checked) -->
+              <div id="accomFields" style="display:none;grid-column:1/-1;">
+                <div class="form-grid" style="margin-top:0;">
+                  <div class="field span-3">
+                    <label for="accommodationAddress">Accommodation Address</label>
+                    <input type="text" id="accommodationAddress" placeholder="e.g. Hotel Ramada, 213124 West Ramada Dr, Olathe, KS 66062" />
+                  </div>
+                  <div class="field span-3">
+                    <label for="accommodationComments">Accommodation Comments</label>
+                    <textarea id="accommodationComments" rows="3" placeholder="e.g. 1 Bedroom: $100/day, 2 Bedroom: $250/day…"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="field span-2">
+                <label>Event Note</label>
+                <div id="noteEditor" style="background:#fff;min-height:120px;border:1px solid #ddd;border-radius:0 0 7px 7px;"></div>
+                <input type="hidden" id="note" />
+              </div>
+              <div class="field">
+                <label for="eventImage">Event Image (optional)</label>
+                <input type="file" id="eventImage" accept="image/*" onchange="onImageChange(this)" />
+                <img id="imgPreview" class="img-preview" alt="Preview" />
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.form-card-body -->
+        <div class="action-bar">
+          <button class="btn-clear" type="button" onclick="resetForm()">Cancel</button>
+          <button class="btn-save" id="saveBtn" type="button" onclick="saveEvent()">Save Event</button>
+        </div>
+      </div>
+
+      <!-- After save: link to manage volunteers / view registrants on the Events page -->
+      <div id="volSection" style="display:none; margin-top:8px;">
+        <div style="background:#eef0f8;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:#555;flex:1;">Event saved. Manage volunteers and registrants from the Events page.</span>
+          <button class="btn-save" style="padding:8px 18px;font-size:13px;" onclick="window.location.href='/events'">← Back to Events</button>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- COMPOSE MODAL -->
+<div class="compose-modal-overlay" id="evtComposeModal">
+  <div class="compose-modal-box">
+    <div class="compose-modal-title" id="evtCmpTitle">✉️ Compose Message</div>
+    <div class="compose-type-tabs">
+      <button class="compose-type-tab active" id="evtCmpTabEmail" onclick="evtCmpSwitchTab('email')">📧 Email</button>
+      <button class="compose-type-tab" id="evtCmpTabSms" onclick="evtCmpSwitchTab('sms')">💬 SMS</button>
+    </div>
+    <div class="cmp-recipients" id="evtCmpRecipients">To: —</div>
+    <div id="evtCmpEmailSection">
+      <div class="cmp-field">
+        <label>Subject</label>
+        <input type="text" id="evtCmpSubject" placeholder="Email subject…" />
+      </div>
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="evtCmpEmailBody" placeholder="Type your email message here…"></textarea>
+      </div>
+    </div>
+    <div id="evtCmpSmsSection" style="display:none;">
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="evtCmpSmsBody" placeholder="Type your SMS message here…"></textarea>
+      </div>
+    </div>
+    <div class="cmp-modal-actions">
+      <button class="btn-clear" onclick="evtCmpClose()">Cancel</button>
+      <button class="btn-save" onclick="evtCmpSend()" style="padding:8px 20px;font-size:13px;">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTRATIONS MODAL -->
+<div class="modal-overlay" id="regModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="regModalTitle">Registrations</div>
+      <button class="modal-close" onclick="closeRegModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pub-link-box" id="pubLinkBox">
+        <span>🔗</span>
+        <a id="pubLinkAnchor" href="#" target="_blank"></a>
+        <button class="btn-copy" onclick="copyPubLink()">Copy</button>
+      </div>
+      <div class="modal-feedback" id="regFeedback"></div>
+      <table class="reg-table">
+        <thead>
+          <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Adults</th><th>Kids</th><th>Attending</th><th>Checked In</th><th>Attending Days</th><th>Note</th><th>Remove</th></tr>
+        </thead>
+        <tbody id="regTableBody"><tr><td class="reg-empty" colspan="11">No registrations yet.</td></tr></tbody>
+        <tfoot id="regTableFoot"></tfoot>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-clear" onclick="printRegistrations()" style="margin-right:8px;">🖨️ Print</button>
+      <button class="btn-clear" onclick="closeRegModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RSVP Email Template Manager ══ -->
+<div class="modal-overlay" id="evtTplModal">
+  <div class="modal" style="max-width:800px; width:100%; max-height:calc(100vh - 48px); overflow-y:auto;">
+    <div class="modal-header">
+      <div class="modal-title">✉️ RSVP Confirmation Email Templates</div>
+      <button class="modal-close" onclick="closeEvtTplManager()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:#888;margin-bottom:10px;">The default template is used automatically for the confirmation email sent after a successful RSVP.</div>
+      <div class="modal-feedback" id="evtTplFeedback"></div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
+        <div style="flex:1 1 200px; min-width:180px;">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a7d8a;margin-bottom:8px;">Templates</div>
+          <div id="evtTplList" style="border:1px solid #eee;border-radius:8px;max-height:340px;overflow:auto;"></div>
+          <button class="btn-clear" style="margin-top:8px;width:100%;" onclick="evtTplNew()">＋ New template</button>
+        </div>
+        <div style="flex:2 1 330px; min-width:280px;">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a7d8a;margin-bottom:8px;" id="evtTplEditorTitle">New template</div>
+          <input type="hidden" id="evtTplEditId" value="" />
+          <label style="font-size:12px;font-weight:600;color:#5b4350;">Name</label>
+          <input type="text" id="evtTplName" placeholder="e.g. Standard RSVP Confirmation" style="width:100%;padding:9px;border:1px solid #d7c9d0;border-radius:7px;margin:4px 0 10px;box-sizing:border-box;" />
+          <label style="font-size:12px;font-weight:600;color:#5b4350;">Insert placeholder</label>
+          <div id="evtTplPlaceholders" style="display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 10px;"></div>
+          <label style="font-size:12px;font-weight:600;color:#5b4350;">Message</label>
+          <textarea id="evtTplBody" oninput="evtTplPreview()" style="width:100%;min-height:170px;padding:9px;border:1px solid #d7c9d0;border-radius:7px;margin:4px 0 10px;box-sizing:border-box;font-family:inherit;"></textarea>
+          <label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#444;margin:2px 0 4px;"><input type="checkbox" id="evtTplMakeDefault" /> Set as default template</label>
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a7d8a;margin:12px 0 6px;">Preview (sample data)</div>
+          <div id="evtTplPreview" style="background:#fbf7f9;border:1px solid #eee;border-radius:8px;padding:12px 14px;font-size:13px;color:#333;line-height:1.6;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-clear" onclick="closeEvtTplManager()">Close</button>
+      <button class="btn-save" onclick="evtTplSave()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════ RSVP Email Template Manager ════════════ */
+(function () {
+  'use strict';
+  var PLACEHOLDERS = ['Registrant Name','Event Name','Date','Time','Location','Contact','Google Calendar Link','Directions Link'];
+  var TPLS = [];
+  // sample data for the manager preview
+  var SAMPLE_TXT = { 'Registrant Name':'Jordan Smith', 'Event Name':'Sunday Service',
+    'Date':'June 03, 2026', 'Time':'6:30 PM - 8:30 PM',
+    'Location':'123 Main Street, Olathe, KS 66062', 'Contact':'Pastor Lee &middot; (555) 123-4567' };
+  var SAMPLE_BTN = {
+    'Google Calendar Link':'<a href="#" style="display:inline-block;margin:4px;padding:10px 18px;background:#4285F4;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">📅 Add to Google Calendar</a>',
+    'Directions Link':'<a href="#" style="display:inline-block;margin:4px;padding:10px 18px;background:#34A853;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">📍 Get Directions</a>' };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  var PH=/\{([^}]+)\}/g;
+  function renderLine(raw, text, btn){
+    var anyKnown=false, allEmpty=true, sb='', last=0, m; PH.lastIndex=0;
+    while((m=PH.exec(raw))){
+      sb+=esc(raw.substring(last,m.index)); var key=m[1].trim();
+      if(key in text){ anyKnown=true; var v=text[key]; if(v!=='') allEmpty=false; sb+=v; }
+      else if(key in btn){ anyKnown=true; var b=btn[key]; if(b!=='') allEmpty=false; sb+=b; }
+      else sb+=esc(m[0]);
+      last=m.index+m[0].length;
+    }
+    sb+=esc(raw.substring(last));
+    var literal=raw.replace(/\{([^}]+)\}/g,'').trim();
+    if(anyKnown && allEmpty && (literal===''||literal.endsWith(':'))) return null;
+    return sb;
+  }
+  function render(body, text, btn){
+    var out='';
+    String(body||'').replace(/\r\n/g,'\n').trim().split(/\n\s*\n/).forEach(function(para){
+      var pBuf='', hasText=false;
+      para.split('\n').forEach(function(raw){
+        var r=renderLine(raw, text, btn); if(r===null) return;
+        if(pBuf.length>0) pBuf+='<br>'; pBuf+=r;
+        if(r.replace(/<[^>]+>/g,'').trim()!=='') hasText=true;
+      });
+      if(pBuf.length===0) return;
+      out += hasText ? ('<p style="margin:0 0 12px;">'+pBuf+'</p>') : ('<div style="margin:0 0 12px;text-align:center;">'+pBuf+'</div>');
+    });
+    return out;
+  }
+
+  function feedback(msg,kind){ var el=$('evtTplFeedback'); if(el){ el.textContent=msg||''; el.className='modal-feedback'+(kind?(' '+kind):''); el.style.color = kind==='error'?'#b42424':(kind==='success'?'#1e7a44':''); } }
+  function buildPlaceholders(){
+    $('evtTplPlaceholders').innerHTML = PLACEHOLDERS.map(function(p){
+      return '<button type="button" class="btn-clear" style="padding:3px 8px;font-size:11px;" onclick="EVTTPL.insert(\''+p.replace(/'/g,"\\'")+'\')">{'+p+'}</button>'; }).join('');
+  }
+  function evtTplPreview(){
+    $('evtTplPreview').innerHTML = render($('evtTplBody').value, SAMPLE_TXT, SAMPLE_BTN) || '<span style="color:#bbb;">Nothing to preview yet.</span>';
+  }
+  function renderList(){
+    $('evtTplList').innerHTML = TPLS.map(function(t){
+      var star=t.isDefault?'⭐ ':'';
+      var actions = t.builtIn
+        ? '<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="EVTTPL.edit('+t.id+')">Customize</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="EVTTPL.setDefault('+t.id+')">Default</button>'
+        : '<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="EVTTPL.edit('+t.id+')">Edit</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;" onclick="EVTTPL.setDefault('+t.id+')">Default</button>'
+          +'<button class="btn-clear" style="padding:2px 7px;font-size:11px;color:#b42424;" onclick="EVTTPL.del('+t.id+')">Delete</button>';
+      return '<div style="padding:9px 10px;border-bottom:1px solid #f0eaee;">'
+        +'<div style="font-weight:600;font-size:13px;color:#5b3a4b;">'+star+esc(t.name)+(t.builtIn?' <span style="color:#aaa;font-weight:400;font-size:11px;">(built-in)</span>':'')+'</div>'
+        +'<div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;">'+actions+'</div></div>';
+    }).join('');
+  }
+  function load(){
+    return fetch('/api/event-email-templates').then(function(r){ return r.ok?r.json():[]; }).catch(function(){return [];})
+      .then(function(list){ TPLS = Array.isArray(list)?list:(list&&list.data)||[]; renderList(); return TPLS; });
+  }
+  function newTpl(){
+    $('evtTplEditId').value=''; $('evtTplEditorTitle').textContent='New template'; $('evtTplName').value='';
+    var def=TPLS.filter(function(t){return t.builtIn;})[0]; $('evtTplBody').value=def? (def.body||''):''; $('evtTplMakeDefault').checked=false; evtTplPreview();
+  }
+  function editTpl(id){
+    var t=TPLS.filter(function(x){return String(x.id)===String(id);})[0]; if(!t) return;
+    if(t.builtIn){ $('evtTplEditId').value=''; $('evtTplEditorTitle').textContent='New template (from default)'; $('evtTplName').value=''; }
+    else { $('evtTplEditId').value=t.id; $('evtTplEditorTitle').textContent='Edit template'; $('evtTplName').value=t.name||''; }
+    $('evtTplBody').value=t.body||''; $('evtTplMakeDefault').checked=!!t.isDefault && !t.builtIn; evtTplPreview();
+  }
+  function insert(name){
+    var ta=$('evtTplBody'); var ph='{'+name+'}'; var s=ta.selectionStart||0, e=ta.selectionEnd||0;
+    ta.value=ta.value.slice(0,s)+ph+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+ph.length; evtTplPreview();
+  }
+  function save(){
+    var id=$('evtTplEditId').value;
+    var payload={ name:$('evtTplName').value.trim(), body:$('evtTplBody').value, makeDefault:$('evtTplMakeDefault').checked };
+    if(!payload.name){ feedback('Please enter a template name.','error'); return; }
+    var url=id? '/api/event-email-templates/'+id : '/api/event-email-templates';
+    fetch(url,{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
+      .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Save failed.','error'); return; }
+        var after=(id && payload.makeDefault)? fetch('/api/event-email-templates/'+id+'/default',{method:'POST'}) : Promise.resolve();
+        after.then(function(){ feedback('✅ Template saved.','success'); load(); }); })
+      .catch(function(){ feedback('Network error.','error'); });
+  }
+  function del(id){
+    if(!window.confirm('Delete this template?')) return;
+    fetch('/api/event-email-templates/'+id,{method:'DELETE'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Delete failed.','error'); return; } load().then(newTpl); })
+      .catch(function(){ feedback('Network error.','error'); });
+  }
+  function setDefault(id){
+    fetch('/api/event-email-templates/'+id+'/default',{method:'POST'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Failed.','error'); return; } load(); })
+      .catch(function(){ feedback('Network error.','error'); });
+  }
+  function open(){ buildPlaceholders(); feedback(''); $('evtTplModal').classList.add('open');
+    load().then(function(){ var d=TPLS.filter(function(t){return t.isDefault;})[0]; if(d && !d.builtIn) editTpl(d.id); else newTpl(); }); }
+  function close(){ $('evtTplModal').classList.remove('open'); }
+
+  window.EVTTPL = { edit:editTpl, del:del, setDefault:setDefault, insert:insert };
+  window.openEvtTplManager = open;
+  window.closeEvtTplManager = close;
+  window.evtTplNew = newTpl;
+  window.evtTplSave = save;
+  window.evtTplPreview = evtTplPreview;
+  $('evtTplModal').addEventListener('click', function(e){ if(e.target===this) close(); });
+})();
+</script>
+
+<script>
+  /* ════ NAVIGATION ════ */
+  
+
+  /* ════ STATE ════ */
+  let allEvents   = [];
+  let editingId   = null;
+  let dayRowCount = 0;
+  let currentRegEventId = null;
+  let pendingImageData  = null;
+  let foodItems         = [];
+
+  /* ════ VOLUNTEER ASSIGNMENT STATE ════ */
+  let evVolunteers  = [];   // array of volunteer DTOs from /api/events/{id}/volunteers
+  let evOrgRoles    = [];   // org-level role list from /api/events/{id}/volunteers/roles
+  let evRoleNames   = [];   // event-level role name strings (for the role chips bar)
+  let allMembers    = [];   // from /api/members (for member search)
+  let _evEditId     = null; // id of volunteer being edited
+
+  /* ════ INIT ════ */
+  (async function init() {
+    await loadEvents();
+    // If URL has ?id=<N>, auto-populate the form for that event
+    var urlId = new URLSearchParams(window.location.search).get('id');
+    if (urlId) {
+      var numId = parseInt(urlId, 10);
+      if (!isNaN(numId)) {
+        var ev = allEvents.find(function(e) { return e.id === numId; });
+        if (ev) editEvent(numId);
+      }
+    }
+  })();
+
+  async function loadEvents() {
+    try {
+      const res = await fetch('/api/events');
+      if (res.ok) allEvents = await res.json();
+      else console.warn('GET /api/events returned', res.status);
+    } catch (e) {
+      console.warn('loadEvents fetch error:', e);
+      showFeedback('Could not load events.', 'error');
+    }
+  }
+
+  // Volunteer / member functions retained for compose-modal (email/SMS to volunteers)
+  // but search dropdown and table are now on event-details page.
+  async function loadAllMembers() { /* no-op — volunteer assignment moved to event-details */ }
+
+  /* ════ EVENT VOLUNTEER SECTION ════ */
+
+  async function evLoadVolunteers() {
+    if (!editingId) return;
+    try {
+      const [vRes, rRes] = await Promise.all([
+        fetch('/api/events/' + editingId + '/volunteers'),
+        fetch('/api/events/' + editingId + '/volunteers/roles')
+      ]);
+      if (vRes.ok) evVolunteers = await vRes.json();
+      if (rRes.ok) evOrgRoles   = await rRes.json();
+    } catch (e) { console.warn('Could not load event volunteers', e); }
+    evRenderRoleChips();
+    evRenderTable();
+  }
+
+  /* ── Role chips bar ── */
+  function evRenderRoleChips() {
+    const container = document.getElementById('volRoleChips');
+    if (!container) return;
+    // Collect distinct role names actually used by volunteers
+    const usedSet = new Set();
+    evVolunteers.forEach(v => (v.roles || []).forEach(r => usedSet.add(r.roleName)));
+    // Also include org roles referenced in evRoleNames
+    evRoleNames.forEach(n => usedSet.add(n));
+    const names = [...usedSet].sort();
+    container.innerHTML = names.map(n =>
+      '<span class="vol-role-chip">' + escHtml(n) +
+      '<button title="Remove role" onclick="evRemoveRoleChip(' + JSON.stringify(n) + ')">x</button></span>'
+    ).join('');
+  }
+
+  function evAddRole() {
+    const inp = document.getElementById('volRoleInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (!evRoleNames.includes(name)) evRoleNames.push(name);
+    inp.value = '';
+    evRenderRoleChips();
+  }
+
+  function evRemoveRoleChip(name) {
+    evRoleNames = evRoleNames.filter(n => n !== name);
+    evRenderRoleChips();
+  }
+
+  /* ── Member search dropdown ── */
+  function evOpenMemberDd() { evFilterMemberDd(); }
+  function evCloseMemberDd() {
+    const dd = document.getElementById('volMemberDd');
+    if (dd) dd.classList.remove('open');
+  }
+
+  function evFilterMemberDd() {
+    const q  = (document.getElementById('volSearchInput').value || '').trim().toLowerCase();
+    const dd = document.getElementById('volMemberDd');
+    if (!dd) return;
+    dd.classList.add('open');
+    const assignedFmIds = new Set(evVolunteers.filter(v => v.familyMemberId).map(v => String(v.familyMemberId)));
+    const filtered = allMembers.filter(m => {
+      if (assignedFmIds.has(String(m.id))) return false;
+      if (!q) return true;
+      const full = ((m.firstName || '') + ' ' + (m.lastName || '')).toLowerCase();
+      return full.includes(q) || (m.email || '').toLowerCase().includes(q);
+    }).slice(0, 30);
+    if (!filtered.length) {
+      dd.innerHTML = '<div class="vol-no-results">No matching members found.</div>';
+      return;
+    }
+    dd.innerHTML = filtered.map(m => {
+      const name = escHtml(((m.firstName || '') + ' ' + (m.lastName || '')).trim());
+      const meta = escHtml((m.role || '') + (m.email ? ' · ' + m.email : ''));
+      return '<div class="vol-option" onmousedown="event.preventDefault();evAddMemberVolunteer(' + m.id + ')">' +
+        '<div><div class="vol-name">' + name + '</div>' +
+        '<div class="vol-meta">' + meta + '</div></div></div>';
+    }).join('');
+  }
+
+  async function evAddMemberVolunteer(memberId) {
+    evCloseMemberDd();
+    document.getElementById('volSearchInput').value = '';
+    if (!editingId) { alert('Please save the event first before assigning volunteers.'); return; }
+    const m = allMembers.find(x => x.id === memberId);
+    if (!m) return;
+    const body = {
+      familyMemberId: m.id,
+      firstName: m.firstName || '',
+      lastName:  m.lastName  || '',
+      email:     m.email     || '',
+      phone:     m.phone     || '',
+      isManual:  false,
+      status:    'pending',
+      roles:     []
+    };
+    try {
+      const res = await fetch('/api/events/' + editingId + '/volunteers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const d = await res.json();
+      if (d.success) { evVolunteers.push(d.volunteer); evRenderTable(); evRenderRoleChips(); }
+      else alert(d.error || 'Failed to add volunteer.');
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ── Manual add modal ── */
+  function evOpenManualModal() {
+    if (!editingId) { alert('Please save the event first before assigning volunteers.'); return; }
+    _evEditId = null;
+    document.getElementById('evEditTitle').textContent = 'Add Volunteer Manually';
+    document.getElementById('evEditFirstName').value  = '';
+    document.getElementById('evEditLastName').value   = '';
+    document.getElementById('evEditEmail').value      = '';
+    document.getElementById('evEditPhone').value      = '';
+    document.getElementById('evEditStatus').value     = 'pending';
+    document.getElementById('evEditNotes').value      = '';
+    evRenderRolePicker([]);
+    document.getElementById('volEditOverlay').classList.add('open');
+  }
+
+  function evOpenEditModal(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (!v) return;
+    _evEditId = id;
+    document.getElementById('evEditTitle').textContent  = 'Edit Volunteer';
+    document.getElementById('evEditFirstName').value    = v.firstName || '';
+    document.getElementById('evEditLastName').value     = v.lastName  || '';
+    document.getElementById('evEditEmail').value        = v.email     || '';
+    document.getElementById('evEditPhone').value        = v.phone     || '';
+    document.getElementById('evEditStatus').value       = v.status    || 'pending';
+    document.getElementById('evEditNotes').value        = v.notes     || '';
+    evRenderRolePicker(v.roles || []);
+    document.getElementById('volEditOverlay').classList.add('open');
+  }
+
+  function evCloseEditModal() {
+    document.getElementById('volEditOverlay').classList.remove('open');
+    _evEditId = null;
+  }
+
+  function evRenderRolePicker(selectedRoles) {
+    const container = document.getElementById('evEditRolePicker');
+    if (!container) return;
+    // Merge org roles + event-level role names + currently selected roles
+    const allNames = new Set([
+      ...evOrgRoles.map(r => r.roleName),
+      ...evRoleNames,
+      ...(selectedRoles || []).map(r => r.roleName)
+    ]);
+    const selectedNames = new Set((selectedRoles || []).map(r => r.roleName));
+    const chipsHtml = [...allNames].sort().map(name => {
+      const sel = selectedNames.has(name) ? ' selected' : '';
+      return '<span class="vol-role-picker-chip' + sel + '" data-role="' + escHtml(name) + '" onclick="evToggleRoleChip(this)">' + escHtml(name) + '</span>';
+    }).join('');
+    container.innerHTML =
+      (chipsHtml || '<span style="font-size:12px;color:#aaa;">No roles yet — type one below and click + Add</span>') +
+      '<div style="display:flex;gap:6px;margin-top:8px;">' +
+        '<input type="text" id="evNewRoleInput" placeholder="New role…" style="border:1.5px solid #ddd;border-radius:8px;padding:5px 10px;font-size:12px;flex:1;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();evAddNewRoleToList();}" />' +
+        '<button onclick="evAddNewRoleToList()" style="background:#673147;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>' +
+      '</div>';
+  }
+
+  function evToggleRoleChip(el) {
+    el.classList.toggle('selected');
+  }
+
+  function evAddNewRoleToList() {
+    const inp = document.getElementById('evNewRoleInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (!evRoleNames.includes(name)) evRoleNames.push(name);
+    inp.value = '';
+    // Find existing chip (trim to handle whitespace) or create new one
+    const container = document.getElementById('evEditRolePicker');
+    const existing = [...container.querySelectorAll('.vol-role-picker-chip')]
+      .find(c => c.dataset.role === name);
+    if (existing) {
+      existing.classList.add('selected');
+    } else {
+      const chip = document.createElement('span');
+      chip.className = 'vol-role-picker-chip selected';
+      chip.textContent = name;
+      chip.dataset.role = name;
+      chip.onclick = function() { evToggleRoleChip(chip); };
+      const addDiv = container.querySelector('div');
+      if (addDiv) container.insertBefore(chip, addDiv);
+      else container.appendChild(chip);
+    }
+  }
+
+  async function evSaveEditModal() {
+    const firstName = document.getElementById('evEditFirstName').value.trim();
+    const lastName  = document.getElementById('evEditLastName').value.trim();
+    if (!firstName && !lastName) { alert('Please enter a name.'); return; }
+    const email  = document.getElementById('evEditEmail').value.trim();
+    const phone  = document.getElementById('evEditPhone').value.trim();
+    const status = document.getElementById('evEditStatus').value;
+    const notes  = document.getElementById('evEditNotes').value.trim();
+    // Collect selected roles from chips
+    const selectedRoles = [...document.querySelectorAll('#evEditRolePicker .vol-role-picker-chip.selected')]
+      .map(c => ({ roleName: c.dataset.role || c.textContent.trim() }));
+
+    const payload = { firstName, lastName, email, phone, status, notes, roles: selectedRoles };
+    try {
+      let res, d;
+      if (_evEditId) {
+        res = await fetch('/api/events/' + editingId + '/volunteers/' + _evEditId, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        payload.isManual = true;
+        res = await fetch('/api/events/' + editingId + '/volunteers', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      d = await res.json();
+      if (d.success) {
+        if (_evEditId) {
+          const idx = evVolunteers.findIndex(v => v.id === _evEditId);
+          if (idx !== -1) evVolunteers[idx] = d.volunteer;
+        } else {
+          evVolunteers.push(d.volunteer);
+        }
+        evRenderTable();
+        evRenderRoleChips();
+        evCloseEditModal();
+      } else {
+        alert(d.error || 'Failed to save volunteer.');
+      }
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ── Volunteer table ── */
+  function evRenderTable() {
+    const tbody = document.getElementById('volTableBody');
+    const groupActions = document.getElementById('volGroupActions');
+    if (!tbody) return;
+    if (!evVolunteers.length) {
+      tbody.innerHTML = '<tr class="vol-empty-row"><td colspan="5">No volunteers assigned yet.</td></tr>';
+      if (groupActions) groupActions.style.display = 'none';
+      return;
+    }
+    if (groupActions) groupActions.style.display = '';
+    tbody.innerHTML = evVolunteers.map(v => {
+      const name  = escHtml((v.firstName + ' ' + v.lastName).trim());
+      const email = v.email || '';
+      const phone = v.phone || '';
+      const status = v.status || 'pending';
+      const roles = (v.roles || []);
+      const canEdit   = !window.CGP_PERMS || window.CGP_PERMS['general.events.edit']   !== false;
+      const canDelete = !window.CGP_PERMS || window.CGP_PERMS['general.events.delete'] !== false;
+      const rolesHtml = roles.map(r => '<span class="vol-role-tag">' + escHtml(r.roleName) + '</span>').join('') +
+        (canEdit ? '<button class="vol-role-add-tag-btn" onclick="evOpenEditModal(' + v.id + ')" title="Edit roles">+ role</button>' : '');
+      const contact = [
+        email ? '<span title="' + escHtml(email) + '">📧</span>' : '',
+        phone ? '<span title="' + escHtml(phone) + '">📞</span>' : ''
+      ].filter(Boolean).join(' ');
+      return '<tr>' +
+        '<td><strong>' + name + '</strong>' + (v.isManual ? ' <span style="font-size:10px;color:#888;">(manual)</span>' : '') + '</td>' +
+        '<td><div class="vol-roles-cell">' + rolesHtml + '</div></td>' +
+        '<td><select class="vol-status-sel ' + escHtml(status) + '" data-vid="' + v.id + '" onchange="evUpdateStatus(this)">' +
+          '<option value="pending"   ' + (status==='pending'   ?'selected':'') + '>Pending</option>' +
+          '<option value="confirmed" ' + (status==='confirmed' ?'selected':'') + '>Confirmed</option>' +
+          '<option value="declined"  ' + (status==='declined'  ?'selected':'') + '>Declined</option>' +
+          '<option value="maybe"     ' + (status==='maybe'     ?'selected':'') + '>Maybe</option>' +
+        '</select></td>' +
+        '<td style="white-space:nowrap;">' + contact + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          (email ? '<button class="vol-act-btn" title="Email" onclick="evSendEmailById(' + v.id + ')">✉️</button>' : '') +
+          (phone ? '<button class="vol-act-btn" title="SMS"   onclick="evSendSmsById('   + v.id + ')">💬</button>' : '') +
+          (canEdit   ? '<button class="vol-act-btn" title="Edit"   onclick="evOpenEditModal(' + v.id + ')">✏️</button>' : '') +
+          (canDelete ? '<button class="vol-act-btn del" title="Delete" onclick="evDeleteVolunteer(' + v.id + ')">🗑️</button>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  async function evUpdateStatus(sel) {
+    const id     = Number(sel.dataset.vid);
+    const status = sel.value;
+    sel.className = 'vol-status-sel ' + status;
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) v.status = status;
+    try {
+      await fetch('/api/events/' + editingId + '/volunteers/' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch (e) { console.warn('Status update failed', e); }
+  }
+
+  async function evDeleteVolunteer(id) {
+    if (!confirm('Remove this volunteer from the event?')) return;
+    try {
+      const res = await fetch('/api/events/' + editingId + '/volunteers/' + id, { method: 'DELETE' });
+      const d = await res.json();
+      if (d.success) {
+        evVolunteers = evVolunteers.filter(v => v.id !== id);
+        evRenderTable();
+        evRenderRoleChips();
+      } else alert(d.error || 'Failed to delete volunteer.');
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ── Group actions ── */
+  function evGroupEmail() {
+    const list = evVolunteers.filter(v => v.email).map(v => ({
+      name: (v.firstName + ' ' + v.lastName).trim(), email: v.email, phone: v.phone || ''
+    }));
+    if (!list.length) { alert('No volunteers with email addresses.'); return; }
+    evtCmpOpen(list, 'email', 'Volunteer Assignment Update',
+      'Dear Volunteers,\n\nThank you for volunteering to serve at our upcoming event. We look forward to serving together!\n\nGod bless,\nChurch Team');
+  }
+
+  function evGroupSms() {
+    const list = evVolunteers.filter(v => v.phone).map(v => ({
+      name: (v.firstName + ' ' + v.lastName).trim(), email: v.email || '', phone: v.phone
+    }));
+    if (!list.length) { alert('No volunteers with phone numbers.'); return; }
+    evtCmpOpen(list, 'sms', '', 'Hi! Thank you for volunteering at our upcoming church event. We will send more details soon. God bless!');
+  }
+
+  function evSendEmailById(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) evSendEmail(v.email, (v.firstName + ' ' + v.lastName).trim());
+  }
+  function evSendSmsById(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) evSendSms(v.phone, (v.firstName + ' ' + v.lastName).trim());
+  }
+
+  function evSendEmail(email, name) {
+    evtCmpOpen([{name, email, phone:''}], 'email', 'Volunteer Assignment',
+      'Dear ' + name + ',\n\nThank you for volunteering at our upcoming event. We appreciate your commitment!\n\nGod bless,\nChurch Team');
+  }
+
+  function evSendSms(phone, name) {
+    evtCmpOpen([{name, email:'', phone}], 'sms', '',
+      'Hi ' + name + ', thank you for volunteering at our upcoming church event! God bless!');
+  }
+
+  /* ── Compose modal ── */
+  let _evtCmpRecipients = [];
+  let _evtCmpMode = 'email';
+  let _evtCmpEventId = null;
+
+  function evtCmpSwitchTab(tab) {
+    _evtCmpMode = tab;
+    document.getElementById('evtCmpTabEmail').classList.toggle('active', tab === 'email');
+    document.getElementById('evtCmpTabSms').classList.toggle('active', tab === 'sms');
+    document.getElementById('evtCmpEmailSection').style.display = tab === 'email' ? '' : 'none';
+    document.getElementById('evtCmpSmsSection').style.display   = tab === 'sms'   ? '' : 'none';
+    evtCmpUpdateTo();
+  }
+
+  function evtCmpUpdateTo() {
+    const list  = _evtCmpRecipients.filter(r => _evtCmpMode === 'email' ? r.email : r.phone);
+    const label = list.map(r => r.name + (_evtCmpMode === 'email' ? ' <' + r.email + '>' : ' (' + r.phone + ')')).join(', ');
+    document.getElementById('evtCmpRecipients').textContent = 'To: ' + (label || '(none)');
+  }
+
+  function evtCmpOpen(recipients, tab, subject, msg) {
+    _evtCmpRecipients = recipients;
+    _evtCmpMode = tab || 'email';
+    _evtCmpEventId = editingId;
+    document.getElementById('evtCmpSubject').value   = subject || '';
+    document.getElementById('evtCmpEmailBody').value = msg || '';
+    document.getElementById('evtCmpSmsBody').value   = msg || '';
+    document.getElementById('evtCmpTitle').textContent = recipients.length === 1
+      ? (tab === 'sms' ? 'SMS to ' + recipients[0].name : 'Email to ' + recipients[0].name)
+      : (tab === 'sms' ? 'Group SMS' : 'Group Email');
+    evtCmpSwitchTab(_evtCmpMode);
+    document.getElementById('evtComposeModal').classList.add('open');
+  }
+
+  function evtCmpClose() {
+    document.getElementById('evtComposeModal').classList.remove('open');
+  }
+
+  function evtCmpSend() {
+    const eventBase = _evtCmpEventId ? '/api/events/' + _evtCmpEventId + '/volunteers' : '/api/volunteers';
+    if (_evtCmpMode === 'email') {
+      const subject = document.getElementById('evtCmpSubject').value.trim() || 'Volunteer Assignment';
+      const body    = document.getElementById('evtCmpEmailBody').value.trim();
+      const targets = _evtCmpRecipients.filter(r => r.email);
+      if (!targets.length) { alert('No email addresses available.'); return; }
+      const sendBtn = document.querySelector('#evtComposeModal .btn-save');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
+      fetch(eventBase + '/send-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: targets.map(r => r.email), subject, body })
+      }).then(r => r.json()).then(d => {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+        if (d.success) {
+          evtCmpClose();
+          evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+        } else { alert(d.error || 'Failed to send email.'); }
+      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+    } else {
+      const msg     = document.getElementById('evtCmpSmsBody').value.trim();
+      const targets = _evtCmpRecipients.filter(r => r.phone);
+      if (!targets.length) { alert('No phone numbers available.'); return; }
+      const sendBtn = document.querySelector('#evtComposeModal .btn-save');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
+      fetch(eventBase + '/send-sms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: targets.map(r => r.phone), body: msg })
+      }).then(r => r.json()).then(d => {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+        if (d.success) {
+          evtCmpClose();
+          evToast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+        } else { alert(d.error || 'Failed to send SMS.'); }
+      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+    }
+  }
+
+  function evToast(msg, color) {
+    const bg = color || '#323232';
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:' + bg + ';color:#fff;padding:12px 28px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18);pointer-events:none;';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  document.addEventListener('click', function(e) {
+    const cm = document.getElementById('evtComposeModal');
+    if (cm && e.target === cm) evtCmpClose();
+    const em = document.getElementById('volEditOverlay');
+    if (em && e.target === em) evCloseEditModal();
+  });
+
+  /* EVENT TYPE TOGGLE */
+  function onEventTypeChange(val) {
+    document.getElementById('oneDaySection').style.display   = val === 'One Day'       ? '' : 'none';
+    document.getElementById('multiDaySection').style.display = val === 'Multiple Days' ? '' : 'none';
+  }
+
+  /* EVENT CODE */
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'EVT-';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    document.getElementById('eventCode').value = code;
+  }
+
+  /* DAY ROWS */
+  function addDayRow(date, startTime, endTime, foodAvail) {
+    dayRowCount++;
+    const container = document.getElementById('daysContainer');
+    const existingRows = container.querySelectorAll('.day-row');
+    const dayNum = existingRows.length + 1;
+    if (!date && existingRows.length > 0) {
+      const prev = existingRows[existingRows.length - 1];
+      const prevDate = prev.querySelector('.day-date').value;
+      if (prevDate) {
+        const d = new Date(prevDate + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        date = d.toISOString().slice(0, 10);
+      }
+      startTime = startTime || prev.querySelector('.day-start').value || '';
+      endTime   = endTime   || prev.querySelector('.day-end').value   || '';
+    }
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    // The ✕ button now sits inside .day-row-fields as the 4th grid column so it
+    // aligns with the bottom of the Date / Start / End inputs in a single row.
+    row.innerHTML =
+      '<div class="day-row-header">' +
+        '<span class="day-label">Day ' + dayNum + '</span>' +
+      '</div>' +
+      '<div class="day-row-fields">' +
+        '<div class="day-field"><label>Date</label><input type="date" class="day-date" value="' + (date || '') + '" /></div>' +
+        '<div class="day-field"><label>Start Time</label><input type="time" class="day-start" value="' + (startTime || '') + '" /></div>' +
+        '<div class="day-field"><label>End Time</label><input type="time" class="day-end" value="' + (endTime || '') + '" /></div>' +
+        '<button type="button" class="btn-remove-day" onclick="removeDayRow(this)" aria-label="Remove day" title="Remove">✕</button>' +
+      '</div>' +
+      '<div class="day-food-wrap">' +
+        '<input type="checkbox" class="day-food" id="dayFood' + dayNum + '" ' + (foodAvail ? 'checked' : '') + ' />' +
+        '<label for="dayFood' + dayNum + '">Food available this day</label>' +
+      '</div>';
+    container.appendChild(row);
+  }
+  function removeDayRow(btn) { btn.closest('.day-row').remove(); reNumberDayRows(); }
+  function reNumberDayRows() { document.querySelectorAll('.day-row').forEach((r, i) => { const l = r.querySelector('.day-label'); if (l) l.textContent = 'Day ' + (i + 1); }); }
+  function readDayRows() {
+    // Field name MUST be 'eventDate' — that matches ChurchEventBO.DayBO.eventDate.
+    // (Older code emitted 'date' here, which Jackson silently dropped, so the
+    //  per-day date never persisted on Save.)
+    return [...document.querySelectorAll('.day-row')].map(r => ({
+      eventDate:     r.querySelector('.day-date').value  || null,
+      startTime:     r.querySelector('.day-start').value || null,
+      endTime:       r.querySelector('.day-end').value   || null,
+      foodAvailable: r.querySelector('.day-food').checked
+    }));
+  }
+  function clearDayRows() { document.getElementById('daysContainer').innerHTML = ''; dayRowCount = 0; }
+
+  /* FOOD */
+  function onFoodAvailableChange() {
+    const checked = document.getElementById('foodAvailable').checked;
+    document.getElementById('foodItemsSection').style.display = checked ? '' : 'none';
+  }
+  function addFoodItem() {
+    const inp = document.getElementById('foodItemInput');
+    const val = inp.value.trim();
+    if (!val) return;
+    foodItems.push(val);
+    inp.value = '';
+    renderFoodItems();
+  }
+  function removeFoodItem(idx) { foodItems.splice(idx, 1); renderFoodItems(); }
+  function clearFoodItems() { foodItems = []; renderFoodItems(); }
+  function renderFoodItems() {
+    const c = document.getElementById('foodItemsList');
+    if (!c) return;
+    c.innerHTML = foodItems.map((f, i) =>
+      '<span class="food-tag">' + escHtml(f) +
+      ' <button type="button" onclick="removeFoodItem(' + i + ')">x</button></span>'
+    ).join('');
+  }
+
+  /* ACCOMMODATION */
+  function onAccomChange() {
+    const cb = document.getElementById('accommodationAvailable');
+    const sec = document.getElementById('accomFields');
+    if (cb && sec) sec.style.display = cb.checked ? '' : 'none';
+  }
+
+  /* IMAGE */
+  function onImageChange(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingImageData = e.target.result;
+      const p = document.getElementById('imgPreview');
+      if (p) { p.src = pendingImageData; p.style.display = ''; }
+    };
+    reader.readAsDataURL(file);
+  }
+  function hidePreview() { const p = document.getElementById('imgPreview'); p.src = ''; p.style.display = 'none'; }
+
+  /* REG URL */
+  function getRegUrl(encryptedId) {
+    return window.location.origin + '/event-register/' + encodeURIComponent(encryptedId);
+  }
+  function copyPubLink() {
+    const a = document.getElementById('pubLinkAnchor');
+    if (!a) return;
+    navigator.clipboard.writeText(a.href).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+    });
+  }
+  function hideRegUrlField() { const f = document.getElementById('regUrlField'); if (f) f.style.display = 'none'; }
+  function showRegUrlField() { const f = document.getElementById('regUrlField'); if (f) f.style.display = ''; }
+
+  /* HELPERS */
+  function setVal(id, val) { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; }
+
+  function validate() {
+    const name = document.getElementById('eventName').value.trim();
+    if (!name) { showFeedback('Event name is required.', 'error'); return false; }
+    const type = getEventType();
+    if (type === 'One Day') {
+      if (!document.getElementById('eventDate').value) { showFeedback('Event date is required for One Day events.', 'error'); return false; }
+    } else {
+      const rows = readDayRows();
+      if (!rows.length) { showFeedback('Add at least one day.', 'error'); return false; }
+      if (rows.some(r => !r.eventDate)) { showFeedback('All day rows need a date.', 'error'); return false; }
+    }
+    return true;
+  }
+
+  function getEventType() { return document.querySelector('input[name="eventType"]:checked').value; }
+
+  function readForm() {
+    const eventType = getEventType();
+    const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const gc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+    return {
+      eventName:           g('eventName').trim(),
+      eventCode:           g('eventCode').trim() || null,
+      eventType,
+      eventDate:           eventType === 'One Day' ? (g('eventDate') || null) : null,
+      startTime:           eventType === 'One Day' ? (g('startTime') || null) : null,
+      endTime:             eventType === 'One Day' ? (g('endTime')   || null) : null,
+      days:                eventType === 'Multiple Days' ? readDayRows() : [],
+      registrationEndDate: g('registrationEndDate') || null,
+      fee:                 g('fee').trim()           || null,
+      maxCapacity:         g('maxCapacity') ? parseInt(g('maxCapacity')) : null,
+      showRegistrants:     gc('showRegistrants'),
+      allowMaybeRsvp:      gc('allowMaybeRsvp'),
+      generateQrCode:         gc('generateQrCode'),
+      generateRegistrationId: gc('generateRegistrationId'),
+      selfCheckinEnabled:     gc('selfCheckinEnabled'),
+      address1:            g('address1').trim() || null,
+      address2:            g('address2').trim() || null,
+      city:                g('city').trim()     || null,
+      state:               g('state')           || null,
+      country:             g('country')         || null,
+      pinCode:             g('pinCode').trim()  || null,
+      hostName:            g('hostName').trim() || null,
+      hostPhone:           g('hostPhone').trim()|| null,
+      hostEmail:           g('hostEmail').trim()|| null,
+      hostNote:            g('hostNote').trim() || null,
+      foodAvailable:          gc('foodAvailable'),
+      foodItems:              gc('foodAvailable') ? JSON.stringify(foodItems) : null,
+      accommodationAvailable: gc('accommodationAvailable'),
+      accommodationAddress:   g('accommodationAddress').trim() || null,
+      accommodationComments:  g('accommodationComments').trim() || null,
+      note:                   getNoteHtml(),
+      imageData:              pendingImageData || null
+    };
+  }
+
+  /* ── Rich-text Event Note (Quill) ─────────────────────────────────────── */
+  let noteQuill = null;
+  function initNoteEditor() {
+    if (noteQuill || typeof Quill === 'undefined') return noteQuill;
+    const el = document.getElementById('noteEditor');
+    if (!el) return null;
+    noteQuill = new Quill('#noteEditor', {
+      theme: 'snow',
+      placeholder: 'Additional information…',
+      modules: { toolbar: [
+        ['bold', 'italic', 'underline'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ align: [] }],
+        ['link'],
+        ['clean']
+      ] }
+    });
+    return noteQuill;
+  }
+  /** Load stored HTML into the editor (sanitized). */
+  function setNoteHtml(html) {
+    const q = initNoteEditor();
+    const clean = html ? DOMPurify.sanitize(html) : '';
+    if (q) { q.root.innerHTML = clean; }
+    const hid = document.getElementById('note'); if (hid) hid.value = clean;
+  }
+  /** Read the editor's HTML for saving; null when empty. */
+  function getNoteHtml() {
+    const q = initNoteEditor();
+    if (!q) {
+      const hid = document.getElementById('note');
+      return hid && hid.value.trim() ? hid.value : null;
+    }
+    if (!q.getText().trim()) return null; // no visible content
+    return DOMPurify.sanitize(q.root.innerHTML);
+  }
+  document.addEventListener('DOMContentLoaded', initNoteEditor);
+
+  function populateForm(ev) {
+    const sc = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    setVal('eventName',            ev.eventName);
+    setVal('eventCode',            ev.eventCode);
+    setVal('eventDate',            ev.eventDate);
+    setVal('startTime',            ev.startTime);
+    setVal('endTime',              ev.endTime);
+    setVal('registrationEndDate',  ev.registrationEndDate);
+    setVal('fee',                  ev.fee);
+    setVal('maxCapacity',          ev.maxCapacity);
+    setVal('address1',             ev.address1);
+    setVal('address2',             ev.address2);
+    setVal('city',                 ev.city);
+    setVal('state',                ev.state);
+    setVal('country',              ev.country || 'USA');
+    setVal('pinCode',              ev.pinCode);
+    setVal('hostName',             ev.hostName);
+    setVal('hostPhone',            ev.hostPhone);
+    setVal('hostEmail',            ev.hostEmail);
+    setVal('hostNote',             ev.hostNote);
+    setNoteHtml(ev.note);
+    sc('showRegistrants',    ev.showRegistrants);
+    sc('allowMaybeRsvp',     ev.allowMaybeRsvp);
+    sc('generateQrCode',         ev.generateQrCode);
+    sc('generateRegistrationId', ev.generateRegistrationId);
+    sc('selfCheckinEnabled',     ev.selfCheckinEnabled);
+    const accomCb = document.getElementById('accommodationAvailable');
+    if (accomCb) accomCb.checked = !!ev.accommodationAvailable;
+    setVal('accommodationAddress',  ev.accommodationAddress || '');
+    setVal('accommodationComments', ev.accommodationComments || '');
+    const fa = document.getElementById('foodAvailable');
+    if (fa) {
+      fa.checked = !!ev.foodAvailable;
+      onFoodAvailableChange();
+    }
+    try {
+      foodItems = ev.foodItems
+        ? (Array.isArray(ev.foodItems) ? [...ev.foodItems] : JSON.parse(ev.foodItems))
+        : [];
+    } catch(e) { foodItems = []; }
+    renderFoodItems();
+    onAccomChange();
+    // Event type
+    const typeRadio = document.querySelector('input[name="eventType"][value="' + (ev.eventType || 'One Day') + '"]');
+    if (typeRadio) { typeRadio.checked = true; onEventTypeChange(ev.eventType || 'One Day'); }
+    // Day rows
+    clearDayRows();
+    if (ev.eventType === 'Multiple Days' && Array.isArray(ev.days)) {
+      ev.days.forEach(d => addDayRow(d.eventDate || d.date, d.startTime, d.endTime, d.foodAvailable));
+    }
+    // Image — preview the existing image via the cached endpoint. pendingImageData
+    // stays null unless the user picks a new file; the backend preserves the
+    // current image when no new one is submitted.
+    pendingImageData = null;
+    const imgPrev = document.getElementById('imgPreview');
+    if (imgPrev) {
+      if (ev.hasImage && ev.encryptedId) {
+        imgPrev.src = '/api/event-register/' + encodeURIComponent(ev.encryptedId) + '/image';
+        imgPrev.style.display = '';
+      } else if (ev.imageData) {
+        imgPrev.src = ev.imageData; imgPrev.style.display = '';
+      } else if (ev.imageUrl) {
+        imgPrev.src = ev.imageUrl; imgPrev.style.display = '';
+      } else {
+        imgPrev.src = ''; imgPrev.style.display = 'none';
+      }
+    }
+    // Reg URL
+    if (ev.encryptedId) {
+      const url = getRegUrl(ev.encryptedId);
+      const anchor = document.getElementById('pubLinkAnchor');
+      if (anchor) { anchor.href = url; anchor.textContent = url; }
+      showRegUrlField();
+    } else {
+      hideRegUrlField();
+    }
+  }
+
+  function resetForm() {
+    editingId = null;
+    evVolunteers  = [];
+    evOrgRoles    = [];
+    evRoleNames   = [];
+    ['eventName','eventCode','eventDate','startTime','endTime','registrationEndDate',
+     'fee','maxCapacity','address1','address2','city','state','pinCode',
+     'hostName','hostPhone','hostEmail','hostNote',
+     'accommodationAddress','accommodationComments'].forEach(id => setVal(id, ''));
+    setNoteHtml('');
+    setVal('country', 'USA');
+    ['showRegistrants','allowMaybeRsvp','generateQrCode','generateRegistrationId','selfCheckinEnabled','accommodationAvailable'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.checked = false;
+    });
+    const fa = document.getElementById('foodAvailable');
+    if (fa) { fa.checked = false; onFoodAvailableChange(); }
+    foodItems = [];
+    renderFoodItems();
+    clearDayRows();
+    const typeRadio = document.querySelector('input[name="eventType"][value="One Day"]');
+    if (typeRadio) { typeRadio.checked = true; onEventTypeChange('One Day'); }
+    onAccomChange();
+    pendingImageData = null;
+    hidePreview();
+    hideRegUrlField();
+    showFeedback('', '');
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }
+    const vs = document.getElementById('volSection');
+    if (vs) vs.style.display = 'none';
+  }
+
+  async function saveEvent() {
+    if (!validate()) return;
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    const data = readForm();
+    const method = editingId ? 'PUT' : 'POST';
+    const url    = editingId ? '/api/events/' + editingId : '/api/events';
+    try {
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+      });
+      const d = await res.json();
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }
+      if (d.id) {
+        const isNew = !editingId || editingId !== d.id;
+        editingId = d.id;
+        await loadEvents();
+        if (isNew) {
+          evVolunteers = []; evOrgRoles = []; evRoleNames = [];
+        }
+        const vs = document.getElementById('volSection');
+        if (vs) vs.style.display = '';
+        evToast('✅ Event saved successfully!', '#2e7d32');
+      } else {
+        showFeedback(d.error || 'Failed to save event.', 'error');
+      }
+    } catch (e) {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }
+      showFeedback('Network error.', 'error');
+    }
+  }
+
+  function editEvent(id) {
+    const ev = allEvents.find(e => e.id === id);
+    if (!ev) return;
+    editingId = id;
+    populateForm(ev);
+    evVolunteers = [];
+    evOrgRoles   = [];
+    evRoleNames  = [];
+    const vs = document.getElementById('volSection');
+    if (vs) vs.style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showFeedback('', '');
+  }
+
+  /* EVENTS TABLE */
+  function renderEventsTable() {
+    const tbody = document.getElementById('eventsTableBody');
+    if (!tbody) return;
+    if (!allEvents.length) {
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="10">No events yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allEvents.map(ev => {
+      const dateStr = ev.eventType === 'Multiple Days'
+        ? (Array.isArray(ev.days) && ev.days.length
+            ? (ev.days[0].eventDate || ev.days[0].date) + ' – ' +
+              (ev.days[ev.days.length - 1].eventDate || ev.days[ev.days.length - 1].date)
+            : '—')
+        : (ev.eventDate || '—');
+      const fee = ev.fee ? '$' + ev.fee : 'Free';
+      const cap = ev.maxCapacity || '—';
+      const regCount = ev.registrantCount != null ? ev.registrantCount : '—';
+      const regLink  = ev.encryptedId
+        ? '<a href="' + escHtml(getRegUrl(ev.encryptedId)) + '" target="_blank" style="color:#673147;font-size:11px;">Register</a>'
+        : '—';
+      return '<tr>' +
+        '<td>' + escHtml(ev.eventName || '') + '</td>' +
+        '<td><code style="font-size:11px;">' + escHtml(ev.eventCode || '') + '</code></td>' +
+        '<td>' + escHtml(ev.eventType || '') + '</td>' +
+        '<td style="white-space:nowrap;font-size:12px;">' + escHtml(dateStr) + '</td>' +
+        '<td>' + escHtml(ev.city || '') + '</td>' +
+        '<td>' + escHtml(fee) + '</td>' +
+        '<td>' + cap + '</td>' +
+        '<td>' + regCount + '</td>' +
+        '<td>' + regLink + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="tbl-btn" onclick="editEvent(' + ev.id + ')">Edit</button> ' +
+          '<button class="tbl-btn" onclick="openRegModal(' + ev.id + ')">Registrants</button> ' +
+          '<button class="tbl-btn tbl-btn-del" onclick="deleteEvent(' + ev.id + ')">Delete</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  /* DELETE EVENT */
+  async function deleteEvent(id) {
+    if (!confirm('Delete this event? This cannot be undone.')) return;
+    try {
+      const res = await fetch('/api/events/' + id, { method: 'DELETE' });
+      const d = await res.json();
+      if (d.success) {
+        if (editingId === id) resetForm();
+        await loadEvents();
+      } else { alert(d.error || 'Failed to delete.'); }
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* REGISTRATIONS MODAL */
+  function openRegModal(eventId) {
+    currentRegEventId = eventId;
+    const ev = allEvents.find(e => e.id === eventId);
+    document.getElementById('regModalTitle').textContent = (ev ? ev.eventName : 'Event') + ' — Registrations';
+    const anchor = document.getElementById('pubLinkAnchor');
+    if (anchor && ev && ev.encryptedId) {
+      const url = getRegUrl(ev.encryptedId);
+      anchor.href = url; anchor.textContent = url;
+      document.getElementById('pubLinkBox').style.display = '';
+    } else {
+      document.getElementById('pubLinkBox').style.display = 'none';
+    }
+    document.getElementById('regModal').classList.add('open');
+    loadRegistrations(eventId);
+  }
+  function closeRegModal() { document.getElementById('regModal').classList.remove('open'); }
+
+  async function loadRegistrations(eventId) {
+    const tbody = document.getElementById('regTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:16px;">Loading...</td></tr>';
+    try {
+      const res = await fetch('/api/events/' + eventId + '/registrations');
+      if (!res.ok) { tbody.innerHTML = '<tr><td colspan="7" style="color:#c62828;padding:16px;">Failed to load.</td></tr>'; return; }
+      const regs = await res.json();
+      if (!regs.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:16px;">No registrations yet.</td></tr>'; return; }
+      tbody.innerHTML = regs.map(r =>
+        '<tr>' +
+        '<td>' + escHtml(r.name || '') + '</td>' +
+        '<td>' + escHtml(r.email || '') + '</td>' +
+        '<td>' + escHtml(r.phone || '') + '</td>' +
+        '<td>' + escHtml(r.registeredDate || '') + '</td>' +
+        '<td>' + escHtml(r.status || '') + '</td>' +
+        '<td>' + (r.amountPaid != null ? '$' + r.amountPaid : '—') + '</td>' +
+        '<td><button class="tbl-btn tbl-btn-del" onclick="deleteReg(' + r.id + ')">Remove</button></td>' +
+        '</tr>'
+      ).join('');
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="7" style="color:#c62828;padding:16px;">Error loading registrations.</td></tr>'; }
+  }
+
+  async function deleteReg(regId) {
+    if (!confirm('Remove this registration?')) return;
+    try {
+      const res = await fetch('/api/events/' + currentRegEventId + '/registrations/' + regId, { method: 'DELETE' });
+      const d = await res.json();
+      if (d.success) loadRegistrations(currentRegEventId);
+      else alert(d.error || 'Failed to remove.');
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* FEEDBACK */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'feedback' + (type ? ' ' + type : '');
+    el.style.display = msg ? '' : 'none';
+  }
+
+  /* ESC HTML */
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+</script>
+
+<!-- Edit Volunteer Modal -->
+<div class="vol-edit-overlay" id="volEditOverlay">
+  <div class="vol-edit-box">
+    <div class="vol-edit-title" id="evEditTitle">Edit Volunteer</div>
+    <div class="vol-edit-row">
+      <label>First Name</label>
+      <input type="text" id="evEditFirstName" placeholder="First name" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Last Name</label>
+      <input type="text" id="evEditLastName" placeholder="Last name" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Email</label>
+      <input type="email" id="evEditEmail" placeholder="Email address" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Phone</label>
+      <input type="tel" id="evEditPhone" placeholder="Phone number" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Status</label>
+      <select id="evEditStatus">
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="declined">Declined</option>
+        <option value="maybe">Maybe</option>
+      </select>
+    </div>
+    <div class="vol-edit-row">
+      <label>Roles (select all that apply)</label>
+      <div id="evEditRolePicker" class="vol-role-picker"></div>
+    </div>
+    <div class="vol-edit-row">
+      <label>Notes</label>
+      <input type="text" id="evEditNotes" placeholder="Any notes…" />
+    </div>
+    <div class="vol-edit-actions">
+      <button class="btn-clear" onclick="evCloseEditModal()">Cancel</button>
+      <button class="btn-save" onclick="evSaveEditModal()" style="padding:8px 20px;font-size:13px;">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  // Hide Save button if add/edit is denied
+  if (p['general.events.edit'] === false) hide('#saveBtn');
+};
+window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTitle: 'Add / Edit Event' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

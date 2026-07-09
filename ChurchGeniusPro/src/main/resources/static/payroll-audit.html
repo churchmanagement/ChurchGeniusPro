@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Payroll Activity — ChurchGenius Pro</title>
+<link rel="stylesheet" href="/mobile.css" />
+<link rel="stylesheet" href="/shell.css" />
+<style>
+  :root { --brand:#673147; --brand-soft:#fdf5f7; --line:#e6dde2; --muted:#888; }
+  /* Base typography — matches the rest of the app so the shared sidebar nav
+     (which inherits font-family from body) renders in the same sans-serif. */
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #f5f6fa; color: #333; }
+  /* Keep the shared side navigation identical to the rest of the app */
+  button { cursor: pointer; font-family: inherit; border: none; background: none; }
+  .sidebar { background: #673147 !important; }
+  .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+  .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+  .wrap { max-width:1000px; margin:0 auto; padding:6px 0 40px; }
+  .pr-back { display:inline-block; text-decoration:none; margin-bottom:12px; }
+  .nav { display:flex; gap:14px; font-size:13px; margin-bottom:14px; }
+  .nav a { color:var(--brand); text-decoration:none; font-weight:600; }
+  .nav a.active { text-decoration:underline; }
+  h1 { font-size:22px; color:var(--brand); margin:0 0 4px; }
+  .sub { font-size:13px; color:var(--muted); margin:0 0 18px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead tr { background:#f5f1f3; }
+  th,td { text-align:left; padding:8px 12px; border-bottom:1px solid #eee; vertical-align:top; }
+  .when { white-space:nowrap; color:#555; }
+  .act { font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; background:#eef1f6; color:#5a6b86; }
+  .act.CREATE,.act.ASSIGN,.act.SET { background:#e7f5ec; color:#1e7a44; }
+  .act.UPDATE { background:#e6f0fb; color:#1b5fa8; }
+  .act.SUBMIT { background:#fff6e5; color:#9a6b00; }
+  .act.APPROVE,.act.PAID { background:#e7f5ec; color:#1e7a44; }
+  .act.VOID,.act.DEACTIVATE,.act.REMOVE { background:#fdeaea; color:#b42424; }
+  .ent { color:#673147; font-weight:600; }
+  .msg { font-size:13px; padding:14px; border-radius:8px; }
+  .msg.info { background:var(--brand-soft); color:#6a4a57; }
+  .msg.err { background:#fdeaea; color:#b42424; }
+  .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+  .btn { cursor:pointer; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:6px; padding:6px 11px; font-size:12px; font-weight:600; }
+  .more-bar { text-align:center; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+<div class="wrap">
+  <a href="/payroll" class="btn pr-back">&#8592; Back to Payroll</a>
+  <div class="nav">
+    <a href="/payroll/employees">Employees</a>
+    <a href="/payroll/runs">Payroll runs</a>
+    <a href="/payroll/reports">Reports</a>
+    <a href="/payroll/activity" class="active">Activity</a>
+  </div>
+  <h1>Payroll Activity</h1>
+  <p class="sub">The most recent payroll changes and approvals for this church (newest first).</p>
+
+  <div class="toolbar">
+    <button class="btn" id="btnRefresh">Refresh</button>
+    <span class="sub" id="count" style="margin:0;"></span>
+  </div>
+
+  <div class="card" id="tableCard">
+    <div class="msg info" style="margin:8px;">Loading activity…</div>
+  </div>
+
+  <div class="more-bar">
+    <button class="btn" id="btnMore" style="display:none;">Load 10 more</button>
+  </div>
+</div>
+    </main>
+  </div>
+</div>
+
+<script>
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function fmtWhen(s){ if(!s) return ''; var d=new Date(s); return isNaN(d)? esc(s) : d.toLocaleString(); }
+
+  var PAGE = 10;          // initial + increment
+  var ALL  = [];          // all payroll activities, newest first
+  var shown = 0;          // how many are currently displayed
+
+  function render(){
+    var card = document.getElementById('tableCard');
+    var more = document.getElementById('btnMore');
+    if (!ALL.length){
+      card.innerHTML = '<div class="msg info" style="margin:8px;">No payroll activity recorded yet.</div>';
+      document.getElementById('count').textContent = '';
+      more.style.display = 'none';
+      return;
+    }
+    var slice = ALL.slice(0, shown);
+    card.innerHTML = '<table><thead><tr>'
+      + '<th>When</th><th>Who</th><th>Action</th><th>Entity</th><th>Details</th>'
+      + '</tr></thead><tbody>'
+      + slice.map(function(a){
+          return '<tr>'
+            + '<td class="when">'+fmtWhen(a.created)+'</td>'
+            + '<td>'+esc(a.actor||'—')+'</td>'
+            + '<td><span class="act '+esc(a.action||'')+'">'+esc(a.action||'')+'</span></td>'
+            + '<td><span class="ent">'+esc(a.entityType||'')+'</span>'+(a.entityId!=null?(' #'+esc(a.entityId)):'')+'</td>'
+            + '<td>'+esc(a.details||'')+'</td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table>';
+    document.getElementById('count').textContent = 'Showing ' + slice.length + ' of ' + ALL.length;
+    more.style.display = (shown < ALL.length) ? '' : 'none';
+  }
+
+  async function load(){
+    var card = document.getElementById('tableCard');
+    card.innerHTML = '<div class="msg info" style="margin:8px;">Loading activity…</div>';
+    try {
+      // The /api/payroll/audit endpoint returns ONLY payroll-related activity,
+      // already sorted newest-first. We fetch a window of recent events and page
+      // through them 10 at a time on the client.
+      var res = await fetch('/api/payroll/audit?limit=300');
+      if (res.status === 401){ card.innerHTML = '<div class="msg err" style="margin:8px;">Please <a href="/login.html">sign in</a> to view activity.</div>'; return; }
+      var data = await res.json();
+      var rows = (data && data.data) || [];
+      // Defensive: ensure descending by timestamp (newest first).
+      rows.sort(function(a,b){ return new Date(b.created) - new Date(a.created); });
+      ALL = rows;
+      shown = Math.min(PAGE, ALL.length);
+      render();
+    } catch(e){
+      card.innerHTML = '<div class="msg err" style="margin:8px;">Failed to load activity from the server.</div>';
+    }
+  }
+
+  document.getElementById('btnRefresh').addEventListener('click', load);
+  document.getElementById('btnMore').addEventListener('click', function(){
+    shown = Math.min(shown + PAGE, ALL.length);
+    render();
+  });
+  load();
+</script>
+
+<script>
+window.CGP_PAGE = {
+  activePage:  'accounting/payroll',
+  pageTitle:   'Payroll Activity',
+  openSection: 'accounting'
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

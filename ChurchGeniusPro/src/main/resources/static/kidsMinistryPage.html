@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Kids Ministry — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    .page-header { margin-bottom: 24px; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+      max-width: 900px;
+    }
+
+    .event-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow .18s, transform .18s;
+      border: 1.5px solid transparent;
+    }
+    .event-card:hover {
+      box-shadow: 0 6px 24px rgba(103,49,71,.13);
+      border-color: #c5a8b8;
+      transform: translateY(-2px);
+    }
+
+    .event-icon {
+      width: 46px; height: 46px;
+      border-radius: 10px;
+      background: #f0e8ec;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .event-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #673147;
+    }
+
+    .event-desc {
+      font-size: 12.5px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .event-arrow {
+      margin-top: auto;
+      font-size: 18px;
+      color: #c5a8b8;
+      align-self: flex-end;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Kids Ministry</div>
+        <div class="page-subtitle">Manage kids ministry programs and Sunday School</div>
+      </div>
+
+      <div class="events-grid">
+
+        <a class="event-card" href="/kidsMinistry">
+          <div class="event-icon">🧒</div>
+          <div class="event-name">Kids Ministry</div>
+          <div class="event-desc">Manage kids ministry classes, attendance, check-in, and volunteer assignments.</div>
+          <div class="event-arrow">→</div>
+        </a>
+
+        <a class="event-card" href="/sundaySchool">
+          <div class="event-icon">📖</div>
+          <div class="event-name">Sunday School</div>
+          <div class="event-desc">Manage Sunday School classes, lessons, students, teachers, and exams.</div>
+          <div class="event-arrow">→</div>
+        </a>
+
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = {
+  activePage:  'general/kids-ministry',
+  pageTitle:   '',
+  openSection: 'general'
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMS Opt-In</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f6fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #3a5a9b;
+      padding: 28px 32px;
+      text-align: center;
+    }
+    .card-header h1 {
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .card-header p {
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+    }
+
+    .card-body { padding: 28px 32px; }
+
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+    }
+    .field input[type="text"],
+    .field input[type="tel"] {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid #dde0ea;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #222;
+      transition: border-color .18s;
+      outline: none;
+    }
+    .field input:focus { border-color: #3a5a9b; }
+
+    .consent-box {
+      background: #f0f4ff;
+      border: 1px solid #c7d4f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 22px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      cursor: pointer;
+    }
+    .consent-box input[type="checkbox"] {
+      margin-top: 2px;
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: #3a5a9b;
+    }
+    .consent-box label {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.55;
+      cursor: pointer;
+    }
+    .consent-box label strong { color: #3a5a9b; }
+
+    .btn-submit {
+      width: 100%;
+      background: #3a5a9b;
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .btn-submit:hover:not(:disabled) { background: #2e478a; }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+    .feedback {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; display: block; }
+    .feedback.error   { background: #ffebee; color: #c62828; display: block; }
+
+    .compliance-note {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+      font-size: 11px;
+      color: #999;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .loading-state {
+      text-align: center;
+      padding: 40px 32px;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 40px 32px;
+    }
+    .error-state h2 { color: #c62828; font-size: 18px; margin-bottom: 8px; }
+    .error-state p  { color: #888; font-size: 14px; }
+
+    .success-state {
+      padding: 36px 32px;
+      text-align: center;
+    }
+    .success-icon { font-size: 48px; margin-bottom: 16px; }
+    .success-state h2 { color: #2e7d32; font-size: 20px; margin-bottom: 10px; }
+    .success-state p  { color: #555; font-size: 14px; line-height: 1.6; }
+    .reply-box {
+      margin-top: 20px;
+      background: #f5f6fa;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #444;
+      text-align: left;
+    }
+    .reply-box strong { display: block; margin-bottom: 6px; color: #333; }
+  </style>
+</head>
+<body>
+
+<div class="card" id="mainCard">
+  <!-- Loading -->
+  <div class="loading-state" id="loadingState">
+    <p>Loading&hellip;</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var token      = null;
+  var churchName = 'Our Church';
+
+  // ── Parse token from URL ──────────────────────────────────────────────────
+  function getToken() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get('token') || '';
+  }
+
+  // ── Render error ──────────────────────────────────────────────────────────
+  function renderError(msg) {
+    document.getElementById('mainCard').innerHTML =
+      '<div class="card-header"><h1>SMS Opt-In</h1></div>' +
+      '<div class="error-state">' +
+        '<h2>Invalid Link</h2>' +
+        '<p>' + (msg || 'This link is invalid or has expired. Please contact your church for a new link.') + '</p>' +
+      '</div>';
+  }
+
+  // ── Render success ────────────────────────────────────────────────────────
+  function renderSuccess() {
+    document.getElementById('mainCard').innerHTML =
+      '<div class="card-header"><h1>' + escHtml(churchName) + '</h1><p>SMS Notifications</p></div>' +
+      '<div class="success-state">' +
+        '<div class="success-icon">📱</div>' +
+        '<h2>Almost There!</h2>' +
+        '<p>Thank you for signing up. We\'ve sent a confirmation text to your phone number.</p>' +
+        '<div class="reply-box">' +
+          '<strong>One more step:</strong>' +
+          'Reply <strong>YES</strong> to the text message to confirm your subscription.' +
+          '<br><br>To stop receiving messages at any time, reply <strong>STOP</strong>.' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Render form ───────────────────────────────────────────────────────────
+  function renderForm() {
+    document.getElementById('mainCard').innerHTML =
+      '<div class="card-header">' +
+        '<h1>' + escHtml(churchName) + '</h1>' +
+        '<p>Sign up for SMS notifications</p>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<form id="optInForm" onsubmit="return false;">' +
+          '<div class="field">' +
+            '<label for="firstName">First Name <span style="color:#e53935">*</span></label>' +
+            '<input type="text" id="firstName" placeholder="Enter your first name" autocomplete="given-name" required />' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="lastName">Last Name <span style="color:#e53935">*</span></label>' +
+            '<input type="text" id="lastName" placeholder="Enter your last name" autocomplete="family-name" required />' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="phoneNumber">Phone Number <span style="color:#e53935">*</span></label>' +
+            '<input type="tel" id="phoneNumber" placeholder="(555) 555-5555" autocomplete="tel" required />' +
+          '</div>' +
+          '<div class="consent-box" onclick="toggleConsent()">' +
+            '<input type="checkbox" id="consentCheck" />' +
+            '<label for="consentCheck">' +
+              'I agree to receive SMS text messages from <strong>' + escHtml(churchName) + '</strong>. ' +
+              'Message &amp; data rates may apply. Message frequency varies. ' +
+              'Reply <strong>STOP</strong> to opt out at any time. ' +
+              'Reply <strong>HELP</strong> for help.' +
+            '</label>' +
+          '</div>' +
+          '<button type="button" class="btn-submit" id="submitBtn" onclick="submitForm()">Sign Up for SMS</button>' +
+          '<div class="feedback" id="feedback"></div>' +
+          '<div class="compliance-note">' +
+            'By submitting, you consent to receive automated text messages from ' + escHtml(churchName) + '. ' +
+            'Consent is not a condition of membership. Standard messaging rates apply.' +
+          '</div>' +
+        '</form>' +
+      '</div>';
+  }
+
+  window.toggleConsent = function () {
+    var cb = document.getElementById('consentCheck');
+    if (cb) cb.checked = !cb.checked;
+  };
+
+  // ── Submit form ───────────────────────────────────────────────────────────
+  window.submitForm = async function () {
+    var firstName   = (document.getElementById('firstName')   || {}).value || '';
+    var lastName    = (document.getElementById('lastName')    || {}).value || '';
+    var phoneNumber = (document.getElementById('phoneNumber') || {}).value || '';
+    var consent     = (document.getElementById('consentCheck')|| {}).checked || false;
+    var btn         = document.getElementById('submitBtn');
+    var feedback    = document.getElementById('feedback');
+
+    firstName   = firstName.trim();
+    lastName    = lastName.trim();
+    phoneNumber = phoneNumber.trim();
+
+    if (!firstName) { showFeedback('error', 'Please enter your first name.'); return; }
+    if (!lastName)  { showFeedback('error', 'Please enter your last name.');  return; }
+    if (!phoneNumber) { showFeedback('error', 'Please enter your phone number.'); return; }
+    if (!consent)   { showFeedback('error', 'You must agree to receive SMS messages to continue.'); return; }
+
+    btn.disabled    = true;
+    btn.textContent = 'Submitting…';
+    feedback.className = 'feedback';
+
+    try {
+      var res  = await fetch('/api/public/sms-opt-in', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token: token, firstName: firstName, lastName: lastName,
+                                  phoneNumber: phoneNumber, consent: true })
+      });
+      var data = await res.json();
+      if (res.ok && data.status === 'success') {
+        renderSuccess();
+      } else {
+        showFeedback('error', data.message || 'Something went wrong. Please try again.');
+        btn.disabled    = false;
+        btn.textContent = 'Sign Up for SMS';
+      }
+    } catch (e) {
+      showFeedback('error', 'Network error. Please check your connection and try again.');
+      btn.disabled    = false;
+      btn.textContent = 'Sign Up for SMS';
+    }
+  };
+
+  function showFeedback(type, msg) {
+    var el = document.getElementById('feedback');
+    if (!el) return;
+    el.textContent  = msg;
+    el.className    = 'feedback ' + type;
+  }
+
+  function escHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
+  async function init() {
+    token = getToken();
+    if (!token) { renderError(); return; }
+
+    try {
+      var res  = await fetch('/api/public/sms-opt-in/church-name?token=' + encodeURIComponent(token));
+      var data = await res.json();
+      if (!data.found) { renderError(); return; }
+      churchName = data.churchName || 'Our Church';
+      document.title = churchName + ' – SMS Opt-In';
+    } catch (e) {
+      renderError('Unable to load this page. Please try again later.');
+      return;
+    }
+
+    renderForm();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

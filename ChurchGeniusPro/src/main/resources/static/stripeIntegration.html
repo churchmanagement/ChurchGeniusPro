@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Stripe Integration — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    
+
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    .page-header { background: #673147; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .page-body { max-width: 680px; margin: 32px auto; padding: 0 20px 60px; }
+
+    /* ── Settings card ── */
+    .settings-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); padding: 32px; }
+    .settings-card h2 { font-size: 15px; font-weight: 700; color: #673147; margin-bottom: 8px; border-bottom: 1px solid #eef0fb; padding-bottom: 12px; }
+    .card-description { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.6; }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 22px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #673147; margin-bottom: 6px; }
+    .field small { display: block; font-size: 12px; color: #aaa; margin-top: 5px; line-height: 1.5; }
+    .input-wrap { position: relative; }
+    .input-wrap input {
+      width: 100%; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 10px 44px 10px 13px; font-size: 14px; font-family: inherit;
+      color: #673147; background: #fff; outline: none; transition: border-color .15s;
+    }
+    .input-wrap input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .input-wrap input.has-value { border-color: #a5d6a7; background: #f9fff9; }
+    .btn-toggle-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: #aaa; font-size: 16px;
+      line-height: 1; padding: 2px 4px;
+    }
+    .btn-toggle-eye:hover { color: #673147; }
+
+    /* ── Key status badge ── */
+    .key-status { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .key-status.set    { background: #e8f5e9; color: #2e7d32; }
+    .key-status.notset { background: #fff3e0; color: #e65100; }
+
+    /* ── Actions ── */
+    .form-actions { display: flex; justify-content: flex-end; margin-top: 28px; }
+    .btn-save { padding: 11px 32px; background: #673147; color: #fff; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background .2s; font-family: inherit; }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .7; cursor: not-allowed; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; z-index: 2000; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Info notice ── */
+    .info-notice { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #1565c0; margin-bottom: 24px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+    .info-notice .notice-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <span style="font-size:26px;">💳</span>
+        <h1>Stripe Integration</h1>
+      </div>
+
+      <div class="page-body">
+        <div class="settings-card">
+          <h2>API Keys</h2>
+          <p class="card-description">
+            Enter your Stripe API keys to enable payment processing. Only one set of keys is stored per organization.
+            You can update the keys at any time.
+          </p>
+
+          <div class="info-notice">
+            <span class="notice-icon">ℹ️</span>
+            <span>Your <strong>Publishable Key</strong> starts with <code>pk_live_</code> or <code>pk_test_</code>.
+            Your <strong>Secret Key</strong> starts with <code>sk_live_</code> or <code>sk_test_</code>.
+            Find both in your <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" style="color:#1565c0;">Stripe Dashboard → Developers → API keys</a>.</span>
+          </div>
+
+          <!-- Publishable Key -->
+          <div class="field">
+            <label for="publishableKey">Publishable Key <span style="color:#e53935;">*</span></label>
+            <div class="input-wrap">
+              <input type="text" id="publishableKey" placeholder="pk_live_… or pk_test_…"
+                     autocomplete="off" spellcheck="false" oninput="onKeyInput(this)" />
+            </div>
+            <small>Safe to include in client-side code. Identifies your Stripe account.</small>
+          </div>
+
+          <!-- Secret Key -->
+          <div class="field">
+            <label for="secretKey">Secret Key <span style="color:#e53935;">*</span></label>
+            <div id="secretKeyStatus" class="key-status notset" style="display:none;">
+              <span>🔑</span><span id="secretKeyStatusText">Not set</span>
+            </div>
+            <div class="input-wrap">
+              <input type="password" id="secretKey" placeholder="sk_live_… or sk_test_…"
+                     autocomplete="new-password" spellcheck="false" oninput="onKeyInput(this)" />
+              <button class="btn-toggle-eye" type="button" onclick="toggleSecretVisibility()"
+                      title="Show / hide secret key" id="eyeBtn">👁</button>
+            </div>
+            <small>Keep this key confidential. Never share it or expose it in client-side code.</small>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-save" id="saveBtn" onclick="saveSettings()">Save Keys</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   STRIPE SETTINGS LOGIC
+══════════════════════════════════════════════════════ */
+let secretKeyIsSet = false;   // true when a secret key already exists in DB
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/stripe-settings');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const pkInput = document.getElementById('publishableKey');
+    pkInput.value = data.publishableKey || '';
+    if (pkInput.value) pkInput.classList.add('has-value');
+
+    secretKeyIsSet = !!data.secretKeySet;
+    updateSecretKeyStatus();
+  } catch (e) {
+    console.error('Failed to load Stripe settings:', e);
+  }
+}
+
+function updateSecretKeyStatus() {
+  const badge    = document.getElementById('secretKeyStatus');
+  const badgeText= document.getElementById('secretKeyStatusText');
+  badge.style.display = 'inline-flex';
+  if (secretKeyIsSet) {
+    badge.className     = 'key-status set';
+    badgeText.textContent = 'Secret key is set — enter a new value to replace it';
+  } else {
+    badge.className     = 'key-status notset';
+    badgeText.textContent = 'No secret key saved yet';
+  }
+}
+
+function onKeyInput(input) {
+  if (input.value.trim()) input.classList.add('has-value');
+  else                    input.classList.remove('has-value');
+}
+
+function toggleSecretVisibility() {
+  const inp = document.getElementById('secretKey');
+  const btn = document.getElementById('eyeBtn');
+  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈'; }
+  else                         { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+async function saveSettings() {
+  const publishableKey = document.getElementById('publishableKey').value.trim();
+  const secretKey      = document.getElementById('secretKey').value.trim();
+
+  if (!publishableKey) {
+    showToast('Publishable Key is required.', true);
+    document.getElementById('publishableKey').focus();
+    return;
+  }
+  if (!secretKey && !secretKeyIsSet) {
+    showToast('Secret Key is required.', true);
+    document.getElementById('secretKey').focus();
+    return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/api/stripe-settings', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ publishableKey, secretKey }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Stripe keys saved successfully.', false);
+      secretKeyIsSet = true;
+      document.getElementById('secretKey').value = '';   // clear field; key is stored
+      document.getElementById('secretKey').classList.remove('has-value');
+      updateSecretKeyStatus();
+    } else {
+      showToast(data.error || 'Failed to save keys.', true);
+    }
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Keys';
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════════ */
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function logout() {
+  fetch('/api/logout', { method: 'POST' }).finally(() => window.location.href = '/login.html');
+}
+
+/* ── Init ── */
+loadSettings();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/stripe-integration', pageTitle: '', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

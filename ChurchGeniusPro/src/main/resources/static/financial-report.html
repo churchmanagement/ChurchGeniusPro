@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Financial Report — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;}
+    a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    
+    .rpt-header{margin-bottom:20px;}
+    .rpt-title{font-size:22px;font-weight:700;color:#673147;}
+    .rpt-sub{font-size:13px;color:#888;margin-top:4px;}
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px 24px;margin-bottom:20px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;align-items:end;}
+    .form-grid .span2{grid-column:span 2;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.4px;}
+    .field input,.field select{width:100%;padding:10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;background:#fff;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;}
+    .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+    .field input:focus,.field select:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .btn-primary{padding:10px 22px;background:transparent;color:#673147;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;transition:background .18s,color .18s;border:none;}
+    .btn-primary:hover{background:#673147;color:#fff;}
+    .btn-pdf{padding:10px 18px;background:#43a047;color:#fff;border-radius:7px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+    .btn-pdf:hover{background:#2e7d32;}
+    .rpt-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .rpt-actions-title{font-size:15px;font-weight:700;color:#673147;}
+    .section-title{font-size:14px;font-weight:700;color:#673147;margin:18px 0 8px;padding:8px 12px;background:#f0f2ff;border-radius:6px;border-left:3px solid #673147;}
+    .section-title.exp{background:#fff3e0;border-left-color:#ef5350;}
+    table.rpt{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;}
+    table.rpt th{background:#f5f6fa;color:#555;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:2px solid #eee;}
+    table.rpt td{padding:8px 12px;border-bottom:1px solid #f4f4f4;color:#333;}
+    table.rpt tr.main-hdr td{background:#e8eaf6;font-weight:700;color:#673147;}
+    table.rpt tr.sub-row td{padding-left:28px;color:#555;}
+    table.rpt tr.main-total td{font-weight:700;color:#673147;background:#f9f9ff;}
+    table.rpt tr.income-grand td{font-weight:800;color:#fff;background:#673147;font-size:13px;}
+    table.rpt tr.exp-row td{color:#555;}
+    table.rpt tr.exp-grand td{font-weight:800;color:#fff;background:#ef5350;font-size:13px;}
+    .net-box{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:18px 24px;border-radius:10px;background:#3f4568;color:#fff;}
+    .net-label{font-size:14px;font-weight:700;}
+    .net-value{font-size:24px;font-weight:800;}
+    .net-pos{color:#69f0ae;}.net-neg{color:#ff5252;}
+    .amt{text-align:right;}
+    .empty-msg{text-align:center;padding:24px;color:#bbb;font-size:13px;}
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
+    @media print{.sidebar,.topbar,.filter-card,.rpt-actions .btn-pdf{display:none!important;}.page-content{padding:0;}.rpt-print-header{display:block!important;}}
+    @media(max-width:600px){
+      .card{padding:12px 10px;}
+      .form-grid{grid-template-columns:1fr;gap:10px;}
+      .form-grid .span2{grid-column:span 1;}
+      .btn-primary{width:100%;padding:12px;font-size:14px;}
+    }
+    .rpt-print-header{display:none;text-align:center;margin-bottom:16px;}
+    .rpt-print-header h2{font-size:18px;font-weight:700;}
+    .rpt-print-header p{font-size:13px;color:#555;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="rpt-header">
+        <div class="rpt-title">📄 Financial Report</div>
+        <div class="rpt-sub">Annual income by main category and sub-sources, plus expenses by main category, with net balance.</div>
+      </div>
+
+      <div class="card filter-card">
+        <div class="form-grid">
+          <div class="field">
+            <label>Financial Year</label>
+            <select id="yearSelect"></select>
+          </div>
+          <div class="field span2">
+            <button class="btn-primary" onclick="generateReport()">Generate Report</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="reportCard" style="display:none;">
+        <div class="rpt-actions">
+          <div class="rpt-actions-title" id="reportYearLabel"></div>
+          <button class="btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
+        </div>
+        <div id="reportContent">
+          <div class="rpt-print-header">
+            <h2 id="printChurchName"></h2>
+            <p>Annual Financial Report</p>
+            <p id="printYear"></p>
+          </div>
+          <div id="reportTable"></div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+
+
+function visibleSections(){if(localStorage.getItem('church')==='true')return new Set(ROLE_SECTIONS['Church']);return new Set(ROLE_SECTIONS[localStorage.getItem('role')||'']||ROLE_SECTIONS['User']);}
+function toggleMenu(id){if (openMenus.has(id)) { openMenus.delete(id); } else { openMenus.clear(); openMenus.add(id); }renderNav();}
+(function(){
+  const curYear=new Date().getFullYear();
+  const sel=document.getElementById('yearSelect');
+  for(let y=curYear;y>=curYear-3;y--){
+    const opt=document.createElement('option');
+    opt.value=y; opt.textContent=y+(y===curYear?' (Current)':'');
+    sel.appendChild(opt);
+  }
+})();
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(n){return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+async function generateReport(){
+  const year=document.getElementById('yearSelect').value;
+  try{
+    const res=await fetch(`/api/reports/financial?year=${year}&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
+    renderReport(await res.json(),year);
+  }catch(e){alert('Failed to load report.');console.error(e);}
+}
+
+function renderReport(data,year){
+  document.getElementById('reportYearLabel').textContent=`Financial Report · ${year}`;
+  document.getElementById('printYear').textContent=`January 1 – December 31, ${year}`;
+  document.getElementById('printChurchName').textContent=localStorage.getItem('churchName')||'';
+
+  const incCats=data.incomeCategories||[];
+  const expCats=data.expenseCategories||[];
+  const totalInc=data.totalIncome||0;
+  const totalExp=data.totalExpense||0;
+  const net=Number(data.netBalance||0);
+  let html='';
+
+  // ── INCOME section ──
+  html+=`<div class="section-title">💰 Income</div>`;
+  if(!incCats.length){html+='<div class="empty-msg">No income records for this year.</div>';}
+  else{
+    let rows='';
+    incCats.forEach(cat=>{
+      rows+=`<tr class="main-hdr"><td colspan="2">${esc(cat.name)}</td><td></td></tr>`;
+      (cat.subcategories||[]).forEach(s=>{
+        rows+=`<tr class="sub-row"><td></td><td>${esc(s.name)}</td><td class="amt">${fmt(s.total)}</td></tr>`;
+      });
+      rows+=`<tr class="main-total"><td></td><td>Category Total</td><td class="amt">${fmt(cat.mainTotal)}</td></tr>`;
+    });
+    rows+=`<tr class="income-grand"><td colspan="2">Total Income</td><td class="amt">${fmt(totalInc)}</td></tr>`;
+    html+=`<table class="rpt"><thead><tr>
+      <th style="width:30%">Main Category</th><th>Sub-Source</th>
+      <th class="amt" style="width:140px">Amount</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ── EXPENSE section ──
+  html+=`<div class="section-title exp">📤 Expenses</div>`;
+  if(!expCats.length){html+='<div class="empty-msg">No expense records for this year.</div>';}
+  else{
+    let rows='';
+    expCats.forEach(cat=>{
+      rows+=`<tr class="main-hdr"><td colspan="2">${esc(cat.name)}</td><td></td></tr>`;
+      (cat.purposes||[]).forEach(p=>{
+        rows+=`<tr class="sub-row"><td></td><td>${esc(p.name)}</td><td class="amt">${fmt(p.total)}</td></tr>`;
+      });
+      rows+=`<tr class="main-total"><td></td><td>Category Total</td><td class="amt">${fmt(cat.mainTotal)}</td></tr>`;
+    });
+    rows+=`<tr class="exp-grand"><td colspan="2">Total Expenses</td><td class="amt">${fmt(totalExp)}</td></tr>`;
+    html+=`<table class="rpt"><thead><tr>
+      <th style="width:30%">Main Category</th><th>Purpose</th>
+      <th class="amt" style="width:140px">Amount</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ── Net Balance ──
+  html+=`<div class="net-box">
+    <span class="net-label">Net Balance (Income − Expenses)</span>
+    <span class="net-value ${net>=0?'net-pos':'net-neg'}">${net>=0?'+':''}${fmt(net)}</span>
+  </div>`;
+
+  document.getElementById('reportTable').innerHTML=html;
+  document.getElementById('reportCard').style.display='';
+}
+
+function downloadPDF(){
+  const el=document.getElementById('reportContent');
+  const year=document.getElementById('yearSelect').value;
+  const opt={margin:[10,10,10,10],filename:`financial-report-${year}.pdf`,
+    image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}};
+  document.querySelector('.rpt-print-header').style.display='block';
+  html2pdf().set(opt).from(el).save().then(()=>{document.querySelector('.rpt-print-header').style.display='none';});
+}
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'accounting/financial-report', pageTitle: '', openSection: 'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Certificates – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 24px; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Section heading ── */
+    .section-heading {
+      font-size: 13px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* ── Certificate cards grid ── */
+    .cert-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .cert-card {
+      background: #fff;
+      border: 1px solid #e8eaf0;
+      border-radius: 14px;
+      padding: 28px 24px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: box-shadow .2s, transform .15s, border-color .2s;
+      text-decoration: none; color: inherit;
+    }
+    .cert-card:hover {
+      box-shadow: 0 6px 24px rgba(103,49,71,.13);
+      transform: translateY(-2px);
+      border-color: #c5b0bb;
+    }
+
+    .cert-icon {
+      width: 62px; height: 62px;
+      background: linear-gradient(135deg, #f9e8ef 0%, #f0d8e8 100%);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+    }
+    .cert-name {
+      font-size: 15px; font-weight: 700; color: #333; text-align: center;
+    }
+    .cert-desc {
+      font-size: 12px; color: #999; text-align: center; line-height: 1.5;
+    }
+    .cert-arrow {
+      font-size: 12px; color: #673147; font-weight: 600;
+      padding: 5px 14px; background: #f0e6eb; border-radius: 20px;
+      transition: background .15s;
+    }
+    .cert-card:hover .cert-arrow { background: #e0cfd5; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Certificates</div>
+        <div class="page-subtitle">Generate and print official church certificates</div>
+      </div>
+
+      <!-- All certificate types -->
+      <div class="section-heading">Certificates</div>
+      <div class="cert-grid">
+
+        <a href="/certificates/baptism-certificate" class="cert-card">
+          <div class="cert-icon">✝️</div>
+          <div class="cert-name">Baptism Certificate</div>
+          <div class="cert-desc">For baptism of a member or guest</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/appreciation-certificate" class="cert-card">
+          <div class="cert-icon">🏅</div>
+          <div class="cert-name">Certificate of Appreciation</div>
+          <div class="cert-desc">Recognize volunteers, teachers, leaders, donors</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/dedication-certificate" class="cert-card">
+          <div class="cert-icon">👶</div>
+          <div class="cert-name">Dedication Certificate</div>
+          <div class="cert-desc">For child / baby dedication ceremonies</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/completion-certificate" class="cert-card">
+          <div class="cert-icon">🎓</div>
+          <div class="cert-name">Completion Certificate</div>
+          <div class="cert-desc">VBS, Bible study, discipleship, training programs</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/sunday-school-certificate" class="cert-card">
+          <div class="cert-icon">📚</div>
+          <div class="cert-name">Sunday School Completion</div>
+          <div class="cert-desc">For students completing a class, grade or curriculum</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/membership-certificate" class="cert-card">
+          <div class="cert-icon">⛪</div>
+          <div class="cert-name">Church Membership</div>
+          <div class="cert-desc">For new official church members</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/marriage-certificate" class="cert-card">
+          <div class="cert-icon">💍</div>
+          <div class="cert-name">Marriage Certificate</div>
+          <div class="cert-desc">For church marriage records & recognition</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+        <a href="/certificates/other-certificate" class="cert-card">
+          <div class="cert-icon">📜</div>
+          <div class="cert-name">Other Church Certificate</div>
+          <div class="cert-desc">Custom certificate for any recognition or event</div>
+          <div class="cert-arrow">Create Certificate →</div>
+        </a>
+
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/certificates', openSection: 'more', pageTitle: 'Certificates' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

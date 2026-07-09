@@ -1,0 +1,346 @@
+/*
+ * mobile.css — Responsive / mobile overrides for Church Genius Pro
+ *
+ * Loaded on every page (injected by session.js for authenticated pages;
+ * linked directly in <head> for unauthenticated pages like login.html).
+ *
+ * Breakpoints
+ *   ≤ 768px  tablet / large phone — sidebar becomes a slide-over overlay
+ *   ≤ 480px  small phone          — tighter grid / font tweaks
+ */
+
+/* ── Mobile sidebar backdrop overlay ─────────────────────────────────────── */
+#mobileNavBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  -webkit-tap-highlight-color: transparent;
+}
+#mobileNavBackdrop.visible { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ≤ 768 px  — Tablet / phone layout
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Sidebar: fixed slide-over overlay ─────────────────────────────────── */
+  .sidebar {
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    width: 260px !important;
+    min-width: 260px !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease !important;
+    z-index: 300 !important;
+    /* Override the desktop width-collapse behavior */
+    overflow-y: auto !important;
+  }
+  /* Collapsed state on desktop means nothing on mobile — open/close via transform */
+  .sidebar.collapsed {
+    width: 260px !important;
+    min-width: 260px !important;
+    transform: translateX(-100%);
+  }
+  /* Mobile-open state — added/removed by session.js toggleSidebar */
+  .sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  /* ── Topbar ─────────────────────────────────────────────────────────────── */
+  .topbar {
+    padding: 0 12px !important;
+    position: sticky;
+    top: 0;
+    z-index: 250; /* above backdrop (200) so hamburger remains clickable */
+  }
+  .topbar-left  { gap: 10px !important; }
+  .topbar-right { gap: 10px !important; }
+
+  /* Hide desktop search bar — too wide for mobile topbar */
+  .search-wrap { display: none !important; }
+
+  /* Topbar username: truncate on narrow screens */
+  .tb-username {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hamburger: larger touch target */
+  .btn-toggle {
+    font-size: 22px !important;
+    padding: 8px !important;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Page content padding ───────────────────────────────────────────────── */
+  .page-content { padding: 14px !important; }
+
+  /* ── Dashboard banner ───────────────────────────────────────────────────── */
+  .banner { padding: 20px 16px 0 !important; }
+  .banner-greeting { font-size: 20px !important; }
+  .banner-sub      { font-size: 12px !important; margin-bottom: 16px !important; }
+
+  /* Stat cards: 2 columns on tablet */
+  .stat-cards { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* ── Dashboard body / sections ──────────────────────────────────────────── */
+  .dash-body         { padding: 0 14px 20px !important; }
+  .dash-body-section { padding: 0 14px !important; }
+  .ai-search-wrap    { padding: 14px 14px 0 !important; }
+
+  /* Collapse all multi-column dashboard rows to single column */
+  .dash-row     { grid-template-columns: 1fr !important; }
+  .cols-6-4     { grid-template-columns: 1fr !important; }
+  .cols-1       { grid-template-columns: 1fr !important; }
+
+  /* Accountant income/expense category grid */
+  .acct-cats { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Customize panel — make full width on mobile */
+  .cust-panel { width: 100% !important; max-width: 100% !important; }
+
+  /* ── Form grids: single column ──────────────────────────────────────────── */
+  .form-grid            { grid-template-columns: 1fr !important; }
+  .form-grid.cols-3     { grid-template-columns: 1fr !important; }
+  .span-2               { grid-column: span 1 !important; }
+  .span-3               { grid-column: span 1 !important; }
+
+  /* Date row (Day / Month / Year) — keep 3 cols, reduce gap */
+  .date-row { gap: 6px !important; }
+
+  /* Form card body: tighter padding */
+  .form-card-body { padding: 16px 16px 20px !important; }
+
+  /* ── Table wrappers: ensure smooth horizontal scroll ───────────────────── */
+  .table-wrap,
+  .members-table-wrap,
+  .meetings-table-wrap,
+  .events-table-wrap,
+  .reg-table-wrap,
+  .sub-table-wrap,
+  .ltr-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent table cells from wrapping onto multiple lines on small screens */
+  .table-wrap table th,
+  .table-wrap table td {
+    white-space: nowrap;
+  }
+
+  /* ── Navigation touch targets ───────────────────────────────────────────── */
+  .nav-item-btn { padding: 13px 20px !important; min-height: 44px; }
+  .nav-sub-btn  { padding: 12px 20px 12px 46px !important; min-height: 40px; }
+
+  /* ── Filter / toolbar rows ──────────────────────────────────────────────── */
+  .filter-row,
+  .table-toolbar,
+  .table-controls {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .filter-row select,
+  .filter-row input,
+  .filter-row button {
+    min-width: 0;
+    flex: 1 1 120px;
+  }
+
+  /* ── Report pages ───────────────────────────────────────────────────────── */
+  .report-filters,
+  .report-header {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  .report-filters select,
+  .report-filters input {
+    flex: 1 1 140px;
+  }
+
+  /* ── Modals / dialogs ───────────────────────────────────────────────────── */
+  .modal-overlay .modal,
+  .modal-box,
+  .dialog-box {
+    width: calc(100vw - 28px) !important;
+    max-width: 100% !important;
+    margin: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  /* ── Page header (title + action button) ───────────────────────────────── */
+  .page-header {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  /* ── Card body padding ──────────────────────────────────────────────────── */
+  .card-body  { padding: 12px 14px 16px !important; }
+  .card-hdr   { padding: 14px 14px 0 !important; }
+
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ≤ 480 px  — Small phone layout
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+  /* Stat cards: single column on small phones */
+  .stat-cards { grid-template-columns: 1fr !important; }
+
+  /* Accountant category grid: single column */
+  .acct-cats { grid-template-columns: 1fr !important; }
+
+  /* Hide topbar username completely */
+  .tb-username { display: none !important; }
+
+  /* Reduce topbar title font size */
+  .topbar-title { font-size: 13px !important; }
+
+  /* Page title */
+  .page-title { font-size: 18px !important; }
+
+  /* Banner */
+  .banner-greeting { font-size: 18px !important; }
+
+  /* Form card header padding */
+  .form-card-header { padding: 12px 16px !important; }
+
+  /* Tighten page content further */
+  .page-content { padding: 10px !important; }
+
+  /* AI search bar wraps on small screens */
+  .ai-search-bar {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  .ai-search-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Bottom action bars / button rows */
+  .btn-row,
+  .action-row,
+  .form-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .btn-row button,
+  .action-row button,
+  .form-actions button {
+    width: 100% !important;
+  }
+
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Standalone member / public pages (no shell sidebar)
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* memberHome page-wrap */
+  .page-wrap { padding: 0 10px 40px !important; margin-top: 16px !important; }
+
+  /* Welcome banner: stack avatar + text vertically on small screens */
+  .welcome-banner { flex-wrap: wrap; gap: 12px !important; padding: 16px !important; }
+
+  /* Tabs: wrap onto multiple rows, smaller font */
+  .tabs { gap: 3px !important; padding: 4px !important; }
+  .tab-btn { font-size: 11px !important; padding: 8px 6px !important; min-width: 0; }
+
+  /* Member home top-bar */
+  .top-bar { padding: 10px 14px !important; }
+  .top-bar h1 { font-size: 14px !important; }
+  .top-bar p  { font-size: 11px !important; }
+  .btn-logout { padding: 6px 12px !important; font-size: 12px !important; }
+
+  /* memberHome card body tighter on mobile */
+  .card-body { padding: 12px 14px !important; }
+
+  /* Login / forgot / signup cards */
+  .card { padding: 28px 20px !important; border-radius: 12px !important; }
+  .logo-box { width: 160px !important; margin-bottom: 20px !important; }
+  .btn-login { padding: 12px !important; }
+
+  /* membershipForm */
+  .form-card { margin-bottom: 14px !important; }
+  .form-card-body { padding: 14px 14px 18px !important; }
+  .action-bar { padding: 12px 14px !important; flex-wrap: wrap; gap: 8px !important; }
+  .action-bar button { flex: 1 1 120px; }
+  .page-wrap-public { padding: 12px 12px 48px !important; }
+
+  /* membershipRequests detail panel */
+  .detail-body { padding: 14px 16px !important; }
+  .detail-grid { grid-template-columns: 1fr !important; gap: 8px 16px !important; }
+  .detail-actions { flex-direction: column !important; }
+  .detail-actions button { width: 100% !important; }
+
+  /* Edit member modal in memberHome */
+  .modal { border-radius: 10px !important; }
+  .modal-body { padding: 14px 16px !important; }
+  .modal-footer { padding: 12px 16px !important; }
+}
+
+@media (max-width: 480px) {
+
+  /* Login card full-bleed on very small screens */
+  body > .card { border-radius: 0 !important; min-height: 100vh; justify-content: flex-start; padding-top: 40px !important; }
+
+  /* memberHome welcome banner */
+  .welcome-banner { justify-content: center; text-align: center; }
+  .welcome-avatar { width: 48px !important; height: 48px !important; font-size: 18px !important; }
+  .welcome-name { font-size: 17px !important; }
+
+  /* memberHome tabs: two rows */
+  .tabs .tab-btn { font-size: 10px !important; padding: 7px 4px !important; }
+
+  /* Contributions header wraps */
+  .card-header { flex-wrap: wrap !important; gap: 6px !important; }
+
+  /* membershipForm phase buttons */
+  .btn-save, .btn-clear, .btn-search { font-size: 13px !important; padding: 10px 16px !important; }
+
+  /* Table: reduce padding on tiny screens */
+  .member-tbl th, .member-tbl td { padding: 8px 10px !important; font-size: 12px !important; }
+  .history-tbl th, .history-tbl td { padding: 8px 10px !important; font-size: 12px !important; }
+}
+
+/* ── memberHome: Directory & Messages mobile tweaks ─────────────────────── */
+@media (max-width: 600px) {
+  /* Directory member rows: stack address below name on small screens */
+  .dir-member-row { flex-wrap: wrap; gap: 6px; }
+  .dir-addr { width: 100%; margin-left: 24px; font-size: 11px; }
+  .dir-actions { margin-left: auto; }
+
+  /* Message bubbles: slightly smaller on small screens */
+  .bubble { max-width: 92%; font-size: 12px; }
+
+  /* Compose modal recipient list */
+  #composeToList { max-height: 130px; }
+
+  /* Directory search + email button: stack vertically in card header */
+  #dirEmailBtn { font-size: 11px; padding: 6px 10px; }
+}
+
+/* ── PWA: safe area insets (notch / home indicator) ─────────────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  .topbar {
+    padding-left:  max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .page-content {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+}

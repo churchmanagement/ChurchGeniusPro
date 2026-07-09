@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <title>Membership Form – Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh;}
+    a{text-decoration:none;color:inherit;}
+    button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+    /* ── Header ── */
+    .pub-header{background:#673147;color:#fff;padding:18px 24px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+    .pub-header-icon{width:44px;height:44px;background:rgba(255,255,255,.22);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;overflow:hidden;}
+    .pub-header-icon img{width:100%;height:100%;object-fit:contain;border-radius:7px;}
+    .pub-header h1{font-size:18px;font-weight:700;letter-spacing:.3px;}
+    .pub-header p{font-size:13px;opacity:.8;margin-top:2px;}
+
+    /* ── Page ── */
+    .page-wrap{max-width:860px;margin:28px auto;padding:0 16px 48px;}
+    .page-title{font-size:22px;font-weight:700;color:#1e2139;margin-bottom:4px;}
+    .page-sub{font-size:13px;color:#888;margin-bottom:24px;}
+
+    /* ── Alerts ── */
+    .alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+    .alert.show{display:block;}
+    .alert-error{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+    .alert-info {background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;}
+
+    /* ── Cards (matching family.html) ── */
+    .form-card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);overflow:visible;margin-bottom:20px;}
+    .form-card-header{background:#673147;padding:14px 24px;display:flex;align-items:center;gap:10px;border-radius:10px 10px 0 0;}
+    .form-card-header h3{font-size:14px;font-weight:600;color:#fff;letter-spacing:.4px;text-transform:uppercase;}
+    .section-icon{font-size:16px;}
+    .form-card-body{padding:20px 24px 24px;}
+
+    /* ── Sub-section ── */
+    .sub-section{margin-bottom:20px;}
+    .sub-section:last-child{margin-bottom:0;}
+    .sub-section-title{font-size:11px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.6px;padding-bottom:8px;margin-bottom:14px;border-bottom:1px solid #e8eaf6;}
+
+    /* ── Grid ── */
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;}
+    .form-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+    .form-grid.cols-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+    .form-grid.cols-5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
+    .span-2{grid-column:span 2;}
+    .span-3{grid-column:span 3;}
+    @media(max-width:700px){
+      .form-grid,.form-grid.cols-3,.form-grid.cols-4,.form-grid.cols-5{grid-template-columns:1fr 1fr;}
+      .span-2,.span-3{grid-column:span 2;}
+    }
+    @media(max-width:480px){
+      .form-grid,.form-grid.cols-3,.form-grid.cols-4,.form-grid.cols-5{grid-template-columns:1fr;}
+      .span-2,.span-3{grid-column:span 1;}
+    }
+
+    /* ── Field ── */
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.4px;}
+    .required-star{color:#e53935;margin-left:2px;}
+    .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;outline:none;transition:border-color .2s,box-shadow .2s;background:#fff;font-family:inherit;}
+    .field input::placeholder,.field textarea::placeholder{color:#bbb;}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .field input.invalid,.field select.invalid{border-color:#e53935;}
+    .field-hint{font-size:11px;color:#e53935;min-height:14px;}
+    .field-note{font-size:11px;color:#aaa;margin-top:2px;}
+    .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+
+    /* ── Members list table (card 2) ── */
+    .members-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .members-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px;}
+    .members-table th{text-align:left;padding:10px 14px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #f0f0f0;white-space:nowrap;}
+    .members-table td{padding:11px 14px;border-bottom:1px solid #f5f5f5;color:#333;vertical-align:middle;white-space:nowrap;}
+    .members-table tr:last-child td{border-bottom:none;}
+    .members-table tr:hover td{background:#fafbff;}
+    .empty-members{text-align:center;padding:28px;color:#bbb;font-size:13px;}
+    @media(max-width:600px){
+      .members-table .col-phone,.members-table .col-email{display:none;}
+    }
+    @media(max-width:768px){
+      .page-wrap{padding:12px 12px 60px !important;}
+      .form-card{margin-bottom:12px;}
+      .form-card-body{padding:14px 14px 18px;}
+      .action-bar{padding:12px;gap:8px;flex-wrap:wrap;}
+      .action-bar button{flex:1 1 100px;min-height:44px;}
+      .btn-save{font-size:14px;}
+      .lookup-wrap{padding:0 14px 20px;}
+      input,select,textarea{font-size:16px !important;min-height:44px;}
+      .otp-input{font-size:20px !important;}
+    }
+    .role-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+    .role-primary{background:#e8eaf6;color:#673147;}
+    .role-wife{background:#fce4ec;color:#c2185b;}
+    .role-son{background:#e3f2fd;color:#1565c0;}
+    .role-daughter{background:#f3e5f5;color:#7b1fa2;}
+    .role-other{background:#fff3e0;color:#e65100;}
+    .btn-edit-member{padding:4px 11px;border-radius:6px;font-size:13px;color:#fff;background:#673147;border:1px solid #673147;cursor:pointer;margin-right:5px;}
+    .btn-edit-member:hover{background:#3949ab;border-color:#3949ab;}
+    .btn-remove{padding:4px 11px;border-radius:6px;font-size:13px;color:#fff;background:#673147;border:1px solid #673147;cursor:pointer;}
+    .btn-remove:hover{background:#3949ab;border-color:#3949ab;}
+
+    /* ── Inline add-member form (matching family.html) ── */
+    .add-member-form{display:none;}
+    .add-member-form.open{display:block;}
+    .add-member-form-inner{background:#fdf5f7;border:1px solid #f0e0e7;border-radius:9px;padding:18px 20px;margin-top:12px;}
+    .form-inner-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+    .form-inner-title{font-size:13px;font-weight:700;color:#673147;}
+    .form-inner-title.editing{color:#e65100;}
+    .btn-close-form{font-size:18px;color:#aaa;cursor:pointer;line-height:1;background:none;border:none;}
+    .btn-close-form:hover{color:#333;}
+    .btn-add-member-action{padding:10px 26px;border-radius:7px;font-size:14px;font-weight:600;color:#fff;background:#673147;border:none;cursor:pointer;transition:background .18s;}
+    .btn-add-member-action:hover{background:#4a5aae;}
+    .btn-cancel-member{padding:10px 20px;border-radius:7px;font-size:13px;font-weight:500;color:#666;border:1.5px solid #e0e0e0;cursor:pointer;transition:background .18s;}
+    .btn-cancel-member:hover{background:#f5f6fa;}
+    .btn-open-add{padding:10px 22px;border-radius:7px;font-size:13px;font-weight:600;color:#673147;border:1.5px solid #673147;cursor:pointer;transition:background .18s;white-space:nowrap;}
+    .btn-open-add:hover{background:#eef1fb;}
+
+    /* ── Photo upload ── */
+    .photo-upload-wrap{display:flex;align-items:center;gap:20px;margin-bottom:20px;padding:16px 18px;background:#fdf5f7;border:1px solid #f0e0e7;border-radius:9px;}
+    .photo-preview{width:80px;height:80px;border-radius:50%;background:#e8eaf6;border:2.5px solid #c5cae9;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+    .photo-preview img{width:100%;height:100%;object-fit:cover;}
+    .photo-preview-icon{font-size:28px;}
+    .photo-upload-actions{display:flex;flex-direction:column;gap:8px;}
+    .photo-upload-label{display:inline-block;padding:8px 18px;border-radius:7px;font-size:13px;font-weight:600;color:#673147;border:1.5px solid #673147;cursor:pointer;transition:background .15s;}
+    .photo-upload-label:hover{background:#eef1fb;}
+    .photo-upload-note{font-size:11px;color:#aaa;}
+    .btn-clear-photo{padding:4px 12px;border-radius:6px;font-size:12px;color:#e53935;border:1px solid #ffcdd2;cursor:pointer;display:none;background:none;}
+    .btn-clear-photo.show{display:inline-block;}
+
+    /* ── Roles card ── */
+    .roles-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .roles-table th{text-align:left;padding:10px 14px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #f0f0f0;}
+    .roles-table td{padding:10px 14px;border-bottom:1px solid #f5f5f5;vertical-align:middle;}
+    .roles-table tr:last-child td{border-bottom:none;}
+    .roles-table tr:hover td{background:#fafbff;}
+    .roles-table .member-name{font-weight:600;font-size:13px;color:#333;}
+    .roles-table .member-sub{font-size:11px;color:#aaa;margin-top:2px;}
+    .role-select{width:100%;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;color:#333;outline:none;appearance:none;background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+    .role-select:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .anniv-inline{display:none;gap:6px;margin-top:8px;flex-wrap:wrap;}
+    .anniv-inline.show{display:flex;}
+    .anniv-inline label{font-size:11px;font-weight:700;color:#c2185b;text-transform:uppercase;letter-spacing:.4px;width:100%;margin-bottom:2px;}
+    .anniv-inline select{flex:1;padding:6px 8px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:12px;color:#333;outline:none;min-width:70px;appearance:none;background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:22px;}
+    .anniv-inline select:focus{border-color:#c2185b;}
+    .role-empty-msg{text-align:center;padding:28px;color:#bbb;font-size:13px;}
+
+    /* ── Declaration ── */
+    .declaration-card{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:18px 20px;margin-bottom:20px;}
+    .declaration-text{font-size:13px;color:#555;line-height:1.7;margin-bottom:14px;white-space:pre-wrap;}
+    .declaration-chk{display:flex;align-items:center;gap:10px;}
+    .declaration-chk input{width:18px;height:18px;accent-color:#f59f00;flex-shrink:0;margin:0;}
+    .declaration-chk label{font-size:13px;color:#444;font-weight:600;cursor:pointer;line-height:1.4;margin:0;}
+    .field-hint-decl{font-size:11px;color:#e53935;margin-top:6px;display:block;}
+
+    /* ── Action bar ── */
+    .action-bar{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:18px 24px;background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);}
+    .btn-clear{padding:11px 28px;border-radius:7px;font-size:14px;font-weight:500;color:#666;border:1.5px solid #e0e0e0;cursor:pointer;transition:background .18s;}
+    .btn-clear:hover{background:#f5f6fa;}
+    .btn-save{padding:11px 36px;border-radius:7px;font-size:14px;font-weight:600;color:#fff;background:#673147;border:none;cursor:pointer;transition:background .18s;}
+    .btn-save:hover:not(:disabled){background:#3d1d2b;}
+    .btn-save:disabled{opacity:.65;cursor:not-allowed;}
+
+    /* ── Lookup phase ── */
+    .lookup-card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:32px 28px;margin-bottom:20px;}
+    .lookup-card h2{font-size:17px;font-weight:700;color:#1e2139;margin-bottom:6px;}
+    .lookup-card p{font-size:13px;color:#666;line-height:1.6;margin-bottom:22px;}
+    .lookup-row{display:flex;gap:10px;flex-wrap:wrap;}
+    .lookup-row input{flex:1;min-width:220px;padding:10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;font-family:inherit;outline:none;transition:border-color .2s;}
+    .lookup-row input:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .btn-search{padding:10px 22px;background:#673147;color:#fff;border-radius:7px;font-size:14px;font-weight:700;transition:background .15s;}
+    .btn-search:hover{background:#4f2538;}
+    .btn-search:disabled{opacity:.55;cursor:not-allowed;}
+    .lookup-divider{display:flex;align-items:center;gap:12px;margin:22px 0;}
+    .lookup-divider hr{flex:1;border:none;border-top:1px solid #eee;}
+    .lookup-divider span{font-size:13px;color:#aaa;white-space:nowrap;}
+    .btn-new-member{padding:10px 22px;background:#f5f6fa;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;color:#555;font-weight:600;width:100%;transition:all .15s;}
+    .btn-new-member:hover{border-color:#673147;color:#673147;background:#f0f2fb;}
+
+    /* ── Existing-member notice ── */
+    .existing-notice{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#2e7d32;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .btn-not-me{margin-left:auto;font-size:13px;color:#673147;text-decoration:underline;background:none;border:none;padding:0;cursor:pointer;white-space:nowrap;}
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="pub-header">
+  <div class="pub-header-icon" id="pubHeaderIcon">CG</div>
+  <div>
+    <h1>Membership Form</h1>
+    <p id="pubHeaderChurchName">Church Genius Pro</p>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div class="page-title" id="pageTitle">📋 Membership Form</div>
+  <div class="page-sub"  id="pageSub">Enter your phone number or email to check if you're already registered.</div>
+
+  <div class="alert alert-error" id="alertError"></div>
+  <div class="alert alert-info"  id="alertInvalid"></div>
+
+  <!-- ══════════════════════════════════
+       PHASE 0 — LOOKUP
+  ══════════════════════════════════ -->
+  <div id="phaseLookup" style="display:none;">
+    <div class="lookup-card">
+      <h2>🔍 Are you already a member?</h2>
+      <p>Enter your phone number or email address to look up your existing record. If found, your details will be pre-filled for you to review and update.</p>
+      <div class="lookup-row">
+        <input type="text" id="lookupQuery" placeholder="Phone number or email address"
+               onkeydown="if(event.key==='Enter')doLookup()" />
+        <button class="btn-search" id="searchBtn" onclick="doLookup()">Search</button>
+      </div>
+      <div id="lookupMsg" style="margin-top:12px;font-size:13px;display:none;"></div>
+      <div class="lookup-divider"><hr/><span>OR</span><hr/></div>
+      <button class="btn-new-member" onclick="showNewMemberPhase()">➕ New Member? Complete the full form</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       PHASE 0b — OTP VERIFICATION
+  ══════════════════════════════════ -->
+  <div id="phaseOtp" style="display:none;">
+    <div class="lookup-card">
+      <h2>📧 Verify Your Identity</h2>
+      <p id="otpDesc">A 6-digit verification code has been sent to your email.</p>
+      <div style="margin-bottom:14px;">
+        <div class="lookup-row" style="align-items:flex-start;">
+          <div style="flex:1;">
+            <input type="text" id="otpCode" maxlength="6" placeholder="Enter 6-digit code"
+                   style="width:100%;padding:10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:18px;letter-spacing:6px;text-align:center;font-family:monospace;"
+                   onkeydown="if(event.key==='Enter')verifyOtp()" />
+            <div id="otpHint" style="font-size:11px;color:#e53935;margin-top:4px;"></div>
+          </div>
+          <button class="btn-search" id="otpVerifyBtn" onclick="verifyOtp()">Verify</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <button onclick="resendOtp()" style="color:#673147;text-decoration:underline;font-size:13px;background:none;border:none;cursor:pointer;" id="resendBtn">Resend code</button>
+        <button onclick="backToLookupFromOtp()" style="color:#888;font-size:13px;background:none;border:none;cursor:pointer;">← Search again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       PHASE 0c — NO RECORD FOUND
+  ══════════════════════════════════ -->
+  <div id="phaseNoRecord" style="display:none;">
+    <div class="lookup-card" style="text-align:center;padding:40px 28px;">
+      <div style="font-size:48px;margin-bottom:12px;">🔍</div>
+      <h2 style="margin-bottom:8px;">No Record Found</h2>
+      <p style="color:#666;line-height:1.7;margin-bottom:20px;">
+        We could not find a membership record matching that phone number or email address.<br/>
+        Please contact your church administrator for assistance.
+      </p>
+      <div class="lookup-divider"><hr/><span>OR</span><hr/></div>
+      <button class="btn-new-member" onclick="showNewMemberPhase()" style="max-width:320px;margin:0 auto;">
+        ➕ Fill out a new membership form
+      </button>
+      <div style="margin-top:12px;">
+        <button onclick="backToLookupFromOtp()" style="color:#888;font-size:13px;background:none;border:none;cursor:pointer;">← Search again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       PHASE 1 — FULL FORM
+  ══════════════════════════════════ -->
+  <div id="phaseForm" style="display:none;">
+
+    <!-- Existing-member notice -->
+    <div id="existingNotice" class="existing-notice" style="display:none;">
+      <span>✅ <strong>Existing member found.</strong> Your details have been pre-filled. Please review and update anything that has changed, then submit.</span>
+      <button class="btn-not-me" onclick="clearAndSearchAgain()">Not you? Search again</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         CARD 1 — PRIMARY MEMBER
+    ══════════════════════════════════════════════ -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="section-icon">👤</span>
+        <h3>Primary Member</h3>
+      </div>
+      <div class="form-card-body">
+
+        <!-- Photo Upload -->
+        <div class="photo-upload-wrap">
+          <div class="photo-preview" id="photoPreview">
+            <span class="photo-preview-icon">📷</span>
+          </div>
+          <div class="photo-upload-actions">
+            <label class="photo-upload-label" for="photoInput">📁 Upload Photo</label>
+            <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="onPhotoSelect(this)" />
+            <button type="button" class="btn-clear-photo" id="clearPhotoBtn" onclick="clearPhoto()">✕ Remove Photo</button>
+            <span class="photo-upload-note">JPG, PNG or GIF · Max 2 MB</span>
+          </div>
+        </div>
+
+        <!-- Row 1: First Name | Last Name -->
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="field">
+            <label for="pFirstName">First Name <span class="required-star">*</span></label>
+            <input type="text" id="pFirstName" placeholder="First name" oninput="renderRolesTable()" />
+            <span class="field-hint" id="pFirstNameHint"></span>
+          </div>
+          <div class="field">
+            <label for="pLastName">Last Name <span class="required-star">*</span></label>
+            <input type="text" id="pLastName" placeholder="Last name" oninput="renderRolesTable()" />
+            <span class="field-hint" id="pLastNameHint"></span>
+          </div>
+        </div>
+
+        <!-- Row 2: Phone | Email -->
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="field">
+            <label for="pPhone">Phone</label>
+            <input type="tel" id="pPhone" placeholder="Phone number" />
+          </div>
+          <div class="field">
+            <label for="pEmail">Email</label>
+            <input type="email" id="pEmail" placeholder="Email address" />
+          </div>
+        </div>
+
+        <!-- Row 3: Gender | Birth Month | Birth Day | Birth Year -->
+        <div class="form-grid cols-4" style="margin-bottom:14px;">
+          <div class="field">
+            <label for="pGender">Gender</label>
+            <select id="pGender">
+              <option value="">— Select —</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pBirthMonth">Birth Month</label>
+            <select id="pBirthMonth">
+              <option value="">Month</option>
+              <option value="1">Jan</option><option value="2">Feb</option>
+              <option value="3">Mar</option><option value="4">Apr</option>
+              <option value="5">May</option><option value="6">Jun</option>
+              <option value="7">Jul</option><option value="8">Aug</option>
+              <option value="9">Sep</option><option value="10">Oct</option>
+              <option value="11">Nov</option><option value="12">Dec</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pBirthDay">Birth Day</label>
+            <select id="pBirthDay">
+              <option value="">Day</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+              <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+              <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+              <option value="16">16</option><option value="17">17</option><option value="18">18</option>
+              <option value="19">19</option><option value="20">20</option><option value="21">21</option>
+              <option value="22">22</option><option value="23">23</option><option value="24">24</option>
+              <option value="25">25</option><option value="26">26</option><option value="27">27</option>
+              <option value="28">28</option><option value="29">29</option><option value="30">30</option>
+              <option value="31">31</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pBirthYear">Birth Year</label>
+            <select id="pBirthYear"><option value="">Year</option></select>
+            <script>(function(){var s=document.getElementById('pBirthYear'),y0=new Date().getFullYear();for(var y=y0;y>=y0-120;y--){var o=document.createElement('option');o.value=y;o.textContent=y;s.appendChild(o);}})()</script>
+          </div>
+        </div>
+
+        <!-- Address -->
+        <div class="sub-section">
+          <div class="sub-section-title">Address</div>
+          <div class="form-grid cols-3">
+            <div class="field span-3">
+              <label for="pAddress1">Address Line 1</label>
+              <input type="text" id="pAddress1" placeholder="Street address" />
+            </div>
+            <div class="field span-3">
+              <label for="pAddress2">Address Line 2</label>
+              <input type="text" id="pAddress2" placeholder="Apt, suite, unit (optional)" />
+            </div>
+            <div class="field">
+              <label for="pCity">City</label>
+              <input type="text" id="pCity" placeholder="City" />
+            </div>
+            <div class="field">
+              <label for="pState">State</label>
+              <select id="pState">
+                <option value="">— Select State —</option>
+                <option value="1">AL – Alabama</option><option value="2">AK – Alaska</option>
+                <option value="3">AZ – Arizona</option><option value="4">AR – Arkansas</option>
+                <option value="5">CA – California</option><option value="6">CO – Colorado</option>
+                <option value="7">CT – Connecticut</option><option value="8">DE – Delaware</option>
+                <option value="9">FL – Florida</option><option value="10">GA – Georgia</option>
+                <option value="11">HI – Hawaii</option><option value="12">ID – Idaho</option>
+                <option value="13">IL – Illinois</option><option value="14">IN – Indiana</option>
+                <option value="15">IA – Iowa</option><option value="16">KS – Kansas</option>
+                <option value="17">KY – Kentucky</option><option value="18">LA – Louisiana</option>
+                <option value="19">ME – Maine</option><option value="20">MD – Maryland</option>
+                <option value="21">MA – Massachusetts</option><option value="22">MI – Michigan</option>
+                <option value="23">MN – Minnesota</option><option value="24">MS – Mississippi</option>
+                <option value="25">MO – Missouri</option><option value="26">MT – Montana</option>
+                <option value="27">NE – Nebraska</option><option value="28">NV – Nevada</option>
+                <option value="29">NH – New Hampshire</option><option value="30">NJ – New Jersey</option>
+                <option value="31">NM – New Mexico</option><option value="32">NY – New York</option>
+                <option value="33">NC – North Carolina</option><option value="34">ND – North Dakota</option>
+                <option value="35">OH – Ohio</option><option value="36">OK – Oklahoma</option>
+                <option value="37">OR – Oregon</option><option value="38">PA – Pennsylvania</option>
+                <option value="39">RI – Rhode Island</option><option value="40">SC – South Carolina</option>
+                <option value="41">SD – South Dakota</option><option value="42">TN – Tennessee</option>
+                <option value="43">TX – Texas</option><option value="44">UT – Utah</option>
+                <option value="45">VT – Vermont</option><option value="46">VA – Virginia</option>
+                <option value="47">WA – Washington</option><option value="48">WV – West Virginia</option>
+                <option value="49">WI – Wisconsin</option><option value="50">WY – Wyoming</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pCountry">Country</label>
+              <select id="pCountry">
+                <option value="USA" selected>USA – United States</option>
+                <option value="CAN">CAN – Canada</option>
+                <option value="GBR">GBR – United Kingdom</option>
+                <option value="AUS">AUS – Australia</option>
+                <option value="IND">IND – India</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pPinCode">ZIP / Pin Code</label>
+              <input type="text" id="pPinCode" placeholder="Zip / Pin code" />
+            </div>
+            <div class="field">
+              <label for="pNickName">Nick Name</label>
+              <input type="text" id="pNickName" placeholder="Nickname / other name" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Privacy -->
+        <div class="sub-section">
+          <div class="sub-section-title">Privacy</div>
+          <p style="font-size:12.5px;color:#777;margin:0 0 10px;">Tick to hide a detail from other members in the directory. Church staff can always see it.</p>
+          <div class="privacy-opts" style="display:flex;flex-direction:column;gap:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#444;cursor:pointer;">
+              <input type="checkbox" id="pPhonePrivate" style="width:16px;height:16px;accent-color:#f59f00;margin:0;flex-shrink:0;" /> Make Phone Number Private
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#444;cursor:pointer;">
+              <input type="checkbox" id="pEmailPrivate" style="width:16px;height:16px;accent-color:#f59f00;margin:0;flex-shrink:0;" /> Make Email Address Private
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#444;cursor:pointer;">
+              <input type="checkbox" id="pAddressPrivate" style="width:16px;height:16px;accent-color:#f59f00;margin:0;flex-shrink:0;" /> Make Address Private
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         CARD 2 — FAMILY MEMBERS
+    ══════════════════════════════════════════════ -->
+    <div class="form-card" id="familyMembersCard">
+      <div class="form-card-header">
+        <span class="section-icon">👨‍👩‍👧</span>
+        <h3>Family Members</h3>
+      </div>
+      <div class="form-card-body">
+
+        <!-- Existing members table -->
+        <div id="memberListWrap">
+          <div class="members-table-wrap">
+            <table class="members-table" id="membersTbl" style="display:none;">
+              <thead>
+                <tr>
+                  <th style="width:36px;">#</th>
+                  <th>Name</th>
+                  <th class="col-phone">Phone</th>
+                  <th class="col-email">Email</th>
+                  <th>Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="membersTbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-members" id="emptyMembersMsg">No additional family members added yet.</div>
+        </div>
+
+        <!-- Open add-member button -->
+        <div style="margin-top:14px;">
+          <button class="btn-open-add" id="btnOpenAdd" onclick="openAddMemberForm()">+ Add Family Member</button>
+        </div>
+
+        <!-- Inline add / edit form -->
+        <div class="add-member-form" id="addMemberForm">
+          <div class="add-member-form-inner">
+            <div class="form-inner-header">
+              <span class="form-inner-title" id="memberFormTitle">Add Member</span>
+              <button type="button" class="btn-close-form" onclick="closeAddMemberForm()" title="Close">✕</button>
+            </div>
+
+            <!-- First Name | Last Name -->
+            <div class="form-grid" style="margin-bottom:14px;">
+              <div class="field">
+                <label for="mFirstName">First Name <span class="required-star">*</span></label>
+                <input type="text" id="mFirstName" placeholder="First name" />
+                <span class="field-hint" id="mFirstNameHint"></span>
+              </div>
+              <div class="field">
+                <label for="mLastName">Last Name <span class="required-star">*</span></label>
+                <input type="text" id="mLastName" placeholder="Last name" />
+                <span class="field-hint" id="mLastNameHint"></span>
+              </div>
+            </div>
+
+            <!-- Phone | Email -->
+            <div class="form-grid" style="margin-bottom:14px;">
+              <div class="field">
+                <label for="mPhone">Phone</label>
+                <input type="tel" id="mPhone" placeholder="Phone number" />
+              </div>
+              <div class="field">
+                <label for="mEmail">Email</label>
+                <input type="email" id="mEmail" placeholder="Email address" />
+              </div>
+            </div>
+
+            <!-- Role | Gender | Birth Month | Birth Day | Birth Year -->
+            <div class="form-grid cols-5" style="margin-bottom:14px;">
+              <div class="field">
+                <label for="mRole">Role <span class="required-star">*</span></label>
+                <select id="mRole" onchange="onMemberRoleChange(this.value)">
+                  <option value="">— Select —</option>
+                  <option value="Head of Household">Head of Household</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Adult">Adult</option>
+                  <option value="Child">Child</option>
+                </select>
+                <span class="field-hint" id="mRoleHint"></span>
+              </div>
+              <div class="field">
+                <label for="mGender">Gender</label>
+                <select id="mGender">
+                  <option value="">— Select —</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mBirthMonth">Birth Month</label>
+                <select id="mBirthMonth">
+                  <option value="">Month</option>
+                  <option value="1">Jan</option><option value="2">Feb</option>
+                  <option value="3">Mar</option><option value="4">Apr</option>
+                  <option value="5">May</option><option value="6">Jun</option>
+                  <option value="7">Jul</option><option value="8">Aug</option>
+                  <option value="9">Sep</option><option value="10">Oct</option>
+                  <option value="11">Nov</option><option value="12">Dec</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mBirthDay">Birth Day</label>
+                <select id="mBirthDay">
+                  <option value="">Day</option>
+                  <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                  <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                  <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                  <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                  <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+                  <option value="16">16</option><option value="17">17</option><option value="18">18</option>
+                  <option value="19">19</option><option value="20">20</option><option value="21">21</option>
+                  <option value="22">22</option><option value="23">23</option><option value="24">24</option>
+                  <option value="25">25</option><option value="26">26</option><option value="27">27</option>
+                  <option value="28">28</option><option value="29">29</option><option value="30">30</option>
+                  <option value="31">31</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mBirthYear">Birth Year</label>
+                <select id="mBirthYear"><option value="">Year</option></select>
+                <script>(function(){var s=document.getElementById('mBirthYear'),y0=new Date().getFullYear();for(var y=y0;y>=y0-120;y--){var o=document.createElement('option');o.value=y;o.textContent=y;s.appendChild(o);}})()</script>
+              </div>
+            </div>
+
+            <!-- Same-as-primary address checkbox -->
+            <div style="margin-bottom:14px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;cursor:pointer;">
+                <input type="checkbox" id="mSameAddr" checked onchange="onSameAddr(this.checked)"
+                       style="width:15px;height:15px;accent-color:#673147;" />
+                Same address as primary member
+              </label>
+            </div>
+
+            <!-- Own address (hidden when same-as-primary) -->
+            <div id="mOwnAddrSection" style="display:none;margin-bottom:14px;">
+              <div class="form-grid cols-3">
+                <div class="field span-3">
+                  <label for="mAddr1">Address Line 1</label>
+                  <input type="text" id="mAddr1" placeholder="Street address" />
+                </div>
+                <div class="field span-3">
+                  <label for="mAddr2">Address Line 2</label>
+                  <input type="text" id="mAddr2" placeholder="Apt, suite, unit (optional)" />
+                </div>
+                <div class="field"><label for="mCity">City</label><input type="text" id="mCity" placeholder="City" /></div>
+                <div class="field">
+                  <label for="mState">State</label>
+                  <select id="mState">
+                    <option value="">— Select —</option>
+                    <option value="1">AL – Alabama</option><option value="2">AK – Alaska</option>
+                    <option value="3">AZ – Arizona</option><option value="4">AR – Arkansas</option>
+                    <option value="5">CA – California</option><option value="6">CO – Colorado</option>
+                    <option value="7">CT – Connecticut</option><option value="8">DE – Delaware</option>
+                    <option value="9">FL – Florida</option><option value="10">GA – Georgia</option>
+                    <option value="11">HI – Hawaii</option><option value="12">ID – Idaho</option>
+                    <option value="13">IL – Illinois</option><option value="14">IN – Indiana</option>
+                    <option value="15">IA – Iowa</option><option value="16">KS – Kansas</option>
+                    <option value="17">KY – Kentucky</option><option value="18">LA – Louisiana</option>
+                    <option value="19">ME – Maine</option><option value="20">MD – Maryland</option>
+                    <option value="21">MA – Massachusetts</option><option value="22">MI – Michigan</option>
+                    <option value="23">MN – Minnesota</option><option value="24">MS – Mississippi</option>
+                    <option value="25">MO – Missouri</option><option value="26">MT – Montana</option>
+                    <option value="27">NE – Nebraska</option><option value="28">NV – Nevada</option>
+                    <option value="29">NH – New Hampshire</option><option value="30">NJ – New Jersey</option>
+                    <option value="31">NM – New Mexico</option><option value="32">NY – New York</option>
+                    <option value="33">NC – North Carolina</option><option value="34">ND – North Dakota</option>
+                    <option value="35">OH – Ohio</option><option value="36">OK – Oklahoma</option>
+                    <option value="37">OR – Oregon</option><option value="38">PA – Pennsylvania</option>
+                    <option value="39">RI – Rhode Island</option><option value="40">SC – South Carolina</option>
+                    <option value="41">SD – South Dakota</option><option value="42">TN – Tennessee</option>
+                    <option value="43">TX – Texas</option><option value="44">UT – Utah</option>
+                    <option value="45">VT – Vermont</option><option value="46">VA – Virginia</option>
+                    <option value="47">WA – Washington</option><option value="48">WV – West Virginia</option>
+                    <option value="49">WI – Wisconsin</option><option value="50">WY – Wyoming</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="mCountry">Country</label>
+                  <select id="mCountry">
+                    <option value="USA" selected>USA – United States</option>
+                    <option value="CAN">CAN – Canada</option>
+                    <option value="GBR">GBR – United Kingdom</option>
+                    <option value="AUS">AUS – Australia</option>
+                    <option value="IND">IND – India</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div class="field"><label for="mPinCode">ZIP / Pin Code</label><input type="text" id="mPinCode" placeholder="Zip / Pin code" /></div>
+              </div>
+            </div>
+
+            <!-- Nick Name -->
+            <div class="form-grid" style="margin-bottom:14px;">
+              <div class="field">
+                <label for="mNickName">Nick Name</label>
+                <input type="text" id="mNickName" placeholder="Nickname / other name" />
+              </div>
+            </div>
+
+            <!-- Form actions -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+              <button type="button" class="btn-add-member-action" id="saveMemberBtn" onclick="saveMember()">Add Member</button>
+              <button type="button" class="btn-cancel-member" onclick="closeAddMemberForm()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         CARD 3 — ROLES
+    ══════════════════════════════════════════════ -->
+    <div class="form-card" id="rolesCard">
+      <div class="form-card-header">
+        <span class="section-icon">🔗</span>
+        <h3>Roles</h3>
+      </div>
+      <div class="form-card-body">
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+          Assign a role to each family member. For <strong>Spouse</strong>, an Anniversary Date field will appear.
+        </p>
+        <div style="overflow-x:auto;">
+          <table class="roles-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th style="width:190px;">Role</th>
+                <th>Anniversary Date <span style="font-weight:400;color:#c2185b;">(Spouse only)</span></th>
+              </tr>
+            </thead>
+            <tbody id="rolesTableBody">
+              <tr><td colspan="3" class="role-empty-msg">Add the Primary Member and Family Members above to assign roles.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Declaration ── -->
+    <div id="declarationCard" class="declaration-card" style="display:none;">
+      <div class="declaration-text" id="declarationText"></div>
+      <div class="declaration-chk">
+        <input type="checkbox" id="declarationChk" />
+        <label for="declarationChk">I have read and agree to the above declaration. <span style="color:#e53935;">*</span></label>
+      </div>
+      <span class="field-hint-decl" id="declarationHint"></span>
+    </div>
+
+
+    <!-- ── Action bar ── -->
+    <div class="action-bar">
+      <button class="btn-clear" onclick="backToLookup()">Back</button>
+      <button class="btn-clear" onclick="clearAll()">Clear All</button>
+      <button class="btn-save"  id="submitBtn" onclick="submitForm()">Submit</button>
+    </div>
+
+  </div><!-- end phaseForm -->
+
+  <!-- ── Success phase ── -->
+  <div id="phaseSuccess" style="display:none;">
+    <div style="text-align:center;padding:48px 24px;">
+      <div style="font-size:56px;margin-bottom:16px;">✅</div>
+      <h2 style="font-size:22px;font-weight:700;color:#2e7d32;margin-bottom:10px;">Application Submitted!</h2>
+      <p style="font-size:15px;color:#555;max-width:420px;margin:0 auto 24px;">
+        Thank you for submitting your membership application. Our team will review it and follow up with you shortly.
+      </p>
+      <button class="btn-save" onclick="clearAll();showPhase('lookup');" style="max-width:200px;">
+        Submit Another
+      </button>
+    </div>
+  </div>
+
+</div><!-- end page-wrap -->
+
+<script>
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+const CID = new URLSearchParams(location.search).get('cid') || '';
+let familyMembers    = [];   // additional members (not the primary/head)
+let editingIndex     = null; // index into familyMembers being edited
+let showDeclaration  = false;
+let declarationText  = '';
+let existingFamilyId = null;
+
+// OTP lookup state
+let otpFamilyId      = null;   // familyId returned from lookup (used for verify-otp)
+let otpLookupQuery   = '';     // the query the user searched with
+
+// Signup state
+let usernameCheckTimer  = null;
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+(async function init() {
+  if (!CID) { showInvalid('This link is missing a required token. Please use the link provided by your church administrator.'); return; }
+
+  // Show the lookup phase immediately — must happen before anything that could throw
+  showPhase('lookup');
+  populateDateDropdowns();
+
+  // Validate CID and load declaration config in the background
+  try {
+    const res  = await fetch(`/api/membership-form/config?cid=${encodeURIComponent(CID)}`);
+    let data = {};
+    try { data = await res.json(); } catch { /* ignore non-JSON body */ }
+    if (!res.ok) { showInvalid(data.error || 'This link is invalid or has expired.'); return; }
+
+    showDeclaration = !!data.showDeclaration;
+    declarationText = data.declarationText || '';
+
+    if (showDeclaration && declarationText) {
+      document.getElementById('declarationText').textContent   = declarationText;
+      document.getElementById('declarationCard').style.display = '';
+    }
+
+    // ── Church logo + name in header ──────────────────────────────────
+    if (data.churchName) {
+      document.getElementById('pubHeaderChurchName').textContent = data.churchName;
+    }
+    if (data.logoUrl) {
+      const iconEl = document.getElementById('pubHeaderIcon');
+      const img    = document.createElement('img');
+      img.src    = data.logoUrl;
+      img.alt    = data.churchName || 'Church logo';
+      img.onerror = function () { iconEl.textContent = 'CG'; };
+      iconEl.textContent = '';
+      iconEl.appendChild(img);
+    }
+  } catch {
+    // Network error — still allow the user to see the form; validation will fail on submit
+    console.warn('Could not reach config endpoint. Form will still display.');
+  }
+})();
+
+/* ══════════════════════════════════════
+   PHASE MANAGEMENT
+══════════════════════════════════════ */
+function showPhase(phase) {
+  document.getElementById('phaseLookup').style.display   = phase === 'lookup'   ? 'block' : 'none';
+  document.getElementById('phaseOtp').style.display      = phase === 'otp'      ? 'block' : 'none';
+  document.getElementById('phaseNoRecord').style.display = phase === 'noRecord' ? 'block' : 'none';
+  document.getElementById('phaseForm').style.display     = phase === 'form'     ? 'block' : 'none';
+  document.getElementById('phaseSuccess').style.display  = phase === 'success'  ? 'block' : 'none';
+  document.getElementById('pageTitle').textContent = '📋 Membership Form';
+  document.getElementById('pageSub').textContent   =
+    phase === 'lookup'   ? 'Enter your phone number or email to check if you\'re already registered.' :
+    phase === 'otp'      ? 'Please verify your identity to retrieve your membership details.' :
+    phase === 'noRecord' ? 'We could not find a matching record.' :
+    phase === 'success'  ? '' :
+                           'Please fill in your details and add all family members below.';
+  if (phase === 'form') renderRolesTable();
+}
+
+function clearAll() {
+  existingFamilyId = null;
+  otpFamilyId = null;
+  photoDataUrl = null;
+  familyMembers = [];
+  editingIndex  = null;
+  clearPrimaryForm();
+  clearPhoto();
+  clearAccountForm();
+  renderMembersTable();
+  document.getElementById('existingNotice').style.display = 'none';
+  const dh = document.getElementById('declarationHint');
+  if (dh) dh.textContent = '';
+  const dc = document.getElementById('declarationChk');
+  if (dc) dc.checked = false;
+  document.getElementById('submitBtn').disabled    = false;
+  document.getElementById('submitBtn').textContent = 'Submit';
+}
+
+function showNewMemberPhase() {
+  existingFamilyId = null;
+  otpFamilyId = null;
+  document.getElementById('existingNotice').style.display = 'none';
+  clearPrimaryForm();
+  clearPhoto();
+  clearAccountForm();
+  familyMembers = []; editingIndex = null;
+  renderMembersTable();
+  closeAddMemberForm();
+  document.getElementById('submitBtn').textContent = 'Submit';
+  showPhase('form');
+}
+
+function backToLookup() { existingFamilyId = null; otpFamilyId = null; showPhase('lookup'); }
+function clearAndSearchAgain() {
+  existingFamilyId = null;
+  otpFamilyId = null;
+  document.getElementById('lookupQuery').value = '';
+  document.getElementById('lookupMsg').style.display = 'none';
+  showPhase('lookup');
+}
+
+/* ══════════════════════════════════════
+   LOOKUP
+══════════════════════════════════════ */
+async function doLookup() {
+  const query = document.getElementById('lookupQuery').value.trim();
+  if (!query) { setLookupMsg('Please enter a phone number or email address.', 'error'); return; }
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.textContent = 'Searching…';
+  setLookupMsg('', '');
+
+  try {
+    const res  = await fetch(`/api/membership-form/lookup?cid=${encodeURIComponent(CID)}&query=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    if (!res.ok) { setLookupMsg(data.error || 'Search failed. Please try again.', 'error'); return; }
+
+    if (!data.found) {
+      // No record — show no-record phase
+      showPhase('noRecord');
+      return;
+    }
+
+    if (data.noEmail) {
+      // Found but no email on file — can't send OTP, show no-record phase with message
+      showPhase('noRecord');
+      return;
+    }
+
+    if (data.otpSent) {
+      // OTP sent — move to OTP verification phase
+      otpFamilyId    = data.familyId;
+      otpLookupQuery = query;
+      const maskedEmail = data.maskedEmail || 'your email';
+      document.getElementById('otpDesc').textContent =
+        `A 6-digit verification code has been sent to ${maskedEmail}. Please enter it below.`;
+      document.getElementById('otpCode').value = '';
+      document.getElementById('otpHint').textContent = '';
+      showPhase('otp');
+      setTimeout(() => document.getElementById('otpCode').focus(), 100);
+      return;
+    }
+
+    // Fallback: unexpected response
+    setLookupMsg('Unexpected response. Please try again.', 'error');
+
+  } catch { setLookupMsg('Network error. Please check your connection and try again.', 'error'); }
+  finally  { btn.disabled = false; btn.textContent = 'Search'; }
+}
+
+/* ── DOM helpers ── */
+function setVal(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
+function setSel(id, val) {
+  var el = document.getElementById(id); if (!el || val == null) return;
+  var opt = Array.from(el.options).find(function(o){ return String(o.value) === String(val); });
+  if (opt) el.value = opt.value;
+}
+
+/* ══════════════════════════════════════
+   OTP VERIFICATION
+══════════════════════════════════════ */
+async function verifyOtp() {
+  const code = document.getElementById('otpCode').value.trim();
+  if (!code || code.length < 6) {
+    document.getElementById('otpHint').textContent = 'Please enter the 6-digit code.';
+    return;
+  }
+  document.getElementById('otpHint').textContent = '';
+
+  const btn = document.getElementById('otpVerifyBtn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+
+  try {
+    const res  = await fetch('/api/membership-form/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cid: CID, familyId: otpFamilyId, code }),
+    });
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch (parseErr) {
+      console.error('verifyOtp non-JSON response:', rawText);
+      document.getElementById('otpHint').textContent = 'Server error (non-JSON response). Check logs.';
+      return;
+    }
+
+    if (!res.ok) {
+      document.getElementById('otpHint').textContent = data.error || 'Invalid code. Please try again.';
+      return;
+    }
+
+    // OTP verified — pre-fill form
+    const f   = data.family;
+    const all = f.members || [];
+    existingFamilyId = f.id;
+
+    const headMember   = all.find(m => m.role === 'Head') || all[0] || {};
+    const otherMembers = all.filter(m => m !== headMember);
+
+    setVal('pFirstName',  headMember.firstName   || '');
+    setVal('pLastName',   headMember.lastName    || '');
+    setVal('pPhone',      headMember.phone       || '');
+    setVal('pEmail',      headMember.email       || '');
+    setVal('pAddress1',   headMember.address1    || '');
+    setVal('pAddress2',   headMember.address2    || '');
+    setVal('pCity',       headMember.city        || '');
+    setVal('pPinCode',    headMember.pinCode     || '');
+    setVal('pNickName',   headMember.otherName   || '');
+    setSel('pGender',     headMember.gender);
+    setSel('pBirthMonth', headMember.birthdayMonth);
+    setSel('pBirthDay',   headMember.birthdayDay);
+    setSel('pBirthYear',  headMember.birthdayYear);
+    setSel('pState',      headMember.state);
+    setSel('pCountry',    headMember.country || 'USA');
+    if (document.getElementById('pPhonePrivate'))   document.getElementById('pPhonePrivate').checked   = !!headMember.phonePrivate;
+    if (document.getElementById('pEmailPrivate'))   document.getElementById('pEmailPrivate').checked   = !!headMember.emailPrivate;
+    if (document.getElementById('pAddressPrivate')) document.getElementById('pAddressPrivate').checked = !!headMember.addressPrivate;
+
+    familyMembers = otherMembers.map(m => ({
+      role:             m.role           || '',
+      gender:           m.gender         || '',
+      firstName:        m.firstName      || '',
+      lastName:         m.lastName       || '',
+      phone:            m.phone          || '',
+      email:            m.email          || '',
+      otherName:        m.otherName      || '',
+      birthdayMonth:    m.birthdayMonth  || null,
+      birthdayDay:      m.birthdayDay    || null,
+      birthdayYear:     m.birthdayYear   || null,
+      anniversaryMonth: m.anniversaryMonth || null,
+      anniversaryDay:   m.anniversaryDay   || null,
+      anniversaryYear:  m.anniversaryYear  || null,
+      sameAsFamilyAddress: m.sameAsFamilyAddress !== false,
+      address1: m.address1 || '', address2: m.address2 || '',
+      city: m.city || '', state: m.state || '', country: m.country || 'USA', pinCode: m.pinCode || '',
+    }));
+
+    editingIndex = null;
+    renderMembersTable();
+    closeAddMemberForm();
+    clearAccountForm();
+
+    document.getElementById('existingNotice').style.display = '';
+    document.getElementById('submitBtn').textContent = 'Submit';
+
+    showPhase('form');
+
+  } catch (err) {
+    console.error('verifyOtp error:', err);
+    document.getElementById('otpHint').textContent = 'Network error. Please try again. (Details: ' + (err && err.message ? err.message : err) + ')';
+  } finally  { btn.disabled = false; btn.textContent = 'Verify'; }
+}
+
+async function resendOtp() {
+  const btn = document.getElementById('resendBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const res  = await fetch('/api/membership-form/resend-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cid: CID, familyId: otpFamilyId }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('otpHint').textContent = '';
+      document.getElementById('otpCode').value = '';
+      // Show brief confirmation
+      btn.textContent = 'Code sent!';
+      setTimeout(() => { btn.textContent = 'Resend code'; btn.disabled = false; }, 3000);
+    } else {
+      document.getElementById('otpHint').textContent = data.error || 'Could not resend code. Please try again.';
+      btn.disabled = false; btn.textContent = 'Resend code';
+    }
+  } catch {
+    document.getElementById('otpHint').textContent = 'Network error. Please try again.';
+    btn.disabled = false; btn.textContent = 'Resend code';
+  }
+}
+
+function backToLookupFromOtp() {
+  otpFamilyId = null;
+  document.getElementById('otpCode').value = '';
+  document.getElementById('otpHint').textContent = '';
+  showPhase('lookup');
+}
+
+function setLookupMsg(msg, type) {
+  const el = document.getElementById('lookupMsg');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.style.color   = type === 'error' ? '#c62828' : type === 'info' ? '#1565c0' : '#333';
+  el.textContent   = (type === 'error' ? '❌ ' : type === 'info' ? 'ℹ️ ' : '') + msg;
+}
+
+function clearAccountForm() { /* removed — account setup section deleted */ }
+
+
+
+
+/* ══════════════════════════════════════
+   MONTHS — used by Roles table anniversary dropdowns
+══════════════════════════════════════ */
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Birth Month / Day / Year dropdowns are baked directly into the HTML
+// (inline <option> tags + inline <script> for year). No JS init needed.
+function populateDateDropdowns() { /* no-op — options already in HTML */ }
+
+/* ══════════════════════════════════════
+   MEMBER FORM — ROLE CHANGE
+══════════════════════════════════════ */
+function onMemberRoleChange(role) {
+  // Anniversary is handled in the Roles card, not the inline form
+}
+
+/* ══════════════════════════════════════
+   SAME-AS-PRIMARY ADDRESS
+══════════════════════════════════════ */
+function onSameAddr(checked) {
+  document.getElementById('mOwnAddrSection').style.display = checked ? 'none' : '';
+}
+
+/* ══════════════════════════════════════
+   OPEN / CLOSE ADD-MEMBER FORM
+══════════════════════════════════════ */
+function openAddMemberForm() {
+  editingIndex = null;
+  document.getElementById('memberFormTitle').textContent = 'Add Member';
+  document.getElementById('mFirstName').value = '';
+  document.getElementById('mLastName').value  = '';
+  document.getElementById('mPhone').value     = '';
+  document.getElementById('mEmail').value     = '';
+  document.getElementById('mOtherName') && (document.getElementById('mOtherName').value = '');
+  document.getElementById('mRole').value      = '';
+  document.getElementById('mGender').value    = '';
+  document.getElementById('mBirthMonth').value = '';
+  document.getElementById('mBirthDay').value   = '';
+  document.getElementById('mBirthYear').value  = '';
+  document.getElementById('mSameAddr').checked = true;
+  document.getElementById('mOwnAddrSection').style.display = 'none';
+  ['mFirstNameHint','mLastNameHint','mRoleHint'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '';
+  });
+  const form = document.getElementById('addMemberForm');
+  form.style.display = '';          // clear any stale inline style
+  form.classList.add('open');       // CSS gates visibility via .open
+  document.getElementById('btnOpenAdd').style.display = 'none';
+}
+
+function closeAddMemberForm() {
+  const form = document.getElementById('addMemberForm');
+  form.classList.remove('open');
+  form.style.display = '';           // let the base (hidden) CSS rule apply
+  document.getElementById('btnOpenAdd').style.display = '';
+}
+
+/* ══════════════════════════════════════
+   RENDER MEMBERS TABLE
+══════════════════════════════════════ */
+function renderMembersTable() {
+  const tbody  = document.getElementById('membersTbody');
+  const tbl    = document.getElementById('membersTbl');
+  const empty  = document.getElementById('emptyMembersMsg');
+  if (!familyMembers.length) {
+    tbl.style.display   = 'none';
+    empty.style.display = '';
+    return;
+  }
+  tbl.style.display   = '';
+  empty.style.display = 'none';
+  tbody.innerHTML = familyMembers.map((m, i) => {
+    const name = [m.firstName, m.lastName].filter(Boolean).join(' ') || '(unnamed)';
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + esc(name) + '</td>' +
+      '<td class="col-phone">' + formatPhone(m.phone) + '</td>' +
+      '<td class="col-email">' + esc(m.email || '\u2014') + '</td>' +
+      '<td>' + esc(m.role || '') + '</td>' +
+      '<td><button class="btn-action btn-edit" onclick="editMember(' + i + ')">Edit</button> ' +
+           '<button class="btn-action btn-delete" onclick="removeMember(' + i + ')">Remove</button></td>' +
+      '</tr>';
+  }).join('');
+  renderRolesTable();
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function editMember(i) {
+  const m = familyMembers[i];
+  if (!m) return;
+  editingIndex = i;
+  document.getElementById('memberFormTitle').textContent = 'Edit Member';
+  document.getElementById('mFirstName').value  = m.firstName || '';
+  document.getElementById('mLastName').value   = m.lastName  || '';
+  document.getElementById('mPhone').value      = m.phone     || '';
+  document.getElementById('mEmail').value      = m.email     || '';
+  document.getElementById('mRole').value       = m.role      || '';
+  document.getElementById('mGender').value     = m.gender    || '';
+  document.getElementById('mBirthMonth').value  = m.birthdayMonth || '';
+  document.getElementById('mBirthDay').value    = m.birthdayDay   || '';
+  document.getElementById('mBirthYear').value   = m.birthdayYear  || '';
+  const sameAddr = m.sameAsFamilyAddress !== false;
+  document.getElementById('mSameAddr').checked = sameAddr;
+  document.getElementById('mOwnAddrSection').style.display = sameAddr ? 'none' : '';
+  if (!sameAddr) {
+    document.getElementById('mAddr1')    && (document.getElementById('mAddr1').value    = m.address1 || '');
+    document.getElementById('mAddr2')    && (document.getElementById('mAddr2').value    = m.address2 || '');
+    document.getElementById('mCity')     && (document.getElementById('mCity').value     = m.city     || '');
+    document.getElementById('mState')    && (document.getElementById('mState').value    = m.state    || '');
+    document.getElementById('mCountry')  && (document.getElementById('mCountry').value  = m.country  || 'USA');
+    document.getElementById('mPinCode')  && (document.getElementById('mPinCode').value  = m.pinCode  || '');
+  }
+  const form = document.getElementById('addMemberForm');
+  form.style.display = '';
+  form.classList.add('open');
+  document.getElementById('btnOpenAdd').style.display = 'none';
+}
+
+function removeMember(i) {
+  familyMembers.splice(i, 1);
+  renderMembersTable();
+}
+
+/* ══════════════════════════════════════
+   SAVE MEMBER (Add / Edit)
+══════════════════════════════════════ */
+function saveMember() {
+  const firstName = document.getElementById('mFirstName').value.trim();
+  const lastName  = document.getElementById('mLastName').value.trim();
+  const role      = document.getElementById('mRole').value;
+
+  let valid = true;
+  if (!firstName) { document.getElementById('mFirstNameHint').textContent = 'Required.'; valid = false; }
+  else              document.getElementById('mFirstNameHint').textContent = '';
+  if (!lastName)  { document.getElementById('mLastNameHint').textContent  = 'Required.'; valid = false; }
+  else              document.getElementById('mLastNameHint').textContent  = '';
+  if (!role)      { document.getElementById('mRoleHint').textContent      = 'Required.'; valid = false; }
+  else              document.getElementById('mRoleHint').textContent      = '';
+  if (!valid) return;
+
+  const sameAddr = document.getElementById('mSameAddr').checked;
+  const member = {
+    firstName,
+    lastName,
+    phone:     document.getElementById('mPhone').value.trim(),
+    email:     document.getElementById('mEmail').value.trim(),
+    role,
+    gender:    document.getElementById('mGender').value,
+    birthdayMonth: document.getElementById('mBirthMonth').value || null,
+    birthdayDay:   document.getElementById('mBirthDay').value   || null,
+    birthdayYear:  document.getElementById('mBirthYear').value  || null,
+    sameAsFamilyAddress: sameAddr,
+    address1: sameAddr ? '' : (document.getElementById('mAddr1') ? document.getElementById('mAddr1').value.trim() : ''),
+    address2: sameAddr ? '' : (document.getElementById('mAddr2') ? document.getElementById('mAddr2').value.trim() : ''),
+    city:     sameAddr ? '' : (document.getElementById('mCity')     ? document.getElementById('mCity').value.trim()     : ''),
+    state:    sameAddr ? '' : (document.getElementById('mState')    ? document.getElementById('mState').value            : ''),
+    country:  sameAddr ? '' : (document.getElementById('mCountry')  ? document.getElementById('mCountry').value || 'USA' : 'USA'),
+    pinCode:  sameAddr ? '' : (document.getElementById('mPinCode')  ? document.getElementById('mPinCode').value.trim()  : ''),
+  };
+
+  if (editingIndex !== null) {
+    familyMembers[editingIndex] = member;
+  } else {
+    familyMembers.push(member);
+  }
+  renderMembersTable();
+  closeAddMemberForm();
+}
+
+/* ══════════════════════════════════════
+   ROLES TABLE
+══════════════════════════════════════ */
+function renderRolesTable() {
+  const tbody = document.getElementById('rolesTableBody');
+  if (!tbody) return;
+  const primaryFirst = (document.getElementById('pFirstName') ? document.getElementById('pFirstName').value.trim() : '');
+  const primaryLast  = (document.getElementById('pLastName')  ? document.getElementById('pLastName').value.trim()  : '');
+  const primaryName  = [primaryFirst, primaryLast].filter(Boolean).join(' ') || 'Primary Member';
+
+  const ROLES = ['Head','Spouse','Child','Parent','Sibling','Other'];
+  const allRows = [{ name: primaryName, isPrimary: true, index: -1 }]
+    .concat(familyMembers.map((m, i) => ({
+      name: [m.firstName, m.lastName].filter(Boolean).join(' ') || '(Member ' + (i+1) + ')',
+      isPrimary: false,
+      index: i,
+      role: m.role
+    })));
+
+  tbody.innerHTML = allRows.map(function(row) {
+    const roleOpts = ROLES.map(function(r) {
+      const sel = (!row.isPrimary && row.role === r) ? ' selected' : '';
+      return '<option value="' + r + '"' + sel + '>' + r + '</option>';
+    }).join('');
+
+    const roleSelect = row.isPrimary
+      ? '<span style="color:#673147;font-weight:600;">Head (Primary)</span>'
+      : '<select class="role-sel" onchange="onRoleRowChange(this,' + row.index + ')">' +
+        '<option value="">-- Select --</option>' + roleOpts + '</select>';
+
+    const showAnniv = !row.isPrimary && row.role === 'Spouse';
+    const annexHtml = showAnniv
+      ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<select id="annivMonth_' + row.index + '" style="min-width:80px;">' +
+            '<option value="">Month</option>' +
+            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+              .map(function(m,i){ return '<option value="'+(i+1)+'">' + m + '</option>'; }).join('') +
+          '</select>' +
+          '<select id="annivDay_' + row.index + '" style="min-width:65px;">' +
+            '<option value="">Day</option>' +
+            Array.from({length:31},function(_,i){ return '<option value="'+(i+1)+'">'+(i+1)+'</option>'; }).join('') +
+          '</select>' +
+          '<select id="annivYear_' + row.index + '" style="min-width:80px;">' +
+            '<option value="">Year</option>' +
+            (function(){ var opts='',y=new Date().getFullYear(); for(var i=y;i>=y-80;i--) opts+='<option value="'+i+'">'+i+'</option>'; return opts; })() +
+          '</select>' +
+        '</div>'
+      : '<span style="color:#ccc;font-size:12px;">N/A</span>';
+
+    return '<tr><td>' + esc(row.name) + (row.isPrimary ? ' <span style="font-size:10px;color:#c2185b;">Primary</span>' : '') + '</td>' +
+           '<td>' + roleSelect + '</td>' +
+           '<td>' + annexHtml + '</td></tr>';
+  }).join('');
+}
+
+function onRoleRowChange(sel, index) {
+  if (index >= 0 && familyMembers[index]) {
+    familyMembers[index].role = sel.value;
+  }
+  renderRolesTable();
+}
+
+/* ══════════════════════════════════════
+   PHOTO
+══════════════════════════════════════ */
+function onPhotoSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Photo must be under 2 MB.'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    photoDataUrl = e.target.result;
+    const prev = document.getElementById('photoPreview');
+    prev.innerHTML = '<img src="' + photoDataUrl + '" alt="Photo" />';
+    const btn = document.getElementById('clearPhotoBtn');
+    if (btn) btn.classList.add('show');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  photoDataUrl = null;
+  const prev = document.getElementById('photoPreview');
+  if (prev) prev.innerHTML = '<span class="photo-preview-icon">\uD83D\uDCF7</span>';
+  const btn = document.getElementById('clearPhotoBtn');
+  if (btn) btn.classList.remove('show');
+  const inp = document.getElementById('photoInput');
+  if (inp) inp.value = '';
+}
+
+/* ══════════════════════════════════════
+   CLEAR PRIMARY FORM
+══════════════════════════════════════ */
+function clearPrimaryForm() {
+  ['pFirstName','pLastName','pPhone','pEmail','pAddress1','pCity','pPinCode']
+    .forEach(function(id) { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['pGender','pBirthMonth','pBirthDay','pBirthYear','pState','pCountry']
+    .forEach(function(id) { const el = document.getElementById(id); if (el) el.value = ''; });
+  const pOther = document.getElementById('pOtherName');
+  if (pOther) pOther.value = '';
+  ['pFirstNameHint','pLastNameHint','pEmailHint']
+    .forEach(function(id) { const el = document.getElementById(id); if (el) el.textContent = ''; });
+  renderRolesTable();
+}
+
+/* ══════════════════════════════════════
+   SUBMIT FORM
+══════════════════════════════════════ */
+async function submitForm() {
+  // Validate primary
+  const pFirst = document.getElementById('pFirstName').value.trim();
+  const pLast  = document.getElementById('pLastName').value.trim();
+  let valid = true;
+  if (!pFirst) { document.getElementById('pFirstNameHint').textContent = 'Required.'; valid = false; }
+  else           document.getElementById('pFirstNameHint').textContent = '';
+  if (!pLast)  { document.getElementById('pLastNameHint').textContent  = 'Required.'; valid = false; }
+  else           document.getElementById('pLastNameHint').textContent  = '';
+  if (!valid) return;
+
+  // Declaration check
+  const declChk = document.getElementById('declarationChk');
+  if (showDeclaration && declChk && !declChk.checked) {
+    const hint = document.getElementById('declarationHint');
+    if (hint) hint.textContent = 'Please read and accept the declaration above.';
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting\u2026';
+
+  // Collect primary data
+  const primary = {
+    firstName:     pFirst,
+    lastName:      pLast,
+    phone:         document.getElementById('pPhone').value.trim(),
+    email:         document.getElementById('pEmail').value.trim(),
+    gender:        document.getElementById('pGender').value,
+    birthdayMonth: document.getElementById('pBirthMonth').value || null,
+    birthdayDay:   document.getElementById('pBirthDay').value   || null,
+    birthdayYear:  document.getElementById('pBirthYear').value  || null,
+    address1:      document.getElementById('pAddress1').value.trim(),
+    city:          document.getElementById('pCity').value.trim(),
+    state:         document.getElementById('pState').value,
+    country:       document.getElementById('pCountry').value || 'USA',
+    pinCode:       document.getElementById('pPinCode').value.trim(),
+    phonePrivate:   !!(document.getElementById('pPhonePrivate')   && document.getElementById('pPhonePrivate').checked),
+    emailPrivate:   !!(document.getElementById('pEmailPrivate')   && document.getElementById('pEmailPrivate').checked),
+    addressPrivate: !!(document.getElementById('pAddressPrivate') && document.getElementById('pAddressPrivate').checked),
+    photo:         photoDataUrl || null,
+  };
+
+  // Merge primary as Head member into members array (Java expects all in one list)
+  const primaryMember = Object.assign({}, primary, { role: 'Head' });
+  const allMembers = [primaryMember].concat(familyMembers);
+
+  const payload = {
+    cid:                 CID,
+    existingFamilyId:    existingFamilyId || null,
+    members:             allMembers,
+    declarationAccepted: (function() {
+      var dc = document.getElementById('declarationChk');
+      return dc ? dc.checked : false;
+    })(),
+  };
+
+  try {
+    const res  = await fetch('/api/membership-form/submit', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showPhase('success');
+    } else {
+      btn.disabled = false; btn.textContent = 'Submit';
+      const hint = document.getElementById('submitHint');
+      if (hint) { hint.textContent = data.error || 'Submission failed. Please try again.'; hint.style.display = ''; }
+      else alert(data.error || 'Submission failed. Please try again.');
+    }
+  } catch {
+    btn.disabled = false; btn.textContent = 'Submit';
+    alert('Network error. Please check your connection and try again.');
+  }
+}
+
+function showInvalid(msg) {
+  document.getElementById('phaseLookup').style.display   = 'none';
+  document.getElementById('phaseOtp').style.display      = 'none';
+  document.getElementById('phaseNoRecord').style.display = 'none';
+  document.getElementById('phaseForm').style.display     = 'none';
+  document.getElementById('phaseSuccess').style.display  = 'none';
+  const el = document.getElementById('alertInvalid');
+  if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+}
+</script>
+</body>
+</html>

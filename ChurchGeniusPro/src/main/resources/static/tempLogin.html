@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Temporary Access — Login</title>
+  <!-- html5-qrcode: reliable in-browser camera scanner (Code 128 + QR, native
+       BarcodeDetector with a ZXing fallback). Manages the camera/video itself. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root { --brand:#673147; --brand-dk:#4d2435; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:linear-gradient(135deg,#f3eef1,#e9dde3);
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
+    .card { width:400px; max-width:94vw; background:#fff; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.12);
+            padding:28px 26px; }
+    .logo { text-align:center; font-size:22px; font-weight:800; color:var(--brand); margin-bottom:4px; }
+    .sub  { text-align:center; color:#888; font-size:13px; margin-bottom:20px; }
+    label { display:block; font-size:12.5px; font-weight:700; color:#555; margin:14px 0 5px; }
+    input { width:100%; padding:11px 13px; border:1.5px solid #ddd; border-radius:9px; font-size:15px; outline:none; }
+    input:focus { border-color:var(--brand); box-shadow:0 0 0 4px rgba(103,49,71,.1); }
+    #code { letter-spacing:6px; font-size:20px; text-align:center; }
+    .scan-row { display:flex; gap:8px; align-items:stretch; }
+    .scan-row input { flex:1; }
+    .btn-cam { flex:0 0 auto; border:1.5px solid var(--brand); background:#fff; color:var(--brand); border-radius:9px;
+               padding:0 14px; font-size:18px; cursor:pointer; }
+    .btn-cam:hover { background:#faf2f6; }
+    .btn  { width:100%; margin-top:20px; padding:12px; border:none; border-radius:10px; background:var(--brand);
+            color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+    .btn:hover { background:var(--brand-dk); }
+    .btn[disabled] { opacity:.6; cursor:not-allowed; }
+    .msg  { margin-top:14px; font-size:13px; border-radius:8px; padding:9px 11px; display:none; }
+    .msg.err { background:#fdecee; color:#c0392b; border:1px solid #f3c6cc; display:block; }
+    .msg.info{ background:#eef4fd; color:#2c5fa3; border:1px solid #cfe0f6; display:block; }
+    .msg.ok  { background:#e8f6ec; color:#1e7e34; border:1px solid #bfe6c9; display:block; }
+    .hint { font-size:11.5px; color:#aaa; text-align:center; margin-top:16px; }
+
+    /* Camera scanner panel */
+    .cam { margin-top:14px; display:none; }
+    .cam.open { display:block; }
+    .cam-frame { position:relative; width:100%; min-height:240px; aspect-ratio:4/3; background:#000; border-radius:12px; overflow:hidden; }
+    .cam-frame video { width:100% !important; height:100% !important; object-fit:cover; }
+    .cam-frame img { display:none; }   /* html5-qrcode camera icon placeholder */
+    .cam-status { font-size:12px; color:#555; text-align:center; margin-top:8px; }
+    .cam-cancel { width:100%; margin-top:8px; padding:9px; border:1.5px solid #ccc; background:#fff; color:#555;
+                  border-radius:9px; font-weight:600; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">ChurchGenius Pro</div>
+    <div class="sub">Temporary Access</div>
+
+    <div id="msg" class="msg"></div>
+
+    <form id="loginForm" autocomplete="off">
+      <label for="barcode">Scan badge</label>
+      <div class="scan-row">
+        <input id="barcode" type="text" placeholder="Scan with a barcode scanner…" autofocus />
+        <button type="button" class="btn-cam" id="camBtn" title="Scan with your device camera" aria-label="Scan with camera">📷</button>
+      </div>
+
+      <!-- Mobile-camera scanner (html5-qrcode injects its own <video> into #camReader) -->
+      <div class="cam" id="camPanel">
+        <div id="camReader" class="cam-frame"></div>
+        <div class="cam-status" id="camStatus">Point the camera at the badge barcode…</div>
+        <button type="button" class="cam-cancel" id="camCancel">Cancel camera</button>
+      </div>
+
+      <label for="code">6-digit code</label>
+      <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" />
+
+      <button id="submitBtn" class="btn" type="submit">Enter</button>
+    </form>
+
+    <div class="hint">Scan your printed badge with a scanner or your camera, then enter the code from your email.</div>
+
+    <!-- ── NTAG (NFC) login ── -->
+    <div style="margin-top:18px;border-top:1px solid #eee;padding-top:16px;">
+      <button type="button" class="btn" id="ntagStartBtn" style="margin-top:0;background:#4d2435;">🔐 Login with NTAG</button>
+      <div id="ntagPanel" style="display:none;margin-top:14px;">
+        <div id="ntagBody"></div>
+        <div id="ntagMsg" class="msg"></div>
+        <button type="button" class="cam-cancel" id="ntagCancel" style="margin-top:10px;">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Back to the main login page -->
+    <div style="margin-top:20px;text-align:center;border-top:1px solid #eee;padding-top:16px;">
+      <a href="/login.html" style="display:inline-flex;align-items:center;gap:6px;color:#673147;font-size:14px;font-weight:600;text-decoration:none;">
+        <span style="font-size:16px;">←</span> Back to Login
+      </a>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var startBtn = document.getElementById('ntagStartBtn');
+    var panel    = document.getElementById('ntagPanel');
+    var bodyEl   = document.getElementById('ntagBody');
+    var msgEl    = document.getElementById('ntagMsg');
+    var cancel   = document.getElementById('ntagCancel');
+    var token    = null, reader = null;
+
+    function show(t, kind) { msgEl.textContent = t || ''; msgEl.className = 'msg ' + (kind || ''); }
+    function open() { panel.style.display = 'block'; startBtn.style.display = 'none'; }
+    function close() { panel.style.display = 'none'; startBtn.style.display = ''; bodyEl.innerHTML = ''; show(''); token = null; stopNfc(); }
+    function stopNfc() { reader = null; }   // NDEFReader has no stop(); dropping the ref is enough
+    function post(url, payload) {
+      return fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+    }
+
+    cancel.addEventListener('click', close);
+
+    startBtn.addEventListener('click', function () {
+      open();
+      if ('NDEFReader' in window && window.isSecureContext) {
+        scanStep();
+      } else {
+        manualStep('NFC isn’t available on this device/browser — enter your NTAG ID, or use the badge login above.');
+      }
+    });
+
+    function scanStep() {
+      bodyEl.innerHTML = '<div style="text-align:center;padding:14px 0;">'
+        + '<div style="font-size:40px;">📶</div><div style="font-size:14px;color:#555;margin-top:8px;">Tap your NTAG tag on the back of the phone…</div></div>';
+      show('');
+      try {
+        reader = new NDEFReader();
+        reader.scan().then(function () {
+          reader.onreading = function (e) {
+            var serial = (e.serialNumber || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (serial) { stopNfc(); doStart(serial); }
+          };
+          reader.onreadingerror = function () { show('Could not read the tag. Try again or enter the ID manually.', 'err'); };
+        }).catch(function (err) { manualStep('Could not start NFC (' + (err && err.name || 'error') + '). Enter your NTAG ID manually.'); });
+      } catch (err) { manualStep('NFC scan failed to start. Enter your NTAG ID manually.'); }
+    }
+
+    function manualStep(note) {
+      bodyEl.innerHTML = '<label for="ntagId">NTAG ID</label>'
+        + '<input id="ntagId" type="text" placeholder="Enter the tag ID" autocomplete="off" />'
+        + '<button type="button" class="btn" id="ntagIdGo">Continue</button>';
+      if (note) show(note, 'info');
+      document.getElementById('ntagIdGo').addEventListener('click', function () {
+        var v = document.getElementById('ntagId').value.trim();
+        if (!v) { show('Enter your NTAG ID.', 'err'); return; }
+        doStart(v);
+      });
+    }
+
+    function doStart(serial) {
+      show('Checking tag…', 'info');
+      post('/api/ntag-login/start', { serial: serial }).then(function (res) {
+        if (!res.ok) { notRecognized(serial, res.j && res.j.message); return; }
+        token = res.j.token;
+        if (res.j.stage === 'AWAIT_PIN') pinStep();
+        else if (res.j.stage === 'AWAIT_OTP') otpStep(res.j.maskedEmail, true);
+        else finalize();
+      }).catch(function () { show('Network error. Please try again.', 'err'); });
+    }
+
+    // When a tag isn't recognized, surface the exact serial that was read so it can be
+    // compared against the value registered in the NTAG admin page, and let the user
+    // correct/re-enter it manually.
+    function notRecognized(serial, message) {
+      var readId = (serial == null ? '' : String(serial)).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      bodyEl.innerHTML =
+          '<div style="font-size:13px;color:#555;margin-bottom:8px;">'
+        + (message || 'This NTAG is not recognized.')
+        + '</div>'
+        + (readId ? ('<div style="font-size:12px;color:#777;margin-bottom:10px;">Serial read from tag: '
+            + '<span style="font-family:monospace;font-weight:600;color:#333;">' + readId + '</span><br>'
+            + 'Make sure this exact serial is registered (and enabled) in the NTAG admin page.</div>') : '')
+        + '<label for="ntagId">NTAG ID</label>'
+        + '<input id="ntagId" type="text" placeholder="Enter the tag ID" autocomplete="off" value="' + readId + '" />'
+        + '<button type="button" class="btn" id="ntagIdGo">Try again</button>';
+      show('');
+      document.getElementById('ntagIdGo').addEventListener('click', function () {
+        var v = document.getElementById('ntagId').value.trim();
+        if (!v) { show('Enter your NTAG ID.', 'err'); return; }
+        doStart(v);
+      });
+    }
+
+    function pinStep() {
+      bodyEl.innerHTML = '<label for="ntagPin">6-digit PIN</label>'
+        + '<input id="ntagPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" style="letter-spacing:6px;text-align:center;" />'
+        + '<button type="button" class="btn" id="ntagPinGo">Verify PIN</button>';
+      show('');
+      var pin = document.getElementById('ntagPin');
+      pin.addEventListener('input', function () { pin.value = pin.value.replace(/\D/g, '').slice(0, 6); });
+      pin.focus();
+      document.getElementById('ntagPinGo').addEventListener('click', function () {
+        if (pin.value.length !== 6) { show('Enter your 6-digit PIN.', 'err'); return; }
+        show('Verifying…', 'info');
+        post('/api/ntag-login/pin', { token: token, pin: pin.value }).then(function (res) {
+          if (!res.ok) { show(res.j.message || 'Incorrect PIN.', 'err'); pin.value = ''; pin.focus(); return; }
+          if (res.j.stage === 'AWAIT_OTP') otpStep(res.j.maskedEmail, true);
+          else finalize();
+        });
+      });
+    }
+
+    function otpStep(maskedEmail, justSent) {
+      bodyEl.innerHTML = '<label for="ntagOtp">Email code</label>'
+        + '<input id="ntagOtp" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" style="letter-spacing:6px;text-align:center;" />'
+        + '<button type="button" class="btn" id="ntagOtpGo">Verify &amp; Log In</button>';
+      show((justSent ? 'We sent a code to ' + (maskedEmail || 'your email') + '.' : ''), 'info');
+      var otp = document.getElementById('ntagOtp');
+      otp.addEventListener('input', function () { otp.value = otp.value.replace(/\D/g, '').slice(0, 6); });
+      otp.focus();
+      document.getElementById('ntagOtpGo').addEventListener('click', function () {
+        if (otp.value.length !== 6) { show('Enter the 6-digit code from your email.', 'err'); return; }
+        show('Verifying…', 'info');
+        post('/api/ntag-login/otp', { token: token, otp: otp.value }).then(function (res) {
+          if (!res.ok) { show(res.j.message || 'Incorrect code.', 'err'); otp.value = ''; otp.focus(); return; }
+          finalize();
+        });
+      });
+    }
+
+    function finalize() {
+      show('Logging you in…', 'ok');
+      post('/api/ntag-login/finalize', { token: token }).then(function (res) {
+        if (res.ok && res.j.status === 'success') window.location.href = res.j.startPage || '/home';
+        else show((res.j && res.j.message) || 'Could not complete login.', 'err');
+      });
+    }
+  })();
+  </script>
+
+  <script>
+    (function () {
+      var barcode = document.getElementById('barcode');
+      var code    = document.getElementById('code');
+      var form    = document.getElementById('loginForm');
+      var btn     = document.getElementById('submitBtn');
+      var msg     = document.getElementById('msg');
+      var camBtn  = document.getElementById('camBtn');
+      var camPanel= document.getElementById('camPanel');
+      var camStatus = document.getElementById('camStatus');
+      var camCancel = document.getElementById('camCancel');
+
+      function show(text, kind) { msg.textContent = text; msg.className = 'msg ' + kind; }
+
+      var params = new URLSearchParams(location.search);
+      if (params.get('reason') === 'expired') show('Your temporary access has ended. Please scan your badge to log in again.', 'info');
+
+      /* ── Physical scanner: it types the value then sends Enter — jump to code ── */
+      barcode.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); if (barcode.value.trim()) code.focus(); }
+      });
+      code.addEventListener('input', function () { code.value = code.value.replace(/\D/g, '').slice(0, 6); });
+
+      /* ── Mobile camera scanner (html5-qrcode: Code 128 + QR, etc.) ── */
+      var qr = null, scanning = false, handled = false;
+
+      function supportedFormats() {
+        if (!window.Html5QrcodeSupportedFormats) return undefined;   // null = scan all formats
+        var F = Html5QrcodeSupportedFormats;
+        return [F.CODE_128, F.QR_CODE, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF];
+      }
+
+      function stopCamera() {
+        scanning = false;
+        camPanel.classList.remove('open');
+        camBtn.textContent = '📷';
+        if (qr) {
+          var inst = qr; qr = null;
+          try {
+            inst.stop().then(function () { try { inst.clear(); } catch (e) {} })
+                       .catch(function () { try { inst.clear(); } catch (e) {} });
+          } catch (e) { try { inst.clear(); } catch (e2) {} }
+        }
+      }
+
+      function onScanned(text) {
+        if (handled) return; handled = true;
+        barcode.value = String(text || '').trim();         // auto-populate the field
+        stopCamera();
+        show('Badge scanned ✓ — now enter your 6-digit code.', 'ok');
+        code.focus();
+      }
+
+      function startCamera() {
+        if (!window.Html5Qrcode) {
+          show('The scanner library failed to load. Use a barcode scanner or type the badge value.', 'err');
+          return;
+        }
+        if (!window.isSecureContext) {
+          show('Camera scanning needs a secure (HTTPS) connection. Use a barcode scanner or type the badge value.', 'err');
+          return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          show('Camera scanning isn’t available on this device/browser. Use a barcode scanner or type the badge value.', 'err');
+          return;
+        }
+
+        handled = false; scanning = true;
+        camPanel.classList.add('open'); camBtn.textContent = '✕';
+        camStatus.textContent = 'Starting camera…'; show('', '');
+
+        try {
+          qr = new Html5Qrcode('camReader', { formatsToSupport: supportedFormats(), verbose: false });
+        } catch (e) { camError('Unable to initialize the scanner.'); return; }
+
+        // No qrbox → scan the whole frame (more forgiving for 1-D barcodes like Code 128).
+        var config = { fps: 12, aspectRatio: 1.3333, disableFlip: false };
+
+        var onHit  = function (decodedText) { if (scanning) { camStatus.textContent = 'Barcode detected.'; onScanned(decodedText); } };
+        var onMiss = function () { /* per-frame: no barcode in view yet — ignore */ };
+        var ok     = function () { camStatus.textContent = 'Point the camera at the badge barcode…'; };
+
+        // Plain string facingMode is the most widely supported form. Try the rear
+        // camera first (phones/tablets), then any camera (laptops/desktops), then
+        // an explicit device id; surface the real error so failures are diagnosable.
+        function tryStart(constraint) { try { return qr.start(constraint, config, onHit, onMiss); } catch (e) { return Promise.reject(e); } }
+
+        tryStart({ facingMode: 'environment' })
+          .then(ok)
+          .catch(function () {
+            if (!scanning) return;
+            tryStart({ facingMode: 'user' })
+              .then(ok)
+              .catch(function () {
+                if (!scanning) return;
+                Html5Qrcode.getCameras().then(function (cams) {
+                  if (!scanning) return;
+                  if (!cams || !cams.length) { camError('No camera was found on this device.'); return; }
+                  tryStart(cams[cams.length - 1].id).then(ok)
+                    .catch(function (err) { camError(camMessage(err)); });
+                }).catch(function (err) { camError(camMessage(err)); });
+              });
+          });
+      }
+
+      // Map a getUserMedia error to a clear, actionable message.
+      function camMessage(err) {
+        var name = (err && (err.name || err.message || '')) + '';
+        if (/NotAllowed|Permission|Security/i.test(name))
+          return 'Camera access was blocked. Tap the camera/lock icon in the address bar to allow it, then try again.';
+        if (/NotFound|Devices|OverConstrained/i.test(name))
+          return 'No usable camera was found on this device.';
+        if (/NotReadable|TrackStart|InUse/i.test(name))
+          return 'The camera is being used by another app or tab. Close it and try again.';
+        return 'Unable to start the camera' + (name ? (' (' + name + ')') : '') + '.';
+      }
+
+      function camError(text) {
+        stopCamera();
+        show(text + ' You can use a barcode scanner or type the badge value instead.', 'err');
+      }
+
+      camBtn.addEventListener('click', function () { if (scanning) stopCamera(); else startCamera(); });
+      camCancel.addEventListener('click', stopCamera);
+      window.addEventListener('beforeunload', stopCamera);
+
+      /* ── Submit: validate barcode + 6-digit code ── */
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var bc = barcode.value.trim(), cd = code.value.trim();
+        if (!bc) { show('Please scan your badge (scanner or camera), or type the badge value.', 'err'); barcode.focus(); return; }
+        if (cd.length !== 6) { show('Enter the 6-digit code from your email.', 'err'); code.focus(); return; }
+        stopCamera();
+        btn.disabled = true; btn.textContent = 'Checking…';
+        fetch('/api/temp-access/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ barcode: bc, code: cd })
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (res.ok && res.j.status === 'success') {
+              show('Access granted. Redirecting…', 'ok');
+              window.location.href = res.j.startPage || '/home';
+            } else {
+              show((res.j && res.j.message) || 'Invalid badge or code.', 'err');
+              btn.disabled = false; btn.textContent = 'Enter';
+              code.value = ''; code.focus();
+            }
+          }).catch(function () {
+            show('Something went wrong. Please try again.', 'err');
+            btn.disabled = false; btn.textContent = 'Enter';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

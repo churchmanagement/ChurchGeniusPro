@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Baptism Certificate – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 24px; display: flex; align-items: center; gap: 14px; }
+    .page-back {
+      display: flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border-radius: 8px;
+      background: #fff; border: 1px solid #e0e0e0;
+      font-size: 16px; color: #555; cursor: pointer; flex-shrink: 0;
+      transition: background .15s, border-color .15s;
+    }
+    .page-back:hover { background: #f0e8ec; border-color: #c5a8b8; color: #673147; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Form card ── */
+    .form-wrap {
+      max-width: 520px;
+    }
+    .form-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      overflow: hidden;
+    }
+    .form-card-header {
+      background: #673147;
+      padding: 16px 22px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .form-card-header h3 {
+      font-size: 14px; font-weight: 700; color: #fff;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .form-card-body { padding: 26px 24px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Field ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: 12px; font-weight: 700; color: #666;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .required-star { color: #e53935; margin-left: 2px; }
+
+    .field input, .field select {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .field input::placeholder { color: #bbb; }
+    .field input:focus, .field select:focus {
+      border-color: #673147;
+      box-shadow: 0 0 0 3px rgba(103,49,71,.1);
+    }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* ── Member search dropdown ── */
+    .search-container { position: relative; }
+    .search-input-wrap {
+      display: flex; align-items: center;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .search-input-wrap:focus-within {
+      border-color: #673147;
+      box-shadow: 0 0 0 3px rgba(103,49,71,.1);
+    }
+    .search-input-wrap input {
+      border: none; border-radius: 0; box-shadow: none;
+      padding: 10px 13px; flex: 1;
+    }
+    .search-input-wrap input:focus { box-shadow: none; }
+    .search-clear-btn {
+      padding: 8px 12px; font-size: 16px; color: #bbb;
+      background: none; border: none; cursor: pointer;
+      transition: color .15s;
+    }
+    .search-clear-btn:hover { color: #673147; }
+
+    .dropdown-list {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      max-height: 220px; overflow-y: auto; z-index: 100;
+      display: none;
+    }
+    .dropdown-list.open { display: block; }
+    .dropdown-item {
+      padding: 10px 14px; font-size: 14px; cursor: pointer;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background .12s;
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover, .dropdown-item.highlighted { background: #f0e8ec; }
+    .dropdown-item-name { font-weight: 600; color: #333; }
+    .dropdown-item-sub  { font-size: 12px; color: #999; margin-top: 1px; }
+    .dropdown-empty {
+      padding: 16px 14px; font-size: 13px; color: #bbb; text-align: center;
+    }
+
+    /* ── Divider ── */
+    .or-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: #bbb; font-weight: 600;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; border-top: 1px solid #e8e8e8;
+    }
+
+    /* ── Selected member badge ── */
+    .selected-member {
+      display: none;
+      align-items: center; gap: 10px;
+      background: #f0e8ec; border: 1px solid #c5a8b8;
+      border-radius: 8px; padding: 10px 14px;
+    }
+    .selected-member.show { display: flex; }
+    .selected-member-name { font-size: 14px; font-weight: 600; color: #673147; flex: 1; }
+    .selected-member-remove {
+      font-size: 14px; color: #c5a8b8; cursor: pointer;
+      padding: 2px 6px; border-radius: 4px; transition: color .15s;
+    }
+    .selected-member-remove:hover { color: #e53935; }
+
+    /* ── Action buttons ── */
+    .form-footer {
+      padding: 18px 24px; border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: flex-end; gap: 12px;
+    }
+    .btn-cancel {
+      padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      color: #666; background: #f0f0f0; transition: background .15s;
+    }
+    .btn-cancel:hover { background: #e0e0e0; }
+    .btn-next {
+      padding: 9px 24px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      color: #fff; background: #673147; transition: background .15s;
+    }
+    .btn-next:hover { background: #4f2538; }
+    .btn-next:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── Error alert ── */
+    .alert {
+      padding: 11px 16px; border-radius: 8px; font-size: 13px;
+      background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;
+      display: none;
+    }
+    .alert.show { display: block; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <a href="/certificates" class="page-back" title="Back to Certificates">←</a>
+        <div>
+          <div class="page-title">Baptism Certificate</div>
+          <div class="page-subtitle">Select a member or enter a name to generate the certificate</div>
+        </div>
+      </div>
+
+      <div class="form-wrap">
+        <div class="form-card">
+
+          <div class="form-card-header">
+            <span style="font-size:16px;">✝️</span>
+            <h3>Candidate Details</h3>
+          </div>
+
+          <div class="form-card-body">
+
+            <!-- Alert -->
+            <div class="alert" id="alertMsg"></div>
+
+            <!-- Member search -->
+            <div class="field">
+              <label>Search Member / Guest</label>
+              <div class="search-container" id="searchContainer">
+                <div class="search-input-wrap">
+                  <input type="text" id="memberSearch"
+                         placeholder="Type a name to search…"
+                         autocomplete="off"
+                         oninput="onSearchInput(this.value)"
+                         onkeydown="onSearchKeyDown(event)"
+                         onfocus="onSearchFocus()" />
+                  <button class="search-clear-btn" id="searchClearBtn"
+                          onclick="clearMemberSearch()" title="Clear" style="display:none;">✕</button>
+                </div>
+                <div class="dropdown-list" id="dropdownList"></div>
+              </div>
+              <!-- Selected member badge -->
+              <div class="selected-member" id="selectedMemberBadge">
+                <span class="selected-member-name" id="selectedMemberName"></span>
+                <button class="selected-member-remove" onclick="clearSelection()" title="Remove">✕</button>
+              </div>
+            </div>
+
+            <!-- OR divider -->
+            <div class="or-divider">OR</div>
+
+            <!-- Manual name -->
+            <div class="field">
+              <label for="manualName">Enter Name Manually</label>
+              <input type="text" id="manualName"
+                     placeholder="Full name of the candidate"
+                     oninput="onManualInput()" />
+              <div class="field-hint" id="manualNameHint"></div>
+            </div>
+
+            <!-- Baptism date -->
+            <div class="field">
+              <label for="baptismDate">Date of Baptism <span class="required-star">*</span></label>
+              <input type="date" id="baptismDate" />
+              <div class="field-hint" id="baptismDateHint"></div>
+            </div>
+
+          </div><!-- /.form-card-body -->
+
+          <div class="form-footer">
+            <a href="/certificates" class="btn-cancel">Cancel</a>
+            <button class="btn-next" id="nextBtn" onclick="proceed()">Next →</button>
+          </div>
+
+        </div><!-- /.form-card -->
+      </div><!-- /.form-wrap -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  /* ── State ── */
+  let allMembers      = [];
+  let filteredMembers = [];
+  let selectedMember  = null;   // { id, name, memberType }
+  let highlightIdx    = -1;
+
+  /* ── Load members ── */
+  async function loadMembers() {
+    try {
+      const res = await fetch('/api/members?search=&memberType=Member,Guest');
+      if (!res.ok) return;
+      const data = await res.json();
+      allMembers = Array.isArray(data) ? data : (data.members || []);
+    } catch (e) {
+      // silently fail; user can still use manual entry
+    }
+  }
+
+  /* ── Search input handler ── */
+  function onSearchInput(val) {
+    document.getElementById('searchClearBtn').style.display = val ? '' : 'none';
+    // If a member was previously selected via dropdown, clear it
+    if (selectedMember && val !== selectedMember.name) {
+      clearSelection(false);
+    }
+    filterDropdown(val);
+  }
+
+  function onSearchFocus() {
+    const val = document.getElementById('memberSearch').value;
+    filterDropdown(val);
+  }
+
+  function filterDropdown(val) {
+    const q = val.trim().toLowerCase();
+    if (!q) {
+      closeDropdown();
+      return;
+    }
+    filteredMembers = allMembers.filter(m =>
+      (m.name || '').toLowerCase().includes(q)
+    ).slice(0, 40);
+    renderDropdown();
+  }
+
+  function renderDropdown() {
+    const list = document.getElementById('dropdownList');
+    if (!filteredMembers.length) {
+      list.innerHTML = '<div class="dropdown-empty">No members found</div>';
+      list.classList.add('open');
+      return;
+    }
+    list.innerHTML = filteredMembers.map((m, i) => `
+      <div class="dropdown-item" data-idx="${i}"
+           onmousedown="selectMember(${i})"
+           onmouseover="setHighlight(${i})">
+        <div class="dropdown-item-name">${escHtml(m.name || '')}</div>
+        <div class="dropdown-item-sub">${escHtml(m.memberType || '')}</div>
+      </div>
+    `).join('');
+    list.classList.add('open');
+    highlightIdx = -1;
+  }
+
+  function setHighlight(idx) {
+    highlightIdx = idx;
+    document.querySelectorAll('.dropdown-item').forEach((el, i) => {
+      el.classList.toggle('highlighted', i === idx);
+    });
+  }
+
+  function closeDropdown() {
+    document.getElementById('dropdownList').classList.remove('open');
+    highlightIdx = -1;
+  }
+
+  function selectMember(idx) {
+    const m = filteredMembers[idx];
+    if (!m) return;
+    selectedMember = m;
+    document.getElementById('memberSearch').value = m.name || '';
+    document.getElementById('searchClearBtn').style.display = '';
+    document.getElementById('selectedMemberName').textContent = m.name || '';
+    document.getElementById('selectedMemberBadge').classList.add('show');
+    document.getElementById('manualName').value = '';
+    closeDropdown();
+    updateNextBtn();
+  }
+
+  function clearSelection(resetInput = true) {
+    selectedMember = null;
+    if (resetInput) document.getElementById('memberSearch').value = '';
+    document.getElementById('searchClearBtn').style.display = 'none';
+    document.getElementById('selectedMemberBadge').classList.remove('show');
+    closeDropdown();
+    updateNextBtn();
+  }
+
+  function clearMemberSearch() {
+    clearSelection(true);
+  }
+
+  /* ── Keyboard navigation ── */
+  function onSearchKeyDown(e) {
+    const list = document.getElementById('dropdownList');
+    const isOpen = list.classList.contains('open');
+    if (!isOpen) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight(Math.min(highlightIdx + 1, filteredMembers.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight(Math.max(highlightIdx - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightIdx >= 0) selectMember(highlightIdx);
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  }
+
+  /* ── Close dropdown on outside click ── */
+  document.addEventListener('click', e => {
+    if (!document.getElementById('searchContainer').contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  /* ── Manual name handler ── */
+  function onManualInput() {
+    // If user types manually, clear member selection
+    if (selectedMember) clearSelection(false);
+    document.getElementById('manualNameHint').textContent = '';
+    updateNextBtn();
+  }
+
+  /* ── Update Next button state ── */
+  function updateNextBtn() {
+    const hasName = selectedMember || document.getElementById('manualName').value.trim();
+    document.getElementById('nextBtn').disabled = !hasName;
+  }
+
+  /* ── Proceed to certificate page ── */
+  function proceed() {
+    const dateVal  = document.getElementById('baptismDate').value;
+    const manual   = document.getElementById('manualName').value.trim();
+
+    let candidateName = '';
+    let memberId      = '';
+
+    if (selectedMember) {
+      candidateName = selectedMember.name || '';
+      memberId      = selectedMember.id   || '';
+    } else if (manual) {
+      candidateName = manual;
+    } else {
+      showAlert('Please select a member or enter a name.');
+      return;
+    }
+
+    if (!dateVal) {
+      document.getElementById('baptismDateHint').textContent = 'Please select a date.';
+      document.getElementById('baptismDate').focus();
+      return;
+    }
+    document.getElementById('baptismDateHint').textContent = '';
+    hideAlert();
+
+    const params = new URLSearchParams({
+      name: candidateName,
+      date: dateVal,
+    });
+    if (memberId) params.set('memberId', memberId);
+
+    window.location.href = '/certificates/baptism-certificate?' + params.toString();
+  }
+
+  /* ── Alert helpers ── */
+  function showAlert(msg) {
+    const el = document.getElementById('alertMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideAlert() {
+    document.getElementById('alertMsg').classList.remove('show');
+  }
+
+  /* ── Utility ── */
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Init ── */
+  loadMembers();
+  updateNextBtn();
+
+  // Default date to today
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,'0');
+  const d = String(today.getDate()).padStart(2,'0');
+  document.getElementById('baptismDate').value = `${y}-${m}-${d}`;
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/certificates', openSection: 'more', pageTitle: 'Certificates' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

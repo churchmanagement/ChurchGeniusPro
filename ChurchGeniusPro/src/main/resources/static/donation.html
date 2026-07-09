@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Give Online – Church Genius Pro</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #673147 0%, #3949ab 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 16px 48px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .card-header {
+      background: linear-gradient(135deg, #673147, #3949ab);
+      padding: 28px 32px 24px;
+      text-align: center;
+      color: #fff;
+    }
+    .header-icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+    .header-icon img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: rgba(255,255,255,.15);
+      padding: 4px;
+      display: block;
+      margin: 0 auto;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .header-sub {
+      font-size: 13px;
+      opacity: .8;
+    }
+
+    /* ── Body ── */
+    .card-body { padding: 28px 32px 32px; }
+
+    /* ── Amount presets ── */
+    .amount-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .preset-btn {
+      padding: 10px 4px;
+      border: 2px solid #e8eaf0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      color: #673147;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .preset-btn:hover  { border-color: #673147; color: #673147; }
+    .preset-btn.active { border-color: #673147; background: #673147; color: #fff; }
+
+    /* ── Input fields ── */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #333;
+      transition: border-color .15s;
+      outline: none;
+    }
+    .field input:focus { border-color: #673147; }
+    .amount-wrap { position: relative; }
+    .amount-prefix {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px;
+      font-weight: 700;
+      color: #555;
+    }
+    .amount-wrap input { padding-left: 26px; font-size: 18px; font-weight: 700; }
+
+    /* ── Row ── */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 400px) { .field-row { grid-template-columns: 1fr; } }
+
+    /* ── Divider ── */
+    .section-divider {
+      border: none;
+      border-top: 1px solid #f0f0f0;
+      margin: 20px 0;
+    }
+
+    /* ── Stripe element ── */
+    .stripe-wrap {
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      transition: border-color .15s;
+      min-height: 44px;
+    }
+    .stripe-wrap.StripeElement--focus { border-color: #673147; }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: #673147;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-submit:hover:not(:disabled) { background: #3949ab; }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Feedback ── */
+    .feedback {
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 14px;
+      display: none;
+    }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+    /* ── Thank you screen ── */
+    .thankyou {
+      display: none;
+      text-align: center;
+      padding: 40px 32px 48px;
+    }
+    .thankyou.show { display: block; }
+    .thankyou-icon { font-size: 56px; margin-bottom: 16px; }
+    .thankyou-title { font-size: 22px; font-weight: 700; color: #2e7d32; margin-bottom: 8px; }
+    .thankyou-sub { font-size: 14px; color: #666; line-height: 1.6; }
+    .thankyou-amount {
+      display: inline-block;
+      margin: 16px auto 0;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-radius: 20px;
+      padding: 6px 20px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* ── Error / loading screens ── */
+    .init-error, .loading-screen {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e8eaf0;
+      border-top-color: #673147;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .init-error-icon { font-size: 40px; margin-bottom: 12px; }
+    .init-error-msg  { font-size: 14px; color: #666; }
+
+    /* ── Security badge ── */
+    .secure-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: #aaa;
+    }
+    .secure-badge svg { width: 12px; height: 12px; fill: #aaa; }
+  </style>
+</head>
+<body>
+
+<div class="card" id="mainCard">
+
+  <!-- Loading -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <div style="font-size:14px;color:#888;">Loading…</div>
+  </div>
+
+  <!-- Init error -->
+  <div class="init-error" id="initError" style="display:none;">
+    <div class="init-error-icon">&#128683;</div>
+    <div style="font-size:16px;font-weight:700;color:#c62828;margin-bottom:8px;">Unable to load</div>
+    <div class="init-error-msg" id="initErrorMsg">This donation link is invalid or has expired.</div>
+  </div>
+
+  <!-- Donation form -->
+  <div id="donationForm" style="display:none;">
+    <div class="card-header">
+      <div class="header-icon" id="headerIcon">&#9962;</div>
+      <div class="header-title" id="headerTitle">Give Online</div>
+      <div class="header-sub" id="orgName">Supporting our church community</div>
+    </div>
+
+    <div class="card-body">
+
+      <!-- Amount -->
+      <div class="amount-label">Select an Amount</div>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset-btn" onclick="selectPreset(this, 10)">$10</button>
+        <button class="preset-btn" onclick="selectPreset(this, 25)">$25</button>
+        <button class="preset-btn" onclick="selectPreset(this, 50)">$50</button>
+        <button class="preset-btn" onclick="selectPreset(this, 100)">$100</button>
+        <button class="preset-btn" onclick="selectPreset(this, 250)">$250</button>
+        <button class="preset-btn" onclick="selectPreset(this, 500)">$500</button>
+      </div>
+
+      <div class="field">
+        <label for="customAmount">Or enter a custom amount</label>
+        <div class="amount-wrap">
+          <span class="amount-prefix">$</span>
+          <input type="number" id="customAmount" min="1" step="0.01"
+                 placeholder="0.00" oninput="onCustomAmount()" />
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- Donor info -->
+      <div class="field-row">
+        <div class="field">
+          <label for="firstName">First Name <span style="color:#c62828">*</span></label>
+          <input type="text" id="firstName" placeholder="Jane" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" placeholder="Doe" autocomplete="family-name" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="donorPhone">Phone Number</label>
+        <input type="tel" id="donorPhone" placeholder="(555) 000-0000" autocomplete="tel" />
+      </div>
+      <div class="field">
+        <label for="donorEmail">Email Address</label>
+        <input type="email" id="donorEmail" placeholder="jane@example.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="donorNote">Comment / Note</label>
+        <input type="text" id="donorNote" placeholder="Optional note or dedication…" maxlength="500" />
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- Stripe Payment Element -->
+      <div class="field">
+        <label>Payment Details</label>
+        <div id="paymentElement" class="stripe-wrap"></div>
+      </div>
+
+      <div class="feedback" id="formFeedback"></div>
+
+      <button class="btn-submit" id="submitBtn" onclick="submitDonation()">
+        <span>&#128274;</span> <span id="submitLabel">Donate</span>
+      </button>
+
+      <div class="secure-badge">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+        Secured by Stripe
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Thank you -->
+  <div class="thankyou" id="thankyouScreen">
+    <div class="thankyou-icon">&#127881;</div>
+    <div class="thankyou-title">Thank You!</div>
+    <div class="thankyou-sub">
+      Your generous donation has been received.<br>
+      We are grateful for your support.
+    </div>
+    <div class="thankyou-amount" id="thankyouAmount"></div>
+  </div>
+
+</div><!-- /card -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Extract token from URL path: /donate/{token}
+═══════════════════════════════════════════════════════════════════ */
+const PATH_PARTS = window.location.pathname.split('/');
+const CID        = PATH_PARTS[PATH_PARTS.length - 1] || '';
+
+let stripe          = null;
+let elements        = null;
+let paymentElement  = null;
+let selectedAmount  = null;
+let paymentIntentId = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+(async function init() {
+  if (!CID) { showInitError('Invalid donation link.'); return; }
+
+  // Load Stripe config
+  let config;
+  try {
+    const res = await fetch('/api/public/donate/config?cid=' + encodeURIComponent(CID));
+    config = await res.json();
+    if (!res.ok) { showInitError(config.error || 'This donation link is invalid or has expired.'); return; }
+  } catch {
+    showInitError('Could not load donation page. Please try again later.');
+    return;
+  }
+
+  // Initialise Stripe.js
+  stripe   = Stripe(config.publishableKey);
+  elements = stripe.elements({ mode: 'payment', amount: 100, currency: 'usd' });
+
+  paymentElement = elements.create('payment');
+  paymentElement.mount('#paymentElement');
+
+  // Update header icon to church logo if available
+  if (config.logoUrl) {
+    const iconEl = document.getElementById('headerIcon');
+    const img = document.createElement('img');
+    img.src = config.logoUrl;
+    img.alt = config.churchName || 'Church logo';
+    img.onerror = function() { iconEl.textContent = '\u26EA'; };
+    iconEl.textContent = '';
+    iconEl.appendChild(img);
+  }
+
+  // Show church name in header
+  if (config.churchName) {
+    document.getElementById('headerTitle').textContent = config.churchName;
+    document.getElementById('orgName').textContent     = 'Give Online';
+  }
+
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('donationForm').style.display  = 'block';
+
+  // Pre-fill amount from SMS GIVE link: #give=50.00
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+  const giveAmt = parseFloat(hashParams.get('give'));
+  if (!isNaN(giveAmt) && giveAmt >= 0.50) {
+    // Check if a preset button matches
+    const presetMatch = Array.from(document.querySelectorAll('.preset-btn'))
+      .find(b => parseFloat(b.getAttribute('onclick').match(/[\d.]+/)?.[0]) === giveAmt);
+    if (presetMatch) {
+      selectPreset(presetMatch, giveAmt);
+    } else {
+      document.getElementById('customAmount').value = giveAmt.toFixed(2);
+      selectedAmount = giveAmt;
+      updateSubmitLabel();
+    }
+  }
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   Amount selection
+═══════════════════════════════════════════════════════════════════ */
+function selectPreset(btn, amount) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedAmount = amount;
+  document.getElementById('customAmount').value = '';
+  updateSubmitLabel();
+}
+
+function onCustomAmount() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  const val = parseFloat(document.getElementById('customAmount').value);
+  selectedAmount = (!isNaN(val) && val > 0) ? val : null;
+  updateSubmitLabel();
+}
+
+function updateSubmitLabel() {
+  const lbl = document.getElementById('submitLabel');
+  lbl.textContent = selectedAmount
+    ? 'Donate $' + selectedAmount.toFixed(2)
+    : 'Donate';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Submit
+═══════════════════════════════════════════════════════════════════ */
+async function submitDonation() {
+  hideFeedback();
+
+  const firstName = document.getElementById('firstName').value.trim();
+  if (!firstName) { showFeedback('Please enter your first name.'); return; }
+  if (!selectedAmount || selectedAmount < 0.50) {
+    showFeedback('Please select or enter a donation amount (minimum $0.50).'); return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('submitLabel').textContent = 'Processing…';
+
+  try {
+    // Step 1: Update amount on the Elements instance, then submit (validates card details)
+    elements.update({ amount: Math.round(selectedAmount * 100) });
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      showFeedback(submitError.message || 'Please check your payment details.');
+      resetBtn(); return;
+    }
+
+    // Step 2: Create PaymentIntent on server
+    const intentRes = await fetch('/api/public/donate/intent?cid=' + encodeURIComponent(CID), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ amount: selectedAmount, currency: 'usd' })
+    });
+    const intentData = await intentRes.json();
+    if (!intentRes.ok) { showFeedback(intentData.error || 'Could not initiate payment.'); resetBtn(); return; }
+
+    paymentIntentId = intentData.paymentIntentId;
+
+    // Step 3: Confirm payment via Stripe.js
+    const { error: stripeError } = await stripe.confirmPayment({
+      elements,
+      clientSecret: intentData.clientSecret,
+      confirmParams: {
+        return_url: window.location.href,
+        payment_method_data: {
+          billing_details: {
+            name:  firstName + (document.getElementById('lastName').value.trim()
+                     ? ' ' + document.getElementById('lastName').value.trim() : ''),
+            email: document.getElementById('donorEmail').value.trim() || undefined
+          }
+        }
+      },
+      redirect: 'if_required'
+    });
+
+    if (stripeError) {
+      showFeedback(stripeError.message || 'Payment failed. Please try again.');
+      resetBtn(); return;
+    }
+
+    // Step 4: Save donation on server
+    const saveRes = await fetch('/api/public/donate/save?cid=' + encodeURIComponent(CID), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        paymentIntentId: paymentIntentId,
+        firstName:       firstName,
+        lastName:        document.getElementById('lastName').value.trim()   || null,
+        email:           document.getElementById('donorEmail').value.trim() || null,
+        phone:           document.getElementById('donorPhone').value.trim() || null,
+        note:            document.getElementById('donorNote').value.trim()  || null
+      })
+    });
+    const saveData = await saveRes.json();
+    if (!saveRes.ok) {
+      // Payment succeeded but save failed — still show thank you
+      console.warn('Donation save failed:', saveData.error);
+    }
+
+    showThankyou(selectedAmount);
+
+  } catch (err) {
+    showFeedback('An unexpected error occurred. Please try again.');
+    resetBtn();
+  }
+}
+
+function resetBtn() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = false;
+  updateSubmitLabel();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Thank you screen
+═══════════════════════════════════════════════════════════════════ */
+function showThankyou(amount) {
+  document.getElementById('donationForm').style.display   = 'none';
+  document.getElementById('thankyouAmount').textContent   = '$' + amount.toFixed(2) + ' USD';
+  document.getElementById('thankyouScreen').classList.add('show');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Helpers
+═══════════════════════════════════════════════════════════════════ */
+function showInitError(msg) {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('initErrorMsg').textContent    = msg;
+  document.getElementById('initError').style.display     = 'block';
+}
+
+function showFeedback(msg) {
+  const el = document.getElementById('formFeedback');
+  el.textContent = msg;
+  el.className   = 'feedback error';
+}
+
+function hideFeedback() {
+  const el = document.getElementById('formFeedback');
+  el.className = 'feedback';
+}
+</script>
+</body>
+</html>

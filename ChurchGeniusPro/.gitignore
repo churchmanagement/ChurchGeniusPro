@@ -1,0 +1,44 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+/node_modules/
+*.jar 
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+/nul
+
+### Secrets / local config (never commit credentials) ###
+# Keep machine-specific secrets out of git. Provide real values via
+# environment variables (OPENAI_API_KEY, TWILIO_*, PUSH_VAPID_PRIVATE_KEY, …).
+src/main/resources/application-local.properties
+**/application-local.properties
+*.env
+.env

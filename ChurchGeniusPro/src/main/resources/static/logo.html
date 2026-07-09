@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Logo — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    
+
+    /* Sidebar */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* Main */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    .tb-username { font-size: 13px; color: #555; }
+    
+    .page-header { background: #673147; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .page-body { max-width: 680px; margin: 32px auto; padding: 0 20px 60px; }
+
+    /* Card */
+    .settings-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); padding: 32px; }
+    .settings-card h2 { font-size: 15px; font-weight: 700; color: #673147; margin-bottom: 24px; border-bottom: 1px solid #eef0fb; padding-bottom: 12px; }
+
+    /* Upload area */
+    .upload-area {
+      border: 2px dashed #c5cae9; border-radius: 12px; padding: 40px 24px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-area:hover, .upload-area.drag-over { border-color: #673147; background: #f0f2ff; }
+    .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; }
+    .upload-label { font-size: 15px; font-weight: 600; color: #673147; margin-bottom: 6px; }
+    .upload-hint { font-size: 13px; color: #aaa; }
+
+    /* Preview */
+    .preview-wrap { display: none; margin: 24px 0; text-align: center; }
+    .preview-wrap.visible { display: block; }
+    .preview-img {
+      max-width: 200px; max-height: 120px; object-fit: contain;
+      border: 1.5px solid #dde0ec; border-radius: 10px; padding: 8px;
+      background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .preview-name { font-size: 13px; color: #888; margin-top: 8px; }
+
+    /* Actions */
+    .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+    .btn-upload { padding: 11px 28px; background: #673147; color: #fff; font-size: 14px; font-weight: 600; border-radius: 8px; transition: background .2s; }
+    .btn-upload:hover { background: #4f2538; }
+    .btn-upload:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-remove { padding: 11px 22px; background: #fff; color: #e53935; font-size: 14px; font-weight: 600; border: 1.5px solid #e53935; border-radius: 8px; transition: background .2s; display: none; }
+    .btn-remove:hover { background: #fff5f5; }
+    .btn-remove.visible { display: inline-flex; }
+
+    /* Info box */
+    .info-box { background: #e8eaf6; border-left: 4px solid #673147; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-top: 24px; font-size: 13px; color: #673147; line-height: 1.6; }
+    .info-box ul { margin: 6px 0 0 16px; }
+
+    /* Profile fields */
+    .cp-field { margin-bottom: 16px; }
+    .cp-field label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    .cp-field input, .cp-field select {
+      width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
+      border: 1.5px solid #dde0ec; border-radius: 8px; background: #fff; color: #333;
+    }
+    .cp-field input:focus, .cp-field select:focus { outline: none; border-color: #673147; }
+    .cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 520px) { .cp-grid { grid-template-columns: 1fr; } }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; z-index: 2000; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <span style="font-size:26px;">🖼</span>
+        <h1>Church Settings</h1>
+      </div>
+
+      <div class="page-body">
+        <div class="settings-card">
+          <h2>Upload Church Logo</h2>
+
+          <!-- Current logo preview -->
+          <div class="preview-wrap" id="previewWrap">
+            <img class="preview-img" id="previewImg" src="" alt="Current logo" />
+            <div class="preview-name" id="previewName"></div>
+          </div>
+
+          <!-- Drop zone -->
+          <div class="upload-area" id="uploadArea"
+               ondragover="event.preventDefault();this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="handleDrop(event)">
+            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(this)" />
+            <div class="upload-icon">📤</div>
+            <div class="upload-label">Click or drag an image here</div>
+            <div class="upload-hint">PNG, JPG, GIF or WebP · Recommended: square · Max 5 MB</div>
+          </div>
+
+          <div class="info-box">
+            Once uploaded, your logo will:
+            <ul>
+              <li>Replace the "CG" icon in the sidebar on every page</li>
+              <li>Show your church name beside it in the navigation</li>
+              <li>Appear in the email footer when <strong>Add Logo</strong> is enabled in Email Settings</li>
+              <li>Be included in documents generated for your organization</li>
+            </ul>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-remove" id="btnRemove" onclick="removeLogo()">🗑 Remove Logo</button>
+            <button class="btn-upload" id="btnUpload" onclick="uploadLogo()" disabled>⬆ Upload Logo</button>
+          </div>
+        </div>
+
+        <!-- ── Church Name & Address ── -->
+        <div class="settings-card" id="profileCard" style="margin-top:28px;">
+          <h2>Church Name &amp; Address</h2>
+
+          <div class="cp-field">
+            <label for="cpName">Church Name <span style="color:#e53935;">*</span></label>
+            <input type="text" id="cpName" placeholder="Your church's display name" />
+          </div>
+
+          <div class="cp-field">
+            <label for="cpAddr1">Address Line 1</label>
+            <input type="text" id="cpAddr1" placeholder="Street address" />
+          </div>
+          <div class="cp-field">
+            <label for="cpAddr2">Address Line 2</label>
+            <input type="text" id="cpAddr2" placeholder="Suite, unit, building (optional)" />
+          </div>
+
+          <div class="cp-grid">
+            <div class="cp-field">
+              <label for="cpCity">City</label>
+              <input type="text" id="cpCity" placeholder="City" />
+            </div>
+            <div class="cp-field">
+              <label for="cpState">State</label>
+              <select id="cpState"><option value="">— Select State —</option></select>
+            </div>
+          </div>
+
+          <div class="cp-grid">
+            <div class="cp-field">
+              <label for="cpPin">Zip / Pin Code</label>
+              <input type="text" id="cpPin" placeholder="Zip / Pin code" />
+            </div>
+            <div class="cp-field">
+              <label for="cpCountry">Country</label>
+              <select id="cpCountry"><option value="">— Select Country —</option></select>
+            </div>
+          </div>
+
+          <h2 style="margin-top:28px;">Website &amp; Social Media <span style="font-weight:400;color:#999;font-size:12px;">(optional)</span></h2>
+          <div class="cp-field">
+            <label for="cpWebsite">Website URL</label>
+            <input type="url" id="cpWebsite" placeholder="https://yourchurch.org" />
+          </div>
+          <div class="cp-grid">
+            <div class="cp-field">
+              <label for="cpFacebook">Facebook URL</label>
+              <input type="url" id="cpFacebook" placeholder="https://facebook.com/yourchurch" />
+            </div>
+            <div class="cp-field">
+              <label for="cpInstagram">Instagram URL</label>
+              <input type="url" id="cpInstagram" placeholder="https://instagram.com/yourchurch" />
+            </div>
+          </div>
+          <div class="cp-field">
+            <label for="cpYoutube">YouTube URL</label>
+            <input type="url" id="cpYoutube" placeholder="https://youtube.com/@yourchurch" />
+          </div>
+
+          <div class="info-box">
+            These values are the single source of truth for your church name, address and links. Updating them
+            here automatically applies them across the app header, membership forms, PDFs, reports,
+            emails, SMS, the member portal and public pages.
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-upload" id="btnSaveProfile" onclick="saveProfile()">💾 Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── File handling ── */
+let selectedFile = null;
+
+function handleFileSelect(input) {
+  if (input.files && input.files[0]) previewFile(input.files[0]);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadArea').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) previewFile(f);
+  else showToast('Please drop an image file.', true);
+}
+
+function previewFile(file) {
+  if (!file.type.startsWith('image/')) { showToast('Only image files are allowed.', true); return; }
+  if (file.size > 5 * 1024 * 1024)    { showToast('File must be under 5 MB.', true); return; }
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('previewImg').src  = e.target.result;
+    document.getElementById('previewName').textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    document.getElementById('previewWrap').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('btnUpload').disabled = false;
+}
+
+/* ── API calls ── */
+async function loadCurrentLogo() {
+  try {
+    const meta = await fetch('/api/logo/meta').then(r => r.ok ? r.json() : {exists:false});
+    if (meta.exists) {
+      const imgRes = await fetch('/api/logo/image');
+      if (imgRes.ok) {
+        const blob = await imgRes.blob();
+        const url  = URL.createObjectURL(blob);
+        document.getElementById('previewImg').src  = url;
+        document.getElementById('previewName').textContent = meta.fileName || 'Uploaded logo';
+        document.getElementById('previewWrap').classList.add('visible');
+        document.getElementById('btnRemove').classList.add('visible');
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function uploadLogo() {
+  if (!selectedFile) { showToast('Please select an image first.', true); return; }
+  const btn = document.getElementById('btnUpload');
+  btn.disabled = true; btn.textContent = '⏳ Uploading…';
+  try {
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    const res = await fetch('/api/logo/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Logo uploaded successfully.', false);
+      document.getElementById('btnRemove').classList.add('visible');
+      selectedFile = null;
+    } else {
+      showToast(data.error || 'Upload failed.', true);
+    }
+  } catch(e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = '⬆ Upload Logo';
+  }
+}
+
+async function removeLogo() {
+  if (!confirm('Are you sure you want to remove the uploaded logo?')) return;
+  try {
+    const res = await fetch('/api/logo', { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Logo removed.', false);
+      document.getElementById('previewWrap').classList.remove('visible');
+      document.getElementById('previewImg').src  = '';
+      document.getElementById('previewName').textContent = '';
+      document.getElementById('btnRemove').classList.remove('visible');
+      document.getElementById('btnUpload').disabled = true;
+      selectedFile = null;
+    }
+  } catch(e) {
+    showToast('Failed to remove logo.', true);
+  }
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+/* ── Church Name & Address ── */
+var CP_STATES = [
+  [1,'AL – Alabama'],[2,'AK – Alaska'],[3,'AZ – Arizona'],[4,'AR – Arkansas'],[5,'CA – California'],
+  [6,'CO – Colorado'],[7,'CT – Connecticut'],[8,'DE – Delaware'],[9,'FL – Florida'],[10,'GA – Georgia'],
+  [11,'HI – Hawaii'],[12,'ID – Idaho'],[13,'IL – Illinois'],[14,'IN – Indiana'],[15,'IA – Iowa'],
+  [16,'KS – Kansas'],[17,'KY – Kentucky'],[18,'LA – Louisiana'],[19,'ME – Maine'],[20,'MD – Maryland'],
+  [21,'MA – Massachusetts'],[22,'MI – Michigan'],[23,'MN – Minnesota'],[24,'MS – Mississippi'],[25,'MO – Missouri'],
+  [26,'MT – Montana'],[27,'NE – Nebraska'],[28,'NV – Nevada'],[29,'NH – New Hampshire'],[30,'NJ – New Jersey'],
+  [31,'NM – New Mexico'],[32,'NY – New York'],[33,'NC – North Carolina'],[34,'ND – North Dakota'],[35,'OH – Ohio'],
+  [36,'OK – Oklahoma'],[37,'OR – Oregon'],[38,'PA – Pennsylvania'],[39,'RI – Rhode Island'],[40,'SC – South Carolina'],
+  [41,'SD – South Dakota'],[42,'TN – Tennessee'],[43,'TX – Texas'],[44,'UT – Utah'],[45,'VT – Vermont'],
+  [46,'VA – Virginia'],[47,'WA – Washington'],[48,'WV – West Virginia'],[49,'WI – Wisconsin'],[50,'WY – Wyoming']
+];
+var CP_COUNTRIES = [[1,'United States'],[2,'Canada'],[3,'United Kingdom'],[4,'Australia'],[5,'India'],[6,'Other']];
+
+function cpFillSelect(id, rows, placeholder) {
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + placeholder + '</option>' +
+    rows.map(function(r){ return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('');
+}
+
+async function loadProfile() {
+  cpFillSelect('cpState', CP_STATES, '— Select State —');
+  cpFillSelect('cpCountry', CP_COUNTRIES, '— Select Country —');
+  try {
+    const res = await fetch('/api/church-profile');
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('cpName').value    = d.churchName || '';
+    document.getElementById('cpAddr1').value   = d.address1 || '';
+    document.getElementById('cpAddr2').value   = d.address2 || '';
+    document.getElementById('cpCity').value    = d.city || '';
+    document.getElementById('cpPin').value     = d.pinCode || '';
+    if (d.state   != null) document.getElementById('cpState').value   = String(d.state);
+    if (d.country != null) document.getElementById('cpCountry').value = String(d.country);
+    document.getElementById('cpWebsite').value   = d.websiteUrl   || '';
+    document.getElementById('cpFacebook').value  = d.facebookUrl  || '';
+    document.getElementById('cpInstagram').value = d.instagramUrl || '';
+    document.getElementById('cpYoutube').value   = d.youtubeUrl   || '';
+  } catch(e) { console.error(e); }
+}
+
+function cpValidUrl(u){ u=(u||'').trim(); if(!u) return true; return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(u); }
+
+async function saveProfile() {
+  var name = document.getElementById('cpName').value.trim();
+  if (!name) { showToast('Church Name is required.', true); return; }
+  var urls = {
+    websiteUrl:   document.getElementById('cpWebsite').value.trim(),
+    facebookUrl:  document.getElementById('cpFacebook').value.trim(),
+    instagramUrl: document.getElementById('cpInstagram').value.trim(),
+    youtubeUrl:   document.getElementById('cpYoutube').value.trim()
+  };
+  var badLabels = { websiteUrl:'Website URL', facebookUrl:'Facebook URL', instagramUrl:'Instagram URL', youtubeUrl:'YouTube URL' };
+  for (var k in urls) { if (!cpValidUrl(urls[k])) { showToast(badLabels[k] + ' must start with http:// or https://', true); return; } }
+  var btn = document.getElementById('btnSaveProfile');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  var payload = {
+    churchName: name,
+    address1:   document.getElementById('cpAddr1').value.trim(),
+    address2:   document.getElementById('cpAddr2').value.trim(),
+    city:       document.getElementById('cpCity').value.trim(),
+    state:      document.getElementById('cpState').value || null,
+    country:    document.getElementById('cpCountry').value || null,
+    pinCode:    document.getElementById('cpPin').value.trim(),
+    websiteUrl: urls.websiteUrl, facebookUrl: urls.facebookUrl,
+    instagramUrl: urls.instagramUrl, youtubeUrl: urls.youtubeUrl
+  };
+  try {
+    const res = await fetch('/api/church-profile', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Church details saved.', false);
+      // Reflect the new name in the header immediately (and on next load).
+      try {
+        localStorage.setItem('churchName', data.churchName || name);
+        ['brandName','sidebarBrand'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent = data.churchName || name; });
+        var bn = document.querySelector('.brand-name'); if (bn) bn.textContent = data.churchName || name;
+      } catch(e) {}
+    } else {
+      showToast(data.error || 'Save failed.', true);
+    }
+  } catch(e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save Changes';
+  }
+}
+
+loadCurrentLogo();
+loadProfile();
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin-settings/logo', pageTitle: 'Logo', openSection: 'admin-settings' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

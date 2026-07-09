@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!--OG_META--><!-- Open Graph / link-preview tags injected server-side by EventRegisterPageController -->
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <!-- Sanitizer for rendering formatted event notes (cdnjs — allowed by CSP) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+  <title>Event Registration – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #673147;
+      --brand-dark: #4f2538;
+      --brand-light: #f5eaef;
+      --brand-xlight: #fdf5f8;
+      --accent: #ff6b6b;
+      --yes-bg: #e8f5e9; --yes-col: #2e7d32;
+      --maybe-bg: #fff8e1; --maybe-col: #f57f17;
+      --no-bg: #ffebee; --no-col: #c62828;
+      --surface: #fff;
+      --bg: #f3f4f8;
+      --border: #e4e6f0;
+      --text: #1e2139;
+      --muted: #7a82a6;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(103,49,71,.09);
+      --shadow-sm: 0 2px 8px rgba(103,49,71,.07);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: var(--brand); color: #fff;
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; }
+    .topbar-logo {
+      height: 40px; width: auto; max-width: 140px;
+      object-fit: contain; display: block;
+    }
+    .topbar-logo-fallback {
+      width: 34px; height: 34px; background: rgba(255,255,255,.15);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .topbar-name { font-size: 15px; font-weight: 700; letter-spacing: .2px; }
+    .topbar-tag  { font-size: 11px; color: rgba(255,255,255,.6); }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(145deg, #8b3a5a 0%, #673147 50%, #3d1a28 100%);
+      color: #fff; padding: 40px 24px 52px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(255,255,255,.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(255,255,255,.04) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(255,255,255,.6); margin-bottom: 12px; position: relative;
+    }
+    .hero-title {
+      font-size: 32px; font-weight: 800; letter-spacing: -.5px;
+      margin-bottom: 10px; position: relative;
+      text-shadow: 0 2px 12px rgba(0,0,0,.25);
+      line-height: 1.2;
+    }
+
+    /* ── Content wrapper ── */
+    .content { max-width: 820px; margin: 0 auto; padding: 28px 16px 80px; }
+
+    /* ── Steps ── */
+    .step { display: none; animation: fadeSlideIn .35s ease both; }
+    .step.active { display: block; }
+    .step.slide-out { animation: fadeSlideOut .25s ease both; }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeSlideOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(-14px); }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden;
+      border: 1px solid rgba(103,49,71,.06);
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 22px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, #fdfafc, var(--surface));
+    }
+    .card-header-icon {
+      width: 34px; height: 34px; border-radius: 10px; background: var(--brand-light);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+      flex-shrink: 0;
+    }
+    .card-header h2 { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+    .card-body { padding: 22px; }
+
+    /* ── Event banner ── */
+    .ev-img-wrap { margin: -22px -22px 20px; text-align: center; background: #f3eef1; }
+    /* Show the entire uploaded image without cropping, preserving aspect ratio. */
+    .ev-img-wrap img { width: 100%; height: auto; max-height: none; display: block; border-radius: 0; object-fit: contain; }
+
+    /* ── Event notes (rich text) ── */
+    .ev-notes { margin-top: 16px; padding: 14px 16px; background: #faf7f9; border: 1px solid #eadfe5; border-radius: 10px; }
+    .ev-notes-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--brand); margin-bottom: 8px; }
+    .ev-notes-body { font-size: 14px; line-height: 1.55; color: #333; word-break: break-word; }
+    .ev-notes-body p { margin: 0 0 8px; }
+    .ev-notes-body ul, .ev-notes-body ol { margin: 4px 0 8px; padding-left: 22px; }
+    .ev-notes-body a { color: var(--brand); }
+    .ev-notes-body strong { font-weight: 700; }
+    .ev-notes-body em { font-style: italic; }
+    .ev-notes-body u { text-decoration: underline; }
+    .ev-notes-body .ql-align-center { text-align: center; }
+    .ev-notes-body .ql-align-right { text-align: right; }
+    .ev-notes-body .ql-align-justify { text-align: justify; }
+
+    /* ── Detail grid ── */
+    .detail-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;
+    }
+    .detail-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--bg); border-radius: 12px; padding: 12px 14px;
+      border: 1px solid var(--border); transition: transform .2s;
+    }
+    .detail-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .detail-item-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .detail-item-body { min-width: 0; }
+    .detail-item-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .detail-item-val   { font-size: 13px; color: var(--text); font-weight: 600; margin-top: 2px; white-space: pre-wrap; line-height: 1.4; }
+
+    /* ── Days list ── */
+    .days-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .day-chip {
+      background: var(--brand-xlight); border-left: 3px solid var(--brand);
+      border-radius: 0 10px 10px 0; padding: 9px 16px;
+      font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 8px;
+    }
+    .day-chip strong { color: var(--brand); }
+
+    /* ── Capacity bar ── */
+    .cap-section { margin-top: 14px; }
+    .cap-header { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .cap-track { background: #eef0f8; border-radius: 6px; height: 8px; overflow: hidden; }
+    .cap-fill  { background: var(--brand); height: 100%; border-radius: 6px; transition: width .6s ease; }
+    .cap-fill.cap-danger { background: #e53935; }
+    .cap-fill.cap-warn   { background: #fb8c00; }
+
+    /* ── Host block ── */
+    .host-block {
+      margin-top: 16px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 24px;
+    }
+    .host-title { width: 100%; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .host-field { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #444; }
+    .host-field a { color: var(--brand); text-decoration: none; font-weight: 600; }
+
+    /* ── RSVP Button (on step 1) ── */
+    .rsvp-cta-wrap {
+      text-align: center; padding: 8px 0 24px;
+    }
+    .btn-rsvp-hero {
+      background: linear-gradient(135deg, #7d3a55, var(--brand));
+      color: #fff; border: none; border-radius: 50px;
+      padding: 16px 44px; font-size: 16px; font-weight: 800; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 10px;
+      transition: all .2s; letter-spacing: .3px;
+      box-shadow: 0 6px 24px rgba(103,49,71,.35);
+    }
+    .btn-rsvp-hero:hover  { background: linear-gradient(135deg, #8b3a5a, var(--brand-dark)); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(103,49,71,.4); }
+    .btn-rsvp-hero:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(103,49,71,.3); }
+    .btn-rsvp-hero-icon { font-size: 20px; }
+
+    /* ── Back button ── */
+    .btn-back {
+      background: none; color: var(--brand); border: 2px solid var(--brand-light);
+      border-radius: 50px; padding: 8px 20px; font-size: 13px; font-weight: 700;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+      transition: all .15s; margin-bottom: 20px;
+    }
+    .btn-back:hover { background: var(--brand-light); border-color: var(--brand); }
+
+    /* ── Form styles ── */
+    .form-section-title {
+      font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .6px; margin: 20px 0 12px;
+    }
+    .form-section-title:first-child { margin-top: 0; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #5a648a; }
+    .required-star { color: #e53935; }
+    .field input, .field textarea, .field select {
+      border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 13px;
+      font-size: 14px; color: var(--text); outline: none; background: #fff;
+      transition: border-color .2s, box-shadow .2s; resize: vertical;
+      font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--brand); box-shadow: 0 0 0 3px rgba(103,49,71,.12);
+    }
+    .field input.invalid { border-color: #e53935; box-shadow: 0 0 0 3px rgba(229,57,53,.1); }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .span-2 { grid-column: span 2; }
+
+    /* ── Attending toggle selector ── */
+    .attend-toggle {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    }
+    .attend-opt {
+      position: relative; cursor: pointer;
+    }
+    .attend-opt input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .attend-opt-inner {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; padding: 14px 10px; border-radius: 12px;
+      border: 2px solid var(--border); background: #fff;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      transition: all .2s; cursor: pointer;
+      text-align: center;
+    }
+    .attend-opt-emoji { font-size: 22px; transition: transform .2s; }
+    .attend-opt input:checked + .attend-opt-inner { border-color: currentColor; transform: scale(1.02); }
+    .attend-opt.yes input:checked + .attend-opt-inner {
+      background: var(--yes-bg); color: var(--yes-col); border-color: #81c784;
+      box-shadow: 0 4px 12px rgba(46,125,50,.2);
+    }
+    .attend-opt.maybe input:checked + .attend-opt-inner {
+      background: var(--maybe-bg); color: var(--maybe-col); border-color: #ffb74d;
+      box-shadow: 0 4px 12px rgba(245,127,23,.2);
+    }
+    .attend-opt.no input:checked + .attend-opt-inner {
+      background: var(--no-bg); color: var(--no-col); border-color: #ef9a9a;
+      box-shadow: 0 4px 12px rgba(198,40,40,.2);
+    }
+    .attend-opt:hover .attend-opt-inner { border-color: var(--brand); }
+    .attend-opt input:checked + .attend-opt-inner .attend-opt-emoji { transform: scale(1.2); }
+
+    /* ── RSVP Slide Bar (step 1, always shown) ── */
+    .rsvp-slide-bar {
+      display: block;
+      margin-bottom: 20px;
+    }
+    .rsvp-slide-label {
+      font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .6px; text-align: center; margin-bottom: 12px;
+    }
+    .rsvp-slide-track {
+      display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px;
+      scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .rsvp-slide-track::-webkit-scrollbar { display: none; }
+    .rsvp-slide-opt {
+      flex: 1; min-width: 100px; max-width: 200px;
+      scroll-snap-align: center; flex-shrink: 0;
+      border: 2.5px solid var(--border); border-radius: 16px;
+      background: #fff; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 20px 12px;
+      font-size: 14px; font-weight: 700; color: var(--muted);
+      transition: all .22s cubic-bezier(.34,1.56,.64,1);
+      user-select: none;
+    }
+    .rsvp-slide-opt:hover { border-color: var(--brand); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(103,49,71,.15); }
+    .rsvp-slide-opt .slide-emoji { font-size: 32px; transition: transform .2s; }
+    .rsvp-slide-opt.selected-yes   { background: var(--yes-bg);   color: var(--yes-col);   border-color: #81c784; box-shadow: 0 6px 20px rgba(46,125,50,.2); }
+    .rsvp-slide-opt.selected-maybe { background: var(--maybe-bg); color: var(--maybe-col); border-color: #ffb74d; box-shadow: 0 6px 20px rgba(245,127,23,.2); }
+    .rsvp-slide-opt.selected-no    { background: var(--no-bg);    color: var(--no-col);    border-color: #ef9a9a; box-shadow: 0 6px 20px rgba(198,40,40,.2); }
+    .rsvp-slide-opt.selected-yes .slide-emoji,
+    .rsvp-slide-opt.selected-maybe .slide-emoji,
+    .rsvp-slide-opt.selected-no .slide-emoji { transform: scale(1.25); }
+
+    @media (min-width: 480px) {
+      .rsvp-slide-track { justify-content: center; }
+      .rsvp-slide-opt { min-width: 130px; }
+    }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      background: linear-gradient(135deg, #7d3a55, var(--brand));
+      color: #fff; border: none; border-radius: 50px;
+      padding: 14px 36px; font-size: 15px; font-weight: 800; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: all .2s; letter-spacing: .3px; width: 100%; justify-content: center;
+      box-shadow: 0 4px 18px rgba(103,49,71,.3);
+      margin-top: 8px;
+    }
+    .btn-submit:hover   { background: linear-gradient(135deg, #8b3a5a, var(--brand-dark)); transform: translateY(-1px); box-shadow: 0 6px 22px rgba(103,49,71,.38); }
+    .btn-submit:active  { transform: scale(.99); }
+    .btn-submit:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Feedback ── */
+    .feedback {
+      padding: 12px 16px; border-radius: 10px; font-size: 13px;
+      margin-bottom: 16px; display: none; font-weight: 600; align-items: center; gap: 10px;
+    }
+    .feedback.success { display: flex; background: var(--yes-bg); color: var(--yes-col); border: 1px solid #a5d6a7; }
+    .feedback.error   { display: flex; background: var(--no-bg);  color: var(--no-col);  border: 1px solid #ef9a9a; }
+
+    /* ── Toggle checkbox ── */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: var(--brand); }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+
+    /* ── Who's attending table ── */
+    #whoSection { display: none; }
+    .reg-table-wrap { overflow-x: auto; border-radius: 0 0 var(--radius) var(--radius); }
+    .reg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .reg-table th {
+      background: var(--bg); font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--muted); padding: 10px 16px; text-align: left;
+      border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    .reg-table td { padding: 11px 16px; border-bottom: 1px solid #f3f4f9; vertical-align: middle; }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .reg-table tbody tr:hover td { background: var(--brand-xlight); }
+    .empty-row { text-align: center; color: #c5c9d8 !important; padding: 32px !important; font-style: italic; }
+    .totals-row td { font-weight: 700; background: var(--bg) !important; font-size: 13px; color: var(--brand); }
+    .badge-yes   { background: var(--yes-bg);   color: var(--yes-col);   font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+    .badge-maybe { background: var(--maybe-bg); color: var(--maybe-col); font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+    .badge-no    { background: var(--no-bg);    color: var(--no-col);    font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+    .count-pill  { background: var(--brand-light); color: var(--brand); font-weight: 700; font-size: 13px; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+
+    /* ── QR Card ── */
+    .qr-card {
+      background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 32px 24px; text-align: center; margin-bottom: 20px; display: none;
+    }
+    .qr-card.visible { display: block; animation: fadeSlideIn .4s ease; }
+    .qr-card-title { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .qr-card-sub   { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+    .qr-code-wrap  { display: inline-block; padding: 14px; background: #fff; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 16px; }
+    .reg-code-label { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--brand); background: var(--brand-light); border-radius: 8px; padding: 8px 20px; display: inline-block; letter-spacing: 2px; margin-bottom: 10px; }
+    .qr-hint { font-size: 12px; color: #aaa; }
+
+    /* ── Self Check-in Card ── */
+    .checkin-card {
+      background: #fff; border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 24px; text-align: center; margin-bottom: 20px; display: none;
+    }
+    .checkin-card.visible { display: block; }
+    .checkin-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .checkin-sub   { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+    .btn-checkin {
+      background: #2e7d32; color: #fff; border: none; border-radius: 10px;
+      padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-checkin:hover    { background: #1b5e20; }
+    .btn-checkin:disabled { opacity: .6; cursor: not-allowed; }
+    .checkin-done {
+      display: none; background: var(--yes-bg); border: 1px solid #a5d6a7; border-radius: 10px;
+      padding: 14px 20px; color: var(--yes-col); font-weight: 600; font-size: 14px; margin-top: 14px;
+    }
+    .checkin-done.visible { display: block; }
+
+    /* ── Notice ── */
+    .notice { text-align: center; padding: 40px 24px; color: var(--muted); }
+    .notice-icon { font-size: 40px; margin-bottom: 12px; }
+    .notice h3 { font-size: 16px; color: #555; margin-bottom: 6px; }
+    .notice p  { font-size: 13px; }
+
+    /* ── Reg closed ── */
+    .reg-closed {
+      background: #fff3e0; border: 1px solid #ffcc80; border-radius: 12px;
+      padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+      color: #e65100; font-weight: 600; font-size: 13px;
+    }
+
+    /* ── Confirmation overlay ── */
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .confirm-overlay.show { opacity: 1; pointer-events: all; }
+    .confirm-box {
+      background: #fff; border-radius: 20px; padding: 40px 32px; max-width: 420px; width: 100%;
+      text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      transform: scale(.85); transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .confirm-overlay.show .confirm-box { transform: scale(1); }
+    .confirm-icon { font-size: 64px; margin-bottom: 16px; animation: pop .5s .1s both; }
+    @keyframes pop {
+      0%   { transform: scale(0); }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .confirm-title { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .confirm-sub   { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+    .confirm-code  { font-family: monospace; font-size: 18px; font-weight: 700; color: var(--brand); background: var(--brand-light); padding: 10px 20px; border-radius: 10px; display: inline-block; letter-spacing: 2px; margin-bottom: 20px; }
+    .confirm-qr-wrap { display: inline-block; padding: 12px; background: #fff; border: 2px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+    .btn-confirm-close {
+      background: var(--brand); color: #fff; border: none; border-radius: 50px;
+      padding: 12px 32px; font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-confirm-close:hover { background: var(--brand-dark); }
+
+    /* ── Food section ── */
+    .food-section {
+      display: none; margin-top: 16px; padding: 16px;
+      background: #f1f8e9; border: 1px solid #c5e1a5; border-radius: 12px;
+    }
+    .food-section-title { font-size: 12px; font-weight: 700; color: #558b2f; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 10px; }
+
+    /* ── Day selection ── */
+    .day-select-section {
+      display: none; margin-top: 16px; padding: 16px;
+      background: var(--brand-xlight); border: 1px solid rgba(103,49,71,.15); border-radius: 12px;
+    }
+    .day-select-title { font-size: 12px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 10px; }
+
+    /* ── Checkbox label ── */
+    .chk-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--text); cursor: pointer; padding: 2px 0;
+    }
+    .chk-label input[type="checkbox"] {
+      width: 17px; height: 17px; accent-color: var(--brand); cursor: pointer; flex-shrink: 0;
+    }
+
+    /* ── Footer ── */
+    .page-footer { text-align: center; padding: 20px; font-size: 12px; color: #b0b8d0; }
+    .page-footer a { color: var(--brand); text-decoration: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .hero { padding: 28px 16px 40px; }
+      .hero-title { font-size: 24px; }
+      .content { padding: 20px 12px 60px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .span-2 { grid-column: span 1; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .btn-rsvp-hero { padding: 14px 32px; font-size: 15px; }
+      .attend-toggle { gap: 8px; }
+      .attend-opt-inner { padding: 10px 6px; font-size: 12px; }
+      .attend-opt-emoji { font-size: 20px; }
+      .confirm-box { padding: 28px 20px; }
+      .confirm-icon { font-size: 52px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <img  id="topbarLogoImg" class="topbar-logo" src="" alt="" style="display:none;" />
+      <div  id="topbarLogoFallback" class="topbar-logo-fallback">✝️</div>
+      <div>
+        <div class="topbar-name" id="topbarName">Church Genius Pro</div>
+        <div class="topbar-tag">Event Registration</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero" id="hero">
+    <div class="hero-eyebrow">You're Invited</div>
+    <div class="hero-title" id="heroTitle">Loading Event…</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ STEP 1: Event Details ══ -->
+    <div class="step active" id="step1">
+
+      <!-- Event Details Card -->
+      <div class="card" id="eventDetailCard">
+        <div class="card-body" id="eventDetailBody">
+          <p style="color:#b0b8d0;font-style:italic;">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Self Check-In Card -->
+      <div class="checkin-card" id="checkinCard">
+        <div class="checkin-title">📍 Already Registered?</div>
+        <div class="checkin-sub" id="checkinSub">Enter your registration code to check in at the event.</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;">
+          <input type="text" id="checkinCodeInput" placeholder="Enter your registration code"
+                 style="border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;
+                        outline:none;width:240px;font-family:monospace;letter-spacing:1px;" />
+          <button class="btn-checkin" id="checkinBtn" onclick="doSelfCheckIn()">I'm Here</button>
+        </div>
+        <div class="checkin-done" id="checkinDone"></div>
+      </div>
+
+      <!-- RSVP Slide Bar (always shown on step 1; Maybe tile gated on allowMaybeRsvp) -->
+      <div class="rsvp-slide-bar card" id="rsvpSlideBar">
+        <div class="card-body" style="padding:20px 22px 14px;">
+          <div class="rsvp-slide-label">Will you be attending?</div>
+          <div class="rsvp-slide-track">
+            <div class="rsvp-slide-opt" id="slideOptYes" onclick="selectSlideRsvp('true')">
+              <span class="slide-emoji">✅</span>
+              Yes
+            </div>
+            <div class="rsvp-slide-opt" id="slideOptMaybe" onclick="selectSlideRsvp('maybe')" style="display:none;">
+              <span class="slide-emoji">🤔</span>
+              Maybe
+            </div>
+            <div class="rsvp-slide-opt" id="slideOptNo" onclick="selectSlideRsvp('false')">
+              <span class="slide-emoji">❌</span>
+              No
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RSVP Now CTA (hidden — slide bar above is the primary CTA; wrapper kept for reg-closed notice) -->
+      <div id="rsvpNowWrap" style="display:none;"></div>
+
+    </div><!-- /#step1 -->
+
+    <!-- ══ STEP 2: RSVP Form ══ -->
+    <div class="step" id="step2">
+
+      <button class="btn-back" onclick="goToStep1()">← Back to Event Details</button>
+
+      <!-- RSVP Form Card -->
+      <div class="card" id="regFormCard">
+        <div class="card-header">
+          <div class="card-header-icon">✍️</div>
+          <h2 id="rsvpFormTitle">RSVP for this Event</h2>
+        </div>
+        <div class="card-body">
+          <div class="feedback" id="formFeedback"></div>
+
+          <div class="form-section-title">Your Information</div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="email">Email <span class="required-star">*</span></label>
+              <input type="email" id="email" placeholder="your@email.com" autocomplete="email" />
+              <span class="field-hint" id="emailHint"></span>
+            </div>
+            <div class="field">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" placeholder="(555) 000-0000" autocomplete="tel" />
+              <span class="field-hint" id="phoneHint"></span>
+            </div>
+            <div class="field">
+              <label for="firstName">First Name <span class="required-star">*</span></label>
+              <input type="text" id="firstName" placeholder="First name" autocomplete="given-name" />
+              <span class="field-hint" id="firstNameHint"></span>
+            </div>
+            <div class="field">
+              <label for="lastName">Last Name <span class="required-star">*</span></label>
+              <input type="text" id="lastName" placeholder="Last name" autocomplete="family-name" />
+              <span class="field-hint" id="lastNameHint"></span>
+            </div>
+          </div>
+
+          <div class="form-section-title" style="margin-top:22px;">Attendance Details</div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="adults">Adults <span class="required-star">*</span></label>
+              <input type="number" id="adults" min="0" value="1" />
+              <span class="field-hint" id="adultsHint"></span>
+            </div>
+            <div class="field">
+              <label for="kids">Children</label>
+              <input type="number" id="kids" min="0" value="0" />
+              <span class="field-hint"></span>
+            </div>
+            <div class="field span-2">
+              <label style="margin-bottom:4px;">Will you be attending?</label>
+              <div class="attend-toggle" id="attendingGroup">
+                <label class="attend-opt yes">
+                  <input type="radio" name="attending" value="true" checked onchange="updateAttendingStyle()" />
+                  <div class="attend-opt-inner">
+                    <div class="attend-opt-emoji">✅</div>
+                    Yes
+                  </div>
+                </label>
+                <label class="attend-opt maybe" id="lblMaybeWrap" style="display:none;">
+                  <input type="radio" name="attending" value="maybe" onchange="updateAttendingStyle()" />
+                  <div class="attend-opt-inner">
+                    <div class="attend-opt-emoji">🤔</div>
+                    Maybe
+                  </div>
+                </label>
+                <label class="attend-opt no">
+                  <input type="radio" name="attending" value="false" onchange="updateAttendingStyle()" />
+                  <div class="attend-opt-inner">
+                    <div class="attend-opt-emoji">❌</div>
+                    No
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div class="field span-2">
+              <label for="regNote">Comment <span style="font-weight:400;color:#aaa;">(optional)</span></label>
+              <textarea id="regNote" rows="2" placeholder="Any special requests or comments…"></textarea>
+            </div>
+          </div>
+
+          <!-- Food Preference -->
+          <div class="food-section" id="foodSection">
+            <div class="food-section-title">🍽️ Food Preference</div>
+            <div id="foodItemCheckboxes" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+
+          <!-- Day-attendance selection -->
+          <div class="day-select-section" id="daySelectSection">
+            <div class="day-select-title">📅 Which days will you attend?</div>
+            <div id="dayCheckboxes" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+
+          <div style="margin-top:24px;">
+            <button class="btn-submit" id="submitBtn" onclick="submitRegistration()">
+              <span>🎉</span> RSVP
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Who else is attending (shown on step 2 when enabled + Yes/Maybe selected) -->
+      <div class="card" id="whoCard" style="display:none;">
+        <div class="card-header">
+          <div class="card-header-icon">👥</div>
+          <h2>Who else is attending?</h2>
+          <label class="toggle-row" style="margin-left:auto;" title="Show attendees list">
+            <input type="checkbox" class="toggle-checkbox" id="whoToggle" onchange="toggleWhoSection()" />
+            <span class="toggle-label" id="whoToggleLabel">Show</span>
+          </label>
+        </div>
+        <div id="whoSection">
+          <div class="reg-table-wrap">
+            <table class="reg-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Name</th><th>Count</th><th>Attending?</th><th>Comment</th>
+                </tr>
+              </thead>
+              <tbody id="regTableBody">
+                <tr><td class="empty-row" colspan="5">Loading…</td></tr>
+              </tbody>
+              <tfoot id="regTableFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code Card (after successful registration with QR enabled) -->
+      <div class="qr-card" id="qrCard">
+        <div class="qr-card-title">🎟️ Your Registration Code</div>
+        <div class="qr-card-sub">Present this code or QR at the event for check-in</div>
+        <div class="qr-code-wrap" id="qrCodeWrap"></div><br />
+        <div class="reg-code-label" id="regCodeLabel"></div>
+        <div class="qr-hint">Screenshot or print this code to bring to the event.</div>
+      </div>
+
+    </div><!-- /#step2 -->
+
+  </div><!-- /.content -->
+
+  <!-- Confirmation overlay (shown after successful RSVP) -->
+  <div class="confirm-overlay" id="confirmOverlay" onclick="closeConfirm(event)">
+    <div class="confirm-box">
+      <div class="confirm-icon">🎉</div>
+      <div class="confirm-title" id="confirmTitle">You're In!</div>
+      <div class="confirm-sub" id="confirmSub">Your RSVP has been submitted successfully. A confirmation email has been sent to you.</div>
+      <div id="confirmCodeWrap" style="display:none;">
+        <div class="confirm-code" id="confirmCode"></div><br/>
+        <div class="confirm-qr-wrap" id="confirmQrWrap"></div><br/>
+        <div style="font-size:12px;color:#aaa;margin-bottom:16px;">Screenshot this code to bring to the event</div>
+      </div>
+      <button class="btn-confirm-close" onclick="closeConfirmBtn()">Done ✓</button>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    Powered by <strong><a href="https://churchgeniuspro.com" target="_blank">Church Genius Pro</a></strong>
+  </div>
+
+<script>
+  /* ── State ── */
+  const pathParts = window.location.pathname.split('/');
+  const eventId   = pathParts[pathParts.length - 1] || null;
+  let eventData   = null;
+  let regsData    = [];
+  let updateEmail = null;
+
+  /* ── RSVP Slide Bar ── */
+  function selectSlideRsvp(val) {
+    // Highlight selected tile
+    document.getElementById('slideOptYes').className   = 'rsvp-slide-opt' + (val === 'true'  ? ' selected-yes'   : '');
+    document.getElementById('slideOptMaybe').className = 'rsvp-slide-opt' + (val === 'maybe' ? ' selected-maybe' : '');
+    document.getElementById('slideOptNo').className    = 'rsvp-slide-opt' + (val === 'false' ? ' selected-no'    : '');
+    // Sync the attending radio in the form
+    const radio = document.querySelector(`input[name="attending"][value="${val}"]`);
+    if (radio) radio.checked = true;
+    // Short delay so user sees the selection, then navigate to step 2
+    setTimeout(goToStep2, 220);
+  }
+
+  /* ── Step navigation ── */
+  function goToStep2() {
+    const s1 = document.getElementById('step1');
+    const s2 = document.getElementById('step2');
+    s1.classList.remove('active');
+    s2.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Show "Who else is attending" on step 2 if enabled + attending is Yes/Maybe
+    maybeShowWhoCard();
+  }
+
+  function goToStep1() {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step1').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* Show "Who else is attending" on step 2 only if showRegistrants=true AND Yes/Maybe selected */
+  function maybeShowWhoCard() {
+    if (!eventData) return;
+    const whoCard = document.getElementById('whoCard');
+    if (!whoCard) return;
+    const attending = document.querySelector('input[name="attending"]:checked');
+    const val = attending ? attending.value : 'true';
+    const showRegs = eventData.showRegistrants === true || eventData.showRegistrants === undefined;
+    const attendingOk = (val === 'true' || val === 'maybe');
+    whoCard.style.display = (showRegs && attendingOk) ? '' : 'none';
+  }
+
+  /* ── Init ── */
+  (async function init() {
+    if (!eventId) {
+      showError('eventDetailBody', 'Invalid event URL — no event ID found.');
+      return;
+    }
+    await Promise.all([loadEventDetail(), loadRegistrations()]);
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === '1') {
+      const slideBarV = document.getElementById('rsvpSlideBar');
+      if (slideBarV) slideBarV.style.display = 'none';
+    }
+    const urlEmail = params.get('email');
+    if (urlEmail) { prefillForUpdate(urlEmail); goToStep2(); }
+  })();
+
+  /* ─────────── EVENT DETAIL ─────────── */
+
+  async function loadEventDetail() {
+    try {
+      const res = await fetch(`/api/event-register/${eventId}`);
+      if (!res.ok) throw new Error('not found');
+      eventData = await res.json();
+      if (eventData.churchName) {
+        document.getElementById('topbarName').textContent = eventData.churchName;
+        document.title = eventData.churchName + ' – Event Registration';
+      }
+      const logoImg      = document.getElementById('topbarLogoImg');
+      const logoFallback = document.getElementById('topbarLogoFallback');
+      const logoUrl      = `/api/event-register/${eventId}/logo`;
+      const logoCheck    = await fetch(logoUrl, { method: 'HEAD' }).catch(() => ({ ok: false }));
+      if (logoCheck.ok) {
+        logoImg.src = logoUrl; logoImg.alt = eventData.churchName || 'Church logo';
+        logoImg.style.display = 'block'; logoFallback.style.display = 'none';
+      }
+      renderHero(eventData);
+      renderEventDetail(eventData);
+    } catch {
+      showError('eventDetailBody', 'This event is not available.');
+      const w = document.getElementById('rsvpNowWrap');
+      if (w) w.style.display = 'none';
+    }
+  }
+
+  function renderHero(ev) {
+    document.getElementById('heroTitle').textContent = ev.eventName || 'Event Registration';
+  }
+
+  /* Render the event note preserving its formatting. New notes are rich HTML
+     (from the Quill editor) and are sanitized before insertion; legacy plain-text
+     notes are escaped with whitespace/line-breaks preserved. */
+  function renderNote(note) {
+    if (!note) return '';
+    const looksHtml = /<[a-z][\s\S]*>/i.test(note);
+    if (looksHtml && window.DOMPurify) return DOMPurify.sanitize(note);
+    return `<div style="white-space:pre-wrap;">${escHtml(note)}</div>`;
+  }
+
+  function renderEventDetail(ev) {
+    let html = '';
+
+    // Load the banner from the cached image endpoint (lazily) rather than inline base64.
+    if (ev.hasImage) {
+      html += `<div class="ev-img-wrap"><img src="/api/event-register/${eventId}/image" alt="Event image" loading="lazy" /></div>`;
+    } else if (ev.imageData) {
+      html += `<div class="ev-img-wrap"><img src="${ev.imageData}" alt="Event image" loading="lazy" /></div>`;
+    }
+
+    html += `<div class="detail-grid">`;
+    if (ev.eventType === 'One Day' && ev.eventDate) html += detailItem('📅', 'Date', formatDate(ev.eventDate));
+    if (ev.startTime || ev.endTime) {
+      const t = [ev.startTime, ev.endTime].filter(Boolean).map(formatTime).join(' – ');
+      html += detailItem('🕐', 'Time', t);
+    }
+    const locParts = [ev.address1, ev.address2, ev.city, ev.state ? stateName(ev.state) : null, ev.country].filter(Boolean);
+    if (locParts.length) html += detailItem('📍', 'Location', locParts.join(', '));
+    if (ev.fee) html += detailItem('💲', 'Registration Fee', ev.fee);
+    if (ev.registrationEndDate) {
+      const today = new Date().toISOString().slice(0, 10);
+      const closed = ev.registrationEndDate < today;
+      html += detailItem(closed ? '🔒' : '⏰', 'Registration Ends', formatDate(ev.registrationEndDate));
+    }
+    html += `</div>`;
+
+    if (ev.note) {
+      html += `<div class="ev-notes"><div class="ev-notes-title">Notes</div><div class="ev-notes-body">${renderNote(ev.note)}</div></div>`;
+    }
+
+    if (ev.eventType === 'Multiple Days' && ev.days && ev.days.length) {
+      html += `<div class="days-list">`;
+      ev.days.forEach((d, i) => {
+        const dStr = d.eventDate ? formatDate(d.eventDate) : '';
+        const tStr = (d.startTime || d.endTime) ? ` &nbsp;·&nbsp; ${d.startTime ? formatTime(d.startTime) : ''}${d.endTime ? ' – ' + formatTime(d.endTime) : ''}` : '';
+        const foodTag = d.foodAvailable ? ` <span style="font-size:11px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px;margin-left:6px;">🍽️ Food</span>` : '';
+        html += `<div class="day-chip"><strong>Day ${i+1}:</strong> ${escHtml(dStr)}${tStr}${foodTag}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (ev.foodAvailable) {
+      html += `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;
+                           background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;
+                           padding:11px 16px;font-size:13px;color:#2e7d32;font-weight:600;">
+        🍽️ Food is available for this event.</div>`;
+    }
+
+    if (ev.accommodationAvailable) {
+      html += `<div style="margin-top:14px;background:#e8eaf6;border:1px solid #c5cae9;border-radius:10px;padding:14px 16px;">
+        <div style="font-size:13px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🏨 Accommodation Available</div>`;
+      if (ev.accommodationAddress) html += `<div style="font-size:13px;color:#333;margin-bottom:6px;">📍 <strong>${escHtml(ev.accommodationAddress)}</strong></div>`;
+      if (ev.accommodationComments) html += `<div style="font-size:13px;color:#555;white-space:pre-wrap;">${escHtml(ev.accommodationComments)}</div>`;
+      html += `</div>`;
+    }
+
+    if (locParts.length) {
+      const mapsQuery = encodeURIComponent(locParts.join(', '));
+      html += `<div style="margin-top:14px;">
+        <a href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener noreferrer"
+           style="display:inline-flex;align-items:center;gap:8px;background:var(--brand-light);
+                  color:var(--brand);border-radius:10px;padding:10px 18px;font-size:13px;
+                  font-weight:700;text-decoration:none;border:1px solid rgba(103,49,71,.2);">
+          🗺️ View on Google Maps
+        </a>
+      </div>`;
+    }
+
+    if (ev.hostName || ev.hostPhone || ev.hostEmail) {
+      html += `<div class="host-block"><div class="host-title">Host Contact</div>`;
+      if (ev.hostName)  html += `<div class="host-field">👤 ${escHtml(ev.hostName)}</div>`;
+      if (ev.hostPhone) html += `<div class="host-field">📞 <a href="tel:${escHtml(ev.hostPhone)}">${formatPhone(ev.hostPhone)}</a></div>`;
+      if (ev.hostEmail) html += `<div class="host-field">✉️ <a href="mailto:${escHtml(ev.hostEmail)}">${escHtml(ev.hostEmail)}</a></div>`;
+      if (ev.hostNote)  html += `<div class="host-field" style="flex-basis:100%;color:#777;">${escHtml(ev.hostNote)}</div>`;
+      html += `</div>`;
+    }
+
+    document.getElementById('eventDetailBody').innerHTML = html;
+
+    if (ev.selfCheckinEnabled) document.getElementById('checkinCard').classList.add('visible');
+
+    // Maybe option (form)
+    const lblMaybe = document.getElementById('lblMaybeWrap');
+    if (lblMaybe) {
+      lblMaybe.style.display = ev.allowMaybeRsvp ? '' : 'none';
+      if (!ev.allowMaybeRsvp) {
+        const maybeRadio = lblMaybe.querySelector('input[type="radio"]');
+        if (maybeRadio && maybeRadio.checked) {
+          const yesRadio = document.querySelector('input[name="attending"][value="true"]');
+          if (yesRadio) { yesRadio.checked = true; updateAttendingStyle(); }
+        }
+      }
+    }
+    // Maybe option (slide bar)
+    const slideOptMaybe = document.getElementById('slideOptMaybe');
+    if (slideOptMaybe) slideOptMaybe.style.display = ev.allowMaybeRsvp ? '' : 'none';
+    // Slide bar always visible — hide only if registration is closed (handled below)
+    // Maybe tile already handled above via allowMaybeRsvp
+
+    // Food section
+    if (ev.foodAvailable) {
+      document.getElementById('foodSection').style.display = '';
+      const foodChkContainer = document.getElementById('foodItemCheckboxes');
+      let foodOptions = [];
+      if (ev.foodItems) { try { foodOptions = JSON.parse(ev.foodItems); } catch { foodOptions = []; } }
+      if (foodOptions.length > 0) {
+        foodChkContainer.innerHTML = foodOptions.map(item =>
+          `<label class="chk-label"><input type="checkbox" class="food-item-chk" data-item="${escHtml(item)}" />${escHtml(item)}</label>`
+        ).join('');
+      } else {
+        foodChkContainer.innerHTML = `<label class="chk-label">
+          <input type="checkbox" id="vegetarianChk" />
+          Vegetarian? <span style="color:#777;font-size:12px;">(leave unchecked for Non-Vegetarian)</span>
+        </label>`;
+      }
+    } else {
+      document.getElementById('foodSection').style.display = 'none';
+    }
+
+    // Day selection
+    if (ev.eventType === 'Multiple Days' && ev.days && ev.days.length) {
+      const dayChk = document.getElementById('dayCheckboxes');
+      dayChk.innerHTML = ev.days.map((d, i) => {
+        const dStr = d.eventDate ? formatDate(d.eventDate) : '';
+        const tStr = (d.startTime || d.endTime) ? ` · ${d.startTime ? formatTime(d.startTime) : ''}${d.endTime ? ' – ' + formatTime(d.endTime) : ''}` : '';
+        const foodMark = d.foodAvailable ? ' 🍽️' : '';
+        return `<label class="chk-label">
+          <input type="checkbox" class="day-attend-chk" data-day="${d.dayOrder || i+1}" />
+          <span><strong>Day ${i+1}:</strong> ${escHtml(dStr)}${escHtml(tStr)}${foodMark}</span>
+        </label>`;
+      }).join('');
+      document.getElementById('daySelectSection').style.display = '';
+    } else {
+      document.getElementById('daySelectSection').style.display = 'none';
+    }
+
+    // Registration closed?
+    const today = new Date().toISOString().slice(0, 10);
+    if (ev.registrationEndDate && ev.registrationEndDate < today) {
+      // Hide slide bar, show closed notice in its place
+      const slideBar2 = document.getElementById('rsvpSlideBar');
+      if (slideBar2) slideBar2.style.display = 'none';
+      const rsvpNowWrap = document.getElementById('rsvpNowWrap');
+      if (rsvpNowWrap) {
+        rsvpNowWrap.style.display = '';
+        rsvpNowWrap.innerHTML = `<div class="reg-closed" style="max-width:420px;margin:0 auto 16px;">
+          <span style="font-size:22px;">🔒</span>
+          <span>Registration for this event has closed.</span>
+        </div>`;
+      }
+    }
+  }
+
+  function detailItem(icon, label, val) {
+    return `<div class="detail-item">
+      <div class="detail-item-icon">${icon}</div>
+      <div class="detail-item-body">
+        <div class="detail-item-label">${label}</div>
+        <div class="detail-item-val">${escHtml(String(val))}</div>
+      </div>
+    </div>`;
+  }
+
+  /* ─────────── REGISTRATIONS ─────────── */
+
+  async function loadRegistrations() {
+    try {
+      const res = await fetch(`/api/event-register/${eventId}/registrations`);
+      regsData  = await res.json();
+      renderRegTable(regsData);
+    } catch {
+      document.getElementById('regTableBody').innerHTML =
+        `<tr><td class="empty-row" colspan="5">Could not load registrations.</td></tr>`;
+    }
+  }
+
+  function renderRegTable(regs) {
+    const tbody = document.getElementById('regTableBody');
+    const tfoot = document.getElementById('regTableFoot');
+    if (!regs || !regs.length) {
+      tbody.innerHTML = `<tr><td class="empty-row" colspan="5">No RSVPs yet. Be the first!</td></tr>`;
+      tfoot.innerHTML = ''; return;
+    }
+    tbody.innerHTML = regs.map((r, i) => {
+      const name = [r.firstName, r.lastName].filter(Boolean).join(' ');
+      const count = (r.adults || 0) + (r.kids || 0);
+      const attBadge = r.attending === true
+        ? `<span class="badge-yes">✅ Yes</span>`
+        : r.attending === false
+          ? `<span class="badge-no">❌ No</span>`
+          : `<span class="badge-maybe">🤔 Maybe</span>`;
+      const note = r.note ? escHtml(r.note) : `<span style="color:#ccc;">—</span>`;
+      return `<tr>
+        <td style="color:#9fa8c4;font-size:11px;">${i+1}</td>
+        <td style="font-weight:600;color:var(--text);">${escHtml(name)}</td>
+        <td><span class="count-pill">${count}</span></td>
+        <td>${attBadge}</td>
+        <td style="max-width:180px;color:#555;">${note}</td>
+      </tr>`;
+    }).join('');
+    const totalCount  = regs.reduce((s, r) => s + (r.adults || 0) + (r.kids || 0), 0);
+    const totalAdults = regs.reduce((s, r) => s + (r.adults || 0), 0);
+    const totalKids   = regs.reduce((s, r) => s + (r.kids   || 0), 0);
+    tfoot.innerHTML = `<tr class="totals-row">
+      <td colspan="2" style="color:var(--brand);">Total RSVPs: ${regs.length}</td>
+      <td><span class="count-pill">${totalCount}</span></td>
+      <td style="font-size:11px;color:#777;">${totalAdults} adults · ${totalKids} kids</td>
+      <td></td>
+    </tr>`;
+  }
+
+  /* ─────────── TOGGLE WHO SECTION ─────────── */
+
+  function toggleWhoSection() {
+    const checked = document.getElementById('whoToggle').checked;
+    document.getElementById('whoSection').style.display = checked ? 'block' : 'none';
+    document.getElementById('whoToggleLabel').textContent = checked ? 'Hide' : 'Show';
+  }
+
+  /* Show/hide who card based on attending value */
+  function updateAttendingStyle() {
+    // no extra style needed — CSS handles it via :checked
+    maybeShowWhoCard();
+  }
+
+  /* ─────────── PRE-FILL FOR UPDATE ─────────── */
+
+  function prefillForUpdate(email) {
+    const reg = regsData.find(r => r.email && r.email.toLowerCase() === email.toLowerCase());
+    if (!reg) {
+      showFeedback('ℹ️ No existing RSVP found for ' + email + '. You can submit a new one below.', 'error');
+      return;
+    }
+    updateEmail = reg.email;
+    document.getElementById('firstName').value = reg.firstName || '';
+    document.getElementById('lastName').value  = reg.lastName  || '';
+    document.getElementById('email').value     = reg.email     || '';
+    document.getElementById('phone').value     = reg.phone     || '';
+    document.getElementById('adults').value    = reg.adults != null ? reg.adults : 1;
+    document.getElementById('kids').value      = reg.kids   != null ? reg.kids   : 0;
+    document.getElementById('regNote').value   = reg.note      || '';
+    const attendingVal = reg.attending === true ? 'true' : reg.attending === false ? 'false' : 'maybe';
+    const radio = document.querySelector(`input[name="attending"][value="${attendingVal}"]`);
+    if (radio) { radio.checked = true; }
+    if (reg.selectedFoodItems) {
+      try {
+        const items = JSON.parse(reg.selectedFoodItems);
+        document.querySelectorAll('.food-item-chk').forEach(chk => { chk.checked = items.includes(chk.dataset.item); });
+      } catch {}
+    }
+    const vegChk = document.getElementById('vegetarianChk');
+    if (vegChk && reg.vegetarian != null) vegChk.checked = reg.vegetarian;
+    if (reg.attendingDays) {
+      try {
+        const days = JSON.parse(reg.attendingDays);
+        document.querySelectorAll('.day-attend-chk').forEach(chk => { chk.checked = days.includes(parseInt(chk.dataset.day)); });
+      } catch {}
+    }
+    document.getElementById('rsvpFormTitle').textContent = 'Update Your RSVP';
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<span>✏️</span> Update RSVP';
+    showFeedback('✅ Your existing RSVP has been loaded. Make changes and click "Update RSVP".', 'success');
+  }
+
+  /* ─────────── SUBMIT ─────────── */
+
+  async function submitRegistration() {
+    if (!validate()) return;
+    const btn = document.getElementById('submitBtn');
+    const emailVal = document.getElementById('email').value.trim();
+    if (emailVal && !updateEmail) {
+      const dup = regsData.some(r => r.email && r.email.toLowerCase() === emailVal.toLowerCase());
+      if (dup) {
+        showFeedback('❌ This email address has already submitted an RSVP for this event.', 'error');
+        return;
+      }
+    }
+    btn.disabled = true;
+    btn.innerHTML = updateEmail ? '<span>⏳</span> Updating…' : '<span>⏳</span> Submitting…';
+
+    const attendingRaw = document.querySelector('input[name="attending"]:checked').value;
+    let vegetarian = null, selectedFoodItems = null;
+    if (document.getElementById('foodSection').style.display !== 'none') {
+      const dynamicChks = document.querySelectorAll('.food-item-chk:checked');
+      if (dynamicChks.length > 0) {
+        selectedFoodItems = JSON.stringify(Array.from(dynamicChks).map(c => c.dataset.item));
+      } else {
+        const vegChk = document.getElementById('vegetarianChk');
+        vegetarian = vegChk ? vegChk.checked : null;
+      }
+    }
+    const dayChks = document.querySelectorAll('.day-attend-chk:checked');
+    const attendingDays = dayChks.length > 0 ? JSON.stringify(Array.from(dayChks).map(c => parseInt(c.dataset.day))) : null;
+
+    const body = {
+      firstName: document.getElementById('firstName').value.trim(),
+      lastName:  document.getElementById('lastName').value.trim(),
+      email:     emailVal,
+      phone:     document.getElementById('phone').value.trim(),
+      adults:    parseInt(document.getElementById('adults').value) || 0,
+      kids:      parseInt(document.getElementById('kids').value)   || 0,
+      attending: attendingRaw === 'true' ? true : attendingRaw === 'false' ? false : null,
+      note:      document.getElementById('regNote').value.trim(),
+      vegetarian, selectedFoodItems, attendingDays
+    };
+
+    try {
+      const url  = updateEmail ? `/api/event-register/${eventId}?email=${encodeURIComponent(updateEmail)}` : `/api/event-register/${eventId}`;
+      const res  = await fetch(url, { method: updateEmail ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (res.ok) {
+        // Show confirmation overlay (message depends on attending choice)
+        showConfirmOverlay(updateEmail, data, attendingRaw);
+        resetForm();
+        await Promise.all([loadRegistrations(), loadEventDetail()]);
+        if (attendingRaw === 'true' && !updateEmail && data.registrationCode && eventData && eventData.generateQrCode) {
+          showQrCard(data.registrationCode);
+        }
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to submit RSVP. Please try again.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — please check your connection and try again.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = updateEmail ? '<span>✏️</span> Update RSVP' : '<span>🎉</span> RSVP';
+    }
+  }
+
+  /* ─────────── CONFIRMATION OVERLAY ─────────── */
+
+  function showConfirmOverlay(isUpdate, data, attending) {
+    const overlay = document.getElementById('confirmOverlay');
+    // Tailor the confirmation to the attendee's "Will you be attending?" choice.
+    let title, sub;
+    if (attending === 'false') {           // No
+      title = "We'll Miss You 💛";
+      sub = "We're sorry you can't make it. We hope to see you at a future event!";
+    } else if (attending === 'maybe') {    // Maybe
+      title = 'Thank You!';
+      sub = "Thanks for your RSVP — we hope you'll be able to join us!";
+    } else {                                // Yes (unchanged behavior)
+      title = isUpdate ? 'RSVP Updated! ✓' : "You're In! 🎉";
+      sub = isUpdate
+        ? 'Your RSVP has been updated successfully.'
+        : 'Your RSVP has been submitted! A confirmation email has been sent to you.';
+    }
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmSub').textContent = sub;
+
+    const codeWrap = document.getElementById('confirmCodeWrap');
+    // Only attendees who are coming ("Yes") get a check-in QR code.
+    if (attending === 'true' && !isUpdate && data.registrationCode && eventData && eventData.generateQrCode) {
+      document.getElementById('confirmCode').textContent = data.registrationCode;
+      const qrWrap = document.getElementById('confirmQrWrap');
+      qrWrap.innerHTML = '';
+      if (window.QRCode) {
+        new QRCode(qrWrap, {
+          text: window.location.origin + '/event-checkin/' + data.registrationCode,
+          width: 140, height: 140,
+          colorDark: '#673147', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+      codeWrap.style.display = '';
+    } else {
+      codeWrap.style.display = 'none';
+    }
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeConfirm(e) {
+    if (e.target === document.getElementById('confirmOverlay')) closeConfirmBtn();
+  }
+  function closeConfirmBtn() {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  /* ─────────── RESET FORM ─────────── */
+
+  function resetForm() {
+    ['firstName','lastName','email','phone','regNote'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('adults').value = '1';
+    document.getElementById('kids').value   = '0';
+    const yesRadio = document.querySelector('input[name="attending"][value="true"]');
+    if (yesRadio) { yesRadio.checked = true; }
+    ['firstName','lastName','email','adults'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.classList.remove('invalid');
+    });
+    ['firstNameHint','lastNameHint','emailHint','adultsHint'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '';
+    });
+    updateEmail = null;
+    document.getElementById('rsvpFormTitle').textContent = 'RSVP for this Event';
+    const btn = document.getElementById('submitBtn');
+    if (btn) btn.innerHTML = '<span>🎉</span> RSVP';
+  }
+
+  /* ─────────── VALIDATION ─────────── */
+
+  function validate() {
+    let ok = true;
+    const firstName = document.getElementById('firstName').value.trim();
+    if (!firstName) { markInvalid('firstName','firstNameHint','First name is required.'); ok=false; }
+    else markValid('firstName','firstNameHint');
+    const lastName = document.getElementById('lastName').value.trim();
+    if (!lastName) { markInvalid('lastName','lastNameHint','Last name is required.'); ok=false; }
+    else markValid('lastName','lastNameHint');
+    const email = document.getElementById('email').value.trim();
+    if (!email) { markInvalid('email','emailHint','Email address is required.'); ok=false; }
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { markInvalid('email','emailHint','Please enter a valid email.'); ok=false; }
+    else markValid('email','emailHint');
+    const adults = parseInt(document.getElementById('adults').value);
+    if (isNaN(adults) || adults < 0) { markInvalid('adults','adultsHint','Enter a valid number (0 or more).'); ok=false; }
+    else markValid('adults','adultsHint');
+    return ok;
+  }
+  function markInvalid(inputId, hintId, msg) {
+    document.getElementById(inputId).classList.add('invalid');
+    document.getElementById(hintId).textContent = msg;
+  }
+  function markValid(inputId, hintId) {
+    document.getElementById(inputId).classList.remove('invalid');
+    document.getElementById(hintId).textContent = '';
+  }
+
+  /* ─────────── FEEDBACK ─────────── */
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('formFeedback');
+    el.textContent = msg; el.className = 'feedback ' + type;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (type === 'success') setTimeout(() => { el.className = 'feedback'; }, 7000);
+  }
+  function showError(containerId, msg) {
+    document.getElementById(containerId).innerHTML =
+      `<div class="notice"><div class="notice-icon">⚠️</div><h3>Unavailable</h3><p>${escHtml(msg)}</p></div>`;
+  }
+
+  /* ─────────── HELPERS ─────────── */
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function formatPhone(phone) {
+    if (!phone) return '—';
+    const digits = String(phone).replace(/\D/g, '');
+    const d10 = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (d10.length === 10) return '(' + d10.slice(0,3) + ')' + d10.slice(3,6) + '-' + d10.slice(6);
+    return phone;
+  }
+  function formatTime(t) {
+    if (!t) return '';
+    const parts = t.split(':'); let h = parseInt(parts[0],10); const min = parts[1]||'00';
+    const ampm = h>=12?'PM':'AM'; h = h%12||12; return `${h}:${min} ${ampm}`;
+  }
+  function formatDate(s) {
+    if (!s) return '';
+    try {
+      const [y,m,d] = s.split('-');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+    } catch { return s; }
+  }
+  const STATE_NAMES = {
+    "1":"Alabama","2":"Alaska","3":"Arizona","4":"Arkansas","5":"California","6":"Colorado","7":"Connecticut","8":"Delaware","9":"Florida","10":"Georgia",
+    "11":"Hawaii","12":"Idaho","13":"Illinois","14":"Indiana","15":"Iowa","16":"Kansas","17":"Kentucky","18":"Louisiana","19":"Maine","20":"Maryland",
+    "21":"Massachusetts","22":"Michigan","23":"Minnesota","24":"Mississippi","25":"Missouri","26":"Montana","27":"Nebraska","28":"Nevada","29":"New Hampshire",
+    "30":"New Jersey","31":"New Mexico","32":"New York","33":"North Carolina","34":"North Dakota","35":"Ohio","36":"Oklahoma","37":"Oregon","38":"Pennsylvania",
+    "39":"Rhode Island","40":"South Carolina","41":"South Dakota","42":"Tennessee","43":"Texas","44":"Utah","45":"Vermont","46":"Virginia","47":"Washington",
+    "48":"West Virginia","49":"Wisconsin","50":"Wyoming"
+  };
+  function stateName(code) { return STATE_NAMES[String(code)] || code; }
+
+  /* ─────────── QR CODE ─────────── */
+
+  function renderQrCode(text) {
+    const wrap = document.getElementById('qrCodeWrap');
+    wrap.innerHTML = '';
+    if (window.QRCode) {
+      new QRCode(wrap, { text, width:180, height:180, colorDark:'#673147', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } else { wrap.textContent = text; }
+  }
+  function showQrCard(registrationCode) {
+    const card = document.getElementById('qrCard');
+    document.getElementById('regCodeLabel').textContent = registrationCode;
+    renderQrCode(window.location.origin + '/event-checkin/' + registrationCode);
+    card.classList.add('visible');
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ─────────── SELF CHECK-IN ─────────── */
+
+  async function doSelfCheckIn() {
+    const input = document.getElementById('checkinCodeInput');
+    const code  = input ? input.value.trim() : '';
+    if (!code) return;
+    const btn = document.getElementById('checkinBtn');
+    btn.disabled = true; btn.textContent = 'Checking in…';
+    try {
+      const res  = await fetch(`/api/event-checkin/${encodeURIComponent(code)}`, { method: 'POST' });
+      const data = await res.json();
+      const done = document.getElementById('checkinDone');
+      if (res.ok && data.success) {
+        const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || 'You';
+        done.innerHTML = `✅ Welcome, <strong>${escHtml(name)}</strong>! You are now checked in. 🎉`;
+        done.classList.add('visible'); btn.style.display='none'; input.style.display='none';
+      } else {
+        done.innerHTML = `❌ ${escHtml(data.error || 'Registration code not found. Please check and try again.')}`;
+        done.style.background='#ffebee'; done.style.borderColor='#ef9a9a'; done.style.color='#c62828';
+        done.classList.add('visible'); btn.disabled=false; btn.textContent="I'm Here";
+      }
+    } catch {
+      const done = document.getElementById('checkinDone');
+      done.textContent='❌ Network error — please try again.'; done.classList.add('visible');
+      btn.disabled=false; btn.textContent="I'm Here";
+    }
+  }
+
+  /* ─────────── AUTO-FILL FROM EXISTING REGISTRANT / MEMBER ─────────── */
+  // When the visitor enters an Email or Phone, look up an existing registrant for
+  // this event's client (event_registration first, then family_member) and prefill
+  // the name / contact / attendance fields. Best-effort: any error is ignored.
+  async function autoFillFromLookup() {
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    if (!email && !phone) return;
+    try {
+      const params = new URLSearchParams();
+      if (email) params.set('email', email);
+      if (phone) params.set('phone', phone);
+      const res = await fetch(`/api/event-register/${eventId}/lookup?` + params.toString());
+      if (!res.ok) return;
+      const d = await res.json();
+      if (!d || !d.found) return;
+      const overwrite   = (id, val) => { const el = document.getElementById(id); if (el && val != null && val !== '') el.value = val; };
+      const fillIfEmpty = (id, val) => { const el = document.getElementById(id); if (el && !el.value.trim() && val != null && val !== '') el.value = val; };
+      overwrite('firstName', d.firstName);
+      overwrite('lastName',  d.lastName);
+      fillIfEmpty('email', d.email);   // keep whatever the visitor typed; fill the other contact field
+      fillIfEmpty('phone', d.phone);
+      if (d.adults != null) document.getElementById('adults').value = d.adults;
+      if (d.kids   != null) document.getElementById('kids').value   = d.kids;
+      const hint = document.getElementById('phoneHint');
+      if (hint) {
+        hint.textContent = (d.source === 'registration')
+          ? 'We found your previous registration and filled in your details.'
+          : 'We found your member record and filled in your details.';
+        hint.style.color = '#1e7a44';
+      }
+    } catch (e) { /* lookup is best-effort; ignore */ }
+  }
+  ['email', 'phone'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('blur', autoFillFromLookup);
+  });
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</body>
+</html>

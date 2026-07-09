@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Midwest Region Meet – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── Page header ── */
+    .page-header   { margin-bottom: 20px; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Feedback ── */
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Form cards (matching event.html) ── */
+    .form-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; margin-bottom: 20px; overflow: hidden; }
+    .form-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .section-icon { font-size: 18px; }
+    .form-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; flex: 1; }
+    .form-card-body { padding: 20px; }
+    .sub-section { margin-bottom: 20px; }
+    .sub-section:last-child { margin-bottom: 0; }
+    .sub-section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #673147; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #eef0f8; }
+
+    /* ── Form fields ── */
+    .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .field input, .field select, .field textarea {
+      border: 1px solid #ddd; border-radius: 7px; padding: 8px 10px;
+      font-size: 13px; color: #333; outline: none; background: #fff;
+      transition: border-color .2s, box-shadow .2s; font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.12);
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── Day rows ── */
+    .days-container { display: flex; flex-direction: column; gap: 8px; }
+    .day-row {
+      display: flex; flex-direction: row; flex-wrap: nowrap;
+      align-items: flex-end; gap: 10px;
+      background: #fafbfd; border: 1px solid #eef0f8;
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .day-row .day-num-wrap { display: flex; align-items: flex-end; padding-bottom: 2px; flex-shrink: 0; }
+    .day-num { font-size: 11px; font-weight: 700; color: #673147; background: #eef0fb;
+               border-radius: 5px; padding: 4px 10px; white-space: nowrap; }
+    /* Name field grows to fill available space; date/time fields are fixed-width */
+    .day-row .field-name  { flex: 1 1 140px; min-width: 100px; }
+    .day-row .field-date  { flex: 0 0 140px; }
+    .day-row .field-time  { flex: 0 0 118px; }
+    .day-row .field label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;
+                            letter-spacing: .3px; display: block; margin-bottom: 4px; }
+    .day-row .field input { width: 100%; padding: 7px 9px; border: 1.5px solid #dde2f0;
+                            border-radius: 7px; font-size: 13px; font-family: inherit;
+                            background: #fff; transition: border-color .15s; }
+    .day-row .field input:focus { outline: none; border-color: #673147; }
+    .btn-remove-day { background: none; border: 1px solid #e0d0d8; color: #c0788a;
+                      border-radius: 6px; padding: 7px 10px; font-size: 14px;
+                      flex-shrink: 0; align-self: flex-end; transition: background .15s, color .15s; }
+    .btn-remove-day:hover { background: #ffebee; color: #e53935; border-color: #e53935; }
+    .btn-add-day { background: none; border: 1px dashed #673147; color: #673147;
+                   border-radius: 8px; padding: 8px 16px; font-size: 13px; margin-top: 6px; }
+    .btn-add-day:hover { background: #eef0f8; }
+    @media (max-width: 700px) {
+      .day-row { flex-wrap: wrap; }
+      .day-row .field-name, .day-row .field-date, .day-row .field-time { flex: 1 1 120px; }
+    }
+
+    /* ── T-shirt upload ── */
+    .upload-area {
+      border: 2px dashed #c5cae9; border-radius: 8px; padding: 20px;
+      text-align: center; cursor: pointer; background: #fafbff;
+      transition: border-color .2s, background .2s;
+    }
+    .upload-area:hover { border-color: #673147; background: #f5f0f4; }
+    .upload-icon { font-size: 32px; margin-bottom: 6px; }
+    .upload-hint { font-size: 13px; color: #888; }
+    .tshirt-preview { margin-top: 10px; display: none; align-items: center; gap: 12px; }
+    .tshirt-preview img { max-height: 100px; max-width: 160px; border-radius: 6px; border: 1px solid #ddd; }
+    .btn-replace { background: none; border: 1px solid #ddd; border-radius: 6px;
+                   padding: 5px 12px; font-size: 12px; color: #666; }
+    .btn-replace:hover { background: #f5f5f5; }
+
+    /* ── Action bar ── */
+    .action-bar { display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+                  padding: 14px 20px; background: #fff; border-top: 1px solid #eee;
+                  border-radius: 0 0 12px 12px; }
+    .btn-save { background: #673147; color: #fff; border: none; border-radius: 8px;
+                padding: 9px 24px; font-size: 13px; font-weight: 600; }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Public link box ── */
+    .pub-link-box { background: #eef0f8; border-radius: 8px; padding: 10px 14px;
+                    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .pub-link-label { font-size: 12px; font-weight: 700; color: #673147; white-space: nowrap; }
+    .pub-link-url { font-size: 12px; font-family: monospace; color: #333; flex: 1;
+                    word-break: break-all; }
+    .btn-copy-link { background: #673147; color: #fff; border-radius: 6px;
+                     padding: 5px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .btn-copy-link:hover { background: #4f2538; }
+    .btn-open-link { background: none; border: 1px solid #673147; color: #673147;
+                     border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700;
+                     text-decoration: none; white-space: nowrap; }
+    .btn-open-link:hover { background: #eef0f8; }
+
+    /* ── Tabs ── */
+    .tab-bar { display: flex; gap: 4px; background: #fff; border-radius: 10px;
+               padding: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600;
+               color: #888; background: none; border: none; cursor: pointer;
+               transition: background .15s, color .15s; }
+    .tab-btn.active { background: #673147; color: #fff; }
+    .tab-btn:hover:not(.active) { background: #eef0f8; color: #673147; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Participants table (matching event.html table style) ── */
+    .table-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; overflow: hidden; }
+    .table-card-header { display: flex; align-items: center; justify-content: space-between;
+                         gap: 10px; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .table-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; }
+    .table-wrap { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th { background: #f5f6fa; font-size: 11px; font-weight: 700;
+                     text-transform: uppercase; letter-spacing: .5px; color: #888;
+                     padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8eaf0; white-space: nowrap; }
+    .data-table td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fafbfd; }
+    .empty-row { text-align: center; color: #bbb; padding: 32px !important; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-yes   { background: #e8f5e9; color: #2e7d32; }
+    .badge-maybe { background: #fff8e1; color: #f57f17; }
+    .badge-no    { background: #ffebee; color: #c62828; }
+    .badge-gray  { background: #f5f5f5; color: #9e9e9e; }
+
+    .size-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+    .size-chip { background: #eef0fb; color: #333; border-radius: 4px;
+                 padding: 1px 6px; font-size: 11px; font-weight: 600; }
+
+    .btn-del-row { padding: 4px 10px; font-size: 12px; border-radius: 5px;
+                   border: 1px solid #e53935; color: #c62828; background: none; }
+    .btn-del-row:hover { background: #ffebee; }
+
+    .btn-refresh { background: none; border: 1px solid #ddd; border-radius: 7px;
+                   padding: 6px 14px; font-size: 13px; color: #666; }
+    .btn-refresh:hover { background: #f5f5f5; }
+
+    /* ── Print / Download ── */
+    .btn-pdf   { display:inline-flex; align-items:center; gap:5px; padding:6px 14px;
+                 border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:none;
+                 background:#f0e8ec; color:#673147; transition:background .15s; }
+    .btn-pdf:hover   { background:#673147; color:#fff; }
+    .btn-print { display:inline-flex; align-items:center; gap:5px; padding:6px 14px;
+                 border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:none;
+                 background:#f0f0f0; color:#444; transition:background .15s; }
+    .btn-print:hover { background:#d0d0d0; }
+    @media print {
+      .sidebar, .topbar, .tab-bar, .page-header,
+      .pub-link-box, .pane-actions, .btn-refresh,
+      .btn-del-row, .btn-pdf, .btn-print { display:none !important; }
+      .tab-pane { display:block !important; }
+      #paneConfig { display:none !important; }
+      body, .main-area, .page-content { background:#fff !important; }
+      .table-card { box-shadow:none !important; border:1px solid #ddd !important; }
+      .data-table th { background:#f5f6fa !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .badge { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      /* hide the last "Delete" column header and cells */
+      .data-table th:last-child,
+      .data-table td:last-child { display:none !important; }
+    }
+    /* ── Responsive ── */
+    @media (max-width: 900px) { .form-grid { grid-template-columns: repeat(2, 1fr); } .span-3 { grid-column: span 2; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .span-2,.span-3 { grid-column: span 1; } }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">Midwest Region Meet</div>
+        <div class="page-subtitle">Configure the event and manage RSVPs</div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Public RSVP link -->
+      <div class="pub-link-box" id="pubLinkBox" style="display:none">
+        <span class="pub-link-label">📋 Public RSVP Link:</span>
+        <span class="pub-link-url" id="pubLinkUrl"></span>
+        <button class="btn-copy-link" onclick="copyLink()">Copy</button>
+        <a id="pubLinkOpen" class="btn-open-link" href="#" target="_blank" rel="noopener">Open ↗</a>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabBtnConfig" onclick="showTab('config', this)">⚙️ Event Config</button>
+        <button class="tab-btn" id="tabBtnParticipants" onclick="showTab('participants', this)">👥 Participants</button>
+      </div>
+
+      <!-- ══ TAB: Config ══ -->
+      <div class="tab-pane active" id="paneConfig">
+
+        <!-- Event Details -->
+        <div class="form-card">
+          <div class="form-card-header">
+            <span class="section-icon">📅</span>
+            <h3>Event Details</h3>
+          </div>
+          <div class="form-card-body">
+            <div class="sub-section">
+              <div class="form-grid cols-2">
+                <div class="field span-2">
+                  <label>Event Name</label>
+                  <input type="text" id="eventName" placeholder="e.g. Midwest Region Meet 2026" />
+                </div>
+                <div class="field span-2">
+                  <label>Event Address</label>
+                  <textarea id="eventAddress" rows="2" placeholder="Full venue address…"></textarea>
+                </div>
+                <div class="field">
+                  <label>Registration End Date</label>
+                  <input type="date" id="registrationEndDate" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Event Days -->
+            <div class="sub-section">
+              <div class="sub-section-title">Event Days (12-hour time)</div>
+              <div class="days-container" id="daysContainer"></div>
+              <button class="btn-add-day" type="button" onclick="addDay()">+ Add Day</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- T-shirt Image -->
+        <div class="form-card">
+          <div class="form-card-header">
+            <span class="section-icon">👕</span>
+            <h3>T-Shirt Image</h3>
+          </div>
+          <div class="form-card-body">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('tshirtFileInput').click()">
+              <div class="upload-icon">🖼️</div>
+              <div class="upload-hint">Click to upload t-shirt image (PNG, JPG, WebP)</div>
+            </div>
+            <div class="tshirt-preview" id="tshirtPreview">
+              <img id="tshirtPreviewImg" src="" alt="T-Shirt" />
+              <button class="btn-replace" type="button"
+                      onclick="document.getElementById('tshirtFileInput').click()">Replace</button>
+            </div>
+            <input type="file" id="tshirtFileInput" accept="image/*" style="display:none"
+                   onchange="uploadTshirt(this)" />
+          </div>
+        </div>
+
+        <!-- Event Flyer -->
+        <div class="form-card">
+          <div class="form-card-header">
+            <span class="section-icon">📄</span>
+            <h3>Event Flyer</h3>
+          </div>
+          <div class="form-card-body">
+            <div class="upload-area" id="flyerUploadArea" onclick="document.getElementById('flyerFileInput').click()">
+              <div class="upload-icon">🖼️</div>
+              <div class="upload-hint">Click to upload event flyer (PNG, JPG, WebP) — displayed on the public RSVP page</div>
+            </div>
+            <div class="tshirt-preview" id="flyerPreview">
+              <img id="flyerPreviewImg" src="" alt="Flyer" style="max-height:160px;max-width:260px;" />
+              <button class="btn-replace" type="button"
+                      onclick="document.getElementById('flyerFileInput').click()">Replace</button>
+            </div>
+            <input type="file" id="flyerFileInput" accept="image/*" style="display:none"
+                   onchange="uploadFlyer(this)" />
+          </div>
+        </div>
+
+        <!-- Sender + Note -->
+        <div class="form-card">
+          <div class="form-card-header">
+            <span class="section-icon">✉️</span>
+            <h3>Sender Details &amp; Note</h3>
+          </div>
+          <div class="form-card-body">
+            <div class="sub-section">
+              <div class="form-grid">
+                <div class="field">
+                  <label>Sender Name</label>
+                  <input type="text" id="senderName" placeholder="Your name or church name" />
+                </div>
+                <div class="field">
+                  <label>Sender Email</label>
+                  <input type="email" id="senderEmail" placeholder="sender@church.org" />
+                </div>
+                <div class="field">
+                  <label>Sender Phone</label>
+                  <input type="tel" id="senderPhone" placeholder="+1 555-000-0000" />
+                </div>
+                <div class="field span-3">
+                  <label>Note (displayed on public RSVP page)</label>
+                  <textarea id="note" rows="3" placeholder="Any additional info for attendees…"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="sub-section">
+              <div class="sub-section-title">Donation Settings</div>
+              <div style="padding:10px 0">
+                <label class="toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="includeTransactionFee" />
+                  <span class="toggle-label" style="font-weight:600;color:#444;">Offer "Cover transaction fee" checkbox on RSVP donation (2.9% + $0.30)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="action-bar">
+            <button class="btn-save" id="btnSave" onclick="saveConfig()">💾 Save Config</button>
+          </div>
+        </div>
+
+      </div><!-- /paneConfig -->
+
+      <!-- ══ TAB: Participants ══ -->
+      <div class="tab-pane" id="paneParticipants">
+        <div class="table-card">
+          <div class="table-card-header">
+            <h3>Registered Participants <span id="rsvpCount" style="font-size:12px;color:#999;font-weight:400"></span></h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn-pdf"   onclick="mrmDownloadPDF()">⬇ Download PDF</button>
+              <button class="btn-print" onclick="window.print()">🖨 Print</button>
+              <button class="btn-refresh" onclick="loadParticipants()">↺ Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Church</th>
+                  <th>Contact</th>
+                  <th>Pax</th>
+                  <th>Sunday</th>
+                  <th>Sat Mission</th>
+                  <th>Sat Music</th>
+                  <th>Music Opts</th>
+                  <th>T-Shirts</th>
+                  <th>Note</th>
+                  <th>Submitted</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="participantsTbody">
+                <tr><td class="empty-row" colspan="13">Click the Participants tab to load.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /paneParticipants -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = {
+  activePage:  'general/mid-reg-meet',
+  pageTitle:   'Midwest Region Meet',
+  openSection: 'general'
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+var days = [];   // [{date, startTime, endTime}]
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  loadConfig();
+  loadPublicLink();
+});
+
+/* ═══════════════════════════════════════
+   TABS
+═══════════════════════════════════════ */
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('pane' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'participants') loadParticipants();
+}
+
+/* ═══════════════════════════════════════
+   PUBLIC LINK
+═══════════════════════════════════════ */
+function loadPublicLink() {
+  fetch('/api/mid-reg-meet/public-link')
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (!d || !d.url) return;
+      document.getElementById('pubLinkUrl').textContent = d.url;
+      document.getElementById('pubLinkOpen').href = d.url;
+      document.getElementById('pubLinkBox').style.display = 'flex';
+    })
+    .catch(function() {});
+}
+
+function copyLink() {
+  var url = document.getElementById('pubLinkUrl').textContent;
+  navigator.clipboard.writeText(url)
+    .then(function() { showFeedback('Link copied!', 'success'); })
+    .catch(function() {});
+}
+
+/* ═══════════════════════════════════════
+   LOAD CONFIG
+═══════════════════════════════════════ */
+function loadConfig() {
+  fetch('/api/mid-reg-meet/config')
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (!d) return;
+      document.getElementById('eventName').value           = d.eventName || '';
+      document.getElementById('eventAddress').value        = d.eventAddress || '';
+      document.getElementById('registrationEndDate').value = d.registrationEndDate || '';
+      document.getElementById('senderName').value          = d.senderName || '';
+      document.getElementById('senderEmail').value         = d.senderEmail || '';
+      document.getElementById('senderPhone').value         = d.senderPhone || '';
+      document.getElementById('note').value                = d.note || '';
+      document.getElementById('includeTransactionFee').checked = !!d.includeTransactionFee;
+      try { days = JSON.parse(d.eventDays || '[]'); } catch(_) { days = []; }
+      if (!Array.isArray(days)) days = [];
+      renderDays();
+      if (d.hasTshirtImage) showTshirtPreview();
+      if (d.hasFlyerImage)  showFlyerPreview();
+    })
+    .catch(function(e) { console.error(e); });
+}
+
+function showTshirtPreview() {
+  // URL to the admin-side image endpoint
+  fetch('/api/mid-reg-meet/tshirt-image-preview')
+    .then(function(r) { return r.ok ? r.blob() : null; })
+    .then(function(blob) {
+      if (!blob) return;
+      var url = URL.createObjectURL(blob);
+      document.getElementById('tshirtPreviewImg').src = url;
+      document.getElementById('tshirtPreview').style.display = 'flex';
+      document.getElementById('uploadArea').style.display = 'none';
+    })
+    .catch(function() {});
+}
+
+/* ═══════════════════════════════════════
+   DAYS
+═══════════════════════════════════════ */
+function renderDays() {
+  var c = document.getElementById('daysContainer');
+  c.innerHTML = '';
+  days.forEach(function(d, i) {
+    var row = document.createElement('div');
+    row.className = 'day-row';
+    row.innerHTML =
+      '<div class="day-num-wrap"><span class="day-num">Day ' + (i + 1) + '</span></div>' +
+      '<div class="field field-name"><label>Name</label>' +
+        '<input type="text" placeholder="e.g. Meet &amp; Greet" value="' + esc(d.dayName || '') + '" oninput="updateDay(' + i + ',\'dayName\',this.value)" /></div>' +
+      '<div class="field field-date"><label>Date</label>' +
+        '<input type="date" value="' + esc(d.date) + '" oninput="updateDay(' + i + ',\'date\',this.value)" /></div>' +
+      '<div class="field field-time"><label>Start Time</label>' +
+        '<input type="time" value="' + esc(d.startTime) + '" oninput="updateDay(' + i + ',\'startTime\',this.value)" /></div>' +
+      '<div class="field field-time"><label>End Time</label>' +
+        '<input type="time" value="' + esc(d.endTime) + '" oninput="updateDay(' + i + ',\'endTime\',this.value)" /></div>' +
+      '<button class="btn-remove-day" type="button" onclick="removeDay(' + i + ')">✕</button>';
+    c.appendChild(row);
+  });
+}
+function addDay()            { days.push({dayName:'', date:'', startTime:'', endTime:''}); renderDays(); }
+function removeDay(i)        { days.splice(i, 1); renderDays(); }
+function updateDay(i, f, v)  { days[i][f] = v; }
+
+/* ═══════════════════════════════════════
+   SAVE CONFIG
+═══════════════════════════════════════ */
+function saveConfig() {
+  var btn = document.getElementById('btnSave');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var payload = {
+    eventName:           document.getElementById('eventName').value.trim(),
+    eventAddress:        document.getElementById('eventAddress').value.trim(),
+    eventDays:           JSON.stringify(days),
+    registrationEndDate: document.getElementById('registrationEndDate').value || null,
+    senderName:          document.getElementById('senderName').value.trim(),
+    senderEmail:         document.getElementById('senderEmail').value.trim(),
+    senderPhone:         document.getElementById('senderPhone').value.trim(),
+    note:                document.getElementById('note').value.trim(),
+    includeTransactionFee: document.getElementById('includeTransactionFee').checked
+  };
+  fetch('/api/mid-reg-meet/config', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) showFeedback('Event config saved!', 'success');
+      else showFeedback(d.error || 'Save failed.', 'error');
+    })
+    .catch(function(e) { showFeedback('Error: ' + e.message, 'error'); })
+    .finally(function() { btn.disabled = false; btn.textContent = '💾 Save Config'; });
+}
+
+/* ═══════════════════════════════════════
+   T-SHIRT UPLOAD
+═══════════════════════════════════════ */
+function uploadTshirt(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fetch('/api/mid-reg-meet/tshirt-image', {method:'POST', body:fd})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('tshirtPreviewImg').src = e.target.result;
+          document.getElementById('tshirtPreview').style.display = 'flex';
+          document.getElementById('uploadArea').style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+        showFeedback('T-shirt image uploaded!', 'success');
+      } else showFeedback(d.error || 'Upload failed.', 'error');
+    })
+    .catch(function(e) { showFeedback('Error: ' + e.message, 'error'); });
+}
+
+/* ═══════════════════════════════════════
+   FLYER UPLOAD
+═══════════════════════════════════════ */
+function showFlyerPreview() {
+  fetch('/api/mid-reg-meet/flyer-image-preview')
+    .then(function(r) { return r.ok ? r.blob() : null; })
+    .then(function(blob) {
+      if (!blob) return;
+      var url = URL.createObjectURL(blob);
+      document.getElementById('flyerPreviewImg').src = url;
+      document.getElementById('flyerPreview').style.display = 'flex';
+      document.getElementById('flyerUploadArea').style.display = 'none';
+    })
+    .catch(function() {});
+}
+
+function uploadFlyer(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fetch('/api/mid-reg-meet/flyer-image', {method:'POST', body:fd})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('flyerPreviewImg').src = e.target.result;
+          document.getElementById('flyerPreview').style.display = 'flex';
+          document.getElementById('flyerUploadArea').style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+        showFeedback('Event flyer uploaded!', 'success');
+      } else showFeedback(d.error || 'Upload failed.', 'error');
+    })
+    .catch(function(e) { showFeedback('Error: ' + e.message, 'error'); });
+}
+
+/* ═══════════════════════════════════════
+   PARTICIPANTS
+═══════════════════════════════════════ */
+function loadParticipants() {
+  var tbody = document.getElementById('participantsTbody');
+  tbody.innerHTML = '<tr><td class="empty-row" colspan="13">Loading…</td></tr>';
+  fetch('/api/mid-reg-meet/participants')
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      document.getElementById('rsvpCount').textContent = '(' + data.length + ')';
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td class="empty-row" colspan="13">No RSVPs yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(function(p, idx) {
+        return '<tr>' +
+          '<td>' + (idx + 1) + '</td>' +
+          '<td><strong>' + esc(p.firstName) + ' ' + esc(p.lastName) + '</strong></td>' +
+          '<td>' + esc(p.church || '—') + '</td>' +
+          '<td>' +
+            (p.email ? '<div style="font-size:12px">' + esc(p.email) + '</div>' : '') +
+            (p.phone ? '<div style="font-size:12px;color:#888">' + formatPhone(p.phone) + '</div>' : '') +
+          '</td>' +
+          '<td style="white-space:nowrap">' +
+            (p.adults   ? '👤' + p.adults   + ' ' : '') +
+            (p.children ? '👶' + p.children        : '') +
+          '</td>' +
+          '<td>' + rsvpBadge(p.rsvpSunday)          + '</td>' +
+          '<td>' + rsvpBadge(p.rsvpSaturdayMission)  + '</td>' +
+          '<td>' + rsvpBadge(p.rsvpSaturdayMusic)    + '</td>' +
+          '<td>' + musicChips(p.musicOptions)         + '</td>' +
+          '<td>' + sizeChips(p.tshirtSizes)           + '</td>' +
+          '<td style="max-width:140px;font-size:12px;color:#666">' + esc(p.note || '') + '</td>' +
+          '<td style="font-size:12px;color:#999;white-space:nowrap">' + fmtDate(p.createdAt) + '</td>' +
+          '<td><button class="btn-del-row" onclick="deleteRsvp(' + p.id + ',this)">Delete</button></td>' +
+          '</tr>';
+      }).join('');
+    })
+    .catch(function(e) {
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="13">Error loading participants: ' + esc(e.message) + '</td></tr>';
+    });
+}
+
+function rsvpBadge(v) {
+  if (!v) return '<span class="badge badge-gray">—</span>';
+  var cls = v === 'Yes' ? 'badge-yes' : v === 'Maybe' ? 'badge-maybe' : 'badge-no';
+  return '<span class="badge ' + cls + '">' + esc(v) + '</span>';
+}
+
+function musicChips(json) {
+  if (!json) return '<span style="color:#ddd">—</span>';
+  try {
+    var opts = JSON.parse(json);
+    if (!opts.length) return '<span style="color:#ddd">—</span>';
+    var labels = {sing:'🎤 Sing', perform:'🎭 Perform', needInstruments:'🎸 Instruments'};
+    return '<div class="size-chips">' +
+      opts.map(function(o) { return '<span class="size-chip">' + esc(labels[o] || o) + '</span>'; }).join('') +
+      '</div>';
+  } catch { return '—'; }
+}
+
+function sizeChips(json) {
+  if (!json) return '<span style="color:#ddd">—</span>';
+  try {
+    var sizes = JSON.parse(json);
+    var chips = Object.entries(sizes)
+      .filter(function(e) { return e[1] > 0; })
+      .map(function(e) { return '<span class="size-chip">' + esc(e[0]) + '×' + e[1] + '</span>'; });
+    return chips.length ? '<div class="size-chips">' + chips.join('') + '</div>'
+                        : '<span style="color:#ddd">None</span>';
+  } catch { return '—'; }
+}
+
+function deleteRsvp(id, btn) {
+  if (!confirm('Delete this RSVP? This cannot be undone.')) return;
+  btn.disabled = true;
+  fetch('/api/mid-reg-meet/rsvp/' + id, {method:'DELETE'})
+    .then(function(r) {
+      if (r.ok) { showFeedback('RSVP deleted.', 'success'); loadParticipants(); }
+      else showFeedback('Delete failed.', 'error');
+    })
+    .catch(function(e) { showFeedback(e.message, 'error'); })
+    .finally(function() { btn.disabled = false; });
+}
+
+/* ═══════════════════════════════════════
+   UTILS
+═══════════════════════════════════════ */
+var _fbTimer;
+function showFeedback(msg, type) {
+  var el = document.getElementById('feedbackMsg');
+  el.textContent = msg;
+  el.className = 'feedback ' + type;
+  clearTimeout(_fbTimer);
+  _fbTimer = setTimeout(function() { el.className = 'feedback'; }, 3500);
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(dt) {
+  if (!dt) return '';
+  try { return new Date(dt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+  catch { return String(dt); }
+}
+
+/* ── PDF Download ── */
+function mrmDownloadPDF() {
+  var el   = document.getElementById('paneParticipants');
+  var btns = el.querySelectorAll('.btn-pdf, .btn-print, .btn-refresh, .btn-del-row');
+  btns.forEach(function(b) { b.style.display = 'none'; });
+
+  var date = new Date().toISOString().slice(0, 10);
+  html2pdf().set({
+    margin:      [10, 6, 10, 6],
+    filename:    'MidRegMeet_Participants_' + date + '.pdf',
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
+    pagebreak:   { mode: ['avoid-all', 'css'] }
+  }).from(el).save().then(function() {
+    btns.forEach(function(b) { b.style.display = ''; });
+  });
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+</html>

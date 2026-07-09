@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Event Details — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    .page-header { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .btn-back { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 7px 14px; font-size: 13px; color: #555; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: background .15s, border-color .15s; white-space: nowrap; }
+    .btn-back:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
+
+    /* Event selector */
+    .selector-bar {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .selector-bar label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
+    .selector-bar select {
+      flex: 1; min-width: 200px; max-width: 480px;
+      border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 8px 12px; font-size: 14px; color: #333;
+      background: #fff; outline: none;
+    }
+    .selector-bar select:focus { border-color: #673147; }
+
+    /* Cards */
+    .detail-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      background: linear-gradient(90deg, #673147, #8b4363);
+      border-radius: 12px 12px 0 0;
+    }
+    .card-title { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+    .card-body  { padding: 20px; }
+
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .info-item label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #999; display: block; margin-bottom: 3px; }
+    .info-item .val  { font-size: 14px; color: #222; }
+
+    /* Event image */
+    .event-banner {
+      width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px;
+      margin-bottom: 16px; display: none;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .badge-one   { background: #eef0fb; color: #673147; }
+    .badge-multi { background: #fff3e0; color: #e65100; }
+
+    /* Volunteer / attendee tables */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th {
+      background: #f5f6fb; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .4px; color: #888;
+      padding: 8px 12px; text-align: left; border-bottom: 2px solid #dde0ec;
+    }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid #eef0f8; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fdf7f9; }
+    .empty-row { text-align: center; color: #bbb; font-style: italic; padding: 24px !important; }
+
+    /* Chips */
+    .chip { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .chip-green  { background: #e8f5e9; color: #2e7d32; }
+    .chip-grey   { background: #f0f0f0; color: #888; }
+
+    /* Stats row */
+    .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat-pill {
+      background: #f0e8ec; border-radius: 8px; padding: 10px 18px;
+      text-align: center; min-width: 100px;
+    }
+    .stat-pill .num  { font-size: 22px; font-weight: 700; color: #673147; }
+    .stat-pill .lbl  { font-size: 11px; color: #888; margin-top: 2px; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 32px; color: #bbb; }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* Placeholder */
+    #placeholder {
+      text-align: center; padding: 60px 20px; color: #bbb;
+    }
+    #placeholder .icon { font-size: 48px; margin-bottom: 14px; }
+    #placeholder p { font-size: 14px; }
+
+    /* Action buttons */
+    .action-bar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .btn-pdf   { padding: 9px 18px; background: #673147; color: #fff; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: none; transition: background .15s; }
+    .btn-pdf:hover { background: #4f2538; }
+    .btn-print { padding: 9px 18px; background: transparent; color: #673147; border: 1.5px solid #c5a0b5; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background .15s, color .15s; }
+    .btn-print:hover { background: #673147; color: #fff; border-color: #673147; }
+
+    /* Print styles */
+    @media print {
+      .sidebar, .topbar, .page-header, .action-bar, .app-footer { display: none !important; }
+      .main-area { margin: 0 !important; padding: 0 !important; }
+      .page-content { padding: 0 !important; }
+      .detail-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+      .card-header { background: #673147 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .stat-pill { background: #f0e8ec !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #detailsContent { display: block !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <button class="btn-back" onclick="window.location.href='/events'">← Back</button>
+        <div class="page-title">Event Details</div>
+      </div>
+
+      <!-- Placeholder (shown if no eventId in URL) -->
+      <div id="placeholder">
+        <div class="icon">📋</div>
+        <p>No event selected. <a href="/events" style="color:#673147;font-weight:600;">Go to Events →</a></p>
+      </div>
+
+      <!-- Details content (hidden until event selected) -->
+      <div id="detailsContent" style="display:none;">
+
+        <!-- Action bar -->
+        <div class="action-bar">
+          <button class="btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
+          <button class="btn-print" onclick="printDetails()">🖨 Print</button>
+        </div>
+
+        <!-- Event Info Card -->
+        <div class="detail-card">
+          <div class="card-header"><span class="card-title">Event Information</span></div>
+          <div class="card-body">
+            <img id="detailBanner" class="event-banner" alt="Event banner" />
+            <div class="info-grid">
+              <div class="info-item"><label>Event Name</label><div class="val" id="detEventName">—</div></div>
+              <div class="info-item"><label>Event Code</label><div class="val" id="detEventCode">—</div></div>
+              <div class="info-item"><label>Type</label><div class="val" id="detEventType">—</div></div>
+              <div class="info-item"><label>Date</label><div class="val" id="detEventDate">—</div></div>
+              <div class="info-item"><label>Time</label><div class="val" id="detEventTime">—</div></div>
+              <div class="info-item"><label>Location</label><div class="val" id="detLocation">—</div></div>
+              <div class="info-item"><label>Fee</label><div class="val" id="detFee">—</div></div>
+              <div class="info-item"><label>Max Capacity</label><div class="val" id="detCapacity">—</div></div>
+              <div class="info-item"><label>Food Available</label><div class="val" id="detFood">—</div></div>
+              <div class="info-item"><label>Accommodation</label><div class="val" id="detAccom">—</div></div>
+              <div class="info-item"><label>Host</label><div class="val" id="detHost">—</div></div>
+              <div class="info-item"><label>Self Check-In</label><div class="val" id="detCheckin">—</div></div>
+            </div>
+            <div id="detNoteWrap" style="margin-top:14px;display:none;">
+              <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999;display:block;margin-bottom:4px;">Notes</label>
+              <div id="detNote" style="font-size:13px;color:#444;white-space:pre-wrap;"></div>
+            </div>
+            <div id="detMultiDays" style="margin-top:16px;display:none;">
+              <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999;display:block;margin-bottom:8px;">Schedule</label>
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Date</th><th>Start</th><th>End</th><th>Food</th></tr></thead>
+                <tbody id="detDaysBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registration Stats -->
+        <div class="detail-card">
+          <div class="card-header"><span class="card-title">Registration Summary</span></div>
+          <div class="card-body">
+            <div class="stats-row">
+              <div class="stat-pill"><div class="num" id="statAdults">0</div><div class="lbl">Adults</div></div>
+              <div class="stat-pill"><div class="num" id="statKids">0</div><div class="lbl">Kids</div></div>
+              <div class="stat-pill"><div class="num" id="statTotal">0</div><div class="lbl">Total</div></div>
+              <div class="stat-pill"><div class="num" id="statCheckedIn">0</div><div class="lbl">Checked In</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assigned Volunteers -->
+        <div class="detail-card">
+          <div class="card-header"><span class="card-title">Assigned Volunteers</span></div>
+          <div class="card-body" style="padding:0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Availability</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="volTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Registered Attendees -->
+        <div class="detail-card">
+          <div class="card-header"><span class="card-title">Registered Attendees</span></div>
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Adults</th>
+                  <th>Kids</th>
+                  <th>Attending</th>
+                  <th>Checked In</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="regTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /detailsContent -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  var currentEventId = null;
+
+  (async function init() {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+    if (!eventId) {
+      document.getElementById('placeholder').style.display = '';
+      document.getElementById('detailsContent').style.display = 'none';
+      return;
+    }
+    currentEventId = eventId;
+    document.getElementById('placeholder').style.display = 'none';
+    document.getElementById('detailsContent').style.display = '';
+    await loadEventDetails(eventId);
+  })();
+
+  async function loadEventDetails(id) {
+    if (!id) id = currentEventId;
+    if (!id) return;
+
+    // Load event data, volunteers, and registrations in parallel
+    const [evRes, volRes, regRes] = await Promise.all([
+      fetch('/api/events/' + id),
+      fetch('/api/events/' + id + '/volunteers'),
+      fetch('/api/events/' + id + '/registrations')
+    ]);
+
+    const ev   = evRes.ok   ? await evRes.json()   : null;
+    const vols = volRes.ok  ? await volRes.json()  : [];
+    const regs = regRes.ok  ? await regRes.json()  : [];
+
+    if (ev) renderEventInfo(ev);
+    renderVolunteers(vols);
+    renderRegistrations(regs);
+  }
+
+  function renderEventInfo(ev) {
+    setText('detEventName', ev.eventName || '—');
+
+    const code = ev.eventCode || '—';
+    document.getElementById('detEventCode').innerHTML =
+      ev.eventCode ? '<span style="font-family:monospace;color:#673147;">' + esc(code) + '</span>' : '—';
+
+    const typeBadge = ev.eventType === 'Multiple Days'
+      ? '<span class="badge badge-multi">Multi-Day</span>'
+      : '<span class="badge badge-one">One Day</span>';
+    document.getElementById('detEventType').innerHTML = typeBadge;
+
+    if (ev.eventType === 'Multiple Days') {
+      document.getElementById('detEventDate').textContent = 'See schedule below';
+      document.getElementById('detEventTime').textContent = '—';
+      const body = document.getElementById('detDaysBody');
+      const days = ev.days || [];
+      body.innerHTML = days.length
+        ? days.map((d, i) => `<tr>
+            <td>${i + 1}</td>
+            <td>${esc(d.eventDate || '—')}</td>
+            <td>${formatTime(d.startTime)}</td>
+            <td>${formatTime(d.endTime)}</td>
+            <td>${d.foodAvailable ? '✅' : '—'}</td>
+          </tr>`).join('')
+        : '<tr><td class="empty-row" colspan="5">No schedule days defined.</td></tr>';
+      document.getElementById('detMultiDays').style.display = '';
+    } else {
+      document.getElementById('detEventDate').textContent = ev.eventDate || '—';
+      const timeStr = (ev.startTime && ev.endTime)
+        ? formatTime(ev.startTime) + ' – ' + formatTime(ev.endTime)
+        : (ev.startTime ? formatTime(ev.startTime) : '—');
+      document.getElementById('detEventTime').textContent = timeStr;
+      document.getElementById('detMultiDays').style.display = 'none';
+    }
+
+    const locParts = [ev.address1, ev.city, ev.state, ev.country].filter(Boolean);
+    document.getElementById('detLocation').textContent = locParts.length ? locParts.join(', ') : '—';
+    document.getElementById('detFee').textContent      = ev.fee || 'Free';
+    document.getElementById('detCapacity').textContent = ev.maxCapacity != null ? ev.maxCapacity : 'Unlimited';
+    document.getElementById('detFood').textContent     = ev.foodAvailable ? '✅ Yes' : '—';
+    document.getElementById('detAccom').textContent    = ev.accommodationAvailable ? '✅ Yes' : '—';
+    const hostParts = [ev.hostName, ev.hostPhone, ev.hostEmail].filter(Boolean);
+    document.getElementById('detHost').textContent     = hostParts.length ? hostParts.join(' · ') : '—';
+    document.getElementById('detCheckin').textContent  = ev.selfCheckinEnabled ? '✅ Enabled' : 'Disabled';
+
+    if (ev.note) {
+      document.getElementById('detNote').textContent = ev.note;
+      document.getElementById('detNoteWrap').style.display = '';
+    } else {
+      document.getElementById('detNoteWrap').style.display = 'none';
+    }
+
+    const banner = document.getElementById('detailBanner');
+    if (ev.imageData) { banner.src = ev.imageData; banner.style.display = 'block'; }
+    else { banner.src = ''; banner.style.display = 'none'; }
+  }
+
+  function renderVolunteers(vols) {
+    const tbody = document.getElementById('volTableBody');
+    if (!vols || !vols.length) {
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="6">No volunteers assigned to this event.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = vols.map(v => {
+      const name = esc(((v.firstName || '') + ' ' + (v.lastName || '')).trim() || '—');
+      const roles = Array.isArray(v.roles) && v.roles.length
+        ? v.roles.map(r => esc(r.roleName || '')).join(', ')
+        : '—';
+      const status = (v.status || 'pending');
+      const statusChip = status === 'confirmed'
+        ? '<span class="chip chip-green">Confirmed</span>'
+        : status === 'declined'
+          ? '<span class="chip chip-grey">Declined</span>'
+          : status === 'maybe'
+            ? '<span class="chip chip-grey">Maybe</span>'
+            : '<span class="chip chip-grey">Pending</span>';
+      const emailCell = v.email
+        ? '<a href="mailto:' + esc(v.email) + '" style="color:#673147;">' + esc(v.email) + '</a>'
+        : '—';
+      return `<tr>
+        <td>${name}</td>
+        <td>${roles}</td>
+        <td>—</td>
+        <td>${emailCell}</td>
+        <td>${esc(v.phone || '—')}</td>
+        <td>${statusChip}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderRegistrations(regs) {
+    const tbody = document.getElementById('regTableBody');
+    let adults = 0, kids = 0, checkedIn = 0;
+    if (!regs || !regs.length) {
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="9">No registrations yet.</td></tr>';
+    } else {
+      tbody.innerHTML = regs.map((r, i) => {
+        adults    += r.adults || 0;
+        kids      += r.kids   || 0;
+        checkedIn += r.checkedIn ? 1 : 0;
+        const att = r.attending === true
+          ? '<span style="color:#2e7d32;font-weight:600;">✅ Yes</span>'
+          : r.attending === false
+            ? '<span style="color:#c62828;font-weight:600;">❌ No</span>'
+            : '<span style="color:#f57f17;font-weight:600;">🤔 Maybe</span>';
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${esc((r.firstName || '') + ' ' + (r.lastName || '')).trim()}</td>
+          <td>${esc(r.email || '—')}</td>
+          <td>${formatPhone(r.phone)}</td>
+          <td>${r.adults || 0}</td>
+          <td>${r.kids   || 0}</td>
+          <td>${att}</td>
+          <td>${r.checkedIn ? '<span style="color:#2e7d32;font-weight:600;">✅ Yes</span>' : '<span style="color:#ccc;">—</span>'}</td>
+          <td style="max-width:140px;font-size:12px;">${esc(r.note || '')}</td>
+        </tr>`;
+      }).join('');
+    }
+    document.getElementById('statAdults').textContent    = adults;
+    document.getElementById('statKids').textContent      = kids;
+    document.getElementById('statTotal').textContent     = adults + kids;
+    document.getElementById('statCheckedIn').textContent = checkedIn;
+  }
+
+  /* Helpers */
+  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function formatTime(t) {
+    if (!t) return '—';
+    const [hStr, mStr] = t.split(':');
+    const h = parseInt(hStr, 10), m = mStr || '00';
+    return (h % 12 || 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+  }
+  function formatPhone(p) {
+    if (!p) return '—';
+    const d = String(p).replace(/\D/g,'');
+    if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+    return esc(p);
+  }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+  function getEventName() {
+    return document.getElementById('detEventName').textContent.trim() || 'Event Details';
+  }
+
+  function downloadPDF() {
+    const el = document.getElementById('detailsContent');
+    // Temporarily hide action bar for PDF
+    const bar = el.querySelector('.action-bar');
+    if (bar) bar.style.display = 'none';
+    html2pdf().set({
+      margin:      [10, 10, 10, 10],
+      filename:    getEventName().replace(/[^a-z0-9]/gi, '_') + '.pdf',
+      image:       { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:   { mode: ['avoid-all', 'css'] }
+    }).from(el).save().then(() => {
+      if (bar) bar.style.display = '';
+    });
+  }
+
+  function printDetails() {
+    window.print();
+  }
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'general/events', pageTitle: 'Event Details', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>window.CGP_PRIVATE_KEY = 'eventcheckin';</script>
+<script src="/private-badge.js"></script>
+</body>
+</html>

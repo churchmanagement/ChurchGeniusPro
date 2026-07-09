@@ -1,0 +1,7 @@
+Gift Date,Amount,Fund,Sub Fund,Method,Reference No,Member ID,Note
+06/01/2026,150.00,Tithes,General,Cash,R-1001,1001,Sunday offering
+06/01/2026,"$75.50",Offering,,Check,2051,1002,
+06/08/2026,200,Tithes,General,Card,,9999,Unknown donor (member 9999 not imported)
+,50,Missions,,Cash,,1003,Missing date row
+06/08/2026,abc,Tithes,,Cash,,1001,Bad amount row
+06/08/2026,0,Tithes,,Cash,,1001,Zero amount row

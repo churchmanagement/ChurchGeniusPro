@@ -1,0 +1,5 @@
+Date,Amount,Category,Purpose,Payee,Method,Reference No,Note
+06/02/2026,120.00,Utilities,Electricity,City Power Co,Check,5567,June electric bill
+06/05/2026,"$45.99",Supplies,Office,Staples,Card,,Printer paper
+06/09/2026,300,Missions,Outreach,Local Shelter,Check,5568,Monthly donation
+06/09/2026,(25.00),Refund,,Member Refund,Cash,,Negative amount row

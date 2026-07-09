@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Event Volunteers – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .page-header-text { flex: 1; }
+    .page-title { font-size: 22px; font-weight: 700; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #888; margin-top: 3px; }
+    .btn-back { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 8px 16px;
+      font-size: 13px; color: #555; cursor: pointer; display: inline-flex; align-items: center;
+      gap: 6px; transition: background .15s, border-color .15s; white-space: nowrap; }
+    .btn-back:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
+
+    /* ── Cards ── */
+    .form-card { background: #fff; border-radius: 12px; border: 1px solid #e8eaf0; margin-bottom: 20px; overflow: hidden; }
+    .form-card-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0; background: #fafbfd; }
+    .section-icon { font-size: 18px; }
+    .form-card-header h3 { font-size: 15px; font-weight: 600; color: #1e2139; flex: 1; }
+    .form-card-body { padding: 20px; }
+
+    /* ── Event info banner ── */
+    .event-banner { background: #f5edf1; border: 1px solid #d9b2c3; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center;
+      gap: 14px; flex-wrap: wrap; }
+    .event-banner-name { font-size: 15px; font-weight: 700; color: #673147; flex: 1; }
+    .event-banner-meta { font-size: 12px; color: #888; }
+
+    /* ── Volunteer Assignment Styles ── */
+    .vol-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .vol-search-wrap { position:relative; flex:1; min-width:180px; }
+    .vol-search-input {
+      width:100%; border:1.5px solid #ddd; border-radius:8px; padding:9px 12px;
+      font-size:13px; outline:none; background:#fff; transition:border-color .2s;
+    }
+    .vol-search-input:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .vol-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:50;
+      background:#fff; border:1.5px solid #dde0ec; border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,.12); max-height:240px; overflow-y:auto; display:none;
+    }
+    .vol-dropdown.open { display:block; }
+    .vol-option {
+      padding:9px 14px; cursor:pointer; font-size:13px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .vol-option:hover { background:#f5f0f3; }
+    .vol-option .vol-name { font-weight:600; color:#222; }
+    .vol-option .vol-meta { font-size:11px; color:#888; }
+    .vol-no-results { padding:12px 14px; color:#aaa; font-style:italic; font-size:13px; }
+    .btn-add-manual { background:transparent; color:#673147; border:1px solid #c5a0b5;
+      border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;
+      white-space:nowrap; transition:background .15s,color .15s; }
+    .btn-add-manual:hover { background:#673147; color:#fff; }
+
+    /* Roles bar */
+    .vol-roles-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;
+      background:#fdf7fa; border:1px solid #e8d0da; border-radius:10px; padding:10px 14px; }
+    .vol-roles-bar-label { font-size:12px; font-weight:700; color:#673147; white-space:nowrap; }
+    .vol-role-chip { display:inline-flex; align-items:center; gap:4px; background:#fff;
+      border:1.5px solid #c4839a; border-radius:20px; padding:3px 10px; font-size:12px; color:#673147; }
+    .vol-role-chip button { background:none; border:none; color:#c4839a; font-size:14px; cursor:pointer;
+      padding:0; line-height:1; }
+    .vol-role-chip button:hover { color:#c62828; }
+    .vol-role-add-wrap { display:flex; gap:6px; align-items:center; }
+    .vol-role-add-input { border:1.5px solid #ddd; border-radius:8px; padding:5px 10px; font-size:12px;
+      outline:none; width:150px; }
+    .vol-role-add-input:focus { border-color:#673147; }
+    .vol-role-add-btn { background:transparent; color:#673147; border:1px solid #c5a0b5;
+      border-radius:8px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer;
+      transition:background .15s,color .15s; }
+    .vol-role-add-btn:hover { background:#673147; color:#fff; }
+
+    /* Volunteer table */
+    .vol-table-wrap { overflow-x:auto; margin-top:4px; }
+    .vol-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .vol-table th { background:#f5edf1; color:#673147; font-weight:700; font-size:12px;
+      padding:8px 10px; text-align:left; border-bottom:2px solid #e8d0da; white-space:nowrap; }
+    .vol-table td { padding:8px 10px; border-bottom:1px solid #f0eaed; vertical-align:middle; }
+    .vol-table tr:last-child td { border-bottom:none; }
+    .vol-table tr:hover td { background:#fdf7fa; }
+    .vol-empty-row td { color:#bbb; font-style:italic; text-align:center; padding:18px; }
+    .vol-status-sel { font-size:12px; border:1px solid #ddd; border-radius:6px;
+      padding:3px 8px; background:#fff; cursor:pointer; }
+    .vol-status-sel.pending   { border-color:#f59e0b; color:#92400e; background:#fffbeb; }
+    .vol-status-sel.confirmed { border-color:#16a34a; color:#14532d; background:#f0fdf4; }
+    .vol-status-sel.declined  { border-color:#dc2626; color:#7f1d1d; background:#fef2f2; }
+    .vol-status-sel.maybe     { border-color:#7c3aed; color:#4c1d95; background:#f5f3ff; }
+    .vol-roles-cell { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+    .vol-role-tag { display:inline-block; background:#f5edf1; color:#673147;
+      border-radius:12px; padding:2px 9px; font-size:11px; font-weight:600; }
+    .vol-role-add-tag-btn { background:#fff; border:1.5px dashed #c4839a; color:#c4839a;
+      border-radius:12px; padding:2px 8px; font-size:11px; cursor:pointer; }
+    .vol-role-add-tag-btn:hover { background:#fdf7fa; color:#673147; }
+    .vol-act-btn { background:none; border:none; padding:4px 7px; border-radius:6px;
+      cursor:pointer; font-size:14px; color:#555; transition:.15s; }
+    .vol-act-btn:hover { background:#f0eaed; color:#673147; }
+    .vol-act-btn.del:hover { background:#ffeaea; color:#c62828; }
+
+    /* Group actions */
+    .vol-group-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .btn-group-email { background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px;
+      padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+    .btn-group-email:hover { background:#c8e6c9; }
+    .btn-group-sms { background:#e3f2fd; color:#1565c0; border:none; border-radius:8px;
+      padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+    .btn-group-sms:hover { background:#bbdefb; }
+
+    /* Summary pills */
+    .vol-summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+    .vol-pill { display:inline-flex; align-items:center; gap:5px; border-radius:20px;
+      padding:4px 12px; font-size:12px; font-weight:600; }
+    .vol-pill-total    { background:#f5edf1; color:#673147; border:1px solid #d9b2c3; }
+    .vol-pill-confirm  { background:#f0fdf4; color:#14532d; border:1px solid #86efac; }
+    .vol-pill-pending  { background:#fffbeb; color:#92400e; border:1px solid #fcd34d; }
+    .vol-pill-declined { background:#fef2f2; color:#7f1d1d; border:1px solid #fca5a5; }
+
+    /* Compose modal */
+    .compose-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:5000; align-items:center; justify-content:center; }
+    .compose-modal-overlay.open { display:flex; }
+    .compose-modal-box { background:#fff; border-radius:14px; padding:28px; width:100%;
+      max-width:520px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .compose-modal-title { font-size:16px; font-weight:700; color:#673147; margin-bottom:14px; }
+    .compose-type-tabs { display:flex; gap:6px; margin-bottom:14px; }
+    .compose-type-tab { padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600;
+      border:2px solid #ddd; color:#666; cursor:pointer; background:#fff; transition:.15s; }
+    .compose-type-tab.active { border-color:#673147; background:#673147; color:#fff; }
+    .cmp-recipients { background:#f5f6fa; border-radius:8px; padding:8px 10px;
+      font-size:12px; color:#555; margin-bottom:12px; max-height:60px; overflow-y:auto; }
+    .cmp-field { margin-bottom:12px; }
+    .cmp-field label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
+    .cmp-field input, .cmp-field textarea {
+      width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:8px;
+      font-size:13px; font-family:inherit; resize:vertical; }
+    .cmp-field textarea { min-height:100px; }
+    .cmp-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+    .btn-save { background:transparent; color:#673147; border:1px solid #c5a0b5; border-radius:8px;
+      padding:9px 24px; font-size:13px; font-weight:600; cursor:pointer;
+      transition:background .15s,color .15s,border-color .15s; }
+    .btn-save:hover { background:#673147; color:#fff; border-color:#673147; }
+    .btn-save:disabled { opacity:.6; cursor:not-allowed; }
+    .btn-clear { background:none; border:1px solid #ddd; border-radius:8px; padding:9px 20px;
+      font-size:13px; color:#666; cursor:pointer; }
+    .btn-clear:hover { background:#f5f5f5; }
+
+    /* Edit volunteer modal */
+    .vol-edit-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:4000; align-items:center; justify-content:center; }
+    .vol-edit-overlay.open { display:flex; }
+    .vol-edit-box { background:#fff; border-radius:14px; padding:26px; width:100%;
+      max-width:480px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.18); }
+    .vol-edit-title { font-size:15px; font-weight:700; color:#673147; margin-bottom:16px; }
+    .vol-edit-row { margin-bottom:12px; }
+    .vol-edit-row label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
+    .vol-edit-row input, .vol-edit-row select { width:100%; padding:8px 10px;
+      border:1px solid #ddd; border-radius:8px; font-size:13px; font-family:inherit; }
+    .vol-edit-row input:focus, .vol-edit-row select:focus { outline:none; border-color:#673147; }
+    .vol-edit-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+
+    /* Role picker in edit modal */
+    .vol-role-picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .vol-role-picker-chip { display:inline-flex; align-items:center; gap:4px;
+      border-radius:20px; padding:4px 12px; font-size:12px; cursor:pointer;
+      border:1.5px solid #ddd; color:#555; background:#fff; transition:.15s; }
+    .vol-role-picker-chip.selected { border-color:#673147; background:#f5edf1; color:#673147; font-weight:600; }
+
+    /* Feedback */
+    .feedback { padding:10px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
+    .feedback.success { display:block; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; }
+    .feedback.error   { display:block; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; }
+
+    /* Loading skeleton */
+    .loading-state { text-align:center; padding:40px 20px; color:#aaa; font-size:14px; }
+
+    /* Responsive */
+    @media (max-width:600px) {
+      .vol-table th:nth-child(4), .vol-table td:nth-child(4) { display:none; }
+      .event-banner { flex-direction:column; gap:6px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <button class="btn-back" onclick="window.location.href='/events'">← Back to Events</button>
+        <div class="page-header-text">
+          <div class="page-title">Volunteer Management</div>
+          <div class="page-subtitle" id="pageSubtitle">Loading event…</div>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Event info banner -->
+      <div class="event-banner" id="eventBanner" style="display:none;">
+        <span class="section-icon">📅</span>
+        <div style="flex:1;">
+          <div class="event-banner-name" id="bannerEventName">—</div>
+          <div class="event-banner-meta" id="bannerEventMeta">—</div>
+        </div>
+        <button class="btn-back" onclick="window.location.href='/event-details?eventId=' + currentEventId">View Details</button>
+      </div>
+
+      <!-- No event selected -->
+      <div id="placeholder" style="display:none; text-align:center; padding:60px 20px; color:#aaa;">
+        <div style="font-size:40px; margin-bottom:12px;">🙋</div>
+        <div style="font-size:16px; font-weight:600; color:#555; margin-bottom:8px;">No Event Selected</div>
+        <div style="font-size:13px; margin-bottom:20px;">Go to the Events page and click the Volunteers button on an event card.</div>
+        <button class="btn-back" onclick="window.location.href='/events'">← Go to Events</button>
+      </div>
+
+      <!-- Main volunteers card -->
+      <div id="volunteersCard" class="form-card" style="display:none;">
+        <div class="form-card-header">
+          <span class="section-icon">🙋</span>
+          <h3>Assign Volunteers</h3>
+        </div>
+        <div class="form-card-body">
+
+          <!-- Summary pills -->
+          <div class="vol-summary" id="volSummary"></div>
+
+          <!-- Roles bar -->
+          <div class="vol-roles-bar">
+            <span class="vol-roles-bar-label">Roles:</span>
+            <div id="volRoleChips" style="display:contents;"></div>
+            <div class="vol-role-add-wrap">
+              <input type="text" class="vol-role-add-input" id="volRoleInput"
+                placeholder="New role…"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();evAddRole();}" />
+              <button class="vol-role-add-btn" onclick="evAddRole()">+ Add</button>
+            </div>
+          </div>
+
+          <!-- Search toolbar -->
+          <div class="vol-toolbar">
+            <div class="vol-search-wrap">
+              <input type="text" class="vol-search-input" id="volSearchInput"
+                placeholder="Search members to add as volunteer…"
+                oninput="evFilterMemberDd()"
+                onfocus="evOpenMemberDd()"
+                onblur="setTimeout(evCloseMemberDd, 200)" />
+              <div class="vol-dropdown" id="volMemberDd"></div>
+            </div>
+            <button class="btn-add-manual" onclick="evOpenManualModal()">+ Add Manually</button>
+          </div>
+
+          <!-- Volunteer table -->
+          <div class="vol-table-wrap">
+            <table class="vol-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Roles</th>
+                  <th>Status</th>
+                  <th>Contact</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="volTableBody">
+                <tr class="vol-empty-row"><td colspan="5">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Group actions -->
+          <div class="vol-group-actions" id="volGroupActions" style="display:none;">
+            <button class="btn-group-email" onclick="evGroupEmail()">✉️ Email All</button>
+            <button class="btn-group-sms"   onclick="evGroupSms()">💬 SMS All</button>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- COMPOSE MODAL -->
+<div class="compose-modal-overlay" id="evtComposeModal">
+  <div class="compose-modal-box">
+    <div class="compose-modal-title" id="evtCmpTitle">✉️ Compose Message</div>
+    <div class="compose-type-tabs">
+      <button class="compose-type-tab active" id="evtCmpTabEmail" onclick="evtCmpSwitchTab('email')">📧 Email</button>
+      <button class="compose-type-tab" id="evtCmpTabSms" onclick="evtCmpSwitchTab('sms')">💬 SMS</button>
+    </div>
+    <div class="cmp-recipients" id="evtCmpRecipients">To: —</div>
+    <div id="evtCmpEmailSection">
+      <div class="cmp-field">
+        <label>Subject</label>
+        <input type="text" id="evtCmpSubject" placeholder="Email subject…" />
+      </div>
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="evtCmpEmailBody" placeholder="Type your email message here…"></textarea>
+      </div>
+    </div>
+    <div id="evtCmpSmsSection" style="display:none;">
+      <div class="cmp-field">
+        <label>Message</label>
+        <textarea id="evtCmpSmsBody" placeholder="Type your SMS message here…"></textarea>
+      </div>
+    </div>
+    <div class="cmp-modal-actions">
+      <button class="btn-clear" onclick="evtCmpClose()">Cancel</button>
+      <button class="btn-save" onclick="evtCmpSend()" style="padding:8px 20px;font-size:13px;">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT / ADD VOLUNTEER MODAL -->
+<div class="vol-edit-overlay" id="volEditOverlay">
+  <div class="vol-edit-box">
+    <div class="vol-edit-title" id="evEditTitle">Add Volunteer Manually</div>
+    <div class="vol-edit-row">
+      <label>First Name</label>
+      <input type="text" id="evEditFirstName" placeholder="First name" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Last Name</label>
+      <input type="text" id="evEditLastName" placeholder="Last name" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Email</label>
+      <input type="email" id="evEditEmail" placeholder="email@example.com" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Phone</label>
+      <input type="tel" id="evEditPhone" placeholder="+1 (555) 000-0000" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Status</label>
+      <select id="evEditStatus">
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="declined">Declined</option>
+        <option value="maybe">Maybe</option>
+      </select>
+    </div>
+    <div class="vol-edit-row">
+      <label>Notes</label>
+      <input type="text" id="evEditNotes" placeholder="Any notes…" />
+    </div>
+    <div class="vol-edit-row">
+      <label>Roles</label>
+      <div class="vol-role-picker" id="evEditRolePicker"></div>
+    </div>
+    <div class="vol-edit-actions">
+      <button class="btn-clear" onclick="evCloseEditModal()">Cancel</button>
+      <button class="btn-save" onclick="evSaveEditModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════ STATE ════ */
+  let currentEventId = null;
+  let evVolunteers   = [];
+  let evOrgRoles     = [];
+  let evRoleNames    = [];
+  let allMembers     = [];
+  let _evEditId      = null;
+
+  /* ════ HELPERS ════ */
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    if (!el) return;
+    if (!msg) { el.className = 'feedback'; el.textContent = ''; return; }
+    el.className = 'feedback ' + (type || 'success');
+    el.textContent = msg;
+  }
+
+  function evToast(msg, color) {
+    const bg = color || '#323232';
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:' + bg + ';color:#fff;padding:12px 28px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18);pointer-events:none;';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  /* ════ INIT ════ */
+  (async function init() {
+    const params  = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+
+    if (!eventId) {
+      document.getElementById('placeholder').style.display = '';
+      document.getElementById('volunteersCard').style.display = 'none';
+      document.getElementById('eventBanner').style.display = 'none';
+      document.getElementById('pageSubtitle').textContent = '';
+      return;
+    }
+
+    currentEventId = parseInt(eventId, 10);
+    document.getElementById('volunteersCard').style.display = '';
+
+    // Load event details, volunteers, org roles, and members in parallel
+    try {
+      const [evRes, vRes, rRes, mRes] = await Promise.all([
+        fetch('/api/events/' + currentEventId),
+        fetch('/api/events/' + currentEventId + '/volunteers'),
+        fetch('/api/events/' + currentEventId + '/volunteers/roles'),
+        fetch('/api/members')
+      ]);
+
+      if (evRes.ok) {
+        const ev = await evRes.json();
+        populateEventBanner(ev);
+      }
+      if (vRes.ok) evVolunteers = await vRes.json();
+      if (rRes.ok) evOrgRoles   = await rRes.json();
+      if (mRes.ok) allMembers   = await mRes.json();
+    } catch (e) {
+      showFeedback('Failed to load data. Please refresh.', 'error');
+    }
+
+    evRenderTable();
+    evRenderRoleChips();
+    evRenderSummary();
+  })();
+
+  function populateEventBanner(ev) {
+    const banner = document.getElementById('eventBanner');
+    banner.style.display = '';
+    document.getElementById('bannerEventName').textContent = ev.eventName || '—';
+    const parts = [];
+    if (ev.eventType) parts.push(ev.eventType);
+    if (ev.eventDate) parts.push(ev.eventDate);
+    else if (Array.isArray(ev.days) && ev.days.length) {
+      const first = ev.days[0].eventDate || ev.days[0].date;
+      const last  = ev.days[ev.days.length - 1].eventDate || ev.days[ev.days.length - 1].date;
+      parts.push(first + (last !== first ? ' – ' + last : ''));
+    }
+    if (ev.city) parts.push(ev.city);
+    document.getElementById('bannerEventMeta').textContent = parts.join(' · ') || '—';
+    document.getElementById('pageSubtitle').textContent =
+      'Managing volunteers for: ' + (ev.eventName || 'event #' + currentEventId);
+    // Update topbar title if already rendered
+    const tt = document.getElementById('topbarTitle');
+    if (tt) tt.textContent = ev.eventName || 'Event Volunteers';
+  }
+
+  /* ════ ROLE CHIPS BAR ════ */
+  function evRenderRoleChips() {
+    const container = document.getElementById('volRoleChips');
+    if (!container) return;
+    const usedSet = new Set();
+    evVolunteers.forEach(v => (v.roles || []).forEach(r => usedSet.add(r.roleName)));
+    evRoleNames.forEach(n => usedSet.add(n));
+    const names = [...usedSet].sort();
+    const canEditRoles = !window.CGP_PERMS || window.CGP_PERMS['general.events.edit'] !== false;
+    container.innerHTML = names.map(n =>
+      '<span class="vol-role-chip">' + escHtml(n) +
+      (canEditRoles ? '<button title="Remove role" onclick="evRemoveRoleChip(' + JSON.stringify(n) + ')">x</button>' : '') +
+      '</span>'
+    ).join('');
+  }
+
+  function evAddRole() {
+    const inp  = document.getElementById('volRoleInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (!evRoleNames.includes(name)) evRoleNames.push(name);
+    inp.value = '';
+    evRenderRoleChips();
+  }
+
+  function evRemoveRoleChip(name) {
+    evRoleNames = evRoleNames.filter(n => n !== name);
+    evRenderRoleChips();
+  }
+
+  /* ════ SUMMARY PILLS ════ */
+  function evRenderSummary() {
+    const container = document.getElementById('volSummary');
+    if (!container) return;
+    const total     = evVolunteers.length;
+    const confirmed = evVolunteers.filter(v => v.status === 'confirmed').length;
+    const pending   = evVolunteers.filter(v => v.status === 'pending').length;
+    const declined  = evVolunteers.filter(v => v.status === 'declined').length;
+    if (!total) { container.innerHTML = ''; return; }
+    container.innerHTML =
+      '<span class="vol-pill vol-pill-total">👥 ' + total + ' Total</span>' +
+      (confirmed ? '<span class="vol-pill vol-pill-confirm">✅ ' + confirmed + ' Confirmed</span>' : '') +
+      (pending   ? '<span class="vol-pill vol-pill-pending">⏳ ' + pending + ' Pending</span>'    : '') +
+      (declined  ? '<span class="vol-pill vol-pill-declined">❌ ' + declined + ' Declined</span>' : '');
+  }
+
+  /* ════ MEMBER SEARCH DROPDOWN ════ */
+  function evOpenMemberDd() { evFilterMemberDd(); }
+  function evCloseMemberDd() {
+    const dd = document.getElementById('volMemberDd');
+    if (dd) dd.classList.remove('open');
+  }
+
+  function evFilterMemberDd() {
+    const q  = (document.getElementById('volSearchInput').value || '').trim().toLowerCase();
+    const dd = document.getElementById('volMemberDd');
+    if (!dd) return;
+    dd.classList.add('open');
+    const assignedFmIds = new Set(evVolunteers.filter(v => v.familyMemberId).map(v => String(v.familyMemberId)));
+    const filtered = allMembers.filter(m => {
+      if (assignedFmIds.has(String(m.id))) return false;
+      if (!q) return true;
+      const full = ((m.firstName || '') + ' ' + (m.lastName || '')).toLowerCase();
+      return full.includes(q) || (m.email || '').toLowerCase().includes(q);
+    }).slice(0, 30);
+    if (!filtered.length) {
+      dd.innerHTML = '<div class="vol-no-results">No matching members found.</div>';
+      return;
+    }
+    dd.innerHTML = filtered.map(m => {
+      const name = escHtml(((m.firstName || '') + ' ' + (m.lastName || '')).trim());
+      const meta = escHtml((m.role || '') + (m.email ? ' · ' + m.email : ''));
+      return '<div class="vol-option" onmousedown="event.preventDefault();evAddMemberVolunteer(' + m.id + ')">' +
+        '<div><div class="vol-name">' + name + '</div>' +
+        '<div class="vol-meta">' + meta + '</div></div></div>';
+    }).join('');
+  }
+
+  async function evAddMemberVolunteer(memberId) {
+    evCloseMemberDd();
+    document.getElementById('volSearchInput').value = '';
+    const m = allMembers.find(x => x.id === memberId);
+    if (!m) return;
+    const body = {
+      familyMemberId: m.id,
+      firstName: m.firstName || '',
+      lastName:  m.lastName  || '',
+      email:     m.email     || '',
+      phone:     m.phone     || '',
+      isManual:  false,
+      status:    'pending',
+      roles:     []
+    };
+    try {
+      const res = await fetch('/api/events/' + currentEventId + '/volunteers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const d = await res.json();
+      if (d.success) {
+        evVolunteers.push(d.volunteer);
+        evRenderTable();
+        evRenderRoleChips();
+        evRenderSummary();
+        evToast('✅ Volunteer added!', '#2e7d32');
+      } else alert(d.error || 'Failed to add volunteer.');
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ════ MANUAL ADD MODAL ════ */
+  function evOpenManualModal() {
+    _evEditId = null;
+    document.getElementById('evEditTitle').textContent = 'Add Volunteer Manually';
+    document.getElementById('evEditFirstName').value  = '';
+    document.getElementById('evEditLastName').value   = '';
+    document.getElementById('evEditEmail').value      = '';
+    document.getElementById('evEditPhone').value      = '';
+    document.getElementById('evEditStatus').value     = 'pending';
+    document.getElementById('evEditNotes').value      = '';
+    evRenderRolePicker([]);
+    document.getElementById('volEditOverlay').classList.add('open');
+  }
+
+  function evOpenEditModal(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (!v) return;
+    _evEditId = id;
+    document.getElementById('evEditTitle').textContent  = 'Edit Volunteer';
+    document.getElementById('evEditFirstName').value    = v.firstName || '';
+    document.getElementById('evEditLastName').value     = v.lastName  || '';
+    document.getElementById('evEditEmail').value        = v.email     || '';
+    document.getElementById('evEditPhone').value        = v.phone     || '';
+    document.getElementById('evEditStatus').value       = v.status    || 'pending';
+    document.getElementById('evEditNotes').value        = v.notes     || '';
+    evRenderRolePicker(v.roles || []);
+    document.getElementById('volEditOverlay').classList.add('open');
+  }
+
+  function evCloseEditModal() {
+    document.getElementById('volEditOverlay').classList.remove('open');
+    _evEditId = null;
+  }
+
+  function evRenderRolePicker(selectedRoles) {
+    const container = document.getElementById('evEditRolePicker');
+    if (!container) return;
+    const allNames = new Set([
+      ...evOrgRoles.map(r => r.roleName),
+      ...evRoleNames,
+      ...(selectedRoles || []).map(r => r.roleName)
+    ]);
+    const selectedNames = new Set((selectedRoles || []).map(r => r.roleName));
+    const chipsHtml = [...allNames].sort().map(name => {
+      const sel = selectedNames.has(name) ? ' selected' : '';
+      return '<span class="vol-role-picker-chip' + sel + '" data-role="' + escHtml(name) + '" onclick="evToggleRoleChip(this)">' + escHtml(name) + '</span>';
+    }).join('');
+    container.innerHTML =
+      (chipsHtml || '<span style="font-size:12px;color:#aaa;">No roles yet — type one below and click + Add</span>') +
+      '<div style="display:flex;gap:6px;margin-top:8px;">' +
+        '<input type="text" id="evNewRoleInput" placeholder="New role…" style="border:1.5px solid #ddd;border-radius:8px;padding:5px 10px;font-size:12px;flex:1;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();evAddNewRoleToList();}" />' +
+        '<button onclick="evAddNewRoleToList()" style="background:#673147;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>' +
+      '</div>';
+  }
+
+  function evToggleRoleChip(el) { el.classList.toggle('selected'); }
+
+  function evAddNewRoleToList() {
+    const inp  = document.getElementById('evNewRoleInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (!evRoleNames.includes(name)) evRoleNames.push(name);
+    inp.value = '';
+    const container = document.getElementById('evEditRolePicker');
+    const existing  = [...container.querySelectorAll('.vol-role-picker-chip')]
+      .find(c => c.dataset.role === name);
+    if (existing) {
+      existing.classList.add('selected');
+    } else {
+      const chip = document.createElement('span');
+      chip.className = 'vol-role-picker-chip selected';
+      chip.textContent = name;
+      chip.dataset.role = name;
+      chip.onclick = function() { evToggleRoleChip(chip); };
+      const addDiv = container.querySelector('div');
+      if (addDiv) container.insertBefore(chip, addDiv);
+      else container.appendChild(chip);
+    }
+  }
+
+  async function evSaveEditModal() {
+    const firstName = document.getElementById('evEditFirstName').value.trim();
+    const lastName  = document.getElementById('evEditLastName').value.trim();
+    if (!firstName && !lastName) { alert('Please enter a name.'); return; }
+    const email  = document.getElementById('evEditEmail').value.trim();
+    const phone  = document.getElementById('evEditPhone').value.trim();
+    const status = document.getElementById('evEditStatus').value;
+    const notes  = document.getElementById('evEditNotes').value.trim();
+    const selectedRoles = [...document.querySelectorAll('#evEditRolePicker .vol-role-picker-chip.selected')]
+      .map(c => ({ roleName: c.dataset.role || c.textContent.trim() }));
+
+    const payload = { firstName, lastName, email, phone, status, notes, roles: selectedRoles };
+    try {
+      let res, d;
+      if (_evEditId) {
+        res = await fetch('/api/events/' + currentEventId + '/volunteers/' + _evEditId, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        payload.isManual = true;
+        res = await fetch('/api/events/' + currentEventId + '/volunteers', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      d = await res.json();
+      if (d.success) {
+        if (_evEditId) {
+          const idx = evVolunteers.findIndex(v => v.id === _evEditId);
+          if (idx !== -1) evVolunteers[idx] = d.volunteer;
+        } else {
+          evVolunteers.push(d.volunteer);
+        }
+        evRenderTable();
+        evRenderRoleChips();
+        evRenderSummary();
+        evCloseEditModal();
+        evToast(_evEditId ? '✅ Volunteer updated!' : '✅ Volunteer added!', '#2e7d32');
+      } else {
+        alert(d.error || 'Failed to save volunteer.');
+      }
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ════ VOLUNTEER TABLE ════ */
+  function evRenderTable() {
+    const tbody        = document.getElementById('volTableBody');
+    const groupActions = document.getElementById('volGroupActions');
+    if (!tbody) return;
+    if (!evVolunteers.length) {
+      tbody.innerHTML = '<tr class="vol-empty-row"><td colspan="5">No volunteers assigned yet.</td></tr>';
+      if (groupActions) groupActions.style.display = 'none';
+      return;
+    }
+    if (groupActions) groupActions.style.display = '';
+    tbody.innerHTML = evVolunteers.map(v => {
+      const name    = escHtml((v.firstName + ' ' + v.lastName).trim());
+      const email   = v.email || '';
+      const phone   = v.phone || '';
+      const status  = v.status || 'pending';
+      const roles   = (v.roles || []);
+      const canEdit   = !window.CGP_PERMS || window.CGP_PERMS['general.events.edit']   !== false;
+      const canDelete = !window.CGP_PERMS || window.CGP_PERMS['general.events.delete'] !== false;
+      const rolesHtml = roles.map(r => '<span class="vol-role-tag">' + escHtml(r.roleName) + '</span>').join('') +
+        (canEdit ? '<button class="vol-role-add-tag-btn" onclick="evOpenEditModal(' + v.id + ')" title="Edit roles">+ role</button>' : '');
+      const contact = [
+        email ? '<span title="' + escHtml(email) + '">📧</span>' : '',
+        phone ? '<span title="' + escHtml(phone) + '">📞</span>' : ''
+      ].filter(Boolean).join(' ');
+      return '<tr>' +
+        '<td><strong>' + name + '</strong>' + (v.isManual ? ' <span style="font-size:10px;color:#888;">(manual)</span>' : '') + '</td>' +
+        '<td><div class="vol-roles-cell">' + rolesHtml + '</div></td>' +
+        '<td><select class="vol-status-sel ' + escHtml(status) + '" data-vid="' + v.id + '" onchange="evUpdateStatus(this)">' +
+          '<option value="pending"   ' + (status==='pending'   ?'selected':'') + '>Pending</option>' +
+          '<option value="confirmed" ' + (status==='confirmed' ?'selected':'') + '>Confirmed</option>' +
+          '<option value="declined"  ' + (status==='declined'  ?'selected':'') + '>Declined</option>' +
+          '<option value="maybe"     ' + (status==='maybe'     ?'selected':'') + '>Maybe</option>' +
+        '</select></td>' +
+        '<td style="white-space:nowrap;">' + contact + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          (email ? '<button class="vol-act-btn" title="Email" onclick="evSendEmailById(' + v.id + ')">✉️</button>' : '') +
+          (phone ? '<button class="vol-act-btn" title="SMS"   onclick="evSendSmsById('   + v.id + ')">💬</button>' : '') +
+          (canEdit   ? '<button class="vol-act-btn" title="Edit"   onclick="evOpenEditModal(' + v.id + ')">✏️</button>' : '') +
+          (canDelete ? '<button class="vol-act-btn del" title="Remove" onclick="evDeleteVolunteer(' + v.id + ')">🗑️</button>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  async function evUpdateStatus(sel) {
+    const id     = Number(sel.dataset.vid);
+    const status = sel.value;
+    sel.className = 'vol-status-sel ' + status;
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) v.status = status;
+    evRenderSummary();
+    try {
+      await fetch('/api/events/' + currentEventId + '/volunteers/' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch (e) { console.warn('Status update failed', e); }
+  }
+
+  async function evDeleteVolunteer(id) {
+    if (!confirm('Remove this volunteer from the event?')) return;
+    try {
+      const res = await fetch('/api/events/' + currentEventId + '/volunteers/' + id, { method: 'DELETE' });
+      const d   = await res.json();
+      if (d.success) {
+        evVolunteers = evVolunteers.filter(v => v.id !== id);
+        evRenderTable();
+        evRenderRoleChips();
+        evRenderSummary();
+        evToast('Volunteer removed.', '#555');
+      } else alert(d.error || 'Failed to delete volunteer.');
+    } catch (e) { alert('Network error.'); }
+  }
+
+  /* ════ GROUP ACTIONS ════ */
+  function evGroupEmail() {
+    const list = evVolunteers.filter(v => v.email).map(v => ({
+      name: (v.firstName + ' ' + v.lastName).trim(), email: v.email, phone: v.phone || ''
+    }));
+    if (!list.length) { alert('No volunteers with email addresses.'); return; }
+    evtCmpOpen(list, 'email', 'Volunteer Assignment Update',
+      'Dear Volunteers,\n\nThank you for volunteering to serve at our upcoming event. We look forward to serving together!\n\nGod bless,\nChurch Team');
+  }
+
+  function evGroupSms() {
+    const list = evVolunteers.filter(v => v.phone).map(v => ({
+      name: (v.firstName + ' ' + v.lastName).trim(), email: v.email || '', phone: v.phone
+    }));
+    if (!list.length) { alert('No volunteers with phone numbers.'); return; }
+    evtCmpOpen(list, 'sms', '', 'Hi! Thank you for volunteering at our upcoming church event. We will send more details soon. God bless!');
+  }
+
+  function evSendEmailById(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) evtCmpOpen([{name:(v.firstName+' '+v.lastName).trim(), email:v.email, phone:''}],
+      'email', 'Volunteer Assignment', 'Dear ' + (v.firstName||'') + ',\n\nThank you for volunteering at our upcoming event. We appreciate your commitment!\n\nGod bless,\nChurch Team');
+  }
+
+  function evSendSmsById(id) {
+    const v = evVolunteers.find(x => x.id === id);
+    if (v) evtCmpOpen([{name:(v.firstName+' '+v.lastName).trim(), email:'', phone:v.phone}],
+      'sms', '', 'Hi ' + (v.firstName||'') + ', thank you for volunteering at our upcoming church event! God bless!');
+  }
+
+  /* ════ COMPOSE MODAL ════ */
+  let _evtCmpRecipients = [];
+  let _evtCmpMode = 'email';
+
+  function evtCmpSwitchTab(tab) {
+    _evtCmpMode = tab;
+    document.getElementById('evtCmpTabEmail').classList.toggle('active', tab === 'email');
+    document.getElementById('evtCmpTabSms').classList.toggle('active', tab === 'sms');
+    document.getElementById('evtCmpEmailSection').style.display = tab === 'email' ? '' : 'none';
+    document.getElementById('evtCmpSmsSection').style.display   = tab === 'sms'   ? '' : 'none';
+    evtCmpUpdateTo();
+  }
+
+  function evtCmpUpdateTo() {
+    const list  = _evtCmpRecipients.filter(r => _evtCmpMode === 'email' ? r.email : r.phone);
+    const label = list.map(r => r.name + (_evtCmpMode === 'email' ? ' <' + r.email + '>' : ' (' + r.phone + ')')).join(', ');
+    document.getElementById('evtCmpRecipients').textContent = 'To: ' + (label || '(none)');
+  }
+
+  function evtCmpOpen(recipients, tab, subject, msg) {
+    _evtCmpRecipients = recipients;
+    _evtCmpMode = tab || 'email';
+    document.getElementById('evtCmpSubject').value   = subject || '';
+    document.getElementById('evtCmpEmailBody').value = msg || '';
+    document.getElementById('evtCmpSmsBody').value   = msg || '';
+    document.getElementById('evtCmpTitle').textContent = recipients.length === 1
+      ? (tab === 'sms' ? 'SMS to ' + recipients[0].name : 'Email to ' + recipients[0].name)
+      : (tab === 'sms' ? 'Group SMS' : 'Group Email');
+    evtCmpSwitchTab(_evtCmpMode);
+    document.getElementById('evtComposeModal').classList.add('open');
+  }
+
+  function evtCmpClose() {
+    document.getElementById('evtComposeModal').classList.remove('open');
+  }
+
+  function evtCmpSend() {
+    const eventBase = '/api/events/' + currentEventId + '/volunteers';
+    if (_evtCmpMode === 'email') {
+      const subject = document.getElementById('evtCmpSubject').value.trim() || 'Volunteer Assignment';
+      const body    = document.getElementById('evtCmpEmailBody').value.trim();
+      const targets = _evtCmpRecipients.filter(r => r.email);
+      if (!targets.length) { alert('No email addresses available.'); return; }
+      const sendBtn = document.querySelector('#evtComposeModal .btn-save');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
+      fetch(eventBase + '/send-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: targets.map(r => r.email), subject, body })
+      }).then(r => r.json()).then(d => {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+        if (d.success) { evtCmpClose(); evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
+        else alert(d.error || 'Failed to send email.');
+      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+    } else {
+      const msg     = document.getElementById('evtCmpSmsBody').value.trim();
+      const targets = _evtCmpRecipients.filter(r => r.phone);
+      if (!targets.length) { alert('No phone numbers available.'); return; }
+      const sendBtn = document.querySelector('#evtComposeModal .btn-save');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
+      fetch(eventBase + '/send-sms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: targets.map(r => r.phone), body: msg })
+      }).then(r => r.json()).then(d => {
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+        if (d.success) { evtCmpClose(); evToast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
+        else alert(d.error || 'Failed to send SMS.');
+      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+    }
+  }
+
+  /* ── Close modals on backdrop click ── */
+  document.addEventListener('click', function(e) {
+    const cm = document.getElementById('evtComposeModal');
+    if (cm && e.target === cm) evtCmpClose();
+    const em = document.getElementById('volEditOverlay');
+    if (em && e.target === em) evCloseEditModal();
+  });
+
+  window.CGP_applyPerms = function(p) {
+    if (!p) return;
+    function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+    if (p['general.events.edit']      === false) hide('.btn-add-manual,.vol-role-add-btn');
+    if (p['general.events.emailsms'] === false) hide('.btn-group-email,.btn-group-sms');
+    if (typeof evRenderTable === 'function') evRenderTable();
+  };
+
+  window.CGP_PAGE = {
+    activePage:  'general/events',
+    openSection: 'general',
+    pageTitle:   'Event Volunteers'
+  };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

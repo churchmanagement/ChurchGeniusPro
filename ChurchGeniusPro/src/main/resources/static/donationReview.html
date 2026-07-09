@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Donation &#8211; Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;}
+    a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+    
+    /* ── Sidebar ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* ── Main ── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* ── Page header ── */
+    .page-header{margin-bottom:20px;}
+    .page-title{font-size:22px;font-weight:700;color:#1e2139;}
+    .page-sub{font-size:13px;color:#888;margin-top:2px;}
+    /* ── Summary banners ── */
+    .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+    @media(max-width:640px){.stats-row{grid-template-columns:1fr;}}
+    .stat-card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:18px 20px;}
+    .stat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:6px;}
+    .stat-value{font-size:24px;font-weight:700;color:#1e2139;}
+    .stat-value.green{color:#2e7d32;}
+    /* ── Feedback ── */
+    .feedback{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+    .feedback.error{display:block;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+    /* ── Card ── */
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px;}
+    .card-header{padding:14px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;background:#fafbfd;flex-wrap:wrap;gap:10px;}
+    .card-header-left{display:flex;align-items:center;gap:10px;}
+    .card-header h3{font-size:14px;font-weight:700;color:#1e2139;}
+    .table-wrap{overflow-x:auto;}
+    table.don-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+    table.don-tbl thead th{background:#f5f6fa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#888;padding:10px 14px;text-align:left;border-bottom:2px solid #e8eaf0;white-space:nowrap;}
+    table.don-tbl tbody td{padding:11px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    table.don-tbl tbody tr:last-child td{border-bottom:none;}
+    table.don-tbl tbody tr:hover td{background:#fafbff;}
+    .empty-row{text-align:center;color:#bbb;padding:36px!important;}
+    /* ── Badges ── */
+    .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;}
+    .badge-success{background:#e8f5e9;color:#2e7d32;}
+    .badge-pending{background:#fff8e1;color:#f57f17;}
+    /* ── Amount display ── */
+    .amount-cell{font-weight:700;color:#1e2139;}
+    /* ── Filter bar ── */
+    .filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .filter-bar input[type="date"]{padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;font-family:inherit;color:#333;outline:none;}
+    .filter-bar input[type="date"]:focus{border-color:#673147;}
+    .btn-filter{padding:7px 16px;background:transparent;color:#673147;border:1px solid #c5a0b5;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background .18s,color .18s,border-color .18s;}
+    .btn-filter:hover{background:#673147;color:#fff;border-color:#673147;}
+    .btn-clear{padding:7px 12px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;color:#555;}
+    .btn-clear:hover{border-color:#673147;color:#673147;}
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">&#9962; Donation</div>
+        <div class="page-sub">Online donations received via Stripe</div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- Summary stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Received</div>
+          <div class="stat-value green" id="statTotal">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Donations</div>
+          <div class="stat-value" id="statCount">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Average Gift</div>
+          <div class="stat-value" id="statAvg">—</div>
+        </div>
+      </div>
+
+      <!-- Donations table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span>&#128203;</span>
+            <h3>All Donations</h3>
+          </div>
+          <div class="filter-bar">
+            <input type="date" id="filterFrom" title="From date" />
+            <input type="date" id="filterTo"   title="To date" />
+            <button class="btn-filter" onclick="applyFilter()">Filter</button>
+            <button class="btn-clear"  onclick="clearFilter()">Clear</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="don-tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Donor</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Amount</th>
+                <th>Payment Method</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="donTableBody">
+              <tr><td class="empty-row" colspan="9">Loading&#8230;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+/* ════ NAVIGATION ════ */
+
+/* ════ DATA ════ */
+let allDonations = [];
+
+/* ════ INIT ════ */
+(async function init() {
+  await loadDonations();
+})();
+
+async function loadDonations() {
+  try {
+    const res = await fetch('/api/donations');
+    if (res.status === 403) { showError('Access denied.'); return; }
+    if (!res.ok) { showError('Could not load donations.'); return; }
+    allDonations = await res.json();
+    renderStats(allDonations);
+    renderTable(allDonations);
+  } catch {
+    showError('Network error loading donations.');
+  }
+}
+
+/* ════ FILTER ════ */
+function applyFilter() {
+  const from = document.getElementById('filterFrom').value;
+  const to   = document.getElementById('filterTo').value;
+  const filtered = allDonations.filter(d => {
+    if (!d.donatedAt) return true;
+    const date = d.donatedAt.substring(0, 10);
+    if (from && date < from) return false;
+    if (to   && date > to)   return false;
+    return true;
+  });
+  renderStats(filtered);
+  renderTable(filtered);
+}
+
+function clearFilter() {
+  document.getElementById('filterFrom').value = '';
+  document.getElementById('filterTo').value   = '';
+  renderStats(allDonations);
+  renderTable(allDonations);
+}
+
+/* ════ RENDER STATS ════ */
+function renderStats(rows) {
+  const total = rows.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
+  const count = rows.length;
+  const avg   = count > 0 ? total / count : 0;
+  const cur   = rows.length > 0 ? (rows[0].currency || 'USD') : 'USD';
+  document.getElementById('statTotal').textContent = fmt(total, cur);
+  document.getElementById('statCount').textContent = count;
+  document.getElementById('statAvg').textContent   = count > 0 ? fmt(avg, cur) : '—';
+}
+
+/* ════ RENDER TABLE ════ */
+function renderTable(rows) {
+  const tbody = document.getElementById('donTableBody');
+  if (!tbody) return;
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="9">No donations found.</td></tr>';
+    return;
+  }
+  try {
+    tbody.innerHTML = rows.map(function(d, i) {
+      const name = [d.firstName, d.lastName].filter(Boolean).join(' ');
+      const cur  = d.currency || 'USD';
+      return '<tr>' +
+        '<td style="color:#aaa;font-size:12px;">' + (i + 1) + '</td>' +
+        '<td style="font-weight:600;">' + (name ? esc(name) : '') + '</td>' +
+        '<td>' + formatPhone(d.phone) + '</td>' +
+        '<td>' + (d.email ? esc(d.email) : '') + '</td>' +
+        '<td class="amount-cell">' + fmt(parseFloat(d.amount || 0), cur) + '</td>' +
+        '<td>' + (d.paymentMethod ? esc(d.paymentMethod) : '') + '</td>' +
+        '<td>' + fmtDate(d.donatedAt) + '</td>' +
+        '<td><span class="badge ' + statusClass(d.status) + '">' + (d.status ? esc(d.status) : '') + '</span></td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(d.note || '') + '">' + (d.note ? esc(d.note) : '') + '</td>' +
+        '</tr>';
+    }).join('');
+  } catch(e) {
+    console.error('renderTable error:', e);
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="9">Error rendering donations — see console.</td></tr>';
+  }
+}
+
+/* ════ HELPERS ════ */
+function fmt(amount, currency) {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount);
+  } catch { return '$' + amount.toFixed(2); }
+}
+
+function fmtDate(s) {
+  if (!s) return '&#8212;';
+  try {
+    return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return s.substring(0, 10); }
+}
+
+function statusClass(s) {
+  if (s === 'succeeded') return 'badge-success';
+  return 'badge-pending';
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function formatPhone(p) {
+  if (!p) return '';
+  var d = String(p).replace(/\D/g, '');
+  if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  if (d.length === 11 && d[0] === '1') return '+1 (' + d.slice(1,4) + ') ' + d.slice(4,7) + '-' + d.slice(7);
+  return esc(p);
+}
+
+function showError(msg) {
+  const el = document.getElementById('feedbackMsg');
+  el.textContent = msg; el.className = 'feedback error';
+}
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'accounting/donation-review', pageTitle: '', openSection: 'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

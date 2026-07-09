@@ -1,0 +1,21 @@
+Gift Date,Amount,Fund,Sub Fund,Method,Reference No,Member ID,Note
+06/01/2026,200.00,Tithes,General,Check,R-3001,2001,Anderson family tithe
+06/01/2026,150.00,Tithes,General,Cash,,2002,Martinez tithe
+06/01/2026,"$125.50",Offering,Sunday,Cash,,2003,Thompson offering
+06/01/2026,75.00,Offering,Sunday,Card,TXN-44120,2004,Garcia guest gift
+06/08/2026,300.00,Tithes,General,Check,R-3002,2005,Wilson tithe
+06/08/2026,50.00,Missions,Outreach,Cash,,2006,Brown missions
+06/08/2026,225.00,Tithes,General,Check,R-3003,2007,Davis tithe
+06/08/2026,100.00,Building Fund,,Card,TXN-44135,2008,Rodriguez building
+06/15/2026,40.00,Offering,Sunday,Cash,,2009,Lee guest offering
+06/15/2026,180.00,Tithes,General,Check,R-3004,2010,Walker tithe
+06/15/2026,260.00,Tithes,General,Check,R-3005,2011,Hall family tithe
+06/15/2026,90.00,Missions,Outreach,Card,TXN-44150,2012,Young missions
+06/22/2026,210.00,Tithes,General,Check,R-3006,2013,King tithe
+06/22/2026,65.00,Offering,Sunday,Cash,,2014,Wright guest
+06/22/2026,140.00,Tithes,General,Card,TXN-44165,2017,Green tithe
+06/22/2026,500.00,Tithes,General,Check,R-3007,9999,Unknown donor (member not imported)
+06/29/2026,,Tithes,General,Cash,,2001,Missing date row
+06/29/2026,xyz,Offering,,Cash,,2002,Bad amount row
+06/29/2026,0,Tithes,,Cash,,2003,Zero amount row
+06/29/2026,120.00,Tithes,General,Check,R-3008,2005,Second Wilson gift

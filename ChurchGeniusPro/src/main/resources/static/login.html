@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <title>Church Genius Pro</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        min-height: 100vh;
+        background-color: #f5f6fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        /* leave room below the centered card for the fixed policy footer */
+        padding-bottom: 84px;
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .logo-box {
+        width: 200px;
+        margin-bottom: 28px;
+      }
+
+      .logo-box img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .form {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #555;
+      }
+
+      .field input {
+        width: 100%;
+        padding: 12px 14px;
+        min-height: 44px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px; /* prevents iOS zoom-in on focus */
+        color: #333;
+        outline: none;
+        transition: border-color 0.2s;
+        background: #fff;
+      }
+      @media (max-width: 480px) {
+        .card { padding: 28px 18px; }
+        .logo-box { width: 150px; }
+      }
+
+      .field input::placeholder { color: #bbb; }
+      .field input:focus { border-color: #673147; }
+
+      /* ── Password wrapper + show/hide toggle ── */
+      .input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .input-wrap input {
+        padding-right: 42px;
+      }
+
+      .btn-eye {
+        position: absolute;
+        right: 10px;
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        color: #aaa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+        line-height: 0;
+        flex-shrink: 0;
+      }
+
+      .btn-eye:hover { color: #673147; }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .remember {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #555;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .remember input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        accent-color: #673147;
+        cursor: pointer;
+      }
+
+      .forgot {
+        font-size: 13px;
+        color: #673147;
+        text-decoration: none;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        font-family: inherit;
+      }
+
+      .forgot:hover { text-decoration: underline; color: #4f2538; }
+
+      .error-msg {
+        font-size: 13px;
+        color: #e53935;
+        text-align: center;
+        min-height: 18px;
+      }
+
+      .btn-login {
+        width: 100%;
+        padding: 13px;
+        background-color: transparent;
+        color: #673147;
+        font-size: 15px;
+        font-weight: 600;
+        border: 1.5px solid #673147;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+        font-family: inherit;
+      }
+
+      .btn-login:hover:not(:disabled) { background-color: #673147; color: #fff; }
+      .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        color: #aaa;
+        font-size: 13px;
+      }
+
+      .divider::before, .divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e0e0e0;
+      }
+
+      .btn-google {
+        width: 100%;
+        padding: 12px;
+        background: #fff;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #333;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-family: inherit;
+      }
+
+      .btn-google:hover { background-color: #f7f7f7; }
+
+      .btn-register {
+        width: 100%;
+        padding: 12px;
+        background: #fff;
+        border: 1.5px solid #673147;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #673147;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-family: inherit;
+      }
+
+      .btn-register:hover { background-color: #fdf5f7; }
+
+      .btn-biometric {
+        width: 100%;
+        padding: 12px;
+        background: #fff;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #555;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 2px;
+      }
+
+      .btn-biometric:hover { border-color: #673147; color: #673147; background: #fdf5f7; }
+      .btn-biometric:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo-box">
+        <img src="/logo.png" alt="Church Genius Pro" onerror="this.style.display='none'" />
+      </div>
+
+      <form class="form" id="loginForm" method="post" action="javascript:void(0)" novalidate>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            placeholder="Enter username"
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter password"
+              autocomplete="current-password"
+            />
+            <button type="button" class="btn-eye" id="togglePw" aria-label="Show password" title="Show / hide password">
+              <!-- Eye icon (visible state) -->
+              <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <!-- Eye-off icon (hidden state) -->
+              <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                   style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="remember">
+            <input type="checkbox" id="remember" />
+            Remember password
+          </label>
+          <a href="/forgotPassword" class="forgot">Forgot Password?</a>
+        </div>
+
+        <div style="text-align:center;margin-top:-4px;">
+          <button type="button" class="forgot" id="forgotUsernameBtn" onclick="openForgotUsername()">Forgot Username?</button>
+        </div>
+
+        <p class="error-msg" id="errorMsg"></p>
+
+        <button type="submit" class="btn-login" id="loginBtn">Login</button>
+
+        <!-- Biometric login button — shown only when supported + credentials saved -->
+        <button type="button" class="btn-biometric" id="biometricBtn" style="display:none;" onclick="doBiometricLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/>
+            <path d="M12 6a6 6 0 0 1 6 6"/>
+            <path d="M12 6a6 6 0 0 0-6 6"/>
+            <path d="M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/>
+            <path d="M12 14v4"/>
+          </svg>
+          Sign in with Fingerprint / Face ID
+        </button>
+
+
+      </form>
+    </div>
+
+    <script>
+      const form         = document.getElementById('loginForm');
+      const loginBtn     = document.getElementById('loginBtn');
+      const biometricBtn = document.getElementById('biometricBtn');
+      const errorMsg     = document.getElementById('errorMsg');
+      const pwInput      = document.getElementById('password');
+      const toggleBtn    = document.getElementById('togglePw');
+      const eyeOpen      = document.getElementById('eyeOpen');
+      const eyeClosed    = document.getElementById('eyeClosed');
+
+      /* ── Register service worker ── */
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+
+      /* ── Show / hide password toggle ── */
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+          const isHidden = pwInput.type === 'password';
+          pwInput.type        = isHidden ? 'text' : 'password';
+          if (eyeOpen)   eyeOpen.style.display   = isHidden ? 'none' : '';
+          if (eyeClosed) eyeClosed.style.display = isHidden ? ''     : 'none';
+          toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+          pwInput.focus();
+        });
+      }
+
+      /* ── Helper: persist user data to localStorage and redirect ── */
+      function applyLoginData(data) {
+        localStorage.setItem('clientId',   data.clientId   || '');
+        localStorage.setItem('username',   data.username   || '');
+        localStorage.setItem('church',     data.church     ? 'true' : 'false');
+        localStorage.setItem('churchId',   data.churchId   != null ? String(data.churchId) : '');
+        localStorage.setItem('firstName',  data.firstName  || '');
+        localStorage.setItem('role',       data.role       || '');
+        localStorage.setItem('churchName', data.churchName || '');
+        window.location.href = data.redirect || (data.church ? '/viewusers' : '/home');
+      }
+
+      /* ══════════════════════════════════════════════════════════════════
+         BIOMETRIC / WEBAUTHN
+         Strategy: WebAuthn Platform Authenticator proves the user is
+         physically present (fingerprint / Face ID / Windows Hello).
+         On success we replay the saved credentials to /login — no
+         server-side WebAuthn infrastructure required.
+      ══════════════════════════════════════════════════════════════════ */
+
+      const BIOMETRIC_KEY = 'cgp_biometric_credential_id';
+
+      /** True if the browser supports platform authenticators */
+      async function biometricAvailable() {
+        if (!window.PublicKeyCredential) return false;
+        try {
+          return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        } catch (_) { return false; }
+      }
+
+      /**
+       * Register a new WebAuthn credential for the current user.
+       * Called after a successful password login when "Remember password" is on.
+       */
+      async function registerBiometric(username) {
+        try {
+          const available = await biometricAvailable();
+          if (!available) return;
+
+          const encoder = new TextEncoder();
+          const userId  = encoder.encode(username.substring(0, 64));
+
+          const credential = await navigator.credentials.create({
+            publicKey: {
+              challenge:              crypto.getRandomValues(new Uint8Array(32)),
+              rp:                     { name: 'Church Genius Pro', id: location.hostname },
+              user:                   { id: userId, name: username, displayName: username },
+              pubKeyCredParams:       [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+              authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+              timeout:                60000,
+              attestation:            'none'
+            }
+          });
+
+          if (credential) {
+            /* Store the raw credential ID so we can re-use it on next visit */
+            const idB64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+            localStorage.setItem(BIOMETRIC_KEY, idB64);
+          }
+        } catch (_) { /* User declined or unsupported — silently ignore */ }
+      }
+
+      /**
+       * Show the biometric prompt. On success, replay saved credentials to /login.
+       */
+      async function doBiometricLogin() {
+        const savedUser = localStorage.getItem('rememberedUsername');
+        const savedPass = localStorage.getItem('rememberedPassword');
+        if (!savedUser || !savedPass) {
+          errorMsg.textContent = 'No saved credentials. Please log in with your password first.';
+          return;
+        }
+
+        biometricBtn.disabled    = true;
+        biometricBtn.textContent = 'Verifying…';
+        errorMsg.textContent     = '';
+
+        try {
+          const storedIdB64 = localStorage.getItem(BIOMETRIC_KEY);
+          const allowCreds  = storedIdB64 ? [{
+            type: 'public-key',
+            id:   Uint8Array.from(atob(storedIdB64), c => c.charCodeAt(0)),
+            transports: ['internal']
+          }] : [];
+
+          await navigator.credentials.get({
+            publicKey: {
+              challenge:        crypto.getRandomValues(new Uint8Array(32)),
+              rpId:             location.hostname,
+              allowCredentials: allowCreds,
+              userVerification: 'required',
+              timeout:          60000
+            }
+          });
+
+          /* Biometric gesture verified — replay saved credentials */
+          let password = '';
+          try { password = atob(savedPass); } catch (_) {}
+
+          const response = await fetch('/login', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ username: savedUser, password, rememberMe: true })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.status === 'success') {
+            applyLoginData(data);
+          } else {
+            errorMsg.textContent = 'Biometric login failed. Please enter your password.';
+            biometricBtn.disabled    = false;
+            biometricBtn.innerHTML   = biometricBtnHTML();
+          }
+        } catch (err) {
+          if (err.name === 'NotAllowedError') {
+            errorMsg.textContent = 'Biometric verification was cancelled.';
+          } else {
+            errorMsg.textContent = 'Biometric login failed. Please enter your password.';
+          }
+          biometricBtn.disabled    = false;
+          biometricBtn.innerHTML   = biometricBtnHTML();
+        }
+      }
+
+      function biometricBtnHTML() {
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M12 6a6 6 0 0 0-6 6"/><path d="M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/><path d="M12 14v4"/></svg> Sign in with Fingerprint / Face ID';
+      }
+
+      /** Show biometric button only if supported and credentials are already saved */
+      async function initBiometricButton() {
+        const savedUser = localStorage.getItem('rememberedUsername');
+        const savedPass = localStorage.getItem('rememberedPassword');
+        const hasCreds  = !!(savedUser && savedPass);
+        if (!hasCreds) return;
+        const available = await biometricAvailable();
+        if (available && biometricBtn) biometricBtn.style.display = '';
+      }
+
+      /* ── On page load: attempt auto-login via remember-me cookie, then
+             restore saved credentials and initialise biometric button ── */
+      (async function checkRemember() {
+        /* If the user explicitly logged out in this tab, skip auto-login so they
+           are not immediately re-authenticated via the remember-me cookie.
+           Clear the flag so a manual page refresh later behaves normally. */
+        const explicitLogout = sessionStorage.getItem('cgpExplicitLogout');
+        if (explicitLogout) {
+          sessionStorage.removeItem('cgpExplicitLogout');
+          /* Fall through to the credential-restore block below — no auto-login. */
+        } else {
+          try {
+            const res  = await fetch('/api/auth/check-remember');
+            const data = await res.json();
+            if (data.status === 'success') {
+              applyLoginData(data);
+              return;
+            }
+          } catch (_) { /* ignore — proceed to manual login */ }
+        }
+
+        /* Pre-fill username from ?clientId=<encrypted> login link */
+        const urlParams = new URLSearchParams(window.location.search);
+        const cidToken  = urlParams.get('clientId');
+        if (cidToken) {
+          try {
+            const cidRes  = await fetch('/api/auth/resolve-client-id?token=' + encodeURIComponent(cidToken));
+            const cidData = await cidRes.json();
+            if (cidData.found && cidData.username) {
+              document.getElementById('username').value = cidData.username;
+              document.getElementById('password').focus();
+            }
+          } catch (_) {}
+        }
+
+        /* Restore saved username + password when Remember Password is on */
+        const savedUser = localStorage.getItem('rememberedUsername');
+        const savedPass = localStorage.getItem('rememberedPassword');
+        if (savedUser && !cidToken) {
+          document.getElementById('username').value = savedUser;
+          document.getElementById('remember').checked = true;
+        }
+        if (savedPass && !cidToken) {
+          try { pwInput.value = atob(savedPass); } catch (_) {}
+        }
+
+        /* Show biometric button if available */
+        await initBiometricButton();
+
+        /* Auto-trigger biometric if credentials are saved and available */
+        const hasCreds = !!(savedUser && savedPass);
+        if (hasCreds && biometricBtn && biometricBtn.style.display !== 'none') {
+          /* Small delay so page is fully visible before the system dialog appears */
+          setTimeout(doBiometricLogin, 600);
+        }
+      })();
+
+      /* ── Manual login form submit ── */
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        errorMsg.textContent = '';
+
+        const username   = document.getElementById('username').value.trim();
+        const password   = pwInput.value;
+        const rememberMe = document.getElementById('remember').checked;
+
+        if (!username || !password) {
+          errorMsg.textContent = 'Please enter both username and password.';
+          return;
+        }
+
+        loginBtn.disabled    = true;
+        loginBtn.textContent = 'Logging in...';
+
+        try {
+          const response = await fetch('/login', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ username, password, rememberMe })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.status === 'success') {
+            if (rememberMe) {
+              localStorage.setItem('rememberedUsername', username);
+              try { localStorage.setItem('rememberedPassword', btoa(password)); } catch (_) {}
+              /* Register a biometric credential for future logins */
+              await registerBiometric(username);
+            } else {
+              localStorage.removeItem('rememberedUsername');
+              localStorage.removeItem('rememberedPassword');
+              localStorage.removeItem(BIOMETRIC_KEY);
+            }
+            applyLoginData(data);
+          } else {
+            errorMsg.textContent = data.message || 'Invalid username or password.';
+            loginBtn.disabled    = false;
+            loginBtn.textContent = 'Login';
+          }
+        } catch (_) {
+          errorMsg.textContent = 'Unable to connect. Please try again.';
+          loginBtn.disabled    = false;
+          loginBtn.textContent = 'Login';
+        }
+      });
+    </script>
+    <script src="/pwa.js" async></script>
+
+  <!-- ── Forgot Username Modal ── -->
+  <style>
+    .fu-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .fu-overlay.active { display: flex; }
+
+    .fu-modal {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18);
+      position: relative;
+      animation: fuSlideIn .22s ease;
+    }
+    @keyframes fuSlideIn {
+      from { opacity:0; transform:translateY(-14px); }
+      to   { opacity:1; transform:translateY(0);     }
+    }
+    @media (max-width: 480px) {
+      .fu-modal { padding: 24px 16px; }
+    }
+
+    .fu-close {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; font-size: 20px;
+      color: #aaa; cursor: pointer; line-height: 1; padding: 4px;
+    }
+    .fu-close:hover { color: #673147; }
+
+    .fu-title {
+      font-size: 18px; font-weight: 700; color: #333;
+      margin: 0 0 6px;
+    }
+    .fu-subtitle {
+      font-size: 13px; color: #777; margin: 0 0 20px;
+    }
+    .fu-tabs {
+      display: flex; gap: 8px; margin-bottom: 18px;
+    }
+    .fu-tab {
+      flex: 1; padding: 9px;
+      background: #f5f5f5; border: 1.5px solid #e0e0e0;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      color: #666; cursor: pointer; transition: all .18s;
+      font-family: inherit;
+    }
+    .fu-tab.active {
+      background: #fdf5f7; border-color: #673147; color: #673147;
+    }
+    .fu-field {
+      display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
+    }
+    .fu-field label { font-size: 13px; font-weight: 500; color: #555; }
+    .fu-field input {
+      width: 100%; padding: 12px 14px; min-height: 44px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-size: 16px; color: #333; outline: none;
+      transition: border-color .2s; background: #fff;
+      font-family: inherit;
+    }
+    .fu-field input:focus { border-color: #673147; }
+    .fu-field input::placeholder { color: #bbb; }
+    .fu-error {
+      font-size: 13px; color: #e53935; min-height: 18px; margin-bottom: 10px; text-align: center;
+    }
+    .fu-success {
+      font-size: 14px; color: #2e7d32; background: #f1f8e9;
+      border: 1.5px solid #aed581; border-radius: 8px;
+      padding: 14px 16px; text-align: center; margin-bottom: 12px;
+      display: none;
+    }
+    .fu-btn {
+      width: 100%; padding: 13px;
+      background: transparent; color: #673147;
+      font-size: 15px; font-weight: 600;
+      border: 1.5px solid #673147; border-radius: 8px;
+      cursor: pointer; transition: background .2s, color .2s;
+      font-family: inherit;
+    }
+    .fu-btn:hover:not(:disabled) { background: #673147; color: #fff; }
+    .fu-btn:disabled { opacity: .65; cursor: not-allowed; }
+
+    .fu-attempts {
+      font-size: 12px; color: #aaa; text-align: center;
+      margin-top: 12px;
+    }
+    .fu-captcha-note {
+      font-size: 12px; color: #888; text-align: center;
+      background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px;
+      padding: 8px 12px; margin-bottom: 12px; display: none;
+    }
+    .fu-blocked-msg {
+      font-size: 13px; color: #c62828; background: #ffebee;
+      border: 1.5px solid #ef9a9a; border-radius: 8px;
+      padding: 14px 16px; text-align: center; display: none; margin-bottom: 12px;
+    }
+  </style>
+
+  <div class="fu-overlay" id="fuOverlay" onclick="fuOverlayClick(event)">
+    <div class="fu-modal" role="dialog" aria-modal="true" aria-labelledby="fuTitle">
+      <button class="fu-close" onclick="closeForgotUsername()" aria-label="Close">&times;</button>
+
+      <h2 class="fu-title" id="fuTitle">Forgot Username</h2>
+      <p class="fu-subtitle">Enter the email or phone number linked to your account and we'll send your username(s).</p>
+
+      <!-- Tab switcher -->
+      <div class="fu-tabs">
+        <button type="button" class="fu-tab active" id="fuTabEmail" onclick="fuSwitchTab('email')">📧 Email</button>
+        <button type="button" class="fu-tab"        id="fuTabPhone" onclick="fuSwitchTab('phone')">📱 Phone</button>
+      </div>
+
+      <!-- Email input -->
+      <div class="fu-field" id="fuEmailField">
+        <label for="fuEmailInput">Email Address</label>
+        <input type="email" id="fuEmailInput" placeholder="you@example.com" autocomplete="email" />
+      </div>
+
+      <!-- Phone input (hidden by default) -->
+      <div class="fu-field" id="fuPhoneField" style="display:none;">
+        <label for="fuPhoneInput">Phone Number</label>
+        <input type="tel" id="fuPhoneInput" placeholder="+1 555 000 0000" autocomplete="tel" />
+      </div>
+
+      <!-- Rate-limit / captcha notice -->
+      <div class="fu-captcha-note" id="fuCaptchaNote">
+        ⚠️ Multiple attempts detected. Please verify you are human before continuing.
+      </div>
+      <div class="fu-blocked-msg" id="fuBlockedMsg">
+        🚫 Too many recovery attempts. Please wait 1 hour before trying again.
+      </div>
+
+      <p class="fu-error" id="fuError"></p>
+      <div class="fu-success" id="fuSuccess">
+        ✅ If an account exists with the provided information, the username details have been sent.
+      </div>
+
+      <button type="button" class="fu-btn" id="fuSubmitBtn" onclick="fuSubmit()">Send Username(s)</button>
+
+      <p class="fu-attempts" id="fuAttemptsMsg"></p>
+    </div>
+  </div>
+
+  <script>
+    /* ══════════════════════════════════════════════════════════════════════
+       FORGOT USERNAME MODAL
+    ══════════════════════════════════════════════════════════════════════ */
+
+    var fuTab         = 'email';
+    var fuAttempts    = 0;
+    var fuBlocked     = false;
+    var fuCaptchaReq  = false;
+
+    function openForgotUsername() {
+      document.getElementById('fuOverlay').classList.add('active');
+      document.getElementById('fuEmailInput').focus();
+      fuCheckStatus('');
+    }
+
+    function closeForgotUsername() {
+      document.getElementById('fuOverlay').classList.remove('active');
+      fuReset();
+    }
+
+    function fuOverlayClick(e) {
+      if (e.target === document.getElementById('fuOverlay')) closeForgotUsername();
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeForgotUsername();
+    });
+
+    function fuSwitchTab(tab) {
+      fuTab = tab;
+      document.getElementById('fuTabEmail').classList.toggle('active', tab === 'email');
+      document.getElementById('fuTabPhone').classList.toggle('active', tab === 'phone');
+      document.getElementById('fuEmailField').style.display = tab === 'email' ? '' : 'none';
+      document.getElementById('fuPhoneField').style.display = tab === 'phone' ? '' : 'none';
+      document.getElementById('fuError').textContent = '';
+      if (tab === 'email') document.getElementById('fuEmailInput').focus();
+      else                 document.getElementById('fuPhoneInput').focus();
+    }
+
+    function fuReset() {
+      document.getElementById('fuEmailInput').value = '';
+      document.getElementById('fuPhoneInput').value = '';
+      document.getElementById('fuError').textContent = '';
+      document.getElementById('fuSuccess').style.display = 'none';
+      document.getElementById('fuSubmitBtn').style.display = '';
+      document.getElementById('fuAttemptsMsg').textContent = '';
+      document.getElementById('fuCaptchaNote').style.display = 'none';
+      document.getElementById('fuBlockedMsg').style.display = 'none';
+      fuSwitchTab('email');
+    }
+
+    async function fuCheckStatus(identifier) {
+      try {
+        var url = '/api/public/forgot-username/status';
+        if (identifier) url += '?identifier=' + encodeURIComponent(identifier);
+        var res  = await fetch(url);
+        var data = await res.json();
+        fuAttempts   = data.attempts   || 0;
+        fuBlocked    = data.blocked    || false;
+        fuCaptchaReq = data.requireCaptcha || false;
+        fuUpdateUI();
+      } catch (_) {}
+    }
+
+    function fuUpdateUI() {
+      var blockedEl  = document.getElementById('fuBlockedMsg');
+      var captchaEl  = document.getElementById('fuCaptchaNote');
+      var submitBtn  = document.getElementById('fuSubmitBtn');
+      var attemptsEl = document.getElementById('fuAttemptsMsg');
+
+      if (fuBlocked) {
+        blockedEl.style.display  = '';
+        captchaEl.style.display  = 'none';
+        submitBtn.disabled       = true;
+        attemptsEl.textContent   = 'Account locked for this hour. Try again later.';
+      } else {
+        blockedEl.style.display  = 'none';
+        submitBtn.disabled       = false;
+        if (fuCaptchaReq) {
+          captchaEl.style.display = '';
+          attemptsEl.textContent  = fuAttempts + ' attempt(s) this hour. Max 5.';
+        } else {
+          captchaEl.style.display = 'none';
+          attemptsEl.textContent  = fuAttempts > 0 ? fuAttempts + ' attempt(s) this hour.' : '';
+        }
+      }
+    }
+
+    function fuValidate() {
+      var val = fuTab === 'email'
+        ? document.getElementById('fuEmailInput').value.trim()
+        : document.getElementById('fuPhoneInput').value.trim();
+
+      document.getElementById('fuError').textContent = '';
+
+      if (!val) {
+        document.getElementById('fuError').textContent =
+          fuTab === 'email' ? 'Please enter your email address.' : 'Please enter your phone number.';
+        return null;
+      }
+      if (fuTab === 'email') {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+          document.getElementById('fuError').textContent = 'Please enter a valid email address.';
+          return null;
+        }
+      } else {
+        var digits = val.replace(/[^0-9]/g, '');
+        if (digits.length < 7) {
+          document.getElementById('fuError').textContent = 'Please enter a valid phone number.';
+          return null;
+        }
+      }
+      return val;
+    }
+
+    async function fuSubmit() {
+      var identifier = fuValidate();
+      if (!identifier) return;
+
+      if (fuBlocked) return;
+
+      var submitBtn = document.getElementById('fuSubmitBtn');
+      submitBtn.disabled    = true;
+      submitBtn.textContent = 'Sending…';
+      document.getElementById('fuError').textContent = '';
+
+      try {
+        var payload = { identifier: identifier };
+        var res  = await fetch('/api/public/forgot-username', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload)
+        });
+        var data = await res.json();
+
+        if (res.status === 429 || data.blocked) {
+          fuBlocked = true;
+          fuAttempts = 5;
+          fuUpdateUI();
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Send Username(s)';
+          return;
+        }
+
+        if (data.error && !data.message) {
+          document.getElementById('fuError').textContent = data.error;
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Send Username(s)';
+          return;
+        }
+
+        // Success — show generic message, hide form elements
+        document.getElementById('fuSuccess').style.display = '';
+        submitBtn.style.display = 'none';
+
+        // Update rate-limit state
+        fuAttempts   = (fuAttempts || 0) + 1;
+        fuCaptchaReq = data.requireCaptcha || false;
+        fuBlocked    = data.blocked || false;
+        fuUpdateUI();
+
+      } catch (_) {
+        document.getElementById('fuError').textContent = 'Unable to connect. Please try again.';
+        submitBtn.disabled    = false;
+        submitBtn.textContent = 'Send Username(s)';
+      }
+    }
+
+    // Allow Enter key in the inputs to submit
+    ['fuEmailInput', 'fuPhoneInput'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); fuSubmit(); }
+      });
+    });
+  </script>
+  <script src="/legal-footer.js"></script>
+  </body>
+</html>

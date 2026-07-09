@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <title>Connect With Us</title>
+  <style>
+    :root { --brand:#673147; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:#f3eef1; color:#222; }
+    .wrap { max-width:520px; margin:0 auto; min-height:100vh; background:#fff; }
+    .hero { background:var(--brand); color:#fff; text-align:center; padding:26px 20px; }
+    .logo { width:72px; height:72px; border-radius:50%; object-fit:cover; background:#fff; border:3px solid rgba(255,255,255,.85); margin:0 auto 10px; display:block; }
+    .hero h1 { font-size:21px; margin:0; font-weight:800; } .hero p { font-size:13px; opacity:.95; margin:6px 0 0; }
+    .body { padding:18px 16px 30px; }
+    .sect { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--brand); margin:18px 0 8px; }
+    label { display:block; font-size:12.5px; font-weight:600; color:#555; margin:10px 0 5px; }
+    input,select,textarea { width:100%; padding:11px 12px; border:1.5px solid #e0d5db; border-radius:9px; font-size:15px; outline:none; font-family:inherit; }
+    input:focus,select:focus,textarea:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .row { display:flex; gap:10px; } .row > div { flex:1; }
+    .prefs { display:flex; gap:16px; flex-wrap:wrap; margin-top:6px; }
+    .prefs label { display:flex; align-items:center; gap:6px; font-weight:500; font-size:14px; margin:0; }
+    .prefs input { width:auto; }
+    .btn { width:100%; margin-top:22px; padding:13px; border:none; border-radius:11px; background:var(--brand); color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+    .btn[disabled]{ opacity:.6; }
+    .msg { margin-top:14px; font-size:13px; border-radius:8px; padding:10px 12px; display:none; }
+    .msg.err { background:#fdecee; color:#c0392b; display:block; } .msg.ok { background:#e8f6ec; color:#1e7e34; display:block; }
+    .church-links { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:18px 12px 6px; border-top:1px solid #f0e7ec; margin-top:18px; }
+    .church-links a { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:21px; background:#f4eef1; border:1px solid #e8dde4; text-decoration:none; }
+    .done { text-align:center; padding:60px 24px; }
+    .done .ic { font-size:54px; } .done h2 { color:var(--brand); }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <div class="hero" id="hero"><h1>Connect With Us</h1></div>
+    <div class="body">
+      <form id="f" autocomplete="on">
+        <div class="sect">Personal Information</div>
+        <div class="row"><div><label>First Name</label><input id="firstName" /></div><div><label>Last Name</label><input id="lastName" /></div></div>
+        <label>Email Address</label><input id="email" type="email" />
+        <label>Phone Number</label><input id="phone" type="tel" />
+        <label>Address</label><input id="address" />
+        <div class="row">
+          <div><label>Gender</label><select id="gender"><option value="">—</option><option>Male</option><option>Female</option></select></div>
+          <div><label>Marital Status</label><select id="maritalStatus"><option value="">—</option><option>Single</option><option>Married</option><option>Other</option></select></div>
+        </div>
+        <label>Birth Date</label><input id="birthDate" type="date" />
+
+        <div class="sect">Contact Preferences</div>
+        <div class="prefs">
+          <label><input type="checkbox" class="pref" value="Text Message"> Text Message</label>
+          <label><input type="checkbox" class="pref" value="Email"> Email</label>
+          <label><input type="checkbox" class="pref" value="Phone Call"> Phone Call</label>
+        </div>
+
+        <div class="sect">Additional Information</div>
+        <label>How Did You Hear About Us?</label><input id="howHeard" />
+
+        <button class="btn" type="submit" id="submitBtn">Submit</button>
+        <div id="msg" class="msg"></div>
+      </form>
+      <div class="church-links" id="churchLinks"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      function esc(s){ return String(s==null?'':s); }
+      var cid = new URLSearchParams(location.search).get('c') || new URLSearchParams(location.search).get('cid') || '';
+      var wrap = document.getElementById('wrap');
+      function show(t,k){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+k; }
+
+      if (cid) fetch('/api/public/engage-info?cid=' + encodeURIComponent(cid)).then(r=>r.json()).then(function (d) {
+        if (d.themeColor) document.documentElement.style.setProperty('--brand', d.themeColor);
+        document.getElementById('hero').innerHTML =
+          (d.logo ? '<img class="logo" src="'+esc(d.logo)+'" alt="" />' : '')
+          + '<h1>Connect With Us</h1><p>'+esc(d.churchName||'')+'</p>';
+        var links = [['websiteUrl','🌐'],['facebookUrl','📘'],['instagramUrl','📸'],['youtubeUrl','▶️']]
+          .filter(function(x){ return d[x[0]]; })
+          .map(function(x){ return '<a href="'+esc(d[x[0]])+'" target="_blank" rel="noopener" title="'+x[0]+'">'+x[1]+'</a>'; }).join('');
+        document.getElementById('churchLinks').innerHTML = links;
+      }).catch(function(){});
+
+      document.getElementById('f').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fn=document.getElementById('firstName').value.trim(), ln=document.getElementById('lastName').value.trim();
+        if (!fn && !ln) { show('Please enter your name.', 'err'); return; }
+        var prefs = Array.from(document.querySelectorAll('.pref:checked')).map(c=>c.value);
+        var body = {
+          cid: cid,
+          firstName: fn, lastName: ln,
+          email: document.getElementById('email').value.trim(),
+          phone: document.getElementById('phone').value.trim(),
+          address: document.getElementById('address').value.trim(),
+          gender: document.getElementById('gender').value,
+          maritalStatus: document.getElementById('maritalStatus').value,
+          birthDate: document.getElementById('birthDate').value,
+          howHeard: document.getElementById('howHeard').value.trim(),
+          contactPreferences: prefs
+        };
+        var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = 'Submitting…';
+        fetch('/api/public/connect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+          .then(function (r) { return r.json().then(j=>({ok:r.ok,j})); })
+          .then(function (res) {
+            if (res.ok) {
+              wrap.innerHTML = '<div class="done"><div class="ic">🎉</div><h2>Thank you!</h2>'
+                + '<p style="color:#555;">We’ve received your information and someone from our team will reach out soon.</p></div>';
+            } else { show((res.j && res.j.error) || 'Could not submit. Please try again.', 'err'); btn.disabled=false; btn.textContent='Submit'; }
+          }).catch(function(){ show('Network error. Please try again.', 'err'); btn.disabled=false; btn.textContent='Submit'; });
+      });
+    })();
+  </script>
+</body>
+</html>

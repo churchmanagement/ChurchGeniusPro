@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Clearing cache…</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background:#f5f6fa; color:#333; display:flex; align-items:center;
+           justify-content:center; min-height:100vh; margin:0; padding:24px; }
+    .card { background:#fff; border-radius:16px; padding:36px 32px; max-width:520px;
+            width:100%; box-shadow:0 4px 24px rgba(0,0,0,.08); text-align:center; }
+    h1 { font-size:22px; color:#673147; margin:0 0 12px; }
+    p  { font-size:14px; line-height:1.55; margin:8px 0; color:#555; }
+    pre { font-size:12px; background:#fafafa; border:1px solid #eee; border-radius:8px;
+          padding:10px 12px; text-align:left; color:#333; overflow-x:auto; }
+    .ok { color:#2e7d32; font-weight:600; }
+    .err{ color:#c62828; font-weight:600; }
+    a.btn { display:inline-block; margin-top:16px; padding:10px 22px; background:#673147;
+            color:#fff; border-radius:8px; text-decoration:none; font-size:13px; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Clearing cached app data…</h1>
+    <p>This unregisters every service worker and deletes every Cache Storage entry for this origin so the next page load fetches fresh files from the server.</p>
+    <pre id="log">Working…</pre>
+    <a class="btn" id="continueBtn" href="/" style="display:none;">Continue to login</a>
+  </div>
+  <script>
+  (async function clear() {
+    var log = document.getElementById('log');
+    var lines = [];
+    function add(s) { lines.push(s); log.textContent = lines.join('\n'); }
+
+    // 1) Unregister all service workers
+    try {
+      if ('serviceWorker' in navigator) {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        if (regs.length === 0) { add('• No service workers registered.'); }
+        for (var i = 0; i < regs.length; i++) {
+          var ok = await regs[i].unregister();
+          add('• Unregistered SW (' + (regs[i].scope || '?') + ') → ' + (ok ? 'OK' : 'failed'));
+        }
+      } else {
+        add('• Service worker API not available in this browser.');
+      }
+    } catch (e) {
+      add('• SW unregister error: ' + e.message);
+    }
+
+    // 2) Delete every Cache Storage entry
+    try {
+      if (window.caches && caches.keys) {
+        var keys = await caches.keys();
+        if (keys.length === 0) { add('• No cache buckets present.'); }
+        for (var j = 0; j < keys.length; j++) {
+          var deleted = await caches.delete(keys[j]);
+          add('• Deleted cache "' + keys[j] + '" → ' + (deleted ? 'OK' : 'failed'));
+        }
+      } else {
+        add('• Cache Storage API not available.');
+      }
+    } catch (e) {
+      add('• Cache delete error: ' + e.message);
+    }
+
+    // 3) Clear localStorage/sessionStorage too (defensive — keeps stale state out)
+    try { localStorage.clear();   add('• localStorage cleared.');   } catch (e) {}
+    try { sessionStorage.clear(); add('• sessionStorage cleared.'); } catch (e) {}
+
+    add('');
+    add('✔ Done. Click the button below to continue.');
+    document.getElementById('continueBtn').style.display = 'inline-block';
+  })();
+  </script>
+</body>
+</html>

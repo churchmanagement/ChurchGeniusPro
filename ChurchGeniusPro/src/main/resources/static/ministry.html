@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Ministry — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name   { color: #fff !important; }
+    .user-name    { color: #fff !important; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 28px; }
+    .page-title   { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+
+    /* ── Ministry grid ── */
+    .ministry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 960px;
+    }
+
+    /* ── Ministry card ── */
+    .ministry-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      padding: 28px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: box-shadow .18s, transform .18s, border-color .18s;
+      position: relative;
+      overflow: hidden;
+    }
+    .ministry-card:hover {
+      box-shadow: 0 8px 28px rgba(103,49,71,.13);
+      border-color: #c5a8b8;
+      transform: translateY(-3px);
+    }
+    .ministry-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, #673147);
+      border-radius: 14px 14px 0 0;
+    }
+
+    .card-icon {
+      width: 50px; height: 50px;
+      border-radius: 12px;
+      background: var(--card-icon-bg, #f0e8ec);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .card-content { flex: 1; }
+
+    .card-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e2139;
+      margin-bottom: 5px;
+    }
+
+    .card-desc {
+      font-size: 12.5px;
+      color: #888;
+      line-height: 1.55;
+    }
+
+    .card-arrow {
+      font-size: 18px;
+      color: #c5a8b8;
+      align-self: flex-end;
+      margin-top: 4px;
+      transition: transform .18s, color .18s;
+    }
+    .ministry-card:hover .card-arrow {
+      transform: translateX(4px);
+      color: #673147;
+    }
+
+    /* ── Color variants ── */
+    .card-kids    { --card-accent: #673147; --card-icon-bg: #f5edf1; }
+    .card-worship { --card-accent: #6a1b9a; --card-icon-bg: #f3e5f5; }
+    .card-prayer  { --card-accent: #2e7d32; --card-icon-bg: #e8f5e9; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .ministry-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-title">Ministry</div>
+        <div class="page-subtitle">Access all ministry programs and tools</div>
+      </div>
+
+      <div class="ministry-grid">
+
+        <!-- Kids Ministry & Sunday School (merged) -->
+        <div class="ministry-card card-kids cgp-fav-able" onclick="window.location.href='/kidsMinistry'"
+             data-fav-id="/kidsMinistry" data-fav-label="Kids Ministry" data-fav-href="/kidsMinistry"
+             data-fav-icon="👧" data-fav-perm="general.ministry.kids">
+          <div class="card-icon">👧</div>
+          <div class="card-content">
+            <div class="card-name">Kids Ministry</div>
+            <div class="card-desc">Manage children's programs, attendance, check-in, Sunday School classes, exams, and more.</div>
+          </div>
+          <div class="card-arrow">→</div>
+        </div>
+
+        <!-- Worship Planning -->
+        <div class="ministry-card card-worship cgp-fav-able" id="worshipCard" onclick="goToWorship()"
+             data-fav-id="/worshipPlanning" data-fav-label="Worship Planning" data-fav-href="/worshipPlanning"
+             data-fav-icon="🎵" data-fav-perm="general.ministry.worship">
+          <div class="card-icon">🎵</div>
+          <div class="card-content">
+            <div class="card-name">Worship Planning</div>
+            <div class="card-desc">Plan worship sets, manage groups, instruments, and song assignments.</div>
+          </div>
+          <div class="card-arrow">→</div>
+        </div>
+
+        <!-- Prayer Ministry -->
+        <div class="ministry-card card-prayer cgp-fav-able" onclick="window.location.href='/prayerRequest'"
+             data-fav-id="/prayerRequest" data-fav-label="Prayer Ministry" data-fav-href="/prayerRequest"
+             data-fav-icon="🙏" data-fav-perm="general.ministry.prayer">
+          <div class="card-icon">🙏</div>
+          <div class="card-content">
+            <div class="card-name">Prayer Ministry</div>
+            <div class="card-desc">Review, manage, and respond to prayer requests from the congregation.</div>
+          </div>
+          <div class="card-arrow">→</div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = { activePage: 'general/kids-ministry', openSection: 'general', pageTitle: 'Ministry' };
+
+// Both staff and members use the shared /worshipPlanning page
+function goToWorship() {
+  window.location.href = '/worshipPlanning';
+}
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

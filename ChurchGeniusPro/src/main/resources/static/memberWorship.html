@@ -1,0 +1,2584 @@
+<!DOCTYPE html><!-- v9 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <title>Worship Planning — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh;}
+    a{text-decoration:none;color:inherit;}
+    button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+    /* ── Header (matches memberHome) ── */
+    .top-bar{background:#673147;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+    .top-bar-left{display:flex;align-items:center;gap:12px;}
+    .top-bar-icon{width:38px;height:38px;background:rgba(255,255,255,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;overflow:hidden;}
+    .top-bar-icon img{width:100%;height:100%;object-fit:contain;border-radius:6px;}
+    .top-bar h1{font-size:16px;font-weight:700;}
+    .top-bar p{font-size:12px;opacity:.75;margin-top:1px;}
+    .btn-back{padding:7px 16px;background:#fff;border:1.5px solid #d4c2cc;border-radius:8px;font-size:13px;color:#673147;font-weight:600;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 4px rgba(103,49,71,.08);}
+    .btn-back:hover{background:#f0e8ec;border-color:#673147;}
+    .back-bar{padding:10px 20px 0;}
+
+    /* ── Page ── */
+    .page-wrap{max-width:960px;margin:24px auto;padding:0 16px 48px;}
+
+    /* ── Tabs (matches memberHome) ── */
+    .tabs{display:flex;gap:4px;margin-bottom:18px;background:#fff;border-radius:10px;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+    .tab-btn{flex:1;padding:10px;border-radius:7px;font-size:13px;font-weight:600;color:#888;transition:all .18s;text-align:center;}
+    .tab-btn.active{background:#673147;color:#fff;}
+    .tab-btn:hover:not(.active){background:#fdf5f7;color:#673147;}
+
+    /* ── Cards (matches memberHome) ── */
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.07);overflow:hidden;margin-bottom:18px;}
+    .card-header{background:#673147;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .card-header h3{font-size:14px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.4px;}
+    .card-header .hdr-icon{font-size:16px;}
+    .card-body{padding:20px 24px;}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;transition:all .18s;cursor:pointer;border:none;}
+    .btn-primary{background:transparent;color:#673147;border:1px solid #c5a0b5;transition:background .18s,color .18s,border-color .18s;}
+    .btn-primary:hover{background:#673147;color:#fff;border-color:#673147;}
+    .btn-secondary{background:#f5f0f2;color:#673147;border:1px solid #e0d0d8;}
+    .btn-secondary:hover{background:#ede0e6;}
+    .btn-danger{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+    .btn-danger:hover{background:#ffcdd2;}
+    .btn-sm{padding:5px 12px;font-size:12px;}
+    .btn-xs{padding:3px 9px;font-size:11px;}
+
+    /* ── Controls row ── */
+    .ctrl-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid #f0e8ec;}
+    .ctrl-group{display:flex;flex-direction:column;gap:4px;}
+    .ctrl-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;}
+    .ctrl-input{padding:7px 10px;border:1.5px solid #e0d0d8;border-radius:7px;font-size:13px;color:#333;outline:none;font-family:inherit;background:#fff;}
+    .ctrl-input:focus{border-color:#673147;box-shadow:0 0 0 2px rgba(103,49,71,.1);}
+
+    /* ── Group cards ── */
+    .group-card{border:1px solid #e2d5db;border-radius:12px;margin:12px 20px;overflow:hidden;box-shadow:0 2px 8px rgba(103,49,71,.06);}
+    .group-card-hdr{background:#fdf5f7;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .group-name{font-size:14px;font-weight:700;color:#673147;}
+    .group-card-body{padding:12px 14px;}
+    /* JS-rendered group structure */
+    .group-header{background:linear-gradient(135deg,#673147 0%,#8a4060 100%);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .group-header .group-name{font-size:15px;font-weight:700;color:#fff;}
+    .group-header .btn-secondary{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3);}
+    .group-header .btn-secondary:hover{background:rgba(255,255,255,.32);}
+    .group-header .btn-danger{background:rgba(220,53,69,.25);color:#ffcdd2;border:1px solid rgba(220,53,69,.4);}
+    .group-header .btn-danger:hover{background:rgba(220,53,69,.45);}
+    .group-body{padding:0 14px 14px;}
+
+    /* ── Instruments ── */
+    .instrument-row{border-radius:9px;border:1px solid #ede0e6;margin-top:12px;overflow:hidden;background:#fff;}
+    .instrument-row:last-child{border-bottom:1px solid #ede0e6;}
+    .instrument-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#faf5f8;border-bottom:1px solid #ede0e6;}
+    .instrument-name{font-size:13px;font-weight:700;color:#673147;flex:1;}
+    .instrument-body{padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
+    .empty-hint{font-size:12px;color:#bbb;font-style:italic;padding:4px 0;}
+    .rotation-hint{display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:11px;color:#7b5e67;background:#fdf3f6;border:1px solid #ecdde4;border-radius:6px;padding:6px 9px;line-height:1.4;}
+    /* ── Skip-dates picker ── */
+    .skip-dates-bar{padding:10px 16px 14px;border-top:1px solid #f0e8ec;background:#fdf9fb;}
+    .skip-dates-label{font-size:12px;font-weight:600;color:#673147;margin-bottom:8px;}
+    .skip-dates-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    .skip-chip{font-size:12px;padding:4px 11px;border-radius:14px;border:1px solid #c5a8b8;background:#fff;cursor:pointer;color:#555;transition:all .15s;}
+    .skip-chip.skipped{background:#673147;color:#fff;border-color:#4a235a;text-decoration:line-through;}
+    .skip-dates-hint{font-size:11px;color:#aaa;margin-top:6px;}
+    /* ── Skipped rows in pivot table ── */
+    tr.row-skipped td{background:#f5f5f5 !important;color:#bbb;font-style:italic;}
+    tr.row-skipped .pivot-date-cell{color:#bbb;}
+    .skip-row-btn{font-size:11px;background:none;border:1px dashed #ccc;border-radius:5px;padding:2px 7px;cursor:pointer;color:#aaa;margin-top:4px;display:block;width:100%;}
+    .skip-row-btn:hover{border-color:#e53935;color:#e53935;}
+    .skip-row-btn.unskip{border-color:#43a047;color:#43a047;}
+    .skip-row-btn.unskip:hover{background:#e8f5e9;}
+    .rotation-hint-icon{flex-shrink:0;font-size:13px;}
+
+    /* ── Member rows ── */
+    .member-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;background:#fff;border:1px solid #f0e8ec;transition:background .12s;}
+    .member-row:hover{background:#fdf5f8;}
+    .member-name{flex:1;font-size:13px;font-weight:600;color:#333;}
+    .member-order{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+    .member-order-num{background:#e8eaf6;color:#3949ab;}
+    .member-order-always{background:#e8f5e9;color:#2e7d32;}
+
+    /* ── Roster chips (drag panel) ── */
+    .roster-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+    .roster-chip{display:inline-flex;align-items:center;min-height:32px;background:#fff;border:1px solid #d4c2cc;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#555;cursor:grab;user-select:none;line-height:1;}
+    .roster-chip:hover{background:#f0e8ec;border-color:#673147;color:#673147;}
+
+    /* ── Assignment table ── */
+    .assign-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:400px;}
+    .assign-tbl th{background:#673147;color:#fff;padding:9px 14px;text-align:left;border:1px solid #4a235a;white-space:nowrap;}
+    .assign-tbl td{padding:8px 14px;border:1px solid #e0d6e8;vertical-align:top;}
+    .assign-tbl tr.highlighted td{background:#fff8e1;}
+    .assign-tbl tr:not(.highlighted):nth-child(even) td{background:#faf8fb;}
+    .cell-member{display:inline-flex;align-items:center;gap:5px;background:#f5f0f2;border-radius:5px;padding:2px 7px;font-size:12px;margin:1px;}
+    .cell-me{background:#673147;color:#fff;border-radius:5px;padding:2px 8px;font-size:12px;font-weight:700;}
+    .cell-empty{color:#ccc;}
+    .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+    /* ── Song Library palette ── */
+    .song-lib-palette{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px;background:#fdf8fb;border-bottom:1px solid #ede0e6;}
+    .song-lib-chip{display:inline-flex;align-items:center;background:#fff;border:1px solid #d4c2cc;border-radius:8px;padding:4px 10px;font-size:12px;color:#555;cursor:grab;gap:4px;user-select:none;}
+    .song-lib-chip:hover{background:#f0e8ec;border-color:#673147;}
+    /* lib-chip = styled pill used inside weekSongMgr library palette */
+    .song-lib-palette-label{width:100%;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
+    .lib-chip{display:inline-flex;align-items:center;background:#fff;border:1px solid #d4c2cc;border-radius:8px;padding:4px 10px;font-size:12px;color:#555;cursor:grab;gap:4px;user-select:none;transition:background .12s,border-color .12s;}
+    .lib-chip:hover{background:#f0e8ec;border-color:#673147;color:#673147;}
+    .lib-chip-heading{background:#f5f0f2;font-weight:700;color:#673147;border-color:#c5a8b8;}
+    .inline-songs{display:flex;flex-direction:column;gap:2px;font-size:11px;color:#555;margin-top:4px;}
+    .inline-song-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;}
+
+    /* ── Song Manager Modal ── */
+    .song-mgr-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
+    .song-mgr-overlay.open{display:flex;}
+    .song-mgr-modal{background:#fff;border-radius:16px;width:620px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+    .song-mgr-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f0e8ec;background:#fdf8fb;flex-shrink:0;}
+    .song-mgr-title{font-size:15px;font-weight:700;color:#673147;}
+    .song-mgr-close{font-size:20px;color:#999;padding:2px 6px;border-radius:5px;}
+    .song-mgr-close:hover{background:#f0e8ec;color:#673147;}
+    .song-mgr-toolbar{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid #f0e8ec;background:#fdf8fb;flex-wrap:wrap;flex-shrink:0;}
+    .song-mgr-input{flex:1;min-width:160px;padding:7px 11px;border:1.5px solid #e0d0d8;border-radius:7px;font-size:13px;font-family:inherit;outline:none;}
+    .song-mgr-input:focus{border-color:#673147;}
+    .song-mgr-body{flex:1;overflow-y:auto;}
+    .song-mgr-list{padding:10px 16px;display:flex;flex-direction:column;gap:4px;}
+    .song-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #ede0e6;border-radius:8px;background:#fff;cursor:grab;transition:background .12s;}
+    .song-mgr-item:hover{background:#fdf5f7;}
+    .song-mgr-item.heading-item{background:#f5f0f2;font-weight:700;color:#673147;}
+    .song-mgr-drag-handle{color:#ccc;font-size:14px;cursor:grab;flex-shrink:0;}
+    .song-mgr-item-title{flex:1;font-size:13px;}
+    .song-mgr-item-type{font-size:10px;color:#aaa;padding:1px 6px;border-radius:6px;background:#f0f0f0;flex-shrink:0;}
+    .song-mgr-item-del{font-size:14px;color:#ccc;padding:2px 5px;border-radius:5px;flex-shrink:0;}
+    .song-mgr-item-del:hover{background:#ffebee;color:#c62828;}
+    .song-mgr-empty{text-align:center;padding:24px;color:#bbb;font-size:13px;}
+    .song-mgr-footer{padding:12px 18px;border-top:1px solid #f0e8ec;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fdf8fb;flex-wrap:wrap;gap:8px;}
+    .song-mgr-count{font-size:12px;color:#999;}
+    .drag-over-item{background:#f0e8ec !important;border-color:#673147 !important;}
+
+    /* ── Modal (add group/instrument/member) ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+    .modal h3{font-size:15px;font-weight:700;color:#673147;padding:18px 20px 10px;}
+    .modal-field{padding:6px 20px;}
+    .modal-label{font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;}
+    .modal-input{width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;outline:none;font-family:inherit;}
+    .modal-input:focus{border-color:#673147;}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;}
+    /* ── Member search combobox ── */
+    .msearch-wrap{position:relative;}
+    .msearch-selected{display:flex;align-items:center;justify-content:space-between;gap:8px;
+      background:#f0e8ec;border:1.5px solid #c5a8b8;border-radius:8px;padding:8px 12px;
+      font-size:14px;font-weight:600;color:#673147;cursor:default;}
+    .msearch-selected-rm{cursor:pointer;color:#999;font-size:16px;line-height:1;padding:0 2px;border-radius:4px;}
+    .msearch-selected-rm:hover{background:#f5c0c0;color:#c62828;}
+    .msearch-input-wrap{position:relative;}
+    .msearch-input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;
+      font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;}
+    .msearch-input:focus{border-color:#673147;box-shadow:0 0 0 2px rgba(103,49,71,.1);}
+    .msearch-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      cursor:pointer;color:#bbb;font-size:16px;line-height:1;}
+    .msearch-clear:hover{color:#673147;}
+    .msearch-list{border:1.5px solid #e0d0d8;border-top:none;border-radius:0 0 8px 8px;
+      background:#fff;max-height:210px;overflow-y:auto;box-shadow:0 6px 18px rgba(0,0,0,.1);}
+    .msearch-item{padding:10px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;
+      border-bottom:1px solid #faf0f3;transition:background .1s;}
+    .msearch-item:last-child{border-bottom:none;}
+    .msearch-item:hover,.msearch-item.hi{background:#f7eef2;color:#673147;}
+    .msearch-item .msearch-avatar{width:26px;height:26px;border-radius:50%;background:#e8d0d8;
+      display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+      color:#673147;flex-shrink:0;}
+    .msearch-empty{padding:14px;font-size:13px;color:#aaa;text-align:center;}
+    .msearch-hint{font-size:11px;color:#aaa;margin-top:5px;}
+
+    /* ── Auto-assignment pivot table ── */
+    .auto-group-block{margin-bottom:28px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:18px 20px;}
+    .auto-group-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+    .auto-group-title{font-size:16px;font-weight:700;color:#673147;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:8px;}
+    .auto-caret{display:inline-block;font-size:13px;color:#9a7d8b;transition:transform .15s;width:14px;}
+    .auto-group-block.collapsed{padding-bottom:18px;}
+    .auto-group-block.collapsed .auto-group-collapsible{display:none;}
+    .auto-group-actions{display:flex;gap:8px;}
+    .auto-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #e8e0eb;}
+    .auto-pivot-table{width:100%;border-collapse:collapse;font-size:13px;min-width:500px;}
+    .auto-pivot-table th{background:#673147;color:#fff;padding:9px 12px;font-weight:700;text-align:left;white-space:nowrap;border-right:1px solid rgba(255,255,255,.2);}
+    .auto-pivot-table th:last-child{border-right:none;}
+    .auto-pivot-table td{padding:8px 10px;border-bottom:1px solid #f0e8ec;border-right:1px solid #f0e8ec;vertical-align:top;}
+    .auto-pivot-table td:last-child{border-right:none;}
+    .auto-pivot-table tr:last-child td{border-bottom:none;}
+    .auto-pivot-table tr:hover td{background:#fdf8fb;}
+    .pivot-date-cell{font-weight:700;color:#673147;white-space:nowrap;background:#faf5f8 !important;min-width:130px;}
+    .pivot-cell{min-width:120px;position:relative;}
+    .pivot-cell.drop-hover{background:#f0e8ec !important;outline:2px dashed #673147;}
+    .cell-members{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;}
+    .member-chip{display:inline-flex;align-items:center;gap:3px;background:#f0e8ec;border-radius:10px;padding:3px 8px;font-size:12px;font-weight:600;color:#673147;cursor:grab;user-select:none;}
+    .member-chip:hover{background:#e6d4de;}
+    .chip-del{background:none;border:none;cursor:pointer;font-size:13px;color:#b09aab;padding:0 1px;line-height:1;}
+    .chip-del:hover{color:#e53935;}
+    .cell-add-btn{font-size:11px;background:none;border:1px dashed #c5a8b8;border-radius:6px;padding:2px 7px;cursor:pointer;color:#888;}
+    .cell-add-btn:hover{border-color:#673147;color:#673147;background:#faf5f8;}
+    .pivot-song-cell{min-width:100px;}
+    .roster-drag-hint{font-size:10px;font-weight:400;color:#e0c8d4;}
+    .roster-wrap{margin-top:14px;background:#faf5f8;border:1px solid #e8e0eb;border-radius:10px;padding:12px 14px;}
+    .roster-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
+    .roster-instruments{display:flex;flex-wrap:wrap;gap:16px;}
+    .roster-inst-block{min-width:140px;}
+    .roster-inst-name{font-size:12px;font-weight:700;color:#673147;margin-bottom:6px;}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .toast.error{background:#c62828;}
+
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-thumb{background:#d4bfc8;border-radius:4px;}
+  </style>
+</head>
+<body>
+
+<!-- Top bar (Member portal style) -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <div class="top-bar-icon" id="topBarIcon">🎵</div>
+    <div>
+      <div class="top-bar h1" id="churchNameEl" style="font-size:16px;font-weight:700;">Worship Planning</div>
+      <div class="top-bar p" id="memberNameEl" style="font-size:12px;opacity:.75;margin-top:1px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <div class="back-bar">
+    <a href="/memberHome" class="btn-back">← Back to Portal</a>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" id="topTabGroups"      onclick="switchTab('groups')">Group Setup</button>
+    <button class="tab-btn"        id="topTabAssignments" onclick="switchTab('assignments')">Assignments</button>
+  </div>
+
+  <!-- ══════════════ GROUP SETUP TAB ══════════════ -->
+  <div id="tab-groups">
+
+    <div class="card">
+      <div class="card-header">
+        <h3><span class="hdr-icon">👥</span> Worship Groups</h3>
+        <button class="btn btn-primary btn-sm" onclick="openAddGroup()">+ Add Group</button>
+      </div>
+      <div id="groupList" style="padding:8px 0;">
+        <div style="color:#bbb;font-size:13px;padding:12px 20px;">Loading…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ ASSIGNMENTS TAB ══════════════ -->
+  <div id="tab-assignments" style="display:none;">
+
+    <div class="tabs" style="margin-bottom:14px;">
+      <button class="tab-btn active" id="assignTabManual" onclick="switchAssignTab('manual')">Manual Assignment</button>
+      <button class="tab-btn"        id="assignTabAuto"   onclick="switchAssignTab('auto')">Automatic Assignment</button>
+    </div>
+
+    <!-- Manual -->
+    <div id="tab-assign-manual">
+      <div class="card">
+        <div class="card-header" style="flex-wrap:wrap;gap:10px;">
+          <h3><span class="hdr-icon">📅</span> Manual Assignment</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="ctrl-group">
+              <span class="ctrl-label">Date</span>
+              <input type="date" class="ctrl-input" id="manualDate" onchange="loadManualAssignments()" />
+            </div>
+            <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addManualAssignmentForDate()">+ Add Assignment</button>
+          </div>
+        </div>
+        <div class="card-body" id="manualAssignmentArea" style="min-height:60px;">
+          <div style="color:#bbb;font-size:13px;">Select a date to view or create assignments.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto -->
+    <div id="tab-assign-auto" style="display:none;">
+      <div class="card">
+        <div class="card-header"><h3><span class="hdr-icon">⚡</span> Automatic Assignment</h3></div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <span class="ctrl-label">Group</span>
+            <select class="ctrl-input" id="autoGroup" style="min-width:160px;" onchange="populateStartOrderSelect()"></select>
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Start Order</span>
+            <select class="ctrl-input" id="autoStartOrder" style="min-width:110px;" title="Which rotation order to begin with; the schedule then continues circularly (e.g. 2 → 2, 3, 1)."></select>
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Day of Week</span>
+            <select class="ctrl-input" id="autoDow" onchange="refreshSkipDatesPicker()">
+              <option value="1">Monday</option><option value="2">Tuesday</option>
+              <option value="3">Wednesday</option><option value="4">Thursday</option>
+              <option value="5">Friday</option><option value="6">Saturday</option>
+              <option value="7" selected>Sunday</option>
+            </select>
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Start Date</span>
+            <input type="date" class="ctrl-input" id="autoStartDate" onchange="refreshSkipDatesPicker()" />
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Weeks</span>
+            <input type="number" class="ctrl-input" id="autoWeeks" value="4" min="1" max="52" style="width:80px;" onchange="refreshSkipDatesPicker()" oninput="refreshSkipDatesPicker()" />
+          </div>
+          <button class="btn btn-primary" style="align-self:flex-end;" onclick="generateAutoAssignments()">Generate</button>
+        </div>
+        <!-- Skip-dates picker: shown when dates can be previewed -->
+        <div class="skip-dates-bar" id="skipDatesBar" style="display:none;">
+          <div class="skip-dates-label">Skip specific dates <span style="font-weight:400;color:#aaa;">(click to toggle)</span></div>
+          <div class="skip-dates-chips" id="skipDatesChips"></div>
+          <div class="skip-dates-hint">Skipped dates will be omitted from the generated schedule; rotation continues from the next active date.</div>
+        </div>
+        <div class="card-body" id="autoAssignmentArea"></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-assignments -->
+
+</div><!-- /page-wrap -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Modal: Add/Edit Group -->
+<div class="modal-overlay" id="modalGroup">
+  <div class="modal">
+    <h3 id="modalGroupTitle">Add Group</h3>
+    <div class="modal-field">
+      <label class="modal-label">Group Name</label>
+      <input type="text" class="modal-input" id="modalGroupName" placeholder="e.g. English Worship" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalGroup')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveGroup()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit Instrument -->
+<div class="modal-overlay" id="modalInstrument">
+  <div class="modal">
+    <h3 id="modalInstrumentTitle">Add Instrument</h3>
+    <div class="modal-field">
+      <label class="modal-label">Instrument / Role Name</label>
+      <input type="text" class="modal-input" id="modalInstrumentName" placeholder="e.g. Guitar, Singer, Drums" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalInstrument')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveInstrument()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add/Edit Member -->
+<div class="modal-overlay" id="modalMember">
+  <div class="modal">
+    <h3 id="modalMemberTitle">Add Member</h3>
+    <div class="modal-field">
+      <label class="modal-label">Member</label>
+      <div class="msearch-wrap" id="mmWrap">
+        <!-- Selected state -->
+        <div class="msearch-selected" id="mmSelected" style="display:none;">
+          <span id="mmSelectedName"></span>
+          <span class="msearch-selected-rm" onclick="mmClear()" title="Change">✕</span>
+        </div>
+        <!-- Search input + list (shown when not selected) -->
+        <div id="mmSearchArea">
+          <div class="msearch-input-wrap">
+            <input type="text" class="msearch-input" id="mmInput"
+                   placeholder="Search by name…" autocomplete="off"
+                   oninput="mmFilter(this.value)"
+                   onkeydown="mmKeydown(event)" />
+            <span class="msearch-clear" id="mmClearBtn" style="display:none;" onclick="mmClear()">✕</span>
+          </div>
+          <div class="msearch-list" id="mmList" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="msearch-hint" id="mmHint">Can't find the member? Type their full name below.</div>
+    </div>
+    <div class="modal-field" id="mmManualField">
+      <label class="modal-label">Or enter name manually</label>
+      <input type="text" class="modal-input" id="modalMemberManual" placeholder="Full name" />
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Rotation Order <span style="font-weight:400;color:#aaa;">(optional)</span></label>
+      <input type="number" class="modal-input" id="modalMemberOrder" placeholder="Leave blank = manual only" min="1" />
+      <div style="font-size:11px;color:#aaa;margin-top:4px;line-height:1.5;">
+        Leave blank to exclude from auto-assignment (manual use only).<br/>
+        Set 1, 2, 3… to rotate one member per date in sequence.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalMember')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveMember()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add cell member (Auto Assignment) -->
+<div class="modal-overlay" id="modalCellEdit">
+  <div class="modal">
+    <h3>Add Member to Cell</h3>
+    <div class="modal-field">
+      <label class="modal-label">Search Roster</label>
+      <div class="msearch-wrap" id="ceWrap">
+        <div class="msearch-selected" id="ceSelected" style="display:none;">
+          <span id="ceSelectedName"></span>
+          <span class="msearch-selected-rm" onclick="ceClear()" title="Change">✕</span>
+        </div>
+        <div id="ceSearchArea">
+          <div class="msearch-input-wrap">
+            <input type="text" class="msearch-input" id="ceInput"
+                   placeholder="Search roster…" autocomplete="off"
+                   oninput="ceFilter(this.value)"
+                   onkeydown="ceKeydown(event)" />
+            <span class="msearch-clear" id="ceClearBtn" style="display:none;" onclick="ceClear()">✕</span>
+          </div>
+          <div class="msearch-list" id="ceList" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Or type a name</label>
+      <input type="text" class="modal-input" id="modalCellEditName" placeholder="Name not in roster" />
+    </div>
+    <!-- hidden legacy select kept for saveCellEdit() compat -->
+    <select id="modalCellEditSelect" style="display:none;"></select>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalCellEdit')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveCellEdit()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Song Library Manager Modal -->
+<div class="song-mgr-overlay" id="songMgrOverlay" onclick="closeSongMgr(event)">
+  <div class="song-mgr-modal" onclick="event.stopPropagation()">
+    <div class="song-mgr-header">
+      <span class="song-mgr-title" id="songMgrTitle">📚 Song Library</span>
+      <button class="song-mgr-close" onclick="closeSongMgr()">✕</button>
+    </div>
+    <div class="song-mgr-toolbar">
+      <input type="text" class="song-mgr-input" id="songMgrInput" placeholder="Song title or heading text…"
+             onkeydown="if(event.key==='Enter')songMgrAddSong(false)" />
+      <button class="btn btn-primary btn-sm"    onclick="songMgrAddSong(false)">＋ Add Song</button>
+      <button class="btn btn-secondary btn-sm"  onclick="songMgrAddSong(true)">＋ Heading</button>
+      <input type="file" id="songMgrFileInput" accept=".docx,.pdf,.txt" style="display:none" onchange="songMgrUpload(this)" />
+      <button class="btn btn-secondary btn-sm"  onclick="document.getElementById('songMgrFileInput').click()">📄 Upload Doc</button>
+    </div>
+    <div class="song-mgr-body">
+      <div class="song-mgr-list" id="songMgrList"><div class="song-mgr-empty">Loading…</div></div>
+    </div>
+    <div class="song-mgr-footer">
+      <span class="song-mgr-count" id="songMgrCount"></span>
+      <span style="font-size:12px;color:#aaa;">Drag rows to reorder · Changes save immediately</span>
+    </div>
+  </div>
+</div>
+
+<!-- Week Song Manager Modal -->
+<div class="song-mgr-overlay" id="weekSongMgrOverlay" onclick="closeWeekSongMgr(event)">
+  <div class="song-mgr-modal" onclick="event.stopPropagation()">
+    <div class="song-mgr-header">
+      <span class="song-mgr-title" id="weekSongMgrTitle">🎵 Songs for Week</span>
+      <button class="song-mgr-close" onclick="closeWeekSongMgr()">✕</button>
+    </div>
+    <div class="song-mgr-toolbar">
+      <input type="text" class="song-mgr-input" id="weekSongMgrInput" placeholder="Song title or heading text…"
+             onkeydown="if(event.key==='Enter')weekSongMgrAdd(false)" />
+      <button class="btn btn-primary btn-sm"   onclick="weekSongMgrAdd(false)">＋ Add Song</button>
+      <button class="btn btn-secondary btn-sm" onclick="weekSongMgrAdd(true)">＋ Heading</button>
+    </div>
+    <div id="weekSongMgrLibPalette" style="padding:8px 18px 0;display:none;">
+      <div class="song-lib-palette" id="weekSongMgrLibChips" style="margin-bottom:0;"></div>
+    </div>
+    <div class="song-mgr-body">
+      <div class="song-mgr-list" id="weekSongMgrList"><div class="song-mgr-empty">Loading…</div></div>
+    </div>
+    <div class="song-mgr-footer">
+      <span class="song-mgr-count" id="weekSongMgrCount"></span>
+      <span style="font-size:12px;color:#aaa;">Drag rows to reorder · Changes save immediately</span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Manual Assignment -->
+<div class="modal-overlay" id="modalAddAssignment">
+  <div class="modal">
+    <h3>Add Assignment for <span id="modalAddAssignDate"></span></h3>
+    <div class="modal-field">
+      <label class="modal-label">Group</label>
+      <select class="modal-input" id="modalAddAssignGroup"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modalAddAssignment')">Cancel</button>
+      <button class="btn btn-primary"   onclick="confirmAddAssignment()">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   UTILITIES — DATE
+════════════════════════════════════════════════ */
+function formatDate(s) {
+  if (!s) return '';
+  const d = new Date(s + (s.length === 10 ? 'T00:00:00' : ''));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/* ════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════ */
+let groups          = [];   // [{id, groupName, instruments:[{id, instrumentName, members:[...]}]}]
+let allFamilyMembers = [];  // [{id, firstName, lastName}] loaded from /api/members
+let manualAssignments = []; // assignments loaded for selected manual date
+let autoPreview     = [];   // auto-generated preview rows
+let autoGroupOrder  = [];   // groupIds, most-recently-generated first (controls render order)
+let expandedGroups  = new Set(); // groupIds currently expanded; empty = all collapsed by default
+// Canonical rotation pool per group, set at generation time.
+// groupId (number) -> { instrIds: [], instrNames: {id->name}, memberPool: {id->[name,...]} }
+// This is the single source of truth for rebalancing — never derived from current pivot state.
+let _groupRotationPools = {};
+let editCtx         = {};   // modal context
+
+/* ════════════════════════════════════════════════
+   UTILITIES
+════════════════════════════════════════════════ */
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+let _toastTimer = null;
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = 'toast'; }, 3000);
+}
+
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+/* ════════════════════════════════════════════════
+   TABS
+════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.getElementById('tab-groups').style.display      = name === 'groups'      ? '' : 'none';
+  document.getElementById('tab-assignments').style.display = name === 'assignments' ? '' : 'none';
+  document.getElementById('topTabGroups').classList.toggle('active', name === 'groups');
+  document.getElementById('topTabAssignments').classList.toggle('active', name === 'assignments');
+  if (name === 'assignments') {
+    populateAutoGroupSelect();
+    loadSavedAutoAssignments();
+  }
+}
+
+function switchAssignTab(name) {
+  document.getElementById('tab-assign-manual').style.display = name === 'manual' ? '' : 'none';
+  document.getElementById('tab-assign-auto').style.display   = name === 'auto'   ? '' : 'none';
+  document.getElementById('assignTabManual').classList.toggle('active', name === 'manual');
+  document.getElementById('assignTabAuto').classList.toggle('active', name === 'auto');
+}
+
+/* ════════════════════════════════════════════════
+   LOAD FAMILY MEMBERS (for searchable dropdowns)
+════════════════════════════════════════════════ */
+async function loadFamilyMembers() {
+  try {
+    const res = await fetch('/api/members?search=&showDeleted=false&showInactive=false');
+    if (!res.ok) return;
+    const data = await res.json();
+    allFamilyMembers = Array.isArray(data) ? data : [];
+  } catch(_) {}
+}
+
+function fullName(m) {
+  return [m.firstName, m.lastName].filter(Boolean).join(' ') || m.name || '';
+}
+
+/* ════════════════════════════════════════════════
+   LOAD GROUPS
+════════════════════════════════════════════════ */
+async function loadGroups() {
+  try {
+    const res = await fetch('/api/worship/groups');
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      document.getElementById('groupList').innerHTML =
+        '<div style="color:#e53935;font-size:13px;">Error loading groups (HTTP ' + res.status + '). ' + txt + '</div>';
+      return;
+    }
+    groups = await res.json();
+    renderGroups();
+  } catch(e) {
+    document.getElementById('groupList').innerHTML =
+      '<div style="color:#e53935;font-size:13px;">Error loading groups: ' + e.message + '</div>';
+  }
+}
+
+function renderGroups() {
+  const container = document.getElementById('groupList');
+  if (!groups.length) {
+    container.innerHTML = '<div style="color:#bbb;font-size:13px;">No groups yet. Click "+ Add Group" to create one.</div>';
+    return;
+  }
+  container.innerHTML = groups.map(g => renderGroupCard(g)).join('');
+}
+
+function renderGroupCard(g) {
+  const instruments = (g.instruments || []).map(inst => renderInstrumentRow(g, inst)).join('');
+  return `
+    <div class="group-card" id="gcard-${g.id}">
+      <div class="group-header">
+        <span class="group-name">${esc(g.groupName)}</span>
+        <button class="btn btn-sm btn-secondary btn-icon" title="Edit group" onclick="openEditGroup(${g.id},'${esc(g.groupName)}')">✏️</button>
+        <button class="btn btn-sm btn-secondary btn-icon" title="Add instrument" onclick="openAddInstrument(${g.id})">+ Instrument</button>
+        <button class="btn btn-sm btn-danger btn-icon" title="Delete group" onclick="deleteGroup(${g.id})">🗑</button>
+      </div>
+      <div class="group-body">
+        ${instruments || '<div class="empty-hint">No instruments yet.</div>'}
+      </div>
+    </div>`;
+}
+
+function renderInstrumentRow(g, inst) {
+  const members = (inst.members || []).map(m => renderMemberRow(g, inst, m)).join('');
+  const hasOrderedMembers = (inst.members||[]).some(m => m.rotationOrder != null);
+  const hint = hasOrderedMembers
+    ? `<div class="rotation-hint">
+         <span class="rotation-hint-icon">🔄</span>
+         <span>Rotation active — one ordered member is assigned per date (round-robin). Members without an order are available for manual assignment only.</span>
+       </div>`
+    : '';
+  return `
+    <div class="instrument-row" id="irow-${inst.id}">
+      <div class="instrument-header">
+        <span class="instrument-name">🎵 ${esc(inst.instrumentName)}</span>
+        <button class="btn btn-sm btn-secondary btn-icon" title="Edit instrument" onclick="openEditInstrument(${inst.id},'${esc(inst.instrumentName)}')">✏️</button>
+        <button class="btn btn-sm btn-secondary btn-icon" onclick="openAddMember(${inst.id})">+ Member</button>
+        <button class="btn btn-sm btn-danger btn-icon" title="Delete instrument" onclick="deleteInstrument(${inst.id})">🗑</button>
+      </div>
+      <div class="instrument-body" id="ibody-${inst.id}">
+        ${members || '<div class="empty-hint">No members yet — click "+ Member" to add one.</div>'}
+        ${hint}
+      </div>
+    </div>`;
+}
+
+function renderMemberRow(g, inst, m) {
+  const badge = m.rotationOrder != null
+    ? `<span class="member-order member-order-num">Order ${m.rotationOrder}</span>`
+    : `<span class="member-order member-order-always">Manual only</span>`;
+  return `
+    <div class="member-row" id="mrow-${m.id}">
+      <span class="member-name">${esc(m.memberName)}</span>
+      ${badge}
+      <button class="btn btn-sm btn-secondary btn-icon" title="Edit member" onclick="openEditMember(${m.id},'${esc(m.memberName)}',${m.rotationOrder??'null'})">✏️</button>
+      <button class="btn btn-sm btn-danger btn-icon" title="Remove member" onclick="deleteMember(${m.id})">🗑</button>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════
+   GROUP CRUD
+════════════════════════════════════════════════ */
+function openAddGroup() {
+  editCtx = { mode: 'add' };
+  document.getElementById('modalGroupTitle').textContent = 'Add Group';
+  document.getElementById('modalGroupName').value = '';
+  openModal('modalGroup');
+}
+function openEditGroup(id, name) {
+  editCtx = { mode: 'edit', id };
+  document.getElementById('modalGroupTitle').textContent = 'Rename Group';
+  document.getElementById('modalGroupName').value = name;
+  openModal('modalGroup');
+}
+async function saveGroup() {
+  const name = document.getElementById('modalGroupName').value.trim();
+  if (!name) { toast('Group name is required.', true); return; }
+  closeModal('modalGroup');
+  const url    = editCtx.mode === 'add' ? '/api/worship/groups' : '/api/worship/groups/' + editCtx.id;
+  const method = editCtx.mode === 'add' ? 'POST' : 'PUT';
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupName: name}) });
+  if (res.ok) { toast(editCtx.mode === 'add' ? 'Group created.' : 'Group renamed.'); await loadGroups(); }
+  else toast('Failed to save group.', true);
+}
+async function deleteGroup(id) {
+  if (!confirm('Delete this group and all its instruments and members?')) return;
+  const res = await fetch('/api/worship/groups/' + id, { method:'DELETE' });
+  if (res.ok) { toast('Group deleted.'); await loadGroups(); }
+  else toast('Failed to delete group.', true);
+}
+
+/* ════════════════════════════════════════════════
+   INSTRUMENT CRUD
+════════════════════════════════════════════════ */
+function openAddInstrument(groupId) {
+  editCtx = { mode: 'add', groupId };
+  document.getElementById('modalInstrumentTitle').textContent = 'Add Instrument';
+  document.getElementById('modalInstrumentName').value = '';
+  openModal('modalInstrument');
+}
+function openEditInstrument(id, name) {
+  editCtx = { mode: 'edit', id };
+  document.getElementById('modalInstrumentTitle').textContent = 'Rename Instrument';
+  document.getElementById('modalInstrumentName').value = name;
+  openModal('modalInstrument');
+}
+async function saveInstrument() {
+  const name = document.getElementById('modalInstrumentName').value.trim();
+  if (!name) { toast('Instrument name is required.', true); return; }
+  closeModal('modalInstrument');
+  const url    = editCtx.mode === 'add' ? '/api/worship/instruments' : '/api/worship/instruments/' + editCtx.id;
+  const method = editCtx.mode === 'add' ? 'POST' : 'PUT';
+  const body   = editCtx.mode === 'add' ? {groupId: editCtx.groupId, instrumentName: name} : {instrumentName: name};
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { toast(editCtx.mode === 'add' ? 'Instrument added.' : 'Instrument renamed.'); await loadGroups(); }
+  else toast('Failed to save instrument.', true);
+}
+async function deleteInstrument(id) {
+  if (!confirm('Delete this instrument and all its members?')) return;
+  const res = await fetch('/api/worship/instruments/' + id, { method:'DELETE' });
+  if (res.ok) { toast('Instrument deleted.'); await loadGroups(); }
+  else toast('Failed to delete instrument.', true);
+}
+
+/* ════════════════════════════════════════════════
+   MEMBER CRUD — modal with searchable dropdown
+════════════════════════════════════════════════ */
+/* ── Add/Edit Member modal search (mm = modalMember) ── */
+let _mmSelected = null;   // { name }
+let _mmFiltered  = [];
+let _mmHi        = -1;
+
+function openAddMember(instrumentId) {
+  editCtx = { mode: 'add', instrumentId };
+  document.getElementById('modalMemberTitle').textContent = 'Add Member';
+  _mmReset();
+  document.getElementById('modalMemberOrder').value = '';
+  openModal('modalMember');
+  setTimeout(() => document.getElementById('mmInput').focus(), 80);
+}
+function openEditMember(id, name, order) {
+  editCtx = { mode: 'edit', id };
+  document.getElementById('modalMemberTitle').textContent = 'Edit Member';
+  _mmReset();
+  document.getElementById('modalMemberManual').value = name;
+  document.getElementById('modalMemberOrder').value = order != null ? order : '';
+  openModal('modalMember');
+}
+
+function _mmReset() {
+  _mmSelected = null; _mmFiltered = []; _mmHi = -1;
+  document.getElementById('mmInput').value = '';
+  document.getElementById('mmClearBtn').style.display = 'none';
+  document.getElementById('mmList').style.display = 'none';
+  document.getElementById('mmList').innerHTML = '';
+  document.getElementById('mmSelected').style.display = 'none';
+  document.getElementById('mmSearchArea').style.display = '';
+  document.getElementById('modalMemberManual').value = '';
+}
+
+function mmFilter(val) {
+  const q = val.trim().toLowerCase();
+  document.getElementById('mmClearBtn').style.display = val ? '' : 'none';
+  const list = document.getElementById('mmList');
+  if (!q) { list.style.display = 'none'; return; }
+  _mmFiltered = allFamilyMembers.filter(m => fullName(m).toLowerCase().includes(q)).slice(0, 40);
+  _mmHi = -1;
+  if (!_mmFiltered.length) {
+    list.innerHTML = '<div class="msearch-empty">No members found</div>';
+  } else {
+    list.innerHTML = _mmFiltered.map((m, i) => {
+      const n = fullName(m);
+      const initials = n.split(' ').map(p => p[0]).join('').substring(0,2).toUpperCase();
+      return `<div class="msearch-item" id="mmItem${i}"
+        onmousedown="event.preventDefault();mmPick(${i})"
+        onmouseover="_mmHi=${i};_mmHiRender()">
+        <div class="msearch-avatar">${initials}</div>
+        <span>${esc(n)}</span>
+      </div>`;
+    }).join('');
+  }
+  list.style.display = '';
+}
+
+function _mmHiRender() {
+  document.querySelectorAll('#mmList .msearch-item').forEach((el,i) => el.classList.toggle('hi', i===_mmHi));
+}
+
+function mmPick(i) {
+  const name = fullName(_mmFiltered[i]);
+  _mmSelected = { name };
+  document.getElementById('mmSelectedName').textContent = name;
+  document.getElementById('mmSelected').style.display = 'flex';
+  document.getElementById('mmSearchArea').style.display = 'none';
+  document.getElementById('modalMemberManual').value = '';
+  document.getElementById('mmHint').style.display = 'none';
+}
+
+function mmClear() {
+  _mmSelected = null; _mmFiltered = []; _mmHi = -1;
+  document.getElementById('mmSelected').style.display = 'none';
+  document.getElementById('mmSearchArea').style.display = '';
+  document.getElementById('mmInput').value = '';
+  document.getElementById('mmClearBtn').style.display = 'none';
+  document.getElementById('mmList').style.display = 'none';
+  document.getElementById('mmHint').style.display = '';
+  setTimeout(() => document.getElementById('mmInput').focus(), 40);
+}
+
+function mmKeydown(e) {
+  const list = document.getElementById('mmList');
+  if (list.style.display === 'none') return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _mmHi = Math.min(_mmHi+1, _mmFiltered.length-1); _mmHiRender(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _mmHi = Math.max(_mmHi-1, 0); _mmHiRender(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (_mmHi >= 0) mmPick(_mmHi); }
+  else if (e.key === 'Escape') { list.style.display = 'none'; }
+}
+
+/* ── Cell Edit modal search (ce = cellEdit) ── */
+let _ceSelected  = null;
+let _ceFiltered  = [];
+let _ceHi        = -1;
+let _ceRoster    = [];  // populated by openCellAdd
+
+function _ceReset() {
+  _ceSelected = null; _ceFiltered = []; _ceHi = -1;
+  document.getElementById('ceInput').value = '';
+  document.getElementById('ceClearBtn').style.display = 'none';
+  document.getElementById('ceList').style.display = 'none';
+  document.getElementById('ceList').innerHTML = '';
+  document.getElementById('ceSelected').style.display = 'none';
+  document.getElementById('ceSearchArea').style.display = '';
+  document.getElementById('modalCellEditName').value = '';
+}
+
+function ceFilter(val) {
+  const q = val.trim().toLowerCase();
+  document.getElementById('ceClearBtn').style.display = val ? '' : 'none';
+  const list = document.getElementById('ceList');
+  if (!q) { list.style.display = 'none'; return; }
+  _ceFiltered = _ceRoster.filter(m => m.memberName.toLowerCase().includes(q)).slice(0, 40);
+  _ceHi = -1;
+  if (!_ceFiltered.length) {
+    list.innerHTML = '<div class="msearch-empty">No roster members found</div>';
+  } else {
+    list.innerHTML = _ceFiltered.map((m, i) => {
+      const initials = m.memberName.split(' ').map(p => p[0]).join('').substring(0,2).toUpperCase();
+      return `<div class="msearch-item" id="ceItem${i}"
+        onmousedown="event.preventDefault();cePick(${i})"
+        onmouseover="_ceHi=${i};_ceHiRender()">
+        <div class="msearch-avatar">${initials}</div>
+        <span>${esc(m.memberName)}</span>
+      </div>`;
+    }).join('');
+  }
+  list.style.display = '';
+}
+
+function _ceHiRender() {
+  document.querySelectorAll('#ceList .msearch-item').forEach((el,i) => el.classList.toggle('hi', i===_ceHi));
+}
+
+function cePick(i) {
+  const m = _ceFiltered[i];
+  _ceSelected = m;
+  document.getElementById('ceSelectedName').textContent = m.memberName;
+  document.getElementById('ceSelected').style.display = 'flex';
+  document.getElementById('ceSearchArea').style.display = 'none';
+  document.getElementById('modalCellEditName').value = '';
+}
+
+function ceClear() {
+  _ceSelected = null; _ceFiltered = []; _ceHi = -1;
+  document.getElementById('ceSelected').style.display = 'none';
+  document.getElementById('ceSearchArea').style.display = '';
+  document.getElementById('ceInput').value = '';
+  document.getElementById('ceClearBtn').style.display = 'none';
+  document.getElementById('ceList').style.display = 'none';
+  setTimeout(() => document.getElementById('ceInput').focus(), 40);
+}
+
+function ceKeydown(e) {
+  const list = document.getElementById('ceList');
+  if (list.style.display === 'none') return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _ceHi = Math.min(_ceHi+1, _ceFiltered.length-1); _ceHiRender(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _ceHi = Math.max(_ceHi-1, 0); _ceHiRender(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (_ceHi >= 0) cePick(_ceHi); }
+  else if (e.key === 'Escape') { list.style.display = 'none'; }
+}
+
+async function saveMember() {
+  // Resolve name: selected from search > manual text field
+  const name = (_mmSelected ? _mmSelected.name : '') ||
+               document.getElementById('modalMemberManual').value.trim();
+  const order = document.getElementById('modalMemberOrder').value.trim();
+  if (!name) { toast('Member name is required.', true); return; }
+  closeModal('modalMember');
+  const body = { memberName: name, rotationOrder: order ? parseInt(order) : null };
+  let res;
+  if (editCtx.mode === 'add') {
+    body.instrumentId = editCtx.instrumentId;
+    res = await fetch('/api/worship/members', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  } else {
+    res = await fetch('/api/worship/members/' + editCtx.id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  }
+  if (res.ok) { toast(editCtx.mode === 'add' ? 'Member added.' : 'Member updated.'); await loadGroups(); }
+  else toast('Failed to save member.', true);
+}
+async function deleteMember(id) {
+  if (!confirm('Remove this member?')) return;
+  const res = await fetch('/api/worship/members/' + id, { method:'DELETE' });
+  if (res.ok) { toast('Member removed.'); await loadGroups(); }
+  else toast('Failed to remove member.', true);
+}
+
+/* ════════════════════════════════════════════════
+   MANUAL ASSIGNMENTS
+════════════════════════════════════════════════ */
+async function loadManualAssignments() {
+  const date = document.getElementById('manualDate').value;
+  if (!date) return;
+  const res = await fetch('/api/worship/assignments?from=' + date + '&to=' + date);
+  if (!res.ok) { toast('Failed to load assignments.', true); return; }
+  manualAssignments = await res.json();
+  renderManualAssignments(date);
+}
+
+function renderManualAssignments(date) {
+  const area = document.getElementById('manualAssignmentArea');
+  if (!manualAssignments.length) {
+    area.innerHTML = `<div style="color:#bbb;font-size:13px;">No assignments for ${formatDate(date)}. Use "+ Add Assignment" to create one.</div>`;
+    return;
+  }
+  area.innerHTML = manualAssignments.map(a => renderAssignmentBlock(a, true)).join('');
+}
+
+function renderAssignmentBlock(a, editable) {
+  const dateLabel = formatDate(a.assignmentDate);
+  const dow = getDow(a.assignmentDate);
+  const slots = (a.slots || []).map(s => renderSlot(a, s, editable)).join('');
+  const delBtn = editable ? `<button class="btn btn-sm btn-danger" style="margin-left:auto;" onclick="deleteAssignment(${a.id})">Delete</button>` : '';
+  return `
+    <div class="date-block" id="ablock-${a.id}">
+      <div class="date-header">
+        <span class="date-label">${dateLabel} (${dow})</span>
+        <span style="font-size:12px;opacity:.75;">${esc(a.groupName||'')}</span>
+        ${delBtn}
+      </div>
+      <div class="date-body">
+        <div class="group-block">
+          <div class="group-block-title">${esc(a.groupName||'')}</div>
+          ${slots || '<div class="empty-hint">No instruments assigned to this group.</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderSlot(a, s, editable) {
+  const chips = (s.members||[]).map(m =>
+    editable
+      ? `<span class="member-chip">${esc(m.memberName)}<span class="chip-rm" onclick="removeAssignmentMember(${a.id},${s.instrumentId},${m.id},'${esc(m.memberName)}')" title="Remove">✕</span></span>`
+      : `<span class="member-chip">${esc(m.memberName)}</span>`
+  ).join('');
+
+  const addWidget = editable ? `
+    <span class="inline-search-wrap" id="isw-${a.id}-${s.instrumentId}">
+      <input class="inline-search-input" placeholder="Add member…"
+             id="isinput-${a.id}-${s.instrumentId}"
+             autocomplete="off"
+             oninput="onInlineSearch(${a.id},${s.instrumentId},this.value)"
+             onfocus="onInlineSearch(${a.id},${s.instrumentId},this.value)"
+             onkeydown="onInlineKey(event,${a.id},${s.instrumentId})" />
+      <div class="inline-dropdown" id="isdd-${a.id}-${s.instrumentId}"></div>
+    </span>` : '';
+
+  return `<div class="instrument-slot">
+    <span class="slot-label">${esc(s.instrumentName)}:</span>
+    <span class="slot-members">${chips}${addWidget}</span>
+  </div>`;
+}
+
+/* ── Inline search state per slot ── */
+const _inlineFiltered = {}; // key `${aid}-${iid}` → filtered members array
+const _inlineHL       = {}; // highlight index
+
+function onInlineSearch(aid, iid, val) {
+  const key = `${aid}-${iid}`;
+  const dd  = document.getElementById(`isdd-${aid}-${iid}`);
+  const q   = val.trim().toLowerCase();
+  if (!q) { dd.classList.remove('open'); return; }
+  _inlineFiltered[key] = allFamilyMembers.filter(m => fullName(m).toLowerCase().includes(q)).slice(0, 40);
+  dd.innerHTML = _inlineFiltered[key].length
+    ? _inlineFiltered[key].map((m, i) =>
+        `<div class="inline-dd-item" onmousedown="pickInlineMember(${aid},${iid},${i})" onmouseover="hiInlineDD('${key}',${i})">${esc(fullName(m))}</div>`
+      ).join('')
+    : '<div class="inline-dd-empty">No members found</div>';
+  dd.classList.add('open');
+  _inlineHL[key] = -1;
+}
+function hiInlineDD(key, i) {
+  _inlineHL[key] = i;
+  document.querySelectorAll(`#isdd-${key.replace('-','\\-')} .inline-dd-item`).forEach((el,j) => el.classList.toggle('hi', j===i));
+}
+function onInlineKey(e, aid, iid) {
+  const key = `${aid}-${iid}`;
+  const dd  = document.getElementById(`isdd-${aid}-${iid}`);
+  if (!dd.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); hiInlineDD(key, Math.min((_inlineHL[key]||0)+1, (_inlineFiltered[key]||[]).length-1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hiInlineDD(key, Math.max((_inlineHL[key]||0)-1, 0)); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const hl = _inlineHL[key] ?? -1;
+    if (hl >= 0) pickInlineMember(aid, iid, hl);
+    else {
+      // allow free-text enter
+      const inputEl = document.getElementById(`isinput-${aid}-${iid}`);
+      const name = inputEl.value.trim();
+      if (name) addInlineMemberByName(aid, iid, name, inputEl);
+    }
+  }
+  else if (e.key === 'Escape') dd.classList.remove('open');
+}
+async function pickInlineMember(aid, iid, idx) {
+  const key  = `${aid}-${iid}`;
+  const m    = (_inlineFiltered[key]||[])[idx];
+  if (!m) return;
+  const name = fullName(m);
+  const inputEl = document.getElementById(`isinput-${aid}-${iid}`);
+  document.getElementById(`isdd-${aid}-${iid}`).classList.remove('open');
+  if (inputEl) inputEl.value = '';
+  await addInlineMemberByName(aid, iid, name, null);
+}
+async function addInlineMemberByName(aid, iid, name, inputEl) {
+  if (!name) return;
+  const a = manualAssignments.find(x => x.id === aid);
+  if (!a) return;
+  let slot = (a.slots||[]).find(s => s.instrumentId === iid);
+  const existing = slot ? (slot.members||[]).map(m => ({instrumentId: iid, memberName: m.memberName, sortOrder: m.sortOrder||0})) : [];
+  existing.push({instrumentId: iid, memberName: name, sortOrder: existing.length});
+  await saveAssignmentFull(a, iid, existing);
+  if (inputEl) inputEl.value = '';
+  await loadManualAssignments();
+}
+
+async function removeAssignmentMember(assignmentId, instrumentId, memberId, memberName) {
+  if (!confirm('Remove ' + memberName + ' from this assignment?')) return;
+  const a = manualAssignments.find(x => x.id === assignmentId);
+  if (!a) return;
+  const slot = (a.slots||[]).find(s => s.instrumentId === instrumentId);
+  const remaining = (slot?.members||[]).filter(m => m.id !== memberId).map((m,i) => ({instrumentId: instrumentId, memberName: m.memberName, sortOrder: i}));
+  await saveAssignmentFull(a, instrumentId, remaining);
+  await loadManualAssignments();
+}
+
+async function saveAssignmentFull(a, changedInstrumentId, newSlotMembers) {
+  const allMembers = [];
+  for (const slot of (a.slots||[])) {
+    if (slot.instrumentId === changedInstrumentId) {
+      allMembers.push(...newSlotMembers);
+    } else {
+      allMembers.push(...(slot.members||[]).map((m,i) => ({instrumentId: slot.instrumentId, memberName: m.memberName, sortOrder: i})));
+    }
+  }
+  // If this is a new slot not yet in a.slots, add it
+  const hasSlot = (a.slots||[]).some(s => s.instrumentId === changedInstrumentId);
+  if (!hasSlot) allMembers.push(...newSlotMembers);
+
+  await fetch('/api/worship/assignments', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      groupId: a.groupId,
+      assignmentDate: a.assignmentDate,
+      assignmentType: a.assignmentType || 'manual',
+      members: allMembers
+    })
+  });
+}
+
+function addManualAssignmentForDate() {
+  const date = document.getElementById('manualDate').value;
+  if (!date) { toast('Please select a date first.', true); return; }
+  const usedGroupIds = new Set(manualAssignments.map(a => a.groupId));
+  const available = groups.filter(g => !usedGroupIds.has(g.id));
+  if (!available.length) { toast('All groups already have assignments on this date.'); return; }
+  const sel = document.getElementById('modalAddAssignGroup');
+  sel.innerHTML = available.map(g => `<option value="${g.id}">${esc(g.groupName)}</option>`).join('');
+  document.getElementById('modalAddAssignDate').textContent = formatDate(date);
+  openModal('modalAddAssignment');
+}
+
+async function confirmAddAssignment() {
+  const date    = document.getElementById('manualDate').value;
+  const groupId = parseInt(document.getElementById('modalAddAssignGroup').value);
+  closeModal('modalAddAssignment');
+  if (!date || !groupId) return;
+
+  // Find group's instruments so we create slots for all of them upfront
+  const g = groups.find(x => x.id === groupId);
+  if (!g) return;
+
+  // Build empty member list (one entry per instrument slot so the slot appears in UI)
+  // We'll send an empty members array — the renderAssignmentBlock will show add widgets per slot
+  // BUT: to make the slots appear, we need the assignment to reference the group's instruments.
+  // The server returns slots based on saved assignment_members, so if members=[] no slots show.
+  // Instead: create one placeholder entry per instrument then remove it, OR just render from group.
+  // Best approach: save empty assignment, then immediately load and augment display with group instruments.
+  const res = await fetch('/api/worship/assignments', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, assignmentDate: date, assignmentType: 'manual', members: [] })
+  });
+  if (!res.ok) { toast('Failed to create assignment.', true); return; }
+
+  toast('Assignment created. Add members using the search fields.');
+  await loadManualAssignments();
+  // After loading, augment any assignment with empty slots for instruments that have no members yet
+  augmentSlotsFromGroup();
+}
+
+function augmentSlotsFromGroup() {
+  // For each manual assignment, ensure all instruments of its group appear as slots (even if empty)
+  for (const a of manualAssignments) {
+    const g = groups.find(x => x.id === a.groupId);
+    if (!g) continue;
+    const existingInstIds = new Set((a.slots||[]).map(s => s.instrumentId));
+    for (const inst of (g.instruments||[])) {
+      if (!existingInstIds.has(inst.id)) {
+        if (!a.slots) a.slots = [];
+        a.slots.push({ instrumentId: inst.id, instrumentName: inst.instrumentName, members: [] });
+      }
+    }
+  }
+  // Re-render
+  const date = document.getElementById('manualDate').value;
+  if (date) renderManualAssignments(date);
+}
+
+async function deleteAssignment(id) {
+  if (!confirm('Delete this assignment?')) return;
+  const res = await fetch('/api/worship/assignments/' + id, { method:'DELETE' });
+  if (res.ok) { toast('Assignment deleted.'); await loadManualAssignments(); }
+  else toast('Failed to delete.', true);
+}
+
+/* ════════════════════════════════════════════════
+   AUTO ASSIGNMENTS
+════════════════════════════════════════════════ */
+function populateAutoGroupSelect() {
+  const sel = document.getElementById('autoGroup');
+  sel.innerHTML = groups.map(g => `<option value="${g.id}">${esc(g.groupName)}</option>`).join('');
+  populateStartOrderSelect();
+}
+
+/* Number of distinct rotation orders available in a group (max across its
+   instruments) — these are the selectable starting orders. */
+function groupOrderCount(groupId) {
+  const g = groups.find(x => Number(x.id) === Number(groupId));
+  if (!g) return 0;
+  let max = 0;
+  for (const inst of (g.instruments || [])) {
+    const orders = new Set();
+    for (const m of (inst.members || [])) {
+      if (m.rotationOrder != null) orders.add(m.rotationOrder);
+    }
+    if (orders.size > max) max = orders.size;
+  }
+  return max;
+}
+
+/* Populate the Start Order dropdown (Order 1 … N) for the selected group,
+   preserving the current choice when possible. Defaults to Order 1. */
+function populateStartOrderSelect() {
+  const sel = document.getElementById('autoStartOrder');
+  if (!sel) return;
+  const groupId = parseInt(document.getElementById('autoGroup').value);
+  const n = groupOrderCount(groupId);
+  const prev = parseInt(sel.value) || 1;
+  if (n <= 1) {
+    // 0 or 1 order → nothing to choose; keep a single default option.
+    sel.innerHTML = '<option value="1">Order 1</option>';
+    sel.value = '1';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  let html = '';
+  for (let i = 1; i <= n; i++) html += `<option value="${i}">Order ${i}</option>`;
+  sel.innerHTML = html;
+  sel.value = String(prev >= 1 && prev <= n ? prev : 1);
+}
+
+async function loadSavedAutoAssignments() {
+  try {
+    const res = await fetch('/api/worship/assignments');
+    if (!res.ok) return;
+    const raw = await res.json();
+    const saved = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+    if (!saved.length) return;
+    // Build rows in the same shape as autoPreview entries
+    // Each saved assignment is one date+group; normalise members into {memberId, memberName}
+    const rows = saved
+      .filter(a => a.assignmentType === 'auto' || !a.assignmentType)
+      .map(a => ({
+        id:             a.id,
+        groupId:        a.groupId,
+        groupName:      a.groupName || '',
+        assignmentDate: a.assignmentDate,
+        assignmentType: a.assignmentType,
+        slots: (a.slots || []).map(s => ({
+          instrumentId:   s.instrumentId,
+          instrumentName: s.instrumentName,
+          members: (s.members || []).map(m => ({
+            memberId:   m.id ?? ('db_' + s.instrumentId + '_' + m.memberName),
+            memberName: m.memberName,
+            sortOrder:  m.sortOrder ?? 0
+          }))
+        }))
+      }));
+    if (!rows.length) return;
+    // Merge: keep any in-memory unsaved rows that aren't in DB; replace with DB version otherwise
+    const dbKeys = new Set(rows.map(r => r.groupId + '|' + r.assignmentDate));
+    autoPreview = autoPreview.filter(r => !dbKeys.has(r.groupId + '|' + r.assignmentDate));
+    autoPreview.push(...rows);
+    autoPreview.sort((a,b) => a.assignmentDate < b.assignmentDate ? -1 : a.assignmentDate > b.assignmentDate ? 1 : 0);
+    renderAutoPreview();
+  } catch(e) {
+    console.error('loadSavedAutoAssignments error', e);
+  }
+}
+
+async function deleteGroupTable(groupId) {
+  const rows = autoPreview.filter(r => r.groupId === groupId);
+  if (!rows.length) return;
+  if (!confirm('Delete all saved assignments for this group?')) return;
+  let ok = true;
+  for (const row of rows) {
+    if (row.id) {
+      const res = await fetch('/api/worship/assignments/' + row.id, { method: 'DELETE' });
+      if (!res.ok) ok = false;
+    }
+  }
+  // Remove from local preview
+  autoPreview = autoPreview.filter(r => r.groupId !== groupId);
+  renderAutoPreview();
+  toast(ok ? 'Deleted.' : 'Some rows failed to delete.', !ok);
+}
+
+/* ── Persist all rows for a group to the DB (silent; idempotent upsert) ──
+   The backend POST /api/worship/assignments upserts by (group, date) and
+   replaces that date's members, so calling this repeatedly never creates
+   duplicate records. Returns true if every row saved. */
+async function persistGroupAssignments(groupId) {
+  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+  if (!rows.length) return true;                       // nothing to persist (e.g. group just deleted)
+  let ok = true;
+  for (const row of rows) {
+    if (row.skipped) continue;                         // skipped dates carry no members to save
+    const allMembers = [];
+    for (const slot of (row.slots || [])) {
+      (slot.members || []).forEach((m, i) =>
+        allMembers.push({ instrumentId: slot.instrumentId, memberName: m.memberName, sortOrder: i })
+      );
+    }
+    try {
+      const res = await fetch('/api/worship/assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: row.groupId,
+          assignmentDate: row.assignmentDate,
+          assignmentType: row.assignmentType || 'auto',
+          members: allMembers
+        })
+      });
+      if (!res.ok) { ok = false; } else {
+        const saved = await res.json();
+        if (saved?.id) row.id = saved.id;              // remember the id (so it's an update next time)
+      }
+    } catch (e) { ok = false; }
+  }
+  return ok;
+}
+
+/* ── Auto-save engine ──────────────────────────────────────────────────
+   Every modification calls autoSaveGroup(groupId). Saves are debounced (so a
+   burst of edits collapses into one request) and coalesced per group (if a save
+   is already in flight, a new request re-runs once it finishes) — this prevents
+   duplicate/overlapping requests and guarantees the latest state is persisted
+   even when changes happen in quick succession. */
+const _autoSaveTimers = {};
+const _autoSaveState  = {};   // groupId -> { inFlight, dirty }
+
+function autoSaveGroup(groupId) {
+  groupId = Number(groupId);
+  clearTimeout(_autoSaveTimers[groupId]);
+  _autoSaveTimers[groupId] = setTimeout(function () { runAutoSave(groupId); }, 600);
+}
+
+async function runAutoSave(groupId) {
+  const st = _autoSaveState[groupId] || (_autoSaveState[groupId] = { inFlight: false, dirty: false });
+  if (st.inFlight) { st.dirty = true; return; }        // a save is running → mark for a follow-up run
+  st.inFlight = true; st.dirty = false;
+  let ok = true;
+  try { ok = await persistGroupAssignments(groupId); } catch (e) { ok = false; }
+  st.inFlight = false;
+  if (st.dirty) { runAutoSave(groupId); return; }      // edits arrived mid-save → persist again
+  toast(ok ? 'Changes saved' : 'Auto-save failed — please check your connection.', !ok);
+}
+
+/* ── PDF/Print helpers ── */
+
+const PDF_CSS = `
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; background: #fff; color: #222; }
+  h2 { color: #673147; margin-bottom: 16px; font-size: 16px; }
+  h3 { color: #673147; margin: 20px 0 10px; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 28px; page-break-inside: avoid; }
+  th { background: #673147; color: #fff; padding: 8px 12px; text-align: left; border: 1px solid #4a235a; }
+  td { padding: 7px 10px; border: 1px solid #ddd; vertical-align: top; }
+  tr:nth-child(even) td { background: #faf8fb; }
+  @media print { button { display: none !important; } }
+`;
+
+/**
+ * Build plain-text table HTML for one group from autoPreview data.
+ * Members rendered as plain comma-separated text (no chip backgrounds).
+ * Songs column omitted when no date in the group has any songs.
+ */
+function buildGroupTableHtml(groupId) {
+  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+  if (!rows.length) return '';
+
+  const groupName = rows[0].groupName || '';
+
+  // Collect instruments
+  const instMap = new Map();
+  for (const row of rows) {
+    for (const slot of (row.slots || [])) {
+      if (!instMap.has(slot.instrumentId)) instMap.set(slot.instrumentId, slot.instrumentName);
+    }
+  }
+  const instruments = Array.from(instMap.entries());
+
+  // Determine if any non-skipped date has songs
+  const hasSongs = rows.some(row => {
+    if (row.skipped) return false;
+    const cached = autoSongCache[`${groupId}|${row.assignmentDate}`];
+    return cached && cached.filter(s => !s.isHeading).length > 0;
+  });
+
+  let html = `<h3>${esc(groupName)}</h3><table>`;
+  html += '<thead><tr><th>Date</th>';
+  for (const [, iname] of instruments) html += `<th>${esc(iname)}</th>`;
+  if (hasSongs) html += '<th>Songs</th>';
+  html += '</tr></thead><tbody>';
+
+  for (const row of rows) {
+    if (row.skipped) continue; // skip rows are excluded from PDF
+    const displayDate = formatDate(row.assignmentDate);
+    const slotMap = new Map();
+    for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
+
+    html += `<tr><td>${displayDate}</td>`;
+    for (const [iid] of instruments) {
+      const members = slotMap.get(iid) || [];
+      html += `<td>${members.map(m => esc(m.memberName)).join(', ') || '—'}</td>`;
+    }
+    if (hasSongs) {
+      const songs = (autoSongCache[`${groupId}|${row.assignmentDate}`] || [])
+        .filter(s => !s.isHeading)
+        .map(s => esc(s.songTitle))
+        .join(', ');
+      html += `<td>${songs || '—'}</td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  return html;
+}
+
+function printGroupTable(groupId) {
+  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+  if (!rows.length) return;
+  const groupName = rows[0].groupName || 'Group';
+  const tableHtml = buildGroupTableHtml(groupId);
+  const w = window.open('', '_blank', 'width=900,height=650');
+  w.document.write(`<!DOCTYPE html><html><head>
+    <title>${esc(groupName)} — Worship Schedule</title>
+    <style>${PDF_CSS}</style>
+  </head><body>
+    <h2>${esc(groupName)} — Worship Schedule</h2>
+    ${tableHtml}
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function downloadGroupPdf(groupId) {
+  printGroupTable(groupId); // browser print dialog → Save as PDF
+}
+
+function printAllGroupTables() {
+  const groupIds = [...new Set(autoPreview.map(r => r.groupId))];
+  if (!groupIds.length) return;
+  const bodyHtml = groupIds.map(gid => buildGroupTableHtml(gid)).join('');
+  const w = window.open('', '_blank', 'width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head>
+    <title>Worship Schedules</title>
+    <style>${PDF_CSS} h3 { page-break-before: auto; }</style>
+  </head><body>
+    <h2>Worship Schedules</h2>
+    ${bodyHtml}
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function downloadAllGroupsPdf() {
+  printAllGroupTables();
+}
+
+/* ── Cell add/edit ── */
+let _cellCtx = null;  // { groupId, dateStr, iid }
+
+function openCellAdd(groupId, dateStr, iid) {
+  _cellCtx = { groupId, dateStr, iid };
+  // Build roster list for this instrument
+  const group = groups.find(g => Number(g.id) === Number(groupId));
+  _ceRoster = [];
+  if (group) {
+    for (const inst of (group.instruments || [])) {
+      if (Number(inst.id) === Number(iid)) {
+        _ceRoster = inst.members || [];
+        break;
+      }
+    }
+  }
+  _ceReset();
+  openModal('modalCellEdit');
+  setTimeout(() => document.getElementById('ceInput').focus(), 80);
+}
+
+function saveCellEdit() {
+  if (!_cellCtx) return;
+  const { groupId, dateStr, iid } = _cellCtx;
+  const manualName = document.getElementById('modalCellEditName').value.trim();
+  let memberName = '', memberId = null;
+  if (_ceSelected) {
+    memberId   = _ceSelected.id;
+    memberName = _ceSelected.memberName;
+  } else if (manualName) {
+    memberName = manualName;
+    memberId   = 'manual_' + iid + '_' + manualName.replace(/\s+/g, '_');
+  } else {
+    toast('Select a member or type a name.', true); return;
+  }
+  // Add to autoPreview
+  const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (!row) { closeModal('modalCellEdit'); return; }
+  let slot = (row.slots || []).find(s => Number(s.instrumentId) === Number(iid));
+  if (!slot) {
+    slot = { instrumentId: Number(iid), instrumentName: '', members: [] };
+    row.slots = [...(row.slots || []), slot];
+  }
+  slot.members = [...(slot.members || []), { memberId, memberName }];
+  closeModal('modalCellEdit');
+  renderAutoPreview();
+  autoSaveGroup(groupId);
+}
+
+/* ── Chip drag-and-drop between cells ── */
+let _chipDrag = null;  // { groupId, dateStr, iid, memberId }
+
+function onMemberChipDragStart(event, groupId, dateStr, iid, memberId) {
+  _chipDrag = { groupId, dateStr, iid, memberId };
+  event.dataTransfer.effectAllowed = 'move';
+}
+
+async function onCellDrop(event, groupId, dateStr, iid) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drop-hover');
+  // Roster chip drop (from roster panel)
+  const rosterData = event.dataTransfer.getData('text/plain');
+  if (rosterData) {
+    try {
+      const d = JSON.parse(rosterData);
+      if (d.type === 'roster') {
+        const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+        if (!row) return;
+        let slot = (row.slots || []).find(s => Number(s.instrumentId) === Number(iid));
+        if (!slot) { slot = { instrumentId: Number(iid), instrumentName: d.instrumentName || '', members: [] }; row.slots = [...(row.slots||[]), slot]; }
+        // Avoid duplicate
+        if (!(slot.members || []).some(m => m.memberId == d.memberId)) {
+          slot.members = [...(slot.members || []), { memberId: d.memberId, memberName: d.memberName }];
+        }
+        renderAutoPreview();
+        autoSaveGroup(groupId);
+        return;
+      }
+    } catch(e) { /* not roster data */ }
+  }
+  // Chip-to-chip move
+  if (!_chipDrag) return;
+  const src = _chipDrag; _chipDrag = null;
+  if (Number(src.groupId) === Number(groupId) && src.dateStr === dateStr && Number(src.iid) === Number(iid)) return;
+
+  // Locate source row and slot
+  const srcRow  = autoPreview.find(r => Number(r.groupId) === Number(src.groupId) && r.assignmentDate === src.dateStr);
+  const srcSlot = srcRow ? (srcRow.slots||[]).find(s => Number(s.instrumentId) === Number(src.iid)) : null;
+
+  // Capture memberName BEFORE removing from source
+  const draggedMember = (srcSlot?.members||[]).find(m => m.memberId == src.memberId);
+  const memberName    = draggedMember?.memberName || '';
+
+  // Remove from source
+  if (srcSlot) srcSlot.members = (srcSlot.members||[]).filter(m => m.memberId != src.memberId);
+
+  // Add to target
+  const tgtRow = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (tgtRow) {
+    let tgtSlot = (tgtRow.slots||[]).find(s => Number(s.instrumentId) === Number(iid));
+    if (!tgtSlot) { tgtSlot = { instrumentId: Number(iid), instrumentName: srcSlot?.instrumentName || '', members: [] }; tgtRow.slots = [...(tgtRow.slots||[]), tgtSlot]; }
+    if (!(tgtSlot.members||[]).some(m => m.memberId == src.memberId)) {
+      tgtSlot.members = [...(tgtSlot.members||[]), { memberId: src.memberId, memberName }];
+    }
+  }
+  renderAutoPreview();
+  autoSaveGroup(groupId);
+  if (Number(src.groupId) !== Number(groupId)) autoSaveGroup(src.groupId);   // moved across groups → save both
+}
+
+function removeCellMember(groupId, dateStr, iid, memberId) {
+  const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (!row) return;
+  const slot = (row.slots||[]).find(s => Number(s.instrumentId) === Number(iid));
+  if (slot) slot.members = (slot.members||[]).filter(m => m.memberId != memberId);
+  renderAutoPreview();
+  autoSaveGroup(groupId);
+}
+
+/* ── Roster drag start (drag from roster panel into cell) ── */
+function onRosterDragStart(event, groupId, instId, memberId, memberName) {
+  event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'roster', groupId, instId, memberId, memberName }));
+  event.dataTransfer.effectAllowed = 'copy';
+}
+
+/* ── toggleSongPanel / refreshSongPanel (backward compat) ── */
+async function toggleSongPanel(groupId, dateStr, btn) {
+  openWeekSongMgr(groupId, dateStr);
+}
+
+async function refreshSongPanel(groupId, dateStr, panel) {
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+  if (!res.ok) { if(panel) panel.innerHTML = '<span style="color:red">Failed to load songs</span>'; return; }
+  const songs = await res.json();
+  autoSongCache[`${groupId}|${dateStr}`] = songs;
+  renderInlineSongs(groupId, dateStr, songs);
+}
+
+/* ── Skip-dates picker helpers ── */
+
+/** Compute all candidate weekly dates for the current form values and refresh chips. */
+function refreshSkipDatesPicker() {
+  const startDate = document.getElementById('autoStartDate').value;
+  const weeks     = parseInt(document.getElementById('autoWeeks').value) || 4;
+  const dow       = parseInt(document.getElementById('autoDow').value);
+  const bar       = document.getElementById('skipDatesBar');
+  const chips     = document.getElementById('skipDatesChips');
+  if (!startDate || !weeks || !dow) { bar.style.display = 'none'; return; }
+
+  // Advance startDate to the correct day-of-week
+  const d = new Date(startDate + 'T00:00:00');
+  // JS: 0=Sun,1=Mon…6=Sat; our dow: 1=Mon…7=Sun
+  const targetJs = dow === 7 ? 0 : dow;
+  while (d.getDay() !== targetJs) d.setDate(d.getDate() + 1);
+
+  const dates = [];
+  const cur = new Date(d);
+  for (let w = 0; w < weeks; w++) {
+    dates.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 7);
+  }
+
+  // Preserve any already-toggled skips
+  const existing = new Set(
+    Array.from(chips.querySelectorAll('.skip-chip.skipped')).map(el => el.dataset.date)
+  );
+
+  chips.innerHTML = dates.map(dt => {
+    const label = formatDate(dt);
+    const skipped = existing.has(dt) ? 'skipped' : '';
+    return `<span class="skip-chip ${skipped}" data-date="${dt}" onclick="this.classList.toggle('skipped')">${label}</span>`;
+  }).join('');
+
+  bar.style.display = 'block';
+}
+
+/** Returns the Set of dates currently marked as skipped in the picker. */
+function getSkippedDates() {
+  return new Set(
+    Array.from(document.querySelectorAll('#skipDatesChips .skip-chip.skipped')).map(el => el.dataset.date)
+  );
+}
+
+async function generateAutoAssignments() {
+  const groupId    = parseInt(document.getElementById('autoGroup').value);
+  const dow        = parseInt(document.getElementById('autoDow').value);
+  const startDate  = document.getElementById('autoStartDate').value;
+  const weeks      = parseInt(document.getElementById('autoWeeks').value) || 4;
+  const startOrder = parseInt(document.getElementById('autoStartOrder').value) || 1;
+  if (!startDate) { toast('Please select a start date.', true); return; }
+  if (!groupId)   { toast('Please select a group.', true); return; }
+
+  const skippedDates = getSkippedDates();
+  const activeWeeks  = weeks - skippedDates.size;  // ask backend only for active weeks
+
+  // Request enough extra weeks to cover the skipped ones so we get the right count
+  const res = await fetch('/api/worship/auto-assign', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, dayOfWeek: dow, startDate, weeks: weeks + skippedDates.size, startOrder })
+  });
+  if (!res.ok) { toast('Auto-assign failed.', true); return; }
+  const allRows = await res.json();
+
+  // Build the full calendar of dates (active + skipped), matching original weeks count
+  // allRows already contains `weeks + skippedDates.size` active dates from the backend.
+  // We need to interleave skipped rows (empty) back into the calendar at the right positions.
+
+  // Determine the full ordered list of weekly dates for `weeks` slots
+  const d = new Date(startDate + 'T00:00:00');
+  const targetJs = dow === 7 ? 0 : dow;
+  while (d.getDay() !== targetJs) d.setDate(d.getDate() + 1);
+  const calendarDates = [];
+  const cur = new Date(d);
+  for (let w = 0; w < weeks; w++) {
+    calendarDates.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 7);
+  }
+
+  // Walk through calendar dates; for skipped dates insert empty rows,
+  // for active dates consume from allRows in order
+  let activeIdx = 0;
+  const mergedRows = [];
+  for (const dt of calendarDates) {
+    if (skippedDates.has(dt)) {
+      // Insert a skipped placeholder row (no members)
+      mergedRows.push({
+        groupId,
+        groupName:      allRows[0]?.groupName || '',
+        assignmentDate: dt,
+        assignmentType: 'auto',
+        skipped:        true,
+        slots:          []
+      });
+    } else {
+      // Take next active row from backend result (date may differ — restamp it)
+      const src = allRows[activeIdx++];
+      if (src) mergedRows.push({ ...src, assignmentDate: dt, skipped: false });
+    }
+  }
+
+  if (mergedRows.length > 0) {
+    // Delete old DB rows for this group
+    const toDelete = autoPreview.filter(r => Number(r.groupId) === Number(groupId) && r.id);
+    for (const r of toDelete) {
+      await fetch('/api/worship/assignments/' + r.id, { method: 'DELETE' }).catch(() => {});
+    }
+    autoPreview = autoPreview.filter(r => Number(r.groupId) !== Number(groupId));
+
+    // Normalise member IDs
+    const normalised = mergedRows.map(row => ({
+      ...row,
+      slots: (row.slots || []).map(slot => ({
+        ...slot,
+        members: (slot.members || []).map(m => ({
+          memberId:   m.memberId ?? ('auto_' + slot.instrumentId + '_' + m.memberName),
+          memberName: m.memberName,
+          sortOrder:  m.sortOrder ?? 0
+        }))
+      }))
+    }));
+    autoPreview.push(...normalised);
+    autoPreview.sort((a,b) => a.assignmentDate < b.assignmentDate ? -1 : a.assignmentDate > b.assignmentDate ? 1 : 0);
+
+    // ── Capture canonical rotation pool from the ACTIVE (non-skipped) rows ──
+    // This is the single source of truth used by rebalanceGroupRotation.
+    // We read the ordered member sequence from the active rows exactly as the
+    // backend returned them — that preserves the correct round-robin order.
+    {
+      const instrIds   = [];
+      const instrNames = {};
+      const memberPool = {};   // instrId -> [name, name, ...]  in rotation order
+
+      for (const row of normalised) {
+        if (row.skipped) continue;
+        for (const slot of (row.slots || [])) {
+          const iid = slot.instrumentId;
+          if (!instrIds.includes(iid)) {
+            instrIds.push(iid);
+            instrNames[iid] = slot.instrumentName;
+            memberPool[iid] = [];
+          }
+          for (const m of (slot.members || [])) {
+            memberPool[iid].push(m.memberName);  // preserve full sequence (repeats allowed)
+          }
+        }
+      }
+      _groupRotationPools[groupId] = { instrIds, instrNames, memberPool };
+    }
+  }
+  // Newly generated group jumps to the top of the list and opens expanded.
+  if (groupId) {
+    autoGroupOrder = [Number(groupId), ...autoGroupOrder.filter(g => Number(g) !== Number(groupId))];
+    expandedGroups.add(Number(groupId));
+  }
+  renderAutoPreview();
+  // Auto-save the freshly generated/regenerated assignments (old DB rows for this
+  // group were already removed above, so this persists the new set with no duplicates).
+  if (groupId) autoSaveGroup(groupId);
+}
+
+/* ── Toggle skip on an already-rendered pivot row ── */
+function toggleSkipRow(groupId, dateStr) {
+  const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (!row) return;
+
+  const wasSkipped = !!row.skipped;
+
+  if (wasSkipped) {
+    // Unskip: restore members by rebalancing rotation for this group
+    row.skipped = false;
+    rebalanceGroupRotation(groupId);
+  } else {
+    // Skip: clear members from this row
+    row.skipped  = true;
+    row.slots    = [];
+    rebalanceGroupRotation(groupId);
+  }
+
+  renderAutoPreview();
+  autoSaveGroup(groupId);
+}
+
+/**
+ * After any skip/unskip, re-assign members to the active (non-skipped) rows
+ * of a group by replaying the round-robin rotation from scratch.
+ *
+ * Uses _groupRotationPools[groupId] — the canonical ordered member sequence
+ * captured at generation time — so that skipping a week shifts the member
+ * forward rather than dropping them.
+ */
+function rebalanceGroupRotation(groupId) {
+  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+  if (!rows.length) return;
+
+  const pool = _groupRotationPools[groupId];
+  if (!pool) return;   // no pool means we can't rebalance — leave as-is
+
+  const { instrIds, instrNames, memberPool } = pool;
+
+  // Walk active (non-skipped) rows in date order, assigning members from
+  // the canonical sequence in order.  Index i tracks position in the flat
+  // memberPool array for each instrument independently.
+  const pointers = {};
+  for (const iid of instrIds) pointers[iid] = 0;
+
+  for (const row of rows) {
+    if (row.skipped) { row.slots = []; continue; }
+
+    const newSlots = [];
+    for (const iid of instrIds) {
+      const seq = memberPool[iid];
+      if (!seq || !seq.length) continue;
+      const ptr  = pointers[iid];
+      const name = seq[ptr % seq.length];
+      pointers[iid] = ptr + 1;
+      newSlots.push({
+        instrumentId:   iid,
+        instrumentName: instrNames[iid],
+        members: [{
+          memberId:   'auto_' + iid + '_' + name,
+          memberName: name,
+          sortOrder:  0
+        }]
+      });
+    }
+    row.slots = newSlots;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   AUTO PREVIEW — PIVOT TABLE RENDERING
+════════════════════════════════════════════════ */
+
+function toggleAutoGroup(groupId) {
+  const gid = Number(groupId);
+  const block = document.getElementById('autoGroup_' + groupId);
+  if (!block) return;
+  const collapsed = block.classList.toggle('collapsed');
+  if (collapsed) expandedGroups.delete(gid); else expandedGroups.add(gid);
+  const caret = block.querySelector('.auto-caret');
+  if (caret) caret.textContent = collapsed ? '▸' : '▾';
+}
+
+function renderAutoPreview() {
+  const wrap = document.getElementById('autoAssignmentArea');
+  if (!autoPreview || autoPreview.length === 0) {
+    wrap.innerHTML = '<p style="color:#888;margin:12px 0;">No assignments generated yet.</p>';
+    return;
+  }
+
+  const groupMap = new Map();
+  for (const row of autoPreview) {
+    if (!groupMap.has(row.groupId)) groupMap.set(row.groupId, { groupName: row.groupName, rows: [] });
+    groupMap.get(row.groupId).rows.push(row);
+  }
+
+  // Render order: most-recently-generated groups first, then the rest in natural order.
+  const rank = id => {
+    const i = autoGroupOrder.findIndex(g => Number(g) === Number(id));
+    return i === -1 ? Infinity : i;
+  };
+  const orderedIds = Array.from(groupMap.keys()).sort((a, b) => rank(a) - rank(b));
+
+  let html = '';
+  for (const groupId of orderedIds) {
+    const { groupName, rows } = groupMap.get(groupId);
+    const instMap = new Map();
+    for (const row of rows) {
+      for (const slot of (row.slots || [])) {
+        if (!instMap.has(slot.instrumentId)) instMap.set(slot.instrumentId, slot.instrumentName);
+      }
+    }
+    const instruments = Array.from(instMap.entries());
+
+    const isExpanded = expandedGroups.has(Number(groupId));
+    html += `<div class="auto-group-block${isExpanded ? '' : ' collapsed'}" id="autoGroup_${groupId}">
+      <div class="auto-group-header">
+        <span class="auto-group-title" onclick="toggleAutoGroup(${groupId})" title="Show / hide assignments">
+          <span class="auto-caret">${isExpanded ? '▾' : '▸'}</span>${esc(groupName)}
+        </span>
+        <div class="auto-group-actions">
+          <button class="btn btn-sm btn-secondary" onclick="openSongMgr(${groupId},'${esc(groupName)}')">📚 Manage Songs</button>
+          <button class="btn btn-sm btn-secondary" onclick="printGroupTable(${groupId})">🖨️ Print</button>
+          <button class="btn btn-sm btn-secondary" onclick="downloadGroupPdf(${groupId})">⬇️ Download PDF</button>
+          <button class="btn btn-sm" style="color:#e53935;border-color:#e53935" onclick="deleteGroupTable(${groupId})">Delete</button>
+        </div>
+      </div>
+      <div class="auto-group-collapsible">
+      <div class="auto-table-wrap">
+        <table class="auto-pivot-table" id="pivotTable_${groupId}">
+          <thead><tr>
+            <th>Date</th>
+            ${instruments.map(([iid,iname]) => `<th>${esc(iname)}<br><span class="roster-drag-hint">drag from below</span></th>`).join('')}
+            <th>Songs</th>
+          </tr></thead>
+          <tbody>`;
+
+    for (const row of rows) {
+      const dateStr = row.assignmentDate;
+      const displayDate = formatDate(dateStr);
+      const slotMap = new Map();
+      for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
+
+      const isSkipped = !!row.skipped;
+      html += `<tr data-group="${groupId}" data-date="${dateStr}" ${isSkipped ? 'class="row-skipped"' : ''}>
+        <td class="pivot-date-cell">
+          ${displayDate}
+          <button class="skip-row-btn ${isSkipped ? 'unskip' : ''}" onclick="toggleSkipRow(${groupId},'${dateStr}')">${isSkipped ? '↩ Unskip' : '⊘ Skip'}</button>
+        </td>`;
+
+      for (const [iid] of instruments) {
+        const members = slotMap.get(iid) || [];
+        const chipsHtml = members.map(m =>
+          `<span class="member-chip" draggable="true"
+            ondragstart="onMemberChipDragStart(event,${groupId},'${dateStr}',${iid},'${m.memberId}')"
+            >${esc(m.memberName)}<button class="chip-del" onclick="removeCellMember(${groupId},'${dateStr}',${iid},'${m.memberId}')" title="Remove">×</button></span>`
+        ).join('');
+        if (isSkipped) {
+          html += `<td class="pivot-cell" style="color:#ccc;font-style:italic;font-size:12px;">—</td>`;
+        } else {
+          html += `<td class="pivot-cell" data-group="${groupId}" data-date="${dateStr}" data-inst="${iid}"
+            ondragover="event.preventDefault();this.classList.add('drop-hover')"
+            ondragleave="this.classList.remove('drop-hover')"
+            ondrop="onCellDrop(event,${groupId},'${dateStr}',${iid})">
+            <div class="cell-members">${chipsHtml}</div>
+            <button class="cell-add-btn" onclick="openCellAdd(${groupId},'${dateStr}',${iid})">+ Add</button>
+          </td>`;
+        }
+      }
+
+      if (isSkipped) {
+        html += `<td class="pivot-song-cell" style="color:#ccc;font-style:italic;font-size:12px;">—</td></tr>`;
+      } else {
+        html += `<td class="pivot-song-cell">
+          <div class="inline-songs" id="inlineSongs_${groupId}_${dateStr.replace(/-/g,'')}"><span class="inline-songs-empty">…</span></div>
+          <button class="btn btn-xs" onclick="openWeekSongMgr(${groupId},'${dateStr}')">✎ Songs</button>
+        </td></tr>`;
+      }
+    }
+
+    html += `</tbody></table></div>`;
+    html += renderMemberRoster(groupId, rows, instruments);
+    html += `</div>`;   // .auto-group-collapsible
+    html += `</div>`;   // .auto-group-block
+  }
+
+  // Global action bar
+  if (groupMap.size > 0) {
+    html += `<div id="autoGlobalActions" style="display:flex;margin-top:14px;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="printAllGroupTables()">🖨️ Print All Groups</button>
+      <button class="btn btn-secondary" onclick="downloadAllGroupsPdf()">⬇️ Download All as PDF</button>
+    </div>`;
+  }
+
+  wrap.innerHTML = html;
+
+  // Load library data for each group and render
+  for (const [groupId] of groupMap) {
+    loadSongLibrary(groupId).then(() => renderSongLibrary(groupId));
+  }
+
+  // Eagerly load inline songs for all group+date cells
+  for (const [groupId, { rows }] of groupMap) {
+    const dates = [...new Set((Array.isArray(rows) ? rows : []).map(r => r.assignmentDate))];
+    for (const dateStr of dates) {
+      loadInlineSongs(groupId, dateStr);
+    }
+  }
+}
+
+async function loadInlineSongs(groupId, dateStr) {
+  const safeDateId = dateStr.replace(/-/g,'');
+  const el = document.getElementById(`inlineSongs_${groupId}_${safeDateId}`);
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+    if (!res.ok) { el.innerHTML = ''; return; }
+    const songs = await res.json();
+    autoSongCache[`${groupId}|${dateStr}`] = songs;
+    renderInlineSongs(groupId, dateStr, songs);
+  } catch(e) { el.innerHTML = ''; }
+}
+
+function renderInlineSongs(groupId, dateStr, songs) {
+  const safeDateId = dateStr.replace(/-/g,'');
+  const el = document.getElementById(`inlineSongs_${groupId}_${safeDateId}`);
+  if (!el) return;
+  if (!songs || songs.length === 0) {
+    el.innerHTML = '<span class="inline-songs-empty">No songs</span>';
+    return;
+  }
+  el.innerHTML = songs.map(s =>
+    s.isHeading
+      ? `<div class="inline-song-heading">${esc(s.songTitle)}</div>`
+      : `<div class="inline-song-item">♪ ${esc(s.songTitle)}</div>`
+  ).join('');
+}
+
+function renderSongLibraryBlock(groupId) {
+  return `<div class="song-lib-block" id="songLibBlock_${groupId}">
+    <div class="song-lib-header">
+      <span class="song-lib-title">📚 Song Library <span style="font-size:11px;font-weight:400;color:#888">(shared across all weeks)</span></span>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="libFile_${groupId}" accept=".docx,.pdf,.txt" style="display:none"
+          onchange="uploadLibraryDoc(${groupId},this)" />
+        <button class="btn btn-xs" onclick="document.getElementById('libFile_${groupId}').click()">📄 Upload Song List</button>
+      </div>
+    </div>
+    <div class="song-lib-chips" id="songLib_${groupId}">
+      <span class="song-lib-empty">Loading...</span>
+    </div>
+    <div class="song-add-row" style="margin-top:8px">
+      <input type="text" class="song-input" id="libInput_${groupId}" placeholder="Add to library..." />
+      <button class="btn btn-xs btn-primary" onclick="addLibSong(${groupId},false)">Add Song</button>
+      <button class="btn btn-xs btn-secondary" onclick="addLibSong(${groupId},true)">+ Heading</button>
+    </div>
+  </div>`;
+}
+
+function renderMemberRoster(groupId, rows, instruments) {
+  const groupObj = groups.find(g => g.id === groupId);
+  if (!groupObj) return '';
+  let html = `<div class="roster-wrap" id="roster_${groupId}">
+    <div class="roster-label">Member — drag to assign</div>
+    <div class="roster-instruments">`;
+  for (const inst of (groupObj.instruments || [])) {
+    html += `<div class="roster-inst-block">
+      <div class="roster-inst-name">${esc(inst.instrumentName)}</div>
+      <div class="roster-chips">`;
+    for (const mem of (inst.members || [])) {
+      html += `<span class="roster-chip" draggable="true"
+        ondragstart="onRosterDragStart(event,${groupId},${inst.id},${mem.memberId},'${esc(mem.memberName)}')"
+        >${esc(mem.memberName)}</span>`;
+    }
+    html += `</div></div>`;
+  }
+  html += `</div></div>`;
+  return html;
+}
+
+/* ────────────────────────────
+   SONG LIBRARY (group-level)
+──────────────────────────── */
+
+let songLibCache = {};  // groupId -> [{id, songTitle, isHeading, sortOrder}]
+
+async function loadSongLibrary(groupId) {
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}`);
+  if (!res.ok) return [];
+  const songs = await res.json();
+  songLibCache[groupId] = songs;
+  return songs;
+}
+
+function renderSongLibrary(groupId) {
+  const lib = songLibCache[groupId] || [];
+  const wrap = document.getElementById(`songLib_${groupId}`);
+  if (wrap) {
+    if (!lib.length) {
+      wrap.innerHTML = '<span class="song-lib-empty">No library songs yet. Upload a document or add headings below.</span>';
+    } else {
+      wrap.innerHTML = lib.map(s =>
+        `<span class="lib-chip ${s.isHeading ? 'lib-chip-heading' : ''}" draggable="true"
+          ondragstart="onLibChipDragStart(event,${groupId},'${esc(s.songTitle)}')"
+          title="${esc(s.songTitle)}">${esc(s.songTitle)}
+          <button class="chip-del" onclick="deleteLibSong(${groupId},${s.id})" title="Remove from library">×</button>
+        </span>`
+      ).join('');
+    }
+  }
+  // Also refresh the manager modal if it's open for this group
+  if (_songMgrGroupId === groupId) renderSongMgrList();
+}
+
+async function addLibSong(groupId, isHeading) {
+  const input = document.getElementById(`libInput_${groupId}`);
+  const title = input ? input.value.trim() : '';
+  if (!title) { toast('Enter a song title.', true); return; }
+  const lib = songLibCache[groupId] || [];
+  const maxOrder = lib.length ? Math.max(...lib.map(s => s.sortOrder || 0)) : 0;
+  const res = await fetch('/api/worship/songs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+  });
+  if (!res.ok) { toast('Failed to add.', true); return; }
+  if (input) input.value = '';
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);
+}
+
+async function deleteLibSong(groupId, songId) {
+  const res = await fetch(`/api/worship/songs/${songId}`, { method: 'DELETE' });
+  if (!res.ok) { toast('Failed to delete.', true); return; }
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);
+}
+
+async function uploadLibraryDoc(groupId, fileInput) {
+  if (!fileInput.files || !fileInput.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  formData.append('groupId', groupId);
+  const res = await fetch('/api/worship/songs/upload', { method: 'POST', body: formData });
+  if (!res.ok) { toast('Upload failed.', true); return; }
+  toast('Library updated!');
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);
+  fileInput.value = '';
+}
+
+function onLibChipDragStart(event, groupId, title) {
+  event.dataTransfer.effectAllowed = 'copy';
+  event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'lib', groupId, title }));
+}
+
+/* ════════════════════════════════════════════════
+   SONG LIBRARY MANAGER MODAL
+════════════════════════════════════════════════ */
+let _songMgrGroupId  = null;
+let _songMgrDragIdx  = null;  // index of item being dragged within list
+
+async function openSongMgr(groupId, groupName) {
+  _songMgrGroupId = groupId;
+  document.getElementById('songMgrTitle').textContent = '📚 Song Library — ' + groupName;
+  document.getElementById('songMgrInput').value = '';
+  document.getElementById('songMgrOverlay').classList.add('open');
+  document.getElementById('songMgrList').innerHTML = '<div class="song-mgr-empty">Loading…</div>';
+  await loadSongLibrary(groupId);
+  renderSongMgrList();
+  setTimeout(() => document.getElementById('songMgrInput').focus(), 80);
+}
+
+function closeSongMgr(evt) {
+  if (evt && evt.target !== document.getElementById('songMgrOverlay')) return;
+  document.getElementById('songMgrOverlay').classList.remove('open');
+  _songMgrGroupId = null;
+}
+
+function renderSongMgrList() {
+  const groupId = _songMgrGroupId;
+  if (groupId == null) return;
+  const lib  = songLibCache[groupId] || [];
+  const list = document.getElementById('songMgrList');
+  const count = document.getElementById('songMgrCount');
+  if (!list) return;
+
+  if (!lib.length) {
+    list.innerHTML = '<div class="song-mgr-empty">No songs in the library yet.<br>Add a song or heading above, or upload a document.</div>';
+    if (count) count.textContent = '0 songs';
+    return;
+  }
+
+  const songs = lib.filter(s => !s.isHeading).length;
+  const headings = lib.filter(s => s.isHeading).length;
+  if (count) count.textContent = `${lib.length} item${lib.length!==1?'s':''} (${songs} song${songs!==1?'s':''}, ${headings} heading${headings!==1?'s':''})`;
+
+  list.innerHTML = lib.map((s, idx) => `
+    <div class="song-mgr-item ${s.isHeading ? 'heading-item' : ''}"
+         draggable="true"
+         data-idx="${idx}"
+         data-id="${s.id}"
+         ondragstart="songMgrDragStart(event,${idx})"
+         ondragover="songMgrDragOver(event,${idx})"
+         ondragleave="songMgrDragLeave(event)"
+         ondrop="songMgrDrop(event,${idx})">
+      <span class="song-mgr-drag-handle" title="Drag to reorder">⠿</span>
+      <span class="song-mgr-item-title">${esc(s.songTitle)}</span>
+      <span class="song-mgr-item-type">${s.isHeading ? 'heading' : 'song'}</span>
+      <button class="song-mgr-item-del" onclick="songMgrDelete(${groupId},${s.id})" title="Remove">×</button>
+    </div>`
+  ).join('');
+}
+
+async function songMgrAddSong(isHeading) {
+  const groupId = _songMgrGroupId;
+  if (groupId == null) return;
+  const input = document.getElementById('songMgrInput');
+  const title = input ? input.value.trim() : '';
+  if (!title) { input && input.focus(); toast('Enter a title first.', true); return; }
+  const lib = songLibCache[groupId] || [];
+  const maxOrder = lib.length ? Math.max(...lib.map(s => s.sortOrder || 0)) : 0;
+  const res = await fetch('/api/worship/songs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+  });
+  if (!res.ok) { toast('Failed to add.', true); return; }
+  toast(isHeading ? 'Heading added!' : 'Song added!');
+  if (input) input.value = '';
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);   // updates chips in pivot table too
+  input && input.focus();
+  // Scroll list to bottom so new item is visible
+  const list = document.getElementById('songMgrList');
+  if (list) setTimeout(() => list.scrollTop = list.scrollHeight, 50);
+}
+
+async function songMgrDelete(groupId, songId) {
+  const res = await fetch(`/api/worship/songs/${songId}`, { method: 'DELETE' });
+  if (!res.ok) { toast('Failed to delete.', true); return; }
+  toast('Removed.');
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);
+}
+
+async function songMgrUpload(fileInput) {
+  const groupId = _songMgrGroupId;
+  if (groupId == null || !fileInput.files || !fileInput.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  formData.append('groupId', groupId);
+  const statusEl = document.getElementById('songMgrUploadStatus');
+  toast('Uploading…');
+  const res = await fetch('/api/worship/songs/upload', { method: 'POST', body: formData });
+  if (!res.ok) { toast('Upload failed.', true); fileInput.value = ''; return; }
+  toast('Library updated from document!');
+  fileInput.value = '';
+  await loadSongLibrary(groupId);
+  renderSongLibrary(groupId);
+}
+
+/* drag-to-reorder within manager list */
+function songMgrDragStart(event, idx) {
+  _songMgrDragIdx = idx;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', 'mgr-reorder');
+  event.currentTarget.style.opacity = '0.5';
+}
+
+function songMgrDragOver(event, idx) {
+  if (_songMgrDragIdx === null || _songMgrDragIdx === idx) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.song-mgr-item').forEach(el => el.classList.remove('drag-over-item'));
+  event.currentTarget.classList.add('drag-over-item');
+}
+
+function songMgrDragLeave(event) {
+  event.currentTarget.classList.remove('drag-over-item');
+}
+
+async function songMgrDrop(event, targetIdx) {
+  event.preventDefault();
+  document.querySelectorAll('.song-mgr-item').forEach(el => {
+    el.classList.remove('drag-over-item');
+    el.style.opacity = '';
+  });
+  const fromIdx = _songMgrDragIdx;
+  _songMgrDragIdx = null;
+  if (fromIdx === null || fromIdx === targetIdx) return;
+
+  const groupId = _songMgrGroupId;
+  if (groupId == null) return;
+
+  const lib = songLibCache[groupId] || [];
+  // Reorder locally
+  const item = lib.splice(fromIdx, 1)[0];
+  lib.splice(targetIdx, 0, item);
+
+  // Reassign sortOrder sequentially and persist
+  const updates = lib.map((s, i) => ({ id: s.id, sortOrder: i + 1 }));
+  songLibCache[groupId] = lib.map((s, i) => ({ ...s, sortOrder: i + 1 }));
+  renderSongMgrList();
+  renderSongLibrary(groupId);
+
+  // Persist new order to server (PUT /api/worship/songs/reorder expects [{id, sortOrder}])
+  try {
+    await fetch('/api/worship/songs/reorder', {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(updates)
+    });
+  } catch(e) { /* reorder is best-effort */ }
+}
+
+/* ────────────────────────────
+   SONG PANEL (per-week)
+──────────────────────────── */
+
+let autoSongCache = {};  // "groupId|date" -> [{id, songTitle, isHeading, sortOrder}]
+
+/* ════════════════════════════════════════════════
+   WEEK SONG MANAGER MODAL
+════════════════════════════════════════════════ */
+let _weekSongGroupId  = null;
+let _weekSongDateStr  = null;
+let _weekSongDragIdx  = null;
+
+async function openWeekSongMgr(groupId, dateStr) {
+  _weekSongGroupId = groupId;
+  _weekSongDateStr = dateStr;
+  const overlay = document.getElementById('weekSongMgrOverlay');
+  overlay.classList.add('open');
+  // Title: format date nicely
+  document.getElementById('weekSongMgrTitle').textContent = '🎵 Songs — ' + formatDate(dateStr);
+  document.getElementById('weekSongMgrInput').value = '';
+  document.getElementById('weekSongMgrList').innerHTML = '<div class="song-mgr-empty">Loading…</div>';
+  // Load library (for palette) and week songs in parallel
+  if (!songLibCache[groupId]) await loadSongLibrary(groupId);
+  renderWeekSongLibPalette();
+  await refreshWeekSongMgr();
+  setTimeout(() => document.getElementById('weekSongMgrInput').focus(), 80);
+}
+
+function closeWeekSongMgr(evt) {
+  if (evt && evt.target !== document.getElementById('weekSongMgrOverlay')) return;
+  document.getElementById('weekSongMgrOverlay').classList.remove('open');
+  _weekSongGroupId = null;
+  _weekSongDateStr = null;
+}
+
+function renderWeekSongLibPalette() {
+  const groupId = _weekSongGroupId;
+  if (groupId == null) return;
+  const lib = songLibCache[groupId] || [];
+  const palette = document.getElementById('weekSongMgrLibPalette');
+  const chips   = document.getElementById('weekSongMgrLibChips');
+  if (!palette || !chips) return;
+  if (!lib.length) { palette.style.display = 'none'; return; }
+  palette.style.display = 'block';
+  chips.innerHTML = '<span class="song-lib-palette-label">Library — click or drag to add:</span>' +
+    lib.map(s =>
+      `<span class="lib-chip ${s.isHeading ? 'lib-chip-heading' : ''}" draggable="true"
+        ondragstart="onLibChipDragStart(event,${groupId},'${esc(s.songTitle)}')"
+        onclick="weekSongMgrAddFromLib('${esc(s.songTitle)}',${s.isHeading ? 'true' : 'false'})"
+        title="Click to add">${esc(s.songTitle)}</span>`
+    ).join('');
+}
+
+async function refreshWeekSongMgr() {
+  const groupId = _weekSongGroupId;
+  const dateStr = _weekSongDateStr;
+  if (groupId == null || !dateStr) return;
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+  if (!res.ok) {
+    document.getElementById('weekSongMgrList').innerHTML = '<div class="song-mgr-empty" style="color:red">Failed to load songs.</div>';
+    return;
+  }
+  const songs = await res.json();
+  autoSongCache[`${groupId}|${dateStr}`] = songs;
+  renderWeekSongMgrList(songs);
+  renderInlineSongs(groupId, dateStr, songs);
+}
+
+function renderWeekSongMgrList(songs) {
+  const list  = document.getElementById('weekSongMgrList');
+  const count = document.getElementById('weekSongMgrCount');
+  if (!list) return;
+
+  // Always wire the list container as a drop zone for library chips
+  list.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; list.classList.add('drag-over-item'); };
+  list.ondragleave = () => list.classList.remove('drag-over-item');
+  list.ondrop = (e) => { list.classList.remove('drag-over-item'); weekSongMgrListDrop(e); };
+
+  if (!songs || songs.length === 0) {
+    list.innerHTML = '<div class="song-mgr-empty">No songs for this week yet.<br>Drag a song from the library above, or type one below.</div>';
+    if (count) count.textContent = '0 songs';
+    return;
+  }
+  const nSongs    = songs.filter(s => !s.isHeading).length;
+  const nHeadings = songs.filter(s =>  s.isHeading).length;
+  if (count) count.textContent = `${songs.length} item${songs.length!==1?'s':''} (${nSongs} song${nSongs!==1?'s':''}, ${nHeadings} heading${nHeadings!==1?'s':''})`;
+  list.innerHTML = songs.map((s, idx) => `
+    <div class="song-mgr-item ${s.isHeading ? 'heading-item' : ''}"
+         draggable="true" data-idx="${idx}" data-id="${s.id}"
+         ondragstart="weekSongMgrDragStart(event,${idx})"
+         ondragend="_weekSongDragIdx=null;this.style.opacity=''"
+         ondragover="weekSongMgrDragOver(event,${idx})"
+         ondragleave="weekSongMgrDragLeave(event)"
+         ondrop="weekSongMgrDrop(event,${idx})">
+      <span class="song-mgr-drag-handle" title="Drag to reorder">&#x2803;</span>
+      <span class="song-mgr-item-title">${esc(s.songTitle)}</span>
+      <span class="song-mgr-item-type">${s.isHeading ? 'heading' : 'song'}</span>
+      <button class="song-mgr-item-del" onclick="weekSongMgrDelete(${s.id})" title="Remove">&times;</button>
+    </div>`
+  ).join('');
+}
+
+async function weekSongMgrAdd(isHeading) {
+  const groupId = _weekSongGroupId;
+  const dateStr = _weekSongDateStr;
+  if (groupId == null || !dateStr) return;
+  const input = document.getElementById('weekSongMgrInput');
+  const title = input ? input.value.trim() : '';
+  if (!title) { input && input.focus(); toast('Enter a title first.', true); return; }
+  const cached = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const maxOrder = cached.length ? Math.max(...cached.map(s => s.sortOrder || 0)) : 0;
+  const res = await fetch('/api/worship/songs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+  });
+  if (!res.ok) { toast('Failed to add.', true); return; }
+  toast(isHeading ? 'Heading added!' : 'Song added!');
+  if (input) input.value = '';
+  delete autoSongCache[`${groupId}|${dateStr}`];
+  await refreshWeekSongMgr();
+  input && input.focus();
+  const list = document.getElementById('weekSongMgrList');
+  if (list) setTimeout(() => list.scrollTop = list.scrollHeight, 50);
+}
+
+async function weekSongMgrAddFromLib(title, isHeading) {
+  const groupId = _weekSongGroupId;
+  const dateStr = _weekSongDateStr;
+  if (groupId == null || !dateStr) return;
+  const cached = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const maxOrder = cached.length ? Math.max(...cached.map(s => s.sortOrder || 0)) : 0;
+  const res = await fetch('/api/worship/songs', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+  });
+  if (!res.ok) { toast('Failed to add.', true); return; }
+  toast('Added from library!');
+  delete autoSongCache[`${groupId}|${dateStr}`];
+  await refreshWeekSongMgr();
+}
+
+async function weekSongMgrDelete(songId) {
+  const groupId = _weekSongGroupId;
+  const dateStr = _weekSongDateStr;
+  if (groupId == null || !dateStr) return;
+  const res = await fetch(`/api/worship/songs/${songId}`, { method: 'DELETE' });
+  if (!res.ok) { toast('Failed to remove.', true); return; }
+  toast('Removed.');
+  delete autoSongCache[`${groupId}|${dateStr}`];
+  await refreshWeekSongMgr();
+}
+
+function weekSongMgrDragStart(event, idx) {
+  _weekSongDragIdx = idx;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'week-reorder', idx }));
+  event.currentTarget.style.opacity = '0.5';
+}
+
+function weekSongMgrDragOver(event, idx) {
+  event.preventDefault();
+  const isLib = _weekSongDragIdx === null;
+  event.dataTransfer.dropEffect = isLib ? 'copy' : 'move';
+  document.querySelectorAll('#weekSongMgrList .song-mgr-item').forEach(el => el.classList.remove('drag-over-item'));
+  if (!isLib && _weekSongDragIdx !== idx) event.currentTarget.classList.add('drag-over-item');
+}
+
+function weekSongMgrDragLeave(event) {
+  event.currentTarget.classList.remove('drag-over-item');
+}
+
+/* Drop on the empty list area (container-level) — handles library chip drops */
+async function weekSongMgrListDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (_weekSongDragIdx !== null) return;
+  let data;
+  try { data = JSON.parse(event.dataTransfer.getData('text/plain')); } catch(e) { return; }
+  if (data.type !== 'lib') return;
+  const lib = songLibCache[_weekSongGroupId] || [];
+  const libItem = lib.find(s => s.songTitle === data.title);
+  await weekSongMgrAddFromLib(data.title, libItem ? libItem.isHeading : false);
+}
+
+/* Drop on an existing row — handles library chip drops AND internal reorder */
+async function weekSongMgrDrop(event, targetIdx) {
+  event.preventDefault();
+  event.stopPropagation();
+  document.querySelectorAll('#weekSongMgrList .song-mgr-item').forEach(el => {
+    el.classList.remove('drag-over-item');
+    el.style.opacity = '';
+  });
+  let data;
+  try { data = JSON.parse(event.dataTransfer.getData('text/plain')); } catch(e) { data = {}; }
+  if (data.type === 'lib') {
+    _weekSongDragIdx = null;
+    const lib = songLibCache[_weekSongGroupId] || [];
+    const libItem = lib.find(s => s.songTitle === data.title);
+    await weekSongMgrAddFromLib(data.title, libItem ? libItem.isHeading : false);
+    return;
+  }
+  const fromIdx = _weekSongDragIdx;
+  _weekSongDragIdx = null;
+  if (fromIdx === null || fromIdx === targetIdx) return;
+  const groupId = _weekSongGroupId;
+  const dateStr = _weekSongDateStr;
+  if (groupId == null || !dateStr) return;
+  const songs = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const item = songs.splice(fromIdx, 1)[0];
+  songs.splice(targetIdx, 0, item);
+  const updates = songs.map((s, i) => ({ id: s.id, sortOrder: i + 1 }));
+  autoSongCache[`${groupId}|${dateStr}`] = songs.map((s, i) => ({ ...s, sortOrder: i + 1 }));
+  renderWeekSongMgrList(autoSongCache[`${groupId}|${dateStr}`]);
+  renderInlineSongs(groupId, dateStr, autoSongCache[`${groupId}|${dateStr}`]);
+  try {
+    await fetch('/api/worship/songs/reorder', {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(updates)
+    });
+  } catch(e) { /* best-effort */ }
+}
+
+/* keep toggleSongPanel for backward compat */
+async function toggleSongPanel(groupId, dateStr, btn) {
+  openWeekSongMgr(groupId, dateStr);
+}
+
+async function refreshSongPanel(groupId, dateStr, panel) {
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+  if (!res.ok) { panel.innerHTML = '<span style="color:red">Failed to load songs</span>'; return; }
+  const songs = await res.json();
+  autoSongCache[`${groupId}|${dateStr}`] = songs;
+  renderSongPanel(groupId, dateStr, panel, songs);
+  renderInlineSongs(groupId, dateStr, songs);
+}
+
+/* ════════════════════════════════════════════════
+   PAGE INIT
+════════════════════════════════════════════════ */
+(async function init() {
+  await loadGroups();
+  await loadFamilyMembers();
+})();
+
+/* ════════════════════════════════════════════════
+   MEMBER PORTAL HEADER INIT
+════════════════════════════════════════════════ */
+(async function initMemberHeader() {
+  try {
+    const res = await fetch('/api/session');
+    if (!res.ok) { window.location.replace('/login'); return; }
+    const sd = await res.json();
+    // Page is now reachable for any role with worship access (SuperAdmin,
+    // Admin, User, Accountant, Member). The backend route guard on
+    // /memberWorship already enforces who can be here — the client only
+    // needs to confirm there IS an authenticated session.
+    if (!sd.authenticated) { window.location.replace('/login'); return; }
+    // Hide the Member-portal-only "Back to Portal" link for non-Member roles
+    // so staff users don't end up on /memberHome (where they shouldn't be).
+    if (sd.role !== 'Member') {
+      var backBar = document.querySelector('.back-bar');
+      if (backBar) backBar.style.display = 'none';
+    }
+    const nameEl = document.getElementById('memberNameEl');
+    if (nameEl) {
+      const name = [sd.firstName, sd.lastName].filter(Boolean).join(' ');
+      nameEl.textContent = name ? 'Logged in as ' + name : '';
+    }
+    // Load church name
+    const churchName = sd.churchName || localStorage.getItem('churchName') || '';
+    const churchEl = document.getElementById('churchNameEl');
+    if (churchEl && churchName) churchEl.textContent = churchName;
+    // Load church logo
+    const iconEl = document.getElementById('topBarIcon');
+    if (iconEl) {
+      try {
+        const lr = await fetch('/api/logo/image');
+        if (lr.ok) {
+          const lb = await lr.blob();
+          const url = URL.createObjectURL(lb);
+          iconEl.innerHTML = `<img src="${url}" alt="logo" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">`;
+        }
+      } catch(e) {}
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

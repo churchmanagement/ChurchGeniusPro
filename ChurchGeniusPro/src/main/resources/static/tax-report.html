@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Year-End Tax Report — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;}
+    a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+    
+    /* Sidebar */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* Main */
+    
+    
+    
+    
+    
+    
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+    
+    /* Filter card */
+    .rpt-header{margin-bottom:20px;}
+    .rpt-title{font-size:22px;font-weight:700;color:#673147;}
+    .rpt-sub{font-size:13px;color:#888;margin-top:4px;}
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:20px 24px;margin-bottom:20px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;align-items:end;}
+    .form-grid .span2{grid-column:span 2;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.4px;}
+    .field input,.field select{width:100%;padding:10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;background:#fff;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;}
+    .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+    .field input:focus,.field select:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+
+    /* Contributor searchable combobox */
+    .combo-wrap{position:relative;}
+    .combo-input{width:100%;padding:10px 36px 10px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;color:#333;outline:none;transition:border-color .2s,box-shadow .2s;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat right 12px center;font-family:inherit;}
+    .combo-input::placeholder{color:#bbb;}
+    .combo-input:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.1);}
+    .combo-input.open{border-radius:7px 7px 0 0;border-bottom-color:transparent;}
+    .combo-dropdown{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #673147;border-top:none;border-radius:0 0 7px 7px;max-height:220px;overflow-y:auto;z-index:300;box-shadow:0 8px 20px rgba(0,0,0,.12);}
+    .combo-dropdown.open{display:block;}
+    .combo-option{padding:10px 13px;cursor:pointer;font-size:14px;color:#333;transition:background .12s;}
+    .combo-option.combo-section,.combo-section-header{padding:6px 13px 4px;font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;cursor:default;background:#fafafa;}
+    .combo-option:hover:not(.combo-section){background:#eef0fb;color:#673147;}
+    .combo-no-match{padding:10px 13px;font-size:13px;color:#bbb;font-style:italic;cursor:default;}
+    .filter-section-divider{width:100%;border:none;border-top:1px dashed #e0e0e0;margin:10px 0 4px;}
+    .btn-primary{padding:10px 22px;background:transparent;color:#673147;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;transition:background .18s,color .18s;border:none;}
+    .btn-primary:hover{background:#673147;color:#fff;}
+    .btn-pdf{padding:10px 18px;background:#43a047;color:#fff;border-radius:7px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+    .btn-pdf:hover{background:#2e7d32;}
+    .rpt-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .rpt-actions-title{font-size:15px;font-weight:700;color:#673147;}
+    .empty-msg{text-align:center;padding:32px;color:#bbb;font-size:13px;}
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
+
+    /* ── Letter-style report ──────────────────────────────── */
+    .letters-wrap{font-family:Georgia,'Times New Roman',serif;}
+    .letter-page{
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:4px;
+      padding:48px 56px;
+      margin-bottom:24px;
+      max-width:760px;
+      page-break-after: always;
+    }
+    .letter-page:last-child{page-break-after:auto;}
+    /* Church header */
+    .ltr-church-name{font-size:22px;font-weight:bold;text-align:center;color:#1a237e;letter-spacing:.5px;margin-bottom:4px;}
+    .ltr-church-sub{font-size: 13px;text-align:center;color:#555;margin-bottom:2px;}
+    .ltr-divider{border:none;border-top:2px solid #3949ab;margin:14px 0 18px;}
+    /* Statement heading */
+    .ltr-heading{font-size:14px;font-weight:bold;text-align:center;color:#1a237e;text-transform:uppercase;letter-spacing:1px;margin-bottom:18px;}
+    /* Two-column top: date left, member address right */
+    .ltr-top{display:flex;justify-content:space-between;gap:20px;margin-bottom:24px;}
+    .ltr-date{font-size:13px;color:#333;}
+    .ltr-address{font-size:13px;color:#333;text-align:left;}
+    .ltr-address strong{font-size:14px;display:block;margin-bottom:2px;}
+    /* Salutation + body */
+    .ltr-salutation{font-size:13px;margin-bottom:10px;color:#222;}
+    .ltr-body{font-size:13px;line-height:1.7;color:#444;margin-bottom:18px;}
+    /* Contribution table */
+    .ltr-table-wrap{margin:0 0 16px;}
+    table.ltr-tbl{width:100%;border-collapse:collapse;font-size:13px;font-family:inherit;}
+    table.ltr-tbl thead th{background:#e8eaf6;color:#1a237e;font-weight:bold;padding:8px 10px;text-align:left;border-bottom:2px solid #3949ab;font-size: 13px;text-transform:uppercase;letter-spacing:.4px;}
+    table.ltr-tbl tbody td{padding:7px 10px;border-bottom:1px solid #eee;color:#333;vertical-align:top;}
+    table.ltr-tbl tbody tr:nth-child(even) td{background:#fafafa;}
+    table.ltr-tbl tfoot td{padding:9px 10px;font-weight:bold;border-top:2px solid #3949ab;background:#e8eaf6;color:#1a237e;}
+    .ltr-tbl-amt{text-align:right;}
+    /* IRS disclaimer */
+    .ltr-disclaimer{font-size:11.5px;color:#555;border:1px solid #ddd;border-radius:4px;padding:10px 14px;background:#fafafa;line-height:1.6;margin-bottom:18px;}
+    /* Closing */
+    .ltr-closing{font-size:13px;color:#333;margin-bottom:24px;line-height:1.6;}
+    .ltr-sig-name{font-size:14px;font-weight:bold;color:#1a237e;border-top:1px solid #333;display:inline-block;padding-top:4px;margin-top:32px;min-width:220px;}
+    .ltr-sig-title{font-size: 13px;color:#666;margin-top:2px;}
+
+    @media print{
+      .sidebar,.topbar,.filter-card,.rpt-actions .btn-pdf{display:none!important;}
+      .page-content{padding:0!important;}
+      .letter-page{border:none;border-radius:0;padding:28px 36px;margin-bottom:0;box-shadow:none;}
+      .card{box-shadow:none;border-radius:0;}
+    }
+    @media(max-width:600px){
+      .card{padding:12px 10px;}
+      .form-grid{grid-template-columns:1fr;gap:10px;}
+      .form-grid .span2{grid-column:span 1;}
+      .btn-primary{width:100%;padding:12px;font-size:14px;}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="rpt-header">
+        <div class="rpt-title">📄 Year-End Tax Report</div>
+        <div class="rpt-sub">Annual giving statements. Select a year and optionally a specific member to generate individual contribution letters.</div>
+      </div>
+
+      <div class="card filter-card">
+        <div class="form-grid">
+          <div class="field">
+            <label>Financial Year</label>
+            <select id="yearSelect"></select>
+          </div>
+        </div>
+        <hr class="filter-section-divider"/>
+        <div class="form-grid" style="margin-top:6px;">
+          <div class="field">
+            <label>Contributor <span style="font-weight:400;text-transform:none;color:#aaa;">(optional — leave blank for all)</span></label>
+            <div class="combo-wrap">
+              <input type="text" id="contributorInput" class="combo-input"
+                     placeholder="Search member or guest contributor…"
+                     autocomplete="off"
+                     oninput="filterContributors()"
+                     onfocus="openContributorDd()"
+                     onblur="closeContributorDd()" />
+              <div class="combo-dropdown" id="contributorDropdown"></div>
+            </div>
+            <!-- hidden fields: memberId for members, guestName for guests -->
+            <input type="hidden" id="selectedMemberId" />
+            <input type="hidden" id="selectedGuestName" />
+          </div>
+          <div class="field span2">
+            <button class="btn-primary" onclick="generateReport()">Generate Report</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="reportCard" style="display:none;">
+        <div class="rpt-actions">
+          <div class="rpt-actions-title" id="reportYearLabel"></div>
+          <button class="btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
+        </div>
+        <div id="reportContent">
+          <div id="reportLetters"></div>
+        </div>
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════
+   CONTRIBUTOR COMBOBOX STATE
+══════════════════════════════════════════════ */
+let allContributors = []; // [{type:'member'|'guest', id, guestName, label}]
+let _ddMouseDown = false; // suppresses blur-close while pointer is inside the dropdown
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+(async function init(){
+  // Populate year dropdown: current year + 3 previous
+  const curYear = new Date().getFullYear();
+  const yearSel = document.getElementById('yearSelect');
+  for (let y = curYear; y >= curYear - 3; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y + (y === curYear ? ' (Current)' : '');
+    yearSel.appendChild(opt);
+  }
+
+  // Load both member contributors and guest contributors
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const [membersRes, guestsRes] = await Promise.all([
+      fetch(`/api/income/contributors?clientId=${encodeURIComponent(clientId)}`),
+      fetch(`/api/reports/contributors`)
+    ]);
+    const members = await membersRes.json();
+    const guests  = await guestsRes.json();
+
+    (members || []).forEach(m => {
+      const label = (m.lastName ? m.lastName + ', ' + m.firstName : m.firstName) || '';
+      allContributors.push({ type: 'member', id: m.id, guestName: null, label });
+    });
+    (guests || []).forEach(g => {
+      allContributors.push({ type: 'guest', id: null, guestName: g.guestName, label: g.name + ' (non-member)' });
+    });
+  } catch(e) { console.warn('Could not load contributors:', e); }
+
+  // Attach mousedown/mouseup guards to the dropdown so blur doesn't close it mid-click
+  const dd = document.getElementById('contributorDropdown');
+  dd.addEventListener('mousedown', () => { _ddMouseDown = true; });
+  dd.addEventListener('mouseup',   () => { _ddMouseDown = false; });
+})();
+
+/* ══════════════════════════════════════════════
+   COMBOBOX LOGIC
+══════════════════════════════════════════════ */
+function renderContributorDd(list) {
+  const dd = document.getElementById('contributorDropdown');
+  if (!list.length) {
+    dd.innerHTML = '<div class="combo-no-match">No matches found</div>';
+    return;
+  }
+  let html = '';
+  const hasMembers = list.some(c => c.type === 'member');
+  const hasGuests  = list.some(c => c.type === 'guest');
+  if (hasMembers && hasGuests) {
+    html += '<div class="combo-section-header">Church Members</div>';
+    list.filter(c => c.type === 'member').forEach(c => {
+      html += `<div class="combo-option" data-type="${escHtml(c.type)}" data-id="${escHtml(String(c.id ?? ''))}" data-guest="${escHtml(c.guestName ?? '')}" data-label="${escHtml(c.label)}">${escHtml(c.label)}</div>`;
+    });
+    html += '<div class="combo-section-header">Non-Members / Guests</div>';
+    list.filter(c => c.type === 'guest').forEach(c => {
+      html += `<div class="combo-option" data-type="${escHtml(c.type)}" data-id="" data-guest="${escHtml(c.guestName ?? '')}" data-label="${escHtml(c.label)}">${escHtml(c.label)}</div>`;
+    });
+  } else {
+    list.forEach(c => {
+      html += `<div class="combo-option" data-type="${escHtml(c.type)}" data-id="${escHtml(String(c.id ?? ''))}" data-guest="${escHtml(c.guestName ?? '')}" data-label="${escHtml(c.label)}">${escHtml(c.label)}</div>`;
+    });
+  }
+  dd.innerHTML = html;
+
+  // Attach click listeners (avoids inline onmousedown / JSON injection issues)
+  dd.querySelectorAll('.combo-option[data-type]').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault(); // prevent input blur
+      selectContributor(el.dataset.type, el.dataset.id || null, el.dataset.guest || null, el.dataset.label);
+    });
+  });
+}
+
+function openContributorDd() {
+  const q = document.getElementById('contributorInput').value.toLowerCase();
+  const filtered = q ? allContributors.filter(c => c.label.toLowerCase().includes(q)) : allContributors;
+  renderContributorDd(filtered);
+  document.getElementById('contributorDropdown').classList.add('open');
+  document.getElementById('contributorInput').classList.add('open');
+}
+
+function filterContributors() {
+  const q = document.getElementById('contributorInput').value.toLowerCase();
+  const filtered = allContributors.filter(c => c.label.toLowerCase().includes(q));
+  renderContributorDd(filtered);
+  document.getElementById('contributorDropdown').classList.add('open');
+  document.getElementById('contributorInput').classList.add('open');
+  // Clear selection while typing
+  document.getElementById('selectedMemberId').value = '';
+  document.getElementById('selectedGuestName').value = '';
+}
+
+function closeContributorDd() {
+  if (_ddMouseDown) return; // a click inside the dropdown is in progress — don't close yet
+  document.getElementById('contributorDropdown').classList.remove('open');
+  document.getElementById('contributorInput').classList.remove('open');
+}
+
+function selectContributor(type, id, guestName, label) {
+  document.getElementById('contributorInput').value = label;
+  document.getElementById('selectedMemberId').value  = (type === 'member' && id) ? id : '';
+  document.getElementById('selectedGuestName').value = (type === 'guest' && guestName) ? guestName : '';
+  document.getElementById('contributorDropdown').classList.remove('open');
+  document.getElementById('contributorInput').classList.remove('open');
+  _ddMouseDown = false;
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════════
+   CHURCH LOGO
+══════════════════════════════════════════════ */
+let churchLogoDataUrl = null;
+async function loadChurchLogo() {
+  try {
+    const res = await fetch('/api/logo/image');
+    if (!res.ok) return;
+    const blob = await res.blob();
+    await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onloadend = () => { churchLogoDataUrl = reader.result; resolve(); };
+      reader.onerror = () => resolve();
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { /* no logo — silently skip */ }
+}
+
+/* ══════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════ */
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(s){
+  if(!s) return '';
+  const[y,m,d]=s.split('-');
+  const M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return`${M[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
+}
+function fmtDateShort(s){
+  if(!s) return '';
+  const[y,m,d]=s.split('-');
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return`${M[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
+}
+function today(){
+  return fmtDate(new Date().toISOString().slice(0,10));
+}
+
+/* ══════════════════════════════════════════════
+   GENERATE REPORT
+══════════════════════════════════════════════ */
+async function generateReport(){
+  const year      = document.getElementById('yearSelect').value;
+  const memberId  = document.getElementById('selectedMemberId').value;
+  const guestName = document.getElementById('selectedGuestName').value;
+  const clientId  = localStorage.getItem('clientId') || '';
+
+  let url = `/api/reports/tax?year=${year}&clientId=${encodeURIComponent(clientId)}`;
+  if (memberId)  url += `&memberId=${encodeURIComponent(memberId)}`;
+  if (guestName) url += `&guestName=${encodeURIComponent(guestName)}`;
+
+  try {
+    await loadChurchLogo();
+    const res = await fetch(url);
+    const label = document.getElementById('contributorInput').value.trim() || 'All Contributors';
+    renderReport(await res.json(), year, label);
+  } catch(e) { alert('Failed to load report.'); console.error(e); }
+}
+
+/* ══════════════════════════════════════════════
+   RENDER LETTER-STYLE REPORT
+══════════════════════════════════════════════ */
+function renderReport(data, year, selectedLabel) {
+  const members = data.members || [];
+  document.getElementById('reportYearLabel').textContent =
+    `Year-End Tax Report · ${year} · ${selectedLabel}`;
+
+  if (!members.length) {
+    document.getElementById('reportLetters').innerHTML =
+      '<div class="empty-msg">No giving records found for this selection.</div>';
+    document.getElementById('reportCard').style.display = '';
+    return;
+  }
+
+  const churchName = esc(data.churchName || localStorage.getItem('churchName') || '');
+  const logoHtml = churchLogoDataUrl
+    ? `<div style="text-align:center;margin-bottom:14px;"><img src="${churchLogoDataUrl}" alt="Church Logo" style="max-height:90px;max-width:220px;object-fit:contain;" /></div>`
+    : '';
+  const todayStr = today();
+  let html = '<div class="letters-wrap">';
+
+  members.forEach(m => {
+    // For guests: firstName holds the full guestName, lastName is empty
+    const firstName   = esc(m.firstName || '');
+    const lastName    = esc(m.lastName  || '');
+    const displayName = lastName ? `${firstName} ${lastName}`.trim() : firstName;
+    const addr1       = esc(m.address1 || '');
+    const addr2       = esc(m.address2 || '');
+    const city        = esc(m.city     || '');
+    const state       = esc(m.state    || '');
+    const pin         = esc(m.pinCode  || '');
+    const cityLine    = [city, state, pin].filter(Boolean).join(', ');
+    const memberTotal = Number(m.memberTotal || 0);
+    const entries     = m.entries || [];
+    const hasDates    = entries.length > 0;
+
+    // Address block
+    let addrHtml = `<strong>${displayName}</strong>`;
+    if (addr1) addrHtml += `<br>${addr1}`;
+    if (addr2) addrHtml += `<br>${addr2}`;
+    if (cityLine) addrHtml += `<br>${cityLine}`;
+
+    // Contribution rows
+    let tRows = '';
+    if (hasDates) {
+      entries.forEach(e => {
+        tRows += `<tr>
+          <td>${esc(fmtDateShort(e.date))}</td>
+          <td>${esc(e.subCategory || e.mainCategory || '')}</td>
+          <td class="ltr-tbl-amt">${fmt(e.amount)}</td>
+          <td>${esc(e.method || '')}</td>
+        </tr>`;
+      });
+    } else {
+      (m.contributions || []).forEach(c => {
+        tRows += `<tr>
+          <td colspan="2">${esc(c.subCategory || c.mainCategory || '')}</td>
+          <td class="ltr-tbl-amt">${fmt(c.total)}</td>
+          <td></td>
+        </tr>`;
+      });
+    }
+
+    // Salutation: use first name if available, else full guest name
+    const salutationName = firstName || displayName;
+
+    html += `
+    <div class="letter-page">
+      ${logoHtml}<div class="ltr-church-name">${churchName}</div>
+      <hr class="ltr-divider"/>
+      <div class="ltr-heading">Year-End Giving Summary — Tax Year ${year}</div>
+      <div class="ltr-top">
+        <div class="ltr-date">${todayStr}</div>
+        <div class="ltr-address">${addrHtml}</div>
+      </div>
+      <p class="ltr-salutation">Dear ${salutationName},</p>
+      <p class="ltr-body">
+        Thank you for your faithful giving and generous support to <strong>${churchName}</strong>
+        during the <strong>${year}</strong> calendar year. This letter serves as your official
+        charitable contribution statement for income tax purposes.
+      </p>
+      <div class="ltr-table-wrap">
+        <table class="ltr-tbl">
+          <thead><tr>
+            <th style="width:18%">Date</th>
+            <th>Category</th>
+            <th class="ltr-tbl-amt" style="width:16%">Amount</th>
+            <th style="width:14%">Method</th>
+          </tr></thead>
+          <tbody>${tRows}</tbody>
+          <tfoot><tr>
+            <td colspan="2">Total Contributions — ${year}</td>
+            <td class="ltr-tbl-amt">${fmt(memberTotal)}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="ltr-disclaimer">
+        <strong>Important Tax Notice:</strong> No goods or services were provided to you in
+        exchange for these contributions. This statement is provided in accordance with IRS
+        requirements for charitable contributions. Please retain this letter for your tax records.
+        We recommend consulting a qualified tax professional for guidance on deductibility.
+      </div>
+      <p class="ltr-closing">
+        We are truly grateful for your partnership and continued support of our ministry.
+        Your generosity makes a meaningful difference in our congregation and community.
+        May God bless you abundantly for your faithfulness.
+      </p>
+      <p class="ltr-closing">Sincerely,</p>
+      <div class="ltr-sig-name">${churchName}</div>
+      <div class="ltr-sig-title">Finance Department</div>
+    </div>`;
+  });
+
+  html += '</div>';
+  document.getElementById('reportLetters').innerHTML = html;
+  document.getElementById('reportCard').style.display = '';
+}
+
+/* ══════════════════════════════════════════════
+   PDF DOWNLOAD
+══════════════════════════════════════════════ */
+function downloadPDF(){
+  const year   = document.getElementById('yearSelect').value;
+  const label  = document.getElementById('contributorInput').value.trim();
+  const suffix = label ? `-${label.replace(/[^a-z0-9]/gi,'-').toLowerCase()}` : '-all';
+  const el     = document.getElementById('reportContent');
+  html2pdf().set({
+    margin: [12,12,12,12],
+    filename: `tax-report-${year}${suffix}.pdf`,
+    image: { type:'jpeg', quality:0.98 },
+    html2canvas: { scale:2, useCORS:true, letterRendering:true },
+    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' }
+  }).from(el).save();
+}
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'accounting/tax-report', pageTitle: '', openSection: 'accounting' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

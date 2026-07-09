@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Families</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .btn-add {
+      padding: 10px 22px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-add:hover { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Toolbar ─────────────────────────────────────────── */
+    .toolbar {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: #fff; padding: 14px 18px; margin-bottom: 14px;
+      border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .toolbar-search {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1.5px solid #e0e0e0;
+      border-radius: 22px; padding: 8px 16px; flex: 1; min-width: 200px;
+    }
+    .toolbar-search input {
+      border: none; background: none; outline: none;
+      font-size: 14px; color: #333; width: 100%;
+    }
+    .toolbar-search input::placeholder { color: #bbb; }
+    .search-icon-sm { color: #bbb; font-size: 15px; flex-shrink: 0; }
+    .toolbar-filters { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .fam-filter-chk { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap; }
+    .fam-filter-chk input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+    .chk-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .chk-item input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+    .toolbar-pagesize { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; white-space: nowrap; }
+    .toolbar-pagesize select {
+      padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 13px; outline: none; color: #333; background: #fff; cursor: pointer;
+    }
+    .toolbar-pagesize select:focus { border-color: #673147; }
+
+    /* ── Bulk bar ─────────────────────────────────────────── */
+    .bulk-bar {
+      display: none; align-items: center; gap: 12px;
+      background: #eef1fb; border: 1px solid #c5cae9;
+      border-radius: 8px; padding: 10px 18px; margin-bottom: 14px;
+    }
+    .bulk-bar.visible { display: flex; }
+    .bulk-count { font-size: 13px; font-weight: 600; color: #3949ab; flex: 1; }
+    .btn-bulk-inactive {
+      padding: 8px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      background: #fb8c00; cursor: pointer; transition: background .18s;
+    }
+    .btn-bulk-inactive:hover { background: #e65100; }
+    .btn-bulk-delete {
+      padding: 8px 18px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      background: #e53935; cursor: pointer; transition: background .18s;
+    }
+    .btn-bulk-delete:hover { background: #c62828; }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+
+    /* ── Table ───────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    .family-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .family-table th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .family-table td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .family-table tr:last-child td { border-bottom: none; }
+    .family-table tr:hover td { background: #fafbff; }
+    .family-table tr.row-deleted  td { opacity: .55; }
+    .family-table tr.row-inactive td { opacity: .70; }
+    .family-table input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+
+    /* ── Photo cell ──────────────────────────────────────── */
+    .family-photo {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: #e8eaf6;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; overflow: hidden; flex-shrink: 0;
+    }
+    .family-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ── Name link ───────────────────────────────────────── */
+    .family-name-link {
+      color: #3949ab; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: color .18s;
+    }
+    .family-name-link:hover { color: #1a237e; text-decoration: underline; }
+    .family-name-link.deleted-name { color: #aaa; text-decoration: line-through; }
+
+    /* ── Status badges ───────────────────────────────────── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-active   { background: #e8f5e9; color: #2e7d32; }
+    .badge-inactive { background: #fff3e0; color: #e65100; }
+    .badge-deleted  { background: #ffebee; color: #c62828; }
+
+    /* ── Row actions ─────────────────────────────────────── */
+    .actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit    { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-edit:hover    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-members {
+      background: transparent; color: #673147; border-color: #c5a0b5;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 4px 8px; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-members:hover { background: #673147; color: #fff; border-color: #673147; }
+    .btn-members svg  { display: block; flex-shrink: 0; fill: currentColor; }
+    .btn-delete  { background: transparent; color: #673147; border-color: #c5a0b5; }
+    .btn-delete:hover  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-restore { background: #673147; color: #fff; border-color: #673147; }
+    .btn-restore:hover { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Sort icon ───────────────────────────────────────── */
+    .sort-icon { display:inline-flex; flex-direction:column; gap:1px; vertical-align:middle; margin-left:5px; }
+    .sort-icon .sa, .sort-icon .sd { display:block; width:0; height:0; }
+    .sort-icon .sa { border-left:4px solid transparent; border-right:4px solid transparent; border-bottom:5px solid currentColor; opacity:.28; }
+    .sort-icon .sd { border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid currentColor;    opacity:.28; }
+    .sort-icon.asc  .sa { opacity:1; }
+    .sort-icon.desc .sd { opacity:1; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+
+    /* ── Load More ───────────────────────────────────────────── */
+    .btn-load-more { background:transparent;color:#673147;border:none;padding:8px 28px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s,color .2s; }
+    .btn-load-more:hover { background:#673147;color:#fff; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    /* ── Members Modal ───────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.42); z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.22);
+      width: 860px; max-width: calc(100vw - 48px);
+      max-height: 80vh; display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      background: #673147; flex-shrink: 0;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .modal-close {
+      font-size: 20px; color: rgba(255,255,255,.8); cursor: pointer;
+      line-height: 1; padding: 2px 6px; border-radius: 4px;
+      transition: background .18s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.18); color: #fff; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 0; }
+    .modal-members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .modal-members-table tr.member-inactive td { opacity: .55; font-style: italic; }
+    .modal-members-table tr.member-deleted  td { opacity: .40; text-decoration: line-through; color: #888; }
+    .member-filter-bar {
+      display: flex; align-items: center; gap: 18px;
+      padding: 8px 16px; background: #fdf5f7;
+      border-bottom: 1px solid #eee; font-size: 13px; flex-shrink: 0;
+    }
+    .member-filter-bar label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: #555; font-weight: 500; }
+    .member-filter-bar input[type="checkbox"]:not(.toggle-checkbox) { accent-color: #673147; width: 14px; height: 14px; cursor: pointer; }
+    .member-count-label { margin-left: auto; font-size: 12px; color: #aaa; }
+    .modal-members-table th {
+      text-align: left; padding: 10px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; background: #fafafa;
+      position: sticky; top: 0;
+    }
+    .modal-members-table td { padding: 11px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .modal-members-table tr:last-child td { border-bottom: none; }
+    .modal-members-table tr:hover td { background: #fafbff; }
+    .modal-empty { text-align: center; padding: 36px; color: #bbb; font-size: 13px; }
+    .modal-footer {
+      padding: 12px 24px; border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: flex-end; flex-shrink: 0;
+    }
+    .btn-modal-close {
+      padding: 9px 26px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+    }
+    .btn-modal-close:hover { background: #4a5aae; }
+    .role-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .role-primary     { background: #e8eaf6; color: #673147; }
+    .role-wife        { background: #fce4ec; color: #c2185b; }
+    .role-son         { background: #e3f2fd; color: #1565c0; }
+    .role-daughter    { background: #f3e5f5; color: #6a1b9a; }
+    .role-father      { background: #e8f5e9; color: #2e7d32; }
+    .role-mother      { background: #fff3e0; color: #e65100; }
+    .role-motherinlaw { background: #fbe9e7; color: #bf360c; }
+    .role-fatherinlaw { background: #e0f2f1; color: #00695c; }
+
+    /* ── Expand/Collapse sub-row ── */
+    .btn-expand { font-size: 15px; font-weight: 700; color: #673147; border: 1px solid #c5cae9; border-radius: 4px; padding: 1px 7px; background: none; cursor: pointer; transition: background .15s; line-height: 1.4; }
+    .btn-expand:hover { background: #eef0f8; }
+    .sub-row > td { padding: 0 !important; border-bottom: 2px solid #e0e3f0; }
+    .sub-row-inner { background: #f4f6ff; padding: 14px 20px; }
+    .sub-row-members-label { font-size: 11px; font-weight: 700; color: #673147; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+    .sub-row-table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid #dde1f0; }
+    .sub-row-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    .sub-row-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #7986cb; padding: 8px 12px; border-bottom: 1px solid #dde1f0; background: #eef0fb; text-align: left; vertical-align: top; }
+    .sub-row-table td { padding: 10px 12px; border-bottom: 1px solid #ebeef8; color: #444; background: #fff; text-align: left; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sub-row-table tr:last-child td { border-bottom: none; }
+    .sub-row-table tr:hover td { background: #f7f8ff; }
+
+    /* ── Member Search ── */
+    .member-search-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; margin-bottom: 18px; }
+    .member-search-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: #fafbfd; border-bottom: 1px solid #f0f0f0; cursor: pointer; user-select: none; }
+    .member-search-header:hover { background: #f0f2fb; }
+    .member-search-header h4 { font-size: 14px; font-weight: 600; color: #673147; display: flex; align-items: center; gap: 10px; }
+    .ms-toggle { font-size: 17px; font-weight: 700; color: #673147; border: 1.5px solid #c5cae9; border-radius: 5px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+    .member-search-header:hover .ms-toggle { background: #e8eaf6; }
+    .member-search-body { padding: 16px 18px; display: none; }
+    .member-search-body.open { display: block; }
+    .member-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+    .mf-field { display: flex; flex-direction: column; gap: 4px; }
+    .mf-field label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
+    .mf-field input, .mf-field select { border: 1px solid #ddd; border-radius: 7px; padding: 7px 10px; font-size: 13px; color: #333; outline: none; min-width: 140px; }
+    .mf-field input:focus, .mf-field select:focus { border-color: #673147; }
+    .mf-checkboxes { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding-bottom: 2px; }
+    .mf-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap; }
+    .mf-chk input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+    .btn-member-clear { background: none; border: 1px solid #ddd; border-radius: 7px; padding: 7px 14px; font-size: 13px; color: #666; cursor: pointer; align-self: flex-end; }
+    .btn-member-clear:hover { background: #f5f5f5; }
+    .member-results-wrap { display: none; margin-top: 10px; }
+    .member-results-wrap.has-results { display: block; }
+    .member-results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .member-results-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888; padding: 8px 12px; background: #f5f6fa; border-bottom: 2px solid #e8eaf0; }
+    .member-results-table td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+    .member-results-table tr:last-child td { border-bottom: none; }
+    .member-results-table tr:hover td { background: #fafbff; }
+    .badge-deleted-m { background: #ffebee; color: #c62828; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 8px; margin-left: 4px; }
+
+    /* ── Bulk Report Button ── */
+    .btn-bulk-report { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #fff; background: #673147; cursor: pointer; transition: background .18s; }
+    .btn-bulk-report:hover { background: #3f4568; }
+
+    /* ── Toggle Checkbox ─────────────────────────────── */
+    .toggle-checkbox { appearance: none; -webkit-appearance: none; position: relative;
+      width: 36px; height: 20px; border-radius: 10px; background: #ccc;
+      cursor: pointer; flex-shrink: 0; transition: background .22s;
+      vertical-align: middle; }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after { content: ''; position: absolute;
+      top: 2px; left: 2px; width: 16px; height: 16px;
+      border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+      transition: left .22s; }
+    .toggle-checkbox:checked::after { left: 18px; }
+    .toggle-label { font-size: 13px; color: #555; font-weight: 500;
+      cursor: pointer; user-select: none; white-space: nowrap;
+      vertical-align: middle; margin-left: 4px; }
+
+    /* ── Toggle Checkbox (matches event-register style) ─ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-checkbox {
+      width: 40px; height: 22px; background: #c5cae9; border-radius: 11px;
+      position: relative; transition: background .2s; flex-shrink: 0;
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+    }
+    .toggle-checkbox:checked { background: #673147; }
+    .toggle-checkbox::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle-checkbox:checked::after { left: 21px; }
+    .toggle-label { font-size: 13px; color: #555; user-select: none; white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Families</div>
+          <div class="page-subtitle">Manage church family groups</div>
+        </div>
+        <button class="btn-add" onclick="window.location.href='/family'">＋ Add Family</button>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Member Search Card ──────────────────────────── -->
+      <div class="member-search-card" id="memberSearchCard">
+        <div class="member-search-header" onclick="toggleMemberSearch()">
+          <h4><span class="ms-toggle" id="msToggle">+</span> 🔍 Member Search</h4>
+          <span style="font-size: 13px;color:#aaa;" id="memberSearchCount"></span>
+        </div>
+        <div class="member-search-body" id="memberSearchBody">
+          <div class="member-filters">
+            <div class="mf-field">
+              <label>Name</label>
+              <input type="text" id="mfName" placeholder="First or last name…" oninput="onMemberFilterChange()" />
+            </div>
+            <div class="mf-field">
+              <label>Role</label>
+              <select id="mfRole" onchange="onMemberFilterChange()">
+                <option value="">All Roles</option>
+                <option>Head of Household</option><option>Spouse</option><option>Child</option>
+                <option>Adult</option>
+              </select>
+            </div>
+            <div class="mf-field">
+              <label>Member Type</label>
+              <select id="mfType" onchange="onMemberFilterChange()">
+                <option value="">All Types</option>
+                <option>Member</option><option>Guest</option><option>Visitor</option>
+              </select>
+            </div>
+            <div class="mf-field">
+              <label>Phone</label>
+              <input type="text" id="mfPhone" placeholder="Phone number…" oninput="onMemberFilterChange()" />
+            </div>
+            <div class="mf-field">
+              <label>Email</label>
+              <input type="text" id="mfEmail" placeholder="Email address…" oninput="onMemberFilterChange()" />
+            </div>
+            <div class="mf-checkboxes">
+              <label class="mf-chk toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="mfShowDeleted" onchange="onMemberFilterChange()" />
+                <span class="toggle-label">Show Deleted</span>
+              </label>
+              <label class="mf-chk toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="mfShowInactive" onchange="onMemberFilterChange()" />
+                <span class="toggle-label">Show Inactive</span>
+              </label>
+              <label class="mf-chk toggle-row">
+                <input type="checkbox" class="toggle-checkbox" id="mfIncludeContrib" onchange="onMemberFilterChange()" />
+                <span class="toggle-label">Include in Contributions</span>
+              </label>
+            </div>
+            <button class="btn-member-clear" onclick="clearMemberSearch()">Clear</button>
+          </div>
+          <div class="member-results-wrap" id="memberResultsWrap">
+            <div style="overflow-x:auto;">
+              <table class="member-results-table">
+                <thead>
+                  <tr>
+                    <th>Name</th><th>Role</th><th>Type</th><th>Family</th><th>Phone</th><th>Email</th>
+                  </tr>
+                </thead>
+                <tbody id="memberSearchResults"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Toolbar ──────────────────────────────────────── -->
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <span class="search-icon-sm">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by family name…" oninput="onSearch()" />
+        </div>
+        <div class="toolbar-filters">
+          <label class="fam-filter-chk toggle-row">
+            <input type="checkbox" class="toggle-checkbox" id="filterDeleted" onchange="loadFamilies()" />
+            <span class="toggle-label">Deleted</span>
+          </label>
+          <label class="fam-filter-chk toggle-row">
+            <input type="checkbox" class="toggle-checkbox" id="filterInactive" onchange="loadFamilies()" />
+            <span class="toggle-label">Inactive</span>
+          </label>
+          <label class="fam-filter-chk toggle-row">
+            <input type="checkbox" class="toggle-checkbox" id="filterUnalert" onchange="loadFamilies()" />
+            <span class="toggle-label">Unalert</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- ── Bulk Action Bar ──────────────────────────────── -->
+      <div class="bulk-bar" id="bulkBar">
+        <span class="bulk-count" id="bulkCount">0 selected</span>
+        <button class="btn-bulk-inactive" onclick="bulkInactive()">Mark Inactive</button>
+        <button class="btn-bulk-delete"   onclick="bulkDelete()">Delete Selected</button>
+        <button class="btn-bulk-report" onclick="bulkFamilyReport()">📄 Family Report</button>
+      </div>
+
+      <!-- ── Table Card ──────────────────────────────────── -->
+      <div class="card">
+        <div class="table-wrap">
+          <table class="family-table">
+            <thead>
+              <tr>
+                <th style="width:36px;">
+                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" title="Select / deselect all on this page" />
+                </th>
+                <th style="width:56px;">Photo</th>
+                <th id="thPrimary" style="cursor:pointer;user-select:none;white-space:nowrap;" onclick="togglePrimarySort()" title="Sort by name">Primary <span id="primarySortArrow" class="sort-icon asc"><i class="sa"></i><i class="sd"></i></span></th>
+                <th style="width:96px; text-align:center;">Members</th>
+                <th style="width:96px;">Status</th>
+                <th style="width:200px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="familyTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Load More -->
+        <div id="familyLoadMoreWrap" style="text-align:center;padding:16px 0;display:none;">
+          <button class="btn-load-more" onclick="loadMoreFamilies()">Load More</button>
+        </div>
+        <div style="text-align:center;padding:4px 0 12px;font-size:12px;color:#aaa;" id="familyCountInfo"></div>
+      </div>
+
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ════════════ MEMBERS MODAL ════════════ -->
+<div class="modal-overlay" id="membersModal" onclick="onModalOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Family Members</span>
+      <button class="modal-close" onclick="closeMembersModal()" title="Close">✕</button>
+    </div>
+    <div class="member-filter-bar">
+      <label class="toggle-row">
+        <input type="checkbox" class="toggle-checkbox" id="mFilterInactive" onchange="applyMemberFilter()" />
+        <span class="toggle-label">Show Inactive</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" class="toggle-checkbox" id="mFilterDeleted" onchange="applyMemberFilter()" />
+        <span class="toggle-label">Show Deleted</span>
+      </label>
+      <span class="member-count-label" id="memberCountLabel"></span>
+    </div>
+    <div class="modal-body">
+      <table class="modal-members-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Type</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody id="modalMembersBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-close" onclick="closeMembersModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU — mirrors home.html
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allFamilies = [];   // families loaded so far (grows as user pages)
+  let totalFamilies = 0;  // total matching families on the server
+  let currentPage = 0;    // next page to fetch (0-based)
+  const PAGE_SIZE = 10;   // families per server request / Load More batch size
+  let selectedIds = new Set();
+  let searchTimer = null;
+  const expandedFamilies = new Set();
+  let primarySort = 'asc'; // 'asc' | 'desc'
+
+  function sortFamilies() {
+    allFamilies.sort((a, b) => {
+      const na = ((a.primaryFirstName || '') + ' ' + (a.primaryLastName || '')).trim().toLowerCase()
+              || (a.familyName || '').toLowerCase();
+      const nb = ((b.primaryFirstName || '') + ' ' + (b.primaryLastName || '')).trim().toLowerCase()
+              || (b.familyName || '').toLowerCase();
+      return primarySort === 'asc' ? na.localeCompare(nb) : nb.localeCompare(na);
+    });
+  }
+
+  function togglePrimarySort() {
+    primarySort = primarySort === 'asc' ? 'desc' : 'asc';
+    const arrow = document.getElementById('primarySortArrow');
+    if (arrow) { arrow.classList.remove('asc','desc'); arrow.classList.add(primarySort); }
+    // Re-fetch from page 0 so the server-sorted results respect the new direction.
+    // (Server always returns asc; client reverses if desc.)
+    allFamilies = [];
+    currentPage = 0;
+    totalFamilies = 0;
+    loadFamilies();
+  }
+
+  /** Lookup map: id → family object (avoids escaping issues in onclick) */
+  const familyMap = {};
+
+  /* ════════════════════════════════════
+     LOAD FROM API
+  ════════════════════════════════════ */
+  async function loadFamilies() {
+    const search       = document.getElementById('searchInput').value.trim();
+    const showDeleted  = document.getElementById('filterDeleted')?.checked  || false;
+    const showInactive = document.getElementById('filterInactive')?.checked || false;
+    const showUnalert  = document.getElementById('filterUnalert')?.checked  || false;
+
+    // Reset state for a fresh load
+    allFamilies   = [];
+    totalFamilies = 0;
+    currentPage   = 0;
+
+    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, 0);
+
+    /* rebuild lookup map */
+    Object.keys(familyMap).forEach(k => delete familyMap[k]);
+    allFamilies.forEach(f => { familyMap[f.id] = f; });
+
+    selectedIds.clear();
+    render();
+  }
+
+  /**
+   * Fetches one page from /api/families and appends results to allFamilies.
+   * Returns true if there are more pages available.
+   */
+  async function fetchFamilyPage(search, showDeleted, showInactive, page) {
+    const params = new URLSearchParams({
+      search,
+      showDeleted,
+      showInactive,
+      page,
+      pageSize: PAGE_SIZE
+    });
+    try {
+      const res = await fetch(`/api/families?${params}`);
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      totalFamilies = (typeof data.total === 'number') ? data.total : items.length;
+      // Apply client-side sort direction (server returns asc; client reverses for desc)
+      if (primarySort === 'desc') items.reverse();
+      allFamilies = allFamilies.concat(items);
+      currentPage = page + 1;
+      return allFamilies.length < totalFamilies;
+    } catch {
+      showFeedback('❌ Failed to load families from the server.', 'error');
+      return false;
+    }
+  }
+
+  /* ════════════════════════════════════
+     RENDER
+  ════════════════════════════════════ */
+  function render() {
+    renderTableWithLoadMore();
+    updateBulkBar();
+    document.getElementById('selectAll').checked = false;
+  }
+
+  function renderTableWithLoadMore() {
+    const tbody = document.getElementById('familyTableBody');
+
+    // update count info
+    const infoEl = document.getElementById('familyCountInfo');
+    if (infoEl) {
+      infoEl.textContent = totalFamilies === 0
+        ? ''
+        : `Showing ${allFamilies.length} of ${totalFamilies} famil${totalFamilies === 1 ? 'y' : 'ies'}`;
+    }
+
+    // show/hide Load More
+    const wrap = document.getElementById('familyLoadMoreWrap');
+    if (wrap) wrap.style.display = allFamilies.length < totalFamilies ? 'block' : 'none';
+
+    if (allFamilies.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="empty-state">
+            <div class="empty-icon">👨‍👩‍👧‍👦</div>
+            <div class="empty-text">No families found. Use the filters above or add a new family.</div>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allFamilies.map(f => {
+      const checked   = selectedIds.has(f.id);
+      const canSelect = !f.inactive && !f.deleted;
+
+      /* status badge */
+      const badge = f.deleted
+        ? `<span class="badge badge-deleted">Deleted</span>`
+        : f.inactive
+          ? `<span class="badge badge-inactive">Inactive</span>`
+          : `<span class="badge badge-active">Active</span>`;
+
+      return `
+        <tr class="${f.deleted ? 'row-deleted' : ''}">
+          <td>
+            ${canSelect
+              ? `<input type="checkbox" ${checked ? 'checked' : ''} onchange="onRowCheck(${f.id}, this.checked)" />`
+              : `<input type="checkbox" style="visibility:hidden;" disabled />`}
+          </td>
+          <td>
+            <div class="family-photo">
+              ${f.primaryPhotoData
+                ? `<img src="${f.primaryPhotoData}" alt="photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+                : '👪'}
+            </div>
+          </td>
+          <td>
+            <a class="family-name-link" href="#"
+               onclick="event.preventDefault(); postNavigate('/family', {id:${f.id}, mode:'view'})">${escHtml(((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || f.familyName)}</a>
+          </td>
+          <td style="text-align:center;">${f.memberCount}</td>
+          <td>${badge}</td>
+          <td>
+            <div class="actions">
+              ${window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false ? '' :
+                `<button class="btn-action btn-edit"
+                      onclick="postNavigate('/family', {id:${f.id}, mode:'edit'})" title="Edit">📝</button>`}
+              <button class="btn-action btn-members"
+                      onclick="showMembers(${f.id})" title="View Members">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function loadMoreFamilies() {
+    const search       = document.getElementById('searchInput').value.trim();
+    const showDeleted  = document.getElementById('filterDeleted')?.checked  || false;
+    const showInactive = document.getElementById('filterInactive')?.checked || false;
+    const showUnalert  = document.getElementById('filterUnalert')?.checked  || false;
+
+    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, currentPage);
+
+    // Update the lookup map with newly loaded families
+    allFamilies.forEach(f => { familyMap[f.id] = f; });
+
+    renderTableWithLoadMore();
+    updateBulkBar();
+  }
+
+  /* ════════════════════════════════════
+     SEARCH (debounced 350 ms)
+  ════════════════════════════════════ */
+  function onSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadFamilies, 350);
+  }
+
+  function onPageSizeChange() {
+    // Page size is now controlled server-side (PAGE_SIZE constant).
+    // This dropdown is kept for UI consistency but triggers a fresh load.
+    loadFamilies();
+  }
+
+  /* ════════════════════════════════════
+     ROW CHECKBOXES
+  ════════════════════════════════════ */
+  function onRowCheck(id, checked) {
+    if (checked) selectedIds.add(id);
+    else         selectedIds.delete(id);
+    updateBulkBar();
+  }
+
+  function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    allFamilies.forEach(f => {
+      if (checked) selectedIds.add(f.id);
+      else         selectedIds.delete(f.id);
+    });
+    renderTableWithLoadMore();
+    updateBulkBar();
+    document.getElementById('selectAll').checked = checked;
+  }
+
+  function updateBulkBar() {
+    const count = selectedIds.size;
+    document.getElementById('bulkBar').classList.toggle('visible', count > 0);
+    document.getElementById('bulkCount').textContent =
+      `${count} famil${count === 1 ? 'y' : 'ies'} selected`;
+  }
+
+  /* ════════════════════════════════════
+     SINGLE ROW ACTIONS
+  ════════════════════════════════════ */
+  async function deleteFamily(id) {
+    const f = familyMap[id];
+    const primaryName = f ? (((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || f.familyName) : id;
+    const name = f ? f.familyName : id;
+    if (!confirm(`Are you sure you want to delete "${primaryName}" and family members?`)) return;
+    try {
+      const res  = await fetch(`/api/families/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${name}" has been deleted.`, 'success');
+        await loadFamilies();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete family.', 'error');
+    }
+  }
+
+  async function restoreFamily(id) {
+    const name = familyMap[id] ? familyMap[id].familyName : id;
+    try {
+      const res  = await fetch(`/api/families/${id}/restore`, { method: 'PATCH' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${name}" has been restored.`, 'success');
+        await loadFamilies();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to restore.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not restore family.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     BULK ACTIONS
+  ════════════════════════════════════ */
+  async function bulkDelete() {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!confirm(`Are you sure you want to delete ${ids.length} selected famil${ids.length === 1 ? 'y' : 'ies'} and their members?`)) return;
+    await sendBulk(ids, 'delete');
+  }
+
+  async function bulkInactive() {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!confirm(`Mark ${ids.length} selected famil${ids.length === 1 ? 'y' : 'ies'} as inactive?`)) return;
+    await sendBulk(ids, 'inactive');
+  }
+
+  async function sendBulk(ids, action) {
+    try {
+      const res  = await fetch('/api/families/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(
+          `✅ ${data.affected} famil${data.affected === 1 ? 'y' : 'ies'} updated.`,
+          'success'
+        );
+        await loadFamilies();
+      } else {
+        showFeedback(`❌ ${data.error || 'Bulk action failed.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — bulk action failed.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     MEMBERS MODAL
+  ════════════════════════════════════ */
+  const ROLE_CLASS = {
+    'Head':         'role-primary',
+    'Wife':         'role-wife',
+    'Son':          'role-son',
+    'Daughter':     'role-daughter',
+    'Father':       'role-father',
+    'Mother':       'role-mother',
+    'Mother-in-Law':'role-motherinlaw',
+    'Father-in-Law':'role-fatherinlaw',
+  };
+
+  let _allModalMembers = []; // full unfiltered list from API
+
+  async function showMembers(id) {
+    const family = familyMap[id];
+    const title  = family ? `Members — ${family.familyName}` : 'Family Members';
+    document.getElementById('modalTitle').textContent     = title;
+    document.getElementById('modalMembersBody').innerHTML =
+      '<tr><td colspan="6" style="text-align:center;padding:24px;color:#aaa;">Loading…</td></tr>';
+    // Reset filters on each open
+    document.getElementById('mFilterInactive').checked = false;
+    document.getElementById('mFilterDeleted').checked  = false;
+    document.getElementById('memberCountLabel').textContent = '';
+    document.getElementById('membersModal').classList.add('open');
+
+    try {
+      const res = await fetch(`/api/families/${id}`);
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+      _allModalMembers = data.members || [];
+      applyMemberFilter();
+    } catch {
+      document.getElementById('modalMembersBody').innerHTML =
+        '<tr><td colspan="6" class="modal-empty">❌ Failed to load members.</td></tr>';
+    }
+  }
+
+  function applyMemberFilter() {
+    const showInactive = document.getElementById('mFilterInactive').checked;
+    const showDeleted  = document.getElementById('mFilterDeleted').checked;
+
+    const filtered = _allModalMembers.filter(m => {
+      if (m.deleted  && !showDeleted)  return false;
+      if (m.inactive && !showInactive) return false;
+      return true;
+    });
+
+    const label = document.getElementById('memberCountLabel');
+    label.textContent = `${filtered.length} member${filtered.length !== 1 ? 's' : ''}`;
+    renderMembersModal(filtered);
+  }
+
+  function renderMembersModal(list) {
+    const tbody = document.getElementById('modalMembersBody');
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="modal-empty">No members found for this family.</td></tr>';
+      return;
+    }
+    let rowNum = 0;
+    tbody.innerHTML = list.map(m => {
+      const name        = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+      const displayName = m.otherName
+        ? `${escHtml(name)} <span style="color:#888;font-weight:400;">(${escHtml(m.otherName)})</span>`
+        : escHtml(name);
+      const roleClass = ROLE_CLASS[m.role] || 'role-primary';
+      const inactTag  = m.inactive ? ' <span style="font-size:10px;color:#e65100;font-weight:700;margin-left:4px;">Inactive</span>' : '';
+      const delTag    = m.deleted  ? ' <span style="font-size:10px;color:#c62828;font-weight:700;margin-left:4px;">Deleted</span>'  : '';
+      const rowClass  = m.deleted ? 'member-deleted' : m.inactive ? 'member-inactive' : '';
+      rowNum++;
+      return `<tr class="${rowClass}">
+        <td>${rowNum}</td>
+        <td><strong>${displayName}</strong>${inactTag}${delTag}</td>
+        <td>${formatPhone(m.phone)}</td>
+        <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}</td>
+        <td>${escHtml(m.memberType) || ''}</td>
+        <td><span class="role-badge ${roleClass}">${escHtml(m.role)}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function closeMembersModal() {
+    document.getElementById('membersModal').classList.remove('open');
+  }
+
+  /** Close modal when clicking on the dark overlay (outside the box). */
+  function onModalOverlayClick(event) {
+    if (event.target === document.getElementById('membersModal')) {
+      closeMembersModal();
+    }
+  }
+
+  /* ════════════════════════════════════
+     EXPAND / COLLAPSE SUB-ROW
+  ════════════════════════════════════ */
+  async function toggleExpand(id, btn) {
+    const row   = document.getElementById(`sub-row-${id}`);
+    const inner = document.getElementById(`sub-row-inner-${id}`);
+    if (expandedFamilies.has(id)) {
+      expandedFamilies.delete(id);
+      row.style.display = 'none';
+      btn.textContent = '+';
+    } else {
+      expandedFamilies.add(id);
+      row.style.display = '';
+      btn.textContent = '−';
+      inner.innerHTML = '<em style="color:#bbb;font-size: 13px;">Loading…</em>';
+      try {
+        const res  = await fetch(`/api/families/${id}`);
+        const data = await res.json();
+        const members = data.members || [];
+        if (!members.length) {
+          inner.innerHTML = '<em style="color:#bbb;font-size: 13px;">No members found.</em>';
+          return;
+        }
+        inner.innerHTML = `
+          <div class="sub-row-members-label">👥 Members (${members.length})</div>
+          <div class="sub-row-table-wrap">
+            <table class="sub-row-table">
+              <colgroup>
+                <col style="width:24%"/>
+                <col style="width:16%"/>
+                <col style="width:30%"/>
+                <col style="width:12%"/>
+                <col style="width:18%"/>
+              </colgroup>
+              <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Type</th><th>Role</th></tr></thead>
+              <tbody>${members.map(m => {
+                const name      = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+                const displayName = m.otherName ? `${escHtml(name)} <span style="color:#888;font-weight:400;">(${escHtml(m.otherName)})</span>` : escHtml(name);
+                return `<tr>
+                  <td>${displayName}</td>
+                  <td>${formatPhone(m.phone)}</td>
+                  <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}</td>
+                  <td>${escHtml(m.memberType) || ''}</td>
+                  <td>${escHtml(m.role) || ''}</td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>`;
+      } catch {
+        inner.innerHTML = '<em style="color:#e53935;font-size: 13px;">Failed to load members.</em>';
+      }
+    }
+  }
+
+  /* ════════════════════════════════════
+     MEMBER SEARCH (collapsible + auto)
+  ════════════════════════════════════ */
+  let memberSearchOpen = false;
+  let memberSearchTimer = null;
+
+  function toggleMemberSearch() {
+    memberSearchOpen = !memberSearchOpen;
+    const body    = document.getElementById('memberSearchBody');
+    const toggle  = document.getElementById('msToggle');
+    body.classList.toggle('open', memberSearchOpen);
+    toggle.textContent = memberSearchOpen ? '−' : '+';
+    if (memberSearchOpen) {
+      // Auto-search when panel is opened if any filter is set
+      const hasFilter = ['mfName','mfPhone','mfEmail'].some(id => document.getElementById(id).value.trim()) ||
+                        document.getElementById('mfRole').value ||
+                        document.getElementById('mfType').value ||
+                        document.getElementById('mfShowDeleted').checked ||
+                        document.getElementById('mfShowInactive').checked ||
+                        document.getElementById('mfIncludeContrib').checked;
+      if (hasFilter) searchMembers();
+    }
+  }
+
+  function onMemberFilterChange() {
+    clearTimeout(memberSearchTimer);
+    memberSearchTimer = setTimeout(searchMembers, 350);
+  }
+
+  async function searchMembers() {
+    const name          = document.getElementById('mfName').value.trim();
+    const role          = document.getElementById('mfRole').value;
+    const type          = document.getElementById('mfType').value;
+    const phone         = document.getElementById('mfPhone').value.trim();
+    const email         = document.getElementById('mfEmail').value.trim();
+    const showDeleted   = document.getElementById('mfShowDeleted').checked;
+    const showInactive  = document.getElementById('mfShowInactive').checked;
+    const inclContrib   = document.getElementById('mfIncludeContrib').checked;
+
+    // If no filters are active, clear results and hide the results wrap
+    const anyFilter = name || role || type || phone || email || showDeleted || showInactive || inclContrib;
+    const wrap    = document.getElementById('memberResultsWrap');
+    const tbody   = document.getElementById('memberSearchResults');
+    const countEl = document.getElementById('memberSearchCount');
+
+    if (!anyFilter) {
+      wrap.classList.remove('has-results');
+      countEl.textContent = '';
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (name)         params.set('search', name);
+    if (role)         params.set('role', role);
+    if (type)         params.set('memberType', type);
+    if (phone)        params.set('phone', phone);
+    if (email)        params.set('email', email);
+    if (showDeleted)  params.set('showDeleted', 'true');
+    if (showInactive) params.set('showInactive', 'true');
+    if (inclContrib)  params.set('includeInContributions', 'true');
+
+    wrap.classList.add('has-results');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px;">Searching…</td></tr>';
+
+    try {
+      const res  = await fetch(`/api/members?${params}`);
+      const list = await res.json();
+      countEl.textContent = `${list.length} result${list.length !== 1 ? 's' : ''}`;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px;">No members found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(m => {
+        const fullName  = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
+        const nickPart  = m.otherName ? ` <span style="color:#888;font-weight:400;">(${escHtml(m.otherName)})</span>` : '';
+        const roleClass = ROLE_CLASS[m.role] || 'role-primary';
+        const delBadge  = m.deleted ? '<span class="badge-deleted-m">Deleted</span>' : '';
+        const inactBadge = m.inactive ? '<span style="font-size:10px;color:#e65100;font-weight:600;margin-left:4px;">Inactive</span>' : '';
+        return `<tr>
+          <td><strong>${escHtml(fullName)}${nickPart}</strong>${delBadge}${inactBadge}</td>
+          <td><span class="role-badge ${roleClass}">${escHtml(m.role || '')}</span></td>
+          <td>${escHtml(m.memberType || '')}</td>
+          <td>${escHtml(m.familyName || '')}</td>
+          <td>${formatPhone(m.phone || '')}</td>
+          <td>${escHtml(m.email || '') || '<span style="color:#ccc">—</span>'}</td>
+        </tr>`;
+      }).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#e53935;padding:20px;">Failed to search members.</td></tr>';
+    }
+  }
+
+  function clearMemberSearch() {
+    ['mfName', 'mfPhone', 'mfEmail'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('mfRole').value = '';
+    document.getElementById('mfType').value = '';
+    document.getElementById('mfShowDeleted').checked   = false;
+    document.getElementById('mfShowInactive').checked  = false;
+    document.getElementById('mfIncludeContrib').checked = false;
+    document.getElementById('memberResultsWrap').classList.remove('has-results');
+    document.getElementById('memberSearchResults').innerHTML = '';
+    document.getElementById('memberSearchCount').textContent = '';
+  }
+
+  /* ════════════════════════════════════
+     BULK FAMILY REPORT
+  ════════════════════════════════════ */
+  function bulkFamilyReport() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) { showFeedback('Select at least one family.', 'error'); return; }
+    window.open(`/familyReport?ids=${ids.join(',')}`, '_blank');
+  }
+
+  /* ════════════════════════════════════
+     HELPERS
+  ════════════════════════════════════ */
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /**
+   * Format a phone number as (XXX)XXX-XXXX when 10 digits are present
+   * (or a leading "1" + 10 digits). Falls back to the raw value otherwise,
+   * and "—" for missing phones. Matches the helper used in event-details.html
+   * and familyReports.html. Defined here (rather than in session.js) because
+   * the viewfamily members modal renders before session.js helpers would be
+   * available, and an undefined reference here surfaces as the
+   * "Failed to load members" error.
+   */
+  function formatPhone(phone) {
+    if (!phone) return '<span style="color:#ccc">—</span>';
+    var digits = String(phone).replace(/\D/g, '');
+    var d10 = digits.length === 11 && digits.charAt(0) === '1' ? digits.slice(1) : digits;
+    if (d10.length === 10) return '(' + d10.slice(0, 3) + ')' + d10.slice(3, 6) + '-' + d10.slice(6);
+    return escHtml(String(phone));
+  }
+
+  /* ════════════════════════════════════
+     INIT
+  ════════════════════════════════════ */
+  (async function init() {
+    await loadFamilies();
+  })();
+</script>
+
+<script>
+window.CGP_applyPerms = function(p) {
+  if (!p) return;
+  function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
+  if (p['admin.family.edit']     === false) hide('.btn-add');
+  if (p['admin.family.inactive'] === false) hide('.btn-bulk-inactive');
+  if (p['admin.family.delete']   === false) hide('.btn-bulk-delete');
+  // Re-render table so inline edit buttons respect permissions
+  if (typeof renderTableWithLoadMore === 'function') renderTableWithLoadMore();
+};
+window.CGP_PAGE = { activePage: 'admin/family', pageTitle: '', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

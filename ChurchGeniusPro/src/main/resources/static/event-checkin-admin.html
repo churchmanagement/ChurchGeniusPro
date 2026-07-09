@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Event Check-in – Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .page-header-text { flex: 1; }
+    .page-title   { font-size: 20px; font-weight: 800; color: #1e2139; }
+    .page-subtitle { font-size: 13px; color: #9fa8c4; margin-top: 2px; }
+    .btn-back { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 7px 14px; font-size: 13px; color: #555; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: background .15s, border-color .15s; white-space: nowrap; margin-top: 2px; }
+    .btn-back:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
+
+    /* ── Feedback ── */
+    .feedback {
+      padding: 11px 16px; border-radius: 9px; font-size: 13px; font-weight: 500;
+      margin-bottom: 16px; display: none;
+    }
+    .feedback.success { display: flex; align-items: center; gap: 8px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: flex; align-items: center; gap: 8px; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07); margin-bottom: 22px; overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 20px; border-bottom: 1px solid #eef0f6; background: #fafbfe;
+    }
+    .card-header h2 { font-size: 14px; font-weight: 700; color: #1e2139; flex: 1; }
+    .card-body { padding: 20px; }
+
+    /* ── Event selector ── */
+    .event-select-wrap { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .event-select-wrap select {
+      flex: 1; min-width: 220px; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 9px 12px; font-size: 13px; color: #1e2139; outline: none; background: #fff;
+    }
+    .event-select-wrap select:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+
+    /* ── Summary pills ── */
+    .summary-bar {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .summary-pill {
+      flex: 1; min-width: 140px; background: #fff; border-radius: 10px;
+      border: 1px solid #eef0f8; padding: 14px 18px; text-align: center;
+      box-shadow: 0 1px 6px rgba(0,0,0,.05);
+    }
+    .summary-pill .pill-num  { font-size: 28px; font-weight: 800; color: #673147; line-height: 1; }
+    .summary-pill .pill-label{ font-size: 11px; font-weight: 600; color: #9fa8c4; text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+    .summary-pill.checked  .pill-num { color: #2e7d32; }
+    .summary-pill.unchecked .pill-num { color: #e65100; }
+
+    /* ── Search bar ── */
+    .search-bar {
+      display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .search-bar input {
+      flex: 1; min-width: 200px; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 8px 12px; font-size: 13px; outline: none;
+    }
+    .search-bar input:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .search-bar .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-tab {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #dde0ec; color: #666; background: #fff; cursor: pointer;
+      transition: all .15s;
+    }
+    .filter-tab.active { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Registrant table ── */
+    .table-wrap { overflow-x: auto; }
+    .reg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .reg-table th {
+      background: #f5f6fb; font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: #9fa8c4; padding: 10px 14px; text-align: left;
+      border-bottom: 2px solid #eef0f8; white-space: nowrap;
+    }
+    .reg-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f9; vertical-align: middle; }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .reg-table tbody tr:hover td { background: #fafbfe; }
+    .empty-row { text-align: center; color: #c5c9d8 !important; padding: 32px !important; font-style: italic; }
+
+    .badge-in    { background: #e8f5e9; color: #2e7d32; font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+    .badge-out   { background: #fff3e0; color: #e65100; font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+    .badge-walkin { background: #e3f2fd; color: #1565c0; font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-left: 4px; }
+
+    .btn-checkin {
+      background: #673147; color: #fff; border: none; border-radius: 7px;
+      padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .btn-checkin:hover { background: #4f2538; }
+    .btn-undo {
+      background: none; color: #e65100; border: 1.5px solid #e65100; border-radius: 7px;
+      padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .btn-undo:hover { background: #fff3e0; }
+    .btn-token {
+      background: none; color: #673147; border: 1.5px solid #673147; border-radius: 7px;
+      padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .btn-token:hover { background: #f5eaef; }
+
+    /* ── Print / action bar ── */
+    .action-bar {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+    }
+    .btn-print {
+      background: #fff; color: #444; border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .15s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-print:hover { background: #f5f6fa; }
+    .btn-primary {
+      background: #673147; color: #fff; border: none; border-radius: 8px;
+      padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px; transition: background .15s;
+    }
+    .btn-primary:hover { background: #4f2538; }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── Walk-in form ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #6070a0; }
+    .field input, .field textarea, .field select {
+      border: 1.5px solid #dde0ec; border-radius: 8px; padding: 9px 12px;
+      font-size: 13px; color: #1e2139; outline: none; background: #fff;
+      transition: border-color .2s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1);
+    }
+    .field input.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    .span-2 { grid-column: span 2; }
+    .required-star { color: #e53935; }
+    .section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: #9fa8c4; margin: 16px 0 10px; grid-column: span 2;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* ── Token print modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 14px; width: 360px; max-width: 95vw;
+      box-shadow: 0 8px 40px rgba(0,0,0,.18); overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid #eef0f6; background: #fafbfe;
+    }
+    .modal-title { font-size: 14px; font-weight: 700; color: #1e2139; }
+    .modal-close { font-size: 18px; color: #999; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .modal-body { padding: 20px; text-align: center; }
+    .token-box {
+      font-size: 48px; font-weight: 900; color: #673147;
+      letter-spacing: 4px; font-family: 'Courier New', monospace;
+      background: #f5eaef; border-radius: 12px; padding: 24px 0; margin: 16px 0;
+    }
+    .token-name { font-size: 15px; font-weight: 700; color: #1e2139; margin-bottom: 4px; }
+    .token-event { font-size: 12px; color: #9fa8c4; margin-bottom: 8px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid #eef0f6; }
+    .btn-secondary { background: #f0f2f8; color: #555; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { background: #e4e7f4; }
+
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .span-2    { grid-column: span 1; }
+      .section-title { grid-column: span 1; }
+    }
+
+    /* ── Check-in toolbar (full screen / scan / close) ── */
+    .checkin-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .btn-tool {
+      border: 1.5px solid #dde0ec; background: #fff; color: #444; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+    }
+    .btn-tool:hover { background: #f5f6fa; border-color: #c5a8b8; }
+    .btn-tool.primary { background: #673147; color: #fff; border-color: #673147; }
+    .btn-tool.primary:hover { background: #4f2538; }
+    .btn-tool.danger { color: #c62828; border-color: #f3c2c2; }
+    .btn-tool.danger:hover { background: #fdecea; }
+
+    /* Reg ID chip / link */
+    .regid-chip {
+      background: none; color: #673147; border: 1.5px solid #673147; border-radius: 7px;
+      padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+    .regid-chip:hover { background: #f5eaef; }
+    .badge-self { background: #ede7f6; color: #5e35b1; font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 4px; }
+
+    /* ── Full-screen station mode: hide chrome, enlarge controls ── */
+    body.checkin-fs .sidebar,
+    body.checkin-fs #topbar,
+    body.checkin-fs #app-footer,
+    body.checkin-fs .btn-back { display: none !important; }
+    body.checkin-fs .main-area { margin: 0 !important; }
+    body.checkin-fs .page-content { max-width: 100%; padding: 16px 22px; }
+    body.checkin-fs .btn-checkin { padding: 10px 22px; font-size: 15px; }
+    body.checkin-fs .summary-pill .pill-num { font-size: 34px; }
+    body.checkin-fs .reg-table td, body.checkin-fs .reg-table th { padding: 13px 14px; font-size: 14px; }
+
+    /* ── QR scanner modal ── */
+    #qrReader { width: 100%; max-width: 340px; margin: 0 auto; }
+    .scan-hint { font-size: 12px; color: #888; margin-top: 12px; }
+    .scan-result { font-size: 13px; font-weight: 600; margin-top: 10px; min-height: 18px; }
+    .scan-result.ok  { color: #2e7d32; }
+    .scan-result.err { color: #c62828; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <button class="btn-back" onclick="window.location.href='/events'">← Back</button>
+        <div class="page-header-text">
+          <div class="page-title">Event Check-in</div>
+          <div class="page-subtitle">Manage attendee check-in and walk-in registrations</div>
+        </div>
+        <div class="checkin-toolbar">
+          <button class="btn-tool primary" onclick="startScan()">📷 Scan QR</button>
+          <button class="btn-tool" id="enterFsBtn" onclick="enterFullScreen()">⛶ Full Screen</button>
+          <button class="btn-tool" id="exitFsBtn" onclick="exitFullScreen()" style="display:none;">⮌ Exit Full Screen</button>
+          <button class="btn-tool danger" onclick="closeCheckin()">✖ Close</button>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ══ Summary (hidden until the event loads) ══ -->
+      <div id="mainContent" style="display:none;">
+
+        <!-- Summary bar -->
+        <div class="summary-bar">
+          <div class="summary-pill">
+            <div class="pill-num"  id="sumTotal">0</div>
+            <div class="pill-label">Total Registered</div>
+          </div>
+          <div class="summary-pill checked">
+            <div class="pill-num"  id="sumCheckedIn">0</div>
+            <div class="pill-label">Checked In</div>
+          </div>
+          <div class="summary-pill unchecked">
+            <div class="pill-num"  id="sumNotCheckedIn">0</div>
+            <div class="pill-label">Not Checked In</div>
+          </div>
+        </div>
+
+        <!-- ══ Registered Attendees ══ -->
+        <div class="card">
+          <div class="card-header">
+            <span>👥</span>
+            <h2>Registered Attendees</h2>
+          </div>
+          <div class="card-body">
+
+            <!-- Print actions -->
+            <div class="action-bar">
+              <button class="btn-print" onclick="printList('all')">🖨️ Print All</button>
+              <button class="btn-print" onclick="printList('checkedin')">✅ Print Checked-In</button>
+              <button class="btn-print" onclick="printList('notcheckedin')">⏳ Print Not Checked-In</button>
+              <button class="btn-print" id="printSelectedBtn" onclick="printList('selected')" style="display:none;">
+                ☑️ Print Selected (<span id="selectedCount">0</span>)
+              </button>
+            </div>
+
+            <!-- Search + filter -->
+            <div class="search-bar">
+              <input type="text" id="searchInput" placeholder="Search by name, email, or phone…"
+                     oninput="applyFilters()" />
+              <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all"          onclick="setFilter('all',this)">All</button>
+                <button class="filter-tab"         data-filter="checkedin"   onclick="setFilter('checkedin',this)">Checked In</button>
+                <button class="filter-tab"         data-filter="notcheckedin" onclick="setFilter('notcheckedin',this)">Not Checked In</button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrap">
+              <table class="reg-table" id="regTable">
+                <thead>
+                  <tr>
+                    <th style="width:36px;">
+                      <input type="checkbox" id="selectAll" title="Select all visible"
+                             onchange="toggleSelectAll(this)" style="cursor:pointer;width:15px;height:15px;" />
+                    </th>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Reg ID</th>
+                    <th title="Number of registrants in this party"># Reg.</th>
+                    <th>Status</th>
+                    <th>Check-In Time</th>
+                    <th>Registration Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="regTableBody">
+                  <tr><td class="empty-row" colspan="10">Select an event to view registrations.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ Walk-in Registration ══ -->
+        <div class="card">
+          <div class="card-header"><span>🚶</span><h2>Walk-in Registration &amp; Check-in</h2></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="section-title">Personal Information</div>
+
+              <div class="field">
+                <label for="wiFirstName">First Name <span class="required-star">*</span></label>
+                <input type="text" id="wiFirstName" placeholder="First name" autocomplete="given-name" />
+                <span class="field-hint" id="wiFirstNameHint"></span>
+              </div>
+              <div class="field">
+                <label for="wiLastName">Last Name <span class="required-star">*</span></label>
+                <input type="text" id="wiLastName" placeholder="Last name" autocomplete="family-name" />
+                <span class="field-hint" id="wiLastNameHint"></span>
+              </div>
+              <div class="field">
+                <label for="wiEmail">Email</label>
+                <input type="email" id="wiEmail" placeholder="email@example.com" autocomplete="email" />
+                <span class="field-hint" id="wiEmailHint"></span>
+              </div>
+              <div class="field">
+                <label for="wiPhone">Phone Number</label>
+                <input type="tel" id="wiPhone" placeholder="(555) 000-0000" autocomplete="tel" />
+              </div>
+
+              <div class="section-title">Address</div>
+
+              <div class="field span-2">
+                <label for="wiAddress1">Address Line 1</label>
+                <input type="text" id="wiAddress1" placeholder="Street address" />
+              </div>
+              <div class="field">
+                <label for="wiAddress2">Address Line 2</label>
+                <input type="text" id="wiAddress2" placeholder="Apt, Suite, etc." />
+              </div>
+              <div class="field">
+                <label for="wiCity">City</label>
+                <input type="text" id="wiCity" placeholder="City" />
+              </div>
+              <div class="field">
+                <label for="wiState">State</label>
+                <select id="wiState">
+                  <option value="">— Select State —</option>
+                  <option value="AL">AL – Alabama</option><option value="AK">AK – Alaska</option>
+                  <option value="AZ">AZ – Arizona</option><option value="AR">AR – Arkansas</option>
+                  <option value="CA">CA – California</option><option value="CO">CO – Colorado</option>
+                  <option value="CT">CT – Connecticut</option><option value="DE">DE – Delaware</option>
+                  <option value="FL">FL – Florida</option><option value="GA">GA – Georgia</option>
+                  <option value="HI">HI – Hawaii</option><option value="ID">ID – Idaho</option>
+                  <option value="IL">IL – Illinois</option><option value="IN">IN – Indiana</option>
+                  <option value="IA">IA – Iowa</option><option value="KS">KS – Kansas</option>
+                  <option value="KY">KY – Kentucky</option><option value="LA">LA – Louisiana</option>
+                  <option value="ME">ME – Maine</option><option value="MD">MD – Maryland</option>
+                  <option value="MA">MA – Massachusetts</option><option value="MI">MI – Michigan</option>
+                  <option value="MN">MN – Minnesota</option><option value="MS">MS – Mississippi</option>
+                  <option value="MO">MO – Missouri</option><option value="MT">MT – Montana</option>
+                  <option value="NE">NE – Nebraska</option><option value="NV">NV – Nevada</option>
+                  <option value="NH">NH – New Hampshire</option><option value="NJ">NJ – New Jersey</option>
+                  <option value="NM">NM – New Mexico</option><option value="NY">NY – New York</option>
+                  <option value="NC">NC – North Carolina</option><option value="ND">ND – North Dakota</option>
+                  <option value="OH">OH – Ohio</option><option value="OK">OK – Oklahoma</option>
+                  <option value="OR">OR – Oregon</option><option value="PA">PA – Pennsylvania</option>
+                  <option value="RI">RI – Rhode Island</option><option value="SC">SC – South Carolina</option>
+                  <option value="SD">SD – South Dakota</option><option value="TN">TN – Tennessee</option>
+                  <option value="TX">TX – Texas</option><option value="UT">UT – Utah</option>
+                  <option value="VT">VT – Vermont</option><option value="VA">VA – Virginia</option>
+                  <option value="WA">WA – Washington</option><option value="WV">WV – West Virginia</option>
+                  <option value="WI">WI – Wisconsin</option><option value="WY">WY – Wyoming</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="wiZip">Zip Code</label>
+                <input type="text" id="wiZip" placeholder="Zip / Pin" />
+              </div>
+
+              <div class="section-title">Additional Details</div>
+
+              <div class="field">
+                <label for="wiAdults">Adults</label>
+                <input type="number" id="wiAdults" min="1" value="1" />
+              </div>
+              <div class="field">
+                <label for="wiKids">Children</label>
+                <input type="number" id="wiKids" min="0" value="0" />
+              </div>
+              <div class="field span-2">
+                <label for="wiNote">Notes <span style="font-weight:400;color:#aaa;">(optional)</span></label>
+                <textarea id="wiNote" rows="2" placeholder="Any notes…"></textarea>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn-primary" id="walkInBtn" onclick="submitWalkIn()">
+                🚶 Register &amp; Check In
+              </button>
+              <button class="btn-secondary" onclick="resetWalkInForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /#mainContent -->
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ══ Label / Print Modal ══ -->
+<div class="modal-overlay" id="tokenModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🎟️ Attendee Label</div>
+      <span class="modal-close" onclick="closeTokenModal()">✕</span>
+    </div>
+    <div class="modal-body">
+      <div class="token-name"  id="tokenName"></div>
+      <div class="token-event" id="tokenEventName"></div>
+      <div class="token-box"   id="tokenNumber" style="font-size:38px;padding:18px 0;"></div>
+      <div id="labelQrWrap" style="display:none;justify-content:center;margin:6px 0 4px;"></div>
+      <div style="font-size:12px;color:#aaa;" id="labelHint">Show this Registration ID at the entry gate</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeTokenModal()">Close</button>
+      <button class="btn-primary"   onclick="printLabel()">🖨️ Print Label</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QR Scanner Modal ══ -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📷 Scan Attendee QR</div>
+      <span class="modal-close" onclick="stopScan()">✕</span>
+    </div>
+    <div class="modal-body">
+      <div id="qrReader"></div>
+      <div class="scan-result" id="scanResult"></div>
+      <div class="scan-hint">Point the camera at the attendee's QR code to check them in automatically.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="stopScan()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+  /* ── State ── */
+  let allEvents    = [];
+  let allRegs      = [];
+  let filteredRegs = [];
+  let selectedIds  = new Set();
+  let currentEventId   = null;
+  let currentEventName = '';
+  let currentEvent     = null;   // full event object (for QR / reg-ID flags)
+  let currentFilter    = 'all';
+  let tokenData        = null;   // { name, regCode, token }
+
+  /* ── Init: load the event directly from the ?eventId= query param ── */
+  (async function init() {
+    const paramId = parseInt(new URLSearchParams(window.location.search).get('eventId'), 10);
+    if (!paramId) {
+      showFeedback('❌ No event specified. Open Check-In from the Events page.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/events/' + paramId);
+      if (!res.ok) throw new Error('not found');
+      currentEvent     = await res.json();
+      currentEventId   = currentEvent.id;
+      currentEventName = currentEvent.eventName || '';
+      // Reflect the event in the page header.
+      const subtitle = document.querySelector('.page-subtitle');
+      if (subtitle) {
+        subtitle.textContent = currentEventName +
+          (currentEvent.eventDate ? ' — ' + currentEvent.eventDate : '');
+      }
+      document.getElementById('mainContent').style.display = '';
+      await Promise.all([loadRegistrations(), loadSummary()]);
+    } catch {
+      showFeedback('❌ Could not load this event.', 'error');
+    }
+  })();
+
+  /* ─────────── LOAD REGISTRATIONS ─────────── */
+  async function loadRegistrations() {
+    try {
+      const res = await fetch(`/api/events/${currentEventId}/registrations`);
+      allRegs = await res.json();
+      applyFilters();
+    } catch {
+      showFeedback('❌ Could not load registrations.', 'error');
+    }
+  }
+
+  /* ─────────── LOAD SUMMARY ─────────── */
+  async function loadSummary() {
+    try {
+      const res  = await fetch(`/api/events/${currentEventId}/checkin-summary`);
+      const data = await res.json();
+      document.getElementById('sumTotal').textContent        = data.totalRegistered    || 0;
+      document.getElementById('sumCheckedIn').textContent    = data.totalCheckedIn     || 0;
+      document.getElementById('sumNotCheckedIn').textContent = data.totalNotCheckedIn  || 0;
+    } catch {}
+  }
+
+  /* ─────────── FILTER / SEARCH ─────────── */
+  function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    filteredRegs = allRegs.filter(r => {
+      if (currentFilter === 'checkedin'    && !r.checkedIn)  return false;
+      if (currentFilter === 'notcheckedin' &&  r.checkedIn)  return false;
+      if (!q) return true;
+      const haystack = [r.firstName, r.lastName, r.email, r.phone]
+        .filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+    renderTable(filteredRegs);
+  }
+
+  /* ─────────── RENDER TABLE ─────────── */
+  function renderTable(regs) {
+    const tbody = document.getElementById('regTableBody');
+    if (!regs.length) {
+      tbody.innerHTML = `<tr><td class="empty-row" colspan="10">No registrations match the current filter.</td></tr>`;
+      updateSelectAllState();
+      return;
+    }
+    const labelEnabled = currentEvent && (currentEvent.generateRegistrationId || currentEvent.generateQrCode);
+    tbody.innerHTML = regs.map((r, i) => {
+      const name      = [r.firstName, r.lastName].filter(Boolean).join(' ') || '—';
+      const statusBadge = r.checkedIn
+        ? `<span class="badge-in">✅ Checked In</span>`
+        : `<span class="badge-out">⏳ Pending</span>`;
+      const walkInBadge = r.walkIn ? `<span class="badge-walkin">Walk-in</span>` : '';
+      const checkinTime = r.checkedIn && r.checkedInAt
+        ? `<span style="font-size:11px;color:#777;">${formatDateTime(r.checkedInAt)}</span>`
+        : `<span style="color:#ccc;">—</span>`;
+      const regDate   = r.createdDate ? `<span style="font-size:11px;color:#777;">${formatDateTime(r.createdDate)}</span>` : '<span style="color:#ccc;">—</span>';
+      const partySize = (r.adults || 0) + (r.kids || 0);
+      const tokenNum  = tokenNumber(r.id);
+      const actionBtn = r.checkedIn
+        ? `<button class="btn-undo"    onclick="undoCheckIn(${r.id})">Undo</button>`
+        : `<button class="btn-checkin" onclick="checkIn(${r.id})">Check In</button>`;
+      const labelBtn  = labelEnabled
+        ? ` <button class="btn-token" title="Print label" onclick="openLabelModal(${r.id}, '${escJs(name)}', '${escJs(r.registrationCode || '')}')">🖨️</button>`
+        : '';
+      const checked = selectedIds.has(r.id) ? 'checked' : '';
+      return `<tr id="row-${r.id}">
+        <td><input type="checkbox" class="row-chk" data-id="${r.id}" ${checked}
+                   onchange="onRowCheckChange(this)"
+                   style="cursor:pointer;width:15px;height:15px;" /></td>
+        <td style="color:#9fa8c4;font-size:11px;">${i + 1}</td>
+        <td style="font-weight:600;color:#1e2139;">${escHtml(name)}${walkInBadge}</td>
+        <td style="color:#555;">${formatPhone(r.phone)}</td>
+        <td><button class="regid-chip" title="View / print label" onclick="openLabelModal(${r.id}, '${escJs(name)}', '${escJs(r.registrationCode || '')}')">${tokenNum}</button></td>
+        <td style="text-align:center;">${partySize || 1}</td>
+        <td>${statusBadge}</td>
+        <td>${checkinTime}</td>
+        <td>${regDate}</td>
+        <td style="white-space:nowrap;">${actionBtn}${labelBtn}</td>
+      </tr>`;
+    }).join('');
+    updateSelectAllState();
+  }
+
+  /* ─────────── SELECTION ─────────── */
+  function onRowCheckChange(chk) {
+    const id = parseInt(chk.dataset.id);
+    if (chk.checked) selectedIds.add(id);
+    else             selectedIds.delete(id);
+    updateSelectAllState();
+  }
+
+  function toggleSelectAll(chk) {
+    if (chk.checked) {
+      filteredRegs.forEach(r => selectedIds.add(r.id));
+    } else {
+      filteredRegs.forEach(r => selectedIds.delete(r.id));
+    }
+    // Sync visible checkboxes
+    document.querySelectorAll('.row-chk').forEach(c => { c.checked = chk.checked; });
+    updatePrintSelectedBtn();
+  }
+
+  function updateSelectAllState() {
+    const allChks = document.querySelectorAll('.row-chk');
+    const chkedCount = Array.from(allChks).filter(c => c.checked).length;
+    const selectAllChk = document.getElementById('selectAll');
+    if (selectAllChk) {
+      selectAllChk.checked       = allChks.length > 0 && chkedCount === allChks.length;
+      selectAllChk.indeterminate = chkedCount > 0 && chkedCount < allChks.length;
+    }
+    updatePrintSelectedBtn();
+  }
+
+  function updatePrintSelectedBtn() {
+    const btn = document.getElementById('printSelectedBtn');
+    const cnt = document.getElementById('selectedCount');
+    if (!btn) return;
+    if (selectedIds.size > 0) {
+      btn.style.display = '';
+      cnt.textContent   = selectedIds.size;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  /* ─────────── CHECK IN ─────────── */
+  async function checkIn(regId) {
+    try {
+      const res  = await fetch(`/api/event-registrations/${regId}/checkin`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        // Update in-memory record
+        const r = allRegs.find(x => x.id === regId);
+        if (r) { r.checkedIn = true; r.checkedInAt = data.checkedInAt; }
+        applyFilters();
+        await loadSummary();
+        showFeedback('✅ Attendee checked in successfully.', 'success');
+      } else {
+        showFeedback(`❌ ${data.error || 'Check-in failed.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error.', 'error');
+    }
+  }
+
+  /* ─────────── UNDO CHECK-IN ─────────── */
+  async function undoCheckIn(regId) {
+    if (!confirm('Undo check-in for this attendee?')) return;
+    try {
+      const res  = await fetch(`/api/event-registrations/${regId}/checkin`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        const r = allRegs.find(x => x.id === regId);
+        if (r) { r.checkedIn = false; r.checkedInAt = null; }
+        applyFilters();
+        await loadSummary();
+        showFeedback('↩️ Check-in undone.', 'success');
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error.', 'error');
+    }
+  }
+
+  /* ─────────── WALK-IN SUBMIT ─────────── */
+  async function submitWalkIn() {
+    if (!currentEventId) { showFeedback('❌ Please select an event first.', 'error'); return; }
+    if (!validateWalkIn()) return;
+
+    const btn = document.getElementById('walkInBtn');
+    btn.disabled = true; btn.textContent = '⏳ Registering…';
+
+    const body = {
+      firstName: document.getElementById('wiFirstName').value.trim(),
+      lastName:  document.getElementById('wiLastName').value.trim(),
+      email:     document.getElementById('wiEmail').value.trim()    || null,
+      phone:     document.getElementById('wiPhone').value.trim()    || null,
+      adults:    parseInt(document.getElementById('wiAdults').value) || 1,
+      kids:      parseInt(document.getElementById('wiKids').value)   || 0,
+      address1:  document.getElementById('wiAddress1').value.trim() || null,
+      address2:  document.getElementById('wiAddress2').value.trim() || null,
+      city:      document.getElementById('wiCity').value.trim()     || null,
+      state:     document.getElementById('wiState').value           || null,
+      zipCode:   document.getElementById('wiZip').value.trim()      || null,
+      note:      document.getElementById('wiNote').value.trim()     || null,
+      walkIn:    true,
+      attending: true
+    };
+
+    try {
+      const res  = await fetch(`/api/events/${currentEventId}/walkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`✅ Walk-in registered and checked in! Token: #${tokenNumber(data.id)}`, 'success');
+        resetWalkInForm();
+        await Promise.all([loadRegistrations(), loadSummary()]);
+        // Open token modal automatically
+        const name = [body.firstName, body.lastName].filter(Boolean).join(' ');
+        openTokenModal(data.id, name, data.registrationCode);
+      } else {
+        showFeedback(`❌ ${data.error || 'Registration failed.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '🚶 Register & Check In';
+    }
+  }
+
+  function validateWalkIn() {
+    let ok = true;
+    const fn = document.getElementById('wiFirstName').value.trim();
+    if (!fn) { markInvalid('wiFirstName', 'wiFirstNameHint', 'First name is required.'); ok = false; }
+    else      { markValid('wiFirstName', 'wiFirstNameHint'); }
+
+    const ln = document.getElementById('wiLastName').value.trim();
+    if (!ln) { markInvalid('wiLastName', 'wiLastNameHint', 'Last name is required.'); ok = false; }
+    else      { markValid('wiLastName', 'wiLastNameHint'); }
+
+    const em = document.getElementById('wiEmail').value.trim();
+    if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      markInvalid('wiEmail', 'wiEmailHint', 'Enter a valid email address.'); ok = false;
+    } else { markValid('wiEmail', 'wiEmailHint'); }
+
+    return ok;
+  }
+
+  function resetWalkInForm() {
+    ['wiFirstName','wiLastName','wiEmail','wiPhone','wiAddress1','wiAddress2',
+     'wiCity','wiZip','wiNote'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('wiState').value  = '';
+    document.getElementById('wiAdults').value = '1';
+    document.getElementById('wiKids').value   = '0';
+    ['wiFirstName','wiLastName','wiEmail'].forEach(id =>
+      document.getElementById(id).classList.remove('invalid'));
+    ['wiFirstNameHint','wiLastNameHint','wiEmailHint'].forEach(id =>
+      document.getElementById(id).textContent = '');
+  }
+
+  /* ─────────── TOKEN MODAL ─────────── */
+  function tokenNumber(regId) {
+    // Deterministic 6-char alphanumeric token derived from the registration ID
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let seed = Math.abs(regId * 2654435761) >>> 0; // integer hash
+    let token = '';
+    for (let i = 0; i < 6; i++) {
+      token += chars[seed % chars.length];
+      seed = Math.imul(seed ^ (seed >>> 16), 0x45d9f3b) >>> 0;
+    }
+    return token;
+  }
+
+  // Back-compat alias (walk-in flow calls openTokenModal).
+  function openTokenModal(regId, name, regCode) { openLabelModal(regId, name, regCode); }
+
+  function openLabelModal(regId, name, regCode) {
+    const token  = tokenNumber(regId);
+    const showQr = !!(currentEvent && currentEvent.generateQrCode && regCode);
+    tokenData    = { name, regCode, token, eventName: currentEventName, showQr };
+    document.getElementById('tokenName').textContent      = name;
+    document.getElementById('tokenEventName').textContent = currentEventName;
+    document.getElementById('tokenNumber').textContent    = token;
+    document.getElementById('labelHint').textContent =
+      showQr ? 'Scan this QR at check-in, or show the Registration ID at the gate.'
+             : 'Show this Registration ID at the entry gate.';
+
+    // Render the QR (points at the public self check-in URL for this registration).
+    const qrWrap = document.getElementById('labelQrWrap');
+    qrWrap.innerHTML = '';
+    if (showQr && window.QRCode) {
+      qrWrap.style.display = 'flex';
+      new QRCode(qrWrap, {
+        text: window.location.origin + '/event-checkin/' + regCode,
+        width: 150, height: 150, colorDark: '#673147', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else {
+      qrWrap.style.display = 'none';
+    }
+    document.getElementById('tokenModal').classList.add('open');
+  }
+
+  function closeTokenModal() {
+    document.getElementById('tokenModal').classList.remove('open');
+  }
+
+  // Print a compact name/ID/QR label — works with any printer the OS sees (incl. mini/thermal).
+  function printLabel() {
+    if (!tokenData) return;
+    let qrImg = '';
+    if (tokenData.showQr) {
+      const img = document.querySelector('#labelQrWrap img');
+      const cnv = document.querySelector('#labelQrWrap canvas');
+      const src = img ? img.src : (cnv ? cnv.toDataURL('image/png') : '');
+      if (src) qrImg = `<img class="qr" src="${src}" alt="QR" />`;
+    }
+    const win = window.open('', '_blank', 'width=400,height=420');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+      <title>Label – ${escHtml(tokenData.name)}</title>
+      <style>
+        @page { margin: 6mm; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 16px; text-align: center; }
+        .event { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .name  { font-size: 22px; font-weight: 800; color: #000; margin-bottom: 10px; }
+        .token { font-size: 40px; font-weight: 900; color: #000; font-family: 'Courier New', monospace;
+                 letter-spacing: 5px; margin: 4px 0 8px; }
+        .qr    { width: 150px; height: 150px; }
+        .lbl   { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+        @media print { body { margin: 0; } }
+      </style></head><body>
+      <div class="event">${escHtml(tokenData.eventName)}</div>
+      <div class="name">${escHtml(tokenData.name)}</div>
+      <div class="lbl">Registration ID</div>
+      <div class="token">${escHtml(tokenData.token)}</div>
+      ${qrImg}
+    </body></html>`);
+    win.document.close(); win.focus();
+    setTimeout(() => { win.print(); }, 350);
+  }
+
+  /* ─────────── FULL SCREEN / CLOSE ─────────── */
+  function enterFullScreen() {
+    document.body.classList.add('checkin-fs');
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    syncFsButtons(true);
+  }
+  function exitFullScreen() {
+    document.body.classList.remove('checkin-fs');
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    syncFsButtons(false);
+  }
+  function syncFsButtons(on) {
+    document.getElementById('enterFsBtn').style.display = on ? 'none' : '';
+    document.getElementById('exitFsBtn').style.display  = on ? '' : 'none';
+  }
+  // Keep the UI in sync when the user exits full screen via Esc / browser chrome.
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) { document.body.classList.remove('checkin-fs'); syncFsButtons(false); }
+  });
+  function closeCheckin() {
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    window.location.href = '/events';
+  }
+
+  /* ─────────── QR SCAN → CHECK IN ─────────── */
+  let qrScanner = null;
+  function startScan() {
+    if (!currentEventId) { showFeedback('❌ Please select an event first.', 'error'); return; }
+    if (!window.Html5Qrcode) { showFeedback('❌ Scanner library not loaded.', 'error'); return; }
+    document.getElementById('scanResult').textContent = '';
+    document.getElementById('scanModal').classList.add('open');
+    qrScanner = new Html5Qrcode('qrReader');
+    qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 240 },
+      onScanSuccess, function () {})
+      .catch(() => { showFeedback('❌ Could not start the camera. Check permissions.', 'error'); stopScan(); });
+  }
+
+  function stopScan() {
+    document.getElementById('scanModal').classList.remove('open');
+    if (qrScanner) {
+      qrScanner.stop().then(() => { qrScanner.clear(); qrScanner = null; }).catch(() => { qrScanner = null; });
+    }
+  }
+
+  // Extract a registrationCode from the scanned text (a check-in URL or a raw code).
+  function parseScannedCode(text) {
+    if (!text) return null;
+    const m = String(text).match(/event-checkin\/([^/?#\s]+)/i);
+    if (m) return decodeURIComponent(m[1]);
+    const t = String(text).trim();
+    return /^REG/i.test(t) ? t : t; // accept a raw registration code too
+  }
+
+  let scanBusy = false;
+  async function onScanSuccess(decodedText) {
+    if (scanBusy) return;
+    scanBusy = true;
+    const code = parseScannedCode(decodedText);
+    const reg  = allRegs.find(r => (r.registrationCode || '') === code);
+    const resultEl = document.getElementById('scanResult');
+
+    if (!reg) {
+      resultEl.textContent = '⚠️ No matching registration for this event.';
+      resultEl.className = 'scan-result err';
+      setTimeout(() => { scanBusy = false; }, 1200);
+      return;
+    }
+    const name = [reg.firstName, reg.lastName].filter(Boolean).join(' ') || 'Attendee';
+    if (reg.checkedIn) {
+      resultEl.textContent = `ℹ️ ${name} is already checked in.`;
+      resultEl.className = 'scan-result ok';
+      setTimeout(() => { scanBusy = false; }, 1500);
+      return;
+    }
+    await checkIn(reg.id);
+    resultEl.textContent = `✅ Checked in: ${name}`;
+    resultEl.className = 'scan-result ok';
+    setTimeout(() => { scanBusy = false; }, 1500);
+  }
+
+  /* Phone formatter (US-style when 10 digits; otherwise as-entered). */
+  function formatPhone(p) {
+    if (!p) return '<span style="color:#ccc;">—</span>';
+    const d = String(p).replace(/\D/g, '');
+    if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+    return escHtml(String(p));
+  }
+
+  /* ─────────── PRINT LISTS ─────────── */
+  function printList(type) {
+    if (!currentEventId) { showFeedback('❌ Please select an event first.', 'error'); return; }
+
+    let regs, title;
+    if      (type === 'all')          { regs = allRegs;                                          title = 'All Registrations';          }
+    else if (type === 'checkedin')    { regs = allRegs.filter(r =>  r.checkedIn);                title = 'Checked-In Attendees';       }
+    else if (type === 'notcheckedin') { regs = allRegs.filter(r => !r.checkedIn);                title = 'Not Checked-In Attendees';   }
+    else                              { regs = allRegs.filter(r => selectedIds.has(r.id));       title = 'Selected Attendees';         }
+    if (type === 'selected' && !regs.length) { showFeedback('❌ No attendees selected.', 'error'); return; }
+
+    const rows = regs.map((r, i) => {
+      const name = [r.firstName, r.lastName].filter(Boolean).join(' ') || '—';
+      const token = tokenNumber(r.id);
+      const checkinTime = r.checkedIn && r.checkedInAt ? formatDateTime(r.checkedInAt) : '—';
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${escHtml(name)}${r.walkIn ? ' <em style="color:#1565c0;">(Walk-in)</em>' : ''}</td>
+        <td>${escHtml(r.email || '—')}</td>
+        <td>${formatPhone(r.phone)}</td>
+        <td>${r.adults || 0}</td>
+        <td>${r.kids   || 0}</td>
+        <td>${r.checkedIn ? '✅ Yes' : '⏳ No'}</td>
+        <td>${escHtml(checkinTime)}</td>
+        <td>#${token}</td>
+      </tr>`;
+    }).join('');
+
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+      <title>${escHtml(title)} – ${escHtml(currentEventName)}</title>
+      <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 24px; color: #222; }
+        h2   { font-size: 16px; margin-bottom: 4px; color: #1e2139; }
+        .sub { font-size: 12px; color: #888; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f5f6fb; font-size: 10px; font-weight: 700; text-transform: uppercase;
+             letter-spacing: .4px; color: #888; padding: 8px 10px; text-align: left;
+             border-bottom: 2px solid #dde0ec; }
+        td { padding: 8px 10px; border-bottom: 1px solid #eef0f8; }
+        tr:last-child td { border-bottom: none; }
+        @media print { body { margin: 12px; } }
+      </style></head><body>
+      <h2>${escHtml(title)}</h2>
+      <div class="sub">Event: ${escHtml(currentEventName)} &nbsp;|&nbsp; Total: ${regs.length}</div>
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Adults</th><th>Kids</th><th>Checked In</th><th>Check-in Time</th><th>Token</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </body></html>`);
+    win.document.close(); win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  }
+
+  /* ─────────── HELPERS ─────────── */
+  function markInvalid(inputId, hintId, msg) {
+    document.getElementById(inputId).classList.add('invalid');
+    document.getElementById(hintId).textContent = msg;
+  }
+  function markValid(inputId, hintId) {
+    document.getElementById(inputId).classList.remove('invalid');
+    document.getElementById(hintId).textContent = '';
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg; el.className = 'feedback ' + type;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (type === 'success') setTimeout(() => { el.className = 'feedback'; }, 6000);
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escJs(s) {
+    return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  }
+
+  function formatDateTime(val) {
+    if (!val) return '—';
+    try {
+      const d = new Date(val);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+           + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch { return String(val); }
+  }
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'general/event-checkin-admin', pageTitle: 'Event Check-in', openSection: 'general' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>window.CGP_PRIVATE_KEY = 'eventcheckin';</script>
+<script src="/private-badge.js"></script>
+</body>
+</html>

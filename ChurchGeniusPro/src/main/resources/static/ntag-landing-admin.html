@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>NTAG Landing Page — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 16px; }
+    .layout { display:grid; grid-template-columns:1fr 360px; gap:20px; align-items:start; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:18px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 18px; border-bottom:1px solid #eef0f6; background:#fafbfe; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; }
+    .card-body { padding:18px; }
+    label { font-size:13px; font-weight:600; color:#666; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px; }
+    input[type=text],input[type=url],textarea,input[type=color] { width:100%; border:1.5px solid #e0e0e0; border-radius:7px; padding:10px 13px; font-size:14px; color:#333; outline:none; background:#fff; font-family:inherit; transition:border-color .2s, box-shadow .2s; }
+    input::placeholder,textarea::placeholder { color:#bbb; }
+    input:focus,textarea:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.1); }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > div { flex:1; min-width:160px; }
+    .toggle { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:#1e2139; text-transform:none; letter-spacing:0; }
+    input[type=checkbox] { width:16px; height:16px; accent-color:#673147; }
+    /* Buttons — match the Groups page look (outlined maroon, fills on hover) */
+    .btn { background:#673147; color:#fff; border:1px solid #673147; border-radius:7px; padding:10px 24px; font-size:14px; font-weight:600; transition:background .18s, color .18s, border-color .18s; }
+    .btn:hover { background:#4f2538; border-color:#4f2538; }
+    .btn-sec { background:transparent; color:#673147; border:1px solid #c5a0b5; border-radius:7px; padding:8px 16px; font-size:13px; font-weight:600; transition:background .18s, color .18s, border-color .18s; }
+    .btn-sec:hover { background:#673147; color:#fff; border-color:#673147; }
+    .btn-danger { color:#673147; border:1px solid #c5a0b5; background:transparent; border-radius:7px; padding:6px 12px; font-size:13px; font-weight:600; transition:background .18s, color .18s, border-color .18s; }
+    .btn-danger:hover { background:#673147; color:#fff; border-color:#673147; }
+    /* Toast notifications */
+    #toastWrap { position:fixed; top:18px; right:18px; z-index:9999; display:flex; flex-direction:column; gap:10px; }
+    .toast { display:flex; align-items:flex-start; gap:10px; min-width:260px; max-width:360px; padding:12px 14px; border-radius:10px;
+      box-shadow:0 6px 24px rgba(0,0,0,.16); font-size:13.5px; line-height:1.4; background:#fff; border-left:4px solid #2e7d32;
+      animation:toastIn .25s ease; }
+    .toast.err { border-left-color:#c62828; }
+    .toast .t-ic { font-size:16px; line-height:1.2; }
+    .toast .t-msg { flex:1; color:#1e2139; }
+    .toast .t-x { background:none; border:none; color:#9aa; font-size:16px; cursor:pointer; padding:0 2px; line-height:1; }
+    .toast.hide { animation:toastOut .25s ease forwards; }
+    @keyframes toastIn { from{ opacity:0; transform:translateX(20px);} to{ opacity:1; transform:none;} }
+    @keyframes toastOut { from{ opacity:1; } to{ opacity:0; transform:translateX(20px);} }
+    .btnrow { border:1px solid #eef0f6; border-radius:10px; padding:12px; margin-bottom:10px; }
+    .btnrow .top { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .btnrow .icon-in { width:54px; text-align:center; font-size:18px; }
+    .btnrow .lbl-in { flex:1; }
+    .grip { display:flex; flex-direction:column; gap:2px; }
+    .muted { color:#8a8a8a; font-size:12px; }
+    .feedback { padding:10px 16px; border-radius:9px; font-size:13px; margin-bottom:14px; display:none; }
+    .feedback.ok { display:block; background:#e8f5e9; color:#2e7d32; } .feedback.err { display:block; background:#ffebee; color:#c62828; }
+    .url-box { display:flex; gap:8px; align-items:center; }
+    .url-box code { flex:1; background:#f5f6fb; border:1px solid #e8eaf2; border-radius:7px; padding:8px 10px; font-size:12px; word-break:break-all; }
+    .preview-frame { width:100%; height:640px; border:1px solid #e8eaf2; border-radius:14px; background:#fff; }
+    .stat { display:flex; gap:10px; flex-wrap:wrap; }
+    .stat .b { flex:1; min-width:90px; border:1px solid #eef0f6; border-radius:8px; padding:10px; text-align:center; }
+    .stat .b .n { font-size:20px; font-weight:800; color:#673147; } .stat .b .l { font-size:11px; color:#888; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { text-align:left; color:#9fa8c4; font-size:10px; text-transform:uppercase; padding:6px 8px; border-bottom:2px solid #eef0f8; }
+    td { padding:6px 8px; border-bottom:1px solid #f3f4f9; }
+    @media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div id="toastWrap"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-title">📲 NTAG Landing Page</div>
+      <div class="page-subtitle">The branded page visitors see when they tap your NTAG tag. Customize it, then print/encode the public link onto your tags.</div>
+
+      <div class="feedback" id="fb"></div>
+
+      <div class="layout">
+        <div>
+          <!-- Public link -->
+          <div class="card"><div class="card-header"><span>🔗</span><h2>Public Link</h2></div>
+            <div class="card-body">
+              <label class="toggle"><input type="checkbox" id="enabled" onchange="markDirty()"> Page enabled (visitors can view it)</label>
+              <div class="url-box" style="margin-top:12px;"><code id="publicUrl">—</code>
+                <button class="btn-sec" onclick="copyUrl()">Copy</button></div>
+              <div class="muted" style="margin-top:6px;">Write this URL to your NTAG tags (as an NDEF URL record) so a tap opens this page.</div>
+            </div>
+          </div>
+
+          <!-- Branding -->
+          <div class="card"><div class="card-header"><span>🎨</span><h2>Branding</h2></div>
+            <div class="card-body">
+              <div class="row">
+                <div><label>Theme color</label><input type="color" id="themeColor" value="#673147" onchange="markDirty();updatePreviewSoon()" style="height:42px;padding:4px;"></div>
+                <div style="flex:2;"><label class="toggle" style="margin-top:24px;"><input type="checkbox" id="showLogo" onchange="markDirty()"> Show church logo</label></div>
+              </div>
+              <div style="margin-top:12px;"><label>Welcome message</label>
+                <textarea id="welcomeMessage" rows="2" placeholder="Welcome! We're glad you're here." oninput="markDirty()"></textarea></div>
+              <div style="margin-top:12px;"><label>Banner image (optional)</label>
+                <input type="file" accept="image/*" id="bannerFile" onchange="onBanner(this)">
+                <div id="bannerPreview" style="margin-top:8px;"></div></div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="card"><div class="card-header"><span>🔘</span><h2>Buttons</h2><button class="btn-sec" onclick="addButton()">＋ Add button</button></div>
+            <div class="card-body"><div id="buttons"></div>
+              <div class="muted">Drag isn’t needed — use ↑ ↓ to reorder. Buttons with an empty URL are hidden on the public page.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:20px;">
+            <button class="btn" onclick="save()">💾 Save &amp; Publish</button>
+            <button class="btn-sec" onclick="reload()">Reset</button>
+          </div>
+
+          <!-- Analytics -->
+          <div class="card"><div class="card-header"><span>📊</span><h2>Analytics</h2><button class="btn-sec" onclick="loadReport()">↻ Refresh</button></div>
+            <div class="card-body">
+              <div class="stat" id="statBar"></div>
+              <h3 style="font-size:12px;color:#888;margin:16px 0 6px;text-transform:uppercase;">Clicks by button</h3>
+              <table><tbody id="clickTotals"><tr><td class="muted">No clicks yet.</td></tr></tbody></table>
+              <h3 style="font-size:12px;color:#888;margin:16px 0 6px;text-transform:uppercase;">Recent activity</h3>
+              <div style="max-height:200px;overflow:auto;"><table><tbody id="recent"><tr><td class="muted">No activity yet.</td></tr></tbody></table></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live preview -->
+        <div class="card" style="position:sticky;top:16px;"><div class="card-header"><span>👁️</span><h2>Live Preview</h2><button class="btn-sec" onclick="refreshPreview()">↻</button></div>
+          <div class="card-body"><iframe id="preview" class="preview-frame" title="Preview"></iframe></div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<script>
+  let CFG = { buttons:[], cidToken:'' };
+  let dirty = false, previewTimer = null;
+  function fb(m, ok){ const e=document.getElementById('fb'); e.textContent=m; e.className='feedback '+(ok?'ok':'err'); setTimeout(()=>{e.className='feedback';}, 4000); }
+
+  // Toast notification — auto-dismisses after a few seconds, or click ✕ to dismiss.
+  function toast(message, type){
+    var wrap = document.getElementById('toastWrap');
+    var el = document.createElement('div');
+    el.className = 'toast' + (type === 'err' ? ' err' : '');
+    el.innerHTML = '<span class="t-ic">' + (type === 'err' ? '⚠️' : '✅') + '</span>'
+      + '<span class="t-msg"></span>'
+      + '<button class="t-x" title="Dismiss">✕</button>';
+    el.querySelector('.t-msg').textContent = message;
+    function dismiss(){ if(!el.parentNode) return; el.classList.add('hide'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 240); }
+    el.querySelector('.t-x').addEventListener('click', dismiss);
+    wrap.appendChild(el);
+    setTimeout(dismiss, 4500);
+  }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function markDirty(){ dirty = true; }
+
+  async function reload() {
+    const r = await fetch('/api/ntag-landing/config');
+    CFG = await r.json();
+    document.getElementById('enabled').checked = CFG.enabled !== false;
+    document.getElementById('showLogo').checked = CFG.showLogo !== false;
+    document.getElementById('themeColor').value = CFG.themeColor || '#673147';
+    document.getElementById('welcomeMessage').value = CFG.welcomeMessage || '';
+    CFG._banner = CFG.bannerImage || '';
+    renderBanner();
+    renderButtons();
+    var url = window.location.origin + '/ntagLanding?c=' + encodeURIComponent(CFG.cidToken || '');
+    document.getElementById('publicUrl').textContent = url;
+    refreshPreview();
+    loadReport();
+    dirty = false;
+  }
+
+  function renderBanner() {
+    document.getElementById('bannerPreview').innerHTML = CFG._banner
+      ? '<img src="'+esc(CFG._banner)+'" style="max-width:100%;border-radius:10px;border:1px solid #eee;" /> <button class="btn-danger" onclick="clearBanner()">Remove</button>'
+      : '<span class="muted">No banner — the logo + color header is shown.</span>';
+  }
+  function clearBanner(){ CFG._banner=''; document.getElementById('bannerFile').value=''; renderBanner(); markDirty(); }
+  function onBanner(input){
+    var f = input.files && input.files[0]; if (!f) return;
+    var rd = new FileReader(); rd.onload = function(){ CFG._banner = rd.result; renderBanner(); markDirty(); }; rd.readAsDataURL(f);
+  }
+
+  // Footer = social/communication; everything else is a main action button.
+  function secOf(b) {
+    var s = (b.section || '').toLowerCase();
+    if (s === 'social' || s === 'footer') return 'social';
+    if (s === 'main') return 'main';
+    return ['facebook','instagram','youtube','x','twitter','whatsapp','linkedin','email']
+             .indexOf((b.key || '').toLowerCase()) >= 0 ? 'social' : 'main';
+  }
+
+  function renderButtons() {
+    const box = document.getElementById('buttons');
+    const list = (CFG.buttons || []).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    CFG.buttons = list;
+    box.innerHTML = list.map(function (b, i) {
+      var sec = secOf(b);
+      // These links are driven by Church Settings — show their URL read-only.
+      var managed = ['website','facebook','instagram','youtube']
+                      .indexOf((b.key || '').toLowerCase()) >= 0;
+      var urlField = managed
+        ? '<input class="b-url" type="text" value="'+esc(b.url||'')+'" readonly title="Set this in Church Settings" '
+            + 'placeholder="Set in Church Settings" style="background:#f5f6fb;color:#888;cursor:not-allowed;" />'
+            + '<div class="muted" style="font-size:11px;margin-top:4px;">🔗 Auto from Church Settings → '
+            + esc((b.key||'').charAt(0).toUpperCase() + (b.key||'').slice(1)) + ' URL. Updates there appear here automatically.</div>'
+        : '<input class="b-url" type="text" value="'+esc(b.url||'')+'" placeholder="https://… (or mailto:, or a page link)" oninput="markDirty()" />';
+      return '<div class="btnrow" data-i="'+i+'">'
+        + '<div class="top">'
+        + '<input class="icon-in b-icon" value="'+esc(b.icon||'')+'" oninput="markDirty()" />'
+        + '<input class="lbl-in b-label" value="'+esc(b.label||'')+'" placeholder="Button label" oninput="markDirty()" />'
+        + '<select class="b-section" onchange="markDirty()" title="Where this link appears">'
+        +   '<option value="main"'+(sec==='main'?' selected':'')+'>Main</option>'
+        +   '<option value="social"'+(sec==='social'?' selected':'')+'>Footer</option>'
+        + '</select>'
+        + '<label class="toggle" style="font-size:12px;"><input type="checkbox" class="b-enabled" '+(b.enabled!==false?'checked':'')+' onchange="markDirty()"> On</label>'
+        + '<button class="btn-sec" onclick="moveBtn('+i+',-1)" title="Up">↑</button>'
+        + '<button class="btn-sec" onclick="moveBtn('+i+',1)" title="Down">↓</button>'
+        + '<button class="btn-danger" onclick="removeBtn('+i+')">✕</button>'
+        + '</div>'
+        + urlField
+        + '</div>';
+    }).join('') || '<div class="muted">No buttons yet — add one above.</div>';
+  }
+
+  function collectButtons() {
+    return Array.from(document.querySelectorAll('#buttons .btnrow')).map(function (row, idx) {
+      var orig = CFG.buttons[parseInt(row.dataset.i,10)] || {};
+      return {
+        key: orig.key || ('btn' + Date.now() + idx),
+        icon: row.querySelector('.b-icon').value,
+        label: row.querySelector('.b-label').value,
+        url: row.querySelector('.b-url').value.trim(),
+        enabled: row.querySelector('.b-enabled').checked,
+        section: row.querySelector('.b-section').value,
+        order: idx + 1
+      };
+    });
+  }
+  function addButton(){
+    CFG.buttons.push({ key:'btn'+Date.now(), icon:'🔗', label:'New Button', url:'', enabled:true, order:(CFG.buttons.length+1) });
+    renderButtons();
+    markDirty();
+    toast('Button added successfully. The new button has been added to the bottom of the page.');
+    // Scroll the newly added button row into view.
+    var rows = document.querySelectorAll('.btnrow');
+    if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+  function removeBtn(i){ CFG.buttons = collectButtons(); CFG.buttons.splice(i,1); renderButtons(); markDirty(); }
+  function moveBtn(i, dir){ CFG.buttons = collectButtons(); var j=i+dir; if(j<0||j>=CFG.buttons.length) return; var t=CFG.buttons[i]; CFG.buttons[i]=CFG.buttons[j]; CFG.buttons[j]=t; CFG.buttons.forEach((b,k)=>b.order=k+1); renderButtons(); markDirty(); }
+
+  async function save() {
+    var body = {
+      enabled: document.getElementById('enabled').checked,
+      showLogo: document.getElementById('showLogo').checked,
+      themeColor: document.getElementById('themeColor').value,
+      welcomeMessage: document.getElementById('welcomeMessage').value,
+      bannerImage: CFG._banner || null,
+      buttons: collectButtons()
+    };
+    const r = await fetch('/api/ntag-landing/config', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (r.ok) { fb('Saved & published.', true); dirty=false; refreshPreview(); }
+    else { const j=await r.json().catch(()=>({})); fb(j.error||'Could not save.', false); }
+  }
+
+  function refreshPreview() {
+    var f = document.getElementById('preview');
+    f.src = '/ntagLanding?c=' + encodeURIComponent(CFG.cidToken || '') + '&_=' + Date.now();
+  }
+  function updatePreviewSoon(){ clearTimeout(previewTimer); previewTimer = setTimeout(refreshPreview, 600); }
+  function copyUrl(){ var t=document.getElementById('publicUrl').textContent; if(navigator.clipboard) navigator.clipboard.writeText(t); fb('Link copied.', true); }
+
+  async function loadReport() {
+    try {
+      const d = await (await fetch('/api/ntag-landing/report?limit=100')).json();
+      document.getElementById('statBar').innerHTML =
+        '<div class="b"><div class="n">'+(d.views||0)+'</div><div class="l">Page Views</div></div>'
+        + '<div class="b"><div class="n">'+(d.clicks||0)+'</div><div class="l">Button Clicks</div></div>';
+      var tt = d.clickTotals || [];
+      document.getElementById('clickTotals').innerHTML = tt.length
+        ? tt.map(t=>'<tr><td>'+esc(t.buttonLabel||t.buttonKey||'—')+'</td><td style="text-align:right;font-weight:700;">'+t.count+'</td></tr>').join('')
+        : '<tr><td class="muted">No clicks yet.</td></tr>';
+      var rc = d.recent || [];
+      document.getElementById('recent').innerHTML = rc.length
+        ? rc.map(r=>'<tr><td>'+(r.time?esc(new Date(r.time).toLocaleString()):'—')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.buttonLabel||'')+'</td></tr>').join('')
+        : '<tr><td class="muted">No activity yet.</td></tr>';
+    } catch {}
+  }
+
+  reload();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'admin/public-screens', pageTitle: 'NTAG Landing Page', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>
