@@ -578,20 +578,17 @@
                   <span class="toggle-label">Is Food Available?</span>
                 </label>
               </div>
-              <!-- Food items list (shown when food is available) -->
+              <!-- Food options (free text, shown when food is available) -->
               <div id="foodItemsSection" style="display:none;grid-column:1/-1;margin-top:2px;">
                 <div style="background:#f1f8e9;border:1px solid #c5e1a5;border-radius:9px;padding:14px 16px;">
                   <div style="font-size: 13px;font-weight:700;color:#558b2f;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">🍽️ Food Options</div>
-                  <div style="display:flex;gap:8px;margin-bottom:10px;">
-                    <input type="text" id="foodItemInput" placeholder="e.g. Vegetarian Pasta, Chicken Biryani…"
-                           style="flex:1;border:1px solid #c5e1a5;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();addFoodItem();}" />
-                    <button type="button" onclick="addFoodItem()"
-                            style="background:#558b2f;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Add</button>
-                  </div>
-                  <div id="foodItemsList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px;">
-                    <span style="font-size: 13px;color:#aaa;font-style:italic;" id="foodItemsEmpty">No food items added yet.</span>
-                  </div>
+                  <label for="foodLabelInput" style="display:block;font-size:12px;font-weight:600;color:#558b2f;margin-bottom:4px;">Section Label <span style="font-weight:400;color:#7c8f6d;">(shown to registrants)</span></label>
+                  <input type="text" id="foodLabelInput" value="Dietary Preferences" placeholder="Dietary Preferences"
+                         style="width:100%;border:1px solid #c5e1a5;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;margin-bottom:10px;" />
+                  <label for="foodOptionsInput" style="display:block;font-size:12px;font-weight:600;color:#558b2f;margin-bottom:4px;">Options</label>
+                  <input type="text" id="foodOptionsInput" placeholder="Dietary Preferences"
+                         style="width:100%;border:1px solid #c5e1a5;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;" />
+                  <div style="font-size:12px;color:#7c8f6d;margin-top:6px;">Enter the choices registrants can pick from, separated by commas — e.g. <em>Veg, Non-Veg, Vegan, Gluten-Free</em>. Leave blank to show a generic "Dietary Preferences" field.</div>
                 </div>
               </div>
               <!-- Accommodation -->
@@ -879,7 +876,6 @@
   let dayRowCount = 0;
   let currentRegEventId = null;
   let pendingImageData  = null;
-  let foodItems         = [];
 
   /* ════ VOLUNTEER ASSIGNMENT STATE ════ */
   let evVolunteers  = [];   // array of volunteer DTOs from /api/events/{id}/volunteers
@@ -1418,28 +1414,28 @@
   }
   function clearDayRows() { document.getElementById('daysContainer').innerHTML = ''; dayRowCount = 0; }
 
-  /* FOOD */
+  /* FOOD — options are a free-text, comma-separated list (e.g. "Veg, Non-Veg, Vegan"). */
   function onFoodAvailableChange() {
     const checked = document.getElementById('foodAvailable').checked;
     document.getElementById('foodItemsSection').style.display = checked ? '' : 'none';
   }
-  function addFoodItem() {
-    const inp = document.getElementById('foodItemInput');
-    const val = inp.value.trim();
-    if (!val) return;
-    foodItems.push(val);
-    inp.value = '';
-    renderFoodItems();
+  function getFoodOptions() {
+    const inp = document.getElementById('foodOptionsInput');
+    if (!inp) return [];
+    return inp.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
   }
-  function removeFoodItem(idx) { foodItems.splice(idx, 1); renderFoodItems(); }
-  function clearFoodItems() { foodItems = []; renderFoodItems(); }
-  function renderFoodItems() {
-    const c = document.getElementById('foodItemsList');
-    if (!c) return;
-    c.innerHTML = foodItems.map((f, i) =>
-      '<span class="food-tag">' + escHtml(f) +
-      ' <button type="button" onclick="removeFoodItem(' + i + ')">x</button></span>'
-    ).join('');
+  function setFoodOptions(arr) {
+    const inp = document.getElementById('foodOptionsInput');
+    if (inp) inp.value = (arr || []).join(', ');
+  }
+  function getFoodLabel() {
+    const inp = document.getElementById('foodLabelInput');
+    const v = inp ? inp.value.trim() : '';
+    return v || 'Dietary Preferences';
+  }
+  function setFoodLabel(v) {
+    const inp = document.getElementById('foodLabelInput');
+    if (inp) inp.value = (v && v.trim()) ? v.trim() : 'Dietary Preferences';
   }
 
   /* ACCOMMODATION */
@@ -1528,7 +1524,8 @@
       hostEmail:           g('hostEmail').trim()|| null,
       hostNote:            g('hostNote').trim() || null,
       foodAvailable:          gc('foodAvailable'),
-      foodItems:              gc('foodAvailable') ? JSON.stringify(foodItems) : null,
+      foodItems:              gc('foodAvailable') ? JSON.stringify(getFoodOptions()) : null,
+      foodLabel:              gc('foodAvailable') ? getFoodLabel() : null,
       accommodationAvailable: gc('accommodationAvailable'),
       accommodationAddress:   g('accommodationAddress').trim() || null,
       accommodationComments:  g('accommodationComments').trim() || null,
@@ -1611,11 +1608,11 @@
       onFoodAvailableChange();
     }
     try {
-      foodItems = ev.foodItems
+      setFoodOptions(ev.foodItems
         ? (Array.isArray(ev.foodItems) ? [...ev.foodItems] : JSON.parse(ev.foodItems))
-        : [];
-    } catch(e) { foodItems = []; }
-    renderFoodItems();
+        : []);
+    } catch(e) { setFoodOptions([]); }
+    setFoodLabel(ev.foodLabel);
     onAccomChange();
     // Event type
     const typeRadio = document.querySelector('input[name="eventType"][value="' + (ev.eventType || 'One Day') + '"]');
@@ -1669,8 +1666,8 @@
     });
     const fa = document.getElementById('foodAvailable');
     if (fa) { fa.checked = false; onFoodAvailableChange(); }
-    foodItems = [];
-    renderFoodItems();
+    setFoodOptions([]);
+    setFoodLabel(null);
     clearDayRows();
     const typeRadio = document.querySelector('input[name="eventType"][value="One Day"]');
     if (typeRadio) { typeRadio.checked = true; onEventTypeChange('One Day'); }

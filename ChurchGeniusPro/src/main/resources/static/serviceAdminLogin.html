@@ -21,6 +21,7 @@
       align-items: center;
       justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px 0;
     }
 
     .card {
@@ -87,6 +88,7 @@
       text-align: center;
       min-height: 18px;
     }
+    .success-msg { color: #2e7d32; }
 
     .btn-login {
       width: 100%;
@@ -104,6 +106,30 @@
 
     .btn-login:hover:not(:disabled) { background-color: #3d1d2b; }
     .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .link-row {
+      margin-top: 14px;
+      font-size: 13px;
+      text-align: center;
+    }
+    .link-row a { color: #3a5a9b; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .link-row a:hover { text-decoration: underline; }
+
+    /* Password requirements checklist */
+    .pwd-reqs {
+      background: #f8f9fc;
+      border: 1px solid #e4e7f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      line-height: 1.9;
+      color: #777;
+    }
+    .pwd-reqs .req-title { font-weight: 700; color: #555; margin-bottom: 2px; }
+    .pwd-reqs li { list-style: none; }
+    .pwd-reqs li::before { content: '✕ '; color: #c62828; font-weight: 700; }
+    .pwd-reqs li.ok { color: #2e7d32; }
+    .pwd-reqs li.ok::before { content: '✓ '; color: #2e7d32; }
   </style>
 </head>
 <body>
@@ -113,6 +139,7 @@
     </div>
     <span class="admin-badge">Service Admin</span>
 
+    <!-- ── Login form ─────────────────────────────────────────────────── -->
     <form class="form" id="loginForm" novalidate>
 
       <div class="field">
@@ -128,6 +155,48 @@
       <p class="error-msg" id="errorMsg"></p>
 
       <button type="submit" class="btn-login" id="loginBtn">Login</button>
+
+      <div class="link-row"><a id="showChangePwd">Change Password</a></div>
+
+    </form>
+
+    <!-- ── Change Password form ───────────────────────────────────────── -->
+    <form class="form" id="changeForm" style="display:none;" novalidate>
+
+      <div class="field">
+        <label for="cpUsername">Username</label>
+        <input id="cpUsername" type="text" placeholder="Enter username" autocomplete="username" />
+      </div>
+
+      <div class="field">
+        <label for="cpCurrent">Current Password</label>
+        <input id="cpCurrent" type="password" placeholder="Enter current password" autocomplete="current-password" />
+      </div>
+
+      <div class="field">
+        <label for="cpNew">New Password</label>
+        <input id="cpNew" type="password" placeholder="Enter new password" autocomplete="new-password" />
+      </div>
+
+      <div class="field">
+        <label for="cpConfirm">Confirm New Password</label>
+        <input id="cpConfirm" type="password" placeholder="Re-enter new password" autocomplete="new-password" />
+      </div>
+
+      <ul class="pwd-reqs" id="cpReqs">
+        <div class="req-title">New password must contain:</div>
+        <li data-req="len">At least 8 characters</li>
+        <li data-req="lower">A lowercase letter (a-z)</li>
+        <li data-req="upper">An uppercase letter (A-Z)</li>
+        <li data-req="digit">A number (0-9)</li>
+        <li data-req="special">A special character (e.g. !@#$%^&amp;*()_+-=)</li>
+      </ul>
+
+      <p class="error-msg" id="cpMsg"></p>
+
+      <button type="submit" class="btn-login" id="cpBtn">Change Password</button>
+
+      <div class="link-row"><a id="backToLogin">← Back to Login</a></div>
 
     </form>
   </div>
@@ -171,6 +240,100 @@
       } finally {
         loginBtn.disabled    = false;
         loginBtn.textContent = 'Login';
+      }
+    });
+
+    /* ── Change Password ─────────────────────────────────────────────── */
+    const changeForm = document.getElementById('changeForm');
+    const cpBtn      = document.getElementById('cpBtn');
+    const cpMsg      = document.getElementById('cpMsg');
+
+    document.getElementById('showChangePwd').addEventListener('click', () => {
+      form.style.display = 'none';
+      changeForm.style.display = '';
+      document.getElementById('cpUsername').value = document.getElementById('username').value.trim();
+      cpMsg.textContent = '';
+    });
+    document.getElementById('backToLogin').addEventListener('click', () => {
+      changeForm.style.display = 'none';
+      form.style.display = '';
+      errorMsg.textContent = '';
+    });
+
+    // Same policy as the server: 8+ chars, lower, upper, digit, special.
+    function pwdChecks(pw) {
+      return {
+        len:     pw.length >= 8,
+        lower:   /[a-z]/.test(pw),
+        upper:   /[A-Z]/.test(pw),
+        digit:   /[0-9]/.test(pw),
+        special: /[^A-Za-z0-9]/.test(pw)
+      };
+    }
+    function pwdOk(pw) {
+      const c = pwdChecks(pw);
+      return c.len && c.lower && c.upper && c.digit && c.special;
+    }
+
+    // Live checklist while typing
+    document.getElementById('cpNew').addEventListener('input', function () {
+      const checks = pwdChecks(this.value);
+      document.querySelectorAll('#cpReqs li').forEach(li => {
+        li.classList.toggle('ok', !!checks[li.dataset.req]);
+      });
+    });
+
+    changeForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      cpMsg.className = 'error-msg';
+      cpMsg.textContent = '';
+
+      const username        = document.getElementById('cpUsername').value.trim();
+      const currentPassword = document.getElementById('cpCurrent').value;
+      const newPassword     = document.getElementById('cpNew').value;
+      const confirm         = document.getElementById('cpConfirm').value;
+
+      if (!username || !currentPassword || !newPassword || !confirm) {
+        cpMsg.textContent = 'All fields are required.';
+        return;
+      }
+      if (!pwdOk(newPassword)) {
+        cpMsg.textContent = 'New password does not meet all the requirements listed above.';
+        return;
+      }
+      if (newPassword !== confirm) {
+        cpMsg.textContent = 'New password and confirmation do not match.';
+        return;
+      }
+
+      cpBtn.disabled    = true;
+      cpBtn.textContent = 'Changing…';
+
+      try {
+        const res  = await fetch('/api/serviceadmin/change-password', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, currentPassword, newPassword })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          cpMsg.className = 'error-msg success-msg';
+          cpMsg.textContent = data.message || 'Password changed successfully.';
+          changeForm.reset();
+          document.querySelectorAll('#cpReqs li').forEach(li => li.classList.remove('ok'));
+          setTimeout(() => {
+            changeForm.style.display = 'none';
+            form.style.display = '';
+            errorMsg.textContent = '';
+          }, 2500);
+        } else {
+          cpMsg.textContent = data.message || 'Could not change password.';
+        }
+      } catch (err) {
+        cpMsg.textContent = 'Unable to connect. Please try again.';
+      } finally {
+        cpBtn.disabled    = false;
+        cpBtn.textContent = 'Change Password';
       }
     });
   </script>

@@ -61,6 +61,24 @@
     .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
 
+    /* ── Module tabs (Tasks | Connect | Prayer) ── */
+    .fu-tab-bar { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 16px; }
+    .fu-tab { padding:8px 16px; border-radius:20px; font-size:13px; font-weight:700; border:1.5px solid #dde0ec;
+              color:#666; background:#fff; cursor:pointer; font-family:inherit; transition:all .15s; }
+    .fu-tab:hover { border-color:#673147; color:#673147; }
+    .fu-tab.active { background:#673147; color:#fff; border-color:#673147; }
+    .fu-pane { display:none; } .fu-pane.active { display:block; }
+    .sub-pill { display:inline-block; padding:2px 9px; border-radius:10px; font-size:10.5px; font-weight:700; white-space:nowrap; }
+    .sp-New { background:#e3f2fd; color:#1565c0; } .sp-Assigned { background:#ede7f6; color:#5e35b1; }
+    .sp-InProgress { background:#fff8e1; color:#b28704; } .sp-Contacted, .sp-PrayedFor { background:#e8f5e9; color:#2e7d32; }
+    .sp-Closed { background:#eceff1; color:#607d8b; } .sp-FollowedUp { background:#e0f2f1; color:#00695c; }
+    .mg-grid { display:grid; grid-template-columns:130px 1fr; gap:5px 12px; font-size:13px; margin-bottom:12px; }
+    .mg-grid .k { color:#9fa8c4; font-size:11px; text-transform:uppercase; letter-spacing:.3px; padding-top:2px; }
+    .mg-sect { font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:#673147; margin:14px 0 8px; }
+    .mg-fu { border-left:3px solid #673147; background:#faf7f9; padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:12.5px; }
+    .mg-fu .meta { font-size:11px; color:#999; margin-top:3px; }
+    @media (max-width:640px){ .mg-grid { grid-template-columns:1fr; } }
+
     /* ── Table card ── */
     .table-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
     .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -155,6 +173,14 @@
 
       <div class="feedback" id="feedback"></div>
 
+      <!-- Module tabs: task list + public submissions managed here -->
+      <div class="fu-tab-bar">
+        <button class="fu-tab active" id="fuTab_tasks"   onclick="fuShowTab('tasks',this)">📋 Follow-Up Tasks</button>
+        <button class="fu-tab"        id="fuTab_connect" onclick="fuShowTab('connect',this)">🤝 Connect With Us <span id="fuCntConnect"></span></button>
+        <button class="fu-tab"        id="fuTab_prayer"  onclick="fuShowTab('prayer',this)">🙏 Prayer Requests <span id="fuCntPrayer"></span></button>
+      </div>
+
+      <div class="fu-pane active" id="fuPane_tasks">
       <!-- Stats -->
       <div class="stats-row" id="statsRow">
         <div class="stat-pill" onclick="setStatusFilter('')"      id="pill-all">     <div class="num" id="cnt-all">—</div><div class="lbl">All</div></div>
@@ -198,6 +224,47 @@
             </thead>
             <tbody id="tableBody"></tbody>
           </table>
+        </div>
+      </div>
+      </div><!-- /fuPane_tasks -->
+
+      <!-- ── Connect With Us submissions ── -->
+      <div class="fu-pane" id="fuPane_connect">
+        <div class="filter-bar">
+          <select id="connStatusFilter" onchange="renderConnect()">
+            <option value="">All Statuses</option>
+            <option>New</option><option>Assigned</option><option>InProgress</option>
+            <option>Contacted</option><option>Closed</option>
+          </select>
+          <input type="search" id="connSearch" placeholder="🔍 Search name, email, phone…" oninput="renderConnect()" />
+        </div>
+        <div class="table-card">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Contact</th><th>Submitted</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead>
+              <tbody id="connBody"><tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Public Prayer Requests ── -->
+      <div class="fu-pane" id="fuPane_prayer">
+        <div class="filter-bar">
+          <select id="prayStatusFilter" onchange="renderPrayer()">
+            <option value="">All Statuses</option>
+            <option>New</option><option>Assigned</option><option>InProgress</option>
+            <option>PrayedFor</option><option>FollowedUp</option><option>Closed</option>
+          </select>
+          <input type="search" id="praySearch" placeholder="🔍 Search name, email, request…" oninput="renderPrayer()" />
+        </div>
+        <div class="table-card">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Request</th><th>Source</th><th>Submitted</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead>
+              <tbody id="prayBody"><tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -657,6 +724,201 @@
   document.getElementById('modalOverlay').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
   document.getElementById('deleteModal').addEventListener('click',  function(e){ if (e.target === this) closeDeleteModal(); });
 </script>
+<!-- ── Manage modal for Connect submissions & Prayer Requests ── -->
+<div class="modal-overlay" id="mgOverlay">
+  <div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-title" id="mgTitle">Manage</div>
+    <div id="mgBody"></div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="mgClose()">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ════════ Connect With Us + Prayer Requests inside Follow-Ups ════════ */
+(function(){
+  var CONN=[], PRAY=[], ASSIGNEES=[], PVOLS=[], mgCur=null, mgKind=null;
+  function E(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fdt(iso){ if(!iso) return '—'; var d=new Date(iso); return isNaN(d)?iso:d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+  function note(msg, ok){ try{ showFeedback(msg, ok?'success':'error'); }catch(e){ alert(msg); } }
+
+  window.fuShowTab = function(name, btn){
+    document.querySelectorAll('.fu-pane').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.fu-tab').forEach(function(t){ t.classList.remove('active'); });
+    document.getElementById('fuPane_'+name).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (name==='connect' && !CONN._loaded) loadConnect();
+    if (name==='prayer'  && !PRAY._loaded)  loadPrayer();
+  };
+
+  function loadAssignees(){
+    fetch('/api/followups/assignees').then(function(r){return r.json();}).then(function(d){
+      ASSIGNEES = Array.isArray(d) ? d : (d.assignees||[]);
+    }).catch(function(){});
+    fetch('/api/ppr/volunteers').then(function(r){return r.json();}).then(function(d){
+      PVOLS = Array.isArray(d) ? d : [];
+    }).catch(function(){});
+  }
+
+  /* ── Connect ── */
+  function loadConnect(){
+    fetch('/api/connect-admin').then(function(r){return r.json();}).then(function(d){
+      CONN = Array.isArray(d)?d:[]; CONN._loaded=true;
+      document.getElementById('fuCntConnect').textContent = CONN.length ? '('+CONN.length+')' : '';
+      renderConnect();
+    }).catch(function(){ document.getElementById('connBody').innerHTML='<tr><td colspan="6" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+  }
+  window.renderConnect = function(){
+    var st=document.getElementById('connStatusFilter').value;
+    var q=(document.getElementById('connSearch').value||'').toLowerCase();
+    var rows=CONN.filter(function(s){
+      if (st && s.status!==st) return false;
+      var hay=((s.firstName||'')+' '+(s.lastName||'')+' '+(s.email||'')+' '+(s.phone||'')).toLowerCase();
+      return !q || hay.indexOf(q)>=0;
+    });
+    var tb=document.getElementById('connBody');
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:18px;">No submissions.</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(s){
+      var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'(no name)';
+      return '<tr><td><b>'+E(name)+'</b></td>'
+        +'<td>'+[s.email,s.phone].filter(Boolean).map(E).join('<br>')+'</td>'
+        +'<td style="white-space:nowrap;">'+E(fdt(s.createdAt))+'</td>'
+        +'<td><span class="sub-pill sp-'+E(s.status)+'">'+E(s.status)+'</span></td>'
+        +'<td>'+E(s.assignedTo||'—')+'</td>'
+        +'<td><button class="btn-secondary" onclick="mgOpen(\'connect\','+s.id+')">Manage</button></td></tr>';
+    }).join('');
+  };
+
+  /* ── Prayer ── */
+  function loadPrayer(){
+    fetch('/api/ppr').then(function(r){return r.json();}).then(function(d){
+      PRAY = Array.isArray(d)?d:[]; PRAY._loaded=true;
+      document.getElementById('fuCntPrayer').textContent = PRAY.length ? '('+PRAY.length+')' : '';
+      renderPrayer();
+    }).catch(function(){ document.getElementById('prayBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+  }
+  window.renderPrayer = function(){
+    var st=document.getElementById('prayStatusFilter').value;
+    var q=(document.getElementById('praySearch').value||'').toLowerCase();
+    var rows=PRAY.filter(function(p){
+      if (st && p.status!==st) return false;
+      var hay=((p.firstName||'')+' '+(p.lastName||'')+' '+(p.email||'')+' '+(p.requestText||'')).toLowerCase();
+      return !q || hay.indexOf(q)>=0;
+    });
+    var tb=document.getElementById('prayBody');
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:18px;">No prayer requests.</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(p){
+      var name=((p.firstName||'')+' '+(p.lastName||'')).trim()||'(no name)';
+      var txt=(p.requestText||''); if(txt.length>70) txt=txt.slice(0,70)+'…';
+      return '<tr><td><b>'+E(name)+'</b></td>'
+        +'<td style="max-width:240px;">'+E(txt)+'</td>'
+        +'<td>'+E(p.source||'—')+'</td>'
+        +'<td style="white-space:nowrap;">'+E(fdt(p.createdAt))+'</td>'
+        +'<td><span class="sub-pill sp-'+E(p.status)+'">'+E(p.status)+'</span></td>'
+        +'<td>'+E(p.assignedTo||'—')+'</td>'
+        +'<td><button class="btn-secondary" onclick="mgOpen(\'prayer\','+p.id+')">Manage</button></td></tr>';
+    }).join('');
+  };
+
+  /* ── Manage modal (shared) ── */
+  window.mgOpen = function(kind, id){
+    mgKind=kind;
+    mgCur = kind==='connect' ? CONN.find(function(x){return x.id===id;}) : PRAY.find(function(x){return x.id===id;});
+    if(!mgCur) return;
+    var name=((mgCur.firstName||'')+' '+(mgCur.lastName||'')).trim()||'(no name)';
+    document.getElementById('mgTitle').textContent = (kind==='connect'?'🤝 ':'🙏 ')+name;
+    var g = kind==='connect'
+      ? [['Submitted',fdt(mgCur.createdAt)],['Status',mgCur.status],['Email',mgCur.email],['Phone',mgCur.phone],
+         ['Address',mgCur.address],['Contact Prefs',mgCur.contactPreferences],['How They Heard',mgCur.howHeard],['Assigned To',mgCur.assignedTo]]
+      : [['Submitted',fdt(mgCur.createdAt)],['Status',mgCur.status],['Email',mgCur.email],['Phone',mgCur.phone],
+         ['Source',mgCur.source],['Share w/ Team',mgCur.shareWithTeam?'Yes':'No'],['Request',mgCur.requestText],['Assigned To',mgCur.assignedTo]];
+    var opts = kind==='connect'
+      ? ASSIGNEES.map(function(a){return '<option value="'+a.id+'" data-name="'+E(a.name)+'"'+(mgCur.assignedMemberId==a.id?' selected':'')+'>'+E(a.name)+(a.type?' ('+E(a.type)+')':'')+'</option>';}).join('')
+      : PVOLS.map(function(v){return '<option value="'+v.id+'"'+(mgCur.assignedVolunteerId==v.id?' selected':'')+'>'+E(v.name)+(v.role?' ('+E(v.role)+')':'')+'</option>';}).join('');
+    var statuses = kind==='connect'
+      ? ['New','Assigned','InProgress','Contacted','Closed'] : ['New','Assigned','InProgress','PrayedFor','FollowedUp','Closed'];
+    document.getElementById('mgBody').innerHTML =
+      '<div class="mg-grid">'+g.map(function(p){return '<div class="k">'+E(p[0])+'</div><div>'+E(p[1]||'—')+'</div>';}).join('')+'</div>'
+      +'<div class="mg-sect">Assign Volunteer / Staff</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+      +'<select id="mgAssign" style="min-width:220px;"><option value="">— Select —</option>'+opts+'</select>'
+      +'<button class="btn-primary" onclick="mgAssign()">Assign</button></div>'
+      +'<div class="mg-sect">Status</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;">'
+      +'<select id="mgStatus">'+statuses.map(function(s){return '<option'+(mgCur.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'
+      +'<button class="btn-primary" onclick="mgStatus()">Update</button></div>'
+      +'<div class="mg-sect">'+(mgKind==='connect'?'Follow-Up History':'Activity & Notes')+'</div>'
+      +'<div id="mgHist" style="max-height:200px;overflow-y:auto;"><span style="color:#999;font-size:12px;">Loading…</span></div>'
+      +'<div style="margin-top:10px;display:grid;gap:6px;">'
+      +'<input type="text" id="mgNoteTitle" placeholder="'+(mgKind==='connect'?'Follow-up title (e.g. Call to welcome)':'Note (e.g. Called and prayed together)')+'" />'
+      +(mgKind==='connect'?'<textarea id="mgNoteText" rows="2" placeholder="Notes…"></textarea>':'')
+      +'<div><button class="btn-primary" onclick="mgAddNote()">'+(mgKind==='connect'?'+ Add Follow-Up':'+ Add Note')+'</button></div></div>';
+    document.getElementById('mgOverlay').classList.add('open');
+    mgLoadHist();
+  };
+  window.mgClose = function(){ document.getElementById('mgOverlay').classList.remove('open'); mgCur=null; };
+
+  function mgLoadHist(){
+    var el=document.getElementById('mgHist'); if(!mgCur||!el) return;
+    if (mgKind==='connect'){
+      fetch('/api/followups/linked?linkedType=CONNECT&linkedId='+mgCur.id).then(function(r){return r.json();}).then(function(d){
+        var list=Array.isArray(d)?d:(d.followUps||[]);
+        el.innerHTML = list.length ? list.map(function(f){
+          return '<div class="mg-fu"><b>'+E(f.title||'')+'</b>'+(f.description?'<div>'+E(f.description)+'</div>':'')
+            +'<div class="meta">'+E(f.status||'')+(f.dueDate?' · due '+E(f.dueDate):'')+(f.assignedTo?' · '+E(f.assignedTo):'')+'</div></div>';
+        }).join('') : '<span style="color:#999;font-size:12px;">No follow-ups yet.</span>';
+      }).catch(function(){ el.innerHTML='<span style="color:#c62828;font-size:12px;">Failed to load.</span>'; });
+    } else {
+      fetch('/api/ppr/'+mgCur.id+'/notes').then(function(r){return r.json();}).then(function(d){
+        var list=Array.isArray(d)?d:[];
+        el.innerHTML = list.length ? list.map(function(n){
+          return '<div class="mg-fu"><b>'+E(n.type||'NOTE')+'</b><div>'+E(n.text||'')+'</div>'
+            +'<div class="meta">'+(n.author?E(n.author)+' · ':'')+(n.time?E(fdt(n.time)):'')+'</div></div>';
+        }).join('') : '<span style="color:#999;font-size:12px;">No activity yet.</span>';
+      }).catch(function(){ el.innerHTML='<span style="color:#c62828;font-size:12px;">Failed to load.</span>'; });
+    }
+  }
+
+  function post(url, body){
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});});
+  }
+  window.mgAssign = function(){
+    if(!mgCur) return;
+    var sel=document.getElementById('mgAssign');
+    if(!sel.value){ note('Choose a person first.', false); return; }
+    var p = mgKind==='connect'
+      ? post('/api/connect-admin/'+mgCur.id+'/assign', { memberId: sel.value, memberName: sel.selectedOptions[0].getAttribute('data-name') })
+      : post('/api/ppr/'+mgCur.id+'/assign', { volunteerId: sel.value });
+    p.then(function(res){ if(res.ok){ note('Assigned.', true); mgClose(); mgKind==='connect'?loadConnect():loadPrayer(); } else note(res.j.error||'Failed.', false); });
+  };
+  window.mgStatus = function(){
+    if(!mgCur) return;
+    var st=document.getElementById('mgStatus').value;
+    var p = mgKind==='connect'
+      ? post('/api/connect-admin/'+mgCur.id+'/status', { status: st })
+      : post('/api/ppr/'+mgCur.id+'/status', { status: st });
+    p.then(function(res){ if(res.ok){ note('Status updated.', true); mgClose(); mgKind==='connect'?loadConnect():loadPrayer(); } else note(res.j.error||'Failed.', false); });
+  };
+  window.mgAddNote = function(){
+    if(!mgCur) return;
+    var title=document.getElementById('mgNoteTitle').value.trim();
+    if(!title){ note('Enter a title/note first.', false); return; }
+    if (mgKind==='connect'){
+      var name=((mgCur.firstName||'')+' '+(mgCur.lastName||'')).trim();
+      post('/api/followups', { title:title, description:(document.getElementById('mgNoteText')||{value:''}).value.trim(),
+          priority:'MEDIUM', assignedTo:mgCur.assignedTo||null, linkedType:'CONNECT', linkedId:mgCur.id, linkedLabel:'Connect: '+name })
+        .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; if(document.getElementById('mgNoteText'))document.getElementById('mgNoteText').value=''; mgLoadHist(); note('Follow-up added.', true); } else note(res.j.error||'Failed.', false); });
+    } else {
+      post('/api/ppr/'+mgCur.id+'/note', { type:'NOTE', text:title })
+        .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; mgLoadHist(); note('Note added.', true); } else note(res.j.error||'Failed.', false); });
+    }
+  };
+
+  document.getElementById('mgOverlay').addEventListener('click', function(e){ if(e.target===this) mgClose(); });
+  loadAssignees();
+})();
+</script>
+
 <script>
 window.CGP_PAGE = { activePage: 'more/followups', openSection: 'more', pageTitle: 'Follow-Ups' };
 </script>

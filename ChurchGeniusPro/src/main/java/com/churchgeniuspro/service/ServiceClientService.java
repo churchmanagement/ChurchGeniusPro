@@ -192,10 +192,18 @@ public class ServiceClientService {
                     ? startDate.plusYears(bo.getActivePeriod())
                     : startDate.plusMonths(bo.getActivePeriod());
             entity.setEndDate(endDate);
+        } else if ("TRIAL".equalsIgnoreCase(bo.getSubscriptionType())) {
+            // Trial plan: 30-day period starting at registration when no explicit
+            // active period was entered. Expiry blocks all logins for the client.
+            entity.setEndDate(startDate.plusDays(30));
         }
 
         entity.setPaymentStatus(bo.getPaymentStatus() != null ? bo.getPaymentStatus() : "PENDING");
         entity.setSubscriptionType(bo.getSubscriptionType() != null ? bo.getSubscriptionType() : "FREE");
+        // Per-client extra SMS credits (default 0 for new clients; keep existing on partial update)
+        entity.setExtraSmsCount(bo.getExtraSmsCount() != null && bo.getExtraSmsCount() >= 0
+                ? bo.getExtraSmsCount()
+                : (entity.getExtraSmsCount() != null ? entity.getExtraSmsCount() : 0));
         entity.setNote(bo.getNote());
         entity.setStatus(bo.getStatus() != null && !bo.getStatus().isBlank()
                 ? bo.getStatus() : "Active");

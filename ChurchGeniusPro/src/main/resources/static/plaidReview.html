@@ -60,6 +60,8 @@
   .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 16px; border-radius:8px; font-size:13px; display:none; z-index:50; max-width:90%; }
   .pend { font-size:11px; color:#e65100; }
   @media(max-width:600px){ table{min-width:760px;} header h1{font-size:15px;} }
+  .btn-danger { background:#c0392b; color:#fff; border:1px solid #a93226; }
+  .btn-danger:hover { background:#a93226; }
 </style>
 </head>
 <body>
@@ -146,14 +148,26 @@ async function connectBank(){
     if(res.d.message && /email/i.test(res.d.message)){ return verifyEmailFlow(); }
     toast(res.d.message||'Could not start bank connection.'); return;
   }
+  // Stash the link token so /plaid-oauth.html can resume Link after an
+  // OAuth institution (Chase, BofA, ...) redirects the user back to us.
+  try { localStorage.setItem('cgp_plaid_link_token', res.d.linkToken); } catch(e) {}
   var handler = Plaid.create({
     token: res.d.linkToken,
     onSuccess: async function(public_token){
+      try { localStorage.removeItem('cgp_plaid_link_token'); } catch(e) {}
       var ex = await api('/api/plaid/exchange', {method:'POST', body:JSON.stringify({publicToken:public_token})});
       if(ex.ok){ toast('Bank connected — '+(ex.d.stagedTransactions||0)+' transactions imported for review.', true); await loadItems(); loadTxns(true); }
       else { toast(ex.d.message||'Could not complete connection.'); }
     },
-    onExit: function(err){ if(err) toast('Connection cancelled.'); }
+    onExit: function(err, metadata){
+      try { localStorage.removeItem('cgp_plaid_link_token'); } catch(e) {}
+      if(err){
+        // Surface Plaid's real error so OAuth/config problems are diagnosable
+        // instead of a generic "cancelled" (details also land in the console).
+        console.error('Plaid Link exit', err, metadata);
+        toast(err.display_message || (err.error_code ? 'Connection failed ('+err.error_code+'). Please try again.' : 'Connection cancelled.'));
+      }
+    }
   });
   handler.open();
 }
@@ -177,13 +191,35 @@ async function loadItems(){
     return '<div class="bank"><strong>'+esc(it.institutionName||it.institutionId||'Bank')+'</strong>'
       +'<div class="muted">'+esc(accts||'—')+'</div>'
       +'<span class="st st-'+esc(it.status)+'">'+esc(it.status||'')+'</span> '
-      +'<button class="btn btn-secondary btn-sm" onclick="syncNow('+it.id+')">Sync now</button></div>';
+      +'<button class="btn btn-secondary btn-sm" onclick="syncNow('+it.id+')">Sync now</button> '
+      +'<button class="btn btn-danger btn-sm" onclick="deleteBank('+it.id+', \''+esc(it.institutionName||it.institutionId||'this bank').replace(/'/g,'')+'\')">Delete</button></div>';
   }).join('');
 }
 async function syncNow(id){
   var res = await api('/api/plaid/items/'+id+'/sync', {method:'POST'});
   if(res.ok){ toast('Synced — '+(res.d.stagedTransactions||0)+' new transaction(s).', true); await loadItems(); loadTxns(); }
   else { toast(res.d.message||'Sync failed.'); }
+}
+
+// ── Delete a connected bank (OTP-confirmed) ──────────────────────────────
+async function deleteBank(id, name){
+  var warn = 'Delete the connected bank "'+name+'"?\n\n'
+    + 'This will disconnect the bank and permanently remove ALL of its pending '
+    + 'transactions from the review queue. Approved entries already in your ledger are kept.\n\n'
+    + 'A confirmation code will be sent to your registered email.';
+  if(!confirm(warn)) return;
+  var s = await api('/api/plaid/items/'+id+'/delete/send-code', {method:'POST'});
+  if(!s.ok){ toast(s.d.message||'Could not send the confirmation code.'); return; }
+  var code = prompt('Enter the 6-digit confirmation code sent to your email to delete "'+name+'":');
+  if(!code) { toast('Deletion cancelled.'); return; }
+  var c = await api('/api/plaid/items/'+id+'/delete/confirm', {method:'POST', body:JSON.stringify({code:code.trim()})});
+  if(c.ok){
+    toast('Bank deleted — removed '+(c.d.removedTransactions||0)+' pending transaction(s). '
+      + 'Reconnect anytime via "Connect a bank".', true);
+    await loadItems(); loadTxns(true);
+  } else {
+    toast(c.d.message||'Could not delete the bank connection.');
+  }
 }
 
 // ── Review queue ─────────────────────────────────────────────────────────

@@ -51,10 +51,10 @@ public class PublicWebController {
 
     /** The only page keys served / tracked (anything else redirects home). */
     private static final Set<String> PAGES =
-            Set.of("home", "features", "pricing", "compare", "help", "support", "info");
+            Set.of("home", "features", "pricing", "compare", "help");
 
     /** Display order + labels for the stats endpoint. */
-    private static final String[] PAGE_ORDER = {"home", "features", "pricing", "compare", "help", "support", "info"};
+    private static final String[] PAGE_ORDER = {"home", "features", "pricing", "compare", "help"};
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
@@ -94,6 +94,25 @@ public class PublicWebController {
     public String webRoot(HttpServletRequest request) {
         trackVisit("home", request);
         return "forward:/web/home.html";
+    }
+
+    /**
+     * Legacy routes. Support and Help were merged into a single Help &amp; Support
+     * page and the Info page was removed — old links and bookmarks redirect.
+     * The {@code topic} parameter (e.g. {@code ?topic=signup}) is preserved so
+     * the sign-up prefill keeps working. Exact mappings take precedence over
+     * the {@code /web/{page}} pattern.
+     */
+    @GetMapping("/web/support")
+    public String legacySupport(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String topic) {
+        return "redirect:/web/help" + (topic != null && !topic.isBlank()
+                ? "?topic=" + java.net.URLEncoder.encode(topic, java.nio.charset.StandardCharsets.UTF_8) : "");
+    }
+
+    @GetMapping("/web/info")
+    public String legacyInfo() {
+        return "redirect:/web/home";
     }
 
     /** Never let tracking break a public page load. */

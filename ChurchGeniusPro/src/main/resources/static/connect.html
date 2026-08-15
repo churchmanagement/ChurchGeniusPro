@@ -37,6 +37,9 @@
     <div class="hero" id="hero"><h1>Connect With Us</h1></div>
     <div class="body">
       <form id="f" autocomplete="on">
+        <!-- Honeypot — humans never see this; bots fill it and get silently dropped -->
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"
+               aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:1px;width:1px;opacity:0;" />
         <div class="sect">Personal Information</div>
         <div class="row"><div><label>First Name</label><input id="firstName" /></div><div><label>Last Name</label><input id="lastName" /></div></div>
         <label>Email Address</label><input id="email" type="email" />
@@ -72,8 +75,20 @@
       var wrap = document.getElementById('wrap');
       function show(t,k){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+k; }
 
+      var formToken = '';
+      function setupCaptcha(siteKey){
+        if (!siteKey) return;
+        var holder = document.createElement('div');
+        holder.id = 'captchaBox'; holder.className = 'g-recaptcha'; holder.setAttribute('data-sitekey', siteKey);
+        holder.style.margin = '14px 0';
+        document.getElementById('submitBtn').parentNode.insertBefore(holder, document.getElementById('submitBtn'));
+        var s = document.createElement('script'); s.src = 'https://www.google.com/recaptcha/api.js'; s.async = true;
+        document.head.appendChild(s);
+      }
       if (cid) fetch('/api/public/engage-info?cid=' + encodeURIComponent(cid)).then(r=>r.json()).then(function (d) {
         if (d.themeColor) document.documentElement.style.setProperty('--brand', d.themeColor);
+        formToken = d.formToken || '';
+        setupCaptcha(d.captchaSiteKey);
         document.getElementById('hero').innerHTML =
           (d.logo ? '<img class="logo" src="'+esc(d.logo)+'" alt="" />' : '')
           + '<h1>Connect With Us</h1><p>'+esc(d.churchName||'')+'</p>';
@@ -98,15 +113,20 @@
           maritalStatus: document.getElementById('maritalStatus').value,
           birthDate: document.getElementById('birthDate').value,
           howHeard: document.getElementById('howHeard').value.trim(),
-          contactPreferences: prefs
+          contactPreferences: prefs,
+          website: document.getElementById('website').value,   // honeypot
+          formToken: formToken
         };
+        if (window.grecaptcha && document.getElementById('captchaBox')) {
+          body.captchaToken = grecaptcha.getResponse();
+        }
         var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = 'Submitting…';
         fetch('/api/public/connect', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
           .then(function (r) { return r.json().then(j=>({ok:r.ok,j})); })
           .then(function (res) {
             if (res.ok) {
-              wrap.innerHTML = '<div class="done"><div class="ic">🎉</div><h2>Thank you!</h2>'
-                + '<p style="color:#555;">We’ve received your information and someone from our team will reach out soon.</p></div>';
+              wrap.innerHTML = '<div class="done"><div class="ic">🎉</div><h2>Thank you for contacting us!</h2>'
+                + '<p style="color:#555;">' + esc((res.j && res.j.message) || 'Your request has been received, and someone from our church will contact you soon.') + '</p></div>';
             } else { show((res.j && res.j.error) || 'Could not submit. Please try again.', 'err'); btn.disabled=false; btn.textContent='Submit'; }
           }).catch(function(){ show('Network error. Please try again.', 'err'); btn.disabled=false; btn.textContent='Submit'; });
       });

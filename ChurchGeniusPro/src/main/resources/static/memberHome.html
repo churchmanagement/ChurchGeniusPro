@@ -406,6 +406,20 @@
     .msg-tab-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;border:1.5px solid #e0e0e0;color:#666;background:#f8f8f8;cursor:pointer;}
     .msg-tab-btn.active{background:#673147;color:#fff;border-color:#673147;}
     .msg-tab-btn:hover:not(.active){background:#f0e8ec;color:#673147;border-color:#d0b8c4;}
+    /* ── Section sub-tabs (Contributions / Groups / Volunteer) — mobile friendly ── */
+    .sub-tab-bar{display:flex;gap:6px;margin-bottom:16px;background:#fff;border-radius:10px;padding:6px;
+      box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+    .sub-tab-btn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;color:#888;border:none;
+      background:none;cursor:pointer;white-space:nowrap;flex-shrink:0;min-height:38px;
+      transition:background .15s,color .15s;touch-action:manipulation;}
+    .sub-tab-btn.active{background:#673147;color:#fff;}
+    .sub-tab-btn:hover:not(.active){background:#f0e8ec;color:#673147;}
+    .sub-tab-pane{display:none;}
+    .sub-tab-pane.active{display:block;}
+    @media (max-width:600px){
+      .sub-tab-bar{gap:4px;padding:5px;}
+      .sub-tab-btn{padding:9px 12px;font-size:12.5px;flex:1 0 auto;}
+    }
     .msg-row{display:flex;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f5f5f5;gap:10px;cursor:pointer;}
     .msg-row:hover{background:#fdf5f7;}
     .msg-row.unread .msg-row-subject{font-weight:700;color:#333;}
@@ -831,6 +845,18 @@ function showTab(tab) {
   if (tab === 'sundaySchool' && !ssLoaded)        { ssLoaded        = true;  if (typeof loadSsDashboard       === 'function') loadSsDashboard(); }
   if (tab === 'volunteer'    && !volunteerLoaded) { volunteerLoaded = true;  if (typeof loadVolunteerTab      === 'function') loadVolunteerTab(); }
 }
+
+/* ── Section sub-tabs (UI reorganization only — all loaders unchanged) ── */
+function switchSubTab(prefix, name, btn) {
+  document.querySelectorAll('[id^="' + prefix + 'Pane_"]').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('[id^="' + prefix + 'TabBtn_"]').forEach(function(b){ b.classList.remove('active'); });
+  var pane = document.getElementById(prefix + 'Pane_' + name);
+  if (pane) pane.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+function showGiveTab(name, btn)   { switchSubTab('give', name, btn); }
+function showGroupsTab(name, btn) { switchSubTab('groups', name, btn); }
+function showVolTab(name, btn)    { switchSubTab('vol', name, btn); }
 
 /* ── Member privilege enforcement ────────────────────────────────────────
    Hides tabs (sections) when the admin has revoked specific member.* keys. */
@@ -1866,14 +1892,30 @@ window.applyMemberNavFilter = function(privMap) {
                  oninput="dirSearch(this.value)"
                  style="padding:7px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;outline:none;background:#fff;color:#333;min-width:180px;" />
           <button id="dirBulkEmailBtn" onclick="dirBulkEmail()" disabled
-                  class="btn btn-secondary btn-sm" style="opacity:.5;">
+                  class="btn btn-sm"
+                  style="opacity:.5;background:#673147;color:#fff;font-weight:700;border:none;border-radius:8px;padding:9px 16px;box-shadow:0 2px 6px rgba(103,49,71,.25);min-height:38px;">
             📧 Email Selected
           </button>
         </div>
       </div>
       <div class="card-body" style="padding:12px 16px 16px;">
+        <div style="display:flex;align-items:center;gap:8px;background:#fdf5f7;border:1px solid #f0d9e0;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px;color:#673147;">
+          <span>💡</span>
+          <span>Tick the checkbox next to a member to add them to an email, then click <strong>📧 Email Selected</strong> above to send a message to everyone you've selected.</span>
+        </div>
+        <div id="dirSelectionBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#673147;color:#fff;border-radius:8px;padding:9px 14px;margin-bottom:12px;">
+          <span id="dirSelectionCount" style="font-size:13px;font-weight:700;flex:1;min-width:140px;"></span>
+          <button onclick="dirBulkEmail()" style="background:#fff;color:#673147;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;min-height:36px;">📧 Email Selected</button>
+          <button onclick="dirClearSelection()" style="background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:7px;padding:8px 12px;font-size:12.5px;cursor:pointer;min-height:36px;">Clear</button>
+        </div>
         <div id="directoryContainer">
           <div class="empty-msg" style="padding:28px 0;">Loading…</div>
+        </div>
+        <div id="dirLoadMoreWrap" style="display:none;text-align:center;margin-top:14px;">
+          <button id="dirLoadMoreBtn" onclick="dirLoadMore()"
+                  class="btn btn-secondary" style="padding:10px 26px;border-radius:8px;font-weight:600;min-height:40px;">
+            Load More ▼
+          </button>
         </div>
       </div>
     </div>
@@ -1993,19 +2035,20 @@ window.applyMemberNavFilter = function(privMap) {
   <!-- ── Tab: Groups ── -->
   <div id="sectionGroups" style="display:none;">
 
-    <!-- Members Chat button -->
-    <div style="margin-bottom:16px;">
-      <button onclick="document.getElementById('membersChatCard').scrollIntoView({behavior:'smooth',block:'start'})"
-              style="display:inline-flex;align-items:center;gap:8px;padding:9px 20px;background:#673147;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(103,49,71,.25);">
-        ✉️ Members Chat
-      </button>
+    <!-- Sub-tabs: Groups | Members Chat (UI reorganization only) -->
+    <div class="sub-tab-bar">
+      <button class="sub-tab-btn active" id="groupsTabBtn_groups" onclick="showGroupsTab('groups',this)">👥 Groups</button>
+      <button class="sub-tab-btn"        id="groupsTabBtn_chat"   onclick="showGroupsTab('chat',this)">✉️ Members Chat</button>
     </div>
 
+    <div id="groupsPane_groups" class="sub-tab-pane active">
     <!-- My Groups -->
     <div id="groupsContainer">
       <div class="empty-msg" style="padding:40px 0;">Loading groups…</div>
     </div>
+    </div><!-- end groupsPane_groups -->
 
+    <div id="groupsPane_chat" class="sub-tab-pane">
     <!-- Members Chat section -->
     <div id="membersChatCard" class="card" style="margin-top:8px;scroll-margin-top:80px;">
       <div class="card-header">
@@ -2039,6 +2082,7 @@ window.applyMemberNavFilter = function(privMap) {
         </div>
       </div>
     </div>
+    </div><!-- end groupsPane_chat -->
 
   </div>
 
@@ -2100,6 +2144,15 @@ window.applyMemberNavFilter = function(privMap) {
 
   <!-- ── Tab: Volunteer ── -->
   <div id="sectionVolunteer" style="display:none;">
+    <!-- Sub-tabs (UI reorganization only) -->
+    <div class="sub-tab-bar">
+      <button class="sub-tab-btn active" id="volTabBtn_events"   onclick="showVolTab('events',this)">🎪 Event Assignments</button>
+      <button class="sub-tab-btn"        id="volTabBtn_profile"  onclick="showVolTab('profile',this)">🙋 My Volunteer Profile</button>
+      <button class="sub-tab-btn"        id="volTabBtn_upcoming" onclick="showVolTab('upcoming',this)">📅 Upcoming Assignments</button>
+      <button class="sub-tab-btn"        id="volTabBtn_history"  onclick="showVolTab('history',this)">📋 Assignment History</button>
+    </div>
+
+    <div id="volPane_events" class="sub-tab-pane active">
     <!-- Event Volunteer Assignments -->
     <div class="card" style="margin-bottom:14px;">
       <div class="card-header">
@@ -2110,6 +2163,9 @@ window.applyMemberNavFilter = function(privMap) {
         <div style="color:#aaa;font-size:13px;padding:10px 0;">Loading…</div>
       </div>
     </div>
+    </div><!-- end volPane_events -->
+
+    <div id="volPane_profile" class="sub-tab-pane">
     <div class="card" style="margin-bottom:14px;">
       <div class="card-header">
         <span class="card-title">🙋 My Volunteer Profile</span>
@@ -2119,6 +2175,9 @@ window.applyMemberNavFilter = function(privMap) {
         <div style="color:#aaa;font-size:13px;">Loading…</div>
       </div>
     </div>
+    </div><!-- end volPane_profile -->
+
+    <div id="volPane_upcoming" class="sub-tab-pane">
     <div class="card" style="margin-bottom:14px;">
       <div class="card-header">
         <span class="card-title">📅 Upcoming Assignments</span>
@@ -2128,12 +2187,16 @@ window.applyMemberNavFilter = function(privMap) {
         <div style="color:#aaa;font-size:13px;padding:10px 0;">Loading…</div>
       </div>
     </div>
+    </div><!-- end volPane_upcoming -->
+
+    <div id="volPane_history" class="sub-tab-pane">
     <div class="card">
       <div class="card-header"><span class="card-title">📋 Assignment History</span></div>
       <div id="volHistoryDiv">
         <div style="color:#aaa;font-size:13px;padding:10px 0;">Loading…</div>
       </div>
     </div>
+    </div><!-- end volPane_history -->
   </div>
 
   <!-- ── Tab: Guess It ── -->
@@ -2167,6 +2230,14 @@ window.applyMemberNavFilter = function(privMap) {
 
   <!-- ── Tab: Give & Contributions (combined) ── -->
   <div id="sectionGive" style="display:none;">
+    <!-- Sub-tabs: Give | History | Financial Report (UI reorganization only) -->
+    <div class="sub-tab-bar">
+      <button class="sub-tab-btn active" id="giveTabBtn_give"    onclick="showGiveTab('give',this)">💝 Give / Contribute</button>
+      <button class="sub-tab-btn"        id="giveTabBtn_history" onclick="showGiveTab('history',this)">💰 Contribution History</button>
+      <button class="sub-tab-btn"        id="giveTabBtn_report"  onclick="showGiveTab('report',this)">📄 Financial Report</button>
+    </div>
+
+    <div id="givePane_give" class="sub-tab-pane active">
     <!-- Give form -->
     <div class="card" style="margin-bottom:18px;">
       <div class="card-header"><span class="card-title">💝 Give / Contribute</span></div>
@@ -2246,7 +2317,9 @@ window.applyMemberNavFilter = function(privMap) {
         </div>
       </div>
     </div>
+    </div><!-- end givePane_give -->
 
+    <div id="givePane_history" class="sub-tab-pane">
     <!-- Contributions history -->
     <div class="card">
       <div class="card-header">
@@ -2268,7 +2341,9 @@ window.applyMemberNavFilter = function(privMap) {
         </div>
       </div>
     </div>
+    </div><!-- end givePane_history -->
 
+    <div id="givePane_report" class="sub-tab-pane">
     <!-- Financial / Tax Report card -->
     <div class="card" id="taxReportCard">
       <div class="card-header">
@@ -2292,6 +2367,7 @@ window.applyMemberNavFilter = function(privMap) {
         </div>
       </div>
     </div>
+    </div><!-- end givePane_report -->
   </div>
 
 </div><!-- end page-wrap -->
@@ -4288,6 +4364,9 @@ function stateLabel(v) { return v ? (STATE_MAP[v] || v) : ''; }
 /* DIRECTORY */
 var directoryCache = [];
 var dirSelectedIds = new Set();
+var DIR_PAGE_SIZE = 10;             // families shown initially / added per Load More
+var dirVisibleCount = DIR_PAGE_SIZE;
+var dirCurrentList = [];            // the list currently being paged (all or filtered)
 
 async function loadDirectory() {
   var container = document.getElementById('directoryContainer');
@@ -4300,10 +4379,40 @@ async function loadDirectory() {
   } catch(e) { container.innerHTML = '<div class="empty-msg" style="padding:28px 0;">Network error.</div>'; }
 }
 
+/* Full render entry point — resets paging to the first 10 families. */
 function renderDirectory(families) {
-  var container = document.getElementById('directoryContainer');
-  if (!families.length) { container.innerHTML = '<div class="empty-msg" style="padding:28px 0;">No members found.</div>'; return; }
+  dirCurrentList = families || [];
+  dirVisibleCount = DIR_PAGE_SIZE;
+  renderDirectoryPage();
+}
+
+/* Show the next 10 families (selections are preserved). */
+function dirLoadMore() {
+  dirVisibleCount += DIR_PAGE_SIZE;
+  renderDirectoryPage();
+}
+
+function dirClearSelection() {
   dirSelectedIds.clear();
+  document.querySelectorAll('.dir-chk').forEach(function(c){ c.checked = false; });
+  updateBulkEmailBtn();
+}
+
+function renderDirectoryPage() {
+  var container = document.getElementById('directoryContainer');
+  var moreWrap  = document.getElementById('dirLoadMoreWrap');
+  var moreBtn   = document.getElementById('dirLoadMoreBtn');
+  var all = dirCurrentList;
+  if (!all.length) {
+    container.innerHTML = '<div class="empty-msg" style="padding:28px 0;">No members found.</div>';
+    if (moreWrap) moreWrap.style.display = 'none';
+    updateBulkEmailBtn();
+    return;
+  }
+  var families = all.slice(0, dirVisibleCount);
+  var remaining = all.length - families.length;
+  if (moreWrap) moreWrap.style.display = remaining > 0 ? 'block' : 'none';
+  if (moreBtn && remaining > 0) moreBtn.textContent = 'Load More (' + remaining + ' more ' + (remaining === 1 ? 'family' : 'families') + ') ▼';
   updateBulkEmailBtn();
   var html = '';
   families.forEach(function(fam) {
@@ -4319,7 +4428,8 @@ function renderDirectory(families) {
                      : 'role-other';
       html += '<div class="dir-member-row">';
       if (m.hasEmail) {
-        html += '<input type="checkbox" class="dir-chk" data-mid="' + m.id + '" onchange="onDirCheck(this)" title="Select for email" />';
+        var checkedAttr = dirSelectedIds.has(String(m.id)) ? ' checked' : '';
+        html += '<input type="checkbox" class="dir-chk" data-mid="' + m.id + '" onchange="onDirCheck(this)" title="Select this member to include them in an email"' + checkedAttr + ' />';
       } else {
         html += '<span style="width:16px;display:inline-block;flex-shrink:0;"></span>';
       }
@@ -4346,10 +4456,18 @@ function onDirCheck(chk) {
 }
 
 function updateBulkEmailBtn() {
+  var n = dirSelectedIds.size;
   var btn = document.getElementById('dirBulkEmailBtn');
-  if (!btn) return;
-  btn.disabled = dirSelectedIds.size === 0;
-  btn.textContent = dirSelectedIds.size > 0 ? '📧 Email Selected (' + dirSelectedIds.size + ')' : '📧 Email Selected';
+  if (btn) {
+    btn.disabled = n === 0;
+    btn.style.opacity = n === 0 ? '.5' : '1';
+    btn.textContent = n > 0 ? '📧 Email Selected (' + n + ')' : '📧 Email Selected';
+  }
+  // Prominent selection bar so it's obvious the checkboxes feed the email.
+  var bar = document.getElementById('dirSelectionBar');
+  var cnt = document.getElementById('dirSelectionCount');
+  if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+  if (cnt) cnt.textContent = n + ' member' + (n === 1 ? '' : 's') + ' selected for email';
 }
 
 function dirBulkEmail() {
@@ -5575,6 +5693,19 @@ async function startExam(examId, title, totalQ, durationMinutes, requiredQ, exis
   if (!overlay) return;
   titleEl.textContent = title;
   body.innerHTML = '<div style="text-align:center;padding:40px;color:#ccc;">Loading exam…</div>';
+  // Re-initialize overlay chrome: submitting or viewing results hides the
+  // nav bar (Back / Next buttons) — restore it so the Next button is always
+  // visible when a new exam starts, without needing a hard refresh.
+  var nav = document.getElementById('examNav');
+  if (nav) nav.style.display = '';
+  var prevBtn = document.getElementById('btnPrevQ');
+  if (prevBtn) { prevBtn.disabled = true; }
+  var nextBtn = document.getElementById('btnNextQ');
+  if (nextBtn) { nextBtn.disabled = false; nextBtn.textContent = 'Next →'; }
+  var dots = document.getElementById('examDotRow');
+  if (dots) dots.innerHTML = '';
+  var prog = document.getElementById('examProgressText');
+  if (prog) prog.textContent = '';
   overlay.style.display = 'flex';
 
   try {
@@ -6175,10 +6306,13 @@ function buildWsGroupPdfHtml(groupId) {
   for (const row of rows) {
     const dateStr = row.assignmentDate;
     const slotMap = new Map();
-    row.slots && row.slots.forEach(slot => slotMap.set(slot.instrumentId, slot.memberName || '—'));
+    // Each slot carries a members[] array (not a memberName string) — join the
+    // names so Drums / Vocals / Guitar etc. print with their assigned people.
+    row.slots && row.slots.forEach(slot =>
+      slotMap.set(slot.instrumentId, (slot.members || []).map(m => m.memberName).join(', ') || '—'));
     const key = `${groupId}|${dateStr}`;
     const songs = wsSongCache[key] || [];
-    t += `<tr><td>${dateStr}</td>`;
+    t += `<tr><td style="white-space:nowrap;font-weight:700;color:#673147;">${formatDateWs(dateStr)}</td>`;
     instruments.forEach(([iid]) => { t += `<td>${slotMap.get(iid) || '—'}</td>`; });
     if (hasSongs) t += `<td>${songs.map(s => s.title).join(', ') || '—'}</td>`;
     t += `</tr>`;
@@ -6291,6 +6425,9 @@ function evVolRespond(volId, eventId, status) {
     if (d.success) {
       showToastMH('Status updated to ' + status + '!');
       loadEventVolAssignments();
+      // Accepted/declined event assignments also feed Upcoming + History.
+      loadVolAssignments();
+      loadVolHistory();
     } else {
       showToastMH('Could not update status.', true);
     }
@@ -6356,13 +6493,48 @@ function saveVolProfile() {
   }).catch(function(){ showToastMH('Server error', true); });
 }
 
+/* Event volunteer assignments (accepted via the Event Assignments tab) live in a
+   different table than scheduled volunteer assignments. Fetch them once here and
+   share between Upcoming Assignments and Assignment History so an accepted event
+   assignment (e.g. "Midwest Region Summit") always shows up. */
+function fetchMyEventVolunteers() {
+  return fetch('/api/members/my/event-volunteers')
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){ return Array.isArray(list) ? list : []; })
+    .catch(function(){ return []; });
+}
+function eventVolToAssignment(ev) {
+  return {
+    id: 'ev-' + ev.id,                                    // not respondable via respondVol
+    roleName: (ev.roles || []).map(function(r){ return r.roleName; }).join(', ') || 'Volunteer',
+    eventLabel: (ev.eventName || 'Event') + ' (Event)',
+    eventDate: ev.eventDate || '',
+    shiftTime: ev.startTime ? fmt12h(ev.startTime) : '',
+    assignmentStatus: ev.status === 'confirmed' ? 'confirmed'
+                    : ev.status === 'declined'  ? 'declined'
+                    : ev.status === 'maybe'     ? 'maybe' : 'pending',
+    isEventVol: true
+  };
+}
 function loadVolAssignments() {
-  fetch('/api/volunteers/my/assignments').then(function(r){
-    // A 401 (not a member session) or any error returns a JSON object,
-    // not an array — normalise to [] so the renderer never crashes.
-    if (!r.ok) return [];
-    return r.json();
-  }).then(function(list){
+  Promise.all([
+    fetch('/api/volunteers/my/assignments').then(function(r){
+      // A 401 (not a member session) or any error returns a JSON object,
+      // not an array — normalise to [] so the renderer never crashes.
+      if (!r.ok) return [];
+      return r.json();
+    }),
+    fetchMyEventVolunteers()
+  ]).then(function(results){
+    var list = Array.isArray(results[0]) ? results[0] : [];
+    // Merge in ACCEPTED event assignments with a future (or today's) date so
+    // they appear under Upcoming Assignments too.
+    var todayIso = new Date().toISOString().substring(0, 10);
+    var upcomingEventVols = results[1].filter(function(ev){
+      return ev.status === 'confirmed' && ev.eventDate && ev.eventDate >= todayIso;
+    }).map(eventVolToAssignment);
+    list = list.concat(upcomingEventVols);
+    list.sort(function(a, b){ return String(a.eventDate||'').localeCompare(String(b.eventDate||'')); });
     var div = document.getElementById('volAssignmentsDiv');
     if (!div) return;
     if (!Array.isArray(list) || list.length === 0) {
@@ -6405,10 +6577,21 @@ function respondVol(assignmentId, status) {
 }
 
 function loadVolHistory() {
-  fetch('/api/volunteers/my/history').then(function(r){
-    if (!r.ok) return [];
-    return r.json();
-  }).then(function(list){
+  Promise.all([
+    fetch('/api/volunteers/my/history').then(function(r){
+      if (!r.ok) return [];
+      return r.json();
+    }),
+    fetchMyEventVolunteers()
+  ]).then(function(results){
+    var list = Array.isArray(results[0]) ? results[0] : [];
+    // Include PAST event assignments (any status) in the history view.
+    var todayIso = new Date().toISOString().substring(0, 10);
+    var pastEventVols = results[1].filter(function(ev){
+      return ev.eventDate && ev.eventDate < todayIso;
+    }).map(eventVolToAssignment);
+    list = list.concat(pastEventVols);
+    list.sort(function(a, b){ return String(b.eventDate||'').localeCompare(String(a.eventDate||'')); });
     var div = document.getElementById('volHistoryDiv');
     if (!div) return;
     if (!Array.isArray(list) || list.length === 0) {

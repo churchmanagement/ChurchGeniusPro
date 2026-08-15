@@ -20,8 +20,13 @@ import java.util.Map;
 public class PublicEngagementController {
 
     private final PublicEngagementService svc;
+    private final com.churchgeniuspro.util.PublicFormGuard formGuard;
 
-    public PublicEngagementController(PublicEngagementService svc) { this.svc = svc; }
+    public PublicEngagementController(PublicEngagementService svc,
+                                      com.churchgeniuspro.util.PublicFormGuard formGuard) {
+        this.svc = svc;
+        this.formGuard = formGuard;
+    }
 
     // ── Public page routes (no login) ──
     @GetMapping("/connect")
@@ -30,7 +35,7 @@ public class PublicEngagementController {
     @GetMapping("/publicPrayer")
     public String publicPrayerPage() { return "forward:/public-prayer.html"; }
 
-    // ── Staff admin page ──
+    // ── Staff admin pages ──
     @GetMapping("/publicPrayerAdmin")
     public String adminPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
@@ -38,19 +43,62 @@ public class PublicEngagementController {
         return "forward:/public-prayer-admin.html";
     }
 
+    /** Admin page listing all Connect With Us submissions. */
+    @GetMapping("/connectAdmin")
+    public String connectAdminPage(HttpServletRequest request) {
+        String deny = RoleGuard.requireAdminOrUser(request);
+        if (deny != null) return deny;
+        return "forward:/connect-admin.html";
+    }
+
     // ── Public APIs (whitelisted via /api/public) ──
     @ResponseBody
     @GetMapping("/api/public/engage-info")
     public ResponseEntity<?> info(@RequestParam(name = "cid") String cid) {
-        return ResponseEntity.ok(svc.churchInfo(cid));
+        Map<String, Object> m = new java.util.LinkedHashMap<>(svc.churchInfo(cid));
+        // Anti-bot form token (time-trap) + optional captcha site key
+        m.put("formToken", formGuard.issueToken(cid));
+        if (formGuard.captchaSiteKey() != null) m.put("captchaSiteKey", formGuard.captchaSiteKey());
+        return ResponseEntity.ok(m);
+    }
+
+    /**
+     * Runs the shared spam/bot checks for a public form submission.
+     * Returns a ResponseEntity to short-circuit with, or null when clean.
+     */
+    private ResponseEntity<?> spamCheck(Map<String, Object> body, HttpServletRequest request, String form) {
+        // 1. Honeypot — pretend success so bots don't adapt
+        if (formGuard.isHoneypotTripped(body)) {
+            return ResponseEntity.ok(Map.of("status", "submitted"));
+        }
+        String ip = com.churchgeniuspro.util.PublicFormGuard.clientIp(request);
+        // 2. Rate limit per IP per form
+        String err = formGuard.checkRate(ip, form);
+        if (err != null) return ResponseEntity.status(429).body(Map.of("error", err));
+        // 3. Time-trap token
+        err = formGuard.checkToken(str(body, "formToken"), str(body, "cid"));
+        if (err != null) return ResponseEntity.badRequest().body(Map.of("error", err));
+        // 4. Optional reCAPTCHA
+        err = formGuard.checkCaptcha(str(body, "captchaToken"), ip);
+        if (err != null) return ResponseEntity.badRequest().body(Map.of("error", err));
+        // 5. Field validation (shared shapes)
+        err = formGuard.checkEmail(str(body, "email"));
+        if (err == null) err = formGuard.checkPhone(str(body, "phone"));
+        if (err == null) err = formGuard.checkText(str(body, "howHeard"), 2000, 0);
+        if (err == null) err = formGuard.checkText(str(body, "requestText"), 5000, 1);
+        if (err != null) return ResponseEntity.badRequest().body(Map.of("error", err));
+        return null;
     }
 
     @ResponseBody
     @PostMapping("/api/public/connect")
-    public ResponseEntity<?> connect(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> connect(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ResponseEntity<?> blocked = spamCheck(body, request, "connect");
+        if (blocked != null) return blocked;
         try {
             svc.connect(str(body, "cid"), body);
-            return ResponseEntity.ok(Map.of("status", "submitted"));
+            return ResponseEntity.ok(Map.of("status", "submitted",
+                    "message", PublicEngagementService.CONFIRMATION_MSG));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -58,11 +106,66 @@ public class PublicEngagementController {
 
     @ResponseBody
     @PostMapping("/api/public/prayer-request")
-    public ResponseEntity<?> prayer(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> prayer(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ResponseEntity<?> blocked = spamCheck(body, request, "prayer");
+        if (blocked != null) return blocked;
         try {
             String source = str(body, "source");
             Long id = svc.prayer(str(body, "cid"), body, normalizeSource(source));
-            return ResponseEntity.ok(Map.of("status", "submitted", "id", id));
+            return ResponseEntity.ok(Map.of("status", "submitted", "id", id,
+                    "message", PublicEngagementService.CONFIRMATION_MSG));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ── Staff management APIs: Connect submissions (session-protected) ──
+    @ResponseBody
+    @GetMapping("/api/connect-admin")
+    public ResponseEntity<?> connectList(@RequestParam(required = false) String status, HttpServletRequest request) {
+        String deny = guard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
+        return ResponseEntity.ok(svc.listConnect(SessionUtil.getAppClientId(request), status));
+    }
+
+    @ResponseBody
+    @PostMapping("/api/connect-admin/{id}/assign")
+    public ResponseEntity<?> connectAssign(@PathVariable Long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+        String deny = guard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
+        Integer mid = body.get("memberId") == null || str(body, "memberId").isBlank()
+                ? null : Integer.valueOf(str(body, "memberId"));
+        try {
+            svc.assignConnect(SessionUtil.getAppClientId(request), id, mid, str(body, "memberName"),
+                    SessionUtil.getUsername(request));
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @ResponseBody
+    @PostMapping("/api/connect-admin/{id}/status")
+    public ResponseEntity<?> connectStatus(@PathVariable Long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+        String deny = guard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
+        try {
+            svc.setConnectStatus(SessionUtil.getAppClientId(request), id, str(body, "status"),
+                    SessionUtil.getUsername(request));
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @ResponseBody
+    @DeleteMapping("/api/connect-admin/{id}")
+    public ResponseEntity<?> connectDelete(@PathVariable Long id, HttpServletRequest request) {
+        String deny = guard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
+        try {
+            svc.deleteConnect(SessionUtil.getAppClientId(request), id);
+            return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

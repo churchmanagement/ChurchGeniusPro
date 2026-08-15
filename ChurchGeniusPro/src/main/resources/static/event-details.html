@@ -254,6 +254,7 @@
                   <th>Adults</th>
                   <th>Kids</th>
                   <th>Attending</th>
+                  <th>Dietary Preference</th>
                   <th>Checked In</th>
                   <th>Note</th>
                 </tr>
@@ -402,8 +403,14 @@
     const tbody = document.getElementById('regTableBody');
     let adults = 0, kids = 0, checkedIn = 0;
     if (!regs || !regs.length) {
-      tbody.innerHTML = '<tr><td class="empty-row" colspan="9">No registrations yet.</td></tr>';
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="10">No registrations yet.</td></tr>';
     } else {
+      const dietOf = (r) => {
+        try {
+          const a = JSON.parse(r.selectedFoodItems || '[]');
+          return Array.isArray(a) ? a.join(', ') : '';
+        } catch (e) { return ''; }
+      };
       tbody.innerHTML = regs.map((r, i) => {
         adults    += r.adults || 0;
         kids      += r.kids   || 0;
@@ -421,6 +428,7 @@
           <td>${r.adults || 0}</td>
           <td>${r.kids   || 0}</td>
           <td>${att}</td>
+          <td>${dietOf(r) ? esc(dietOf(r)) : '<span style="color:#ccc;">—</span>'}</td>
           <td>${r.checkedIn ? '<span style="color:#2e7d32;font-weight:600;">✅ Yes</span>' : '<span style="color:#ccc;">—</span>'}</td>
           <td style="max-width:140px;font-size:12px;">${esc(r.note || '')}</td>
         </tr>`;

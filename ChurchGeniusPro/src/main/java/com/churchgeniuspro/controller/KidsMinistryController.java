@@ -43,6 +43,7 @@ public class KidsMinistryController {
     private final KmChildSetupRepository             setupRepo;
     private final EmailService                       emailService;
     private final SmsService                         smsService;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
     public KidsMinistryController(KmChildRepository childRepo,
                                   KmClassroomRepository classroomRepo,
@@ -54,7 +55,8 @@ public class KidsMinistryController {
                                   FamilyMemberRepository familyMemberRepo,
                                   KmChildSetupRepository setupRepo,
                                   EmailService emailService,
-                                  SmsService smsService) {
+                                  SmsService smsService,
+                                  com.churchgeniuspro.service.SubscriptionService subscriptionService) {
         this.childRepo           = childRepo;
         this.classroomRepo       = classroomRepo;
         this.pickupRepo          = pickupRepo;
@@ -66,6 +68,21 @@ public class KidsMinistryController {
         this.setupRepo           = setupRepo;
         this.emailService        = emailService;
         this.smsService          = smsService;
+        this.subscriptionService = subscriptionService;
+    }
+
+    /**
+     * Subscription plan: kids-portal limit check. The count is based on family
+     * members with a child role (Child / Son / Daughter), per the plan spec.
+     * Returns {@code null} when allowed; otherwise the user-facing message.
+     */
+    private String kidsPortalLimitMessage(String cid) {
+        try {
+            long children = familyMemberRepo.countChildRoleMembers(cid);
+            return subscriptionService.checkKidsPortalLimit(cid, children);
+        } catch (Exception e) {
+            return null; // fail-open on limit-check errors
+        }
     }
 
     // ════════════════════════════════════════════════════════
@@ -311,6 +328,12 @@ public class KidsMinistryController {
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = body.get("id") != null ? toLong(body.get("id")) : null;
+
+        // Subscription plan: kids-portal limit (new registrations only)
+        if (id == null) {
+            String limitMsg = kidsPortalLimitMessage(cid);
+            if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+        }
         KmChild child = (id != null) ? childRepo.findById(id).orElse(new KmChild()) : new KmChild();
         child.setClientId(cid);
         child.setFirstName(str(body, "firstName"));
@@ -386,6 +409,10 @@ public class KidsMinistryController {
             return ResponseEntity.badRequest().body(Map.of("error", "At least one child is required"));
         if (kids.size() > 3)
             return ResponseEntity.badRequest().body(Map.of("error", "A maximum of 3 children can be registered at once"));
+
+        // Subscription plan: kids-portal limit
+        String limitMsg = kidsPortalLimitMessage(cid);
+        if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
 
         String parentName  = str(body, "parentName");
         String parentPhone = str(body, "parentPhone");

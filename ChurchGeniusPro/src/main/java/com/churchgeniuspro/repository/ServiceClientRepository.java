@@ -17,6 +17,9 @@ public interface ServiceClientRepository extends JpaRepository<ServiceClient, In
 
     Optional<ServiceClient> findByClientId(String clientId);
 
+    /** Active clients whose subscription ends on the given date (expiry notifications). */
+    List<ServiceClient> findByEndDateAndStatusAndDeleteFlagFalse(LocalDate endDate, String status);
+
     /**
      * Returns true if the service_client row for the given clientId is active:
      * status = 'Active', delete_flag = false, and end_date >= today.

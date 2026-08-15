@@ -14,5 +14,8 @@ public interface PlaidAccountRepository extends JpaRepository<PlaidAccount, Inte
 
     List<PlaidAccount> findByPlaidItemId(Integer plaidItemId);
 
+    // Bank deletion: remove account rows for a connection.
+    long deleteByPlaidItemId(Integer plaidItemId);
+
     List<PlaidAccount> findByClientId(String clientId);
 }

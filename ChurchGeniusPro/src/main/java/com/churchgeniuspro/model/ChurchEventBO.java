@@ -100,6 +100,9 @@ public class ChurchEventBO {
      */
     private String foodItems;
 
+    /** Configurable label for the food section on the registration page (default "Dietary Preferences"). */
+    private String foodLabel;
+
     /** Whether accommodation is available. */
     private Boolean accommodationAvailable;
 

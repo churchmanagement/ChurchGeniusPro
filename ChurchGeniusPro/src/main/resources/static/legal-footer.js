@@ -61,7 +61,7 @@
     }).join('<span class="sep">·</span>');
     f.innerHTML = links +
       '<span class="cgp-foot-copy">© ' + new Date().getFullYear() +
-      " ChurchGeniusPro. All rights reserved.</span>";
+      " ChurchGenius LLC. All rights reserved.</span>";
     document.body.appendChild(f);
     reserveSpace(f);
   }

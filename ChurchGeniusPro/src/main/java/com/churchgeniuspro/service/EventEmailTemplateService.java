@@ -26,7 +26,7 @@ public class EventEmailTemplateService {
     /** Pre-configured default template body, available to all users. */
     public static final String DEFAULT_BODY =
             "Hi {Registrant Name},\n\n" +
-            "Thank you for your RSVP! We're excited to see you at {Event Name}. Your spot has been reserved.\n\n" +
+            "Thank you for your RSVP! We're excited to see you at {Event Name}.\n\n" +
             "Date: {Date}\n" +
             "Time: {Time}\n" +
             "Location: {Location}\n\n" +

@@ -203,6 +203,20 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #d0d4e8; border-radius: 4px; }
     @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } .span-2 { grid-column: span 1; } }
+    /* ── Email template placeholder chips + preview ── */
+    .tpl-chip { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      font-family: ui-monospace, Menlo, Consolas, monospace; color: #673147; background: #fff;
+      border: 1px solid #d8c6d0; cursor: pointer; transition: background .15s, color .15s; min-height: 28px; }
+    .tpl-chip:hover { background: #673147; color: #fff; border-color: #673147; }
+    .tpl-preview-btn { padding: 2px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+      color: #673147; background: #f5f0f2; border: 1px solid #e0d0d8; cursor: pointer; }
+    .tpl-preview-btn:hover { background: #ede0e6; }
+    .tpl-preview-btn.on { background: #673147; color: #fff; border-color: #673147; }
+    .tpl-preview { margin-top: 8px; background: #fbf7f9; border: 1px solid #e6dde2; border-radius: 8px;
+      padding: 10px 12px; font-size: 13px; color: #333; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+    .tpl-preview .tpl-preview-title { font-size: 11px; font-weight: 700; color: #9a7d8b;
+      text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+    .tpl-preview .tpl-preview-empty { color: #bbb; font-style: italic; }
   </style>
 </head>
 <body>
@@ -308,24 +322,32 @@
               <div class="occurrences-box">
                 <div class="occurrences-title">Email Templates <span style="font-weight:400;color:#999;font-size:12px;">(optional — leave blank to use the default email)</span></div>
                 <div class="tpl-placeholders" style="font-size:12px;color:#666;background:#fafbfd;border:1px solid #eef0f6;border-radius:6px;padding:8px 12px;margin-bottom:12px;line-height:1.7;">
-                  Available placeholders:
-                  <code>{eventName}</code> <code>{date}</code> <code>{time}</code>
-                  <code>{location}</code> <code>{map}</code> <code>{calendar}</code> <code>{beforeDays}</code>
+                  Available placeholders <span style="color:#999;">(click to insert at the cursor)</span>:
+                  <div id="tplPlaceholderChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
                 </div>
 
                 <div class="field" style="margin-bottom:14px;">
-                  <label for="sameDayTemplate">Same Day Reminder — Email Template</label>
-                  <textarea id="sameDayTemplate" rows="4" placeholder="e.g. Hi! {eventName} is happening today, {date} at {time} at {location}. {calendar} {map}"></textarea>
+                  <label for="sameDayTemplate" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Same Day Reminder — Email Template
+                    <button type="button" class="tpl-preview-btn" onclick="tplTogglePreview('sameDayTemplate')">👁 Preview</button>
+                  </label>
+                  <textarea id="sameDayTemplate" class="tpl-editor" rows="4" placeholder="e.g. Hi! {eventName} is happening today, {date} at {time} at {location}. {calendar} {map}"></textarea>
+                  <div class="tpl-preview" id="tplPreview_sameDayTemplate" style="display:none;"></div>
                 </div>
 
                 <div class="field" style="margin-bottom:14px;">
-                  <label for="beforeDaysTemplate">Before Days Reminder — Email Template</label>
-                  <textarea id="beforeDaysTemplate" rows="4" placeholder="e.g. Reminder: {eventName} is in {beforeDays} day(s) on {date} at {time}, {location}. {calendar} {map}"></textarea>
+                  <label for="beforeDaysTemplate" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Before Days Reminder — Email Template
+                    <button type="button" class="tpl-preview-btn" onclick="tplTogglePreview('beforeDaysTemplate')">👁 Preview</button>
+                  </label>
+                  <textarea id="beforeDaysTemplate" class="tpl-editor" rows="4" placeholder="e.g. Reminder: {eventName} is in {beforeDays} day(s) on {date} at {time}, {location}. {calendar} {map}"></textarea>
+                  <div class="tpl-preview" id="tplPreview_beforeDaysTemplate" style="display:none;"></div>
                 </div>
 
                 <div class="field">
-                  <label for="afterDaysTemplate">After Days Reminder — Email Template</label>
-                  <textarea id="afterDaysTemplate" rows="4" placeholder="e.g. Thanks for joining us at {eventName} on {date}! We hope to see you again."></textarea>
+                  <label for="afterDaysTemplate" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">After Days Reminder — Email Template
+                    <button type="button" class="tpl-preview-btn" onclick="tplTogglePreview('afterDaysTemplate')">👁 Preview</button>
+                  </label>
+                  <textarea id="afterDaysTemplate" class="tpl-editor" rows="4" placeholder="e.g. Thanks for joining us at {eventName} on {date}! We hope to see you again."></textarea>
+                  <div class="tpl-preview" id="tplPreview_afterDaysTemplate" style="display:none;"></div>
                 </div>
               </div>
             </div>
@@ -406,8 +428,81 @@
   let editingId  = null;
   let allEvents  = [];
 
+  /* ── EMAIL TEMPLATE PLACEHOLDERS — click to insert at the cursor ─────────
+     Mirrors the Meeting Message Templates editor on /meetings. Clicking a
+     chip inserts the placeholder into the LAST-FOCUSED template textarea at
+     the caret position (default: Same Day). Existing save/load logic reads
+     the same textareas — unchanged. */
+  const TPL_PLACEHOLDERS = ['{eventName}','{date}','{time}','{location}','{map}','{calendar}','{beforeDays}'];
+  const TPL_EDITOR_IDS   = ['sameDayTemplate','beforeDaysTemplate','afterDaysTemplate'];
+  const TPL_SAMPLE = {
+    '{eventName}':  'Musical Night',
+    '{date}':       'June 12, 2026',
+    '{time}':       '6:30 PM',
+    '{location}':   'Main Sanctuary, 123 Church St',
+    '{map}':        '📍 View Map: https://maps.google.com/?q=123+Church+St',
+    '{calendar}':   '📅 Add to Calendar: https://churchgeniuspro.net/calendar/add',
+    '{beforeDays}': '3'
+  };
+  let tplLastFocused = 'sameDayTemplate';
+
+  function tplInitPlaceholders() {
+    const host = document.getElementById('tplPlaceholderChips');
+    if (host) {
+      host.innerHTML = TPL_PLACEHOLDERS.map(p =>
+        `<button type="button" class="tpl-chip" onclick="tplInsert('${p}')" title="Insert ${p} at the cursor">${p}</button>`).join('');
+    }
+    TPL_EDITOR_IDS.forEach(id => {
+      const ta = document.getElementById(id);
+      if (!ta) return;
+      ta.addEventListener('focus', () => { tplLastFocused = id; });
+      ta.addEventListener('input', () => tplRenderPreview(id));   // live preview while typing
+    });
+  }
+
+  function tplInsert(ph) {
+    const ta = document.getElementById(tplLastFocused) || document.getElementById('sameDayTemplate');
+    if (!ta) return;
+    const s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    const e = ta.selectionEnd   != null ? ta.selectionEnd   : ta.value.length;
+    ta.value = ta.value.slice(0, s) + ph + ta.value.slice(e);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = s + ph.length;
+    tplRenderPreview(ta.id);
+  }
+
+  function tplRenderSample(text) {
+    let out = String(text || '');
+    for (const [ph, val] of Object.entries(TPL_SAMPLE)) out = out.split(ph).join(val);
+    return out;
+  }
+
+  function tplTogglePreview(id) {
+    const box = document.getElementById('tplPreview_' + id);
+    const btn = document.querySelector(`button[onclick="tplTogglePreview('${id}')"]`);
+    if (!box) return;
+    const show = box.style.display === 'none' || !box.style.display;
+    box.style.display = show ? 'block' : 'none';
+    if (btn) btn.classList.toggle('on', show);
+    if (show) tplRenderPreview(id);
+  }
+
+  function tplRenderPreview(id) {
+    const box = document.getElementById('tplPreview_' + id);
+    const ta  = document.getElementById(id);
+    if (!box || !ta || box.style.display === 'none') return;
+    const v = ta.value.trim();
+    box.innerHTML = '<div class="tpl-preview-title">Preview — sample data</div>'
+      + (v ? tplEsc(tplRenderSample(v))
+           : '<span class="tpl-preview-empty">Template is empty — the default email will be used.</span>');
+  }
+  function tplEsc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   /* ── INIT ── */
   (async function init() {
+    tplInitPlaceholders();
     await Promise.all([loadEvents(), loadReminders()]);
   })();
 

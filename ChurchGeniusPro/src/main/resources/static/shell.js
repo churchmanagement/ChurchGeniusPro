@@ -130,6 +130,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'admin/family',              label: 'Families',            icon: '&#x1F46A;', href: '/viewfamily'           },
         { id: 'admin/groups',              label: 'Groups',              icon: '&#x1F465;', href: '/groups'               },
         { id: 'admin/membership-requests', label: 'Membership Requests', icon: '&#x1F4E8;', href: '/membershipRequests'   },
+        { id: 'admin/connect-submissions', label: 'Connect Submissions', icon: '&#x1F91D;', href: '/connectAdmin'         },
         { id: 'admin/unsubscribed-list',   label: 'Unsubscribed List',   icon: '&#x1F6AB;', href: '/unsubscribed-list'    },
         // { id: 'admin/files',            label: 'Files & Notes',       icon: '&#x1F4C1;', href: '/filesUpload'          }, // HIDDEN — feature temporarily disabled; do not remove
         { id: 'admin/stripe-integration',  label: 'Stripe Integration',  icon: '&#x1F4B3;', href: '/stripeIntegration'    },

@@ -124,8 +124,14 @@ public class NtagLandingService {
             String key = b.get("key") == null ? "" : b.get("key").toString().toLowerCase();
             seen.add(key);
             if (live.containsKey(key)) {
+                String savedUrl = b.get("url") == null ? "" : b.get("url").toString().trim();
+                // "email" is EDITABLE on the NTAG Landing admin page, so a saved
+                // value must win; Church Settings only fills it when blank.
+                // The other managed keys (website/socials) are read-only in the
+                // admin UI and always mirror Church Settings.
+                boolean keepSaved = "email".equals(key) && !savedUrl.isEmpty();
                 Map<String, Object> copy = new LinkedHashMap<>(b);
-                copy.put("url", live.get(key));   // always the live Church Settings value
+                copy.put("url", keepSaved ? savedUrl : live.get(key));
                 out.add(copy);
             } else {
                 out.add(b);
@@ -135,6 +141,18 @@ public class NtagLandingService {
         for (Map<String, Object> def : defaultButtons(clientId, cr)) {
             String key = def.get("key").toString().toLowerCase();
             if (live.containsKey(key) && !seen.contains(key)) out.add(def);
+        }
+        // Upgrade generic 🔗 icons on well-known links (e.g. a custom "Song Book"
+        // button pointing at /songbook/view gets the songbook icon 🎵). Icons the
+        // admin has customised are left untouched.
+        for (Map<String, Object> b : out) {
+            String icon = b.get("icon") == null ? "" : b.get("icon").toString().trim();
+            if (!icon.isEmpty() && !"🔗".equals(icon)) continue;
+            String url = b.get("url") == null ? "" : b.get("url").toString();
+            if (url.contains("/songbook/view"))      b.put("icon", "🎵");
+            else if (url.contains("/donate/"))       b.put("icon", "💝");
+            else if (url.contains("/upcomingEvents")) b.put("icon", "📅");
+            else if (url.contains("/publicPrayer"))  b.put("icon", "🙏");
         }
         return out;
     }

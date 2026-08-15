@@ -94,8 +94,6 @@
     .cal-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
     .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-    .legend-dot.birthday    { background: #e91e63; }
-    .legend-dot.anniversary { background: #7b1fa2; }
     .legend-dot.meeting     { background: #1565c0; }
     .legend-dot.churchevent { background: #2e7d32; }
 
@@ -171,7 +169,7 @@
     .mini-cell.today { background: #673147; color: #fff; border-radius: 50%; }
     .mini-cell.has-events::after {
       content: ''; display: block; width: 4px; height: 4px;
-      border-radius: 50%; background: #e91e63;
+      border-radius: 50%; background: #673147;
       margin: 1px auto 0;
     }
 
@@ -185,8 +183,6 @@
     }
     .chip-icon { flex-shrink: 0; font-size: 10px; }
     .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chip.birthday    { background: #fce4ec; color: #c2185b; }
-    .chip.anniversary { background: #f3e5f5; color: #6a1b9a; }
     .chip.meeting     { background: #e3f2fd; color: #1565c0; }
     .chip.churchevent { background: #e8f5e9; color: #2e7d32; }
     .chip-more { font-size: 10px; color: #888; padding: 2px 4px; font-style: italic; }
@@ -209,13 +205,81 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; flex-shrink: 0;
     }
-    .detail-badge.birthday    { background: #fce4ec; }
-    .detail-badge.anniversary { background: #f3e5f5; }
     .detail-badge.meeting     { background: #e3f2fd; }
+    .detail-badge.churchevent { background: #e8f5e9; }
     .detail-info { flex: 1; min-width: 0; }
     .detail-item-title { font-size: 14px; font-weight: 600; color: #333; }
     .detail-item-sub   { font-size: 13px; color: #888; margin-top: 2px; }
     .detail-empty { font-size: 13px; color: #bbb; font-style: italic; }
+    .detail-item.clickable { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+    .detail-item.clickable:hover { box-shadow: 0 3px 10px rgba(103,49,71,.16); transform: translateY(-1px); }
+    .detail-chevron {
+      align-self: center; flex-shrink: 0;
+      font-size: 18px; color: #c9b2bd; line-height: 1;
+    }
+
+    /* ── Event details dialog (view-only) ───────────────────────────────── */
+    .evt-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(35,18,26,.55);
+      align-items: center; justify-content: center; padding: 18px;
+    }
+    .evt-overlay.open { display: flex; }
+    .evt-modal {
+      background: #fff; border-radius: 16px; width: 100%; max-width: 520px;
+      max-height: min(86vh, 640px); overflow-y: auto;
+      box-shadow: 0 12px 48px rgba(0,0,0,.28);
+      animation: evtIn .18s ease-out;
+    }
+    @keyframes evtIn { from { opacity: 0; transform: translateY(10px) scale(.98); }
+                       to   { opacity: 1; transform: none; } }
+    .evt-head {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 20px 20px 16px; border-bottom: 1px solid #f0e8ec;
+      position: sticky; top: 0; background: #fff; border-radius: 16px 16px 0 0;
+    }
+    .evt-head-badge {
+      min-width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .evt-head-badge.meeting     { background: #e3f2fd; }
+    .evt-head-badge.churchevent { background: #e8f5e9; }
+    .evt-head-info { flex: 1; min-width: 0; }
+    .evt-type-tag {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .6px;
+      padding: 2px 8px; border-radius: 10px; margin-bottom: 4px;
+    }
+    .evt-type-tag.meeting     { background: #e3f2fd; color: #1565c0; }
+    .evt-type-tag.churchevent { background: #e8f5e9; color: #2e7d32; }
+    .evt-title { font-size: 17px; font-weight: 700; color: #333; line-height: 1.3; overflow-wrap: anywhere; }
+    .evt-close {
+      flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: #999; background: #f5f0f2; transition: background .15s, color .15s;
+    }
+    .evt-close:hover { background: #673147; color: #fff; }
+    .evt-body { padding: 16px 20px 22px; }
+    .evt-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; }
+    .evt-row + .evt-row { border-top: 1px solid #f7f2f4; }
+    .evt-row-icon { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; margin-top: 1px; }
+    .evt-row-content { flex: 1; min-width: 0; }
+    .evt-row-label {
+      font-size: 10px; font-weight: 700; color: #a58794;
+      text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px;
+    }
+    .evt-row-value { font-size: 14px; color: #333; line-height: 1.5; overflow-wrap: anywhere; }
+    .evt-row-value.pre { white-space: pre-wrap; }
+    .evt-map-link { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #1a73e8; }
+    .evt-map-link:hover { text-decoration: underline; }
+    .evt-register-btn {
+      display: block; text-align: center; margin-top: 16px;
+      background: #673147; color: #fff; border-radius: 10px;
+      padding: 12px 16px; font-size: 14px; font-weight: 700;
+      transition: background .18s;
+    }
+    .evt-register-btn:hover { background: #572a3d; }
 
     /* ── View-only badge ─────────────────────────────────────────────────── */
     .view-only-badge {
@@ -459,10 +523,8 @@
           <button class="btn-view"        id="btnYearly"  onclick="setView('yearly')">Yearly</button>
         </div>
         <div class="cal-legend">
-          <div class="legend-item"><div class="legend-dot birthday"></div> Birthday</div>
-          <div class="legend-item"><div class="legend-dot anniversary"></div> Anniversary</div>
-          <div class="legend-item"><div class="legend-dot meeting"></div> Meeting</div>
           <div class="legend-item"><div class="legend-dot churchevent"></div> Event</div>
+          <div class="legend-item"><div class="legend-dot meeting"></div> Meeting</div>
         </div>
       </div>
     </div>
@@ -489,6 +551,21 @@
 
   </div><!-- /.cal-card -->
 </div><!-- /.page -->
+
+<!-- ════════════ EVENT DETAILS DIALOG (view-only) ════════════ -->
+<div class="evt-overlay" id="evtOverlay">
+  <div class="evt-modal" role="dialog" aria-modal="true" aria-labelledby="evtTitle">
+    <div class="evt-head">
+      <div class="evt-head-badge" id="evtBadge">📅</div>
+      <div class="evt-head-info">
+        <span class="evt-type-tag" id="evtTypeTag">Event</span>
+        <div class="evt-title" id="evtTitle"></div>
+      </div>
+      <button class="evt-close" onclick="closeEvtModal()" title="Close" aria-label="Close">✕</button>
+    </div>
+    <div class="evt-body" id="evtBody"></div>
+  </div>
+</div>
 
 <script>
   /* ════════════════════════════════════
@@ -595,11 +672,17 @@
     else                           { await loadMonth(); renderGrid(); }
   }
 
+  /* Public calendar shows ONLY church events and meetings.
+     The API already filters server-side; this is a defensive second layer. */
+  function publicOnly(arr) {
+    return (arr || []).filter(e => e.type === 'meeting' || e.type === 'churchevent');
+  }
+
   async function loadMonth() {
     try {
       const res = await fetch(
         `/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${curYear}&month=${curMonth}`);
-      events = res.ok ? await res.json() : [];
+      events = res.ok ? publicOnly(await res.json()) : [];
     } catch { events = []; }
   }
 
@@ -614,7 +697,7 @@
       try {
         const res = await fetch(
           `/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${y}&month=${m}`);
-        if (res.ok) all = all.concat(await res.json());
+        if (res.ok) all = all.concat(publicOnly(await res.json()));
       } catch {}
     }
     events = all;
@@ -627,7 +710,7 @@
       fetches.push(
         fetch(`/api/event-calendar/public-events?cid=${encodeURIComponent(CID)}&year=${curYear}&month=${m}`)
           .then(r => r.ok ? r.json() : []).catch(() => [])
-          .then(evts => evts.forEach(e => {
+          .then(evts => publicOnly(evts).forEach(e => {
             if (!yearEvents[e.date]) yearEvents[e.date] = [];
             yearEvents[e.date].push(e);
           }))
@@ -817,27 +900,35 @@
     showDetail(dateStr);
   }
 
+  let dayDetailEvts = [];   // events currently listed in the detail panel
+
   function showDetail(dateStr) {
     const panel = document.getElementById('detailPanel');
     const title = document.getElementById('detailTitle');
     const list  = document.getElementById('detailList');
-    const dayEvts = events.filter(e => e.date === dateStr);
+    dayDetailEvts = events.filter(e => e.date === dateStr);
     const [y, m, d] = dateStr.split('-').map(Number);
     title.textContent = new Date(y, m - 1, d)
       .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    if (dayEvts.length === 0) {
+    if (dayDetailEvts.length === 0) {
       list.innerHTML = `<div class="detail-empty">No events on this day.</div>`;
     } else {
-      list.innerHTML = dayEvts.map(e => {
-        const sub = e.time
-          ? `<div class="detail-item-sub">🕐 ${escHtml(e.time)}</div>`
+      list.innerHTML = dayDetailEvts.map((e, i) => {
+        const bits = [];
+        if (e.time)     bits.push(`🕐 ${escHtml(e.time)}`);
+        if (e.location) bits.push(`📍 ${escHtml(e.location)}`);
+        const sub = bits.length
+          ? `<div class="detail-item-sub">${bits.join(' &nbsp;·&nbsp; ')}</div>`
           : `<div class="detail-item-sub">${typeLabel(e.type)}</div>`;
-        return `<div class="detail-item">
+        return `<div class="detail-item clickable" onclick="openEvtModal(${i})"
+                     title="View details" role="button" tabindex="0"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEvtModal(${i});}">
                   <div class="detail-badge ${e.type}">${typeIcon(e.type)}</div>
                   <div class="detail-info">
                     <div class="detail-item-title">${escHtml(e.title)}</div>
                     ${sub}
                   </div>
+                  <div class="detail-chevron">›</div>
                 </div>`;
       }).join('');
     }
@@ -846,6 +937,63 @@
   }
 
   function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); }
+
+  /* ════════════════════════════════════
+     EVENT DETAILS DIALOG (view-only)
+  ════════════════════════════════════ */
+  function openEvtModal(idx) {
+    const e = dayDetailEvts[idx];
+    if (!e) return;
+
+    document.getElementById('evtBadge').className   = `evt-head-badge ${e.type}`;
+    document.getElementById('evtBadge').textContent = typeIcon(e.type);
+    const tag = document.getElementById('evtTypeTag');
+    tag.className   = `evt-type-tag ${e.type}`;
+    tag.textContent = typeLabel(e.type);
+    document.getElementById('evtTitle').textContent = e.title || '';
+
+    const rows = [];
+    const [y, m, d] = e.date.split('-').map(Number);
+    const dateLong  = new Date(y, m - 1, d)
+      .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    rows.push(evtRow('📅', 'Date', escHtml(dateLong)));
+    rows.push(evtRow('🕐', 'Time', e.time ? escHtml(e.time) : 'All day'));
+    if (e.location) {
+      const mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e.location);
+      rows.push(evtRow('📍', 'Location',
+        `${escHtml(e.location)}<br/><a class="evt-map-link" href="${mapUrl}" target="_blank" rel="noopener">Get Directions ↗</a>`));
+    }
+    if (e.organizer) rows.push(evtRow('👤', 'Organizer', escHtml(e.organizer)));
+    if (e.fee)       rows.push(evtRow('💵', 'Fee',       escHtml(e.fee)));
+    if (e.recurring) rows.push(evtRow('🔁', 'Schedule',  'Recurring'));
+    if (e.description) rows.push(evtRow('📝', 'Description', escHtml(e.description), true));
+
+    let html = rows.join('');
+    if (e.registrationLink && /^https?:\/\//i.test(e.registrationLink)) {
+      html += `<a class="evt-register-btn" href="${escHtml(e.registrationLink)}" target="_blank" rel="noopener">Register for this Event ↗</a>`;
+    }
+    document.getElementById('evtBody').innerHTML = html;
+    document.getElementById('evtOverlay').classList.add('open');
+  }
+
+  function evtRow(icon, label, valueHtml, pre) {
+    return `<div class="evt-row">
+              <div class="evt-row-icon">${icon}</div>
+              <div class="evt-row-content">
+                <div class="evt-row-label">${label}</div>
+                <div class="evt-row-value${pre ? ' pre' : ''}">${valueHtml}</div>
+              </div>
+            </div>`;
+  }
+
+  function closeEvtModal() { document.getElementById('evtOverlay').classList.remove('open'); }
+
+  document.getElementById('evtOverlay').addEventListener('click', function (ev) {
+    if (ev.target === this) closeEvtModal();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') closeEvtModal();
+  });
 
   /* ════════════════════════════════════
      HELPERS
@@ -862,12 +1010,10 @@
     return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
   function typeIcon(type) {
-    if (type === 'birthday') return '🎂'; if (type === 'anniversary') return '💍'; return '📅';
+    return type === 'churchevent' ? '🎉' : '📅';
   }
   function typeLabel(type) {
-    if (type === 'birthday') return 'Birthday';
-    if (type === 'anniversary') return 'Wedding Anniversary';
-    return 'Meeting';
+    return type === 'churchevent' ? 'Event' : 'Meeting';
   }
   function escHtml(str) {
     return (str == null ? '' : String(str))

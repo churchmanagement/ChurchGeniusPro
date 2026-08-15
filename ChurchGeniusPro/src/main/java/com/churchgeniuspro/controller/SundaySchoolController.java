@@ -1285,7 +1285,17 @@ public class SundaySchoolController {
             Boolean isCorrect = null;
             if (a != null && autoGradable && q.getCorrectAnswer() != null && !q.getCorrectAnswer().isBlank()
                     && a.getAnswerText() != null && !a.getAnswerText().isBlank()) {
-                isCorrect = q.getCorrectAnswer().trim().equalsIgnoreCase(a.getAnswerText().trim());
+                if ("FillBlank".equals(q.getQuestionType())) {
+                    // Typed answers get the same spelling tolerance as submitExam's
+                    // AnswerGrader (e.g. "Cheriath"/"Charith" → "Cherith",
+                    // "Jehova" → "Jehovah") — a strict comparison here would show
+                    // fuzzily-accepted answers as wrong in the student's results.
+                    isCorrect = q.getCorrectAnswer().trim().equalsIgnoreCase(a.getAnswerText().trim())
+                            || AnswerGrader.fuzzyMatchShort(a.getAnswerText(), q.getCorrectAnswer());
+                } else {
+                    // MCQ / TrueFalse — options are clicked, exact match is right
+                    isCorrect = q.getCorrectAnswer().trim().equalsIgnoreCase(a.getAnswerText().trim());
+                }
             } else if (a != null) {
                 isCorrect = a.getIsCorrect(); // fall back to stored value if no correctAnswer set
             }

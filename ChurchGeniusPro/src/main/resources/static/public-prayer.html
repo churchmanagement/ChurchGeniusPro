@@ -33,6 +33,9 @@
     <div class="hero" id="hero"><h1>🙏 Prayer Request</h1></div>
     <div class="body">
       <form id="f" autocomplete="on">
+        <!-- Honeypot — humans never see this; bots fill it and get silently dropped -->
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"
+               aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:1px;width:1px;opacity:0;" />
         <div class="row"><div><label class="req">First Name</label><input id="firstName" /></div><div><label class="req">Last Name</label><input id="lastName" /></div></div>
         <label class="req">Email Address</label><input id="email" type="email" />
         <label>Phone Number</label><input id="phone" type="tel" />
@@ -54,8 +57,20 @@
       var wrap = document.getElementById('wrap');
       function show(t,k){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+k; }
 
+      var formToken = '';
+      function setupCaptcha(siteKey){
+        if (!siteKey) return;
+        var holder = document.createElement('div');
+        holder.id = 'captchaBox'; holder.className = 'g-recaptcha'; holder.setAttribute('data-sitekey', siteKey);
+        holder.style.margin = '14px 0';
+        document.getElementById('submitBtn').parentNode.insertBefore(holder, document.getElementById('submitBtn'));
+        var s = document.createElement('script'); s.src = 'https://www.google.com/recaptcha/api.js'; s.async = true;
+        document.head.appendChild(s);
+      }
       if (cid) fetch('/api/public/engage-info?cid=' + encodeURIComponent(cid)).then(r=>r.json()).then(function (d) {
         if (d.themeColor) document.documentElement.style.setProperty('--brand', d.themeColor);
+        formToken = d.formToken || '';
+        setupCaptcha(d.captchaSiteKey);
         document.getElementById('hero').innerHTML =
           (d.logo ? '<img class="logo" src="'+esc(d.logo)+'" alt="" />' : '')
           + '<h1>🙏 Prayer Request</h1><p>'+esc(d.churchName||'')+'</p>';
@@ -70,7 +85,12 @@
         if (!tx) { show('Please enter your prayer request.', 'err'); return; }
         var body = { cid: cid, source: source, firstName: fn, lastName: ln, email: em,
                      phone: document.getElementById('phone').value.trim(),
-                     requestText: tx, shareWithTeam: document.getElementById('shareWithTeam').checked };
+                     requestText: tx, shareWithTeam: document.getElementById('shareWithTeam').checked,
+                     website: document.getElementById('website').value,   // honeypot
+                     formToken: formToken };
+        if (window.grecaptcha && document.getElementById('captchaBox')) {
+          body.captchaToken = grecaptcha.getResponse();
+        }
         var btn = document.getElementById('submitBtn'); btn.disabled = true; btn.textContent = 'Submitting…';
         fetch('/api/public/prayer-request', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
           .then(function (r) { return r.json().then(j=>({ok:r.ok,j})); })

@@ -618,10 +618,12 @@
               <div class="field">
                 <label for="subscriptionType">Subscription Type</label>
                 <select id="subscriptionType">
+                  <option value="TRIAL">Trial (30 days, Pro features)</option>
                   <option value="FREE">Free</option>
-                  <option value="LIMITED">Limited</option>
-                  <option value="FULL">Full</option>
+                  <option value="LIMITED">Limited (Standard Plan)</option>
+                  <option value="FULL">Full (Pro Plan)</option>
                 </select>
+                <span class="field-hint" style="color:#999;">Trial auto-expires 30 days after the start date when no Active Period is entered.</span>
               </div>
               <div class="field">
                 <label for="paymentStatus">Payment Status</label>
@@ -638,6 +640,11 @@
                   <option value="Hold">Hold</option>
                   <option value="Inactive">Inactive</option>
                 </select>
+              </div>
+              <div class="field">
+                <label for="extraSmsCount">Extra SMS Count</label>
+                <input type="number" id="extraSmsCount" min="0" value="0" />
+                <span class="field-hint" style="color:#999;">Additional SMS credits for this client on top of its plan's monthly limit.</span>
               </div>
             </div>
           </div>
@@ -695,6 +702,80 @@
             <tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Subscription Plans ────────────────────────────── -->
+  <div class="list-card" id="plansCard">
+    <div class="list-card-header">
+      <span class="list-card-title">💳 Subscription Plans</span>
+      <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="openPlanEditor(null)">＋ New Plan</button>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Plans apply per church (clientId) via the client's Subscription Type:
+        FREE → Free Plan, LIMITED → Standard Plan, FULL → Pro Plan. New plan codes can be
+        assigned by entering the code as a client's subscription type. Blank limits mean <strong>unlimited</strong>.
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Plan</th>
+              <th style="text-align:right;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">People</th>
+              <th style="text-align:right;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Emails/mo</th>
+              <th style="text-align:right;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">SMS/mo (+extra)</th>
+              <th style="text-align:right;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Giving/mo</th>
+              <th style="text-align:right;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Portals (M/K)</th>
+              <th style="text-align:center;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Features Off</th>
+              <th style="text-align:center;padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;">Active</th>
+              <th style="padding:8px 10px;background:#f5f6fa;border-bottom:2px solid #e8eaf0;"></th>
+            </tr>
+          </thead>
+          <tbody id="plansBody">
+            <tr><td colspan="9" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Plan editor -->
+      <div id="planEditor" style="display:none;margin-top:18px;border:1.5px solid #d0b8c6;border-radius:12px;padding:18px 20px;background:#fdf9fb;">
+        <h4 style="color:#673147;margin:0 0 14px;" id="planEditorTitle">Edit Plan</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:#555;">Plan Code<br/>
+            <input type="text" id="plCode" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="e.g. PREMIUM" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Plan Name<br/>
+            <input type="text" id="plName" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="e.g. Premium Plan" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Max People<br/>
+            <input type="number" id="plPeople" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Max Emails / month<br/>
+            <input type="number" id="plEmails" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Max SMS / month<br/>
+            <input type="number" id="plSms" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <!-- Extra SMS Count is configured PER CLIENT under Registered Clients, not on the plan -->
+          <label style="font-size:12px;font-weight:600;color:#555;">Max Online Giving / month<br/>
+            <input type="number" id="plGiving" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Max Member Portals<br/>
+            <input type="number" id="plMemberPortals" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Max Kids Portals<br/>
+            <input type="number" id="plKidsPortals" min="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="unlimited" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Active<br/>
+            <select id="plActive" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+              <option value="true">Yes</option><option value="false">No</option>
+            </select></label>
+        </div>
+        <label style="font-size:12px;font-weight:600;color:#555;">Description<br/>
+          <textarea id="plDesc" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"></textarea></label>
+
+        <div style="font-size:12px;font-weight:700;color:#673147;margin:14px 0 6px;">Features (unchecked = disabled for this plan)</div>
+        <div id="plFeatures" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:4px 16px;font-size:13px;"></div>
+
+        <div class="form-feedback" id="planFeedback" style="margin-top:12px;"></div>
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <button class="btn-primary" style="font-size:13px;padding:8px 22px;" onclick="savePlan()">💾 Save Plan</button>
+          <button style="font-size:13px;padding:8px 18px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;" onclick="document.getElementById('planEditor').style.display='none'">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1147,6 +1228,7 @@
     document.getElementById('endDateDisplay').value  = c.endDate ? c.endDate.split('T')[0] : '';
     document.getElementById('paymentStatus').value   = c.paymentStatus || 'PENDING';
     document.getElementById('subscriptionType').value= c.subscriptionType || 'FREE';
+    document.getElementById('extraSmsCount').value   = c.extraSmsCount != null ? c.extraSmsCount : 0;
     document.getElementById('note').value            = c.note || '';
     document.getElementById('status').value          = c.status || 'Active';
   }
@@ -1173,6 +1255,7 @@
       startDate:        document.getElementById('startDate').value,
       paymentStatus:    document.getElementById('paymentStatus').value,
       subscriptionType: document.getElementById('subscriptionType').value,
+      extraSmsCount:    parseInt(document.getElementById('extraSmsCount').value, 10) || 0,
       note:             document.getElementById('note').value.trim(),
       status:           document.getElementById('status').value,
     };
@@ -1197,7 +1280,9 @@
     else if (!isValidEmail(email)) valid = setError('email', 'emailHint', 'Enter a valid email address.');
     else                  clearError('email', 'emailHint');
 
-    if (!period || parseInt(period) <= 0)
+    // Trial plans default to a 30-day period server-side, so Active Period is optional for them.
+    const isTrial = document.getElementById('subscriptionType').value === 'TRIAL';
+    if (!isTrial && (!period || parseInt(period) <= 0))
       valid = setError('activePeriod', 'activePeriodHint', 'Enter a valid active period.');
     else clearError('activePeriod', 'activePeriodHint');
 
@@ -1432,6 +1517,7 @@
     document.getElementById('activePeriodUnit').value= client.activePeriodUnit|| 'MONTHS';
     document.getElementById('startDate').value       = client.startDate       || '';
     document.getElementById('subscriptionType').value= client.subscriptionType|| 'FULL';
+    document.getElementById('extraSmsCount').value   = client.extraSmsCount != null ? client.extraSmsCount : 0;
     document.getElementById('paymentStatus').value   = client.paymentStatus   || 'PENDING';
     document.getElementById('status').value          = client.status          || 'Active';
     document.getElementById('note').value            = client.note            || client.notes || '';
@@ -1501,6 +1587,135 @@
   }
   window.loadWebStats = loadWebStats;
   loadWebStats();
+
+  /* ════════════════════════════════════════════════════════
+     SUBSCRIPTION PLAN MANAGEMENT
+     ════════════════════════════════════════════════════════ */
+  let PLANS = [];
+  let FEATURE_CATALOG = [];
+  let editingPlanId = null;
+
+  const lim = v => (v === null || v === undefined || v === '') ? 'Unlimited' : Number(v).toLocaleString();
+
+  async function loadPlans() {
+    const tbody = document.getElementById('plansBody');
+    try {
+      const res  = await fetch('/api/serviceadmin/subscription-plans');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+      PLANS = data.plans || [];
+      FEATURE_CATALOG = data.featureCatalog || [];
+      if (!PLANS.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:16px;color:#aaa;text-align:center;">No plans yet — restart the app to seed defaults, or create one.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = PLANS.map(p => {
+        const off = Object.keys(p.features || {}).filter(k => p.features[k] === false).length;
+        return '<tr>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;"><strong>' + p.planName + '</strong>'
+          + ' <span style="color:#999;font-size:11px;">(' + p.planCode + ')</span></td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">' + lim(p.maxPeople) + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">' + lim(p.maxEmailsPerMonth) + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">' + lim(p.maxSmsPerMonth) + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">' + lim(p.maxOnlineGivingPerMonth) + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">' + lim(p.maxMemberPortals) + ' / ' + lim(p.maxKidsPortals) + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:center;">'
+          + (off ? '<span style="color:#c62828;font-weight:700;">' + off + '</span>' : '<span style="color:#2e7d32;">0</span>') + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:center;">' + (p.active ? '✅' : '⛔') + '</td>'
+          + '<td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:right;">'
+          + '<button class="btn-primary" style="font-size:11px;padding:4px 12px;" onclick="openPlanEditor(' + p.id + ')">✏️ Edit</button></td>'
+          + '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="9" style="padding:16px;color:#c62828;text-align:center;">'
+        + (e.message || 'Failed to load plans.') + '</td></tr>';
+    }
+  }
+
+  function openPlanEditor(id) {
+    editingPlanId = id;
+    const p = id != null ? PLANS.find(x => x.id === id) : null;
+    document.getElementById('planEditorTitle').textContent = p ? ('Edit Plan — ' + p.planName) : 'New Plan';
+    document.getElementById('plCode').value  = p ? p.planCode : '';
+    document.getElementById('plCode').disabled = !!p;   // code is immutable after creation
+    document.getElementById('plName').value  = p ? p.planName : '';
+    document.getElementById('plPeople').value        = p && p.maxPeople != null ? p.maxPeople : '';
+    document.getElementById('plEmails').value        = p && p.maxEmailsPerMonth != null ? p.maxEmailsPerMonth : '';
+    document.getElementById('plSms').value           = p && p.maxSmsPerMonth != null ? p.maxSmsPerMonth : '';
+    document.getElementById('plGiving').value        = p && p.maxOnlineGivingPerMonth != null ? p.maxOnlineGivingPerMonth : '';
+    document.getElementById('plMemberPortals').value = p && p.maxMemberPortals != null ? p.maxMemberPortals : '';
+    document.getElementById('plKidsPortals').value   = p && p.maxKidsPortals != null ? p.maxKidsPortals : '';
+    document.getElementById('plActive').value        = p ? String(p.active) : 'true';
+    document.getElementById('plDesc').value          = p && p.description ? p.description : '';
+
+    // Feature checkboxes, grouped
+    const box = document.getElementById('plFeatures');
+    const groups = {};
+    FEATURE_CATALOG.forEach(f => { (groups[f.group] = groups[f.group] || []).push(f); });
+    box.innerHTML = Object.keys(groups).map(g =>
+      '<div style="grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;color:#999;margin-top:6px;">' + g + '</div>'
+      + groups[g].map(f => {
+          const enabled = !(p && p.features && p.features[f.key] === false);
+          return '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;">'
+            + '<input type="checkbox" class="pl-feat" data-key="' + f.key + '" ' + (enabled ? 'checked' : '')
+            + ' style="accent-color:#673147;" /> ' + f.label + '</label>';
+        }).join('')
+    ).join('');
+
+    document.getElementById('planFeedback').textContent = '';
+    document.getElementById('planEditor').style.display = '';
+    document.getElementById('planEditor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  window.openPlanEditor = openPlanEditor;
+
+  async function savePlan() {
+    const fb = document.getElementById('planFeedback');
+    const numOrNull = id => {
+      const v = document.getElementById(id).value.trim();
+      return v === '' ? null : parseInt(v, 10);
+    };
+    const features = {};
+    document.querySelectorAll('#plFeatures .pl-feat').forEach(cb => {
+      if (!cb.checked) features[cb.dataset.key] = false;   // store only disabled flags
+    });
+    const body = {
+      planCode:  document.getElementById('plCode').value.trim(),
+      planName:  document.getElementById('plName').value.trim(),
+      description: document.getElementById('plDesc').value.trim(),
+      maxPeople: numOrNull('plPeople'),
+      maxEmailsPerMonth: numOrNull('plEmails'),
+      maxSmsPerMonth: numOrNull('plSms'),
+      maxOnlineGivingPerMonth: numOrNull('plGiving'),
+      maxMemberPortals: numOrNull('plMemberPortals'),
+      maxKidsPortals: numOrNull('plKidsPortals'),
+      active: document.getElementById('plActive').value === 'true',
+      features: features
+    };
+    if (!body.planName || (editingPlanId == null && !body.planCode)) {
+      fb.textContent = 'Plan code and plan name are required.';
+      fb.style.color = '#c62828';
+      return;
+    }
+    try {
+      const url    = editingPlanId != null ? '/api/serviceadmin/subscription-plans/' + editingPlanId
+                                           : '/api/serviceadmin/subscription-plans';
+      const method = editingPlanId != null ? 'PUT' : 'POST';
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(body) });
+      const data   = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+      fb.textContent = 'Plan saved. Changes take effect within about a minute for logged-in users.';
+      fb.style.color = '#2e7d32';
+      document.getElementById('planEditor').style.display = 'none';
+      loadPlans();
+      showToast('Subscription plan saved.');
+    } catch (e) {
+      fb.textContent = e.message || 'Could not save the plan.';
+      fb.style.color = '#c62828';
+    }
+  }
+  window.savePlan = savePlan;
+  loadPlans();
 
   /* ════════════════════════════════════════════════════════
      BACKUP CONFIGURATION

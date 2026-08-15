@@ -157,10 +157,11 @@ public class SignupController {
             return ResponseEntity.status(409).body(res);
         }
 
-        // Minimum password length
-        if (password.length() < 8) {
+        // Application-wide password policy (length + upper/lower/digit/special)
+        String policyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
+        if (policyError != null) {
             res.put("status",  "error");
-            res.put("message", "Password must be at least 8 characters.");
+            res.put("message", policyError);
             return ResponseEntity.status(400).body(res);
         }
 
@@ -228,6 +229,14 @@ public class SignupController {
             res.put("status",  "error");
             res.put("message", "Username '" + username.trim() + "' is already taken.");
             return ResponseEntity.status(409).body(res);
+        }
+
+        // Password policy (server-authoritative; also checked at send-code)
+        String pwPolicyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
+        if (pwPolicyError != null) {
+            res.put("status",  "error");
+            res.put("message", pwPolicyError);
+            return ResponseEntity.status(400).body(res);
         }
 
         // Persist the SignUp record

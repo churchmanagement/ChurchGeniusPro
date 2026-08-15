@@ -31,9 +31,12 @@ import java.util.stream.Collectors;
 public class PayrollSetupController {
 
     private final PayrollSetupService setup;
+    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
-    public PayrollSetupController(PayrollSetupService setup) {
+    public PayrollSetupController(PayrollSetupService setup,
+                                  com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
         this.setup = setup;
+        this.ssnCrypto = ssnCrypto;
     }
 
     // ── Employees ────────────────────────────────────────────────────────────
@@ -157,7 +160,10 @@ public class PayrollSetupController {
         m.put("fullName", e.fullName());
         m.put("email", e.getEmail());
         m.put("phone", e.getPhone());
-        m.put("ssnLast4", e.getSsnLast4());
+        // Stored encrypted (AES-GCM); decrypted only here, for payroll-authorized
+        // callers (this API is gated by RoleGuard.requirePayroll via the tenant
+        // check + payroll page guards). The UI keeps it masked until the eye icon.
+        m.put("ssnLast4", ssnCrypto.decrypt(e.getSsnLast4()));
         m.put("addressLine1", e.getAddressLine1());
         m.put("addressLine2", e.getAddressLine2());
         m.put("city", e.getCity());

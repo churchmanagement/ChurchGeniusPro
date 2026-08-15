@@ -40,4 +40,7 @@ public interface SongRepository extends JpaRepository<Song, Long> {
     List<Song> findByClientIdAndFinalizedTrueAndFinalizedSectionIdIsNull(String clientId);
 
     long countByClientIdAndFinalizedSectionId(String clientId, Long finalizedSectionId);
+
+    /** Purge all songs for a (possibly book-scoped) client id. Call within a transaction. */
+    void deleteByClientId(String clientId);
 }

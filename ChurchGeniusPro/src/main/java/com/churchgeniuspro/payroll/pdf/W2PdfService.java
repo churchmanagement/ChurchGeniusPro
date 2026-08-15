@@ -29,6 +29,12 @@ public class W2PdfService {
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
     private static final float LEFT = 50f, RIGHT = 562f, TOP = 742f;
 
+    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
+
+    public W2PdfService(com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
+        this.ssnCrypto = ssnCrypto;
+    }
+
     public byte[] generate(W2Box w2, EmployerInfo employer, PayrollEmployee employee) {
         try (PDDocument doc = new PDDocument()) {
             PDPage page = new PDPage(PDRectangle.LETTER);
@@ -53,8 +59,10 @@ public class W2PdfService {
                 String who = w2.getEmployeeName() == null ? "" : w2.getEmployeeName();
                 text(cs, bold, 11, LEFT, y, "Employee: " + who);
                 y -= 14;
-                if (employee != null && employee.getSsnLast4() != null && !employee.getSsnLast4().isBlank()) {
-                    text(cs, normal, 9, LEFT, y, "SSN: XXX-XX-" + employee.getSsnLast4()); y -= 12;
+                // Stored encrypted at rest; decrypted only for this authorized document
+                String ssn4 = employee != null ? ssnCrypto.decrypt(employee.getSsnLast4()) : null;
+                if (ssn4 != null && !ssn4.isBlank()) {
+                    text(cs, normal, 9, LEFT, y, "SSN: XXX-XX-" + ssn4); y -= 12;
                 }
                 y -= 6; hr(cs, y); y -= 20;
 

@@ -13,4 +13,7 @@ public interface SongBookAssetRepository extends JpaRepository<SongBookAsset, Lo
     Optional<SongBookAsset> findByClientIdAndKind(String clientId, String kind);
 
     boolean existsByClientIdAndKind(String clientId, String kind);
+
+    /** Purge uploaded pages for a (possibly book-scoped) client id. Call within a transaction. */
+    void deleteByClientId(String clientId);
 }

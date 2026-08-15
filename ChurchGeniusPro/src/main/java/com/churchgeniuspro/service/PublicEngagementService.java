@@ -33,6 +33,9 @@ public class PublicEngagementService {
     private final PrayerVolunteerRepository volunteerRepo;
     private final ChurchRegistrationRepository churchRepo;
     private final ChurchLogoRepository logoRepo;
+    private final ConnectSubmissionRepository connectRepo;
+    private final EmailService emailService;
+    private final WhatsAppSenderService smsSender;
 
     public PublicEngagementService(FamilyMemberRepository memberRepo,
                                    FamilyRepository familyRepo,
@@ -41,7 +44,10 @@ public class PublicEngagementService {
                                    PublicPrayerNoteRepository noteRepo,
                                    PrayerVolunteerRepository volunteerRepo,
                                    ChurchRegistrationRepository churchRepo,
-                                   ChurchLogoRepository logoRepo) {
+                                   ChurchLogoRepository logoRepo,
+                                   ConnectSubmissionRepository connectRepo,
+                                   EmailService emailService,
+                                   WhatsAppSenderService smsSender) {
         this.memberRepo = memberRepo;
         this.familyRepo = familyRepo;
         this.followUpRepo = followUpRepo;
@@ -50,7 +56,15 @@ public class PublicEngagementService {
         this.volunteerRepo = volunteerRepo;
         this.churchRepo = churchRepo;
         this.logoRepo = logoRepo;
+        this.connectRepo = connectRepo;
+        this.emailService = emailService;
+        this.smsSender = smsSender;
     }
+
+    /** The confirmation message shown/sent after a successful submission. */
+    public static final String CONFIRMATION_MSG =
+            "Thank you for contacting us. Your request has been received, "
+            + "and someone from our church will contact you soon.";
 
     // ── Branding for the public pages ───────────────────────────────────────────
 
@@ -100,17 +114,75 @@ public class PublicEngagementService {
         FamilyMember saved = memberRepo.save(v);
 
         String name = (nz(first) + " " + nz(last)).trim();
+        String prefs = contactPrefs(b);
+
+        // Admin-facing submission record
+        ConnectSubmission sub = new ConnectSubmission();
+        sub.setClientId(clientId);
+        sub.setMemberId(saved.getId());
+        sub.setFirstName(first);
+        sub.setLastName(last);
+        sub.setEmail(v.getEmail());
+        sub.setPhone(v.getPhone());
+        sub.setAddress(str(b, "address"));
+        sub.setGender(v.getGender());
+        sub.setMaritalStatus(str(b, "maritalStatus"));
+        sub.setBirthDate(str(b, "birthDate"));
+        sub.setContactPreferences(prefs.isEmpty() ? null : prefs);
+        sub.setHowHeard(str(b, "howHeard"));
+        sub.setStatus("New");
+        sub = connectRepo.save(sub);
+
         StringBuilder d = new StringBuilder("New visitor via Connect With Us.\n");
         if (!blank(v.getEmail())) d.append("Email: ").append(v.getEmail()).append('\n');
         if (!blank(v.getPhone())) d.append("Phone: ").append(v.getPhone()).append('\n');
-        String prefs = contactPrefs(b);
         if (!prefs.isEmpty())            d.append("Preferred contact: ").append(prefs).append('\n');
         if (!blank(str(b, "maritalStatus"))) d.append("Marital status: ").append(str(b, "maritalStatus")).append('\n');
         if (!blank(str(b, "address")))   d.append("Address: ").append(str(b, "address")).append('\n');
         if (!blank(str(b, "howHeard")))  d.append("How they heard about us: ").append(str(b, "howHeard")).append('\n');
 
-        createFollowUp(clientId, "Welcome new visitor: " + (name.isEmpty() ? "(no name)" : name),
-                d.toString(), "VISITOR", (long) saved.getId(), "Visitor: " + name, "public");
+        Long fuId = createFollowUp(clientId, "Welcome new visitor: " + (name.isEmpty() ? "(no name)" : name),
+                d.toString(), "CONNECT", sub.getId(), "Connect: " + name, "public");
+        sub.setFollowUpId(fuId);
+
+        // Automatic confirmation (best effort — never blocks the submission)
+        sub.setConfirmationSent(sendConfirmation(clientId, v.getEmail(), v.getPhone(), prefs));
+        connectRepo.save(sub);
+    }
+
+    /**
+     * Sends the confirmation message via email (always when an email was given)
+     * and via SMS when a phone was given and "Text Message" is a preferred
+     * contact method. Returns which channels were used (EMAIL / SMS / EMAIL+SMS / NONE).
+     */
+    private String sendConfirmation(String clientId, String email, String phone, String prefs) {
+        List<String> channels = new ArrayList<>();
+        String churchName = churchRepo.findByClientIdAndDeleteFlagFalse(clientId)
+                .map(ChurchRegistration::getChurchName).orElse("our church");
+        if (!blank(email)) {
+            try {
+                String body = "<p>" + CONFIRMATION_MSG + "</p>"
+                        + "<p>We're so glad you reached out to " + esc(churchName) + ".</p>";
+                emailService.sendOrgEmail(email, "Thank you for contacting " + churchName, body, clientId);
+                channels.add("EMAIL");
+            } catch (Exception e) {
+                LOG.warn("[PublicEngagement] confirmation email failed: {}", e.toString());
+            }
+        }
+        if (!blank(phone) && prefs != null && prefs.toLowerCase().contains("text")) {
+            try {
+                if (smsSender.sendSingleSms(phone, CONFIRMATION_MSG + " — " + churchName, clientId)) {
+                    channels.add("SMS");
+                }
+            } catch (Exception e) {
+                LOG.warn("[PublicEngagement] confirmation SMS failed: {}", e.toString());
+            }
+        }
+        return channels.isEmpty() ? "NONE" : String.join("+", channels);
+    }
+
+    private static String esc(String s) {
+        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     // ── Prayer Request → PublicPrayerRequest + Follow-Up ────────────────────────
@@ -146,7 +218,98 @@ public class PublicEngagementService {
                 "PRAYER", saved.getId(), "Prayer: " + name, "public");
         saved.setFollowUpId(fuId);
         prayerRepo.save(saved);
+
+        // Confirmation email (best effort)
+        try {
+            String churchName = churchRepo.findByClientIdAndDeleteFlagFalse(clientId)
+                    .map(ChurchRegistration::getChurchName).orElse("our church");
+            emailService.sendOrgEmail(email,
+                    "We received your prayer request — " + churchName,
+                    "<p>" + CONFIRMATION_MSG + "</p><p>Our prayer team at " + esc(churchName)
+                            + " will be praying with you.</p>", clientId);
+        } catch (Exception e) {
+            LOG.warn("[PublicEngagement] prayer confirmation email failed: {}", e.toString());
+        }
         return saved.getId();
+    }
+
+    // ── Admin: manage Connect submissions ───────────────────────────────────────
+
+    public List<Map<String, Object>> listConnect(String clientId, String status) {
+        List<ConnectSubmission> rows = (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status))
+                ? connectRepo.findByClientIdAndDeleteFlagFalseOrderByCreatedAtDesc(clientId)
+                : connectRepo.findByClientIdAndStatusAndDeleteFlagFalseOrderByCreatedAtDesc(clientId, status);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (ConnectSubmission s : rows) out.add(connectMap(s));
+        return out;
+    }
+
+    private Map<String, Object> connectMap(ConnectSubmission s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", s.getId());
+        m.put("memberId", s.getMemberId());
+        m.put("firstName", s.getFirstName());
+        m.put("lastName", s.getLastName());
+        m.put("email", s.getEmail());
+        m.put("phone", s.getPhone());
+        m.put("address", s.getAddress());
+        m.put("gender", s.getGender());
+        m.put("maritalStatus", s.getMaritalStatus());
+        m.put("birthDate", s.getBirthDate());
+        m.put("contactPreferences", s.getContactPreferences());
+        m.put("howHeard", s.getHowHeard());
+        m.put("status", s.getStatus());
+        m.put("assignedMemberId", s.getAssignedMemberId());
+        m.put("assignedTo", s.getAssignedTo());
+        m.put("followUpId", s.getFollowUpId());
+        m.put("confirmationSent", s.getConfirmationSent());
+        m.put("createdAt", s.getCreatedAt() != null ? s.getCreatedAt().toString() : null);
+        return m;
+    }
+
+    private ConnectSubmission mustFindConnect(String clientId, Long id) {
+        return connectRepo.findByIdAndClientIdAndDeleteFlagFalse(id, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found."));
+    }
+
+    /** Assigns a volunteer/staff member (by FamilyMember id + display name) to a submission. */
+    @Transactional
+    public void assignConnect(String clientId, Long id, Integer memberId, String memberName, String actor) {
+        ConnectSubmission s = mustFindConnect(clientId, id);
+        if (memberId == null && blank(memberName)) {
+            s.setAssignedMemberId(null);
+            s.setAssignedTo(null);
+        } else {
+            s.setAssignedMemberId(memberId);
+            s.setAssignedTo(memberName);
+            if ("New".equals(s.getStatus())) s.setStatus("Assigned");
+        }
+        connectRepo.save(s);
+        String note = (memberId == null && blank(memberName))
+                ? "Unassigned." : ("Assigned to " + nz(memberName) + ".");
+        createFollowUp(clientId, note + " — " + fullName(s), "Assignment change by " + nz(actor) + ".",
+                "CONNECT", s.getId(), "Connect: " + fullName(s), actor);
+    }
+
+    @Transactional
+    public void setConnectStatus(String clientId, Long id, String status, String actor) {
+        if (blank(status) || !List.of("New", "Assigned", "InProgress", "Contacted", "Closed").contains(status)) {
+            throw new IllegalArgumentException("Invalid status.");
+        }
+        ConnectSubmission s = mustFindConnect(clientId, id);
+        s.setStatus(status);
+        connectRepo.save(s);
+    }
+
+    @Transactional
+    public void deleteConnect(String clientId, Long id) {
+        ConnectSubmission s = mustFindConnect(clientId, id);
+        s.setDeleteFlag(true);
+        connectRepo.save(s);
+    }
+
+    private static String fullName(ConnectSubmission s) {
+        return (nz(s.getFirstName()) + " " + nz(s.getLastName())).trim();
     }
 
     // ── Admin: manage public prayer requests ────────────────────────────────────

@@ -20,6 +20,9 @@ public interface PlaidTransactionStagingRepository extends JpaRepository<PlaidTr
 
     List<PlaidTransactionStaging> findByPlaidItemId(Integer plaidItemId);
 
+    // Bank deletion: purge every staged (review-queue) row for a connection.
+    long deleteByPlaidItemId(Integer plaidItemId);
+
     // Retention purge: remove old reviewed-rejected and bank-removed rows.
     long deleteByStatusAndReviewedDateBefore(String status, java.util.Date cutoff);
 

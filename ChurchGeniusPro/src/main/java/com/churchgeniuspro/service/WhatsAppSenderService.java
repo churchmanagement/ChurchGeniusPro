@@ -48,19 +48,55 @@ public class WhatsAppSenderService {
     private final FamilyMemberRepository     memberRepo;
     private final EmailSettingsRepository    emailSettingsRepo;
     private final SmsService                 smsService;
+    private final SubscriptionService        subscriptionService;
     private final HttpClient                 http = HttpClient.newHttpClient();
 
     public WhatsAppSenderService(WhatsAppSettingsRepository settingsRepo,
                                  FamilyMemberRepository memberRepo,
                                  EmailSettingsRepository emailSettingsRepo,
-                                 SmsService smsService) {
+                                 SmsService smsService,
+                                 SubscriptionService subscriptionService) {
         this.settingsRepo      = settingsRepo;
         this.memberRepo        = memberRepo;
         this.emailSettingsRepo = emailSettingsRepo;
         this.smsService        = smsService;
+        this.subscriptionService = subscriptionService;
+    }
+
+    /**
+     * Single SMS choke-point that enforces the subscription plan's monthly SMS
+     * allowance (base limit + extra SMS) and records usage per send.
+     * Returns {@code true} when the message was handed to Twilio.
+     */
+    private boolean smsWithQuota(String toPhone, String body, String clientId) {
+        if (clientId != null && !clientId.isBlank()
+                && !subscriptionService.canSendSms(clientId)) {
+            log.warn("SMS to {} skipped — monthly SMS limit reached for subscription plan (clientId={})",
+                    toPhone, clientId);
+            return false;
+        }
+        boolean sent = smsService.send(toPhone, body);
+        if (sent && clientId != null && !clientId.isBlank()) {
+            subscriptionService.recordSmsSent(clientId);
+        }
+        return sent;
     }
 
     // ── Public helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * Sends ONE SMS to a single arbitrary phone number through the quota
+     * choke-point (normalizes the number first). Used for public-form
+     * confirmation messages. Returns true when handed to Twilio.
+     */
+    public boolean sendSingleSms(String phone, String body, String clientId) {
+        String normalized = normalizePhone(phone);
+        if (normalized == null) {
+            log.debug("sendSingleSms skipped — unrecognized phone format: {}", phone);
+            return false;
+        }
+        return smsWithQuota(normalized, body, clientId);
+    }
 
     /**
      * Resolves phone numbers for the given recipient groups and sends a WhatsApp
@@ -110,11 +146,11 @@ public class WhatsAppSenderService {
         List<String> phones = resolvePhones(recipients, clientId);
         if (phones.isEmpty()) return;
 
-        // SMS only — use SmsService directly
+        // SMS only — use SmsService directly (quota-checked per send)
         if (smsService.isConfigured()) {
             String body = resolveMessageNoSettings(message, clientId);
             for (String phone : phones) {
-                smsService.send(phone, body);
+                smsWithQuota(phone, body, clientId);
             }
         } else {
             log.debug("SMS skipped for clientId={} — SmsService not configured", clientId);
@@ -170,9 +206,9 @@ public class WhatsAppSenderService {
         String normalized = normalizePhone(toPhone);
         if (normalized == null) return;
 
-        // SMS only
+        // SMS only (quota-checked)
         if (smsService.isConfigured()) {
-            smsService.send(normalized, resolveMessageNoSettings(message, clientId));
+            smsWithQuota(normalized, resolveMessageNoSettings(message, clientId), clientId);
         } else {
             log.debug("SMS to {} skipped — SmsService not configured", normalized);
         }
@@ -244,7 +280,7 @@ public class WhatsAppSenderService {
                 List<String> phones = resolvePhones(recipients, clientId);
                 String body = resolveMessageNoSettings(message, clientId);
                 for (String phone : phones) {
-                    smsService.send(phone, body);
+                    smsWithQuota(phone, body, clientId);
                 }
             } else {
                 log.debug("WhatsApp/SMS skipped for clientId={} — no credentials configured", clientId);
@@ -257,7 +293,7 @@ public class WhatsAppSenderService {
         List<String> phones     = resolvePhones(recipients, clientId);
 
         for (String phone : phones) {
-            doSend(phone, effectiveMessage, settings, whatsApp);
+            doSend(phone, effectiveMessage, settings, whatsApp, clientId);
         }
     }
 
@@ -272,7 +308,7 @@ public class WhatsAppSenderService {
         if (settingsOpt.isEmpty() || !credentialsValid(settingsOpt.get())) {
             if (!whatsApp && smsService.isConfigured()) {
                 String body = resolveMessageNoSettings(message, clientId);
-                smsService.send(normalized, body);
+                smsWithQuota(normalized, body, clientId);
             } else {
                 log.debug("WhatsApp/SMS to {} skipped — no credentials configured", normalized);
             }
@@ -280,7 +316,7 @@ public class WhatsAppSenderService {
         }
 
         WhatsAppSettings settings = settingsOpt.get();
-        doSend(normalized, resolveMessage(message, settings, clientId), settings, whatsApp);
+        doSend(normalized, resolveMessage(message, settings, clientId), settings, whatsApp, clientId);
     }
 
     /**
@@ -296,14 +332,14 @@ public class WhatsAppSenderService {
      * @param whatsApp  {@code true} = WhatsApp prefix, {@code false} = plain SMS via SmsService
      */
     private void doSend(String toPhone, String message,
-                        WhatsAppSettings settings, boolean whatsApp) {
+                        WhatsAppSettings settings, boolean whatsApp, String clientId) {
         // toPhone must already be normalized at this point, but guard just in case
         if (toPhone == null || toPhone.isBlank() || !toPhone.startsWith("+")) return;
 
         // SMS always goes through SmsService to use the correct +18449252978 sender number.
         if (!whatsApp) {
             if (smsService.isConfigured()) {
-                smsService.send(toPhone, message);
+                smsWithQuota(toPhone, message, clientId);
             } else {
                 log.warn("SMS to {} skipped — SmsService not configured", toPhone);
             }

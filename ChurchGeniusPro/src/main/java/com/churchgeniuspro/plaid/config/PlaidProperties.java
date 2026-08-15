@@ -29,6 +29,15 @@ public class PlaidProperties {
     /** Public webhook URL registered with Plaid (env: PLAID_WEBHOOK_URL). */
     private String webhookUrl = "https://churchgeniuspro.net/api/plaid/webhook";
 
+    /**
+     * OAuth redirect URI (env: PLAID_REDIRECT_URI). Optional — only sent to Plaid
+     * when non-blank, and only needed for OAuth institutions. Must EXACTLY match a
+     * URI registered in the Plaid Dashboard, otherwise /link/token/create rejects
+     * every request with INVALID_FIELD. Blank by default so plain (non-OAuth)
+     * Link flows work out of the box.
+     */
+    private String redirectUri = "";
+
     /** Comma-separated Plaid products (env: PLAID_PRODUCTS). */
     private String products = "transactions";
 

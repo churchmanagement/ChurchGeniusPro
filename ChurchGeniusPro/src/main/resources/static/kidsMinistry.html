@@ -18,6 +18,12 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
            background: #f5f6fa; color: #333; }
     button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    /* ── Top-level sections (Kids Ministry | Sunday School) ── */
+    .section-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .section-btn { padding:10px 24px; border-radius:10px; font-size:14.5px; font-weight:700;
+      border:2px solid #d7c9d0; background:#fff; color:#673147; transition:background .15s,color .15s; }
+    .section-btn.active { background:#673147; border-color:#673147; color:#fff; }
+    .section-btn:hover:not(.active) { background:#f0e8ec; }
     /* ── Tabs ── */
     .tab-bar { display:flex; gap:4px; margin-bottom:20px; background:#fff;
       border-radius:10px; padding:6px; box-shadow:0 2px 8px rgba(0,0,0,.06); flex-wrap:wrap; }
@@ -230,7 +236,7 @@
       background:#f0f0f0; color:#444; transition:background .15s; }
     .btn-print:hover { background:#d0d0d0; }
     @media print {
-      .sidebar, .topbar, .tab-bar, .km-action-bar,
+      .sidebar, .topbar, .section-bar, .tab-bar, .km-action-bar,
       .btn, .search-bar, .km-act-btn, .modal-overlay,
       .vol-toolbar, .vol-roles-bar, .vol-group-actions,
       .km-group-actions, #toast { display:none !important; }
@@ -374,18 +380,23 @@
     <main class="page-content" style="padding:24px;">
 
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
-    <h2 style="font-size:20px;font-weight:700;color:#673147;">👧 Kids Ministry</h2>
+    <h2 id="kmPageTitle" style="font-size:20px;font-weight:700;color:#673147;">👧 Kids Ministry</h2>
   </div>
 
-  <div class="tab-bar">
+  <!-- ══ TOP-LEVEL SECTIONS: Kids Ministry | Sunday School ═══════════ -->
+  <div class="section-bar">
+    <button class="section-btn active" id="sectionKmBtn" onclick="showSection('km',this)">👧 Kids Ministry</button>
+    <button class="section-btn" id="ssTabBtn" onclick="showSection('ss',this)">📚 Sunday School</button>
+  </div>
+
+  <div class="tab-bar" id="kmTabBar">
     <button class="tab-btn active" onclick="showTab('overview',this)">📊 Overview</button>
-    <button class="tab-btn" onclick="showTab('children',this)">👦 Children</button>
+    <button class="tab-btn" onclick="showTab('children',this)">👦 Register</button>
     <button class="tab-btn" onclick="showTab('classrooms',this)">🏫 Classrooms</button>
-    <button class="tab-btn" onclick="showTab('checkin',this)">✅ Check-In</button>
+    <button class="tab-btn" data-feature="kidsCheckin" onclick="showTab('checkin',this)">✅ Check-In</button>
     <button class="tab-btn" onclick="showTab('pickup',this)">⏰ Pickup</button>
     <button class="tab-btn" onclick="showTab('volunteers',this)">🙋 Volunteers</button>
     <button class="tab-btn" onclick="showTab('reports',this)">📋 Reports</button>
-    <button class="tab-btn" onclick="showTab('sundayschool',this)" id="ssTabBtn">📚 Sunday School</button>
   </div>
 
   <!-- ══ OVERVIEW TAB ══════════════════════════════════════════════ -->
@@ -685,7 +696,7 @@
       <div class="ss-card-header">
         <span class="ss-card-title">Select a Class</span>
       </div>
-      <select id="studentClassSel" onchange="loadStudentsForClass()" style="max-width:320px;">
+      <select id="studentClassSel" onchange="ssSyncClass(this.value)" style="max-width:320px;">
         <option value="">-- Select Class --</option>
       </select>
     </div>
@@ -716,7 +727,7 @@
   <div class="ss-tab-pane" id="paneExams">
     <div class="ss-card">
       <div class="ss-card-header"><span class="ss-card-title">Select a Class</span></div>
-      <select id="examClassSel" onchange="loadExamsForClass()" style="max-width:320px;">
+      <select id="examClassSel" onchange="ssSyncClass(this.value)" style="max-width:320px;">
         <option value="">-- Select Class --</option>
       </select>
     </div>
@@ -787,7 +798,7 @@
       <div class="ss-form-row">
         <div class="ss-form-group">
           <label>Class</label>
-          <select id="resultClassSel" onchange="loadResultExams()" style="max-width:280px;">
+          <select id="resultClassSel" onchange="ssSyncClass(this.value)" style="max-width:280px;">
             <option value="">-- Select Class --</option>
           </select>
         </div>
@@ -1692,11 +1703,35 @@ var activeCheckins = [];
 /* ═══════════════════════════════════════════════════════════════════
    TAB NAVIGATION
 ═══════════════════════════════════════════════════════════════════ */
+/* ── Top-level sections: Kids Ministry | Sunday School ──────────────
+   UI reorganization only — the Sunday School pane and all Kids Ministry
+   tabs work exactly as before; this just decides which group is shown. */
+var kmLastTab = { name:'overview', btn:null };
+function showSection(sec, btn) {
+  document.querySelectorAll('.section-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var bar = document.getElementById('kmTabBar');
+  var title = document.getElementById('kmPageTitle');
+  if (sec === 'ss') {
+    if (bar) bar.style.display = 'none';              // Sunday School has its own tab bar
+    if (title) title.textContent = '📚 Sunday School';
+    showTab('sundayschool', null);
+  } else {
+    if (bar) bar.style.display = 'flex';
+    if (title) title.textContent = '👧 Kids Ministry';
+    // Restore the Kids Ministry tab that was open before switching away.
+    var lastBtn = kmLastTab.btn ||
+      document.querySelector('#kmTabBar .tab-btn');   // default: Overview
+    showTab(kmLastTab.name, lastBtn);
+  }
+}
+
 function showTab(name, btn) {
   document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('tab-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
+  if (name !== 'sundayschool') kmLastTab = { name:name, btn:btn };   // remember for section switch
 
   if (name === 'overview')    loadSummary();
   if (name === 'children')    loadChildren();
@@ -4793,6 +4828,40 @@ let editingLessonId = null;
 let editingClassId_modal = null; // for class edit
 
 /* ═══════════════════════════════════════════════
+   SHARED CLASS SELECTION
+   One class selection shared by all Sunday School tabs (Classes,
+   Students & Lessons, Exams, Results & Marks). Picking a class anywhere
+   mirrors it into every tab's dropdown and refreshes their data, so the
+   user never has to reselect the class when switching tabs.
+═══════════════════════════════════════════════ */
+let ssGlobalClassId = '';
+let _ssSyncing = false;
+
+function ssSyncClass(classId, opts) {
+  if (_ssSyncing) return;               // re-entrancy guard (selectClass calls back in)
+  _ssSyncing = true;
+  try {
+    ssGlobalClassId = (classId === null || classId === undefined) ? '' : String(classId);
+    // Mirror the selection into every tab's dropdown.
+    ['studentClassSel','examClassSel','resultClassSel'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel && sel.value !== ssGlobalClassId) sel.value = ssGlobalClassId;
+    });
+    // Refresh each tab's data for the newly selected class. The loaders read
+    // their own (now-synced) dropdowns, so existing behavior is unchanged.
+    loadStudentsForClass();
+    loadExamsForClass();
+    loadResultExams();
+    // Keep the Classes tab in step too (opens the class detail card).
+    const skipClasses = opts && opts.skipClasses;
+    if (!skipClasses && ssGlobalClassId) {
+      const c = allClasses.find(x => String(x.id) === ssGlobalClassId);
+      if (c) selectClass(c.id, c.className);
+    }
+  } finally { _ssSyncing = false; }
+}
+
+/* ═══════════════════════════════════════════════
    TABS
 ═══════════════════════════════════════════════ */
 function ssShowTab(tab) {
@@ -4840,12 +4909,17 @@ function populateClassSelects() {
     const prev = sel.value;
     sel.innerHTML = '<option value="">-- Select Class --</option>'
       + allClasses.map(c => `<option value="${c.id}">${ssEsc(c.className)}</option>`).join('');
-    if (prev) sel.value = prev;
+    // Prefer the shared class selection so every tab stays on the same class.
+    if (ssGlobalClassId) sel.value = ssGlobalClassId;
+    else if (prev) sel.value = prev;
   });
 }
 
 async function selectClass(id, name) {
   selectedClassId = id; selectedClassName = name;
+  // Broadcast to the other Sunday School tabs (no-op when called FROM the
+  // sync itself thanks to the re-entrancy guard).
+  ssSyncClass(id, { skipClasses: true });
   document.getElementById('detailClassName').textContent = '🏫 ' + name;
   document.getElementById('classDetail').style.display = '';
   await loadTeachers();
@@ -4877,6 +4951,8 @@ async function deleteClass(id) {
   if (!confirm('Delete this class? This cannot be undone.')) return;
   await fetch(`/api/ss/classes/${id}`, { method:'DELETE' });
   if (selectedClassId === id) { document.getElementById('classDetail').style.display = 'none'; selectedClassId = null; }
+  // Clear the shared selection if the deleted class was the selected one.
+  if (String(ssGlobalClassId) === String(id)) ssSyncClass('');
   await loadClasses(); ssToast('Class deleted.');
 }
 

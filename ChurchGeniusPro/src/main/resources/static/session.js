@@ -1140,6 +1140,73 @@
      * Main entry point.  Verifies the session, syncs localStorage, updates
      * the sidebar, then activates the idle timer and logout-button wiring.
      */
+    // ═══════════════════════════════════════════════════════════════════════
+    // Subscription-plan feature gating (parallel to the permission system).
+    // window.CGP_FEATURES holds explicit flags from /api/subscription/features;
+    // only an explicit false disables a feature (opt-in denial, like perms).
+    // ═══════════════════════════════════════════════════════════════════════
+    window.CGP_FEATURES = null;
+    window.CGP_hasFeature = function (key) {
+        return !(window.CGP_FEATURES && window.CGP_FEATURES[key] === false);
+    };
+
+    /** Sidebar href → subscription feature key. */
+    var FEATURE_NAV = {
+        '/income': 'accounting', '/expense': 'accounting', '/accountingReports': 'accounting',
+        '/donation-review': 'accounting', '/fund': 'accounting', '/purpose': 'accounting',
+        '/transactiontype': 'accounting', '/income-report': 'accounting', '/expense-report': 'accounting',
+        '/transactions-report': 'accounting', '/tax-report': 'accounting', '/financial-report': 'accounting',
+        '/bank-import': 'bankImport', '/bankSync': 'bankSync', '/pledges': 'pledges', '/payroll': 'payroll',
+        '/attendance': 'attendance', '/event': 'eventRegistration', '/events': 'eventRegistration',
+        '/ministry': 'kidsMinistry', '/kidsMinistry': 'kidsMinistry',
+        '/notifyEmail': 'composeEmail',
+        '/reminders': 'reminders', '/eventReminders': 'reminders',
+        '/autoReminders': 'reminders', '/oneReminders': 'reminders',
+        '/groups': 'groups', '/certificates': 'certificates', '/publicScreens': 'publicScreens',
+        '/followups': 'followUps', '/songbook': 'songbook', '/admin/songbook-access': 'songbook',
+        '/private-access-settings': 'privatePages', '/ntagAccess': 'ntag',
+        '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers'
+    };
+
+    /**
+     * Hides nav items (and [data-feature] elements) whose subscription feature
+     * is disabled. Safe to call repeatedly — runs after each nav rebuild.
+     */
+    function applySubscriptionNav() {
+        if (!window.CGP_FEATURES) return;   // not loaded → everything enabled
+
+        // Sub-nav items
+        document.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
+            var onclick = btn.getAttribute('onclick') || '';
+            Object.keys(FEATURE_NAV).forEach(function (href) {
+                if (onclick.indexOf("'" + href + "'") !== -1 ||
+                    onclick.indexOf('"' + href + '"') !== -1) {
+                    if (!window.CGP_hasFeature(FEATURE_NAV[href])) btn.style.display = 'none';
+                }
+            });
+        });
+
+        // Whole Accounting section header when the accounting feature is off
+        // AND every accounting-area sub-feature is also off.
+        if (!window.CGP_hasFeature('accounting')
+                && !window.CGP_hasFeature('bankImport') && !window.CGP_hasFeature('bankSync')
+                && !window.CGP_hasFeature('pledges') && !window.CGP_hasFeature('payroll')) {
+            document.querySelectorAll('.nav-item-btn').forEach(function (btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                if (oc.indexOf("'accounting'") !== -1) btn.style.display = 'none';
+            });
+        }
+
+        // Page-level gates: any element marked data-feature="key" (or a
+        // comma-separated list) is hidden when a listed feature is disabled.
+        document.querySelectorAll('[data-feature]').forEach(function (el) {
+            var keys = (el.getAttribute('data-feature') || '').split(',');
+            var denied = keys.some(function (k) { return k && !window.CGP_hasFeature(k.trim()); });
+            el.style.display = denied ? 'none' : '';
+        });
+    }
+    window.CGP_applySubscriptionNav = applySubscriptionNav;
+
     async function init() {
         var sessionData;
 
@@ -1171,6 +1238,20 @@
         setLS('role',       sessionData.role);
         setLS('churchName', sessionData.churchName);
         setLS('appUserId',  sessionData.appUserId);
+
+        // ── Subscription plan features ────────────────────────────────────────
+        // Fetched once per page load; exposes window.CGP_FEATURES (explicit
+        // flags — a missing key means enabled) and window.CGP_hasFeature(key).
+        // Loaded BEFORE the nav filters/permission pass so pages that re-render
+        // on CGP_applyPerms (e.g. events.html) already see the feature map.
+        try {
+            var featRes = await fetch('/api/subscription/features');
+            if (featRes.ok) {
+                var featData = await featRes.json();
+                window.CGP_SUBSCRIPTION = featData;
+                window.CGP_FEATURES     = featData.features || {};
+            }
+        } catch (_) { /* fail-open: features stay enabled */ }
 
         // ── Update sidebar user block ─────────────────────────────────────────
         updateSidebarUser(sessionData);
@@ -1224,7 +1305,7 @@
             var navEl = document.getElementById('sidebarNav');
             if (!navEl) return;
             var filterFn = isChurch
-                ? function () { applyChurchNavFilter(); if (window.CGP_syncFavUI) window.CGP_syncFavUI(); }
+                ? function () { applyChurchNavFilter(); applySubscriptionNav(); if (window.CGP_syncFavUI) window.CGP_syncFavUI(); }
                 : function () {
                     applyRoleNavFilter(role);
                     reorderNav(role);
@@ -1233,6 +1314,7 @@
                     // role === 'Member' so PERM_TREE-gated buttons get hidden too.
                     var permsJson = (role === 'Member' ? sessionData.memberPrivileges : sessionData.privileges) || null;
                     applyPermissions(permsJson, role, isChurch);
+                    applySubscriptionNav();   // subscription-plan features on top of perms
                     if (window.CGP_syncFavUI) window.CGP_syncFavUI();   // re-filter Favorites
                   };
             var obs = new MutationObserver(function () {
@@ -1299,6 +1381,7 @@
         // consistently for both account types.
         var permsJson = (role === 'Member' ? sessionData.memberPrivileges : sessionData.privileges) || null;
         applyPermissions(permsJson, role, isChurch);
+        applySubscriptionNav();   // subscription-plan features on top of perms
         if (window.CGP_syncFavUI) window.CGP_syncFavUI();   // Favorites reflect final visible nav
     }
 

@@ -267,6 +267,14 @@ public class ChurchRegistrationController {
             return ResponseEntity.status(409).body(res);
         }
 
+        // Application-wide password policy (length + upper/lower/digit/special)
+        String pwPolicyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
+        if (pwPolicyError != null) {
+            res.put("status",  "error");
+            res.put("message", pwPolicyError);
+            return ResponseEntity.status(400).body(res);
+        }
+
         // Build ChurchRegistrationBO from body
         ChurchRegistrationBO bo = new ChurchRegistrationBO();
         bo.setClientId(clientId);

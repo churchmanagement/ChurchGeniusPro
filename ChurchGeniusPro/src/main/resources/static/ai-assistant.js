@@ -408,6 +408,43 @@
     // Converse follow-up trees so direct commands are never intercepted.
     if (directNav(query)){ if(input) input.value=''; return; }
 
+    // ── Natural-language DATA questions ("When is Anson's birthday?",
+    //    "What was the income for March?", "Who are the volunteers?").
+    //    Answered server-side with permission checks; runs in ALL modes.
+    //    handled=false → fall through to the normal flow below.
+    if (looksLikeDataQuestion(query)){
+      tryDataSearch(query).then(function(d){
+        if (d && d.handled){
+          busy(false);
+          renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data',
+            confidence:1, answer:d.answer||'', pages:[],
+            suggestedAction:'none' });
+          setDebug({ intent:'Data: '+(d.intent||'lookup'), source:'Church Data',
+            result: d.denied ? 'Permission denied' : 'Answered (data)' });
+          if (mode==='converse'){ _convLog.push('Assistant: '+(d.answer||'')); persistConv(); }
+          if (speaking) speak(stripUrls(d.answer||''));
+          finishTiming(); if(input) input.value='';
+          return;
+        }
+        assistFlow(query, input);   // not a data question after all → normal flow
+      });
+      return;
+    }
+    assistFlow(query, input);
+  }
+
+  function looksLikeDataQuestion(q){
+    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithe|contribut\w*|donat\w*|gave|giving|volunteers?|offering)\b/i.test(q);
+  }
+  function tryDataSearch(query){
+    return fetch('/api/ai-search/data', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ query:query })
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(){ return null; });
+  }
+
+  function assistFlow(query, input){
     if (mode==='converse'){
       _convLog.push('User: '+query); persistConv();
       var handled = conv.active ? converseStep(query) : converseStart(query);
@@ -791,9 +828,60 @@
       '#aaDebug .aa-drow{display:flex;gap:8px;padding:1px 0;}',
       '#aaDebug .aa-dk{color:#7fd1ff;min-width:150px;}',
       '#aaDebug .aa-dv{color:#cfe3ff;word-break:break-word;}',
-      '#aaDebug .aa-dlog{margin-top:8px;padding-top:6px;border-top:1px dashed #2a3550;color:#9ad27f;}'
+      '#aaDebug .aa-dlog{margin-top:8px;padding-top:6px;border-top:1px dashed #2a3550;color:#9ad27f;}',
+      // ── Help (?) icon + help modal ──
+      '.aa-help{width:28px;height:28px;flex:0 0 auto;border-radius:50%;border:1.5px solid #c5a0b5;background:#fff;color:#673147;font-weight:700;font-size:13px;cursor:pointer;line-height:1;padding:0;}',
+      '.aa-help:hover{background:#673147;color:#fff;}',
+      '.aa-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}',
+      '.aa-modal{background:#fff;border-radius:14px;max-width:660px;width:100%;max-height:85vh;overflow:auto;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);}',
+      '.aa-modal h3{margin:0 0 6px;color:#673147;font-size:16.5px;}',
+      '.aa-modal h4{margin:16px 0 4px;color:#673147;font-size:13.5px;}',
+      '.aa-modal p,.aa-modal li{font-size:13px;color:#444;line-height:1.55;margin:4px 0;}',
+      '.aa-modal ul{margin:4px 0 8px;padding-left:20px;}',
+      '.aa-modal .aa-ex{background:#fbf7f9;border:1px solid #eadfe6;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12.5px;color:#555;font-style:italic;}',
+      '.aa-modal-x{float:right;border:none;background:none;font-size:16px;cursor:pointer;color:#999;padding:2px 6px;}',
+      '.aa-modal-x:hover{color:#673147;}'
     ].join('');
     document.head.appendChild(s);
+  }
+
+  /* ── Help (?) dialog ─────────────────────────────────────────────────────── */
+  function showHelpModal(title, bodyHtml){
+    var old=document.querySelector('.aa-modal-ov'); if(old && old.parentNode) old.parentNode.removeChild(old);
+    var ov=document.createElement('div'); ov.className='aa-modal-ov';
+    ov.innerHTML='<div class="aa-modal" role="dialog" aria-modal="true" aria-label="'+title+'">'
+      +'<button class="aa-modal-x" type="button" aria-label="Close">✕</button>'
+      +'<h3>'+title+'</h3>'+bodyHtml+'</div>';
+    function close(){ if(ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown',escK); }
+    function escK(e){ if(e.key==='Escape') close(); }
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    ov.querySelector('.aa-modal-x').addEventListener('click', close);
+    document.addEventListener('keydown', escK);
+    document.body.appendChild(ov);
+  }
+  function searchHelpHtml(){
+    return '<p>AI Search understands plain English. Ask it to open a page, find a feature or report, '
+      +'explain how to do something, or look up help — it works the same on every page of the app.</p>'
+      +'<h4>What you can search for</h4>'
+      +'<ul><li><b>Navigation</b> — "Go to Payroll", "Open the event calendar", "Take me to Income".</li>'
+      +'<li><b>Feature locations</b> — "Where do I record a donation?", "Where are attendance reports?".</li>'
+      +'<li><b>How-to questions</b> — "How do I add a new member?", "How do I send SMS reminders?".</li>'
+      +'<li><b>Reports</b> — "Show me the donation report", "Monthly income report".</li>'
+      +'<li><b>Public page links</b> — "Member signup page", "Kids check-in link".</li></ul>'
+      +'<h4>Example searches</h4>'
+      +'<div class="aa-ex">"Go to Family"</div>'
+      +'<div class="aa-ex">"How do I create a pledge?"</div>'
+      +'<div class="aa-ex">"Where can I upload songs?"</div>'
+      +'<div class="aa-ex">"I need to send reminders" (Converse mode — the assistant asks follow-up questions)</div>'
+      +'<h4>🔎 Type · 🎤 Voice · 🗣 Converse</h4>'
+      +'<ul><li><b>Type</b> — enter your question in the box and press Enter or click Search.</li>'
+      +'<li><b>Voice</b> — click the microphone and speak naturally; your speech is converted to text and searched. Click again to stop. In Voice mode, saying a page name (e.g. "Go to Events") navigates immediately.</li>'
+      +'<li><b>Converse</b> — a back-and-forth conversation: describe what you want to do (e.g. "I need to send reminders") and the assistant asks follow-up questions to get you to the right place.</li></ul>'
+      +'<h4>Tips for better results</h4>'
+      +'<ul><li>Use full, natural sentences — no special syntax is needed.</li>'
+      +'<li>Start with a verb (<b>Go to</b>, <b>Open</b>, <b>Show me</b>) when you want to navigate straight to a page.</li>'
+      +'<li>Click the ❔ Guide button to browse every available command for your account.</li>'
+      +'<li>Voice and Converse need microphone access; Type mode always works.</li></ul>';
   }
 
   function injectUI(){
@@ -811,7 +899,8 @@
       + '<button id="aaMode_voice" type="button" title="Voice" aria-label="Voice">🎤</button>'
       + '<button id="aaMode_converse" type="button" title="Converse" aria-label="Converse">🗣</button>'
       + '</span>'
-      + '<button id="aaGuideBtn" class="aa-ghost" type="button" title="Guide" aria-label="Guide">❔</button>';
+      + '<button id="aaGuideBtn" class="aa-ghost" type="button" title="Guide — all commands" aria-label="Guide">❔</button>'
+      + '<button id="aaHelpBtn" class="aa-help" type="button" title="Help — how AI Search works" aria-label="Help">?</button>';
     // Hint goes on its own line BELOW the toolbar so it never affects alignment.
     var hintRow=document.createElement('div'); hintRow.className='aa-hintrow';
     hintRow.innerHTML='<span id="aaHint" class="aa-hint"></span>';
@@ -854,6 +943,9 @@
     });
     document.getElementById('aaMode_converse').addEventListener('click', function(){ setMode('converse'); });
     document.getElementById('aaGuideBtn').addEventListener('click', openGuide);
+    document.getElementById('aaHelpBtn').addEventListener('click', function(){
+      showHelpModal('AI Search — Help', searchHelpHtml());
+    });
 
     return true;
   }

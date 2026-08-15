@@ -80,6 +80,15 @@ public class ServiceClient {
     @Column(name = "subscription_type", length = 20)
     private String subscriptionType = "FREE";
 
+    /**
+     * Additional SMS credits granted to THIS client on top of its subscription
+     * plan's monthly allowance (effective limit = plan limit + this value).
+     * Configured per client by the Service Admin; defaults to 0.
+     */
+    @Column(name = "extra_sms_count", nullable = false,
+            columnDefinition = "integer not null default 0")
+    private Integer extraSmsCount = 0;
+
     @Column(columnDefinition = "text")
     private String note;
 

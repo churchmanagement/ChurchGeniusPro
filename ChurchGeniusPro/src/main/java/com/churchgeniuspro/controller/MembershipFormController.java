@@ -554,7 +554,7 @@ public class MembershipFormController {
 
                 SignUp signup = new SignUp();
                 signup.setUsername(signupUsername.trim());
-                signup.setPassword(signupPassword); // stored plain (matches existing app convention)
+                signup.setPassword(com.churchgeniuspro.util.PasswordUtil.encode(signupPassword)); // BCrypt-hashed
                 signup.setActive(false);             // requires admin approval
                 signup.setDeleted(false);
                 signup.setLocked(false);

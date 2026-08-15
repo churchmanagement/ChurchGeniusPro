@@ -777,6 +777,31 @@
         </div>
       </div>
 
+      <!-- ── Manage Occurrences Modal ─────────────── -->
+      <div class="modal-overlay" id="occModal" style="display:none; align-items:flex-start; overflow:auto; padding:24px 12px;" onclick="if(event.target===this)closeOccModal()">
+        <div class="modal-box" style="max-width:560px; width:100%; max-height:calc(100vh - 48px); overflow-y:auto; margin:0 auto;">
+          <div class="modal-title">📆 Manage Occurrences</div>
+          <div class="modal-subtitle" id="occMeetingLabel"></div>
+          <div style="font-size:12.5px;color:#666;margin:6px 0 10px;">
+            Delete individual occurrences without affecting the rest of the schedule.
+            Deleted occurrences disappear from the Meetings page and Event Calendar,
+            and no reminders are sent for them.
+          </div>
+
+          <div id="occListWrap" style="border:1px solid #e4dbe2;border-radius:8px;max-height:320px;overflow-y:auto;">
+            <div id="occList" style="padding:4px 0;"></div>
+          </div>
+
+          <div id="occFeedback" class="feedback" style="margin-top:12px;margin-bottom:0;"></div>
+
+          <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
+            <button class="btn-modal-cancel" onclick="closeOccModal()">Close</button>
+            <button class="btn-modal-cancel" id="occDeleteFutureBtn" style="color:#b3261e;border-color:#e3b6b2;" onclick="occDeleteFuture()">Delete This &amp; All Future…</button>
+            <button class="btn-modal-send" id="occDeleteSelBtn" onclick="occDeleteSelected()" disabled>Delete Selected</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Message Template Manager Modal ─────────────── -->
       <div class="modal-overlay" id="tplModal" style="display:none; align-items:flex-start; overflow:auto; padding:24px 12px;" onclick="if(event.target===this)closeTplManager()">
         <div class="modal-box" style="max-width:780px; width:100%; max-height:calc(100vh - 48px); overflow-y:auto; margin:0 auto;">
@@ -1623,6 +1648,133 @@
   }
 
   /* ════════════════════════════════════
+     MANAGE OCCURRENCES (recurring meetings)
+  ════════════════════════════════════ */
+  let occMeetingId = null;
+
+  function openOccModal(id, name) {
+    occMeetingId = id;
+    document.getElementById('occMeetingLabel').textContent = name || 'Meeting';
+    document.getElementById('occFeedback').className = 'feedback';
+    document.getElementById('occFeedback').textContent = '';
+    document.getElementById('occModal').style.display = 'flex';
+    loadOccurrences();
+  }
+
+  function closeOccModal() {
+    document.getElementById('occModal').style.display = 'none';
+    occMeetingId = null;
+  }
+
+  async function loadOccurrences() {
+    const list = document.getElementById('occList');
+    list.innerHTML = '<div style="padding:14px;color:#888;">Loading…</div>';
+    try {
+      const res = await fetch(`/api/meetings/${occMeetingId}/occurrences?limit=26`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      const occ = data.occurrences || [];
+      if (!occ.length) {
+        list.innerHTML = '<div style="padding:14px;color:#888;">No upcoming occurrences.</div>';
+      } else {
+        list.innerHTML = occ.map(o => {
+          const d = new Date(o.date + 'T00:00:00');
+          const label = d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          if (o.skipped) {
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f1eaef;color:#b3261e;">
+              <span style="width:16px;"></span>
+              <span style="flex:1;text-decoration:line-through;">${label}</span>
+              <span style="font-size:11px;background:#fdecea;padding:2px 8px;border-radius:10px;">Deleted</span>
+              <button class="btn-action" title="Restore this occurrence" onclick="occRestore('${o.date}')">↩️</button>
+            </div>`;
+          }
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f1eaef;">
+            <input type="checkbox" class="occ-chk" value="${o.date}" onchange="occUpdateBtns()" />
+            <span style="flex:1;">${label}</span>
+            <button class="btn-action btn-del-row" title="Delete this occurrence only" onclick="occDeleteOne('${o.date}')">🗑</button>
+          </div>`;
+        }).join('');
+      }
+      occUpdateBtns();
+    } catch (e) {
+      list.innerHTML = `<div style="padding:14px;color:#b3261e;">❌ ${e.message}</div>`;
+    }
+  }
+
+  function occUpdateBtns() {
+    const n = document.querySelectorAll('.occ-chk:checked').length;
+    const btn = document.getElementById('occDeleteSelBtn');
+    btn.disabled = n === 0;
+    btn.textContent = n > 0 ? `Delete Selected (${n})` : 'Delete Selected';
+  }
+
+  function occFeedbackMsg(msg, type) {
+    const el = document.getElementById('occFeedback');
+    el.textContent = msg;
+    el.className = `feedback ${type}`;
+  }
+
+  async function occPost(path, body) {
+    const res = await fetch(`/api/meetings/${occMeetingId}/occurrences/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  async function occDeleteOne(date) {
+    if (!confirm(`Delete only the occurrence on ${date}?\nThe rest of the schedule continues unchanged and no reminders will be sent for this date.`)) return;
+    try {
+      await occPost('delete', { dates: [date] });
+      occFeedbackMsg('✅ Occurrence deleted. No reminders will be sent for it.', 'success');
+      await loadOccurrences();
+      await loadMeetings();
+    } catch (e) { occFeedbackMsg(`❌ ${e.message}`, 'error'); }
+  }
+
+  async function occDeleteSelected() {
+    const dates = [...document.querySelectorAll('.occ-chk:checked')].map(c => c.value);
+    if (!dates.length) return;
+    if (!confirm(`Delete ${dates.length} selected occurrence(s)?\nThe remaining schedule continues unchanged.`)) return;
+    try {
+      const data = await occPost('delete', { dates });
+      occFeedbackMsg(`✅ ${data.deleted} occurrence(s) deleted.`, 'success');
+      await loadOccurrences();
+      await loadMeetings();
+    } catch (e) { occFeedbackMsg(`❌ ${e.message}`, 'error'); }
+  }
+
+  async function occRestore(date) {
+    try {
+      await occPost('restore', { dates: [date] });
+      occFeedbackMsg('✅ Occurrence restored.', 'success');
+      await loadOccurrences();
+      await loadMeetings();
+    } catch (e) { occFeedbackMsg(`❌ ${e.message}`, 'error'); }
+  }
+
+  async function occDeleteFuture() {
+    const checked = [...document.querySelectorAll('.occ-chk:checked')].map(c => c.value).sort();
+    const first = checked[0] || document.querySelector('.occ-chk')?.value;
+    if (!first) { occFeedbackMsg('❌ No upcoming occurrences.', 'error'); return; }
+    const from = prompt('Delete ALL occurrences from this date onward (yyyy-mm-dd):', first);
+    if (!from) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from.trim())) { occFeedbackMsg('❌ Invalid date — use yyyy-mm-dd.', 'error'); return; }
+    if (!confirm(`Delete the occurrence on ${from.trim()} and ALL future occurrences?\nEarlier occurrences are kept.`)) return;
+    try {
+      const data = await occPost('delete-future', { fromDate: from.trim() });
+      occFeedbackMsg(data.seriesDeleted
+        ? '✅ No occurrences remained — the whole meeting was deleted.'
+        : `✅ Series now ends on ${data.endDate}.`, 'success');
+      await loadOccurrences();
+      await loadMeetings();
+    } catch (e) { occFeedbackMsg(`❌ ${e.message}`, 'error'); }
+  }
+
+  /* ════════════════════════════════════
      SELECT-ALL / DELETE SELECTED
   ════════════════════════════════════ */
   function toggleSelectAll(checked) {
@@ -1841,6 +1993,7 @@
       const actionsBtns = `<div class="actions">
             ${p['general.meetings.edit']   === false ? '' : `<button class="btn-action btn-edit-row"   onclick="editMeeting(${m.id})"                           title="Edit">📝</button>`}
             ${p['general.meetings.notify'] === false ? '' : `<button class="btn-action btn-notify-row" onclick="openNotifyModal(${m.id},this.dataset.name)" data-name="${(m.meetingTypeName||'Meeting').replace(/"/g,'&quot;')}" title="Send Notification">📣</button>`}
+            ${(p['general.meetings.delete'] === false || !m.occurrence || m.occurrence === 'One-time') ? '' : `<button class="btn-action btn-occ-row" onclick="openOccModal(${m.id}, this.dataset.name)" data-name="${(m.meetingTypeName||'Meeting').replace(/"/g,'&quot;')}" title="Manage Occurrences">📆</button>`}
             ${p['general.meetings.delete'] === false ? '' : `<button class="btn-action btn-del-row"    onclick="deleteMeeting(${m.id})"                         title="Delete">🗑</button>`}
           </div>`;
 

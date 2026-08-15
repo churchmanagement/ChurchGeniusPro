@@ -65,6 +65,7 @@ public class DonationController {
     private final ServiceClientRepository    clientRepo;
     private final ChurchLogoRepository       logoRepo;
     private final EmailService               emailService;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
     private final RestTemplate               restTemplate = new RestTemplate();
 
     public DonationController(DonationRepository donationRepo,
@@ -72,13 +73,15 @@ public class DonationController {
                                PublicScreenLinkRepository linkRepo,
                                ServiceClientRepository clientRepo,
                                ChurchLogoRepository logoRepo,
-                               EmailService emailService) {
+                               EmailService emailService,
+                               com.churchgeniuspro.service.SubscriptionService subscriptionService) {
         this.donationRepo = donationRepo;
         this.stripeRepo   = stripeRepo;
         this.linkRepo     = linkRepo;
         this.clientRepo   = clientRepo;
         this.logoRepo     = logoRepo;
         this.emailService = emailService;
+        this.subscriptionService = subscriptionService;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -199,6 +202,20 @@ public class DonationController {
         if (settings == null || isBlank(settings.getSecretKey())) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Online giving is not configured for this organization."));
+        }
+
+        // Subscription plan: Online Giving feature + monthly allowance. Both are
+        // enforced BEFORE creating the PaymentIntent so a donor is never charged
+        // when the church's plan doesn't allow it. Historical donations remain.
+        if (!subscriptionService.isFeatureEnabled(clientId, "onlineGiving")) {
+            return ResponseEntity.status(403).body(Map.of("error",
+                    "Online giving is not included in this church's current subscription plan. "
+                  + "Please contact the church office to give another way."));
+        }
+        if (!subscriptionService.canAcceptOnlineGiving(clientId)) {
+            return ResponseEntity.status(403).body(Map.of("error",
+                    "This church has reached its monthly online giving limit for its current "
+                  + "subscription plan. Please contact the church office to give another way."));
         }
 
         BigDecimal amount;
@@ -334,6 +351,7 @@ public class DonationController {
         donation.setStatus(status);
 
         donationRepo.save(donation);
+        subscriptionService.recordOnlineGiving(clientId);
         try { sendDonationThankyou(donation, clientId); } catch (Exception ignored) {}
         return ResponseEntity.ok(Map.of("success", true));
     }

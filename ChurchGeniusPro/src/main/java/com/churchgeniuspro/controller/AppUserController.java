@@ -83,7 +83,9 @@ public class AppUserController {
         // (SuperAdmin, Admin, Accountant, User, Limited, Member, Child) are denied.
         String deny = RoleGuard.requireChurch(request);
         if (deny != null) return deny;
-        return "forward:/viewusers.html";
+        // Case must match viewUsers.html exactly — jar classpath lookup is
+        // case-sensitive (works from Windows filesystem, 404s from the JAR).
+        return "forward:/viewUsers.html";
     }
 
     // ── List ──────────────────────────────────────────────────────────────

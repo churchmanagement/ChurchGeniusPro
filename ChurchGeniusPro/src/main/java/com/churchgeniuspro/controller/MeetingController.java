@@ -46,9 +46,12 @@ import java.util.Map;
 public class MeetingController {
 
     private final MeetingService meetingService;
+    private final com.churchgeniuspro.service.MeetingOccurrenceService occurrenceService;
 
-    public MeetingController(MeetingService meetingService) {
+    public MeetingController(MeetingService meetingService,
+                             com.churchgeniuspro.service.MeetingOccurrenceService occurrenceService) {
         this.meetingService = meetingService;
+        this.occurrenceService = occurrenceService;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -159,6 +162,120 @@ public class MeetingController {
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         }
+    }
+
+    // ── Occurrences of a recurring meeting ────────────────────────────────
+
+    /**
+     * Lists upcoming occurrences of a (recurring) meeting from today, each
+     * flagged {@code skipped} when that single occurrence has been deleted.
+     */
+    @ResponseBody
+    @GetMapping("/api/meetings/{id}/occurrences")
+    public ResponseEntity<Map<String, Object>> occurrences(
+            @PathVariable Integer id,
+            @RequestParam(name = "limit", defaultValue = "26") int limit,
+            HttpServletRequest request) {
+        String deny = RoleGuard.requirePermission(request, "general.meetings");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        try {
+            return ResponseEntity.ok(occurrenceService.listOccurrences(id, appClientId, limit));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Deletes one or more single occurrences of a recurring meeting.
+     * Body: {@code {"dates": ["2026-08-04", "2026-08-11"]}}. The rest of the
+     * series (and its reminders) continues unchanged; the skipped dates no
+     * longer appear on the Meetings page or Event Calendar and generate no
+     * reminders of any kind.
+     */
+    @ResponseBody
+    @PostMapping("/api/meetings/{id}/occurrences/delete")
+    public ResponseEntity<Map<String, Object>> deleteOccurrences(
+            @PathVariable Integer id,
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        try {
+            List<java.time.LocalDate> dates = parseDates(body.get("dates"));
+            int n = occurrenceService.deleteOccurrences(id, appClientId, dates);
+            return ResponseEntity.ok(Map.of("success", true, "deleted", n));
+        } catch (IllegalArgumentException e) {
+            return bad(e.getMessage());
+        }
+    }
+
+    /** Restores previously deleted occurrences. Body: {@code {"dates": [...]}}. */
+    @ResponseBody
+    @PostMapping("/api/meetings/{id}/occurrences/restore")
+    public ResponseEntity<Map<String, Object>> restoreOccurrences(
+            @PathVariable Integer id,
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        try {
+            List<java.time.LocalDate> dates = parseDates(body.get("dates"));
+            int n = occurrenceService.restoreOccurrences(id, appClientId, dates);
+            return ResponseEntity.ok(Map.of("success", true, "restored", n));
+        } catch (IllegalArgumentException e) {
+            return bad(e.getMessage());
+        }
+    }
+
+    /**
+     * Deletes an occurrence and ALL future occurrences by ending the series
+     * the day before. Body: {@code {"fromDate": "2026-08-04"}}. If nothing
+     * would remain, the whole series is soft-deleted.
+     */
+    @ResponseBody
+    @PostMapping("/api/meetings/{id}/occurrences/delete-future")
+    public ResponseEntity<Map<String, Object>> deleteFutureOccurrences(
+            @PathVariable Integer id,
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        try {
+            Object raw = body.get("fromDate");
+            java.time.LocalDate fromDate = raw instanceof String s && !s.isBlank()
+                    ? java.time.LocalDate.parse(s.trim()) : null;
+            Map<String, Object> result =
+                    occurrenceService.deleteFromDate(id, appClientId, fromDate);
+            Map<String, Object> out = new java.util.LinkedHashMap<>(result);
+            out.put("success", true);
+            return ResponseEntity.ok(out);
+        } catch (java.time.format.DateTimeParseException e) {
+            return bad("Invalid date format — expected yyyy-MM-dd.");
+        } catch (IllegalArgumentException e) {
+            return bad(e.getMessage());
+        }
+    }
+
+    /** Parses a JSON array of ISO dates into LocalDates (invalid entries rejected). */
+    private static List<java.time.LocalDate> parseDates(Object raw) {
+        if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            throw new IllegalArgumentException("No dates provided.");
+        }
+        List<java.time.LocalDate> out = new ArrayList<>();
+        for (Object o : list) {
+            if (o == null) continue;
+            try {
+                out.add(java.time.LocalDate.parse(String.valueOf(o).trim()));
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new IllegalArgumentException("Invalid date: " + o);
+            }
+        }
+        if (out.isEmpty()) throw new IllegalArgumentException("No valid dates provided.");
+        return out;
     }
 
     // ── Bulk Delete ───────────────────────────────────────────────────────

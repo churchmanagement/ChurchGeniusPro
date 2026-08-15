@@ -231,9 +231,40 @@ public class MidRegMeetController {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         List<MidRegMeetRsvp> rsvps = rsvpRepo.findByClientIdOrderByCreatedAtDesc(clientId);
+
+        // Event donations (saved with a "Midwest Region Meet" note), totalled per
+        // donor so each participant row can show their donation details.
+        Map<String, java.math.BigDecimal> donTotals = new HashMap<>();
+        Map<String, Integer> donCounts = new HashMap<>();
+        try {
+            for (com.churchgeniuspro.hibernate.Donation d : donationRepo.findByClientIdOrderByDonatedAtDesc(clientId)) {
+                if (d.getNote() == null || !d.getNote().startsWith("Midwest Region Meet")) continue;
+                if (d.getAmount() == null) continue;
+                if (d.getStatus() != null && !"succeeded".equalsIgnoreCase(d.getStatus())) continue;
+                String key = donorKey(d.getEmail(), d.getFirstName(), d.getLastName());
+                if (key.isEmpty()) continue;
+                donTotals.merge(key, d.getAmount(), java.math.BigDecimal::add);
+                donCounts.merge(key, 1, Integer::sum);
+            }
+        } catch (Exception ignored) { }
+
         List<Map<String, Object>> result = new ArrayList<>();
-        for (MidRegMeetRsvp r : rsvps) result.add(toRsvpMap(r));
+        for (MidRegMeetRsvp r : rsvps) {
+            Map<String, Object> m = toRsvpMap(r);
+            String key = donorKey(r.getEmail(), r.getFirstName(), r.getLastName());
+            java.math.BigDecimal total = donTotals.get(key);
+            m.put("donationAmount", total == null ? null : total);
+            m.put("donationCount", donCounts.getOrDefault(key, 0));
+            result.add(m);
+        }
         return ResponseEntity.ok(result);
+    }
+
+    /** Matches an RSVP to its donations: by email when present, else by full name. */
+    private static String donorKey(String email, String first, String last) {
+        if (email != null && !email.isBlank()) return email.trim().toLowerCase();
+        String name = ((first == null ? "" : first.trim()) + " " + (last == null ? "" : last.trim())).trim().toLowerCase();
+        return name;
     }
 
     // ── Admin: delete RSVP ────────────────────────────────────────────────────

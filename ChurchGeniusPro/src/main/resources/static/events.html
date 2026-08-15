@@ -285,10 +285,10 @@
       <div style="overflow-x:auto;">
         <table class="reg-table">
           <thead>
-            <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Adults</th><th>Kids</th><th>Attending</th><th>Checked In</th><th>Note</th></tr>
+            <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Adults</th><th>Kids</th><th>Attending</th><th>Dietary Preference</th><th>Checked In</th><th>Note</th></tr>
           </thead>
           <tbody id="regModalBody">
-            <tr><td class="reg-empty" colspan="9">Loading…</td></tr>
+            <tr><td class="reg-empty" colspan="10">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -624,11 +624,12 @@
         '</div>' +
       '</div>' +
       '<div class="event-card-actions" onclick="event.stopPropagation()">' +
-        (canDoEventAction('general.eventcheckin') ? '<button class="btn-primary btn-sm" onclick="window.location.href=\'/event-checkin-admin?eventId=' + ev.id + '\'">✅ Check-In</button>' : '') +
+        (canDoEventAction('general.eventcheckin') && (!window.CGP_hasFeature || window.CGP_hasFeature('eventCheckin')) ? '<button class="btn-primary btn-sm" onclick="window.location.href=\'/event-checkin-admin?eventId=' + ev.id + '\'">✅ Check-In</button>' : '') +
         (canDoEventAction('general.events.edit')     ? '<button class="btn-secondary btn-sm" onclick="window.location.href=\'/event?id=' + ev.id + '\'">✏️ Edit</button>' : '') +
         '<button class="btn-secondary btn-sm" onclick="openRegModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\'' + (ev.encryptedId ? ',\'' + esc(ev.encryptedId) + '\'' : ',null') + ')">👥 Registrants</button>' +
         (canDoEventAction('general.events.emailsms') ? '<button class="btn-secondary btn-sm" onclick="window.location.href=\'/event-volunteers?eventId=' + ev.id + '\'">🙋 Volunteers</button>' : '') +
         (canDoEventAction('general.events.edit')     ? '<button class="btn-secondary btn-sm" onclick="openRrModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\')">Invite</button>' : '') +
+        (ev.encryptedId ? '<button class="btn-secondary btn-sm" onclick="window.open(\'/event-register/' + encodeURIComponent(ev.encryptedId) + '\', \'_blank\')">📝 Register Page</button>' : '') +
         (ev.registrationLink ? '<button class="btn-secondary btn-sm" onclick="copyLink(\'' + esc(ev.registrationLink) + '\')">🔗 Link</button>' : '') +
         (canDoEventAction('general.events.delete')   ? '<button class="btn-secondary btn-sm" style="color:#c62828;border-color:#f5c6cb;" onclick="openDeleteModal(' + ev.id + ',\'' + esc(ev.eventName).replace(/'/g,"\\'") + '\')">🗑️</button>' : '') +
       '</div>' +
@@ -755,9 +756,16 @@
     document.getElementById('regModal2').classList.remove('open');
     currentRegId = null;
   }
+  // The dietary preference an attendee picked at RSVP (selectedFoodItems is a JSON array).
+  function dietOf(r) {
+    try {
+      var a = JSON.parse(r.selectedFoodItems || '[]');
+      return Array.isArray(a) ? a.join(', ') : '';
+    } catch (e) { return ''; }
+  }
   async function loadRegistrations(eventId) {
     var tbody = document.getElementById('regModalBody');
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:20px;">Loading…</td></tr>';
     var sumEl = document.getElementById('regSummary'); if (sumEl) sumEl.innerHTML = '';
     try {
       var res = await fetch('/api/events/' + eventId + '/registrations');
@@ -766,7 +774,7 @@
       if (!Array.isArray(regs)) regs = [];
       renderRegSummary(regs);           // always show totals (zeros when empty)
       if (!regs.length) {
-        tbody.innerHTML = '<tr><td class="reg-empty" colspan="9">No registrations yet.</td></tr>';
+        tbody.innerHTML = '<tr><td class="reg-empty" colspan="10">No registrations yet.</td></tr>';
         return;
       }
       tbody.innerHTML = regs.map(function(r, i) {
@@ -783,39 +791,51 @@
           '<td>' + (r.adults||0) + '</td>' +
           '<td>' + (r.kids||0) + '</td>' +
           '<td>' + att + '</td>' +
+          '<td>' + (dietOf(r) ? esc(dietOf(r)) : '\u2014') + '</td>' +
           '<td>' + (r.checkedIn ? '\u2705' : '\u2014') + '</td>' +
           '<td style="max-width:120px;font-size:12px;">' + esc(r.note||'') + '</td>' +
           '</tr>';
       }).join('');
     } catch(e) {
-      tbody.innerHTML = '<tr><td colspan="9" style="color:#c62828;padding:16px;">Failed to load registrations.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="color:#c62828;padding:16px;">Failed to load registrations.</td></tr>';
     }
   }
   // Compute + render the attendance/RSVP summary from the registrant data.
+  // Attending / Declined are PEOPLE counts (adults + kids of each registration),
+  // not registration-record counts: Attending = Total Registrants − Declined
+  // people (i.e. everyone on a registration whose RSVP is not "No").
   function renderRegSummary(regs) {
-    var totalAdults = 0, totalKids = 0, yes = 0, maybe = 0, no = 0;
+    var totalAdults = 0, totalKids = 0;
+    var declinedPeople = 0, declinedRecords = 0, attendingRecords = 0;
     regs.forEach(function(r) {
-      totalAdults += Number(r.adults) || 0;
-      totalKids   += Number(r.kids)   || 0;
-      if (r.attending === true) yes++;
-      else if (r.attending === false) no++;
-      else maybe++;   // null / undefined = "Maybe"
+      var adults = Number(r.adults) || 0;
+      var kids   = Number(r.kids)   || 0;
+      totalAdults += adults;
+      totalKids   += kids;
+      if (r.attending === false) {                 // RSVP = No
+        declinedPeople  += adults + kids;
+        declinedRecords += 1;
+      } else {                                     // Yes or Maybe (null)
+        attendingRecords += 1;
+      }
     });
     var totalRegistrants = totalAdults + totalKids;
-    function card(label, value, color, bg) {
+    var attendingPeople  = totalRegistrants - declinedPeople;
+    function card(label, value, sub, color, bg) {
       return '<div style="background:' + bg + ';border:1px solid ' + color + '33;border-radius:10px;padding:12px 8px;text-align:center;">' +
         '<div style="font-size:22px;font-weight:800;color:' + color + ';line-height:1;">' + value + '</div>' +
-        '<div style="font-size:11px;color:#666;margin-top:6px;font-weight:600;">' + label + '</div></div>';
+        '<div style="font-size:11px;color:#666;margin-top:6px;font-weight:600;">' + label + '</div>' +
+        (sub ? '<div style="font-size:10px;color:#999;margin-top:2px;">' + sub + '</div>' : '') +
+        '</div>';
     }
     var el = document.getElementById('regSummary');
     if (!el) return;
     el.innerHTML =
-      card('Total Adults',      totalAdults,      '#673147', '#faf5f7') +
-      card('Total Kids',        totalKids,        '#673147', '#faf5f7') +
-      card('Total Registrants', totalRegistrants, '#673147', '#f0e0e7') +
-      card('Attending (Yes)',   yes,              '#2e7d32', '#e8f5e9') +
-      card('Maybe',             maybe,            '#f57f17', '#fff8e1') +
-      card('Declined (No)',     no,               '#c62828', '#fdecea');
+      card('Total Adults',      totalAdults,      '', '#673147', '#faf5f7') +
+      card('Total Kids',        totalKids,        '', '#673147', '#faf5f7') +
+      card('Total Registrants', totalRegistrants, '', '#673147', '#f0e0e7') +
+      card('Attending',         attendingPeople,  attendingRecords + ' registration' + (attendingRecords === 1 ? '' : 's'), '#2e7d32', '#e8f5e9') +
+      card('Declined',          declinedPeople,   declinedRecords + ' registration' + (declinedRecords === 1 ? '' : 's'),  '#c62828', '#fdecea');
   }
 
   document.getElementById('regModal2').addEventListener('click', function(e) {

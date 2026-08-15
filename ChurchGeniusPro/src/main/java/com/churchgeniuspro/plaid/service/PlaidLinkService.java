@@ -1,10 +1,13 @@
 package com.churchgeniuspro.plaid.service;
 
 import com.churchgeniuspro.plaid.entity.PlaidItem;
+import com.churchgeniuspro.plaid.repository.PlaidAccountRepository;
 import com.churchgeniuspro.plaid.repository.PlaidItemRepository;
+import com.churchgeniuspro.plaid.repository.PlaidTransactionStagingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -21,17 +24,23 @@ public class PlaidLinkService {
     private final PlaidClient client;
     private final PlaidTokenCipher cipher;
     private final PlaidItemRepository itemRepo;
+    private final PlaidAccountRepository accountRepo;
+    private final PlaidTransactionStagingRepository stagingRepo;
     private final PlaidSyncService syncService;
     private final PlaidAuditService audit;
 
     public PlaidLinkService(PlaidClient client,
                             PlaidTokenCipher cipher,
                             PlaidItemRepository itemRepo,
+                            PlaidAccountRepository accountRepo,
+                            PlaidTransactionStagingRepository stagingRepo,
                             PlaidSyncService syncService,
                             PlaidAuditService audit) {
         this.client = client;
         this.cipher = cipher;
         this.itemRepo = itemRepo;
+        this.accountRepo = accountRepo;
+        this.stagingRepo = stagingRepo;
         this.syncService = syncService;
         this.audit = audit;
     }
@@ -91,6 +100,61 @@ public class PlaidLinkService {
                 "itemId", itemId,
                 "status", item.getStatus(),
                 "stagedTransactions", staged);
+    }
+
+    /**
+     * OTP-confirmed deletion of a bank connection. Revokes the item at Plaid,
+     * purges every staged review-queue row and account row for the connection,
+     * and clears all sync data (token + cursor). Promoted ledger entries
+     * (income/expense) are untouched. Reconnecting later creates a brand-new
+     * Plaid item via Link.
+     */
+    @Transactional
+    public Map<String, Object> deleteItem(String clientId, Integer itemDbId, String actor) {
+        PlaidItem item = itemRepo.findByIdAndClientId(itemDbId, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank connection not found."));
+        if (item.isDeleteFlag()) {
+            throw new IllegalArgumentException("This bank is already disconnected.");
+        }
+
+        // 1) Revoke the connection at Plaid (best effort — local cleanup proceeds
+        //    even if Plaid is unreachable or the token is unusable; the item is
+        //    unusable without its token anyway).
+        if (item.getAccessTokenEnc() != null && !item.getAccessTokenEnc().isBlank()) {
+            try {
+                String accessToken = cipher.decrypt(item.getAccessTokenEnc());
+                client.itemRemove(accessToken);
+            } catch (Exception e) {
+                log.warn("Plaid /item/remove failed for item {} (continuing local cleanup): {}",
+                        item.getItemId(), e.getMessage());
+            }
+        }
+
+        // 2) Purge the review queue and account rows for this connection.
+        long removedTxns = stagingRepo.deleteByPlaidItemId(item.getId());
+        long removedAccts = accountRepo.deleteByPlaidItemId(item.getId());
+
+        // 3) Clear sync data and soft-delete the item (kept as an audit stub only:
+        //    no token, no cursor — a future reconnect is a brand-new item).
+        //    access_token_enc is NOT NULL in the schema, so the revoked token is
+        //    blanked to an empty string rather than null (empty = "no token").
+        String institution = item.getInstitutionName() != null ? item.getInstitutionName() : item.getInstitutionId();
+        item.setAccessTokenEnc("");
+        item.setSyncCursor(null);
+        item.setStatus("DISCONNECTED");
+        item.setErrorCode(null);
+        item.setDeleteFlag(true);
+        itemRepo.save(item);
+
+        audit.record(clientId, actor, "ITEM_DELETED", item.getItemId(),
+                "Bank deleted after OTP confirmation (" + institution + "): removed "
+                        + removedTxns + " staged transaction(s), " + removedAccts + " account(s).");
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("institution", institution);
+        out.put("removedTransactions", removedTxns);
+        out.put("removedAccounts", removedAccts);
+        return out;
     }
 
     private String str(Object o) {

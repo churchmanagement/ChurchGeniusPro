@@ -16,4 +16,7 @@ public interface SongSectionRepository extends JpaRepository<SongSection, Long> 
     Optional<SongSection> findByIdAndClientId(Long id, String clientId);
 
     long countByClientId(String clientId);
+
+    /** Purge all sections for a (possibly book-scoped) client id. Call within a transaction. */
+    void deleteByClientId(String clientId);
 }

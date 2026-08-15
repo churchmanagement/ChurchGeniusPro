@@ -11,6 +11,7 @@ import com.churchgeniuspro.repository.ChurchLogoRepository;
 import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.MeetingRepository;
+import com.churchgeniuspro.repository.MeetingSkipDateRepository;
 import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,19 +51,22 @@ public class EventCalendarController {
     private final ChurchLogoRepository         logoRepo;
     private final ChurchEventRepository        churchEventRepo;
     private final ChurchEventDayRepository     churchEventDayRepo;
+    private final MeetingSkipDateRepository    meetingSkipRepo;
 
     public EventCalendarController(FamilyMemberRepository       memberRepo,
                                    MeetingRepository            meetingRepo,
                                    ChurchRegistrationRepository churchRepo,
                                    ChurchLogoRepository         logoRepo,
                                    ChurchEventRepository        churchEventRepo,
-                                   ChurchEventDayRepository     churchEventDayRepo) {
+                                   ChurchEventDayRepository     churchEventDayRepo,
+                                   MeetingSkipDateRepository    meetingSkipRepo) {
         this.memberRepo         = memberRepo;
         this.meetingRepo        = meetingRepo;
         this.churchRepo         = churchRepo;
         this.logoRepo           = logoRepo;
         this.churchEventRepo    = churchEventRepo;
         this.churchEventDayRepo = churchEventDayRepo;
+        this.meetingSkipRepo    = meetingSkipRepo;
     }
 
     // ── Page routes ───────────────────────────────────────────────────────
@@ -120,6 +124,10 @@ public class EventCalendarController {
     /**
      * Returns calendar events for the given org (identified by {@code cid}),
      * year and month.  No authentication required.
+     *
+     * <p>PUBLIC VISIBILITY RULE: only Church Events and Meetings are exposed.
+     * Member birthdays and wedding anniversaries are personal data and are
+     * filtered out server-side so they can never reach an anonymous visitor.
      */
     @GetMapping("/api/event-calendar/public-events")
     @ResponseBody
@@ -131,7 +139,15 @@ public class EventCalendarController {
         String clientId = decryptCid(cid);
         if (clientId == null) return ResponseEntity.badRequest().build();
 
-        return ResponseEntity.ok(buildEvents(clientId, year, month));
+        List<Map<String, Object>> publicEvents = buildEvents(clientId, year, month).stream()
+                .filter(e -> isPublicType((String) e.get("type")))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(publicEvents);
+    }
+
+    /** Event types visible to anonymous/public viewers. */
+    private static boolean isPublicType(String type) {
+        return "meeting".equals(type) || "churchevent".equals(type);
     }
 
     // ── API (authenticated) ───────────────────────────────────────────────
@@ -175,7 +191,7 @@ public class EventCalendarController {
                 .contentType(MediaType.parseMediaType("text/calendar;charset=UTF-8"))
                 .header("Content-Disposition", "attachment; filename=\"church-calendar.ics\"")
                 .header("Cache-Control", "no-cache")
-                .body(buildIcsFeed(appClientId, churchName));
+                .body(buildIcsFeed(appClientId, churchName, true));
     }
 
     /**
@@ -200,6 +216,9 @@ public class EventCalendarController {
     /**
      * Generates an iCalendar (.ics) feed for a public org (identified by encrypted {@code cid}) —
      * covering a 12-month window centred on today. No authentication required.
+     *
+     * <p>Like the public calendar page, this feed contains ONLY Church Events and
+     * Meetings — member birthdays and anniversaries are excluded.
      */
     @GetMapping(value = "/api/event-calendar/public-ics")
     @ResponseBody
@@ -214,7 +233,7 @@ public class EventCalendarController {
                 .contentType(MediaType.parseMediaType("text/calendar;charset=UTF-8"))
                 .header("Content-Disposition", "attachment; filename=\"church-calendar.ics\"")
                 .header("Cache-Control", "no-cache")
-                .body(buildIcsFeed(clientId, churchName));
+                .body(buildIcsFeed(clientId, churchName, false));
     }
 
     /**
@@ -229,8 +248,12 @@ public class EventCalendarController {
      *   <li>One-time meetings, birthdays, anniversaries and church events continue to be
      *       emitted as individual VEVENTs.</li>
      * </ul>
+     *
+     * @param includePersonal when {@code false} (public feeds), birthday and
+     *                        anniversary events are excluded — only Church Events
+     *                        and Meetings are emitted.
      */
-    private String buildIcsFeed(String appClientId, String churchName) {
+    private String buildIcsFeed(String appClientId, String churchName, boolean includePersonal) {
 
         // Fetch all active meetings — we generate VEVENTs directly from them,
         // not from the expanded buildEvents() list, so we can emit proper RRULEs.
@@ -245,6 +268,7 @@ public class EventCalendarController {
             LocalDate d = today.plusMonths(offset);
             for (Map<String, Object> e : buildEvents(appClientId, d.getYear(), d.getMonthValue())) {
                 if ("meeting".equals(e.get("type"))) continue; // handled separately below
+                if (!includePersonal && !isPublicType((String) e.get("type"))) continue; // no birthdays/anniversaries on public feeds
                 String key = e.get("date") + "|" + e.get("type") + "|" + e.get("title");
                 if (seenNonMtg.add(key)) nonMeetingEvents.add(e);
             }
@@ -376,6 +400,23 @@ public class EventCalendarController {
                 // "One-time" / "One Time" / "Once" — no RRULE needed
             }
 
+            // EXDATE — deleted single occurrences (meeting_skip_date)
+            List<com.churchgeniuspro.hibernate.MeetingSkipDate> mtgSkips =
+                    meetingSkipRepo.findByMeetingId(mtg.getId());
+            if (!mtgSkips.isEmpty()) {
+                boolean timed = mtg.getStartTime() != null && !mtg.getStartTime().isBlank();
+                String startHHMMSS = timed ? mtg.getStartTime().replace(":", "") + "00" : null;
+                for (com.churchgeniuspro.hibernate.MeetingSkipDate sd : mtgSkips) {
+                    String exDate = sd.getSkipDate().toString().replace("-", "");
+                    if (timed) {
+                        ics.append("EXDATE;TZID=America/Chicago:")
+                           .append(exDate).append("T").append(startHHMMSS).append("\r\n");
+                    } else {
+                        ics.append("EXDATE;VALUE=DATE:").append(exDate).append("\r\n");
+                    }
+                }
+            }
+
             ics.append("SUMMARY:").append(icsEscape(typeName)).append("\r\n");
             ics.append("CATEGORIES:Meeting\r\n");
             ics.append("END:VEVENT\r\n");
@@ -400,6 +441,10 @@ public class EventCalendarController {
                 String evtTime = (String) e.get("time");
                 if (evtTime != null && !evtTime.isBlank()) {
                     ics.append("DESCRIPTION:").append(icsEscape(evtTime)).append("\r\n");
+                }
+                Object loc = e.get("location");
+                if (loc instanceof String ls && !ls.isBlank()) {
+                    ics.append("LOCATION:").append(icsEscape(ls)).append("\r\n");
                 }
             }
             ics.append("SUMMARY:").append(icsEscape(title)).append("\r\n");
@@ -560,6 +605,16 @@ public class EventCalendarController {
                 ? meetingRepo.findAllActiveByAppUserOrderByDateAsc(appClientId)
                 : meetingRepo.findAllActiveOrderByDateDesc(); // no-appClientId path not used in production
 
+        // Deleted single occurrences (meeting_skip_date) — loaded once per request.
+        Map<Integer, java.util.Set<LocalDate>> skipMap = new java.util.HashMap<>();
+        if (!meetings.isEmpty()) {
+            List<Integer> mids = meetings.stream().map(Meeting::getId).collect(Collectors.toList());
+            for (com.churchgeniuspro.hibernate.MeetingSkipDate sd : meetingSkipRepo.findByMeetingIdIn(mids)) {
+                skipMap.computeIfAbsent(sd.getMeetingId(), k -> new java.util.HashSet<>())
+                       .add(sd.getSkipDate());
+            }
+        }
+
         for (Meeting m : meetings) {
             if (m.getMeetingDate() == null) continue;
 
@@ -576,7 +631,7 @@ public class EventCalendarController {
                 case "One-time", "One Time", "Once" -> {
                     if (!m.getMeetingDate().isBefore(start)
                             && !m.getMeetingDate().isAfter(end)) {
-                        events.add(event("meeting", typeName, m.getMeetingDate(), timeRange));
+                        addMeetingEvent(events, m, typeName, m.getMeetingDate(), timeRange, skipMap);
                     }
                 }
 
@@ -588,7 +643,7 @@ public class EventCalendarController {
                     LocalDate from = m.getMeetingDate().isBefore(start)
                             ? start : m.getMeetingDate();
                     for (LocalDate cur = from; !cur.isAfter(effectiveEnd); cur = cur.plusDays(1)) {
-                        events.add(event("meeting", typeName, cur, timeRange));
+                        addMeetingEvent(events, m, typeName, cur, timeRange, skipMap);
                     }
                 }
 
@@ -608,7 +663,7 @@ public class EventCalendarController {
                     LocalDate from = m.getMeetingDate().isBefore(start) ? start : m.getMeetingDate();
                     for (LocalDate cur = from; !cur.isAfter(effectiveEnd); cur = cur.plusDays(1)) {
                         if (dayNums.contains(dowToNum(cur.getDayOfWeek()))) {
-                            events.add(event("meeting", typeName, cur, timeRange));
+                            addMeetingEvent(events, m, typeName, cur, timeRange, skipMap);
                         }
                     }
                 }
@@ -646,7 +701,7 @@ public class EventCalendarController {
                         // If neither pattern is set, skip the meeting entirely
 
                         if (matches) {
-                            events.add(event("meeting", typeName, cur, timeRange));
+                            addMeetingEvent(events, m, typeName, cur, timeRange, skipMap);
                         }
                     }
                 }
@@ -667,7 +722,7 @@ public class EventCalendarController {
                 if (ce.getEventDate() != null
                         && !ce.getEventDate().isBefore(start)
                         && !ce.getEventDate().isAfter(end)) {
-                    events.add(event("churchevent", evtName, ce.getEventDate(), timeRange));
+                    events.add(churchEventEntry(ce, evtName, ce.getEventDate(), timeRange));
                 }
             } else if ("Multiple Days".equalsIgnoreCase(ce.getEventType())) {
                 List<ChurchEventDay> days = churchEventDayRepo.findByEventIdOrderByDayOrderAsc(ce.getId());
@@ -675,7 +730,7 @@ public class EventCalendarController {
                     if (d.getEventDate() == null) continue;
                     if (!d.getEventDate().isBefore(start) && !d.getEventDate().isAfter(end)) {
                         String dayTimeRange = buildTimeRange(d.getStartTime(), d.getEndTime());
-                        events.add(event("churchevent", evtName, d.getEventDate(), dayTimeRange));
+                        events.add(churchEventEntry(ce, evtName, d.getEventDate(), dayTimeRange));
                     }
                 }
             }
@@ -746,29 +801,56 @@ public class EventCalendarController {
 
     /** Builds a single-line address string from meeting fields; empty string if no address set. */
     private String buildLocation(Meeting m) {
+        return joinAddress(m.getAddress1(), m.getAddress2(), m.getCity(),
+                           m.getState(), m.getPinCode(), m.getCountry());
+    }
+
+    /** Builds a single-line address string from church-event fields; empty string if no address set. */
+    private String buildLocation(ChurchEvent ce) {
+        return joinAddress(ce.getAddress1(), ce.getAddress2(), ce.getCity(),
+                           ce.getState(), ce.getPinCode(), ce.getCountry());
+    }
+
+    /** Joins address parts into one display line, converting numeric state codes to abbreviations. */
+    private String joinAddress(String address1, String address2, String city,
+                               String state, String pinCode, String country) {
         StringBuilder sb = new StringBuilder();
-        if (m.getAddress1() != null && !m.getAddress1().isBlank()) sb.append(m.getAddress1().trim());
-        if (m.getAddress2() != null && !m.getAddress2().isBlank()) {
+        if (address1 != null && !address1.isBlank()) sb.append(address1.trim());
+        if (address2 != null && !address2.isBlank()) {
             if (sb.length() > 0) sb.append(", ");
-            sb.append(m.getAddress2().trim());
+            sb.append(address2.trim());
         }
-        if (m.getCity() != null && !m.getCity().isBlank()) {
+        if (city != null && !city.isBlank()) {
             if (sb.length() > 0) sb.append(", ");
-            sb.append(m.getCity().trim());
+            sb.append(city.trim());
         }
-        if (m.getState() != null && !m.getState().isBlank()) {
+        if (state != null && !state.isBlank()) {
             if (sb.length() > 0) sb.append(" ");
-            sb.append(m.getState().trim());
+            sb.append(stateDisplay(state.trim()));
         }
-        if (m.getPinCode() != null && !m.getPinCode().isBlank()) {
+        if (pinCode != null && !pinCode.isBlank()) {
             if (sb.length() > 0) sb.append(" ");
-            sb.append(m.getPinCode().trim());
+            sb.append(pinCode.trim());
         }
-        if (m.getCountry() != null && !m.getCountry().isBlank()) {
+        if (country != null && !country.isBlank()) {
             if (sb.length() > 0) sb.append(", ");
-            sb.append(m.getCountry().trim());
+            sb.append(country.trim());
         }
         return sb.toString();
+    }
+
+    /**
+     * Converts a numeric state code (stored by the meeting form, e.g. "10") to its
+     * two-letter abbreviation via {@link com.churchgeniuspro.common.States}.
+     * Non-numeric values (already-textual states) are returned unchanged.
+     */
+    private String stateDisplay(String state) {
+        try {
+            String abbr = com.churchgeniuspro.common.States.STATE_CODES.get(Integer.parseInt(state));
+            return abbr != null ? abbr : state;
+        } catch (NumberFormatException e) {
+            return state;
+        }
     }
 
     /** Decrypts an AES-encrypted clientId (the {@code cid} query param). Returns null on failure. */
@@ -789,6 +871,50 @@ public class EventCalendarController {
         m.put("title", title);
         m.put("time",  time);              // null for birthdays/anniversaries
         return m;
+    }
+
+    /**
+     * Adds one meeting occurrence to the event list unless that single
+     * occurrence has been deleted ({@code meeting_skip_date}). Meeting events
+     * carry {@code meetingId} + {@code recurring} so the calendar UI can offer
+     * per-occurrence deletion.
+     */
+    private void addMeetingEvent(List<Map<String, Object>> events, Meeting m,
+                                 String typeName, LocalDate date, String timeRange,
+                                 Map<Integer, java.util.Set<LocalDate>> skipMap) {
+        java.util.Set<LocalDate> skips = skipMap.get(m.getId());
+        if (skips != null && skips.contains(date)) return;   // occurrence deleted
+        Map<String, Object> e = event("meeting", typeName, date, timeRange);
+        e.put("meetingId", m.getId());
+        String occ = m.getOccurrence() != null ? m.getOccurrence().trim() : "One-time";
+        e.put("recurring", !(occ.equalsIgnoreCase("One-time")
+                || occ.equalsIgnoreCase("One Time") || occ.equalsIgnoreCase("Once")));
+        // Details for the calendar detail view (public + internal)
+        putIfHasText(e, "location",    buildLocation(m));
+        putIfHasText(e, "description", m.getNote());
+        events.add(e);
+    }
+
+    /**
+     * Builds one calendar entry for a Church Event occurrence, enriched with the
+     * details shown in the calendar's event-details dialog (location, description,
+     * organizer, fee, registration link).
+     */
+    private Map<String, Object> churchEventEntry(ChurchEvent ce, String evtName,
+                                                 LocalDate date, String timeRange) {
+        Map<String, Object> e = event("churchevent", evtName, date, timeRange);
+        e.put("eventId", ce.getId());
+        putIfHasText(e, "location",         buildLocation(ce));
+        putIfHasText(e, "description",      ce.getNote());
+        putIfHasText(e, "organizer",        ce.getHostName());
+        putIfHasText(e, "fee",              ce.getFee());
+        putIfHasText(e, "registrationLink", ce.getRegistrationLink());
+        return e;
+    }
+
+    /** Puts {@code value} into the map only when it is non-null and non-blank. */
+    private static void putIfHasText(Map<String, Object> m, String key, String value) {
+        if (value != null && !value.isBlank()) m.put(key, value.trim());
     }
 
     private String buildTimeRange(String s, String e) {

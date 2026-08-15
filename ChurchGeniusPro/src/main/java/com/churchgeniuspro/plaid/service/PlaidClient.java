@@ -49,6 +49,11 @@ public class PlaidClient {
         if (props.getWebhookUrl() != null && !props.getWebhookUrl().isBlank()) {
             body.put("webhook", props.getWebhookUrl());
         }
+        // Required for OAuth institutions (Chase, BofA, ...): must exactly match a
+        // redirect URI registered in the Plaid Dashboard (Developers -> API).
+        if (props.getRedirectUri() != null && !props.getRedirectUri().isBlank()) {
+            body.put("redirect_uri", props.getRedirectUri());
+        }
         return post("/link/token/create", body);
     }
 

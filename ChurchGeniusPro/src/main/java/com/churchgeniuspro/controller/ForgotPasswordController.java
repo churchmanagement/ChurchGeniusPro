@@ -179,8 +179,9 @@ public class ForgotPasswordController {
         if (token == null || newPassword == null || newPassword.isBlank()) {
             return bad("Token and new password are required.");
         }
-        if (newPassword.length() < 6) {
-            return bad("Password must be at least 6 characters.");
+        String pwPolicyError = com.churchgeniuspro.util.PasswordPolicy.validate(newPassword);
+        if (pwPolicyError != null) {
+            return bad(pwPolicyError);
         }
 
         PasswordResetToken prt = tokenRepo.findByToken(token).orElse(null);

@@ -671,8 +671,7 @@ public class ChurchEventService {
              + "Hi <strong>" + safe + "</strong>,</p>"
              + "<p style='font-size:14px;color:#555;margin:0 0 24px;line-height:1.6;'>"
              + "Thank you for your RSVP! We&apos;re excited to see you at "
-             + "<strong style='color:#673147;'>" + safeEvent + "</strong>. "
-             + "Your spot has been reserved.</p>"
+             + "<strong style='color:#673147;'>" + safeEvent + "</strong>.</p>"
              + buildEventInfoCards(dateInfo, location)
              + buildHostContact(ev)
              + buildCalendarAndDirectionButtons(ev)
@@ -980,6 +979,9 @@ public class ChurchEventService {
         ev.setNote(bo.getNote());
         ev.setFoodAvailable(Boolean.TRUE.equals(bo.getFoodAvailable()));
         ev.setFoodItems(Boolean.TRUE.equals(bo.getFoodAvailable()) ? bo.getFoodItems() : null);
+        String foodLabel = bo.getFoodLabel() != null ? bo.getFoodLabel().trim() : null;
+        ev.setFoodLabel(Boolean.TRUE.equals(bo.getFoodAvailable()) && foodLabel != null && !foodLabel.isEmpty()
+                ? foodLabel : null);
         ev.setAccommodationAvailable(Boolean.TRUE.equals(bo.getAccommodationAvailable()));
         ev.setAccommodationAddress(bo.getAccommodationAddress());
         ev.setAccommodationComments(bo.getAccommodationComments());
@@ -1064,6 +1066,7 @@ public class ChurchEventService {
         m.put("note",                    ev.getNote());
         m.put("foodAvailable",           ev.isFoodAvailable());
         m.put("foodItems",               ev.getFoodItems());
+        m.put("foodLabel",               ev.getFoodLabel());
         m.put("accommodationAvailable",  ev.isAccommodationAvailable());
         m.put("accommodationAddress",    ev.getAccommodationAddress());
         m.put("accommodationComments",   ev.getAccommodationComments());

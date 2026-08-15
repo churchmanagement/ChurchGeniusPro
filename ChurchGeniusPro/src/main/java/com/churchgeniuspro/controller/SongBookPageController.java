@@ -22,7 +22,9 @@ public class SongBookPageController {
     public String songbook(HttpServletRequest request) {
         String deny = RoleGuard.requireStaffOrMember(request);
         if (deny != null) return deny;
-        return "forward:/songBook.html";
+        // Case must match songbook.html exactly — jar classpath lookup is
+        // case-sensitive (works from Windows filesystem, 404s from the JAR).
+        return "forward:/songbook.html";
     }
 
     /** Access management — Admin / Super Admin only. */

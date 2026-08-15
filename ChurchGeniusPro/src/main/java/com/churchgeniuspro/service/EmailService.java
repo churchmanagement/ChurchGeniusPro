@@ -44,6 +44,7 @@ public class EmailService {
     private final PromiseVerseRepository         promiseVerseRepository;
     private final UnsubscribeService             unsubscribeService;
     private final ChurchRegistrationRepository   churchRegistrationRepository;
+    private final SubscriptionService            subscriptionService;
 
     /** Public base URL of the application — used to build links in emails. */
     @Value("${app.base-url}")
@@ -54,13 +55,15 @@ public class EmailService {
                         ChurchLogoRepository churchLogoRepository,
                         PromiseVerseRepository promiseVerseRepository,
                         UnsubscribeService unsubscribeService,
-                        ChurchRegistrationRepository churchRegistrationRepository) {
+                        ChurchRegistrationRepository churchRegistrationRepository,
+                        SubscriptionService subscriptionService) {
         this.mailSender                    = mailSender;
         this.emailSettingsRepository       = emailSettingsRepository;
         this.churchLogoRepository          = churchLogoRepository;
         this.promiseVerseRepository        = promiseVerseRepository;
         this.unsubscribeService            = unsubscribeService;
         this.churchRegistrationRepository  = churchRegistrationRepository;
+        this.subscriptionService           = subscriptionService;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -180,6 +183,14 @@ public class EmailService {
             return;
         }
 
+        // Subscription plan: monthly email allowance
+        if (clientId != null && !clientId.isBlank()
+                && !subscriptionService.canSendEmail(clientId)) {
+            System.out.println("[EmailService] Skipping email to " + toEmail
+                    + " — monthly email limit reached for subscription plan (clientId=" + clientId + ")");
+            return;
+        }
+
         System.out.println("[EmailService] Sending org email to " + toEmail
                 + " with subject '" + subject + "'");
 
@@ -194,6 +205,9 @@ public class EmailService {
 
         String enrichedBody = appendOrgFooter(htmlBody, settings, clientId, toEmail);
         doSend(toEmail, subject, enrichedBody, fromName, icsData);
+        if (clientId != null && !clientId.isBlank()) {
+            subscriptionService.recordEmailSent(clientId);
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

@@ -96,7 +96,15 @@
           <div class="row3">
             <div><label>Email</label><input id="f_email"/></div>
             <div><label>Phone</label><input id="f_phone"/></div>
-            <div><label>SSN (last 4)</label><input id="f_ssnLast4" maxlength="4"/></div>
+            <div><label>SSN (last 4)</label>
+              <div style="position:relative;">
+                <input id="f_ssnLast4" type="password" maxlength="4" inputmode="numeric"
+                       autocomplete="off" pattern="\d{4}" style="padding-right:34px;"/>
+                <button type="button" id="ssnEye" onclick="toggleSsn()" title="Show/hide SSN"
+                        aria-label="Show or hide SSN"
+                        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:#888;padding:2px;">👁</button>
+              </div>
+            </div>
           </div>
           <label>Address</label><input id="f_addressLine1" placeholder="Street address"/>
           <div class="row3" style="margin-top:8px;">
@@ -252,6 +260,7 @@
     ['f_firstName','f_lastName','f_email','f_phone','f_ssnLast4','f_addressLine1','f_city','f_state','f_postalCode',
      'f_annualSalary','f_hourlyRate','f_stateTaxCode','f_bankName','f_ddAcct',
      'w_step3','w_step4c','w_step4a','w_step4b'].forEach(function(id){ setV(id,''); });
+    resetSsnMask();
     setV('f_payType','SALARY'); setV('f_payFrequency','SEMIMONTHLY'); setV('f_ddType','');
     setV('w_filingStatus','SINGLE'); setChk('w_step2',false);
     document.getElementById('assignBody').innerHTML = '<tr><td colspan="4" style="color:#aaa;">None</td></tr>';
@@ -284,7 +293,8 @@
       document.getElementById('btnDelete').style.display = '';
       msg('editorMsg','','ok');
       setV('f_firstName',e.firstName); setV('f_lastName',e.lastName); setV('f_email',e.email); setV('f_phone',e.phone);
-      setV('f_ssnLast4',e.ssnLast4); setV('f_addressLine1',e.addressLine1); setV('f_city',e.city); setV('f_state',e.state);
+      setV('f_ssnLast4',e.ssnLast4); resetSsnMask();   // always re-mask when loading a record
+      setV('f_addressLine1',e.addressLine1); setV('f_city',e.city); setV('f_state',e.state);
       setV('f_postalCode',e.postalCode); setV('f_payType',e.payType||'SALARY'); setV('f_payFrequency',e.payFrequency||'SEMIMONTHLY');
       setV('f_stateTaxCode',e.stateTaxCode); setV('f_annualSalary',e.annualSalary); setV('f_hourlyRate',e.hourlyRate);
       setV('f_bankName',e.bankName); setV('f_ddAcct',e.directDepositAccountLast4); setV('f_ddType',e.directDepositAccountType||'');
@@ -338,9 +348,26 @@
     };
   }
 
+  /* Show/hide the SSN field (masked by default, like a password). */
+  function toggleSsn(){
+    var inp = document.getElementById('f_ssnLast4');
+    var eye = document.getElementById('ssnEye');
+    var show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    eye.textContent = show ? '🙈' : '👁';
+  }
+  function resetSsnMask(){
+    var inp = document.getElementById('f_ssnLast4');
+    var eye = document.getElementById('ssnEye');
+    if (inp) inp.type = 'password';
+    if (eye) eye.textContent = '👁';
+  }
+
   async function saveEmployee(){
     try {
       if (!v('f_firstName') || !v('f_lastName')){ msg('editorMsg','First and last name are required.','err'); return; }
+      var ssn = v('f_ssnLast4');
+      if (ssn && !/^\d{4}$/.test(ssn)){ msg('editorMsg','SSN (last 4) must be exactly 4 numeric digits.','err'); return; }
       var pt = v('f_payType');
       if (pt === 'HOURLY' && !num('f_hourlyRate')){ msg('editorMsg','Hourly employees need an hourly rate.','err'); return; }
       if (pt === 'SALARY' && !num('f_annualSalary')){ msg('editorMsg','Salaried employees need an annual salary.','err'); return; }

@@ -51,6 +51,8 @@
   <script>
     (function () {
       function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      /* Preserve the line breaks entered in the Welcome Message editor. */
+      function nl2br(s){ return esc(s).replace(/\r?\n/g,'<br/>'); }
 
       // Official-style brand SVG for known social keys (same 48px footprint as the
       // emoji icons). Returns '' for keys we don't have a brand mark for.
@@ -89,12 +91,12 @@
         if (d.bannerImage) {
           hero = '<div class="hero has-banner"><img class="banner" src="' + esc(d.bannerImage) + '" alt="" />'
                + '<div class="overlay-name"><div class="church-name">' + esc(d.churchName) + '</div></div></div>'
-               + (d.welcomeMessage ? '<div style="padding:14px 18px 0;text-align:center;"><div class="welcome" style="color:#555;">' + esc(d.welcomeMessage) + '</div></div>' : '');
+               + (d.welcomeMessage ? '<div style="padding:14px 18px 0;text-align:center;"><div class="welcome" style="color:#555;">' + nl2br(d.welcomeMessage) + '</div></div>' : '');
         } else {
           hero = '<div class="hero">'
                + (d.logo ? '<img class="logo" src="' + esc(d.logo) + '" alt="" />' : '')
                + '<div class="church-name">' + esc(d.churchName) + '</div>'
-               + (d.welcomeMessage ? '<div class="welcome welcome-light">' + esc(d.welcomeMessage) + '</div>' : '')
+               + (d.welcomeMessage ? '<div class="welcome welcome-light">' + nl2br(d.welcomeMessage) + '</div>' : '')
                + '</div>';
         }
 

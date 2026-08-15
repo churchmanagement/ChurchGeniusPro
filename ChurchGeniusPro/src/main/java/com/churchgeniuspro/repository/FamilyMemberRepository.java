@@ -287,6 +287,20 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
     Long countActiveMembers(@Param("appClientId") String appClientId);
 
     /**
+     * Active family members with a child role (Child / Son / Daughter) —
+     * used for the subscription plan's kids-portal limit.
+     */
+    @Query(value =
+           "SELECT COUNT(*) FROM family_member fm " +
+           "JOIN family f ON f.id = fm.family_id " +
+           "WHERE fm.delete_flag = false AND fm.inactive = false " +
+           "AND f.delete_flag = false AND f.inactive = false " +
+           "AND LOWER(fm.role) IN ('child','son','daughter') " +
+           "AND f.app_client_id = :appClientId",
+           nativeQuery = true)
+    long countChildRoleMembers(@Param("appClientId") String appClientId);
+
+    /**
      * Count of members added (created) in the given month and year,
      * filtered by appClientId. Used for "how many new members?" queries.
      */

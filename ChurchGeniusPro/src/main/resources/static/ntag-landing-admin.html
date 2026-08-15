@@ -213,7 +213,7 @@
             + 'placeholder="Set in Church Settings" style="background:#f5f6fb;color:#888;cursor:not-allowed;" />'
             + '<div class="muted" style="font-size:11px;margin-top:4px;">🔗 Auto from Church Settings → '
             + esc((b.key||'').charAt(0).toUpperCase() + (b.key||'').slice(1)) + ' URL. Updates there appear here automatically.</div>'
-        : '<input class="b-url" type="text" value="'+esc(b.url||'')+'" placeholder="https://… (or mailto:, or a page link)" oninput="markDirty()" />';
+        : '<input class="b-url" type="text" value="'+esc(b.url||'')+'" placeholder="https://… (or mailto:, or a page link)" oninput="markDirty(); autoIcon(this)" />';
       return '<div class="btnrow" data-i="'+i+'">'
         + '<div class="top">'
         + '<input class="icon-in b-icon" value="'+esc(b.icon||'')+'" oninput="markDirty()" />'
@@ -230,6 +230,25 @@
         + urlField
         + '</div>';
     }).join('') || '<div class="muted">No buttons yet — add one above.</div>';
+  }
+
+  /* Auto-pick a fitting icon for well-known links while the icon is still the
+     generic 🔗 default (user-chosen icons are never overwritten). */
+  var AUTO_ICONS = [
+    [/\/songbook\/view/i, '🎵'],
+    [/\/donate\//i,       '💝'],
+    [/\/upcomingEvents/i, '📅'],
+    [/\/publicPrayer/i,   '🙏'],
+    [/\/connect\?/i,      '🤝']
+  ];
+  function autoIcon(urlInput) {
+    var row = urlInput.closest('.btnrow'); if (!row) return;
+    var iconIn = row.querySelector('.b-icon');
+    if (!iconIn || (iconIn.value && iconIn.value !== '🔗')) return;
+    var url = urlInput.value || '';
+    for (var i = 0; i < AUTO_ICONS.length; i++) {
+      if (AUTO_ICONS[i][0].test(url)) { iconIn.value = AUTO_ICONS[i][1]; return; }
+    }
   }
 
   function collectButtons() {

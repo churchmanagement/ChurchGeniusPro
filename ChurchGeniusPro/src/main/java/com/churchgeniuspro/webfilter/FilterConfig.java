@@ -3,6 +3,7 @@ package com.churchgeniuspro.webfilter;
 import com.churchgeniuspro.repository.AppUserRepository;
 import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.service.PrivateAccessService;
+import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.service.TemporaryAccessService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -37,6 +38,7 @@ public class FilterConfig {
     private final LoginRepository   loginRepository;
     private final TemporaryAccessService temporaryAccessService;
     private final PrivateAccessService privateAccessService;
+    private final SubscriptionService subscriptionService;
 
     /** Optional break-glass token for the global login gate (recovery for off-network admins). */
     @Value("${private-access.bypass-token:}")
@@ -45,11 +47,13 @@ public class FilterConfig {
     public FilterConfig(AppUserRepository appUserRepository,
                         LoginRepository loginRepository,
                         TemporaryAccessService temporaryAccessService,
-                        PrivateAccessService privateAccessService) {
+                        PrivateAccessService privateAccessService,
+                        SubscriptionService subscriptionService) {
         this.appUserRepository = appUserRepository;
         this.loginRepository   = loginRepository;
         this.temporaryAccessService = temporaryAccessService;
         this.privateAccessService = privateAccessService;
+        this.subscriptionService = subscriptionService;
     }
 
     /**
@@ -170,6 +174,24 @@ public class FilterConfig {
         registration.addUrlPatterns("/*");
         registration.setName("ntagAccessFilter");
         registration.setOrder(5);
+        return registration;
+    }
+
+    /**
+     * Enforces subscription-plan feature flags ({@code /*}) — pages and APIs
+     * belonging to a feature the client's plan disables get a 403 (JSON for
+     * {@code /api/*}, HTML notice otherwise). Fast no-op for non-gated paths,
+     * anonymous requests, and Service Admin sessions. Order 6 — after auth so
+     * the session's clientId is available. Path→feature mapping lives in
+     * {@code SubscriptionFeatureCatalog}.
+     */
+    @Bean
+    public FilterRegistrationBean<SubscriptionFeatureFilter> subscriptionFeatureFilter() {
+        FilterRegistrationBean<SubscriptionFeatureFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new SubscriptionFeatureFilter(subscriptionService));
+        registration.addUrlPatterns("/*");
+        registration.setName("subscriptionFeatureFilter");
+        registration.setOrder(6);
         return registration;
     }
 

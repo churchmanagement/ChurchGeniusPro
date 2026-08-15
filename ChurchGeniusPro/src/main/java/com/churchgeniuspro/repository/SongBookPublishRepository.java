@@ -13,4 +13,7 @@ public interface SongBookPublishRepository extends JpaRepository<SongBookPublish
     Optional<SongBookPublish> findByClientId(String clientId);
 
     Optional<SongBookPublish> findByTokenAndPublishedTrue(String token);
+
+    /** Purge the publish row for a (possibly book-scoped) client id. Call within a transaction. */
+    void deleteByClientId(String clientId);
 }

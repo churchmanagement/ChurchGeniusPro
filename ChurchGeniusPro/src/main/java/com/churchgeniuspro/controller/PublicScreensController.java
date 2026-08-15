@@ -89,12 +89,24 @@ public class PublicScreensController {
     );
 
     private final PublicScreenLinkRepository linkRepo;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
     @Value("${app.base-url}")
     private String baseUrl;
 
-    public PublicScreensController(PublicScreenLinkRepository linkRepo) {
+    public PublicScreensController(PublicScreenLinkRepository linkRepo,
+                                   com.churchgeniuspro.service.SubscriptionService subscriptionService) {
         this.linkRepo = linkRepo;
+        this.subscriptionService = subscriptionService;
+    }
+
+    /** Subscription feature key that gates a public-page option, or null. */
+    private static String featureKeyForPage(String pageUrl) {
+        if (pageUrl == null) return null;
+        if (pageUrl.startsWith(MEMBER_SIGNUP_URL))  return "memberPortal";
+        if (pageUrl.startsWith(KIDS_CHECKIN_URL))   return "kidsCheckin";
+        if (pageUrl.startsWith(DONATION_PAGE_URL))  return "onlineGiving";
+        return null;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -112,8 +124,20 @@ public class PublicScreensController {
 
     @ResponseBody
     @GetMapping("/api/public-screens/pages")
-    public ResponseEntity<List<Map<String, String>>> getAvailablePages() {
-        return ResponseEntity.ok(AVAILABLE_PAGES);
+    public ResponseEntity<List<Map<String, String>>> getAvailablePages(HttpServletRequest request) {
+        // Hide options whose feature is disabled by the client's subscription
+        // plan (e.g. Member Signup when the Member Portal feature is off).
+        String appClientId = SessionUtil.getAppClientId(request);
+        List<Map<String, String>> pages = new ArrayList<>();
+        for (Map<String, String> p : AVAILABLE_PAGES) {
+            String featureKey = featureKeyForPage(p.get("url"));
+            if (featureKey != null && appClientId != null
+                    && !subscriptionService.isFeatureEnabled(appClientId, featureKey)) {
+                continue;
+            }
+            pages.add(p);
+        }
+        return ResponseEntity.ok(pages);
     }
 
     // ── List generated links ──────────────────────────────────────────────
@@ -144,6 +168,15 @@ public class PublicScreensController {
         if (pageUrl == null || pageUrl.isBlank()) return bad("Page URL is required.");
         if (EXCLUDED_PAGES.stream().anyMatch(pageUrl::startsWith)) {
             return bad("This page cannot be made public.");
+        }
+
+        // Subscription plan gate — a disabled feature's page cannot be published
+        // even by calling this endpoint directly.
+        String featureKey = featureKeyForPage(pageUrl);
+        if (featureKey != null && appClientId != null
+                && !subscriptionService.isFeatureEnabled(appClientId, featureKey)) {
+            return bad("This option is not included in your church's subscription plan. "
+                     + "Please contact your administrator about upgrading.");
         }
 
         // Encrypt: appClientId | pageUrl

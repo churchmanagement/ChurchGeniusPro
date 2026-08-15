@@ -636,9 +636,9 @@
             </div>
           </div>
 
-          <!-- Food Preference -->
+          <!-- Dietary Preferences -->
           <div class="food-section" id="foodSection">
-            <div class="food-section-title">🍽️ Food Preference</div>
+            <div class="food-section-title" id="foodSectionTitle">Dietary Preferences</div>
             <div id="foodItemCheckboxes" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
 
@@ -865,13 +865,6 @@
       html += `</div>`;
     }
 
-    if (ev.foodAvailable) {
-      html += `<div style="margin-top:14px;display:flex;align-items:center;gap:10px;
-                           background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;
-                           padding:11px 16px;font-size:13px;color:#2e7d32;font-weight:600;">
-        🍽️ Food is available for this event.</div>`;
-    }
-
     if (ev.accommodationAvailable) {
       html += `<div style="margin-top:14px;background:#e8eaf6;border:1px solid #c5cae9;border-radius:10px;padding:14px 16px;">
         <div style="font-size:13px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🏨 Accommodation Available</div>`;
@@ -923,21 +916,30 @@
     // Slide bar always visible — hide only if registration is closed (handled below)
     // Maybe tile already handled above via allowMaybeRsvp
 
-    // Food section
-    if (ev.foodAvailable) {
-      document.getElementById('foodSection').style.display = '';
+    // Dietary-preferences section (event-level food, or any day-level food on multi-day events)
+    const foodOn = ev.foodAvailable || ((ev.days || []).some(d => d.foodAvailable));
+    if (foodOn) {
+      document.getElementById('foodSection').style.display = 'block';
+      // Organizer-configured section label (default "Dietary Preferences")
+      const foodLabel = (ev.foodLabel && ev.foodLabel.trim()) ? ev.foodLabel.trim() : 'Dietary Preferences';
+      document.getElementById('foodSectionTitle').textContent = foodLabel;
       const foodChkContainer = document.getElementById('foodItemCheckboxes');
       let foodOptions = [];
-      if (ev.foodItems) { try { foodOptions = JSON.parse(ev.foodItems); } catch { foodOptions = []; } }
+      if (ev.foodItems) {
+        try { foodOptions = Array.isArray(ev.foodItems) ? ev.foodItems : JSON.parse(ev.foodItems); }
+        catch { foodOptions = []; }
+      }
       if (foodOptions.length > 0) {
+        // Organizer-configured options → single-choice radios
         foodChkContainer.innerHTML = foodOptions.map(item =>
-          `<label class="chk-label"><input type="checkbox" class="food-item-chk" data-item="${escHtml(item)}" />${escHtml(item)}</label>`
+          `<label class="chk-label"><input type="radio" name="dietPref" class="food-item-chk" data-item="${escHtml(item)}" />${escHtml(item)}</label>`
         ).join('');
       } else {
-        foodChkContainer.innerHTML = `<label class="chk-label">
-          <input type="checkbox" id="vegetarianChk" />
-          Vegetarian? <span style="color:#777;font-size:12px;">(leave unchecked for Non-Vegetarian)</span>
-        </label>`;
+        // No options configured → generic free-text "Dietary Preferences" field
+        foodChkContainer.innerHTML = `<div>
+          <input type="text" id="dietPrefText" placeholder="${escHtml(foodLabel)} (e.g. Vegetarian, no nuts)"
+                 style="width:100%;border:1px solid #c5e1a5;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;background:#fff;" />
+        </div>`;
       }
     } else {
       document.getElementById('foodSection').style.display = 'none';
@@ -955,7 +957,7 @@
           <span><strong>Day ${i+1}:</strong> ${escHtml(dStr)}${escHtml(tStr)}${foodMark}</span>
         </label>`;
       }).join('');
-      document.getElementById('daySelectSection').style.display = '';
+      document.getElementById('daySelectSection').style.display = 'block';
     } else {
       document.getElementById('daySelectSection').style.display = 'none';
     }
@@ -1072,6 +1074,8 @@
       try {
         const items = JSON.parse(reg.selectedFoodItems);
         document.querySelectorAll('.food-item-chk').forEach(chk => { chk.checked = items.includes(chk.dataset.item); });
+        const dietTxt = document.getElementById('dietPrefText');
+        if (dietTxt && items.length) dietTxt.value = items[0];
       } catch {}
     }
     const vegChk = document.getElementById('vegetarianChk');
@@ -1108,8 +1112,11 @@
     let vegetarian = null, selectedFoodItems = null;
     if (document.getElementById('foodSection').style.display !== 'none') {
       const dynamicChks = document.querySelectorAll('.food-item-chk:checked');
+      const dietTxt = document.getElementById('dietPrefText');
       if (dynamicChks.length > 0) {
         selectedFoodItems = JSON.stringify(Array.from(dynamicChks).map(c => c.dataset.item));
+      } else if (dietTxt && dietTxt.value.trim()) {
+        selectedFoodItems = JSON.stringify([dietTxt.value.trim()]);
       } else {
         const vegChk = document.getElementById('vegetarianChk');
         vegetarian = vegChk ? vegChk.checked : null;

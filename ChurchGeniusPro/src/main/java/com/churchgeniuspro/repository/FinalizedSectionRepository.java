@@ -18,4 +18,7 @@ public interface FinalizedSectionRepository extends JpaRepository<FinalizedSecti
     Optional<FinalizedSection> findFirstByClientIdAndNameIgnoreCase(String clientId, String name);
 
     long countByClientId(String clientId);
+
+    /** Purge all finalized sections for a (possibly book-scoped) client id. Call within a transaction. */
+    void deleteByClientId(String clientId);
 }

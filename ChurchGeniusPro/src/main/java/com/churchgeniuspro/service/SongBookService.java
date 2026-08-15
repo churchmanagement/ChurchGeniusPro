@@ -38,6 +38,7 @@ public class SongBookService {
     private final SongBookPublishRepository publishRepo;
     private final SongAuditLogRepository auditRepo;
     private final com.churchgeniuspro.repository.SongBookAssetRepository assetRepo;
+    private final com.churchgeniuspro.repository.SongBookAdRepository adRepo;
     private final SongExtractionService extraction;
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -45,6 +46,7 @@ public class SongBookService {
                            FinalizedSectionRepository finalRepo,
                            SongBookPublishRepository publishRepo, SongAuditLogRepository auditRepo,
                            com.churchgeniuspro.repository.SongBookAssetRepository assetRepo,
+                           com.churchgeniuspro.repository.SongBookAdRepository adRepo,
                            SongExtractionService extraction) {
         this.songRepo = songRepo;
         this.sectionRepo = sectionRepo;
@@ -52,6 +54,7 @@ public class SongBookService {
         this.publishRepo = publishRepo;
         this.auditRepo = auditRepo;
         this.assetRepo = assetRepo;
+        this.adRepo = adRepo;
         this.extraction = extraction;
     }
 
@@ -425,6 +428,153 @@ public class SongBookService {
         audit(clientId, actor, role, "COVER_SAVE", null, null, "cover page updated");
     }
 
+    /* ════════════════════ advertisement pages ════════════════════ */
+
+    private static final int MAX_AD_PDF_PAGES = 20;
+    private static final java.util.Set<String> AD_FIXED_POSITIONS = java.util.Set.of("cover", "toc", "end");
+
+    /** Ads for a book, ordered; no image bytes included. */
+    public List<Map<String, Object>> listAds(String clientId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (com.churchgeniuspro.hibernate.SongBookAd a : adRepo.findByClientIdOrderBySortOrderAscIdAsc(clientId)) {
+            out.add(adMap(a));
+        }
+        return out;
+    }
+
+    private Map<String, Object> adMap(com.churchgeniuspro.hibernate.SongBookAd a) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", a.getId());
+        m.put("title", a.getTitle());
+        m.put("position", a.getPosition());
+        m.put("sortOrder", a.getSortOrder());
+        m.put("fileName", a.getFileName());
+        m.put("contentType", a.getContentType());
+        m.put("updatedAt", a.getUpdatedAt() != null ? a.getUpdatedAt().toString() : null);
+        return m;
+    }
+
+    private String normalizeAdPosition(String position) {
+        String p = position == null || position.isBlank() ? "end" : position.trim();
+        if (AD_FIXED_POSITIONS.contains(p)) return p;
+        if (p.startsWith("fsec:")) {
+            try { Long.parseLong(p.substring(5)); return p; } catch (NumberFormatException ignored) { }
+        }
+        return "end";
+    }
+
+    /** Rasterizes one image (or one PDF page) to stored bytes; mirrors saveAsset rules. */
+    private record AdImage(byte[] bytes, String contentType) { }
+
+    private List<AdImage> toImages(byte[] bytes, String contentType, String fileName) throws Exception {
+        String ct = contentType == null ? "" : contentType.toLowerCase();
+        String fn = fileName == null ? "" : fileName.toLowerCase();
+        List<AdImage> out = new ArrayList<>();
+        if (ct.contains("pdf") || fn.endsWith(".pdf")) {
+            try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(bytes)) {
+                org.apache.pdfbox.rendering.PDFRenderer r = new org.apache.pdfbox.rendering.PDFRenderer(doc);
+                int pages = Math.min(doc.getNumberOfPages(), MAX_AD_PDF_PAGES);
+                for (int i = 0; i < pages; i++) {
+                    java.awt.image.BufferedImage img = r.renderImageWithDPI(i, 200f);
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                    javax.imageio.ImageIO.write(img, "png", baos);
+                    out.add(new AdImage(baos.toByteArray(), "image/png"));
+                }
+            }
+        } else if (ct.startsWith("image/") || fn.endsWith(".png") || fn.endsWith(".jpg") || fn.endsWith(".jpeg")) {
+            String stored = ct.startsWith("image/") ? contentType : (fn.endsWith(".png") ? "image/png" : "image/jpeg");
+            out.add(new AdImage(bytes, stored));
+        } else {
+            throw new IllegalArgumentException("Unsupported file type. Please upload a PDF, JPG, or PNG.");
+        }
+        return out;
+    }
+
+    /**
+     * Adds advertisement page(s) from an uploaded image or PDF (one page per
+     * PDF page). Returns the number of pages added.
+     */
+    @Transactional
+    public int addAds(String clientId, byte[] bytes, String contentType, String fileName,
+                      String title, String position, String actor, String role) throws Exception {
+        String pos = normalizeAdPosition(position);
+        List<AdImage> images = toImages(bytes, contentType, fileName);
+        int base = adRepo.findByClientIdOrderBySortOrderAscIdAsc(clientId).size();
+        int n = 0;
+        for (AdImage img : images) {
+            com.churchgeniuspro.hibernate.SongBookAd a = new com.churchgeniuspro.hibernate.SongBookAd();
+            a.setClientId(clientId);
+            a.setTitle(images.size() > 1 && title != null && !title.isBlank()
+                    ? title + " (page " + (n + 1) + ")" : title);
+            a.setPosition(pos);
+            a.setSortOrder(base + n);
+            a.setContentType(img.contentType());
+            a.setFileName(fileName);
+            a.setData(img.bytes());
+            a.setCreatedAt(Instant.now());
+            a.setUpdatedAt(Instant.now());
+            adRepo.save(a);
+            n++;
+        }
+        audit(clientId, actor, role, "AD_UPLOAD", null, title, fileName + " · " + n + " page(s) · " + pos);
+        return n;
+    }
+
+    public com.churchgeniuspro.hibernate.SongBookAd getAd(String clientId, Long id) {
+        return adRepo.findByIdAndClientId(id, clientId).orElse(null);
+    }
+
+    /** Edit title and/or position of an ad page. */
+    @Transactional
+    public void updateAd(String clientId, Long id, String title, String position, String actor, String role) {
+        com.churchgeniuspro.hibernate.SongBookAd a = adRepo.findByIdAndClientId(id, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Ad page not found."));
+        if (title != null) a.setTitle(title.isBlank() ? null : title.trim());
+        if (position != null && !position.isBlank()) a.setPosition(normalizeAdPosition(position));
+        a.setUpdatedAt(Instant.now());
+        adRepo.save(a);
+        audit(clientId, actor, role, "AD_UPDATE", null, a.getTitle(), a.getPosition());
+    }
+
+    /** Replaces the image of an existing ad page (PDF → its first page). */
+    @Transactional
+    public void replaceAd(String clientId, Long id, byte[] bytes, String contentType,
+                          String fileName, String actor, String role) throws Exception {
+        com.churchgeniuspro.hibernate.SongBookAd a = adRepo.findByIdAndClientId(id, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Ad page not found."));
+        List<AdImage> images = toImages(bytes, contentType, fileName);
+        AdImage img = images.get(0);
+        a.setContentType(img.contentType());
+        a.setFileName(fileName);
+        a.setData(img.bytes());
+        a.setUpdatedAt(Instant.now());
+        adRepo.save(a);
+        audit(clientId, actor, role, "AD_REPLACE", null, a.getTitle(), fileName);
+    }
+
+    /** Applies a new global order (array of ad ids in the desired order). */
+    @Transactional
+    public void reorderAds(String clientId, List<Long> ids, String actor, String role) {
+        if (ids == null || ids.isEmpty()) return;
+        int i = 0;
+        for (Long id : ids) {
+            com.churchgeniuspro.hibernate.SongBookAd a = adRepo.findByIdAndClientId(id, clientId).orElse(null);
+            if (a == null) continue;
+            a.setSortOrder(i++);
+            a.setUpdatedAt(Instant.now());
+            adRepo.save(a);
+        }
+        audit(clientId, actor, role, "AD_REORDER", null, null, i + " ad page(s)");
+    }
+
+    @Transactional
+    public void deleteAd(String clientId, Long id, String actor, String role) {
+        adRepo.findByIdAndClientId(id, clientId).ifPresent(a -> {
+            adRepo.delete(a);
+            audit(clientId, actor, role, "AD_DELETE", null, a.getTitle(), a.getFileName());
+        });
+    }
+
     /* ════════════════════ lyrics ════════════════════ */
 
     @Transactional
@@ -474,6 +624,7 @@ public class SongBookService {
         // The published book = finalized sections (custom order) with songs in
         // finalized order. Falls back to the working sections if nothing finalized.
         List<Map<String, Object>> sections = new ArrayList<>();
+        Map<Long, Integer> fsecSnapIndex = new LinkedHashMap<>();   // fsec id → snapshot section index
         List<FinalizedSection> fsecs = finalizedSections(clientId);
         if (!fsecs.isEmpty()) {
             for (FinalizedSection fs : fsecs) {
@@ -483,6 +634,7 @@ public class SongBookService {
                 Map<String, Object> sm = new LinkedHashMap<>();
                 sm.put("name", fs.getName());
                 sm.put("songs", songs);
+                fsecSnapIndex.put(fs.getId(), sections.size());
                 sections.add(sm);
             }
         } else {
@@ -497,6 +649,30 @@ public class SongBookService {
             }
         }
         snap.put("sections", sections);
+
+        // Advertisement pages — position resolved to a viewer slot:
+        // "cover" | "toc" | "sec:<index>" | "end" (stale section refs → end).
+        List<Map<String, Object>> adsSnap = new ArrayList<>();
+        for (com.churchgeniuspro.hibernate.SongBookAd ad : adRepo.findByClientIdOrderBySortOrderAscIdAsc(clientId)) {
+            if (ad.getData() == null || ad.getData().length == 0) continue;
+            String pos = ad.getPosition() == null ? "end" : ad.getPosition();
+            String slot;
+            if (pos.startsWith("fsec:")) {
+                Integer idx = null;
+                try { idx = fsecSnapIndex.get(Long.parseLong(pos.substring(5))); } catch (NumberFormatException ignored) { }
+                slot = idx != null ? "sec:" + idx : "end";
+            } else if (pos.equals("cover") || pos.equals("toc")) {
+                slot = pos;
+            } else {
+                slot = "end";
+            }
+            Map<String, Object> am = new LinkedHashMap<>();
+            am.put("id", ad.getId());
+            am.put("title", ad.getTitle() == null ? "" : ad.getTitle());
+            am.put("slot", slot);
+            adsSnap.add(am);
+        }
+        snap.put("ads", adsSnap);
 
         SongBookPublish p = publishRepo.findByClientId(clientId).orElseGet(() -> {
             SongBookPublish n = new SongBookPublish();
@@ -539,6 +715,25 @@ public class SongBookService {
 
     public SongBookPublish publicByToken(String token) {
         return publishRepo.findByTokenAndPublishedTrue(token).orElse(null);
+    }
+
+    /* ════════════════════ multi-book support ════════════════════ */
+
+    /**
+     * Deletes ALL Song Book data stored under the given (book-scoped) client id:
+     * songs, sections, finalized sections, publish row and uploaded pages.
+     * Used when a non-default Song Book is deleted. The caller guarantees the
+     * scope is a book-suffixed id ({@code <clientId>#B<bookId>}) — never a plain
+     * client id — so legacy/default-book data can never be purged by accident.
+     */
+    @Transactional
+    public void purgeScope(String scopedClientId, String actor, String role) {
+        songRepo.deleteByClientId(scopedClientId);
+        sectionRepo.deleteByClientId(scopedClientId);
+        finalRepo.deleteByClientId(scopedClientId);
+        publishRepo.deleteByClientId(scopedClientId);
+        assetRepo.deleteByClientId(scopedClientId);
+        adRepo.deleteByClientId(scopedClientId);
     }
 
     /* ════════════════════ audit ════════════════════ */

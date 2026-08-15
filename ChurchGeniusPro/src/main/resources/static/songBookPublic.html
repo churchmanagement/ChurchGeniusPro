@@ -22,10 +22,13 @@
     .stage { flex:1; padding:8px 14px 92px; overflow:hidden; }
     .page { background:var(--paper); border-radius:16px; box-shadow:0 14px 40px rgba(0,0,0,.28); min-height:70vh; padding:30px 26px; position:relative; display:flex; flex-direction:column; }
     .page.anim { animation:slidein .3s ease; }
-    .page.imgpage { padding:8px; background:#fff; align-items:center; justify-content:center; }
-    .full-img { width:100%; max-height:80vh; object-fit:contain; display:block; margin:auto; }
-    .page.imgpage.bleed { padding:0; overflow:hidden; }
-    .full-img.bleed { width:100%; height:100%; min-height:70vh; max-height:none; object-fit:cover; border-radius:16px; }
+    /* Custom image pages (cover / last / ads): edge-to-edge — no white padding.
+       Non-bleed ("fit"): the image fills the FULL page width and the page height
+       follows the image (aspect ratio preserved, nothing cropped, no side bars). */
+    .page.imgpage { display:block; padding:0; overflow:hidden; background:#fff; min-height:0; }
+    .full-img { width:100%; height:auto; max-height:none; object-fit:contain; display:block; margin:0; border-radius:16px; }
+    .page.imgpage.bleed { padding:0; overflow:hidden; min-height:70vh; }
+    .full-img.bleed { width:100%; height:100%; min-height:70vh; object-fit:cover; border-radius:16px; }
     @keyframes slidein { from { opacity:0; transform:translateX(var(--dir,24px)); } to { opacity:1; transform:none; } }
     .pageno { position:absolute; bottom:12px; left:0; right:0; text-align:center; font-size:11px; color:#b08aa0; font-weight:700; letter-spacing:1px; }
 
@@ -84,7 +87,7 @@
       .pb-title{font-size:20px;font-weight:700;color:var(--brand);border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:8px;font-family:var(--ml);}
       .pb-lyrics{font-family:var(--ml);font-size:14px;line-height:1.55;}
       .pb-imgpage{padding:0;text-align:center;display:flex;align-items:center;justify-content:center;}
-      .pb-imgpage img{max-width:100%;max-height:96vh;object-fit:contain;}
+      .pb-imgpage img{width:100%;height:auto;max-height:96vh;object-fit:contain;}
       .pb-page.pb-imgpage.bleed{padding:0;}
       .pb-imgpage.bleed img{width:100%;height:100vh;max-width:none;max-height:none;object-fit:cover;} }
     #printAll{display:none;}
@@ -113,8 +116,10 @@
   let PAGES = [], TOC = [], COVER = {}, idx = 0, tocPage = 1, TOKEN = null;
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function qp(k){ return new URLSearchParams(location.search).get(k); }
-  // resolve display mode for a custom page image: 'fill' crops to cover, otherwise fit (contain). Default fit.
-  function imgFill(kind){ const c=COVER||{}; const m = kind==='cover' ? (c.coverFit||(c.coverFullBleed?'fill':'fit')) : (c.lastFit||(c.lastFullBleed?'fill':'fit')); return m==='fill'; }
+  // resolve display mode for a custom page image: 'fill' crops edge-to-edge (aspect
+  // preserved), 'fit' letterboxes. DEFAULT is now 'fill' so uploaded flyers cover the
+  // page without white margins; an explicit 'fit' choice is still honored.
+  function imgFill(kind){ const c=COVER||{}; const m = kind==='cover' ? (c.coverFit||'fill') : (c.lastFit||'fill'); return m!=='fit'; }
   function fmtDate(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00:00'); return isNaN(d)?iso:d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
 
   async function init(){
@@ -138,14 +143,22 @@
 
   function build(d){
     COVER=d.cover||{}; COVER.bookTitle=d.bookTitle;
-    PAGES=[{type:'cover'},{type:'toc'}]; TOC=[]; tocPage=1;   // page index 1 = TOC
-    (d.sections||[]).forEach(sec=>{
+    // Advertisement pages grouped by slot: cover | toc | sec:<i> | end
+    const ADS={}; (d.ads||[]).forEach(a=>{ const k=a.slot||'end'; (ADS[k]=ADS[k]||[]).push(a); });
+    const pushAds=k=>{ (ADS[k]||[]).forEach(a=>PAGES.push({type:'ad', id:a.id, title:a.title})); };
+    PAGES=[{type:'cover'}]; TOC=[];
+    pushAds('cover');                                    // ads right after the cover
+    tocPage=PAGES.length; PAGES.push({type:'toc'});
+    pushAds('toc');                                      // ads after the table of contents
+    (d.sections||[]).forEach((sec,si)=>{
       if(!sec.songs||!sec.songs.length) return;
       PAGES.push({type:'section', name:sec.name});
       const items=[];
       sec.songs.forEach(s=>{ const i=PAGES.length; PAGES.push({type:'song', title:s.title, language:s.language, lyricsHtml:s.lyricsHtml, section:sec.name}); items.push({title:s.title, idx:i}); });
       TOC.push({name:sec.name, items});
+      pushAds('sec:'+si);                                // ads after this section
     });
+    pushAds('end');                                      // ads at the end of the book
     if(COVER.customLast) PAGES.push({type:'lastimg'});   // uploaded back/end page
   }
 
@@ -154,6 +167,7 @@
     const p=PAGES[idx]; let html='';
     if(p.type==='cover') html=coverHtml();
     else if(p.type==='lastimg'){ const b=imgFill('last')?' bleed':''; html=`<div class="page imgpage anim${b}"><img class="full-img${b}" src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=last"/></div>`; }
+    else if(p.type==='ad') html=`<div class="page imgpage anim"><img class="full-img" src="/api/public/songbook/ad-image?t=${encodeURIComponent(TOKEN)}&id=${p.id}" alt="${esc(p.title||'Advertisement')}"/></div>`;
     else if(p.type==='toc') html=tocHtml();
     else if(p.type==='section') html=`<div class="page divider anim"><div class="d-label">Section</div><div class="d-name">${esc(p.name)}</div><div class="d-rule"></div><div class="pageno">${idx+1}</div></div>`;
     else {
@@ -187,7 +201,7 @@
     let body=TOC.map(g=>`<div class="toc-sec">${esc(g.name)}</div>`+
       g.items.map(it=>`<div class="toc-item" onclick="show(${it.idx})"><span class="toc-name">${esc(it.title)}</span><span class="toc-dots"></span><span class="toc-pg">${it.idx+1}</span></div>`).join('')
     ).join('');
-    return `<div class="page anim"><div class="toc-title">Table of Contents</div>${body}<div class="pageno">2</div></div>`;
+    return `<div class="page anim"><div class="toc-title">Table of Contents</div>${body}<div class="pageno">${tocPage+1}</div></div>`;
   }
   function go(dir){ document.getElementById('stage').style.setProperty('--dir', dir>0?'24px':'-24px'); show(idx+dir); }
   function goToc(){ go(0); show(tocPage); }
@@ -201,10 +215,15 @@
         (c.churchName?`<div class="c">${esc(c.churchName)}</div>`:'')+(c.subtitle?`<div class="m">${esc(c.subtitle)}</div>`:'')+
         (c.theme?`<div class="m">${esc(c.theme)}</div>`:'')+(c.eventDate?`<div class="m">${esc(fmtDate(c.eventDate))}</div>`:'')+`</div>`;
     }
+    // ad pages between the cover and TOC
+    for(let i=1;i<tocPage;i++){ const p=PAGES[i];
+      if(p.type==='ad') html+=`<div class="pb-page pb-imgpage"><img src="/api/public/songbook/ad-image?t=${encodeURIComponent(TOKEN)}&id=${p.id}"/></div>`;
+    }
     html+=`<div class="pb-page"><div class="pb-toc-title">Table of Contents</div>`+
       TOC.map(g=>`<div class="pb-toc-sec">${esc(g.name)}</div>`+g.items.map(it=>`<div class="pb-toc-item"><span>${esc(it.title)}</span><span>${it.idx+1}</span></div>`).join('')).join('')+`</div>`;
-    for(let i=2;i<PAGES.length;i++){ const p=PAGES[i];
+    for(let i=tocPage+1;i<PAGES.length;i++){ const p=PAGES[i];
       if(p.type==='section') html+=`<div class="pb-page pb-sec">${esc(p.name)}</div>`;
+      else if(p.type==='ad') html+=`<div class="pb-page pb-imgpage"><img src="/api/public/songbook/ad-image?t=${encodeURIComponent(TOKEN)}&id=${p.id}"/></div>`;
       else if(p.type==='lastimg'){ const b=imgFill('last')?' bleed':''; html+=`<div class="pb-page pb-imgpage${b}"><img src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=last"/></div>`; }
       else if(p.type==='song') html+=`<div class="pb-page"><div class="pb-title">${esc(p.title)}${p.language?' · '+esc(p.language):''}</div><div class="pb-lyrics">${p.lyricsHtml||'<em>(no lyrics)</em>'}</div></div>`;
     }

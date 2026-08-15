@@ -33,17 +33,27 @@ public class SongBookController {
     private final SongBookService service;
     private final SongBookAccessService access;
     private final SongExtractionService extraction;
+    private final com.churchgeniuspro.repository.SongBookRepository bookRepo;
 
     public SongBookController(SongBookService service, SongBookAccessService access,
-                              SongExtractionService extraction) {
+                              SongExtractionService extraction,
+                              com.churchgeniuspro.repository.SongBookRepository bookRepo) {
         this.service = service;
         this.access = access;
         this.extraction = extraction;
+        this.bookRepo = bookRepo;
     }
 
     /* ─────────────────── access resolution ─────────────────── */
 
-    private record Ctx(String clientId, String level, String actor, String role) {}
+    /**
+     * {@code clientId} is the DATA SCOPE the service operates on. For the
+     * default Song Book it is the plain client id (so all pre-existing data
+     * keeps working unchanged); for any other book it is the book-scoped id
+     * {@code <clientId>#B<bookId>}. {@code realClientId} is the actual tenant
+     * id, used for access checks and book management.
+     */
+    private record Ctx(String clientId, String realClientId, String level, String actor, String role) {}
 
     private Ctx ctx(HttpServletRequest req) {
         String clientId = SessionUtil.getAppClientId(req);
@@ -63,7 +73,112 @@ public class SongBookController {
             level = "NONE";
             actor = "anonymous";
         }
-        return new Ctx(clientId, level, actor, role == null ? "" : role);
+        // Resolve the active Song Book (optional ?bookId= on any endpoint;
+        // absent → the default book, i.e. the original single-book behavior).
+        String scope = clientId;
+        if (clientId != null) {
+            com.churchgeniuspro.hibernate.SongBook book = resolveBook(clientId, req.getParameter("bookId"));
+            if (book != null && !book.isDefaultBook()) scope = scopeFor(clientId, book);
+        }
+        return new Ctx(scope, clientId, level, actor, role == null ? "" : role);
+    }
+
+    /* ─────────────────── multiple Song Books ─────────────────── */
+
+    /** Default book name given to each church's original (legacy) Song Book. */
+    private static final String DEFAULT_BOOK_NAME = "Musical Night";
+
+    private static String scopeFor(String clientId, com.churchgeniuspro.hibernate.SongBook book) {
+        return book.isDefaultBook() ? clientId : clientId + "#B" + book.getId();
+    }
+
+    /** Lists the church's books, lazily creating the default one on first use. */
+    private synchronized List<com.churchgeniuspro.hibernate.SongBook> ensureBooks(String clientId) {
+        List<com.churchgeniuspro.hibernate.SongBook> list = bookRepo.findByClientIdOrderBySortOrderAscIdAsc(clientId);
+        if (list.isEmpty()) {
+            com.churchgeniuspro.hibernate.SongBook def = new com.churchgeniuspro.hibernate.SongBook();
+            def.setClientId(clientId);
+            def.setName(DEFAULT_BOOK_NAME);
+            def.setDefaultBook(true);
+            def.setSortOrder(0);
+            def.setCreatedAt(java.time.Instant.now());
+            bookRepo.save(def);
+            list = bookRepo.findByClientIdOrderBySortOrderAscIdAsc(clientId);
+        }
+        return list;
+    }
+
+    /** Resolve a bookId param to one of the church's books (default when absent/invalid). */
+    private com.churchgeniuspro.hibernate.SongBook resolveBook(String clientId, String bookIdParam) {
+        List<com.churchgeniuspro.hibernate.SongBook> books = ensureBooks(clientId);
+        if (bookIdParam != null && !bookIdParam.isBlank()) {
+            try {
+                Long id = Long.valueOf(bookIdParam.trim());
+                for (com.churchgeniuspro.hibernate.SongBook b : books) if (id.equals(b.getId())) return b;
+            } catch (NumberFormatException ignore) {}
+        }
+        for (com.churchgeniuspro.hibernate.SongBook b : books) if (b.isDefaultBook()) return b;
+        return books.isEmpty() ? null : books.get(0);
+    }
+
+    private static Map<String, Object> bookDto(com.churchgeniuspro.hibernate.SongBook b) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", b.getId());
+        m.put("name", b.getName());
+        m.put("defaultBook", b.isDefaultBook());
+        m.put("sortOrder", b.getSortOrder());
+        return m;
+    }
+
+    @GetMapping("/books")
+    public ResponseEntity<?> books(HttpServletRequest req) {
+        Ctx c = ctx(req);
+        ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        return ResponseEntity.ok(ensureBooks(c.realClientId()).stream().map(SongBookController::bookDto).toList());
+    }
+
+    @PostMapping("/books")
+    public ResponseEntity<?> addBook(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        String name = str(b.get("name"));
+        if (name.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Song Book name required"));
+        List<com.churchgeniuspro.hibernate.SongBook> books = ensureBooks(c.realClientId());
+        com.churchgeniuspro.hibernate.SongBook nb = new com.churchgeniuspro.hibernate.SongBook();
+        nb.setClientId(c.realClientId());
+        nb.setName(name);
+        nb.setDefaultBook(false);
+        nb.setSortOrder(books.stream().mapToInt(com.churchgeniuspro.hibernate.SongBook::getSortOrder).max().orElse(-1) + 1);
+        nb.setCreatedAt(java.time.Instant.now());
+        nb = bookRepo.save(nb);
+        service.audit(c.realClientId(), c.actor(), c.role(), "BOOK_ADD", null, nb.getName(), null);
+        return ResponseEntity.ok(bookDto(nb));
+    }
+
+    @PutMapping("/books/{id}")
+    public ResponseEntity<?> renameBook(@PathVariable Long id, @RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        String name = str(b.get("name"));
+        if (name.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Song Book name required"));
+        com.churchgeniuspro.hibernate.SongBook book = bookRepo.findByIdAndClientId(id, c.realClientId()).orElse(null);
+        if (book == null) return ResponseEntity.status(404).body(Map.of("error", "Song Book not found"));
+        book.setName(name);
+        book = bookRepo.save(book);
+        service.audit(c.realClientId(), c.actor(), c.role(), "BOOK_RENAME", null, book.getName(), null);
+        return ResponseEntity.ok(bookDto(book));
+    }
+
+    @DeleteMapping("/books/{id}")
+    public ResponseEntity<?> deleteBook(@PathVariable Long id, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        com.churchgeniuspro.hibernate.SongBook book = bookRepo.findByIdAndClientId(id, c.realClientId()).orElse(null);
+        if (book == null) return ResponseEntity.status(404).body(Map.of("error", "Song Book not found"));
+        if (book.isDefaultBook())
+            return ResponseEntity.badRequest().body(Map.of("error", "The default Song Book cannot be deleted."));
+        // Purge only the book-scoped rows — never the plain client id (legacy data).
+        service.purgeScope(scopeFor(c.realClientId(), book), c.actor(), c.role());
+        bookRepo.delete(book);
+        service.audit(c.realClientId(), c.actor(), c.role(), "BOOK_DELETE", null, book.getName(), null);
+        return ResponseEntity.ok(Map.of("ok", true));
     }
 
     private ResponseEntity<?> needView(Ctx c) {
@@ -334,6 +449,89 @@ public class SongBookController {
     public ResponseEntity<?> deleteAsset(@RequestParam("kind") String kind, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
         service.deleteAsset(c.clientId(), kind, c.actor(), c.role());
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    /* ── advertisement pages ── */
+
+    @GetMapping("/ads")
+    public ResponseEntity<?> listAds(HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        return ResponseEntity.ok(service.listAds(c.clientId()));
+    }
+
+    @PostMapping("/ads")
+    public ResponseEntity<?> uploadAd(@RequestParam("file") MultipartFile file,
+                                      @RequestParam(value = "title", required = false) String title,
+                                      @RequestParam(value = "position", required = false) String position,
+                                      HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        try {
+            int n = service.addAds(c.clientId(), file.getBytes(), file.getContentType(),
+                    file.getOriginalFilename(), title, position, c.actor(), c.role());
+            return ResponseEntity.ok(Map.of("ok", true, "pages", n));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not process that file. Please upload a clear PDF, JPG or PNG."));
+        }
+    }
+
+    @GetMapping("/ads/{id}/image")
+    public ResponseEntity<?> adImage(@PathVariable Long id, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        com.churchgeniuspro.hibernate.SongBookAd a = service.getAd(c.clientId(), id);
+        if (a == null || a.getData() == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(
+                        a.getContentType() == null ? "image/png" : a.getContentType()))
+                .body(a.getData());
+    }
+
+    @PutMapping("/ads/{id}")
+    public ResponseEntity<?> updateAd(@PathVariable Long id, @RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        try {
+            service.updateAd(c.clientId(), id,
+                    b.get("title") == null ? null : String.valueOf(b.get("title")),
+                    b.get("position") == null ? null : String.valueOf(b.get("position")),
+                    c.actor(), c.role());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/ads/{id}/replace")
+    public ResponseEntity<?> replaceAd(@PathVariable Long id, @RequestParam("file") MultipartFile file, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        try {
+            service.replaceAd(c.clientId(), id, file.getBytes(), file.getContentType(),
+                    file.getOriginalFilename(), c.actor(), c.role());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Could not process that file. Please upload a clear PDF, JPG or PNG."));
+        }
+    }
+
+    @PostMapping("/ads/reorder")
+    public ResponseEntity<?> reorderAds(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        Object raw = b.get("ids");
+        java.util.List<Long> ids = new java.util.ArrayList<>();
+        if (raw instanceof java.util.List<?> list) {
+            for (Object o : list) { try { ids.add(Long.parseLong(String.valueOf(o))); } catch (NumberFormatException ignored) { } }
+        }
+        service.reorderAds(c.clientId(), ids, c.actor(), c.role());
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @DeleteMapping("/ads/{id}")
+    public ResponseEntity<?> deleteAd(@PathVariable Long id, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        service.deleteAd(c.clientId(), id, c.actor(), c.role());
         return ResponseEntity.ok(Map.of("ok", true));
     }
 

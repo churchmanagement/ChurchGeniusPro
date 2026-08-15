@@ -189,10 +189,18 @@
       <div class="field">
         <label for="password">Password <span style="color:#e53935;">*</span></label>
         <div class="pw-wrap">
-          <input type="password" id="password" autocomplete="new-password" placeholder="Minimum 8 characters" />
+          <input type="password" id="password" autocomplete="new-password" placeholder="Create a password" />
           <button type="button" class="pw-toggle" onclick="togglePw('password', this)" tabindex="-1" aria-label="Show password">👁</button>
         </div>
         <div class="hint" id="passwordHint"></div>
+        <ul class="pwd-reqs" id="pwdReqs" style="background:#f8f9fc;border:1px solid #e4e7f0;border-radius:8px;padding:9px 14px;font-size:12.5px;line-height:1.85;color:#777;margin-top:6px;">
+          <div style="font-weight:700;color:#555;">Password must contain:</div>
+          <li data-req="len" style="list-style:none;">At least 8 characters</li>
+          <li data-req="lower" style="list-style:none;">A lowercase letter (a-z)</li>
+          <li data-req="upper" style="list-style:none;">An uppercase letter (A-Z)</li>
+          <li data-req="digit" style="list-style:none;">A number (0-9)</li>
+          <li data-req="special" style="list-style:none;">A special character (e.g. !@#$%^&amp;*()_+-=)</li>
+        </ul>
       </div>
       <div class="field">
         <label for="confirmPassword">Confirm Password <span style="color:#e53935;">*</span></label>
@@ -357,7 +365,7 @@ async function doSendCode() {
   let ok = true;
   if (!username)              { setErr('username','usernameHint','Username is required.'); ok = false; }
   if (!password)              { setErr('password','passwordHint','Password is required.'); ok = false; }
-  else if (password.length < 8) { setErr('password','passwordHint','Minimum 8 characters required.'); ok = false; }
+  else if (!pwdPolicyOk(password)) { setErr('password','passwordHint','Password does not meet all the requirements listed below the field.'); ok = false; }
   if (password && confirmPassword !== password) { setErr('confirmPassword','confirmHint','Passwords do not match.'); ok = false; }
   if (!ok) return;
 
@@ -527,8 +535,26 @@ document.getElementById('username').addEventListener('blur', function () {
 });
 document.getElementById('password').addEventListener('blur', function () {
   if (!this.value)           setErr('password','passwordHint','Password is required.');
-  else if (this.value.length < 8) setErr('password','passwordHint','Minimum 8 characters required.');
+  else if (!pwdPolicyOk(this.value)) setErr('password','passwordHint','Password does not meet all the requirements listed below the field.');
   else                       clearErr('password','passwordHint');
+});
+
+/* ── Password policy (mirrors server-side PasswordPolicy) ── */
+function pwdPolicyChecks(pw) {
+  return { len: pw.length >= 8, lower: /[a-z]/.test(pw), upper: /[A-Z]/.test(pw),
+           digit: /[0-9]/.test(pw), special: /[^A-Za-z0-9]/.test(pw) };
+}
+function pwdPolicyOk(pw) {
+  const c = pwdPolicyChecks(pw);
+  return c.len && c.lower && c.upper && c.digit && c.special;
+}
+document.getElementById('password').addEventListener('input', function () {
+  const checks = pwdPolicyChecks(this.value);
+  document.querySelectorAll('#pwdReqs li').forEach(function (li) {
+    const ok = !!checks[li.dataset.req];
+    li.style.color = ok ? '#2e7d32' : '#777';
+    li.textContent = (ok ? '✓ ' : '✕ ') + li.textContent.replace(/^[✓✕] /, '');
+  });
 });
 document.getElementById('confirmPassword').addEventListener('blur', function () {
   const pwd = document.getElementById('password').value;

@@ -45,9 +45,15 @@ import java.util.Map;
 public class FamilyController {
 
     private final FamilyService familyService;
+    private final com.churchgeniuspro.repository.FamilyMemberRepository familyMemberRepository;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
-    public FamilyController(FamilyService familyService) {
+    public FamilyController(FamilyService familyService,
+                            com.churchgeniuspro.repository.FamilyMemberRepository familyMemberRepository,
+                            com.churchgeniuspro.service.SubscriptionService subscriptionService) {
         this.familyService = familyService;
+        this.familyMemberRepository = familyMemberRepository;
+        this.subscriptionService = subscriptionService;
     }
 
     // ── Page routes ───────────────────────────────────────────────────────
@@ -124,13 +130,17 @@ public class FamilyController {
                 && session.getAttribute("memberId") != null;
         if (isMember) {
             String deny = RoleGuard.requireMemberPermission(request, "admin.family");
-            return deny != null ? deny : "forward:/viewfamily.html";
+            // NOTE: the static file is viewFamily.html (capital F). The forward target
+            // must match exactly — classpath (jar) resource lookup is case-sensitive,
+            // so "viewfamily.html" 404s when running the packaged JAR even though it
+            // happens to work from a case-insensitive Windows filesystem.
+            return deny != null ? deny : "forward:/viewFamily.html";
         }
         String deny = RoleGuard.requireAdminOrAccountant(request);
         if (deny != null) return deny;
         deny = RoleGuard.requirePermission(request, "admin.family");
         if (deny != null) return deny;
-        return "forward:/viewfamily.html";
+        return "forward:/viewFamily.html";
     }
 
     /** Serves the all-members list page. */
@@ -203,6 +213,18 @@ public class FamilyController {
                     .body(Map.of("error", "At least one family member is required."));
         }
         String appClientId = SessionUtil.getAppClientId(request);
+
+        // Subscription plan: maximum-people limit (POST /api/family always
+        // creates a new family; updates go through PUT /api/families/{id}).
+        try {
+            long current = familyMemberRepository.countActiveMembers(appClientId);
+            String limitMsg = subscriptionService.checkPeopleLimit(
+                    appClientId, current, bo.getMembers().size());
+            if (limitMsg != null) {
+                return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+            }
+        } catch (Exception ignored) { /* fail-open: never block saves on a limit-check error */ }
+
         try {
             Family saved = familyService.save(bo, appClientId);
             String primaryName = saved.getMembers().stream()

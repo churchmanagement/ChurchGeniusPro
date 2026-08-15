@@ -48,13 +48,16 @@ public class PaystubPdfService {
     private final PaystubRepository paystubRepo;
     private final PaystubItemRepository itemRepo;
     private final PayrollEmployeeRepository employeeRepo;
+    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
     public PaystubPdfService(PaystubRepository paystubRepo,
                              PaystubItemRepository itemRepo,
-                             PayrollEmployeeRepository employeeRepo) {
+                             PayrollEmployeeRepository employeeRepo,
+                             com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
         this.paystubRepo = paystubRepo;
         this.itemRepo = itemRepo;
         this.employeeRepo = employeeRepo;
+        this.ssnCrypto = ssnCrypto;
     }
 
     /** Load a stub by id and render it. Returns the PDF bytes. */
@@ -114,8 +117,10 @@ public class PaystubPdfService {
                     join(emp.getCity(), emp.getState(), emp.getPostalCode())}) {
                 if (l != null && !l.isBlank()) { d.text(LEFT, 9, d.normal, l); d.move(11); }
             }
-            if (emp.getSsnLast4() != null && !emp.getSsnLast4().isBlank()) {
-                d.text(LEFT, 9, d.normal, "SSN: XXX-XX-" + emp.getSsnLast4());
+            // Stored encrypted at rest; decrypted only for this authorized document
+            String ssn4 = ssnCrypto.decrypt(emp.getSsnLast4());
+            if (ssn4 != null && !ssn4.isBlank()) {
+                d.text(LEFT, 9, d.normal, "SSN: XXX-XX-" + ssn4);
                 d.move(11);
             }
         }

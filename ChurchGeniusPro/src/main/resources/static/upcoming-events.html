@@ -21,6 +21,12 @@
     .meta { font-size:13px; color:#555; display:flex; align-items:flex-start; gap:7px; margin:4px 0; }
     .meta .i { width:18px; flex:0 0 auto; text-align:center; }
     .desc { font-size:13px; color:#666; margin-top:8px; line-height:1.5; white-space:pre-wrap; }
+    /* Rich (HTML) notes from the event editor — normal flow + editor-like spacing */
+    .desc.rich { white-space:normal; }
+    .desc.rich p { margin:0 0 10px; }
+    .desc.rich p:last-child { margin-bottom:0; }
+    .desc.rich ul, .desc.rich ol { margin:0 0 10px; padding-left:22px; }
+    .desc.rich blockquote { margin:0 0 10px; padding-left:12px; border-left:3px solid #eadfe5; color:#777; }
     .reg { display:inline-block; margin-top:12px; background:var(--brand); color:#fff; text-decoration:none; padding:9px 18px; border-radius:9px; font-size:14px; font-weight:700; }
     .state { text-align:center; padding:60px 24px; color:#888; }
     .spinner { width:34px; height:34px; border:3px solid #e6dde2; border-top-color:var(--brand); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 14px; }
@@ -36,6 +42,59 @@
   <script>
     (function () {
       function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      /* ── Safe rich-text rendering for event notes ──────────────────────
+         Notes are entered in a rich editor and stored as HTML. Render the
+         formatting (paragraphs, line breaks, italics, alignment, lists…)
+         through a strict allowlist sanitizer — every other tag/attribute
+         (scripts, event handlers, iframes, …) is stripped. */
+      var OK_TAGS = { P:1, BR:1, EM:1, I:1, STRONG:1, B:1, U:1, S:1, SPAN:1, DIV:1,
+                      UL:1, OL:1, LI:1, BLOCKQUOTE:1, H1:1, H2:1, H3:1, H4:1, A:1 };
+      /* Dropped entirely — including their text content. */
+      var DROP_TAGS = { SCRIPT:1, STYLE:1, IFRAME:1, OBJECT:1, EMBED:1, LINK:1, META:1, TITLE:1, NOSCRIPT:1 };
+      function safeStyle(style){
+        var out = [];
+        var m1 = /text-align\s*:\s*(left|right|center|justify)/i.exec(style || '');
+        if (m1) out.push('text-align:' + m1[1].toLowerCase());
+        if (/font-style\s*:\s*italic/i.test(style || '')) out.push('font-style:italic');
+        if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(style || '')) out.push('font-weight:700');
+        if (/text-decoration[^;]*underline/i.test(style || '')) out.push('text-decoration:underline');
+        return out.join(';');
+      }
+      function sanitizeNode(node, out){
+        for (var i = 0; i < node.childNodes.length; i++){
+          var ch = node.childNodes[i];
+          if (ch.nodeType === 3){ out.appendChild(document.createTextNode(ch.nodeValue)); continue; }
+          if (ch.nodeType !== 1) continue;
+          var tag = ch.tagName.toUpperCase();
+          if (DROP_TAGS[tag]) continue;                            // drop tag AND its content
+          if (!OK_TAGS[tag]){ sanitizeNode(ch, out); continue; }   // unwrap unknown tags, keep their text
+          var el = document.createElement(tag);
+          var st = safeStyle(ch.getAttribute && ch.getAttribute('style'));
+          if (st) el.setAttribute('style', st);
+          if (tag === 'A'){
+            var href = ch.getAttribute('href') || '';
+            if (/^https?:\/\//i.test(href)){ el.setAttribute('href', href); el.setAttribute('target','_blank'); el.setAttribute('rel','noopener'); }
+            else { sanitizeNode(ch, out); continue; }
+          }
+          sanitizeNode(ch, el);
+          out.appendChild(el);
+        }
+      }
+      function richHtml(html){
+        try {
+          var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+          var holder = document.createElement('div');
+          sanitizeNode(doc.body, holder);
+          return holder.innerHTML;
+        } catch (e){ return esc(html); }
+      }
+      function descHtml(text){
+        if (!text) return '';
+        return /<[a-z][\s\S]*>/i.test(text)
+          ? '<div class="desc rich">' + richHtml(text) + '</div>'   // rich notes
+          : '<div class="desc">' + esc(text) + '</div>';            // plain text (pre-wrap)
+      }
       var params = new URLSearchParams(location.search);
       var cid = params.get('c') || params.get('cid') || '';
       var body = document.getElementById('body');
@@ -73,7 +132,7 @@
             + '<span class="tag ' + (e.kind === 'meeting' ? 'meeting' : 'event') + '">' + (e.kind === 'meeting' ? 'Meeting' : 'Event') + '</span>'
             + '<div class="name">' + esc(e.name || 'Untitled') + '</div>'
             + rows
-            + (e.description ? '<div class="desc">' + esc(e.description) + '</div>' : '')
+            + descHtml(e.description)
             + (e.registrationLink ? '<a class="reg" href="' + esc(e.registrationLink) + '" target="_blank" rel="noopener">Register ›</a>' : '')
             + '</div>';
         }).join('');

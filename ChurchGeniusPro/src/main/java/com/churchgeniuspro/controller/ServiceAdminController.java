@@ -134,6 +134,63 @@ public class ServiceAdminController {
         return ResponseEntity.ok(response);
     }
 
+    // ── Change Password ───────────────────────────────────────────────────────
+
+    /**
+     * Changes the Service Admin password. Self-authenticating (available from
+     * the login page): the CURRENT password must be supplied and verified
+     * before the change is applied, and the new password must satisfy the
+     * application-wide {@link com.churchgeniuspro.util.PasswordPolicy}.
+     *
+     * <p>Body (JSON): {@code { username, currentPassword, newPassword }}
+     */
+    @ResponseBody
+    @PostMapping("/api/serviceadmin/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> body) {
+        Map<String, Object> response = new HashMap<>();
+        String username        = body.get("username");
+        String currentPassword = body.get("currentPassword");
+        String newPassword     = body.get("newPassword");
+
+        if (username == null || username.isBlank()
+                || currentPassword == null || currentPassword.isBlank()
+                || newPassword == null || newPassword.isBlank()) {
+            response.put("status",  "error");
+            response.put("message", "Username, current password, and new password are required.");
+            return ResponseEntity.status(400).body(response);
+        }
+
+        Optional<ServiceAdmin> admin =
+                serviceAdminRepository.findByUsernameAndDeletedFalse(username.trim());
+        if (admin.isEmpty() || !PasswordUtil.matches(currentPassword, admin.get().getPassword())) {
+            log.warn("ServiceAdmin change-password failed — bad credentials for username='{}'", username);
+            response.put("status",  "error");
+            response.put("message", "Invalid username or current password.");
+            return ResponseEntity.status(401).body(response);
+        }
+
+        // Application-wide password policy (length + upper/lower/digit/special)
+        String policyError = com.churchgeniuspro.util.PasswordPolicy.validate(newPassword);
+        if (policyError != null) {
+            response.put("status",  "error");
+            response.put("message", policyError);
+            return ResponseEntity.status(400).body(response);
+        }
+        if (newPassword.equals(currentPassword)) {
+            response.put("status",  "error");
+            response.put("message", "New password must be different from the current password.");
+            return ResponseEntity.status(400).body(response);
+        }
+
+        admin.get().setPassword(PasswordUtil.encode(newPassword));
+        serviceAdminRepository.save(admin.get());
+        log.info("ServiceAdmin password changed for username='{}'", username);
+
+        response.put("status",  "success");
+        response.put("message", "Password changed successfully. Please log in with your new password.");
+        return ResponseEntity.ok(response);
+    }
+
     // ── Validate Encrypted Client ID (public — used by churchregistration.html) ─
     // NOTE: Mapped to /public/ (NOT /api/) so Spring Session JDBC never intercepts
     // this request for a session lookup.  Spring Session's SessionRepositoryFilter

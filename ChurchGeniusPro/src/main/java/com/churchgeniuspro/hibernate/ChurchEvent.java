@@ -169,6 +169,13 @@ public class ChurchEvent {
     @Column(name = "food_items", columnDefinition = "TEXT")
     private String foodItems;
 
+    /**
+     * Organizer-configurable label for the dietary/food section shown on the
+     * public registration page (default "Dietary Preferences").
+     */
+    @Column(name = "food_label", length = 100)
+    private String foodLabel;
+
     /** Whether accommodation is available for this event. */
     @Column(name = "accommodation_available", nullable = false)
     private boolean accommodationAvailable;

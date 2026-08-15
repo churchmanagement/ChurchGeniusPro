@@ -464,7 +464,19 @@
   function askConfirm(c){
     c.stage = mstate.stage;                 // remember exactly which field this confirms
     mstate.confirm=c; dbg.recognized=c.display; dbg.awaiting='Yes'; dbg.status='Waiting for Confirmation';
+    renderYesNoOptions();                   // typed/text mode always gets clickable Yes/No
     return 'I ' + (c.verb||'heard') + ' ' + c.display + '. Is that correct?';
+  }
+  // Every confirmation question is answerable in the UI (not just by voice):
+  // show Yes / No buttons in the options row until the question is resolved.
+  function renderYesNoOptions(){
+    var box=el('mvOptions'); if(!box) return;
+    box.innerHTML='<button class="mv-opt" type="button" data-yn="yes">✓ Yes</button>'
+      +'<button class="mv-opt mv-opt-none" type="button" data-yn="no">✗ No</button>';
+    box.style.display='flex';
+    box.querySelectorAll('.mv-opt').forEach(function(b){
+      b.addEventListener('click', function(){ handleUtterance(b.getAttribute('data-yn')==='yes'?'Yes':'No'); });
+    });
   }
   // The question to (re)ask for a given stage — used so "No" returns to the SAME field.
   function stagePrompt(stage){
@@ -491,14 +503,15 @@
     if(isNo(low)){
       // Discard the pending value and re-ask the SAME field — never jump back to Category.
       var st = c.stage || mstate.stage;
-      mstate.confirm=null; mstate.stage=st; mstate.matches=null;
+      mstate.confirm=null; mstate.stage=st; mstate.matches=null; clearOptions();
       dbg.awaiting='No'; dbg.status='Re-asking';
       dbg.confSaid=low; dbg.confDetected='NO'; dbg.confConfidence='99%'; updFlowDbg();
       logConvo('System','Discarded pending value — staying on stage: '+st);
       return "I'm sorry. Let's try again. "+stagePrompt(st);
     }
     if(isYes(low)){
-      mstate.confirm=null; mstate.retry=0; mstate.spelling=false; dbg.awaiting='No'; dbg.status='Confirmed';
+      mstate.confirm=null; mstate.retry=0; mstate.spelling=false; clearOptions();
+      dbg.awaiting='No'; dbg.status='Confirmed';
       dbg.confSaid=low; dbg.confDetected='YES'; dbg.confConfidence='99%';
       var r=c.onYes();   // onYes itself decides if a field was set (esp. Location, which may search)
       var fld=({category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence'})[c.stage];
@@ -706,7 +719,20 @@
         mstate.retry=0; mstate.matches=null; mstate.stage='date'; clearOptions();
         return 'Thank you. Location has been set. I\'m listening. '+PROMPT.date; }; })(loc) });
   }
+  // Collapse duplicate candidates (same display name) keeping the best score —
+  // the user can't tell two identical "Anson Mathew" rows apart anyway.
+  function dedupeMatches(matches){
+    var seen={}, out=[];
+    (matches||[]).forEach(function(m){
+      var key=String(m.name||(m.loc&&m.loc.displayName)||'').toLowerCase().replace(/\s+/g,' ').trim();
+      if(!(key in seen)){ seen[key]=out.length; out.push(m); }
+      else if((m.score||0)>(out[seen[key]].score||0)){ out[seen[key]]=m; }
+    });
+    return out;
+  }
+
   function presentMatches(matches, type){
+    matches=dedupeMatches(matches);
     // Single result → confirm it directly instead of a one-item option list.
     if(matches.length===1){
       var m0=matches[0];
@@ -765,7 +791,28 @@
       var upTo=matches.length>1?(' to Option '+matches.length):'';
       return 'Please say the option number — for example "Option 1"'+upTo+' — or say "No" to try a different name, "Skip" to skip the location, or "Stop".';
     }
-    return confirmLocation(matches[idx-1].loc, matches[idx-1].name);
+    // The user EXPLICITLY chose an option (clicked or said the number) — apply it
+    // immediately. Re-asking "Is that correct?" here was redundant and, in typed
+    // mode, unanswerable; the choice IS the confirmation.
+    var m=matches[idx-1];
+    clearOptions(); mstate.matches=null; mstate.retry=0;
+    var f=win('selectLocation'); if(f) window.selectLocation(m.loc.locType, m.loc.id);
+    setVal('locationSearch', m.name||m.loc.displayName);
+    dbg.location=m.loc.displayName; dbg.selected=m.loc.displayName; dbg.selectedMatch=m.loc.displayName;
+    dbg.matchType='User Selected'; dbg.fieldUpdated='Location'; dbg.fieldStatus='Confirmed';
+    logConvo('System','Location selected by user: '+m.loc.displayName);
+    markDone('location');
+    // In "Fill Form" (direct) mode the other fields were already populated before
+    // the choice was requested — finish there instead of restarting the interview.
+    if(mstate.afterPick==='complete'){
+      mstate.afterPick=null; mstate.stage='complete'; updFlowDbg();
+      dbg.result='Form populated'; dbg.missing=missingFields(); renderDebug();
+      return 'Thank you. Location has been set to '+(m.name||m.loc.displayName)
+           + '. The meeting form is populated'
+           + (missingFields()==='None' ? ' — say "Save Now" to save.' : ' — please review the remaining fields.');
+    }
+    mstate.stage='date'; updFlowDbg();
+    return 'Thank you. Location has been set to '+(m.name||m.loc.displayName)+'. '+PROMPT.date;
   }
   function locationSpell(raw){
     var cand=parseSpelling(raw), disp=cand.split('').join('-');
@@ -908,13 +955,14 @@
       if(hit){ setLoc(hit); }
       else {
         var all=fuzzyMatches(p.location, null, 0, 6);
-        var matches=all.filter(function(m){ return m.score>=0.70; });
+        var matches=dedupeMatches(all.filter(function(m){ return m.score>=0.70; }));
         if(matches.length===1){ setLoc(matches[0].loc, matches[0].name, matches[0].score); }
         else if(matches.length>1){
           busy(false);
           logDetect(text, p);
           logConvo('System','Location ambiguous — '+matches.length+' candidates, awaiting choice');
           mstate.matches=matches; mstate.stage='location-pick';
+          mstate.afterPick='complete';   // rest of the form was already populated above
           dbg.field='Location'; dbg.convState='candidateSelection';
           dbg.matches=matches.map(function(m,i){ return (i+1)+'. '+m.name+' ('+Math.round(m.score*100)+'%)'; }).join('   ');
           renderLocationOptions(matches);
@@ -1141,7 +1189,7 @@
   function fmtMMSS(ms){ var s=Math.max(0,Math.floor(ms/1000)); return pad(Math.floor(s/60))+':'+pad(s%60); }
   function curMode(){ return mode.charAt(0).toUpperCase()+mode.slice(1); }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function busy(on){ var b=el('mvSend'); if(b){ b.disabled=!!on; b.textContent=on?'…':'Send'; } }
+  function busy(on){ var b=el('mvSend'); if(b){ b.disabled=!!on; b.textContent=on?'…':'Fill Form'; } }
   function respond(msg){ var p=el('mvReply'); if(p){ p.textContent=msg; p.style.display='block'; } }
 
   // ── Conversation history + debug export ──
@@ -1321,7 +1369,19 @@
       '.mv-history .mv-h-t{color:#9a7d8b;}',
       '.mv-history .mv-h-user{color:#1565c0;font-weight:700;}',
       '.mv-history .mv-h-ai{color:#673147;font-weight:700;}',
-      '.mv-history .mv-h-sys{color:#2e7d32;font-weight:700;}'
+      '.mv-history .mv-h-sys{color:#2e7d32;font-weight:700;}',
+      // ── Help (?) icon + help modal ──
+      '.mv-help{width:26px;height:26px;flex:0 0 auto;border-radius:50%;border:1.5px solid #c5a0b5;background:#fff;color:#673147;font-weight:700;font-size:13px;cursor:pointer;line-height:1;padding:0;}',
+      '.mv-help:hover{background:#673147;color:#fff;}',
+      '.mv-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}',
+      '.mv-modal{background:#fff;border-radius:14px;max-width:660px;width:100%;max-height:85vh;overflow:auto;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);}',
+      '.mv-modal h3{margin:0 0 6px;color:#673147;font-size:16.5px;}',
+      '.mv-modal h4{margin:16px 0 4px;color:#673147;font-size:13.5px;}',
+      '.mv-modal p,.mv-modal li{font-size:13px;color:#444;line-height:1.55;margin:4px 0;}',
+      '.mv-modal ul{margin:4px 0 8px;padding-left:20px;}',
+      '.mv-modal .mv-ex{background:#fbf7f9;border:1px solid #eadfe6;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12.5px;color:#555;font-style:italic;}',
+      '.mv-modal-x{float:right;border:none;background:none;font-size:16px;cursor:pointer;color:#999;padding:2px 6px;}',
+      '.mv-modal-x:hover{color:#673147;}'
     ].join(''); document.head.appendChild(s);
   }
 
@@ -1488,6 +1548,64 @@
     }
   }
 
+  /* ── Help (?) dialogs ────────────────────────────────────────────────────── */
+  function showHelpModal(title, bodyHtml){
+    var old=document.querySelector('.mv-modal-ov'); if(old && old.parentNode) old.parentNode.removeChild(old);
+    var ov=document.createElement('div'); ov.className='mv-modal-ov';
+    ov.innerHTML='<div class="mv-modal" role="dialog" aria-modal="true" aria-label="'+title+'">'
+      +'<button class="mv-modal-x" type="button" aria-label="Close">✕</button>'
+      +'<h3>'+title+'</h3>'+bodyHtml+'</div>';
+    function close(){ if(ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown',escK); }
+    function escK(e){ if(e.key==='Escape') close(); }
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    ov.querySelector('.mv-modal-x').addEventListener('click', close);
+    document.addEventListener('keydown', escK);
+    document.body.appendChild(ov);
+  }
+  function inputHelpHtml(){
+    return '<p>This AI assistant lets you create a meeting by describing it in plain English. '
+      +'It reads your request, detects the details, and fills in the Add Meeting form for you — '
+      +'<b>nothing is saved automatically</b>; you always review the form first.</p>'
+      +'<h4>What the AI can detect and populate</h4>'
+      +'<ul><li><b>Category</b> — matched against your meeting categories (e.g. Bible Study, Prayer Meeting).</li>'
+      +'<li><b>Location</b> — a member’s home or a place from your location list. Close spellings are matched automatically, and if several people match you’ll be shown choices to pick from.</li>'
+      +'<li><b>Date</b> — exact dates ("August 10") or relative ones ("next Thursday", "tomorrow").</li>'
+      +'<li><b>Time</b> — "7 PM", "7:30 in the evening", "seven thirty".</li>'
+      +'<li><b>Occurrence</b> — one-time, daily, weekly, or monthly patterns.</li>'
+      +'<li><b>Notes</b> — any extra remarks in your request.</li></ul>'
+      +'<h4>Example requests</h4>'
+      +'<div class="mv-ex">"Create a Bible Study at John’s house next Thursday at 7 PM."</div>'
+      +'<div class="mv-ex">"Schedule a Prayer Meeting every Friday at 6:30 PM."</div>'
+      +'<div class="mv-ex">"Create a Youth Meeting on August 10 at the church."</div>'
+      +'<h4>Tips for best results</h4>'
+      +'<ul><li>Use relative dates freely — <b>next Thursday</b>, <b>tomorrow</b>, <b>next week</b>, or <b>this Sunday</b> — and the AI will work out and populate the correct date.</li>'
+      +'<li>For recurring meetings, use phrases such as <b>every Monday</b>, <b>every first Saturday</b>, <b>monthly</b>, or <b>weekly</b> — the Occurrence field is filled automatically.</li>'
+      +'<li>Include the category, place, date, and time in one sentence for the most complete result.</li>'
+      +'<li>If a detail is missed, just type it in the form directly, or say "update date", "update location", etc.</li>'
+      +'<li>When you’re happy with the form, click Save — or say "Save Now" in Converse mode.</li></ul>';
+  }
+  function modesHelpHtml(){
+    return '<p>There are three ways to give the AI your meeting details. Pick whichever suits you — they all fill the same form.</p>'
+      +'<h4>🔎 Type</h4>'
+      +'<p>Type your full request in the text box in natural language, then click <b>Fill Form</b> (or press Enter). '
+      +'The AI extracts the details and populates the meeting fields for your review.</p>'
+      +'<div class="mv-ex">"Create a Bible Study at John’s house on June 3rd at 4 PM."</div>'
+      +'<h4>🎤 Voice</h4>'
+      +'<p>Click the microphone and speak your request naturally — your speech is converted to text and processed exactly like a typed request. Click the microphone again to stop.</p>'
+      +'<ul><li>Allow microphone access when the browser asks.</li>'
+      +'<li>Speak at a normal pace in a quiet environment for the best transcription.</li>'
+      +'<li>Tip: if you click into the text box first, your speech is typed into the box so you can review and edit it before sending.</li></ul>'
+      +'<h4>🗣 Converse</h4>'
+      +'<p>Have a conversation with the AI to build the meeting step by step. It asks for the category, location, date, time, and occurrence one at a time, and may ask follow-up questions when it needs more information.</p>'
+      +'<ul><li>Answer confirmation questions with <b>Yes</b> / <b>No</b> (spoken, typed, or by clicking the buttons shown).</li>'
+      +'<li>Say <b>"Skip"</b> to leave a field blank, <b>"update time"</b> (or date/location/category/notes) to change a field, and <b>"Save Now"</b> when you’re ready — the AI confirms before saving.</li>'
+      +'<li>Say <b>"Stop"</b> to end the conversation at any time; a session also ends automatically after 5 minutes of inactivity.</li></ul>'
+      +'<h4>Limitations</h4>'
+      +'<ul><li>English is supported; dates, times, and categories are matched to your church’s own lists.</li>'
+      +'<li>Voice and Converse need a working microphone and speech service; if unavailable, Type mode always works.</li>'
+      +'<li>The AI never saves a meeting without your confirmation.</li></ul>';
+  }
+
   function injectUI(){
     if(el('mvHost')) return true;
     var main=document.querySelector('main.page-content')||document.querySelector('.page-content'); if(!main) return false;
@@ -1498,7 +1616,7 @@
         '<span class="mv-seg"><button id="mvMode_type" class="on" type="button" title="Type" aria-label="Type">🔎</button>'
       + '<button id="mvMode_voice" type="button" title="Voice" aria-label="Voice">🎤</button>'
       + '<button id="mvMode_converse" type="button" title="Converse" aria-label="Converse">🗣</button></span>'
-      + '<button id="mvGuideBtn" class="mv-ghost" type="button" title="Guide — examples" aria-label="Guide">❔</button>'
+      + '<button id="mvGuideBtn" class="mv-ghost" type="button" title="Help — Type, Voice &amp; Converse input methods" aria-label="Help — input methods">❔</button>'
       + '<button id="mvDebugBtn" class="mv-ghost" type="button" title="Debug" aria-label="Debug">🐞</button>'
       + '<button id="mvStopBtn" class="mv-stop" type="button" title="Stop Conversation" style="display:none;">⏹ Stop</button>'
       + '<span id="mvListening" class="mv-listening" style="display:none;"><span class="mv-dot"></span> Listening…</span>';
@@ -1508,7 +1626,8 @@
     host.innerHTML=
         '<div class="mv-row">'
       + '<input id="mvInput" type="text" placeholder="e.g. Create a Bible Study at John\'s house on June 3rd at 4 pm">'
-      + '<button id="mvSend" type="button">Send</button></div>'
+      + '<button id="mvSend" type="button" title="Extracts the details from your text and fills in the Add Meeting form">Fill Form</button>'
+      + '<button id="mvHelpBtn" class="mv-help" type="button" title="Help — how to use the AI meeting input" aria-label="Help">?</button></div>'
       + '<div id="mvReply"></div><div id="mvOptions" class="mv-options" style="display:none;"></div>'
       + '<div id="mvDebug"></div>'
       + '<div id="mvDebugExtra" style="display:none;">'
@@ -1546,7 +1665,10 @@
     el('mvMode_voice').addEventListener('click', function(){ if(mode==='voice'&&recorder&&recorder.isRecording&&recorder.isRecording()){ try{recorder.stop();}catch(e){} return; } setMode('voice'); });
     el('mvMode_converse').addEventListener('click', function(){ setMode('converse'); });
     el('mvGuideBtn').addEventListener('click', function(){
-      respond('Try: "Create a Bible Study at John\'s house on June 3rd at 4 pm". Or click Converse and I\'ll ask for the category, location, date, time and occurrence one at a time. Say "Save Now" to save (I\'ll confirm first), or "update date / time / location / category / notes" to change a field.');
+      showHelpModal('AI Input Methods — Type, Voice & Converse', modesHelpHtml());
+    });
+    el('mvHelpBtn').addEventListener('click', function(){
+      showHelpModal('AI Meeting Assistant — Help', inputHelpHtml());
     });
     el('mvDebugBtn').addEventListener('click', function(){
       var d=el('mvDebug'), x=el('mvDebugExtra'); var show = d && (d.style.display==='none'||!d.style.display);

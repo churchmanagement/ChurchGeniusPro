@@ -128,6 +128,7 @@ public class ReminderSchedulerService {
     private final FollowUpRepository          followUpRepo;
     private final com.churchgeniuspro.repository.ReminderSentLogRepository sentLogRepo;
     private final PublicScreenLinkRepository publicScreenLinkRepo;
+    private final com.churchgeniuspro.repository.MeetingSkipDateRepository meetingSkipRepo;
 
     public ReminderSchedulerService(AutoReminderRepository      autoReminderRepo,
                                     OneTimeReminderRepository   oneTimeReminderRepo,
@@ -148,7 +149,8 @@ public class ReminderSchedulerService {
                                     PrayerScheduleRepository    prayerScheduleRepo,
                                     FollowUpRepository          followUpRepo,
                                     com.churchgeniuspro.repository.ReminderSentLogRepository sentLogRepo,
-                                    PublicScreenLinkRepository  publicScreenLinkRepo) {
+                                    PublicScreenLinkRepository  publicScreenLinkRepo,
+                                    com.churchgeniuspro.repository.MeetingSkipDateRepository meetingSkipRepo) {
         this.autoReminderRepo    = autoReminderRepo;
         this.oneTimeReminderRepo = oneTimeReminderRepo;
         this.eventReminderRepo   = eventReminderRepo;
@@ -169,6 +171,32 @@ public class ReminderSchedulerService {
         this.followUpRepo        = followUpRepo;
         this.sentLogRepo         = sentLogRepo;
         this.publicScreenLinkRepo = publicScreenLinkRepo;
+        this.meetingSkipRepo     = meetingSkipRepo;
+    }
+
+    /**
+     * True when the given single occurrence of a meeting was deleted by the
+     * user ({@code meeting_skip_date}) — no reminder of ANY kind (email, SMS,
+     * WhatsApp, push, weekly digest) may be sent for that date.
+     */
+    private boolean isOccurrenceSkipped(Meeting m, LocalDate date) {
+        try {
+            return meetingSkipRepo.existsByMeetingIdAndSkipDate(m.getId(), date);
+        } catch (Exception e) {
+            return false;   // fail open — better a reminder than a crash
+        }
+    }
+
+    /**
+     * First date in [weekStart, weekEnd] on which the meeting actually occurs
+     * and is not skipped; {@code null} when every occurrence that week was
+     * deleted (or none exists).
+     */
+    private LocalDate firstActiveOccurrenceInWeek(Meeting m, LocalDate weekStart, LocalDate weekEnd) {
+        for (LocalDate d = weekStart; !d.isAfter(weekEnd); d = d.plusDays(1)) {
+            if (meetingOccursToday(m, d) && !isOccurrenceSkipped(m, d)) return d;
+        }
+        return null;
     }
 
     // =========================================================================
@@ -876,7 +904,9 @@ public class ReminderSchedulerService {
             // Gather all meetings for this client and filter to those falling in the week
             List<Meeting> weekMeetings = meetingRepo.findByAppClientIdAndDeleteFlagFalse(clientId)
                     .stream()
-                    .filter(m -> meetingFallsInWeek(m, today, weekEnd))
+                    // falls in week AND at least one occurrence that week is not user-deleted
+                    .filter(m -> meetingFallsInWeek(m, today, weekEnd)
+                            && firstActiveOccurrenceInWeek(m, today, weekEnd) != null)
                     .sorted(Comparator.comparing(Meeting::getMeetingDate, Comparator.nullsLast(Comparator.naturalOrder()))
                             .thenComparing(m -> m.getStartTime() == null ? "" : m.getStartTime()))
                     .collect(Collectors.toList());
@@ -900,8 +930,9 @@ public class ReminderSchedulerService {
             boolean doSmsWeekly = Boolean.TRUE.equals(reminder.getSendSms());
             for (Meeting wm : weekMeetings) {
                 // Use effective date so Daily shows today and Weekly shows its
-                // occurrence date within this week
-                LocalDate effectiveDate = resolveEffectiveDate(wm, today);
+                // occurrence date within this week — skipping user-deleted occurrences
+                LocalDate effectiveDate = firstActiveOccurrenceInWeek(wm, today, weekEnd);
+                if (effectiveDate == null) effectiveDate = resolveEffectiveDate(wm, today);
                 whatsAppSender.sendToRecipientsMultiChannel(
                         reminder.getRecipients(), buildMeetingWhatsAppMessage(wm, effectiveDate, clientId),
                         clientId, doWaWeekly, doSmsWeekly);
@@ -1006,6 +1037,8 @@ public class ReminderSchedulerService {
             // One Time / Daily / Weekly occurrence patterns
             for (Meeting meeting : meetingRepo.findByAppClientIdAndDeleteFlagFalse(clientId)) {
                 if (!meetingOccursToday(meeting, today)) continue;
+                // Occurrence deleted by user → no reminder of any kind today
+                if (isOccurrenceSkipped(meeting, today)) continue;
 
                 if (meeting.getStartTime() == null || meeting.getStartTime().isBlank()) continue;
                 LocalTime meetingStart;
@@ -1223,7 +1256,7 @@ public class ReminderSchedulerService {
                     String evtSameDayKey = event.getId() + "_SAME_DAY";
                     if (!alreadySent(clientId, "EVENT", evtSameDayKey, today) && markSent(clientId, "EVENT", evtSameDayKey, today)) {
                         byte[] ics = buildIcsContent(event);
-                        String subject = "Reminder: " + event.getEventName() + " is Today!";
+                        String subject = "Reminder: " + eventDisplayName(event) + " is Today!";
                         String body    = hasTemplate(reminder.getSameDayTemplate())
                                 ? renderEventTemplate(reminder.getSameDayTemplate(), event, 0)
                                 : buildEventSameDayBody(event);
@@ -1231,7 +1264,7 @@ public class ReminderSchedulerService {
                             sendToEventRegistrants(attendees, subject, body, clientId, ics);
                         sendEventRegistrantMessages(attendees, event, clientId, reminder);
                         webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + event.getEventName(),
+                                "📅 Event Reminder: " + eventDisplayName(event),
                                 subject,
                                 "/event", "cgp-event-reminder");
                     }
@@ -1243,7 +1276,7 @@ public class ReminderSchedulerService {
                     String evtBeforeKey = event.getId() + "_BEFORE_" + reminder.getBeforeDays();
                     if (!alreadySent(clientId, "EVENT", evtBeforeKey, today) && markSent(clientId, "EVENT", evtBeforeKey, today)) {
                         byte[] ics = buildIcsContent(event);
-                        String subject = "Reminder: " + event.getEventName() + " in " + reminder.getBeforeDays() + " day(s)";
+                        String subject = "Reminder: " + eventDisplayName(event) + " in " + reminder.getBeforeDays() + " day(s)";
                         String body    = hasTemplate(reminder.getBeforeDaysTemplate())
                                 ? renderEventTemplate(reminder.getBeforeDaysTemplate(), event, reminder.getBeforeDays())
                                 : buildEventBeforeDaysBody(event, reminder.getBeforeDays());
@@ -1251,7 +1284,7 @@ public class ReminderSchedulerService {
                             sendToEventRegistrants(attendees, subject, body, clientId, ics);
                         sendEventRegistrantMessages(attendees, event, clientId, reminder);
                         webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + event.getEventName(),
+                                "📅 Event Reminder: " + eventDisplayName(event),
                                 subject,
                                 "/event", "cgp-event-reminder");
                     }
@@ -1262,7 +1295,7 @@ public class ReminderSchedulerService {
                         && eventDate.plusDays(reminder.getAfterDays()).equals(today)) {
                     String evtAfterKey = event.getId() + "_AFTER_" + reminder.getAfterDays();
                     if (!alreadySent(clientId, "EVENT", evtAfterKey, today) && markSent(clientId, "EVENT", evtAfterKey, today)) {
-                        String subject = "Hope you enjoyed " + event.getEventName() + "!";
+                        String subject = "Hope you enjoyed " + eventDisplayName(event) + "!";
                         String body    = hasTemplate(reminder.getAfterDaysTemplate())
                                 ? renderEventTemplate(reminder.getAfterDaysTemplate(), event, reminder.getAfterDays())
                                 : buildEventAfterDaysBody(event);
@@ -1270,7 +1303,7 @@ public class ReminderSchedulerService {
                             sendToEventRegistrants(attendees, subject, body, clientId, null);
                         sendEventRegistrantMessages(attendees, event, clientId, reminder);
                         webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + event.getEventName(),
+                                "📅 Event Reminder: " + eventDisplayName(event),
                                 subject,
                                 "/event", "cgp-event-reminder");
                     }
@@ -1329,7 +1362,7 @@ public class ReminderSchedulerService {
      */
     private String buildEventReminderSms(ChurchEvent event, String clientId) {
         StringBuilder sb = new StringBuilder("Reminder – ")
-                .append(event.getEventName() != null ? event.getEventName() : "Upcoming Event");
+                .append(event.getEventName() != null ? decodeEntities(event.getEventName()) : "Upcoming Event");
 
         // Date & time on the next line
         if (event.getEventDate() != null) {
@@ -1701,6 +1734,32 @@ public class ReminderSchedulerService {
     private String esc(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /**
+     * Decodes common HTML entities that may have been stored in user-entered text
+     * (e.g. an event name saved as {@code "4 &amp; 14"}), so that plain-text
+     * contexts (email subjects, SMS, ICS attachments) show the literal character
+     * and HTML contexts don't double-escape it. Performs a single decode pass —
+     * {@code &amp;} is decoded last so already-correct text is never corrupted.
+     */
+    private String decodeEntities(String s) {
+        if (s == null || s.indexOf('&') < 0) return s;
+        return s.replace("&lt;",   "<")
+                .replace("&gt;",   ">")
+                .replace("&quot;", "\"")
+                .replace("&#34;",  "\"")
+                .replace("&#39;",  "'")
+                .replace("&apos;", "'")
+                .replace("&nbsp;", " ")
+                .replace("&amp;",  "&")
+                .replace("&#38;",  "&");
+    }
+
+    /** The event's display name with stored HTML entities decoded; falls back to "Event". */
+    private String eventDisplayName(ChurchEvent event) {
+        String name = event.getEventName();
+        return (name != null && !name.isBlank()) ? decodeEntities(name.trim()) : "Event";
     }
 
     // =========================================================================
@@ -2313,23 +2372,30 @@ public class ReminderSchedulerService {
         return sb.toString();
     }
 
+    // NOTE: wrapInTemplate() esc()-escapes the heading itself, so headings are
+    // passed as PLAIN text (decoded, un-escaped) — passing esc()'d text here
+    // would double-escape and render "&amp;" literally in the email.
+
     private String buildEventSameDayBody(ChurchEvent event) {
-        return wrapInTemplate("Reminder: " + esc(event.getEventName()) + " is Today!",
-                "<p>Thank you for attending <strong>" + esc(event.getEventName()) + "</strong>. "
+        String name = eventDisplayName(event);
+        return wrapInTemplate("Reminder: " + name + " is Today!",
+                "<p>Thank you for attending <strong>" + esc(name) + "</strong>. "
               + "The event will take place <strong>today</strong>. See you soon!</p>"
               + buildEventDetails(event, true));
     }
 
     private String buildEventBeforeDaysBody(ChurchEvent event, int beforeDays) {
-        return wrapInTemplate("Reminder: " + esc(event.getEventName()) + " in " + beforeDays + " day(s)",
-                "<p>Thank you for attending <strong>" + esc(event.getEventName()) + "</strong>. "
+        String name = eventDisplayName(event);
+        return wrapInTemplate("Reminder: " + name + " in " + beforeDays + " day(s)",
+                "<p>Thank you for attending <strong>" + esc(name) + "</strong>. "
               + "The event will take place in <strong>" + beforeDays + " day(s)</strong>.</p>"
               + buildEventDetails(event, false));
     }
 
     private String buildEventAfterDaysBody(ChurchEvent event) {
-        return wrapInTemplate("Hope you enjoyed " + esc(event.getEventName()) + "!",
-                "<p>Thank you for attending <strong>" + esc(event.getEventName()) + "</strong>. "
+        String name = eventDisplayName(event);
+        return wrapInTemplate("Hope you enjoyed " + name + "!",
+                "<p>Thank you for attending <strong>" + esc(name) + "</strong>. "
               + "Hope you had a wonderful time!</p>");
     }
 
@@ -2358,7 +2424,7 @@ public class ReminderSchedulerService {
      * @param dayCount day count substituted for {@code {beforeDays}}
      */
     private String renderEventTemplate(String template, ChurchEvent event, int dayCount) {
-        String eventName = event.getEventName() != null ? event.getEventName() : "the event";
+        String eventName = event.getEventName() != null ? decodeEntities(event.getEventName()) : "the event";
 
         String dateStr = event.getEventDate() != null ? formatDate(event.getEventDate()) : "";
 
@@ -2395,7 +2461,8 @@ public class ReminderSchedulerService {
         // Preserve author line breaks from the textarea.
         rendered = rendered.replace("\r\n", "\n").replace("\n", "<br/>");
 
-        return wrapInTemplate(esc(eventName), rendered);
+        // Plain heading — wrapInTemplate esc()-escapes it itself.
+        return wrapInTemplate(eventName, rendered);
     }
 
     /**
@@ -2428,14 +2495,14 @@ public class ReminderSchedulerService {
                 if (event.getEndTime() != null && !event.getEndTime().isBlank()) {
                     dtEnd = dateStr + "T" + event.getEndTime().replace(":", "") + "00";
                 } else {
-                    LocalTime st = LocalTime.parse(event.getStartTime());
-                    dtEnd = dateStr + "T" + st.plusHours(1).format(DateTimeFormatter.ofPattern("HHmm")) + "00";
+                    // No configured end time — mirror the start (no invented +1h).
+                    dtEnd = dtStart;
                 }
             } else {
                 dtStart = dateStr;
                 dtEnd   = date.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
             }
-            String name    = event.getEventName() != null ? event.getEventName() : "";
+            String name    = event.getEventName() != null ? decodeEntities(event.getEventName()) : "";
             String details = "You are registered for " + name;
             String enc     = StandardCharsets.UTF_8.name();
             return "https://calendar.google.com/calendar/render?action=TEMPLATE"
@@ -2533,23 +2600,20 @@ public class ReminderSchedulerService {
                 if (event.getEndTime() != null && !event.getEndTime().isBlank()) {
                     dtEnd = dateStr + "T" + event.getEndTime().replace(":", "") + "00";
                 } else {
-                    LocalTime st = LocalTime.parse(event.getStartTime());
-                    dtEnd = dateStr + "T" + st.plusHours(1).format(DateTimeFormatter.ofPattern("HHmm")) + "00";
+                    // No configured end time — use the start time so the calendar
+                    // entry never shows an end time the church didn't set.
+                    dtEnd = dtStart;
                 }
             } else {
                 dtStart = dateStr;
                 dtEnd   = date.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
             }
 
-            // Build location string
-            StringBuilder loc = new StringBuilder();
-            if (event.getAddress1() != null && !event.getAddress1().isBlank()) loc.append(event.getAddress1());
-            if (event.getCity()     != null && !event.getCity().isBlank())
-                loc.append(loc.length() > 0 ? ", " : "").append(event.getCity());
-            if (event.getState()    != null && !event.getState().isBlank())
-                loc.append(loc.length() > 0 ? ", " : "").append(event.getState());
+            // Location string — buildFullAddress converts numeric state codes
+            // to abbreviations (e.g. "16" → "KS").
+            String loc = buildFullAddress(event);
 
-            String name    = event.getEventName() != null ? event.getEventName() : "";
+            String name    = eventDisplayName(event);
             String details = "You are registered for " + name;
             String enc     = StandardCharsets.UTF_8.name();
 
@@ -2557,7 +2621,7 @@ public class ReminderSchedulerService {
                     + "&text="     + URLEncoder.encode(name,    enc)
                     + "&dates="    + dtStart + "/" + dtEnd
                     + "&details="  + URLEncoder.encode(details, enc)
-                    + "&location=" + URLEncoder.encode(loc.toString(), enc);
+                    + "&location=" + URLEncoder.encode(loc, enc);
 
             // Outlook datetime: ISO format (2024-12-25T14:30:00)
             String outlookStart = date.toString()
@@ -2567,9 +2631,8 @@ public class ReminderSchedulerService {
             if (event.getEndTime() != null && !event.getEndTime().isBlank()) {
                 outlookEnd = date.toString() + "T" + event.getEndTime() + ":00";
             } else if (event.getStartTime() != null && !event.getStartTime().isBlank()) {
-                LocalTime st = LocalTime.parse(event.getStartTime());
-                outlookEnd = date.toString() + "T"
-                        + st.plusHours(1).format(DateTimeFormatter.ofPattern("HH:mm")) + ":00";
+                // No configured end time — mirror the start time (no invented +1h).
+                outlookEnd = outlookStart;
             } else {
                 outlookEnd = date.plusDays(1).toString();
             }
@@ -2578,38 +2641,36 @@ public class ReminderSchedulerService {
                     + "&startdt="  + URLEncoder.encode(outlookStart, enc)
                     + "&enddt="    + URLEncoder.encode(outlookEnd,   enc)
                     + "&body="     + URLEncoder.encode(details,      enc)
-                    + "&location=" + URLEncoder.encode(loc.toString(), enc);
+                    + "&location=" + URLEncoder.encode(loc, enc);
+
+            // Shared inline style for the action buttons. display:inline-block +
+            // margins (instead of table cells) lets the buttons WRAP on narrow
+            // mobile screens so they stay inside the rounded content box.
+            String btnStyle = "display:inline-block;padding:8px 18px;color:#ffffff;"
+                    + "border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;"
+                    + "letter-spacing:.3px;margin:0 8px 8px 0;";
 
             // Get Directions link (only when an address is available)
-            String fullAddr = buildFullAddress(event);
             String directionsHtml = "";
-            if (!fullAddr.isEmpty()) {
+            if (!loc.isEmpty()) {
                 String mapsLink = "https://www.google.com/maps/dir/?api=1&destination="
-                        + URLEncoder.encode(fullAddr, enc);
-                directionsHtml = "<td style='padding:0 0 0 10px;'>"
-                        + "<a href='" + mapsLink + "' target='_blank'"
-                        + " style='display:inline-block;padding:8px 18px;background:#34A853;color:#ffffff;"
-                        + "border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;"
-                        + "letter-spacing:.3px;'>&#128205; Get Directions</a></td>";
+                        + URLEncoder.encode(loc, enc);
+                directionsHtml = "<a href='" + mapsLink + "' target='_blank'"
+                        + " style='" + btnStyle + "background:#34A853;'>&#128205; Get Directions</a>";
             }
 
             return "<div style='margin-top:20px;padding:16px 20px;background:#f0f4ff;"
                     + "border-radius:8px;border:1px solid #c5cae9;'>"
                     + "<p style='margin:0 0 12px;font-size:13px;font-weight:700;color:#5c6bc0;'>"
                     + "&#128197; Add to Your Calendar</p>"
-                    + "<table cellpadding='0' cellspacing='0'><tr style='vertical-align:top;'>"
-                    + "<td style='padding:0 10px 0 0;'>"
+                    + "<div>"
                     + "<a href='" + googleLink + "' target='_blank'"
-                    + " style='display:inline-block;padding:8px 18px;background:#4285F4;color:#ffffff;"
-                    + "border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;"
-                    + "letter-spacing:.3px;'>&#128197; Google Calendar</a></td>"
-                    + "<td style='padding:0 10px 0 0;'><a href='" + outlookLink + "' target='_blank'"
-                    + " style='display:inline-block;padding:8px 18px;background:#0078D4;color:#ffffff;"
-                    + "border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;"
-                    + "letter-spacing:.3px;'>&#128197; Outlook Calendar</a></td>"
+                    + " style='" + btnStyle + "background:#4285F4;'>&#128197; Google Calendar</a>"
+                    + "<a href='" + outlookLink + "' target='_blank'"
+                    + " style='" + btnStyle + "background:#0078D4;'>&#128197; Outlook Calendar</a>"
                     + directionsHtml
-                    + "</tr></table>"
-                    + "<p style='margin:10px 0 0;font-size:11px;color:#888;line-height:1.5;'>"
+                    + "</div>"
+                    + "<p style='margin:2px 0 0;font-size:11px;color:#888;line-height:1.5;'>"
                     + "An <strong>.ics</strong> calendar file is attached to this email — open it to add "
                     + "the event to Apple Calendar, Google Calendar desktop, or any other calendar app."
                     + "</p></div>";
@@ -2635,42 +2696,32 @@ public class ReminderSchedulerService {
             if (event.getEndTime() != null && !event.getEndTime().isBlank()) {
                 dtEnd = "DTEND:" + dateStr + "T" + event.getEndTime().replace(":", "") + "00";
             } else {
-                LocalTime st = LocalTime.parse(event.getStartTime());
-                dtEnd = "DTEND:" + dateStr + "T"
-                        + st.plusHours(1).format(DateTimeFormatter.ofPattern("HHmm")) + "00";
+                // No end time configured — omit DTEND entirely (RFC 5545: the event
+                // then ends at DTSTART). Do NOT invent a one-hour end time: email
+                // clients render the ICS as e.g. "Today • 6:00 PM – 7:00 PM", showing
+                // an end time the church never configured.
+                dtEnd = null;
             }
         } else {
             dtStart = "DTSTART;VALUE=DATE:" + dateStr;
             dtEnd   = "DTEND;VALUE=DATE:"   + date.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         }
 
-        // Build location
-        StringBuilder loc = new StringBuilder();
-        if (event.getAddress1() != null && !event.getAddress1().isBlank()) loc.append(event.getAddress1().trim());
-        if (event.getAddress2() != null && !event.getAddress2().isBlank()) {
-            if (loc.length() > 0) loc.append(", ");
-            loc.append(event.getAddress2().trim());
-        }
-        if (event.getCity() != null && !event.getCity().isBlank()) {
-            if (loc.length() > 0) loc.append(", ");
-            loc.append(event.getCity().trim());
-        }
-        if (event.getState() != null && !event.getState().isBlank()) {
-            if (loc.length() > 0) loc.append(", ");
-            loc.append(event.getState().trim());
-        }
+        // Build location — reuse buildFullAddress so numeric state codes are
+        // converted to abbreviations (e.g. "16" → "KS"), then append the country.
+        String location = buildFullAddress(event);
         if (event.getCountry() != null && !event.getCountry().isBlank()) {
-            if (loc.length() > 0) loc.append(", ");
-            loc.append(event.getCountry().trim());
+            location = location.isEmpty()
+                    ? event.getCountry().trim()
+                    : location + ", " + event.getCountry().trim();
         }
-        String location = loc.toString();
 
         String uid     = "cgp-event-" + event.getId() + "@churchgeniuspro";
-        String summary = (event.getEventName() != null ? event.getEventName() : "Event")
+        String summary = eventDisplayName(event)
                          .replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,");
         String desc    = "";
         if (event.getNote() != null && !event.getNote().isBlank()) {
-            desc = event.getNote().trim()
+            desc = decodeEntities(event.getNote().trim())
                         .replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
                         .replace("\n", "\\n").replace("\r", "");
         }
@@ -2685,7 +2736,7 @@ public class ReminderSchedulerService {
         ics.append("BEGIN:VEVENT\r\n");
         ics.append("UID:").append(uid).append("\r\n");
         ics.append(dtStart).append("\r\n");
-        ics.append(dtEnd).append("\r\n");
+        if (dtEnd != null) ics.append(dtEnd).append("\r\n");
         ics.append("SUMMARY:").append(summary).append("\r\n");
         if (!desc.isEmpty())     ics.append("DESCRIPTION:").append(desc).append("\r\n");
         if (!locEsc.isEmpty())   ics.append("LOCATION:").append(locEsc).append("\r\n");

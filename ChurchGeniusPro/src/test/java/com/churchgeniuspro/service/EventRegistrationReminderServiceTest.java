@@ -560,13 +560,12 @@ class EventRegistrationReminderServiceTest {
                 eq("2017398339"), body.capture(), eq(CLIENT_ID), eq(false), eq(true));
 
         String sms = body.getValue();
-        assertTrue(sms.startsWith("We are waiting for your response. Please RSVP here."),
-                "RSVP message first");
-        assertTrue(sms.contains("Musical Night"),                     "event name");
+        assertTrue(sms.startsWith("We are waiting for your response to the event \"Musical Night\"."),
+                "RSVP message with event name first");
         assertTrue(sms.contains("Date: "),                            "date label");
         assertTrue(sms.contains("& Time: 5:00 PM"),                   "time label");
-        assertTrue(sms.contains("RSVP: http://localhost:8080/event-register/tok123"),
-                "RSVP link with RSVP: prefix");
+        assertTrue(sms.contains("Please RSVP here:\nhttp://localhost:8080/event-register/tok123"),
+                "RSVP call to action with link");
         assertFalse(sms.contains("Register:"),                        "no Register: prefix");
         assertFalse(sms.contains("You haven't registered"),           "old message gone");
         // Church-name prefix + opt-out suffix are appended by WhatsAppSenderService;

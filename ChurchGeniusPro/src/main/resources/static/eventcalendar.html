@@ -280,6 +280,14 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; flex-shrink: 0;
     }
+    .occ-actions { display: flex; gap: 4px; align-self: center; margin-left: auto; flex-shrink: 0; }
+    .occ-del-btn {
+      background: none; border: 1px solid #e4d5dd; border-radius: 6px;
+      cursor: pointer; font-size: 13px; padding: 4px 7px; line-height: 1;
+      transition: background .15s;
+    }
+    .occ-del-btn:hover { background: #fdecea; border-color: #e3b6b2; }
+    .occ-del-btn:disabled { opacity: .5; cursor: default; }
     .detail-badge.birthday    { background: #fce4ec; }
     .detail-badge.anniversary { background: #f3e5f5; }
     .detail-badge.meeting     { background: #e3f2fd; }
@@ -986,16 +994,29 @@
     if (dayEvts.length === 0) {
       list.innerHTML = `<div class="detail-empty">No events on this day.</div>`;
     } else {
+      const canDelOcc = !(window.CGP_PERMS && window.CGP_PERMS['general.meetings.delete'] === false);
       list.innerHTML = dayEvts.map(e => {
         const sub = e.time
           ? `<div class="detail-item-sub">🕐 ${escHtml(e.time)}</div>`
           : `<div class="detail-item-sub">${typeLabel(e.type)}</div>`;
+        // Per-occurrence delete for meetings (single occurrence / this & future)
+        let occActions = '';
+        if (e.type === 'meeting' && e.meetingId && canDelOcc) {
+          const futureBtn = e.recurring
+            ? `<button class="occ-del-btn" title="Delete this and all future occurrences" onclick="calDeleteFuture(${e.meetingId},'${e.date}',this)">⏭🗑</button>`
+            : '';
+          occActions = `<div class="occ-actions">
+              <button class="occ-del-btn" title="${e.recurring ? 'Delete only this occurrence' : 'Delete this meeting'}" onclick="calDeleteOccurrence(${e.meetingId},'${e.date}',${!!e.recurring},this)">🗑</button>
+              ${futureBtn}
+            </div>`;
+        }
         return `<div class="detail-item">
                   <div class="detail-badge ${e.type}">${typeIcon(e.type)}</div>
                   <div class="detail-info">
                     <div class="detail-item-title">${escHtml(e.title)}</div>
                     ${sub}
                   </div>
+                  ${occActions}
                 </div>`;
       }).join('');
     }
@@ -1006,6 +1027,60 @@
 
   function closeDetail() {
     document.getElementById('detailPanel').classList.remove('open');
+  }
+
+  /* ════════════════════════════════════
+     DELETE OCCURRENCE (recurring meetings)
+  ════════════════════════════════════ */
+  async function calRefreshAfterOccChange() {
+    if (curView === 'weekly')       { await loadWeek();  renderWeek(); }
+    else if (curView === 'monthly') { await loadMonth(); renderGrid(); }
+    else                            { await loadYear();  }
+    if (selectedDay) showDetail(selectedDay);
+  }
+
+  async function calDeleteOccurrence(meetingId, date, recurring, btn) {
+    const msg = recurring
+      ? `Delete only the occurrence on ${date}?\nAll other occurrences stay scheduled, and no reminders will be sent for this date.`
+      : `Delete this meeting (${date})?`;
+    if (!confirm(msg)) return;
+    if (btn) btn.disabled = true;
+    try {
+      let res;
+      if (recurring) {
+        res = await fetch(`/api/meetings/${meetingId}/occurrences/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dates: [date] })
+        });
+      } else {
+        res = await fetch(`/api/meetings/${meetingId}`, { method: 'DELETE' });
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      await calRefreshAfterOccChange();
+    } catch (e) {
+      alert('❌ ' + e.message);
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function calDeleteFuture(meetingId, date, btn) {
+    if (!confirm(`Delete the occurrence on ${date} and ALL future occurrences?\nEarlier occurrences are kept.`)) return;
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`/api/meetings/${meetingId}/occurrences/delete-future`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromDate: date })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      await calRefreshAfterOccChange();
+    } catch (e) {
+      alert('❌ ' + e.message);
+      if (btn) btn.disabled = false;
+    }
   }
 
   /* ════════════════════════════════════

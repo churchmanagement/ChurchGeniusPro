@@ -56,19 +56,22 @@ public class MemberSignupController {
     private final ChurchRegistrationRepository churchRegistrationRepository;
     private final VerificationStore           verificationStore;
     private final EmailService                emailService;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
     public MemberSignupController(PublicScreenLinkRepository  linkRepo,
                                   FamilyMemberRepository      familyMemberRepository,
                                   LoginRepository             loginRepository,
                                   ChurchRegistrationRepository churchRegistrationRepository,
                                   VerificationStore           verificationStore,
-                                  EmailService                emailService) {
+                                  EmailService                emailService,
+                                  com.churchgeniuspro.service.SubscriptionService subscriptionService) {
         this.linkRepo                   = linkRepo;
         this.familyMemberRepository     = familyMemberRepository;
         this.loginRepository            = loginRepository;
         this.churchRegistrationRepository = churchRegistrationRepository;
         this.verificationStore          = verificationStore;
         this.emailService               = emailService;
+        this.subscriptionService        = subscriptionService;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -251,9 +254,10 @@ public class MemberSignupController {
             return ResponseEntity.status(400).body(res);
         }
 
-        if (password.length() < 8) {
+        String policyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
+        if (policyError != null) {
             res.put("status",  "error");
-            res.put("message", "Password must be at least 8 characters.");
+            res.put("message", policyError);
             return ResponseEntity.status(400).body(res);
         }
 
@@ -343,6 +347,14 @@ public class MemberSignupController {
             return ResponseEntity.status(409).body(res);
         }
 
+        // Password policy (server-authoritative; also checked at send-code)
+        String pwPolicyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
+        if (pwPolicyError != null) {
+            res.put("status",  "error");
+            res.put("message", pwPolicyError);
+            return ResponseEntity.status(400).body(res);
+        }
+
         // Resolve the member
         FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef).orElse(null);
         if (fm == null) {
@@ -362,6 +374,28 @@ public class MemberSignupController {
                 if (headSignup != null) churchId = headSignup.getId();
             }
         }
+
+        // ── Subscription plan: Member Portal feature + portal-count limit ──
+        try {
+            String orgClientId = fm.getFamily() != null ? fm.getFamily().getAppClientId() : null;
+            if (orgClientId != null) {
+                if (!subscriptionService.isFeatureEnabled(orgClientId, "memberPortal")) {
+                    res.put("status",  "error");
+                    res.put("message", "Member portals are not included in this church's subscription plan. "
+                            + "Please contact your church office.");
+                    return ResponseEntity.status(403).body(res);
+                }
+                if (churchId != null) {
+                    long portals = loginRepository.countByChurchIdAndChurchFalseAndDeletedFalse(churchId);
+                    String limitMsg = subscriptionService.checkMemberPortalLimit(orgClientId, portals);
+                    if (limitMsg != null) {
+                        res.put("status",  "error");
+                        res.put("message", limitMsg);
+                        return ResponseEntity.status(403).body(res);
+                    }
+                }
+            }
+        } catch (Exception ignored) { /* fail-open on limit-check errors */ }
 
         // Persist SignUp record
         Date now = new Date();

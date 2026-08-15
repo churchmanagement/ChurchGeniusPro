@@ -89,8 +89,58 @@
       + '#voiceDebug .vd-warn{color:#ffcf6b;} #voiceDebug .vd-error{color:#ff8e8e;} #voiceDebug .vd-fill{color:#9ff0b0;}'
       + '#voiceDebugHead{margin-top:10px;display:none;font-size:11.5px;color:#41506b;background:#eef1f6;border:1px solid #dfe4ee;border-radius:8px 8px 0 0;padding:8px 12px;line-height:1.6;}'
       + '#voiceDebugHead b{color:#5c6bc0;}'
-      + '.btn-voice-debug{margin-left:6px;padding:7px 11px;border-radius:7px;border:1px solid #c7c0d7;background:#fff;color:#41506b;font-size:12px;font-weight:600;cursor:pointer;}';
+      + '.btn-voice-debug{margin-left:6px;padding:7px 11px;border-radius:7px;border:1px solid #c7c0d7;background:#fff;color:#41506b;font-size:12px;font-weight:600;cursor:pointer;}'
+      // ── Help (?) icon + help modal ──
+      + '.btn-voice-help{margin-left:6px;width:30px;height:30px;border-radius:50%;border:1.5px solid #c5a0b5;background:#fff;color:#673147;font-weight:700;font-size:13px;cursor:pointer;line-height:1;padding:0;}'
+      + '.btn-voice-help:hover{background:#673147;color:#fff;}'
+      + '.vh-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}'
+      + '.vh-modal{background:#fff;border-radius:14px;max-width:660px;width:100%;max-height:85vh;overflow:auto;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);}'
+      + '.vh-modal h3{margin:0 0 6px;color:#673147;font-size:16.5px;}'
+      + '.vh-modal h4{margin:16px 0 4px;color:#673147;font-size:13.5px;}'
+      + '.vh-modal p,.vh-modal li{font-size:13px;color:#444;line-height:1.55;margin:4px 0;}'
+      + '.vh-modal ul{margin:4px 0 8px;padding-left:20px;}'
+      + '.vh-modal .vh-ex{background:#fbf7f9;border:1px solid #eadfe6;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12.5px;color:#555;font-style:italic;}'
+      + '.vh-modal-x{float:right;border:none;background:none;font-size:16px;cursor:pointer;color:#999;padding:2px 6px;}'
+      + '.vh-modal-x:hover{color:#673147;}';
     var st=document.createElement('style'); st.id='voiceStyles'; st.textContent=css; document.head.appendChild(st);
+  }
+
+  // ── Help (?) dialog — the three AI input methods on this page ─────────────
+  function showHelpModal(title, bodyHtml){
+    var old=document.querySelector('.vh-modal-ov'); if(old && old.parentNode) old.parentNode.removeChild(old);
+    var ov=document.createElement('div'); ov.className='vh-modal-ov';
+    ov.innerHTML='<div class="vh-modal" role="dialog" aria-modal="true" aria-label="'+title+'">'
+      +'<button class="vh-modal-x" type="button" aria-label="Close">✕</button>'
+      +'<h3>'+title+'</h3>'+bodyHtml+'</div>';
+    function close(){ if(ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown',escK); }
+    function escK(e){ if(e.key==='Escape') close(); }
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    ov.querySelector('.vh-modal-x').addEventListener('click', close);
+    document.addEventListener('keydown', escK);
+    document.body.appendChild(ov);
+  }
+  function methodsHelpHtml(){
+    return '<p>There are three ways to use AI on this page. Voice and Converse fill the Add Income form for you; nothing is saved until you review and click Save.</p>'
+      +'<h4>🔎 Type</h4>'
+      +'<p>Use the <b>AI Search box at the top of the page</b> to type requests in natural language — navigate ("Go to Income Report"), find features ("Where do I record a donation?"), or ask how-to questions ("How do I add a contributor?"). Form fields can of course also be typed directly.</p>'
+      +'<div class="vh-ex">"Show me the income report" · "How do I record a check?"</div>'
+      +'<h4>🎤 Voice</h4>'
+      +'<p>Click the 🎤 microphone on the form and speak — one field at a time (just say the value and the AI finds the right field), or everything in one sentence naming each field.</p>'
+      +'<div class="vh-ex">"Contributor Anson Mathew, Offering Church Fund, Date May thirty-first twenty twenty-six, Method Bank Transfer, Amount one hundred"</div>'
+      +'<ul><li>Pause briefly between fields; amounts and dates work in words or digits ("one hundred", "5 31 2026").</li>'
+      +'<li>For reference/check numbers with hyphens, say "dash": "Check Number TXN dash 2026 dash 001" → TXN-2026-001.</li>'
+      +'<li>Fix mistakes by voice: <b>"Clear Amount"</b>, <b>"Clear Contributor"</b>, <b>"Reset Field"</b>, or <b>"Clear Form"</b>.</li>'
+      +'<li>Auto-filled fields are outlined — <b>amber</b> means confirm before saving; if several people or funds match, pick from the suggestions shown.</li>'
+      +'<li>Requires microphone permission; speak at a normal pace in a quiet environment.</li></ul>'
+      +'<h4>🗣 Converse</h4>'
+      +'<p>Click 🗣 for a guided conversation — the assistant asks for the contributor, offering, date, method, and amount one at a time, and asks follow-up questions when it needs more information (e.g. to choose between two matching names).</p>'
+      +'<ul><li>Answer naturally; say <b>"Skip"</b> to leave a field blank or <b>"Stop"</b> to end the conversation.</li>'
+      +'<li>Great for hands-free entry — each answer is confirmed before it is applied.</li></ul>'
+      +'<h4>Limitations</h4>'
+      +'<ul><li>English is supported; names, funds, and methods are matched against your church’s own lists.</li>'
+      +'<li>Voice and Converse need a working microphone and speech service; typing always works.</li>'
+      +'<li>The AI never saves a record without your review — you always click Save yourself.</li></ul>'
+      +'<p style="color:#888;">Tip: the ❔ Guide button shows a quick field-by-field voice command reference.</p>';
   }
 
   function guideHTML(){
@@ -122,7 +172,8 @@
       var wrap=document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center';
       wrap.innerHTML = '<button type="button" id="voiceMicBtn" class="btn-voice-mic" title="Voice — fill the form by voice" aria-label="Voice">🎤</button>'
         + '<button type="button" id="voiceConverseBtn" class="btn-voice-mic" title="Converse — guided voice conversation" aria-label="Converse">🗣</button>'
-        + '<button type="button" id="voiceGuideBtn" class="btn-voice-guide" title="Guide — voice command help" aria-label="Guide">❔</button>'
+        + '<button type="button" id="voiceGuideBtn" class="btn-voice-guide" title="Guide — voice command reference" aria-label="Guide">❔</button>'
+        + '<button type="button" id="voiceHelpBtn" class="btn-voice-help" title="Help — Type, Voice &amp; Converse input methods" aria-label="Help">?</button>'
         + '<button type="button" id="voiceDebugBtn" class="btn-voice-debug" title="Debug — show the voice debug console" aria-label="Debug">🐞</button>';
       header.appendChild(wrap);
     }
@@ -1231,6 +1282,9 @@
       conv.addEventListener('click', function(){ if(convo.active) endConvo('Conversation ended.'); else startConvo(); }); }
     if(guide){ guide.addEventListener('click', function(){
       var g=$('voiceGuide'); if(g){ g.classList.toggle('hidden'); showPanel(); } }); }
+    var helpBtn=$('voiceHelpBtn');
+    if(helpBtn){ helpBtn.addEventListener('click', function(){
+      showHelpModal('AI Input Methods — Type, Voice & Converse', methodsHelpHtml()); }); }
     var dbgBtn=$('voiceDebugBtn');
     if(dbgBtn){ dbgBtn.addEventListener('click', function(){
       var el=$('voiceDebug'), hd=$('voiceDebugHead'); if(!el) return;

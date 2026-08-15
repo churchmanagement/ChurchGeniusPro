@@ -19,6 +19,12 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
     boolean existsByUsername(@Param("username") String username);
 
     /**
+     * Number of member portals (member logins) created under a church —
+     * used to enforce the subscription plan's max-member-portals limit.
+     */
+    long countByChurchIdAndChurchFalseAndDeletedFalse(Integer churchId);
+
+    /**
      * Find an active, non-deleted signup record by username — used for login validation.
      * Matched CASE-INSENSITIVELY so "Anson"/"anson"/"ANSON" all resolve to the same account.
      */

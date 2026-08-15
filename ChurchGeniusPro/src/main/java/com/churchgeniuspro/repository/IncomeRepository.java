@@ -123,6 +123,23 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
             @Param("appClientId") String appClientId);
 
     /**
+     * Non-deleted income in a date range for one church, with member + fund
+     * eagerly fetched (open-in-view is disabled, so lazy access would fail).
+     * Used by the AI data search ("What was the income for March?",
+     * "Did Anson give tithe this month?").
+     */
+    @Query("SELECT i FROM Income i " +
+           "LEFT JOIN FETCH i.member " +
+           "JOIN FETCH i.subSource ss " +
+           "WHERE i.deleteFlag = false " +
+           "AND i.appClientId = :appClientId " +
+           "AND i.incomeDate >= :fromDate AND i.incomeDate <= :toDate " +
+           "ORDER BY i.incomeDate ASC")
+    List<Income> findRangeByAppClientId(@Param("appClientId") String appClientId,
+                                        @Param("fromDate") java.time.LocalDate fromDate,
+                                        @Param("toDate")   java.time.LocalDate toDate);
+
+    /**
      * Recent income for dashboard, filtered by appClientId.
      */
     @Query("SELECT i FROM Income i " +

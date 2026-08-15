@@ -10,7 +10,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
   <title>Worship Planning — Church Genius Pro</title>
+  <script>
+    window.CGP_PAGE = {
+      activePage:  'general/kids-ministry',
+      pageTitle:   'Manage Worship',
+      openSection: 'general'
+    };
+  </script>
+  <script src="/shell.js"></script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh;}
@@ -48,6 +57,10 @@
     .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;transition:all .18s;cursor:pointer;border:none;}
     .btn-primary{background:transparent;color:#673147;border:1px solid #c5a0b5;transition:background .18s,color .18s,border-color .18s;}
     .btn-primary:hover{background:#673147;color:#fff;border-color:#673147;}
+    /* Buttons that sit on the dark purple card headers were invisible until
+       hover (purple text on purple). Always render them solid white there. */
+    .card-header .btn-primary{background:#fff;color:#673147;border-color:#fff;font-weight:700;}
+    .card-header .btn-primary:hover{background:#f0e8ec;color:#673147;border-color:#f0e8ec;}
     .btn-secondary{background:#f5f0f2;color:#673147;border:1px solid #e0d0d8;}
     .btn-secondary:hover{background:#ede0e6;}
     .btn-danger{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
@@ -243,21 +256,20 @@
 </head>
 <body>
 
-<!-- Top bar (Member portal style) -->
-<div class="top-bar">
-  <div class="top-bar-left">
-    <div class="top-bar-icon" id="topBarIcon">🎵</div>
-    <div>
-      <div class="top-bar h1" id="churchNameEl" style="font-size:16px;font-weight:700;">Worship Planning</div>
-      <div class="top-bar p" id="memberNameEl" style="font-size:12px;opacity:.75;margin-top:1px;"></div>
-    </div>
-  </div>
-</div>
+<!-- Standard app shell: side navigation + topbar (consistent with the rest
+     of the application — shell.js renders role-appropriate nav for staff AND
+     member sessions, same as /worshipPlanning). -->
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
 
 <div class="page-wrap">
 
-  <div class="back-bar">
-    <a href="/memberHome" class="btn-back">← Back to Portal</a>
+  <div class="back-bar" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a href="/worshipPlanning" class="btn-back" id="backToWorshipPlanning">← Back to Worship Planning</a>
+    <a href="/memberHome" class="btn-back" id="backToPortal">← Back to Portal</a>
   </div>
 
   <!-- Tabs -->
@@ -353,6 +365,11 @@
   </div><!-- /tab-assignments -->
 
 </div><!-- /page-wrap -->
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div><!-- /main-area -->
+</div><!-- /app -->
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -534,6 +551,7 @@
   </div>
 </div>
 
+<script src="/session.js"></script>
 <script>
 /* ════════════════════════════════════════════════
    UTILITIES — DATE
@@ -1452,8 +1470,106 @@ function printGroupTable(groupId) {
   setTimeout(() => w.print(), 400);
 }
 
+/* ── Real PDF download (jsPDF + AutoTable) ─────────────────────────────────
+   "Download PDF" must save a .pdf file directly — NOT open the browser's
+   print dialog (that behavior is kept on the separate 🖨 Print buttons). */
+let _pdfLibPromise = null;
+function loadPdfLib() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (_pdfLibPromise) return _pdfLibPromise;
+  function addScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  _pdfLibPromise = addScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+    .then(() => addScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'));
+  return _pdfLibPromise;
+}
+
+/* "Sun, Jul 19" — the date format used in the downloaded/printed schedule. */
+function formatDateShortDow(s) {
+  if (!s) return '';
+  const d = new Date(s + (s.length === 10 ? 'T00:00:00' : ''));
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/* Table data (head + body arrays) for one group — same content as the
+   on-screen table: date + every instrument column (Drums, Vocals, Guitar, …)
+   + songs when present. */
+function buildGroupTableData(groupId) {
+  const _n = new Date();
+  const todayIso = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
+  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId)
+      && (!r.assignmentDate || r.assignmentDate >= todayIso));   // current & future only
+  if (!rows.length) return null;
+  const groupName = rows[0].groupName || 'Group';
+  const instMap = new Map();
+  for (const row of rows) {
+    for (const slot of (row.slots || [])) {
+      if (!instMap.has(slot.instrumentId)) instMap.set(slot.instrumentId, slot.instrumentName);
+    }
+  }
+  const instruments = Array.from(instMap.entries());
+  const hasSongs = rows.some(row => {
+    if (row.skipped) return false;
+    const cached = autoSongCache[`${groupId}|${row.assignmentDate}`];
+    return cached && cached.filter(s => !s.isHeading).length > 0;
+  });
+  const head = ['Date'].concat(instruments.map(([, iname]) => iname || ''));
+  if (hasSongs) head.push('Songs');
+  const body = [];
+  for (const row of rows) {
+    if (row.skipped) continue;
+    const slotMap = new Map();
+    for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
+    const line = [formatDateShortDow(row.assignmentDate)];
+    for (const [iid] of instruments) {
+      const members = slotMap.get(iid) || [];
+      line.push(members.map(m => m.memberName).join(', ') || '—');
+    }
+    if (hasSongs) {
+      const songs = (autoSongCache[`${groupId}|${row.assignmentDate}`] || [])
+        .filter(s => !s.isHeading).map(s => s.songTitle).join(', ');
+      line.push(songs || '—');
+    }
+    body.push(line);
+  }
+  return { groupName, head, body };
+}
+
+function pdfAddGroupTable(doc, data, startY) {
+  doc.setFontSize(13);
+  doc.setTextColor(103, 49, 71);
+  doc.text(data.groupName + ' — Worship Schedule', 14, startY);
+  doc.autoTable({
+    startY: startY + 4,
+    head: [data.head],
+    body: data.body,
+    styles: { fontSize: 9, cellPadding: 2.5, valign: 'top' },
+    headStyles: { fillColor: [103, 49, 71], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [250, 248, 251] },
+    columnStyles: { 0: { fontStyle: 'bold', textColor: [103, 49, 71], cellWidth: 26 } },
+    margin: { left: 14, right: 14 }
+  });
+  return doc.lastAutoTable.finalY;
+}
+
 function downloadGroupPdf(groupId) {
-  printGroupTable(groupId); // browser print dialog → Save as PDF
+  const data = buildGroupTableData(groupId);
+  if (!data) { toast('No assignments to download.', true); return; }
+  loadPdfLib().then(() => {
+    const orient = data.head.length > 6 ? 'landscape' : 'portrait';
+    const doc = new window.jspdf.jsPDF({ orientation: orient, unit: 'mm', format: 'a4' });
+    pdfAddGroupTable(doc, data, 16);
+    doc.save((data.groupName + ' — Worship Schedule.pdf').replace(/[\\/:*?"<>|]/g, '-'));
+  }).catch(() => {
+    // Offline / CDN blocked → fall back to the print route so the user can
+    // still "Save as PDF" from the dialog.
+    printGroupTable(groupId);
+  });
 }
 
 function printAllGroupTables() {
@@ -1474,7 +1590,19 @@ function printAllGroupTables() {
 }
 
 function downloadAllGroupsPdf() {
-  printAllGroupTables();
+  const groupIds = [...new Set(autoPreview.map(r => r.groupId))];
+  const datas = groupIds.map(gid => buildGroupTableData(gid)).filter(Boolean);
+  if (!datas.length) { toast('No assignments to download.', true); return; }
+  loadPdfLib().then(() => {
+    const maxCols = Math.max.apply(null, datas.map(d => d.head.length));
+    const doc = new window.jspdf.jsPDF({ orientation: maxCols > 6 ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+    let y = 16;
+    datas.forEach((data, i) => {
+      if (i > 0) { doc.addPage(); y = 16; }
+      y = pdfAddGroupTable(doc, data, y);
+    });
+    doc.save('Worship Schedules.pdf');
+  }).catch(() => { printAllGroupTables(); });
 }
 
 /* ── Cell add/edit ── */
@@ -1864,13 +1992,20 @@ function toggleAutoGroup(groupId) {
 
 function renderAutoPreview() {
   const wrap = document.getElementById('autoAssignmentArea');
-  if (!autoPreview || autoPreview.length === 0) {
+
+  // Show only CURRENT and FUTURE assignments (consistent with Worship Planning).
+  // Past rows stay in autoPreview so saving/deleting a whole group still covers them.
+  const _n = new Date();
+  const todayIso = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
+  const visible = (autoPreview || []).filter(r => !r.assignmentDate || r.assignmentDate >= todayIso);
+
+  if (!visible.length) {
     wrap.innerHTML = '<p style="color:#888;margin:12px 0;">No assignments generated yet.</p>';
     return;
   }
 
   const groupMap = new Map();
-  for (const row of autoPreview) {
+  for (const row of visible) {
     if (!groupMap.has(row.groupId)) groupMap.set(row.groupId, { groupName: row.groupName, rows: [] });
     groupMap.get(row.groupId).rows.push(row);
   }
@@ -2552,9 +2687,11 @@ async function refreshSongPanel(groupId, dateStr, panel) {
     if (!sd.authenticated) { window.location.replace('/login'); return; }
     // Hide the Member-portal-only "Back to Portal" link for non-Member roles
     // so staff users don't end up on /memberHome (where they shouldn't be).
+    // "← Back to Worship Planning" stays visible for everyone — all roles
+    // that can reach this page can also reach /worshipPlanning.
     if (sd.role !== 'Member') {
-      var backBar = document.querySelector('.back-bar');
-      if (backBar) backBar.style.display = 'none';
+      var backPortal = document.getElementById('backToPortal');
+      if (backPortal) backPortal.style.display = 'none';
     }
     const nameEl = document.getElementById('memberNameEl');
     if (nameEl) {

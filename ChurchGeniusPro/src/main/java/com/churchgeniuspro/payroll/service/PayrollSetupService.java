@@ -36,19 +36,22 @@ public class PayrollSetupService {
     private final EmployeeDeductionRepository employeeDeductionRepo;
     private final PayrollAuditLogRepository auditRepo;
     private final PaystubRepository paystubRepo;
+    private final SsnCrypto ssnCrypto;
 
     public PayrollSetupService(PayrollEmployeeRepository employeeRepo,
                                PayrollW4Repository w4Repo,
                                DeductionDefinitionRepository definitionRepo,
                                EmployeeDeductionRepository employeeDeductionRepo,
                                PayrollAuditLogRepository auditRepo,
-                               PaystubRepository paystubRepo) {
+                               PaystubRepository paystubRepo,
+                               SsnCrypto ssnCrypto) {
         this.employeeRepo = employeeRepo;
         this.w4Repo = w4Repo;
         this.definitionRepo = definitionRepo;
         this.employeeDeductionRepo = employeeDeductionRepo;
         this.auditRepo = auditRepo;
         this.paystubRepo = paystubRepo;
+        this.ssnCrypto = ssnCrypto;
     }
 
     // ── Employees ────────────────────────────────────────────────────────────
@@ -128,7 +131,19 @@ public class PayrollSetupService {
         if (r.getLastName() != null) e.setLastName(r.getLastName());
         if (r.getEmail() != null) e.setEmail(r.getEmail());
         if (r.getPhone() != null) e.setPhone(r.getPhone());
-        if (r.getSsnLast4() != null) e.setSsnLast4(last4(r.getSsnLast4()));
+        if (r.getSsnLast4() != null) {
+            // SSN last-4 is sensitive: validate exactly 4 digits, then encrypt
+            // (AES-GCM) before it ever reaches the database. Blank clears it.
+            String raw = r.getSsnLast4().trim();
+            if (raw.isEmpty()) {
+                e.setSsnLast4(null);
+            } else {
+                if (!raw.matches("\\d{4}")) {
+                    throw new IllegalArgumentException("SSN (last 4) must be exactly 4 digits.");
+                }
+                e.setSsnLast4(ssnCrypto.encrypt(raw));
+            }
+        }
         if (r.getAddressLine1() != null) e.setAddressLine1(r.getAddressLine1());
         if (r.getAddressLine2() != null) e.setAddressLine2(r.getAddressLine2());
         if (r.getCity() != null) e.setCity(r.getCity());

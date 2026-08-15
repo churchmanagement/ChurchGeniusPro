@@ -37,6 +37,18 @@ public class SongBookPublicController {
         return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/json;charset=UTF-8")).body(p.getSnapshot());
     }
 
+    /** Public advertisement page image for a published book (ad id from the snapshot). */
+    @GetMapping("/api/public/songbook/ad-image")
+    public ResponseEntity<?> adImage(@RequestParam("t") String token, @RequestParam("id") Long id) {
+        SongBookPublish p = service.publicByToken(token);
+        if (p == null) return ResponseEntity.notFound().build();
+        com.churchgeniuspro.hibernate.SongBookAd a = service.getAd(p.getClientId(), id);
+        if (a == null || a.getData() == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(a.getContentType() == null ? "image/png" : a.getContentType()))
+                .body(a.getData());
+    }
+
     /** Public uploaded cover / last page image for a published book (kind = cover | last). */
     @GetMapping("/api/public/songbook/cover-image")
     public ResponseEntity<?> coverImage(@RequestParam("t") String token, @RequestParam("kind") String kind) {

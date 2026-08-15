@@ -178,7 +178,21 @@
                  border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:none;
                  background:#f0f0f0; color:#444; transition:background .15s; }
     .btn-print:hover { background:#d0d0d0; }
+    /* Clean participants print area (also used for the PDF) */
+    #mrmPrintArea { display:none; background:#fff; color:#222;
+                    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+    #mrmPrintArea h2 { font-size:18px; margin:0 0 4px; color:#1a1035; }
+    #mrmPrintArea .sub { font-size:11px; color:#777; margin-bottom:12px; }
+    #mrmPrintArea table { width:100%; border-collapse:collapse; font-size:11px; }
+    #mrmPrintArea th { background:#f2ecf0; color:#4a2336; text-align:left; padding:6px 7px;
+                       border:1px solid #d9cbd3; font-size:10px; text-transform:uppercase; letter-spacing:.4px; }
+    #mrmPrintArea td { padding:5px 7px; border:1px solid #e3d9df; vertical-align:top; }
+    #mrmPrintArea tr:nth-child(even) td { background:#faf7f9; }
     @media print {
+      /* Print ONLY the clean participants table — no page background or UI */
+      body.mrm-printing { background:#fff !important; }
+      body.mrm-printing .app, body.mrm-printing .cgp-toast { display:none !important; }
+      body.mrm-printing #mrmPrintArea { display:block !important; }
       .sidebar, .topbar, .tab-bar, .page-header,
       .pub-link-box, .pane-actions, .btn-refresh,
       .btn-del-row, .btn-pdf, .btn-print { display:none !important; }
@@ -370,7 +384,7 @@
             <h3>Registered Participants <span id="rsvpCount" style="font-size:12px;color:#999;font-weight:400"></span></h3>
             <div style="display:flex;gap:8px;align-items:center;">
               <button class="btn-pdf"   onclick="mrmDownloadPDF()">⬇ Download PDF</button>
-              <button class="btn-print" onclick="window.print()">🖨 Print</button>
+              <button class="btn-print" onclick="mrmPrintClean()">🖨 Print</button>
               <button class="btn-refresh" onclick="loadParticipants()">↺ Refresh</button>
             </div>
           </div>
@@ -385,8 +399,7 @@
                   <th>Pax</th>
                   <th>Sunday</th>
                   <th>Sat Mission</th>
-                  <th>Sat Music</th>
-                  <th>Music Opts</th>
+                  <th>Donation</th>
                   <th>T-Shirts</th>
                   <th>Note</th>
                   <th>Submitted</th>
@@ -394,7 +407,7 @@
                 </tr>
               </thead>
               <tbody id="participantsTbody">
-                <tr><td class="empty-row" colspan="13">Click the Participants tab to load.</td></tr>
+                <tr><td class="empty-row" colspan="12">Click the Participants tab to load.</td></tr>
               </tbody>
             </table>
           </div>
@@ -623,18 +636,31 @@ function uploadFlyer(input) {
 /* ═══════════════════════════════════════
    PARTICIPANTS
 ═══════════════════════════════════════ */
+var participantsData = [];   // last loaded list (used by print / PDF)
+
+function donationCell(p) {
+  var amt = p.donationAmount;
+  if (amt == null || amt === '') return '<span style="color:#bbb">—</span>';
+  var n = Number(amt);
+  var label = '$' + (isNaN(n) ? esc(String(amt)) : n.toFixed(2));
+  var cnt = Number(p.donationCount || 0);
+  return '<strong style="color:#2e7d32">' + label + '</strong>' +
+         (cnt > 1 ? ' <span style="font-size:11px;color:#888">(' + cnt + ' gifts)</span>' : '');
+}
+
 function loadParticipants() {
   var tbody = document.getElementById('participantsTbody');
-  tbody.innerHTML = '<tr><td class="empty-row" colspan="13">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td class="empty-row" colspan="12">Loading…</td></tr>';
   fetch('/api/mid-reg-meet/participants')
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
     .then(function(data) {
+      participantsData = data || [];
       document.getElementById('rsvpCount').textContent = '(' + data.length + ')';
       if (!data.length) {
-        tbody.innerHTML = '<tr><td class="empty-row" colspan="13">No RSVPs yet.</td></tr>';
+        tbody.innerHTML = '<tr><td class="empty-row" colspan="12">No RSVPs yet.</td></tr>';
         return;
       }
       tbody.innerHTML = data.map(function(p, idx) {
@@ -652,8 +678,7 @@ function loadParticipants() {
           '</td>' +
           '<td>' + rsvpBadge(p.rsvpSunday)          + '</td>' +
           '<td>' + rsvpBadge(p.rsvpSaturdayMission)  + '</td>' +
-          '<td>' + rsvpBadge(p.rsvpSaturdayMusic)    + '</td>' +
-          '<td>' + musicChips(p.musicOptions)         + '</td>' +
+          '<td style="white-space:nowrap">' + donationCell(p)     + '</td>' +
           '<td>' + sizeChips(p.tshirtSizes)           + '</td>' +
           '<td style="max-width:140px;font-size:12px;color:#666">' + esc(p.note || '') + '</td>' +
           '<td style="font-size:12px;color:#999;white-space:nowrap">' + fmtDate(p.createdAt) + '</td>' +
@@ -662,8 +687,20 @@ function loadParticipants() {
       }).join('');
     })
     .catch(function(e) {
-      tbody.innerHTML = '<tr><td class="empty-row" colspan="13">Error loading participants: ' + esc(e.message) + '</td></tr>';
+      tbody.innerHTML = '<tr><td class="empty-row" colspan="12">Error loading participants: ' + esc(e.message) + '</td></tr>';
     });
+}
+
+/* Pretty-prints US phone numbers: 5552018890 → (555) 201-8890; anything else
+   (short, international, already formatted) is shown escaped as entered. */
+function formatPhone(phone) {
+  var raw = String(phone == null ? '' : phone).trim();
+  var digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits.charAt(0) === '1') digits = digits.slice(1);
+  if (digits.length === 10) {
+    return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+  }
+  return esc(raw);
 }
 
 function rsvpBadge(v) {
@@ -729,22 +766,90 @@ function fmtDate(dt) {
   catch { return String(dt); }
 }
 
-/* ── PDF Download ── */
-function mrmDownloadPDF() {
-  var el   = document.getElementById('paneParticipants');
-  var btns = el.querySelectorAll('.btn-pdf, .btn-print, .btn-refresh, .btn-del-row');
-  btns.forEach(function(b) { b.style.display = 'none'; });
+/* ── Clean print / PDF: headers + participant data only ─────────────────── */
 
+function sizesText(json) {
+  if (!json) return '—';
+  try {
+    var sizes = JSON.parse(json);
+    var parts = Object.entries(sizes)
+      .filter(function(e) { return e[1] > 0; })
+      .map(function(e) { return e[0] + '×' + e[1]; });
+    return parts.length ? parts.join(', ') : '—';
+  } catch (e) { return '—'; }
+}
+function donationText(p) {
+  var amt = p.donationAmount;
+  if (amt == null || amt === '') return '—';
+  var n = Number(amt);
+  var label = '$' + (isNaN(n) ? String(amt) : n.toFixed(2));
+  var cnt = Number(p.donationCount || 0);
+  return label + (cnt > 1 ? ' (' + cnt + ')' : '');
+}
+
+/** Fills #mrmPrintArea with a plain table of the loaded participants. */
+function buildParticipantsPrintArea() {
+  var area = document.getElementById('mrmPrintArea');
+  if (!area) {
+    area = document.createElement('div');
+    area.id = 'mrmPrintArea';
+    document.body.appendChild(area);
+  }
+  var data = participantsData || [];
+  var now = new Date();
+  var head = ['#','Name','Church','Email','Phone','Adults','Children','Sunday','Sat Mission','Donation','T-Shirts','Note','Submitted'];
+  var rows = data.map(function(p, i) {
+    return [
+      i + 1,
+      ((p.firstName || '') + ' ' + (p.lastName || '')).trim(),
+      p.church || '—',
+      p.email || '—',
+      p.phone || '—',
+      p.adults || 0,
+      p.children || 0,
+      p.rsvpSunday || '—',
+      p.rsvpSaturdayMission || '—',
+      donationText(p),
+      sizesText(p.tshirtSizes),
+      p.note || '',
+      fmtDate(p.createdAt)
+    ];
+  });
+  area.innerHTML =
+    '<h2>Midwest Region Meet — Registered Participants</h2>' +
+    '<div class="sub">' + data.length + ' participant(s) · generated ' + now.toLocaleDateString() + ' ' + now.toLocaleTimeString() + '</div>' +
+    '<table><thead><tr>' + head.map(function(h){ return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function(r){ return '<tr>' + r.map(function(c){ return '<td>' + esc(String(c)) + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table>';
+  return area;
+}
+
+function mrmPrintClean() {
+  if (!participantsData.length) { showFeedback('Load the participants first.', 'error'); return; }
+  buildParticipantsPrintArea();
+  document.body.classList.add('mrm-printing');
+  var done = function() { document.body.classList.remove('mrm-printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
+
+function mrmDownloadPDF() {
+  if (!participantsData.length) { showFeedback('Load the participants first.', 'error'); return; }
+  var area = buildParticipantsPrintArea();
+  area.style.display = 'block';
+  area.style.padding = '10px';
   var date = new Date().toISOString().slice(0, 10);
   html2pdf().set({
     margin:      [10, 6, 10, 6],
     filename:    'MidRegMeet_Participants_' + date + '.pdf',
     image:       { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, logging: false },
+    html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'landscape' },
-    pagebreak:   { mode: ['avoid-all', 'css'] }
-  }).from(el).save().then(function() {
-    btns.forEach(function(b) { b.style.display = ''; });
+    pagebreak:   { mode: ['css', 'legacy'] }
+  }).from(area).save().then(function() {
+    area.style.display = '';
+  }).catch(function() {
+    area.style.display = '';
   });
 }
 </script>

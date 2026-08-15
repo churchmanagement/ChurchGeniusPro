@@ -41,6 +41,8 @@ public class ServiceClientBO {
     private String paymentStatus;
     /** FREE | LIMITED | FULL */
     private String subscriptionType;
+    /** Per-client extra SMS credits on top of the plan's monthly allowance (default 0). */
+    private Integer extraSmsCount;
 
     // ── Misc ─────────────────────────────────────────────────────────────────
     private String note;

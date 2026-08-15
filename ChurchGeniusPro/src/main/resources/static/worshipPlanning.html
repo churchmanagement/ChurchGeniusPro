@@ -61,6 +61,9 @@
     .ws-song-item   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
                       max-width: 160px; display: block; }
     .ws-empty       { text-align: center; padding: 28px; color: #bbb; font-size: 13px; }
+    /* Next upcoming service indicator */
+    .ws-next-arrow  { color: #2e7d32; font-size: 14px; margin-right: 5px; }
+    .ws-next-row .ws-date-cell { box-shadow: inset 3px 0 0 #2e7d32; }
     .ws-legend      { font-size: 11px; color: #888; padding: 8px 16px;
                       border-top: 1px solid #f0e8ec; display: flex; align-items: center; gap: 6px; }
 
@@ -225,8 +228,15 @@ async function loadWorshipSchedule() {
           </tr></thead>
           <tbody>`;
 
+      // Next upcoming service (per group): first row whose date is today or later.
+      const _n = new Date();
+      const todayIso = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
+      let nextMarked = false;
+
       for (const row of rows) {
         const dateStr = row.assignmentDate;
+        const isNext = !nextMarked && dateStr >= todayIso;
+        if (isNext) nextMarked = true;
         const slotMap = new Map();
         for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
 
@@ -240,8 +250,8 @@ async function loadWorshipSchedule() {
           }
         }
 
-        html += `<tr class="${iAmHere ? 'ws-me-row' : ''}">
-          <td class="ws-date-cell">${formatDateWs(dateStr)}</td>`;
+        html += `<tr class="${iAmHere ? 'ws-me-row' : ''}${isNext ? ' ws-next-row' : ''}">
+          <td class="ws-date-cell">${isNext ? '<span class="ws-next-arrow" title="Next upcoming service">➡</span>' : ''}${formatDateWs(dateStr)}</td>`;
 
         for (const [iid] of instruments) {
           const members  = slotMap.get(iid) || [];
@@ -334,10 +344,13 @@ function buildWsGroupPdfHtml(groupId) {
   for (const row of rows) {
     const dateStr = row.assignmentDate;
     const slotMap = new Map();
-    row.slots && row.slots.forEach(slot => slotMap.set(slot.instrumentId, slot.memberName || '—'));
+    // Each slot carries a members[] array (not a memberName string) — join the
+    // names so Drums / Vocals / Guitar etc. print with their assigned people.
+    row.slots && row.slots.forEach(slot =>
+      slotMap.set(slot.instrumentId, (slot.members || []).map(m => m.memberName).join(', ') || '—'));
     const key  = `${groupId}|${dateStr}`;
     const songs = wsSongCache[key] || [];
-    t += `<tr><td>${dateStr}</td>`;
+    t += `<tr><td style="white-space:nowrap;font-weight:700;color:#673147;">${formatDateWs(dateStr)}</td>`;
     instruments.forEach(([iid]) => { t += `<td>${slotMap.get(iid) || '—'}</td>`; });
     if (hasSongs) t += `<td>${songs.map(s => s.title || s).join(', ') || '—'}</td>`;
     t += `</tr>`;

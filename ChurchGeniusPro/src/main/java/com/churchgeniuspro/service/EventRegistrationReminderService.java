@@ -654,12 +654,15 @@ public class EventRegistrationReminderService {
     }
 
     private String buildReminderSmsBody(ChurchEvent event, LocalDate eventDate) {
-        StringBuilder sb = new StringBuilder("We are waiting for your response. Please RSVP here.");
-        sb.append("\n\n").append(safe(event.getEventName()));
-        sb.append("\nDate: ").append(formatDate(eventDate));
-        String time = eventTimeRange(event);
-        if (!time.isEmpty()) sb.append(" & Time: ").append(time);
-        sb.append("\n\nRSVP: ").append(registrationUrl(event));
+        StringBuilder sb = new StringBuilder("We are waiting for your response to the event \"")
+                .append(safe(event.getEventName())).append("\".");
+        String dateStr = formatDate(eventDate);
+        if (!dateStr.isEmpty()) {
+            sb.append("\nDate: ").append(dateStr);
+            String time = eventTimeRange(event);
+            if (!time.isEmpty()) sb.append(" & Time: ").append(time);
+        }
+        sb.append("\n\nPlease RSVP here:\n").append(registrationUrl(event));
         return sb.toString();
     }
 
