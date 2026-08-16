@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Finishing bank connection… | ChurchGeniusPro</title>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background:#f4f2f5; color:#4f2538; display:flex; align-items:center;
+         justify-content:center; min-height:100vh; margin:0; text-align:center; }
+  .card { background:#fff; border:1px solid #e0d4db; border-radius:12px;
+          padding:32px 40px; max-width:420px; box-shadow:0 6px 24px rgba(79,37,56,0.08); }
+  .spin { width:34px; height:34px; margin:0 auto 16px; border:4px solid #e0d4db;
+          border-top-color:#673147; border-radius:50%; animation:r 0.9s linear infinite; }
+  @keyframes r { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="spin"></div>
+  <h2>Finishing your bank connection…</h2>
+  <p id="msg">Please wait, you'll be returned to Bank Sync automatically.</p>
+</div>
+<script>
+// OAuth return leg of Plaid Link. An OAuth institution redirected the user
+// back here; re-initialize Link with the original link token (stashed by
+// plaidReview.html) and the received redirect URI so Link can complete.
+(function(){
+  function done(){ window.location.replace('/bankSync'); }
+  var token = null;
+  try { token = localStorage.getItem('cgp_plaid_link_token'); } catch(e) {}
+  if (!token || window.location.search.indexOf('oauth_state_id=') === -1) { done(); return; }
+  var handler = Plaid.create({
+    token: token,
+    receivedRedirectUri: window.location.href,
+    onSuccess: function(public_token){
+      try { localStorage.removeItem('cgp_plaid_link_token'); } catch(e) {}
+      fetch('/api/plaid/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicToken: public_token })
+      }).then(function(r){ return r.json().catch(function(){ return {}; }); })
+        .then(function(){ done(); })
+        .catch(function(){ document.getElementById('msg').textContent =
+          'Could not complete the connection. Returning to Bank Sync…';
+          setTimeout(done, 2500); });
+    },
+    onExit: function(){
+      try { localStorage.removeItem('cgp_plaid_link_token'); } catch(e) {}
+      done();
+    }
+  });
+  handler.open();
+})();
+</script>
+</body>
+</html>

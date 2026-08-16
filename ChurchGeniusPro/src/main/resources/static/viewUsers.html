@@ -1,0 +1,2328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+    <link rel="stylesheet" href="/shell.css" />
+  <title>Church Genius Pro – Accounts</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── App Shell ──────────────────────────────────────── */
+    
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    /* ── Main area ──────────────────────────────────────── */
+    
+
+    /* ── Top-bar ────────────────────────────────────────── */
+    
+    
+    
+    
+    .search-wrap {
+      display: flex; align-items: center; gap: 8px;
+      background: #f5f6fa; border: 1px solid #e8e8e8;
+      border-radius: 20px; padding: 7px 16px;
+    }
+    .search-wrap input { border: none; background: none; outline: none; font-size: 13px; color: #333; width: 185px; }
+    .search-wrap input::placeholder { color: #bbb; }
+    .search-icon { color: #bbb; font-size: 14px; }
+    .tb-link    { font-size: 13px; color: #555; }
+    .tb-link:hover { color: #673147; }
+    .tb-dropdown { font-size: 13px; color: #673147; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .btn-admin-settings { font-size: 13px; background: transparent; color: #673147; border: 1px solid #c5a0b5; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s; }
+    .btn-admin-settings:hover { background: #673147; color: #fff; border-color: #673147; }
+    
+    
+
+    /* ── Page content ───────────────────────────────────── */
+    
+
+    /* ── Page header ─────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .btn-add {
+      padding: 10px 22px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #673147;
+      background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+    }
+    .btn-add:hover { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback {
+      padding: 12px 20px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; margin-bottom: 18px; display: none;
+    }
+    .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+
+    /* ── Table ───────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    .users-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .users-table th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 2px solid #f0f0f0; white-space: nowrap;
+    }
+    .users-table td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tr:hover td { background: #fafbff; }
+    .users-table tr.row-disabled td { opacity: .55; }
+
+    /* ── Name cell ───────────────────────────────────────── */
+    
+    .user-email  { font-size: 13px; color: #888; margin-top: 2px; }
+
+    /* ── Role badge ──────────────────────────────────────── */
+    .role-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .role-superadmin { background: #ede7f6; color: #512da8; }
+    .role-admin      { background: #e8eaf6; color: #3949ab; }
+    .role-accountant { background: #e0f2f1; color: #00695c; }
+    .role-member     { background: #e3f2fd; color: #1565c0; }
+    .role-child      { background: #fff8e1; color: #f57f17; }
+    .role-limited    { background: #fce4ec; color: #ad1457; }
+    .role-user       { background: #f3e5f5; color: #6a1b9a; }
+
+    /* ── Status badge ────────────────────────────────────── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-active   { background: #e8f5e9; color: #2e7d32; }
+    .badge-disabled { background: #f5f5f5; color: #888; }
+
+    /* ── Status toggle switch ────────────────────────────── */
+    .status-toggle-wrap {
+      display: inline-flex; align-items: center; gap: 7px;
+      cursor: pointer; user-select: none;
+    }
+    .status-toggle-wrap .tog-label {
+      font-size: 11px; font-weight: 600; min-width: 44px;
+    }
+    .status-toggle-wrap.tog-on  .tog-label { color: #2e7d32; }
+    .status-toggle-wrap.tog-off .tog-label { color: #888; }
+    /* The pill track */
+    .tog-track {
+      position: relative; width: 36px; height: 20px;
+      border-radius: 10px; transition: background .22s;
+      flex-shrink: 0;
+    }
+    .status-toggle-wrap.tog-on  .tog-track { background: #673147; }
+    .status-toggle-wrap.tog-off .tog-track { background: #ccc; }
+    /* The sliding knob */
+    .tog-knob {
+      position: absolute; top: 3px;
+      width: 14px; height: 14px;
+      border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+      transition: left .22s;
+    }
+    .status-toggle-wrap.tog-on  .tog-knob { left: 19px; }
+    .status-toggle-wrap.tog-off .tog-knob { left: 3px; }
+
+    /* ── Row actions ─────────────────────────────────────── */
+    .actions { display: flex; gap: 5px; flex-wrap: nowrap; }
+    .btn-action {
+      padding: 4px 10px; border-radius: 6px; font-size: 16px; line-height: 1;
+      font-weight: 500; cursor: pointer;
+      transition: background .18s, color .18s;
+      border: 1.5px solid transparent; white-space: nowrap;
+    }
+    .btn-edit    { background: #673147; color: #fff; border-color: #673147; }
+    .btn-edit:hover    { background: #3949ab; border-color: #3949ab; }
+    .btn-delete  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-delete:hover  { background: #3949ab; border-color: #3949ab; }
+    .btn-email   { background: #673147; color: #fff; border-color: #673147; }
+    .btn-email:hover   { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 52px 20px; color: #bbb; }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 14px; }
+
+    /* ── Modal overlay ───────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    /* ── Modal box ───────────────────────────────────────── */
+    .modal-box {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.22);
+      width: 700px; max-width: calc(100vw - 40px);
+      max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; background: #673147; flex-shrink: 0;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .modal-close {
+      font-size: 20px; color: rgba(255,255,255,.8); cursor: pointer;
+      line-height: 1; padding: 2px 6px; border-radius: 4px; transition: background .18s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.18); color: #fff; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 24px; }
+    .modal-footer {
+      padding: 14px 24px; border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0;
+    }
+
+    /* ── Form grid inside modal ──────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+    .span-2    { grid-column: span 2; }
+    .field     { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; }
+    .required-star { color: #e53935; margin-left: 2px; }
+    .field input, .field select {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-size: 14px; color: #333; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      background: #fff; font-family: inherit;
+    }
+    .field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+    }
+    .field input::placeholder { color: #bbb; }
+    .field input:focus, .field select:focus {
+      border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1);
+    }
+    .field input.invalid, .field select.invalid { border-color: #e53935; }
+    .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+
+    /* Section title inside modal */
+    .section-title {
+      font-size: 11px; font-weight: 700; color: #673147;
+      text-transform: uppercase; letter-spacing: .6px;
+      padding-bottom: 8px; margin-bottom: 14px; margin-top: 20px;
+      border-bottom: 1px solid #e8eaf6;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* ── Modal buttons ───────────────────────────────────── */
+    .btn-cancel {
+      padding: 10px 26px; border-radius: 7px;
+      font-size: 14px; font-weight: 500; color: #666;
+      border: 1.5px solid #e0e0e0; cursor: pointer; transition: background .18s;
+    }
+    .btn-cancel:hover { background: #f5f6fa; }
+    .btn-save-modal {
+      padding: 10px 32px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+    }
+    .btn-save-modal:hover:not(:disabled) { background: #4a5aae; }
+    .btn-save-modal:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .span-2    { grid-column: span 1; }
+    }
+
+    /* ── Link badge (shown on linked users in the Name column) ─── */
+    .link-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      margin-left: 6px; padding: 1px 7px;
+      background: #e8eaf6; color: #673147;
+      border-radius: 8px; font-size: 10px; font-weight: 700;
+      letter-spacing: .3px; vertical-align: middle;
+    }
+
+    /* ── Link Accounts button ──────────────────────────────────── */
+    .btn-link-accounts {
+      padding: 10px 20px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #673147;
+      background: #fff; border: 1.5px solid #673147;
+      cursor: pointer; transition: background .18s;
+    }
+    .btn-link-accounts:hover { background: #f0f2ff; }
+
+    /* ── Link Accounts modal — user list ───────────────────────── */
+    .link-user-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .link-user-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 8px;
+      border: 1.5px solid #e8eaf0; cursor: pointer;
+      transition: border-color .18s, background .18s;
+    }
+    .link-user-item:hover { background: #fdf5f7; border-color: #c5cae9; }
+    .link-user-item.selected { border-color: #673147; background: #f0f2ff; }
+    .link-user-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; accent-color: #673147; }
+    .link-item-name  { font-size: 13px; font-weight: 600; color: #333; flex: 1; }
+    .link-item-email { font-size: 12px; color: #888; }
+    .link-modal-feedback {
+      padding: 10px 14px; border-radius: 7px; font-size: 13px;
+      font-weight: 500; display: none; margin-bottom: 12px;
+    }
+    .link-modal-feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
+    .link-modal-feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+    .btn-link-save {
+      padding: 10px 32px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; color: #fff;
+      background: #673147; cursor: pointer; transition: background .18s;
+    }
+    .btn-link-save:hover:not(:disabled) { background: #4a5aae; }
+    .btn-link-save:disabled { opacity: .65; cursor: not-allowed; }
+
+    /* ── Unlink action button ──────────────────────────────────── */
+    .btn-unlink  { background: #673147; color: #fff; border-color: #673147; }
+    .btn-unlink:hover  { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Permissions button ─────────────────────────────────────── */
+    .btn-perms { background: #673147; color: #fff; border-color: #673147; }
+    .btn-perms:hover { background: #3949ab; border-color: #3949ab; }
+
+    /* ── Permissions modal ──────────────────────────────────────── */
+    .perm-modal-box {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.22);
+      width: 780px; max-width: calc(100vw - 32px);
+      max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .perm-toolbar {
+      padding: 10px 24px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fdf5f7; flex-shrink: 0;
+    }
+    .perm-toolbar-hint { font-size: 12px; color: #888; }
+    .perm-toolbar-btns { display: flex; gap: 14px; }
+    .perm-quick-btn {
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      background: none; border: none; padding: 0;
+    }
+    .perm-quick-btn.all   { color: #673147; }
+    .perm-quick-btn.none  { color: #888; }
+    /* permission tree */
+    .perm-tree { padding: 16px 24px; overflow-y: auto; flex: 1; }
+    .perm-section {
+      margin-bottom: 6px;
+      border: 1px solid #e8eaf6; border-radius: 8px; overflow: hidden;
+    }
+    .perm-section-hdr {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; background: #f0f2ff; cursor: pointer;
+      user-select: none;
+    }
+    .perm-section-hdr:hover { background: #e8eaf6; }
+    .perm-section-toggle { font-size: 10px; color: #673147; flex-shrink: 0; transition: transform .18s; }
+    .perm-section-toggle.open { transform: rotate(90deg); }
+    .perm-section-label { font-size: 13px; font-weight: 700; color: #673147; flex: 1; }
+    .perm-section-body { display: none; padding: 8px 14px 12px; background: #fff; }
+    .perm-section-body.open { display: block; }
+    /* sub-sections */
+    .perm-subsection { margin-bottom: 4px; }
+    .perm-subsection-hdr {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 8px; border-radius: 6px; cursor: pointer;
+      user-select: none;
+    }
+    .perm-subsection-hdr:hover { background: #f5f6fa; }
+    .perm-subsection-toggle { font-size: 10px; color: #673147; flex-shrink: 0; transition: transform .18s; }
+    .perm-subsection-toggle.open { transform: rotate(90deg); }
+    .perm-subsection-label { font-size: 13px; font-weight: 600; color: #555; flex: 1; }
+    .perm-subsection-body { display: none; }
+    .perm-subsection-body.open { display: block; }
+    .perm-actions-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 2px 6px; padding: 4px 8px 4px 32px;
+    }
+    /* leaf rows (sections without sub-sections) */
+    .perm-leaf-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 2px 6px; padding: 6px 8px 4px 8px;
+    }
+    /* individual checkbox rows */
+    .perm-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 6px; border-radius: 5px; cursor: pointer;
+    }
+    .perm-item:hover { background: #f5f6fa; }
+    .perm-item input[type="checkbox"] {
+      accent-color: #673147; width: 14px; height: 14px;
+      flex-shrink: 0; cursor: pointer;
+    }
+    .perm-item-label { font-size: 12px; color: #555; cursor: pointer; }
+    /* standalone leaf (no sub-items) */
+    .perm-standalone {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .perm-standalone:hover { background: #f5f6fa; }
+    .perm-standalone input[type="checkbox"] {
+      accent-color: #673147; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
+    }
+    .perm-standalone-label { font-size: 13px; color: #555; cursor: pointer; }
+    /* section checkbox */
+    .perm-section-cb, .perm-subsection-cb {
+      accent-color: #673147; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
+    }
+
+    /* ── Searchable member picker ── */
+    .mp-wrap { position: relative; }
+    .mp-input {
+      width: 100%; box-sizing: border-box;
+      border: 1.5px solid #dde0ec; border-radius: 8px;
+      padding: 9px 32px 9px 12px; font-size: 13px; color: #333;
+      outline: none; background: #fff;
+      cursor: pointer;
+    }
+    .mp-input:focus { border-color: #673147; }
+    .mp-caret {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: #888; font-size: 11px;
+    }
+    .mp-dropdown {
+      display: none; position: absolute; z-index: 9999;
+      top: calc(100% + 3px); left: 0; right: 0;
+      background: #fff; border: 1.5px solid #dde0ec; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12); max-height: 220px; overflow-y: auto;
+    }
+    .mp-dropdown.open { display: block; }
+    .mp-search-row {
+      padding: 8px 10px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff;
+    }
+    .mp-search {
+      width: 100%; box-sizing: border-box;
+      border: 1px solid #dde0ec; border-radius: 6px;
+      padding: 6px 10px; font-size: 13px; outline: none;
+    }
+    .mp-search:focus { border-color: #673147; }
+    .mp-option {
+      padding: 8px 12px; font-size: 13px; color: #333; cursor: pointer;
+    }
+    .mp-option:hover { background: #f3eef5; }
+    .mp-option.mp-placeholder { color: #aaa; }
+    .mp-no-results { padding: 8px 12px; font-size: 13px; color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <div class="main-area">
+
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">Accounts</div>
+          <div class="page-subtitle">Manage application accounts and their roles</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <a class="btn-link-accounts" href="/churchSettings" title="View &amp; edit your church name, address, website and social links">⛪ Church Settings</a>
+          <a class="btn-link-accounts" href="/temporaryAccess" title="Create time-limited badge + code access">⏱️ Temporary Access</a>
+          <button class="btn-link-accounts" id="btnLinkAccounts" onclick="openLinkModal()" title="Link multiple accounts for role switching" style="display:none;">🔗 Link Accounts</button>
+          <button class="btn-add" onclick="openAddModal()">＋ Add User</button>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedbackMsg"></div>
+
+      <!-- ── Users Table ──────────────────────────────────── -->
+      <div class="card">
+        <div class="table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th style="width:96px;">Status</th>
+                <th style="min-width:300px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Linked Member Accounts (church sessions only) ─── -->
+      <div id="linkedMembersCard" style="display:none;margin-top:24px;">
+        <div style="font-size:15px;font-weight:700;color:#673147;margin-bottom:12px;">
+          🔗 Linked Member Accounts
+          <span style="font-size:12px;font-weight:400;color:#aaa;margin-left:8px;">Member portal accounts linked to staff accounts</span>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Member Role</th>
+                  <th>Link Group</th>
+                  <th style="min-width:120px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="linkedMembersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Member Portal Users (church sessions only) ─── -->
+      <div id="memberPortalCard" style="display:none;margin-top:28px;">
+        <div style="font-size:15px;font-weight:700;color:#673147;margin-bottom:4px;">
+          👤 Member Portal Users
+        </div>
+        <div style="font-size:13px;color:#888;margin-bottom:12px;">
+          Family members with active Member Portal login accounts. Includes Member and Child accounts.
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Family Role</th>
+                  <th style="min-width:280px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="memberPortalTableBody">
+                <tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ════════════ ADD / EDIT USER MODAL ════════════ -->
+<div class="modal-overlay" id="userModal" onclick="onOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add User</span>
+      <button class="modal-close" onclick="closeModal()" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Member picker (only shown on Add mode) -->
+      <div id="memberPickerRow" style="margin-bottom:16px;">
+        <label style="font-size: 13px;font-weight:600;color:#6070a0;display:block;margin-bottom:5px;">
+          Select from Existing Member <span style="font-weight:400;color:#aaa;">(optional)</span>
+        </label>
+        <div class="mp-wrap" id="mpWrap">
+          <input type="text" class="mp-input" id="mpDisplay" readonly
+            placeholder="— Select a member to auto-fill —"
+            onclick="toggleMpDropdown(event)" autocomplete="off" />
+          <span class="mp-caret">▼</span>
+          <div class="mp-dropdown" id="mpDropdown">
+            <div class="mp-search-row">
+              <input type="text" class="mp-search" id="mpSearch" placeholder="Search by name or email…"
+                oninput="filterMpOptions()" onclick="event.stopPropagation()" />
+            </div>
+            <div id="mpOptions">
+              <div class="mp-option mp-placeholder" data-value="">— Select a member to auto-fill —</div>
+            </div>
+          </div>
+        </div>
+        <!-- hidden value store used by autofillFromMember -->
+        <input type="hidden" id="memberPicker" />
+      </div>
+
+      <div class="section-title">Personal Information</div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="uFirstName">First Name <span class="required-star">*</span></label>
+          <input type="text" id="uFirstName" placeholder="Enter first name" />
+          <span class="field-hint" id="uFirstNameHint"></span>
+        </div>
+        <div class="field">
+          <label for="uLastName">Last Name <span class="required-star">*</span></label>
+          <input type="text" id="uLastName" placeholder="Enter last name" />
+          <span class="field-hint" id="uLastNameHint"></span>
+        </div>
+        <div class="field">
+          <label for="uEmail">Email <span class="required-star">*</span></label>
+          <input type="email" id="uEmail" placeholder="Enter email address" />
+          <span class="field-hint" id="uEmailHint"></span>
+        </div>
+        <div class="field">
+          <label for="uPhone">Phone</label>
+          <input type="tel" id="uPhone" placeholder="Enter phone number" />
+        </div>
+        <div class="field span-2">
+          <label for="uRole">Role <span class="required-star">*</span></label>
+          <select id="uRole">
+            <option value="">— Select Role —</option>
+            <option value="SuperAdmin">SuperAdmin</option>
+            <option value="Admin">Admin</option>
+            <option value="Accountant">Accountant</option>
+            <option value="User">User</option>
+
+            <option value="Limited">Limited</option>
+          </select>
+          <span class="field-hint" id="uRoleHint"></span>
+        </div>
+      </div>
+
+      <div class="section-title">Address</div>
+      <div class="form-grid">
+        <div class="field span-2">
+          <label for="uAddress1">Address Line 1</label>
+          <input type="text" id="uAddress1" placeholder="Street address" />
+        </div>
+        <div class="field span-2">
+          <label for="uAddress2">Address Line 2</label>
+          <input type="text" id="uAddress2" placeholder="Apt, suite, unit (optional)" />
+        </div>
+        <div class="field">
+          <label for="uCity">City</label>
+          <input type="text" id="uCity" placeholder="Enter city" />
+        </div>
+        <div class="field">
+          <label for="uState">State</label>
+          <select id="uState">
+            <option value="">— Select State —</option>
+            <option value="AL">AL – Alabama</option>
+            <option value="AK">AK – Alaska</option>
+            <option value="AZ">AZ – Arizona</option>
+            <option value="AR">AR – Arkansas</option>
+            <option value="CA">CA – California</option>
+            <option value="CO">CO – Colorado</option>
+            <option value="CT">CT – Connecticut</option>
+            <option value="DE">DE – Delaware</option>
+            <option value="FL">FL – Florida</option>
+            <option value="GA">GA – Georgia</option>
+            <option value="HI">HI – Hawaii</option>
+            <option value="ID">ID – Idaho</option>
+            <option value="IL">IL – Illinois</option>
+            <option value="IN">IN – Indiana</option>
+            <option value="IA">IA – Iowa</option>
+            <option value="KS">KS – Kansas</option>
+            <option value="KY">KY – Kentucky</option>
+            <option value="LA">LA – Louisiana</option>
+            <option value="ME">ME – Maine</option>
+            <option value="MD">MD – Maryland</option>
+            <option value="MA">MA – Massachusetts</option>
+            <option value="MI">MI – Michigan</option>
+            <option value="MN">MN – Minnesota</option>
+            <option value="MS">MS – Mississippi</option>
+            <option value="MO">MO – Missouri</option>
+            <option value="MT">MT – Montana</option>
+            <option value="NE">NE – Nebraska</option>
+            <option value="NV">NV – Nevada</option>
+            <option value="NH">NH – New Hampshire</option>
+            <option value="NJ">NJ – New Jersey</option>
+            <option value="NM">NM – New Mexico</option>
+            <option value="NY">NY – New York</option>
+            <option value="NC">NC – North Carolina</option>
+            <option value="ND">ND – North Dakota</option>
+            <option value="OH">OH – Ohio</option>
+            <option value="OK">OK – Oklahoma</option>
+            <option value="OR">OR – Oregon</option>
+            <option value="PA">PA – Pennsylvania</option>
+            <option value="RI">RI – Rhode Island</option>
+            <option value="SC">SC – South Carolina</option>
+            <option value="SD">SD – South Dakota</option>
+            <option value="TN">TN – Tennessee</option>
+            <option value="TX">TX – Texas</option>
+            <option value="UT">UT – Utah</option>
+            <option value="VT">VT – Vermont</option>
+            <option value="VA">VA – Virginia</option>
+            <option value="WA">WA – Washington</option>
+            <option value="WV">WV – West Virginia</option>
+            <option value="WI">WI – Wisconsin</option>
+            <option value="WY">WY – Wyoming</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="uCountry">Country</label>
+          <select id="uCountry">
+            <option value="USA" selected>USA – United States</option>
+            <option value="CAN">CAN – Canada</option>
+            <option value="GBR">GBR – United Kingdom</option>
+            <option value="AUS">AUS – Australia</option>
+            <option value="IND">IND – India</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="uPinCode">Pin / Zip Code</label>
+          <input type="text" id="uPinCode" placeholder="Enter zip / pin code" />
+        </div>
+      </div>
+
+    </div><!-- /.modal-body -->
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save-modal" id="modalSaveBtn" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ EDIT MEMBER PORTAL USER MODAL ════════════ -->
+<div class="modal-overlay" id="memberEditModal" onclick="onMemberEditOverlayClick(event)">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Edit Member Account</span>
+      <button class="modal-close" onclick="closeMemberEditModal()" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="meFirstName">First Name <span class="required-star">*</span></label>
+          <input type="text" id="meFirstName" placeholder="First name" />
+          <span class="field-hint" id="meFirstNameHint"></span>
+        </div>
+        <div class="field">
+          <label for="meLastName">Last Name <span class="required-star">*</span></label>
+          <input type="text" id="meLastName" placeholder="Last name" />
+          <span class="field-hint" id="meLastNameHint"></span>
+        </div>
+        <div class="field span-2">
+          <label for="meEmail">Email <span class="required-star">*</span></label>
+          <input type="email" id="meEmail" placeholder="Email address" />
+          <span class="field-hint" id="meEmailHint"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeMemberEditModal()">Cancel</button>
+      <button class="btn-save-modal" id="memberEditSaveBtn" onclick="saveMemberEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ LINK ACCOUNTS MODAL ════════════ -->
+<div class="modal-overlay" id="linkModal" onclick="onLinkOverlayClick(event)">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title">🔗 Link Accounts</span>
+      <button class="modal-close" onclick="closeLinkModal()" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:16px;">
+        Select two or more accounts to link together. Linked accounts can switch between
+        roles/portals without re-entering credentials. Only accounts with active login
+        credentials are eligible. Member accounts with the "Child" role cannot be linked.
+      </p>
+      <div class="link-modal-feedback" id="linkFeedbackMsg"></div>
+      <!-- Staff accounts -->
+      <div id="linkStaffSection">
+        <div style="font-size:11px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Staff Accounts</div>
+        <div class="link-user-list" id="linkUserList"></div>
+      </div>
+      <!-- Member accounts -->
+      <div id="linkMemberSection" style="margin-top:16px;display:none;">
+        <div style="font-size:11px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Member Accounts</div>
+        <div class="link-user-list" id="linkMemberList"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeLinkModal()">Cancel</button>
+      <button class="btn-link-save" id="linkSaveBtn" onclick="saveLinkAccounts()">Link Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ PERMISSIONS MODAL ════════════ -->
+<div class="modal-overlay" id="permModal" onclick="onPermOverlayClick(event)">
+  <div class="perm-modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="permModalTitle">🔐 Permissions</span>
+      <button class="modal-close" onclick="closePermModal()" title="Close">✕</button>
+    </div>
+    <div class="perm-toolbar">
+      <span class="perm-toolbar-hint">Grant or revoke access for each section</span>
+      <div class="perm-toolbar-btns">
+        <button class="perm-quick-btn all"  onclick="selectAllPerms(true)">Select All</button>
+        <span style="color:#ccc;font-size:12px;line-height:1;">|</span>
+        <button class="perm-quick-btn none" onclick="selectAllPerms(false)">Deselect All</button>
+      </div>
+    </div>
+    <!-- Session / auto-logout setting -->
+    <div style="padding:10px 18px 4px;border-bottom:1px solid #f0f0f0;">
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;color:#444;user-select:none;">
+        <input type="checkbox" id="permNoAutoLogout" checked
+               style="width:15px;height:15px;accent-color:#673147;cursor:pointer;flex-shrink:0;" />
+        <span>
+          <strong style="color:#333;">Don't log out automatically</strong>
+          <span style="display:block;font-size:11px;color:#999;margin-top:1px;">When checked, the session will not time out due to inactivity.</span>
+        </span>
+      </label>
+    </div>
+    <div class="perm-tree" id="permTree"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePermModal()">Cancel</button>
+      <button class="btn-save-modal" id="permSaveBtn" onclick="savePermissions()">Save Permissions</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════════════════════════════════════
+     MENU
+  ════════════════════════════════════ */
+  
+
+  /* ════════════════════════════════════
+     ROLE → CSS class
+  ════════════════════════════════════ */
+  const ROLE_CLASS = {
+    'SuperAdmin': 'role-superadmin',
+    'Admin':      'role-admin',
+    'Accountant': 'role-accountant',
+    'User':       'role-user',
+    'Member':     'role-member',
+    'Limited':    'role-limited',
+  };
+
+  /* ════════════════════════════════════
+     STATE
+  ════════════════════════════════════ */
+  let allUsers   = [];
+  const userMap  = {};   // id → user object for safe onclick lookups
+  let editingId  = null; // null = creating new; integer = editing existing
+  const memberMap = {}; // memberId → member object for picker auto-fill
+
+  // Whether the current session allows Link Accounts (church=true sessions only)
+  let canLinkAccounts = false;
+  let isChurchSession = false;
+
+  /* ════════════════════════════════════
+     MEMBER PICKER
+  ════════════════════════════════════ */
+  /* ── Searchable member picker helpers ── */
+  let _mpMembers = []; // [{value, label}]
+
+  function toggleMpDropdown(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('mpDropdown');
+    const isOpen = dd.classList.contains('open');
+    closeMpDropdown();
+    if (!isOpen) {
+      dd.classList.add('open');
+      setTimeout(() => document.getElementById('mpSearch').focus(), 50);
+    }
+  }
+
+  function closeMpDropdown() {
+    document.getElementById('mpDropdown').classList.remove('open');
+    document.getElementById('mpSearch').value = '';
+    renderMpOptions('');
+  }
+
+  function filterMpOptions() {
+    renderMpOptions(document.getElementById('mpSearch').value.trim().toLowerCase());
+  }
+
+  function renderMpOptions(query) {
+    const container = document.getElementById('mpOptions');
+    const filtered = query
+      ? _mpMembers.filter(o => o.label.toLowerCase().includes(query))
+      : _mpMembers;
+    let html = '<div class="mp-option mp-placeholder" data-value="" onclick="selectMpOption(\'\', \'— Select a member to auto-fill —\')">— Select a member to auto-fill —</div>';
+    if (filtered.length === 0 && query) {
+      html += '<div class="mp-no-results">No members found</div>';
+    } else {
+      filtered.forEach(o => {
+        const esc = o.label.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        html += `<div class="mp-option" data-value="${o.value}" onclick="selectMpOption('${o.value}','${esc}')">${o.label}</div>`;
+      });
+    }
+    container.innerHTML = html;
+  }
+
+  function selectMpOption(value, label) {
+    document.getElementById('memberPicker').value = value;
+    document.getElementById('mpDisplay').value = value ? label : '';
+    document.getElementById('mpDisplay').placeholder = value ? '' : '— Select a member to auto-fill —';
+    closeMpDropdown();
+    if (value) autofillFromMember(value);
+  }
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('mpWrap');
+    if (wrap && !wrap.contains(e.target)) closeMpDropdown();
+  });
+
+  async function loadMemberPicker() {
+    try {
+      const res = await fetch('/api/members');
+      if (!res.ok) return;
+      const members = await res.json();
+      Object.keys(memberMap).forEach(k => delete memberMap[k]);
+      members.forEach(m => { memberMap[m.id] = m; });
+      _mpMembers = members.map(m => ({
+        value: String(m.id),
+        label: [m.firstName, m.lastName].filter(Boolean).join(' ') + (m.email ? ` (${m.email})` : '')
+      }));
+      // reset display
+      document.getElementById('memberPicker').value = '';
+      document.getElementById('mpDisplay').value = '';
+      renderMpOptions('');
+    } catch { /* silent */ }
+  }
+
+  function autofillFromMember(memberId) {
+    if (!memberId) return;
+    const m = memberMap[memberId];
+    if (!m) return;
+    setVal('uFirstName', m.firstName || '');
+    setVal('uLastName',  m.lastName  || '');
+    setVal('uEmail',     m.email     || '');
+    setVal('uPhone',     m.phone     || '');
+    setVal('uAddress1',  m.address1  || '');
+    setVal('uAddress2',  m.address2  || '');
+    setVal('uCity',      m.city      || '');
+    setVal('uState',     m.state     || '');
+    setVal('uCountry',   m.country   || 'USA');
+    setVal('uPinCode',   m.pinCode   || '');
+  }
+
+  /* ════════════════════════════════════
+     LOAD
+  ════════════════════════════════════ */
+  async function loadUsers() {
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error('Server error');
+      allUsers = await res.json();
+    } catch {
+      allUsers = [];
+      showFeedback('❌ Failed to load users from the server.', 'error');
+    }
+    Object.keys(userMap).forEach(k => delete userMap[k]);
+    allUsers.forEach(u => { userMap[u.id] = u; });
+    renderTable();
+    if (isChurchSession) loadLinkedMembers();
+  }
+
+  /* Loads and renders the Linked Member Accounts section (church sessions only). */
+  async function loadLinkedMembers() {
+    try {
+      const res = await fetch('/api/users/linkable-members');
+      if (!res.ok) return;
+      const members = await res.json();
+      // Only show members that are already linked
+      const linked = members.filter(m => m.linkGroup);
+      const card   = document.getElementById('linkedMembersCard');
+      const tbody  = document.getElementById('linkedMembersTableBody');
+      if (linked.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = '';
+      tbody.innerHTML = linked.map(m => {
+        const fullName = escHtml((m.firstName || '') + ' ' + (m.lastName || '')).trim();
+        return `<tr>
+          <td><div style="font-weight:600;color:#1e2139;">${fullName}</div></td>
+          <td><span style="font-size:13px;color:#555;">${escHtml(m.email || '') || '<span style="color:#ccc">—</span>'}</span></td>
+          <td><span class="role-badge role-member">${escHtml(m.memberRole || 'Member')}</span></td>
+          <td><span class="link-badge">🔗 Linked</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn-action btn-unlink" onclick="unlinkMemberAccount(${m.signupId})">Unlink</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch { /* silent */ }
+  }
+
+  async function unlinkMemberAccount(signupId) {
+    if (!confirm('Remove this member account from the linked accounts group?\n\nThey will no longer be able to switch accounts.')) return;
+    try {
+      const res  = await fetch(`/api/users/unlink-member/${signupId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback('Member account has been unlinked.', 'success');
+        await loadUsers();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to unlink member.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not unlink member.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     RENDER
+  ════════════════════════════════════ */
+  function renderTable() {
+    const tbody = document.getElementById('usersTableBody');
+
+    if (allUsers.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="empty-state">
+            <div class="empty-icon">👤</div>
+            <div class="empty-text">No accounts yet. Click "＋ Add User" to create one.</div>
+          </div>
+        </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allUsers.map(u => {
+      const fullName  = escHtml(u.firstName) + ' ' + escHtml(u.lastName);
+      const roleClass = ROLE_CLASS[u.role] || 'role-user';
+
+      // Toggle switch — replaces both the status badge and the old Disable/Enable button
+      const togClass   = u.enabled ? 'tog-on' : 'tog-off';
+      const togLabel   = u.enabled ? 'Active' : 'Disabled';
+      const togTitle   = u.enabled ? 'Click to disable' : 'Click to enable';
+      const statusToggle = `
+        <div class="status-toggle-wrap ${togClass}" onclick="toggleUser(${u.id})" title="${togTitle}" role="switch" aria-checked="${u.enabled}">
+          <div class="tog-track"><div class="tog-knob"></div></div>
+          <span class="tog-label">${togLabel}</span>
+        </div>`;
+
+      // Show link badge if user belongs to a link group
+      const linkBadge = u.linkGroup
+        ? `<span class="link-badge">🔗 Linked</span>`
+        : '';
+      // Show unlink button only for linked users and only for admins
+      const unlinkBtn = (u.linkGroup && canLinkAccounts)
+        ? `<button class="btn-action btn-unlink" onclick="unlinkUser(${u.id})">Unlink</button>`
+        : '';
+
+      const safeName = (u.firstName + ' ' + u.lastName).replace(/'/g, "\\'");
+      const safeRole = (u.role || '').replace(/'/g, "\\'");
+
+      // Invite button: disabled when account is inactive; "ReInvite" when already invited
+      const inviteLabel = u.hasActiveLogin ? 'ReInvite' : 'Invite';
+      const inviteBtn = u.enabled
+        ? `<button class="btn-action btn-email" onclick="sendEmail(${u.id})">${inviteLabel}</button>`
+        : `<button class="btn-action btn-email" disabled style="opacity:.45;cursor:not-allowed;" title="Account is disabled">${inviteLabel}</button>`;
+
+      // Permissions button: disabled when account is inactive
+      const permsBtn = u.enabled
+        ? `<button class="btn-action btn-perms" onclick="openPermissionsModal(${u.id},'${safeRole}','${safeName}')" title="Permissions">🔐</button>`
+        : `<button class="btn-action btn-perms" disabled style="opacity:.45;cursor:not-allowed;" title="Account is disabled">🔐</button>`;
+
+      // Church admins can generate a temporary Bank Sync verification code for a user
+      // who cannot receive the email code.
+      const bankCodeBtn = (isChurchSession && u.enabled)
+        ? `<button class="btn-action" style="background:#673147;color:#fff;border-color:#673147;" onclick="genBankSyncCode(${u.id}, '${safeName}')" title="Generate a temporary Bank Sync verification code">🏦 Code</button>`
+        : '';
+
+      return `<tr class="${u.enabled ? '' : 'row-disabled'}">
+        <td>
+          <div class="user-name" style="color:#1e2139;">${fullName}${linkBadge}</div>
+        </td>
+        <td><span style="font-size:13px;color:#555;">${escHtml(u.email) || '<span style="color:#ccc">—</span>'}</span></td>
+        <td>${formatPhone(u.phone)}</td>
+        <td><span class="role-badge ${roleClass}">${escHtml(u.role)}</span></td>
+        <td>${statusToggle}</td>
+        <td>
+          <div class="actions">
+            <button class="btn-action btn-edit"   onclick="openEditModal(${u.id})" title="Edit">📝</button>
+            <button class="btn-action btn-delete" onclick="deleteUser(${u.id})" title="Delete">🗑</button>
+            ${inviteBtn}
+            ${permsBtn}
+            ${bankCodeBtn}
+            ${unlinkBtn}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* Church admin: generate a temporary, one-time Bank Sync verification code for a
+     user who cannot receive the email. The code is time-limited and fully audited. */
+  async function genBankSyncCode(userId, name) {
+    if (!confirm('Generate a temporary Bank Sync verification code for ' + name +
+                 '?\nIt is valid for 15 minutes and can be used only once.')) return;
+    try {
+      const res = await fetch('/api/plaid/gate/temp-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      });
+      const d = await res.json();
+      if (res.ok && d.code) {
+        window.prompt('Temporary Bank Sync code for ' + name +
+          ' — valid 15 minutes, one-time. Share it securely (copy below):', d.code);
+      } else {
+        alert(d.message || 'Could not generate a code.');
+      }
+    } catch { alert('Network error while generating the code.'); }
+  }
+
+  /* ════════════════════════════════════
+     MODAL — open / close
+  ════════════════════════════════════ */
+  function openAddModal() {
+    editingId = null;
+    clearForm();
+    document.getElementById('modalTitle').textContent    = 'Add User';
+    document.getElementById('modalSaveBtn').textContent  = 'Save User';
+    // Show member picker and load members
+    document.getElementById('memberPickerRow').style.display = '';
+    document.getElementById('memberPicker').value = '';
+    document.getElementById('mpDisplay').value = '';
+    loadMemberPicker();
+    document.getElementById('userModal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const u = userMap[id];
+    if (!u) return;
+    editingId = id;
+
+    /* Populate fields */
+    setVal('uFirstName', u.firstName);
+    setVal('uLastName',  u.lastName);
+    setVal('uEmail',     u.email);
+    setVal('uPhone',     u.phone);
+    setVal('uRole',      u.role);
+    setVal('uAddress1',  u.address1);
+    setVal('uAddress2',  u.address2);
+    setVal('uCity',      u.city);
+    setVal('uState',     u.state);
+    setVal('uCountry',   u.country || 'USA');
+    setVal('uPinCode',   u.pinCode);
+
+    /* Reset hints */
+    clearHints();
+
+    // Hide member picker in edit mode
+    document.getElementById('memberPickerRow').style.display = 'none';
+
+    document.getElementById('modalTitle').textContent    = 'Edit User';
+    document.getElementById('modalSaveBtn').textContent  = 'Update User';
+    document.getElementById('userModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('userModal').classList.remove('open');
+    document.getElementById('memberPickerRow').style.display = 'none';
+  }
+
+  function onOverlayClick(event) {
+    if (event.target === document.getElementById('userModal')) closeModal();
+  }
+
+  /* ════════════════════════════════════
+     SAVE (create or update)
+  ════════════════════════════════════ */
+  async function saveUser() {
+    /* Validate */
+    let valid = true;
+    if (!getVal('uFirstName')) { setHint('uFirstNameHint', 'First name is required.'); setInvalid('uFirstName'); valid = false; }
+    else                       { clearHint('uFirstNameHint'); clearInvalid('uFirstName'); }
+    if (!getVal('uLastName'))  { setHint('uLastNameHint',  'Last name is required.');  setInvalid('uLastName');  valid = false; }
+    else                       { clearHint('uLastNameHint'); clearInvalid('uLastName'); }
+    if (!getVal('uEmail'))     { setHint('uEmailHint',     'Email is required.');      setInvalid('uEmail');     valid = false; }
+    else                       { clearHint('uEmailHint'); clearInvalid('uEmail'); }
+    if (!getVal('uRole'))      { setHint('uRoleHint',      'Role is required.');       setInvalid('uRole');      valid = false; }
+    else                       { clearHint('uRoleHint'); clearInvalid('uRole'); }
+    if (!valid) return;
+
+    const body = {
+      firstName: getVal('uFirstName'),
+      lastName:  getVal('uLastName'),
+      email:     getVal('uEmail'),
+      phone:     getVal('uPhone'),
+      role:      getVal('uRole'),
+      address1:  getVal('uAddress1'),
+      address2:  getVal('uAddress2'),
+      city:      getVal('uCity'),
+      state:     getVal('uState'),
+      country:   getVal('uCountry') || 'USA',
+      pinCode:   getVal('uPinCode'),
+    };
+
+    // On create only: attach the logged-in user's clientId so the backend
+    // can store it on the new app_user record (links user to the organization).
+    if (!editingId) {
+      const sessionClientId = localStorage.getItem('clientId');
+      if (sessionClientId) body.clientId = sessionClientId;
+    }
+
+    const isNew  = !editingId;
+    const url    = editingId ? `/api/users/${editingId}` : '/api/users';
+    const method = editingId ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('modalSaveBtn');
+    btn.disabled = true;
+    btn.textContent = editingId ? 'Updating…' : 'Saving…';
+
+    try {
+      const res  = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeModal();
+        showFeedback(
+          `✅ User "${body.firstName} ${body.lastName}" ${isNew ? 'created' : 'updated'} successfully.`,
+          'success'
+        );
+        await loadUsers();
+        // Auto-open permissions modal for newly created users
+        if (isNew && data.id) {
+          const newName = `${body.firstName} ${body.lastName}`;
+          setTimeout(() => openPermissionsModal(data.id, body.role, newName), 150);
+        }
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to save user.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = editingId ? 'Update User' : 'Save User';
+    }
+  }
+
+  /* ════════════════════════════════════
+     DELETE
+  ════════════════════════════════════ */
+  async function deleteUser(id) {
+    const u = userMap[id];
+    const name = u ? `${u.firstName} ${u.lastName}` : id;
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const res  = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${name}" has been deleted.`, 'success');
+        await loadUsers();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to delete user.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not delete user.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     TOGGLE ENABLE / DISABLE
+  ════════════════════════════════════ */
+  async function toggleUser(id) {
+    const u = userMap[id];
+    const name = u ? `${u.firstName} ${u.lastName}` : id;
+    try {
+      const res  = await fetch(`/api/users/${id}/toggle`, { method: 'PATCH' });
+      const data = await res.json();
+      if (res.ok) {
+        const state = data.enabled ? 'enabled' : 'disabled';
+        showFeedback(`"${name}" has been ${state}.`, 'success');
+        await loadUsers();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to toggle user.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not toggle user.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     SEND EMAIL
+  ════════════════════════════════════ */
+  async function sendEmail(id) {
+    const u = userMap[id];
+    const name = u ? `${u.firstName} ${u.lastName}` : id;
+    try {
+      const res  = await fetch(`/api/users/${id}/email`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`✉️ Email sent to "${name}" successfully.`, 'success');
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to send email.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not send email.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     UNLINK USER
+  ════════════════════════════════════ */
+  async function unlinkUser(id) {
+    const u    = userMap[id];
+    const name = u ? `${u.firstName} ${u.lastName}` : id;
+    if (!confirm(`Remove "${name}" from their linked accounts group?\n\nThey will no longer be able to switch roles.`)) return;
+    try {
+      const res  = await fetch(`/api/users/${id}/unlink`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`"${name}" has been unlinked.`, 'success');
+        await loadUsers();
+      } else {
+        showFeedback(`❌ ${data.error || 'Failed to unlink user.'}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — could not unlink user.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     LINK ACCOUNTS MODAL
+  ════════════════════════════════════ */
+  let linkSelectedStaffIds  = new Set();  // app_user.id values
+  let linkSelectedMemberIds = new Set(); // signup.id values (member accounts)
+  let linkableMembers       = [];         // fetched from /api/users/linkable-members
+  let _staffById            = {};         // id → user object (built in openLinkModal)
+  let _memberBySignupId     = {};         // signupId → member object (built in openLinkModal)
+
+  async function openLinkModal() {
+    linkSelectedStaffIds.clear();
+    linkSelectedMemberIds.clear();
+    _staffById = {};
+    _memberBySignupId = {};
+    showLinkFeedback('', '');
+
+    // ── Staff accounts ──────────────────────────────────────────────────
+    // Only show Active (enabled) accounts that have completed signup (hasActiveLogin).
+    // Disabled/Inactive accounts are excluded from linking — they cannot be linked
+    // but previously-linked disabled accounts remain switchable (enforced separately).
+    const eligible = allUsers.filter(u => u.enabled && u.hasActiveLogin);
+    eligible.forEach(u => { _staffById[u.id] = u; });
+    const staffList = document.getElementById('linkUserList');
+    if (eligible.length === 0) {
+      staffList.innerHTML = '<p style="color:#888;font-size:13px;">No staff accounts with active logins found.</p>';
+    } else {
+      staffList.innerHTML = eligible.map(u => {
+        const fullName  = escHtml(u.firstName) + ' ' + escHtml(u.lastName);
+        const roleClass = ROLE_CLASS[u.role] || 'role-user';
+        const linked    = u.linkGroup ? ' <span class="link-badge">🔗 Linked</span>' : '';
+        return `
+          <label class="link-user-item" id="litem-${u.id}" for="lchk-${u.id}">
+            <input type="checkbox" id="lchk-${u.id}" value="${u.id}"
+                   onchange="onStaffLinkChange(${u.id}, this.checked)" />
+            <div style="flex:1;min-width:0;">
+              <div class="link-item-name">${fullName}${linked}</div>
+              <div class="link-item-email">${escHtml(u.email)} &nbsp;·&nbsp; <span class="role-badge ${roleClass}" style="font-size:10px;padding:1px 7px;">${escHtml(u.role)}</span></div>
+            </div>
+          </label>`;
+      }).join('');
+    }
+
+    // ── Member accounts ─────────────────────────────────────────────────
+    const memberSection = document.getElementById('linkMemberSection');
+    const memberList    = document.getElementById('linkMemberList');
+    try {
+      const mr = await fetch('/api/users/linkable-members');
+      linkableMembers = mr.ok ? await mr.json() : [];
+    } catch { linkableMembers = []; }
+    linkableMembers.forEach(m => { _memberBySignupId[m.signupId] = m; });
+
+    if (linkableMembers.length > 0) {
+      memberSection.style.display = '';
+      memberList.innerHTML = linkableMembers.map(m => {
+        const fullName  = escHtml(m.firstName) + ' ' + escHtml(m.lastName);
+        const linked    = m.linkGroup ? ' <span class="link-badge">🔗 Linked</span>' : '';
+        return `
+          <label class="link-user-item" id="lmitem-${m.signupId}" for="lmchk-${m.signupId}">
+            <input type="checkbox" id="lmchk-${m.signupId}" value="${m.signupId}"
+                   onchange="onMemberLinkChange(${m.signupId}, this.checked)" />
+            <div style="flex:1;min-width:0;">
+              <div class="link-item-name">${fullName}${linked}</div>
+              <div class="link-item-email">${escHtml(m.email || '')} &nbsp;·&nbsp; <span class="role-badge role-member" style="font-size:10px;padding:1px 7px;">Member · ${escHtml(m.memberRole)}</span></div>
+            </div>
+          </label>`;
+      }).join('');
+    } else {
+      memberSection.style.display = 'none';
+    }
+
+    const totalEligible = eligible.length + linkableMembers.length;
+    document.getElementById('linkSaveBtn').disabled = totalEligible < 2;
+    document.getElementById('linkModal').classList.add('open');
+  }
+
+  function onStaffLinkChange(id, checked) {
+    if (checked) linkSelectedStaffIds.add(id);
+    else         linkSelectedStaffIds.delete(id);
+    const item = document.getElementById(`litem-${id}`);
+    if (item) item.classList.toggle('selected', checked);
+    showLinkFeedback('', '');
+    enforceSameEmailFilter();
+  }
+
+  function onMemberLinkChange(id, checked) {
+    if (checked) linkSelectedMemberIds.add(id);
+    else         linkSelectedMemberIds.delete(id);
+    const item = document.getElementById(`lmitem-${id}`);
+    if (item) item.classList.toggle('selected', checked);
+    showLinkFeedback('', '');
+    enforceSameEmailFilter();
+  }
+
+  /**
+   * After each checkbox change, collect the email of the currently-selected
+   * accounts, then HIDE (not disable) any unselected row whose email does NOT
+   * match.  Rows with the same email and a different role stay visible.
+   * When nothing is selected, show all rows again.
+   *
+   * Staff email  → _staffById[id].email
+   * Member email → _memberBySignupId[signupId].loginEmail || .email
+   */
+  function enforceSameEmailFilter() {
+    // Gather emails of every selected account
+    const selectedEmails = new Set();
+    for (const id of linkSelectedStaffIds) {
+      const u = _staffById[id];
+      if (u && u.email) selectedEmails.add(u.email.trim().toLowerCase());
+    }
+    for (const id of linkSelectedMemberIds) {
+      const m = _memberBySignupId[id];
+      const memberEmail = (m && (m.loginEmail || m.email)) || null;
+      if (memberEmail) selectedEmails.add(memberEmail.trim().toLowerCase());
+    }
+
+    const noneSelected = linkSelectedStaffIds.size === 0 && linkSelectedMemberIds.size === 0;
+
+    if (noneSelected || selectedEmails.size === 0) {
+      // Nothing selected — show every row
+      document.querySelectorAll('.link-user-item').forEach(el => { el.style.display = ''; });
+      return;
+    }
+
+    // Filter by the first (and ideally only) selected email
+    const filterEmail = [...selectedEmails][0];
+
+    // Staff rows: hide those that don't share the email; keep selected rows visible
+    Object.entries(_staffById).forEach(([id, u]) => {
+      const numId  = Number(id);
+      const itemEl = document.getElementById(`litem-${id}`);
+      if (!itemEl) return;
+      if (linkSelectedStaffIds.has(numId)) {
+        itemEl.style.display = ''; // always show selected
+        return;
+      }
+      const email    = (u.email || '').trim().toLowerCase();
+      itemEl.style.display = (email === filterEmail) ? '' : 'none';
+    });
+
+    // Member rows: same logic
+    Object.entries(_memberBySignupId).forEach(([sid, m]) => {
+      const numSid = Number(sid);
+      const itemEl = document.getElementById(`lmitem-${sid}`);
+      if (!itemEl) return;
+      if (linkSelectedMemberIds.has(numSid)) {
+        itemEl.style.display = '';
+        return;
+      }
+      const email    = ((m.loginEmail || m.email) || '').trim().toLowerCase();
+      itemEl.style.display = (email === filterEmail) ? '' : 'none';
+    });
+  }
+
+  function closeLinkModal() {
+    document.getElementById('linkModal').classList.remove('open');
+    linkSelectedStaffIds.clear();
+    linkSelectedMemberIds.clear();
+    _staffById = {};
+    _memberBySignupId = {};
+  }
+
+  function onLinkOverlayClick(event) {
+    if (event.target === document.getElementById('linkModal')) closeLinkModal();
+  }
+
+  async function saveLinkAccounts() {
+    const staffIds  = Array.from(linkSelectedStaffIds);
+    const memberIds = Array.from(linkSelectedMemberIds);
+    const total     = staffIds.length + memberIds.length;
+
+    if (total < 2) {
+      showLinkFeedback('Please select at least 2 accounts to link.', 'error');
+      return;
+    }
+
+    // Client-side role duplicate check among staff accounts
+    const roles = staffIds.map(id => userMap[id]?.role).filter(Boolean);
+    if (new Set(roles).size !== roles.length) {
+      showLinkFeedback('Cannot link staff accounts with the same role. Each linked staff account must have a unique role.', 'error');
+      return;
+    }
+
+    const btn       = document.getElementById('linkSaveBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Linking…';
+
+    try {
+      // Use the new unified endpoint that handles both staff + member
+      const res = await fetch('/api/users/link-with-members', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ appUserIds: staffIds, memberSignupIds: memberIds })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeLinkModal();
+        showFeedback(`✅ ${total} accounts have been linked successfully. They can now switch accounts from the sidebar.`, 'success');
+        await loadUsers();
+      } else {
+        showLinkFeedback(`❌ ${data.error || 'Failed to link accounts.'}`, 'error');
+      }
+    } catch {
+      showLinkFeedback('❌ Network error — could not reach the server.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Link Selected';
+    }
+  }
+
+  function showLinkFeedback(msg, type) {
+    const el = document.getElementById('linkFeedbackMsg');
+    if (!msg) { el.className = 'link-modal-feedback'; return; }
+    el.textContent = msg;
+    el.className   = `link-modal-feedback ${type}`;
+  }
+
+  /* ════════════════════════════════════
+     FORM HELPERS
+  ════════════════════════════════════ */
+  function getVal(id)          { return (document.getElementById(id)?.value || '').trim(); }
+  function setVal(id, val)     { const el = document.getElementById(id); if (el) el.value = val || ''; }
+  function setHint(id, msg)    { const el = document.getElementById(id); if (el) el.textContent = msg; }
+  function clearHint(id)       { const el = document.getElementById(id); if (el) el.textContent = ''; }
+  function setInvalid(id)      { document.getElementById(id)?.classList.add('invalid'); }
+  function clearInvalid(id)    { document.getElementById(id)?.classList.remove('invalid'); }
+
+  function clearHints() {
+    ['uFirstNameHint','uLastNameHint','uEmailHint','uRoleHint'].forEach(clearHint);
+    ['uFirstName','uLastName','uEmail','uRole'].forEach(clearInvalid);
+  }
+
+  function clearForm() {
+    ['uFirstName','uLastName','uEmail','uPhone',
+     'uAddress1','uAddress2','uCity','uPinCode'].forEach(id => setVal(id, ''));
+    setVal('uRole',    '');
+    setVal('uState',   '');
+    setVal('uCountry', 'USA');
+    clearHints();
+  }
+
+  /* ════════════════════════════════════
+     FEEDBACK
+  ════════════════════════════════════ */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    el.textContent = msg;
+    el.className   = `feedback ${type}`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 5000);
+  }
+
+  function escHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatPhone(phone) {
+    if (!phone) return '<span style="color:#ccc">—</span>';
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.length === 10) {
+      return escHtml('(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6));
+    }
+    if (digits.length === 11 && digits[0] === '1') {
+      return escHtml('+1 (' + digits.slice(1,4) + ') ' + digits.slice(4,7) + '-' + digits.slice(7));
+    }
+    return escHtml(phone);
+  }
+
+  /* ════════════════════════════════════
+     PERMISSIONS — TREE DEFINITION
+  ════════════════════════════════════ */
+  const PERM_TREE = [
+    // ── 0. Favorites ─────────────────────────────────────────────────────────
+    // Single-checkbox section above Admin. Controls whether the user can see the
+    // Favorites side-nav section and add/remove/manage favorites. Applies to both
+    // Accounts and Member Portal users.
+    { key: 'favorites', label: 'Favorites', standalone: true },
+    // ── 1. Admin ────────────────────────────────────────────────────────────
+    {
+      key: 'admin', label: 'Admin',
+      children: [
+        { key: 'admin.family', label: 'Family',
+          actions: [
+            { key: 'admin.family.edit',     label: 'Add or Edit'  },
+            { key: 'admin.family.delete',   label: 'Delete'       },
+            { key: 'admin.family.inactive', label: 'Mark Inactive'},
+          ]
+        },
+        { key: 'admin.groups', label: 'Groups',
+          actions: [
+            { key: 'admin.groups.edit',   label: 'Add or Edit' },
+            { key: 'admin.groups.delete', label: 'Delete'      },
+          ]
+        },
+        { key: 'admin.email', label: 'Email',
+          actions: [
+            { key: 'admin.email.delete', label: 'Delete' },
+          ]
+        },
+        { key: 'admin.membership',  label: 'Membership Requests', standalone: true },
+        { key: 'admin.unsubscribed', label: 'Unsubscribed List',  standalone: true },
+      ]
+    },
+    // ── 2. Accounting ────────────────────────────────────────────────────────
+    {
+      key: 'accounting', label: 'Accounting',
+      children: [
+        { key: 'accounting.income', label: 'Income',
+          actions: [
+            { key: 'accounting.income.edit',   label: 'Add or Edit' },
+            { key: 'accounting.income.delete', label: 'Delete'      },
+          ]
+        },
+        { key: 'accounting.expense', label: 'Expense',
+          actions: [
+            { key: 'accounting.expense.edit',   label: 'Add or Edit' },
+            { key: 'accounting.expense.delete', label: 'Delete'      },
+          ]
+        },
+        { key: 'accounting.bankimport', label: 'Bank Import', standalone: true },
+        { key: 'accounting.pledges', label: 'Pledges',
+          actions: [
+            { key: 'accounting.pledges.edit',   label: 'Add or Edit' },
+            { key: 'accounting.pledges.delete', label: 'Delete'      },
+          ]
+        },
+        { key: 'accounting.reports',  label: 'Report',           standalone: true },
+        { key: 'accounting.donation', label: 'Donation',         standalone: true },
+        { key: 'accounting.payroll',  label: 'Payroll',          standalone: true },
+        { key: 'accounting.settings', label: 'Account Settings', standalone: true },
+      ]
+    },
+    // ── 3. General ────────────────────────────────────────────────────────────
+    {
+      key: 'general', label: 'General',
+      children: [
+        { key: 'general.meetings', label: 'Meetings',
+          actions: [
+            { key: 'general.meetings.edit',     label: 'Add or Edit'       },
+            { key: 'general.meetings.delete',   label: 'Delete'            },
+            { key: 'general.meetings.notify',   label: 'Send Notification' },
+            { key: 'general.meetings.category', label: 'Category'          },
+          ]
+        },
+        { key: 'general.attendance', label: 'Attendance',
+          actions: [
+            { key: 'general.attendance.edit',     label: 'Add or Edit'             },
+            { key: 'general.attendance.delete',   label: 'Delete'                  },
+            { key: 'general.attendance.emailsms', label: 'Email or SMS Volunteers' },
+          ]
+        },
+        { key: 'general.events', label: 'Events',
+          actions: [
+            { key: 'general.events.edit',    label: 'Add or Edit'            },
+            { key: 'general.events.delete',  label: 'Delete'                 },
+            { key: 'general.events.emailsms', label: 'Email or SMS Volunteers'},
+          ]
+        },
+        { key: 'general.ministry', label: 'Ministry',
+          actions: [
+            { key: 'general.ministry.kids',    label: 'Kids Ministry'    },
+            { key: 'general.ministry.worship', label: 'Worship Planning' },
+            { key: 'general.ministry.prayer',  label: 'Prayer Meeting'   },
+          ]
+        },
+        { key: 'general.email',         label: 'Compose Email',  standalone: true },
+        { key: 'general.emailsettings', label: 'Email Settings', standalone: true },
+        { key: 'general.reminders',     label: 'Reminders',      standalone: true },
+      ]
+    },
+    // ── 9. Activity Corner ───────────────────────────────────────────────────
+    {
+      key: 'activity', label: 'Activity Corner',
+      children: [
+        { key: 'activity.guessit', label: 'GuessIt', standalone: true },
+      ]
+    },
+    // ── 10. More ──────────────────────────────────────────────────────────────
+    {
+      key: 'more', label: 'More',
+      children: [
+        { key: 'more.certificates',  label: 'Certificates',  standalone: true },
+        { key: 'more.publicscreens', label: 'Public Screens', standalone: true },
+        { key: 'more.followups',     label: 'Follow-ups',     standalone: true },
+        { key: 'more.helpcenter',    label: 'Help Center',    standalone: true },
+      ]
+    },
+    // (Help removed from permissions — Help Center already lives under the More section.)
+    // ── 12. MY PROFILE ───────────────────────────────────────────────────────
+    {
+      key: 'member', label: 'MY PROFILE',
+      children: [
+        { key: 'member.family',        label: 'Family',        standalone: true },
+        { key: 'member.contributions', label: 'Contributions', standalone: true },
+        { key: 'member.groups',        label: 'Groups',        standalone: true },
+        { key: 'member.classes',       label: 'Classes',       standalone: true },
+        { key: 'member.volunteer',     label: 'Volunteer',     standalone: true },
+        { key: 'member.directory',     label: 'Directory',     standalone: true },
+      ]
+    },
+  ];
+
+  /* ── Role defaults (section-key prefixes that are enabled by default) ── */
+  // '*'       = all keys enabled
+  // prefix    = enable keys that equal or start with that prefix
+  // (absent)  = key disabled by default
+  const ROLE_DEFAULTS = {
+    // SuperAdmin: everything enabled
+    SuperAdmin:   ['*'],
+    // Admin: Admin + General + More + My Profile (all). 'general'/'more'/'member'
+    // prefixes cover their sub-keys (incl. general.attendance.*, more.helpcenter).
+    // 'favorites' enabled by default for all roles (preserves prior behavior).
+    Admin:        ['favorites', 'admin', 'general', 'more', 'activity', 'member'],
+    // Accountant: Accounting + General + More + My Profile (all).
+    Accountant:   ['favorites', 'accounting', 'general', 'more', 'activity', 'member'],
+    // User / Limited: General + More + My Profile (no admin, no accounting).
+    User:         ['favorites', 'general', 'more', 'activity', 'member'],
+    Limited:      ['favorites', 'general', 'more', 'activity', 'member'],
+    // Member Portal: MY PROFILE sections only (member.*) + Favorites.
+    MemberPortal: ['favorites', 'member'],
+  };
+
+  /* ── Collect all leaf permission keys ── */
+  function getAllLeafKeys() {
+    const keys = [];
+    function walk(node) {
+      if (node.standalone)  { keys.push(node.key); return; }
+      if (node.actions)     { node.actions.forEach(a => keys.push(a.key)); return; }
+      if (node.children)    { node.children.forEach(walk); }
+    }
+    PERM_TREE.forEach(walk);
+    return keys;
+  }
+
+  /* ── Build default permission map for a role ── */
+  function getDefaultPermissions(role) {
+    const prefixes = ROLE_DEFAULTS[role] || [];
+    const all      = getAllLeafKeys();
+    const result   = {};
+    all.forEach(key => {
+      if (prefixes.includes('*')) {
+        result[key] = true;
+      } else {
+        result[key] = prefixes.some(p => key === p || key.startsWith(p + '.'));
+      }
+    });
+    // Set section-level and subsection-level keys used by session.js for nav hiding.
+    // e.g. 'admin', 'admin.family' — derived from whether all their children are off.
+    PERM_TREE.forEach(sec => {
+      if (sec.standalone || !sec.children) return;
+      // Subsection keys
+      sec.children.forEach(sub => {
+        if (sub.standalone) return; // standalone already set as leaf key
+        if (sub.actions) {
+          const allOff = sub.actions.every(a => result[a.key] === false);
+          result[sub.key] = !allOff;
+        }
+      });
+      // Section-level key: false only if ALL leaf keys under it are false
+      const leafKeys = getLeafKeys(sec);
+      const allOff = leafKeys.length > 0 && leafKeys.every(k => result[k] === false);
+      result[sec.key] = !allOff;
+    });
+    return result;
+  }
+
+  /* ── Leaf keys reachable from any tree node ── */
+  function getLeafKeys(node) {
+    const keys = [];
+    function walk(n) {
+      if (n.standalone) { keys.push(n.key); return; }
+      if (n.actions)    { n.actions.forEach(a => keys.push(a.key)); return; }
+      if (n.children)   { n.children.forEach(walk); }
+    }
+    walk(node);
+    return keys;
+  }
+
+  /* ── Check state helpers: 'all' | 'some' | 'none' ── */
+  function getSectionState(sec) {
+    const keys = getLeafKeys(sec);
+    if (!keys.length) return 'none';
+    const n = keys.filter(k => _permMap[k]).length;
+    return n === 0 ? 'none' : n === keys.length ? 'all' : 'some';
+  }
+
+  function getSubState(sub) {
+    if (!sub.actions || !sub.actions.length) return 'none';
+    const n = sub.actions.filter(a => _permMap[a.key]).length;
+    return n === 0 ? 'none' : n === sub.actions.length ? 'all' : 'some';
+  }
+
+  /* ── Modal state ── */
+  let _permUserId   = null;
+  let _permUserName = '';
+  let _permMap      = {};
+  let _permIsMember = false;  // true when editing a FamilyMember (member portal user)
+
+  /* ── Open / Close ── */
+  async function openPermissionsModal(userId, role, name, isMember) {
+    _permUserId   = userId;
+    _permUserName = name;
+    _permIsMember = !!isMember;
+
+    // Ensure subscription features are loaded before rendering, so options the
+    // Service Admin's plan disables never flash into view (session.js normally
+    // loads them; this covers opening the modal before that fetch completes).
+    if (!window.CGP_FEATURES) {
+      try {
+        const fres = await fetch('/api/subscription/features');
+        if (fres.ok) {
+          const fd = await fres.json();
+          window.CGP_FEATURES = fd.features || {};
+          window.CGP_SUBSCRIPTION = fd;
+        }
+      } catch (_) { /* fail-open: show all options */ }
+    }
+
+    document.getElementById('permModalTitle').textContent = '🔐 Permissions — ' + name;
+
+    // Member portal users use /api/members/{id}/permissions; staff use /api/users/{id}/permissions
+    const apiUrl = _permIsMember ? `/api/members/${userId}/permissions` : `/api/users/${userId}/permissions`;
+
+    // Load saved permissions; fall back to role defaults
+    let saved = null;
+    try {
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.permissions) saved = typeof d.permissions === 'string' ? JSON.parse(d.permissions) : d.permissions;
+      }
+    } catch { /* ignore, use defaults */ }
+
+    _permMap = saved || getDefaultPermissions(role || 'MemberPortal');
+
+    // Hide noAutoLogout row for member portal users (session control doesn't apply)
+    const noAutoLogoutRow = document.querySelector('#permModal [style*="padding:10px 18px"]') ||
+                            document.getElementById('permNoAutoLogout')?.closest('div[style]');
+    if (noAutoLogoutRow) noAutoLogoutRow.style.display = _permIsMember ? 'none' : '';
+
+    // Load the noAutoLogout flag — default true (checked) if not previously saved
+    const noAutoLogout = _permMap.hasOwnProperty('_noAutoLogout') ? _permMap['_noAutoLogout'] : true;
+    const noAutoLogoutChk = document.getElementById('permNoAutoLogout');
+    if (noAutoLogoutChk && !_permIsMember) noAutoLogoutChk.checked = noAutoLogout;
+
+    // Backfill subsection keys (e.g. 'admin.family') for maps saved before this was added.
+    // A subsection key is false only if ALL its action keys are explicitly false.
+    PERM_TREE.forEach(sec => {
+      if (!sec.children) return;
+      sec.children.forEach(sub => {
+        if (sub.standalone || !sub.actions) return;
+        if (!(_permMap.hasOwnProperty(sub.key))) {
+          const allOff = sub.actions.every(a => _permMap[a.key] === false);
+          _permMap[sub.key] = !allOff;
+        }
+      });
+    });
+
+    renderPermTree();
+    document.getElementById('permModal').classList.add('open');
+  }
+
+  function closePermModal() {
+    document.getElementById('permModal').classList.remove('open');
+    _permUserId = null;
+  }
+
+  function onPermOverlayClick(event) {
+    if (event.target === document.getElementById('permModal')) closePermModal();
+  }
+
+  /* ── Select / Deselect all ── */
+  function selectAllPerms(checked) {
+    getAllLeafKeys().forEach(k => { _permMap[k] = checked; });
+    renderPermTree();
+  }
+
+  /* ── Render the full permissions tree ── */
+  /* ── Service Admin feature override ──────────────────────────────────────
+     Permission options whose underlying feature is DISABLED by the client's
+     subscription plan (managed in the Service Admin portal) are removed from
+     this page entirely — the church admin cannot see or re-enable them.
+     Precedence: Service Admin plan → church permissions → user permissions;
+     the backend SubscriptionFeatureFilter enforces the plan regardless of any
+     permission values, so hiding here is display-consistency, not security. */
+  const PERM_FEATURE = {
+    'accounting.income':      'accounting',
+    'accounting.expense':     'accounting',
+    'accounting.reports':     'accounting',
+    'accounting.donation':    'accounting',
+    'accounting.settings':    'accounting',
+    'accounting.bankimport':  'bankImport',
+    'accounting.pledges':     'pledges',
+    'accounting.payroll':     'payroll',
+    'admin.groups':           'groups',
+    'general.attendance':     'attendance',
+    'general.events':         'eventRegistration',
+    'general.eventcheckin':   'eventCheckin',
+    'general.ministry.kids':    'kidsMinistry',
+    'general.ministry.worship': 'worship',
+    'general.ministry.prayer':  'prayer',
+    'general.email':          'composeEmail',
+    'general.reminders':      'reminders',
+    'more.certificates':      'certificates',
+    'more.publicscreens':     'publicScreens',
+    'more.followups':         'followUps',
+    'member.groups':          'groups',
+    'member.volunteer':       'volunteers',
+    'member.contributions':   'accounting'
+  };
+
+  /** False when the subscription plan disables the feature behind a perm key. */
+  function featureAllowsPerm(permKey) {
+    if (!window.CGP_FEATURES) return true;   // features not loaded → show all
+    let feat = PERM_FEATURE[permKey];
+    if (!feat) {
+      const prefix = Object.keys(PERM_FEATURE)
+        .find(p => permKey === p || permKey.startsWith(p + '.'));
+      if (prefix) feat = PERM_FEATURE[prefix];
+    }
+    return !feat || window.CGP_FEATURES[feat] !== false;
+  }
+
+  /** Deep-filtered copy of PERM_TREE with plan-disabled options removed. */
+  function visiblePermTree() {
+    const out = [];
+    PERM_TREE.forEach(sec => {
+      if (sec.standalone) {
+        if (featureAllowsPerm(sec.key)) out.push(sec);
+        return;
+      }
+      const copy = Object.assign({}, sec);
+      if (sec.children) {
+        copy.children = sec.children.map(sub => {
+          if (!featureAllowsPerm(sub.key)) return null;
+          if (sub.actions) {
+            const acts = sub.actions.filter(a => featureAllowsPerm(a.key));
+            if (!acts.length && !sub.standalone) return null;
+            const subCopy = Object.assign({}, sub);
+            subCopy.actions = acts;
+            return subCopy;
+          }
+          return sub;
+        }).filter(Boolean);
+        if (!copy.children.length) return;   // whole section hidden
+      }
+      out.push(copy);
+    });
+    return out;
+  }
+
+  function renderPermTree() {
+    const container = document.getElementById('permTree');
+    // Show the PERM_TREE minus options the subscription plan disables;
+    // defaults differ by role (MemberPortal enables only 'member.*').
+    container.innerHTML = visiblePermTree().map((sec, si) => {
+      return renderPermSection(sec, si);
+    }).join('');
+    // Set indeterminate states (cannot be done via HTML attribute)
+    syncPermCheckboxes();
+  }
+
+  function renderPermSection(sec, si) {
+    const bodyId = `ps-body-${si}`;
+    const togId  = `ps-tog-${si}`;
+    const cbId   = `ps-cb-${si}`;
+    const state  = getSectionState(sec);
+
+    // Standalone section (single checkbox, no children)
+    if (sec.standalone) {
+      return `
+      <div class="perm-section">
+        <div class="perm-section-hdr" style="cursor:default;">
+          <input type="checkbox" class="perm-section-cb" id="${cbId}"
+                 ${_permMap[sec.key] ? 'checked' : ''}
+                 onclick="onSectionCbClick('${sec.key}', this.checked)" />
+          <label class="perm-section-label" for="${cbId}" style="cursor:pointer;">${sec.label}</label>
+        </div>
+      </div>`;
+    }
+
+    let bodyHtml = '';
+    if (sec.children) {
+      bodyHtml = sec.children.map((sub, subI) => renderPermSubsection(sub, si, subI)).join('');
+    } else if (sec.actions) {
+      bodyHtml = `<div class="perm-leaf-grid">${sec.actions.map(a => renderPermLeaf(a)).join('')}</div>`;
+    }
+
+    return `
+    <div class="perm-section">
+      <div class="perm-section-hdr" onclick="togglePermSection('${bodyId}','${togId}')">
+        <span class="perm-section-toggle" id="${togId}">▶</span>
+        <input type="checkbox" class="perm-section-cb" id="${cbId}"
+               ${state === 'all' ? 'checked' : ''}
+               onclick="event.stopPropagation(); onSectionCbClick('${sec.key}', this.checked)" />
+        <label class="perm-section-label" for="${cbId}" onclick="event.stopPropagation();">${sec.label}</label>
+      </div>
+      <div class="perm-section-body" id="${bodyId}">${bodyHtml}</div>
+    </div>`;
+  }
+
+  function renderPermSubsection(sub, si, subI) {
+    const cbId = `ps-sub-cb-${si}-${subI}`;
+
+    // Standalone child (single checkbox, no actions)
+    if (sub.standalone) {
+      return `
+    <div class="perm-subsection">
+      <div class="perm-subsection-hdr" style="cursor:default;">
+        <input type="checkbox" class="perm-subsection-cb" id="${cbId}"
+               ${_permMap[sub.key] ? 'checked' : ''}
+               onclick="onSubCbClick('${sub.key}', this.checked)" />
+        <label class="perm-subsection-label" for="${cbId}" style="cursor:pointer;">${sub.label}</label>
+      </div>
+    </div>`;
+    }
+
+    const bodyId = `ps-sub-body-${si}-${subI}`;
+    const togId  = `ps-sub-tog-${si}-${subI}`;
+    const state  = getSubState(sub);
+
+    const actionsHtml = sub.actions
+      ? `<div class="perm-actions-grid">${sub.actions.map(a => renderPermLeaf(a)).join('')}</div>`
+      : '';
+
+    return `
+    <div class="perm-subsection">
+      <div class="perm-subsection-hdr" onclick="togglePermSubsection('${bodyId}','${togId}')">
+        <span class="perm-subsection-toggle" id="${togId}">▶</span>
+        <input type="checkbox" class="perm-subsection-cb" id="${cbId}"
+               ${state === 'all' ? 'checked' : ''}
+               onclick="event.stopPropagation(); onSubCbClick('${sub.key}', this.checked)" />
+        <label class="perm-subsection-label" for="${cbId}" onclick="event.stopPropagation();">${sub.label}</label>
+      </div>
+      <div class="perm-subsection-body" id="${bodyId}">${actionsHtml}</div>
+    </div>`;
+  }
+
+  function renderPermLeaf(action) {
+    const cbId    = 'pk-' + action.key.replace(/\./g, '-');
+    const checked = _permMap[action.key] ? 'checked' : '';
+    return `
+    <label class="perm-item" for="${cbId}">
+      <input type="checkbox" id="${cbId}" ${checked}
+             onchange="onLeafPermChange('${action.key}', this.checked)" />
+      <span class="perm-item-label">${action.label}</span>
+    </label>`;
+  }
+
+  /* ── Collapse/expand section bodies ── */
+  function togglePermSection(bodyId, togId) {
+    const body = document.getElementById(bodyId);
+    const tog  = document.getElementById(togId);
+    if (!body) return;
+    const isOpen = body.classList.toggle('open');
+    if (tog) tog.classList.toggle('open', isOpen);
+  }
+
+  function togglePermSubsection(bodyId, togId) {
+    const body = document.getElementById(bodyId);
+    const tog  = document.getElementById(togId);
+    if (!body) return;
+    const isOpen = body.classList.toggle('open');
+    if (tog) tog.classList.toggle('open', isOpen);
+  }
+
+  /* ── Checkbox change handlers ── */
+  function onLeafPermChange(key, checked) {
+    _permMap[key] = checked;
+    // Keep the parent subsection key in sync: false only if ALL actions are false
+    for (const sec of PERM_TREE) {
+      if (!sec.children) continue;
+      for (const sub of sec.children) {
+        if (!sub.actions) continue;
+        if (sub.actions.some(a => a.key === key)) {
+          const allOff = sub.actions.every(a => _permMap[a.key] === false);
+          _permMap[sub.key] = !allOff;
+          break;
+        }
+      }
+    }
+    syncPermCheckboxes();
+  }
+
+  function onSectionCbClick(sectionKey, checked) {
+    const sec = PERM_TREE.find(s => s.key === sectionKey);
+    if (!sec) return;
+    if (sec.standalone) {
+      _permMap[sec.key] = checked;
+    } else {
+      // Save the section-level key so session.js parentDenied check works
+      _permMap[sec.key] = checked;
+      getLeafKeys(sec).forEach(k => { _permMap[k] = checked; });
+      // Also save all subsection keys so nav sub-item hiding works
+      if (sec.children) {
+        sec.children.forEach(sub => { _permMap[sub.key] = checked; });
+      }
+    }
+    renderPermTree();
+  }
+
+  function onSubCbClick(subKey, checked) {
+    for (const sec of PERM_TREE) {
+      if (!sec.children) continue;
+      const sub = sec.children.find(s => s.key === subKey);
+      if (sub) {
+        if (sub.standalone) {
+          _permMap[sub.key] = checked;
+        } else if (sub.actions) {
+          // Always save the subsection key itself so session.js can use it for nav hiding
+          _permMap[sub.key] = checked;
+          sub.actions.forEach(a => { _permMap[a.key] = checked; });
+        }
+        renderPermTree();
+        return;
+      }
+    }
+  }
+
+  /* ── Sync parent checkboxes without full re-render ── */
+  function syncPermCheckboxes() {
+    PERM_TREE.forEach((sec, si) => {
+      const secCb = document.getElementById(`ps-cb-${si}`);
+      if (secCb && !sec.standalone) {
+        const state = getSectionState(sec);
+        secCb.checked       = state === 'all';
+        secCb.indeterminate = state === 'some';
+      }
+      if (sec.children) {
+        sec.children.forEach((sub, subI) => {
+          const subCb = document.getElementById(`ps-sub-cb-${si}-${subI}`);
+          if (subCb) {
+            if (sub.standalone) {
+              subCb.checked       = !!_permMap[sub.key];
+              subCb.indeterminate = false;
+            } else {
+              const state = getSubState(sub);
+              subCb.checked       = state === 'all';
+              subCb.indeterminate = state === 'some';
+            }
+          }
+        });
+      }
+    });
+  }
+
+  /* ── Save permissions to backend ── */
+  async function savePermissions() {
+    if (!_permUserId) return;
+    const btn = document.getElementById('permSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    // For member portal users: hide the noAutoLogout row (irrelevant), skip merging it
+    const noAutoLogoutChk = document.getElementById('permNoAutoLogout');
+    if (!_permIsMember) {
+      _permMap['_noAutoLogout'] = noAutoLogoutChk ? noAutoLogoutChk.checked : true;
+    }
+
+    // Member portal users use /api/members/{id}/permissions; staff use /api/users/{id}/permissions
+    const apiUrl = _permIsMember ? `/api/members/${_permUserId}/permissions` : `/api/users/${_permUserId}/permissions`;
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: JSON.stringify(_permMap) })
+      });
+      if (res.ok) {
+        closePermModal();
+        showFeedback('✅ Permissions saved successfully.', 'success');
+        // If the saved user is the currently logged-in user, re-apply permissions
+        // immediately so the nav updates without requiring a re-login / page reload.
+        if (!_permIsMember) {
+          try {
+            const sess = await fetch('/api/session');
+            if (sess.ok) {
+              const sd = await sess.json();
+              if (sd.appUserId && String(sd.appUserId) === String(_permUserId)) {
+                // Session already updated by backend; re-run client-side nav filter
+                const role    = sd.role || localStorage.getItem('role') || '';
+                const isChurch = sd.church === true || sd.church === 'true';
+                if (typeof window._cgpApplyPermissions === 'function') {
+                  window._cgpApplyPermissions(sd.privileges, role, isChurch);
+                }
+              }
+            }
+          } catch (_) { /* non-critical — nav will update on next page load */ }
+        }
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showFeedback('❌ ' + (d.error || 'Failed to save permissions.'), 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error saving permissions.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Permissions';
+    }
+  }
+
+  /* ════════════════════════════════════
+     MEMBER PORTAL USERS TABLE
+  ════════════════════════════════════ */
+
+  let _memberPortalUsers = []; // cache for edit/delete/reset lookups
+
+  /**
+   * Loads family members who have active Member Portal logins (including Child accounts)
+   * and renders them in the #memberPortalCard table. Only shown for church-role sessions.
+   */
+  async function loadMemberPortalUsers() {
+    const card = document.getElementById('memberPortalCard');
+    if (!card) return;
+    if (!isChurchSession) return;
+    card.style.display = '';
+
+    const tbody = document.getElementById('memberPortalTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px;">Loading…</td></tr>';
+
+    try {
+      const res = await fetch('/api/members/with-logins');
+      if (!res.ok) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#c62828;padding:20px;">Failed to load member portal users.</td></tr>';
+        return;
+      }
+      const members = await res.json();
+      _memberPortalUsers = members;
+
+      if (!members.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px;">No members with active portal logins yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = members.map(m => {
+        const name     = escHtml((m.firstName || '') + ' ' + (m.lastName || '')).trim() || '—';
+        const email    = escHtml(m.email || '—');
+        const role     = m.role || '';
+        const isChild  = role.toLowerCase() === 'child';
+        const roleClass = isChild ? 'role-child' : 'role-member';
+        const hasPerms  = !!m.permissions;
+        const safeName  = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+        // Child accounts don't get a Permissions button (no assignable privileges)
+        const permsBtn = isChild ? '' :
+          `<button class="btn-action btn-perms"
+            onclick="openPermissionsModal(${m.id}, 'MemberPortal', '${safeName}', true)"
+            title="Manage member portal access">
+            🔐${hasPerms ? '' : ' <span style="font-size:10px;opacity:.7;">(defaults)</span>'}
+          </button>`;
+
+        return `<tr>
+          <td><strong>${name}</strong></td>
+          <td style="color:#555;font-size:13px;">${email}</td>
+          <td><span class="role-badge ${roleClass}">${escHtml(role) || '—'}</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn-action btn-edit" onclick="openMemberEditModal(${m.id})" title="Edit">📝</button>
+              <button class="btn-action btn-delete" onclick="softDeleteMember(${m.id}, '${safeName}')" title="Delete account" style="background:#c62828;border-color:#c62828;">🗑</button>
+              <button class="btn-action btn-email" onclick="sendMemberResetLink(${m.id}, '${safeName}')" title="Send password reset link">🔑 Reset</button>
+              ${permsBtn}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#c62828;padding:20px;">❌ Network error loading member portal users.</td></tr>';
+    }
+  }
+
+  /* ════════════════════════════════════
+     PAGE INIT
+  ════════════════════════════════════ */
+
+  (function init() {
+    const church = localStorage.getItem('church') === 'true';
+    const role   = (localStorage.getItem('role') || '').toLowerCase();
+
+    if (church || role === 'church') {
+      isChurchSession  = true;
+      canLinkAccounts  = true;
+    }
+
+    // Show/hide Church-only UI elements based on session type
+    document.querySelectorAll('.church-only').forEach(el => {
+      el.style.display = isChurchSession ? '' : 'none';
+    });
+
+    loadUsers();
+    loadMemberPicker();
+    if (isChurchSession) {
+      loadMemberPortalUsers();
+    }
+  })();
+
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/users', pageTitle: 'Accounts', openSection: 'admin' };
+window.CGP_applyPerms = function() {
+  // Re-render table to apply any permission-based column hiding
+  if (typeof renderTable === 'function') renderTable();
+};
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

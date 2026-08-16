@@ -496,5 +496,138 @@ CREATE INDEX IF NOT EXISTS idx_ppv_page
 CREATE INDEX IF NOT EXISTS idx_ppv_page_date
     ON public_page_visit (page, visited_at);
 
+-- ── Subscription plans + monthly usage counters (2026-07-14) ─────────────────
+-- Plans are managed by the Service Admin; each church's service_client.subscription_type
+-- maps to a plan (FREE→FREE, LIMITED→STANDARD, FULL→PRO, or a plan_code directly).
+-- Defaults are seeded by the application on startup (SubscriptionPlanSeeder).
+
+CREATE SEQUENCE IF NOT EXISTS subscription_plan_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+
+CREATE TABLE IF NOT EXISTS subscription_plan (
+    id                          BIGINT       PRIMARY KEY DEFAULT nextval('subscription_plan_id_seq'),
+    plan_code                   VARCHAR(40)  NOT NULL UNIQUE,
+    plan_name                   VARCHAR(100) NOT NULL,
+    description                 TEXT,
+    max_people                  INTEGER,
+    max_emails_per_month        INTEGER,
+    max_sms_per_month           INTEGER,
+    max_online_giving_per_month INTEGER,
+    max_member_portals          INTEGER,
+    max_kids_portals            INTEGER,
+    features_json               TEXT,
+    active                      BOOLEAN      NOT NULL DEFAULT TRUE,
+    sort_order                  INTEGER,
+    created_date                TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE SEQUENCE IF NOT EXISTS subscription_usage_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+
+-- Extra SMS credits are granted PER CLIENT (on top of the plan's monthly limit)
+ALTER TABLE service_client
+    ADD COLUMN IF NOT EXISTS extra_sms_count INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS subscription_usage (
+    id           BIGINT       PRIMARY KEY DEFAULT nextval('subscription_usage_id_seq'),
+    client_id    VARCHAR(100) NOT NULL,
+    usage_month  VARCHAR(7)   NOT NULL,
+    emails_sent  INTEGER      NOT NULL DEFAULT 0,
+    sms_sent     INTEGER      NOT NULL DEFAULT 0,
+    giving_count INTEGER      NOT NULL DEFAULT 0,
+    created_date TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_subscription_usage UNIQUE (client_id, usage_month)
+);
+
+-- ── Multiple Song Books (2026-07-16) ─────────────────────────────────────────
+-- Each church may now have several Song Books. The DEFAULT book keeps the plain
+-- client_id on all existing song tables (no data migration needed — existing
+-- data becomes the default book, named "Musical Night"); additional books store
+-- their rows under the scoped client id "<client_id>#B<book_id>".
+CREATE SEQUENCE IF NOT EXISTS song_book_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+
+CREATE TABLE IF NOT EXISTS song_book (
+    id           BIGINT       PRIMARY KEY DEFAULT nextval('song_book_id_seq'),
+    client_id    VARCHAR(100) NOT NULL,
+    name         VARCHAR(200) NOT NULL,
+    default_book BOOLEAN      NOT NULL DEFAULT FALSE,
+    sort_order   INTEGER      NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_song_book_client ON song_book (client_id);
+
+
+-- ── Meeting occurrence deletion (2026-07-21) ─────────────────────────────────
+-- Recurring meetings are one `meeting` row whose occurrences are computed on
+-- the fly. Deleting a single occurrence records an exception here; the Event
+-- Calendar, ICS feed and the reminder scheduler all exclude these dates, so
+-- no reminders (email/SMS/WhatsApp/push/weekly digest) are sent for them.
+-- "Delete this & all future" instead rewrites meeting.end_date.
+CREATE TABLE IF NOT EXISTS meeting_skip_date (
+    id            BIGSERIAL    PRIMARY KEY,
+    meeting_id    INTEGER      NOT NULL,
+    skip_date     DATE         NOT NULL,
+    app_client_id VARCHAR(64),
+    created_date  TIMESTAMP,
+    CONSTRAINT uq_meeting_skip UNIQUE (meeting_id, skip_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_meeting_skip_meeting ON meeting_skip_date (meeting_id);
+
+
+-- ── Connect submissions admin (2026-07-22) ───────────────────────────────────
+-- Admin-facing record of every public "Connect With Us" submission. The
+-- submission still creates a Visitor family_member; this row adds workflow
+-- status, volunteer assignment and links to the auto follow-up (follow_up rows
+-- with linked_type='CONNECT' hold the follow-up history).
+CREATE TABLE IF NOT EXISTS connect_submission (
+    id                  BIGSERIAL    PRIMARY KEY,
+    client_id           VARCHAR(64)  NOT NULL,
+    member_id           INTEGER,
+    first_name          VARCHAR(100),
+    last_name           VARCHAR(100),
+    email               VARCHAR(200),
+    phone               VARCHAR(40),
+    address             VARCHAR(300),
+    gender              VARCHAR(20),
+    marital_status      VARCHAR(30),
+    birth_date          VARCHAR(20),
+    contact_preferences VARCHAR(120),
+    how_heard           TEXT,
+    status              VARCHAR(20),
+    assigned_member_id  INTEGER,
+    assigned_to         VARCHAR(150),
+    follow_up_id        BIGINT,
+    confirmation_sent   VARCHAR(20),
+    delete_flag         BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_connect_submission_client ON connect_submission (client_id);
+
+
+-- ── Song Book advertisement pages (2026-07-22) ───────────────────────────────
+-- Sponsor ads / promotions / announcements insertable anywhere in a Song Book.
+-- position: cover | toc | fsec:<finalized_section_id> | end; multiple pages per
+-- position ordered by sort_order. PDF uploads are rasterized to PNG (one row
+-- per page). Book-scoped client ids ("<client_id>#B<book_id>") supported.
+CREATE TABLE IF NOT EXISTS song_book_ad (
+    id           BIGSERIAL    PRIMARY KEY,
+    client_id    VARCHAR(100) NOT NULL,
+    title        VARCHAR(200),
+    position     VARCHAR(40)  NOT NULL DEFAULT 'end',
+    sort_order   INTEGER      NOT NULL DEFAULT 0,
+    content_type VARCHAR(100),
+    file_name    VARCHAR(300),
+    data         BYTEA,
+    created_at   TIMESTAMPTZ,
+    updated_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_song_book_ad_client ON song_book_ad (client_id);
+
 
 -- ── Done ──────────────────────────────────────────────────────────────────────
