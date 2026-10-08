@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Invoice — ChurchGeniusPro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; min-height: 100vh; padding: 32px 16px; color: #2b2b2b; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.09); width: 100%; max-width: 720px; margin: 0 auto; overflow: hidden; }
+    .card-head { background: #673147; color: #fff; padding: 24px 30px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+    .card-head h1 { font-size: 22px; font-weight: 600; }
+    .card-head .sub { font-size: 14px; opacity: .9; margin-top: 4px; }
+    .badge { display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #fff; color: #673147; white-space: nowrap; }
+    .badge.paid { color: #256b38; }
+    .badge.overdue { color: #a5322a; }
+    .card-body { padding: 24px 30px 30px; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; margin-bottom: 22px; font-size: 14px; }
+    @media (max-width: 560px) { .meta { grid-template-columns: 1fr; } .card-body, .card-head { padding-left: 18px; padding-right: 18px; } }
+    .meta .k { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #888; margin-bottom: 3px; }
+    .meta .v { font-weight: 600; color: #2b2b2b; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #888; padding: 8px 0; border-bottom: 1px solid #e8e8ee; }
+    th.amt, td.amt { text-align: right; white-space: nowrap; }
+    td { padding: 11px 0; border-bottom: 1px solid #f0f0f4; vertical-align: top; }
+    td.amt { padding-left: 16px; }
+    .totals { margin-top: 10px; margin-left: auto; width: 100%; max-width: 300px; font-size: 14px; }
+    .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
+    .totals .disc { color: #256b38; }
+    .totals .due { border-top: 2px solid #673147; margin-top: 4px; padding-top: 10px; font-size: 17px; font-weight: 700; color: #673147; }
+    .note { margin-top: 22px; padding: 12px 14px; border-radius: 8px; background: #f7f7fa; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+    .msg { padding: 13px 15px; border-radius: 8px; font-size: 14px; line-height: 1.55; }
+    .msg.err { background: #fdecea; border: 1px solid #f5c6c2; color: #a5322a; }
+    .msg.ok { background: #eaf7ee; border: 1px solid #bfe3c9; color: #256b38; margin-bottom: 18px; }
+    .msg.warn { background: #fff8e1; border: 1px solid #ffe0a3; color: #7a5b16; margin-bottom: 18px; }
+    .foot { margin-top: 24px; font-size: 13px; color: #777; line-height: 1.6; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+    button { background: #673147; color: #fff; border: 0; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    [hidden] { display: none !important; }
+    .pay { margin-top: 22px; padding: 18px; border: 1.5px solid #e3d6dc; border-radius: 12px; background: #fcf9fa; }
+    .pay h3 { font-size: 15px; color: #673147; margin-bottom: 10px; }
+    .pay .hint { font-size: 12.5px; color: #777; margin-top: 10px; line-height: 1.5; }
+    #payElement { margin: 6px 0 14px; }
+    button.secondary { background: #fff; color: #673147; border: 1.5px solid #673147; }
+    @media print { body { background: #fff; padding: 0; } .card { box-shadow: none; } .noprint { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h1 id="title">Invoice</h1>
+        <div class="sub" id="church"></div>
+      </div>
+      <span class="badge" id="state" hidden></span>
+    </div>
+    <div class="card-body">
+      <p id="loading" style="font-size:14px;color:#777;">Loading…</p>
+      <div class="msg err" id="invalid" hidden></div>
+
+      <div id="invoice" hidden>
+        <div class="msg ok" id="paidMsg" hidden></div>
+        <div class="msg warn" id="overdueMsg" hidden></div>
+        <div class="meta">
+          <div><div class="k">Billed to</div><div class="v" id="billTo"></div></div>
+          <div><div class="k">Invoice number</div><div class="v" id="number"></div></div>
+          <div><div class="k">Issue date</div><div class="v" id="issued"></div></div>
+          <div><div class="k">Due date</div><div class="v" id="due"></div></div>
+          <div id="periodBox" hidden><div class="k">Service period</div><div class="v" id="period"></div></div>
+        </div>
+        <table>
+          <thead><tr><th>Description</th><th class="amt">Amount</th></tr></thead>
+          <tbody id="lines"></tbody>
+        </table>
+        <div class="totals">
+          <div><span>Subtotal</span><span id="subtotal"></span></div>
+          <div class="disc" id="discRow"><span>Discount</span><span id="discount"></span></div>
+          <div class="due"><span id="dueLabel">Amount Due</span><span id="total"></span></div>
+        </div>
+        <div class="note" id="note" hidden></div>
+        <div class="pay noprint" id="payBox" hidden>
+          <h3>Pay online</h3>
+          <div class="msg warn" id="payPending" hidden style="margin-bottom:12px;"></div>
+          <button type="button" id="payStart">Pay <span id="payAmt"></span> online</button>
+          <div id="payForm" hidden>
+            <div id="payElement"></div>
+            <button type="button" id="paySubmit">Pay <span id="payAmt2"></span></button>
+            <button type="button" class="secondary" id="payCancel">Cancel</button>
+          </div>
+          <div class="msg" id="payMsg" hidden style="margin-top:12px;"></div>
+          <p class="hint">Payments are processed securely by Stripe — card, bank account and the other methods shown. Your card or bank details never reach ChurchGeniusPro.</p>
+        </div>
+        <div class="foot">
+          <span>Questions about this invoice? Contact <a id="support" href="#"></a>.</span>
+          <button class="noprint" type="button" onclick="window.print()">Print</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  function amt(v) { return money.format(Number(v || 0)); }
+  function day(s) {
+    if (!s) return '—';
+    var p = String(s).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  function invalid(text) {
+    $('loading').hidden = true;
+    $('invalid').textContent = text || 'This invoice link is not valid or has expired.';
+    $('invalid').hidden = false;
+  }
+  var t = new URLSearchParams(location.search).get('t');
+  if (!t) { invalid(); return; }
+
+  fetch('/api/invoice/view?t=' + encodeURIComponent(t), { credentials: 'same-origin', cache: 'no-store' })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (x) {
+      if (!x.ok || !x.d || x.d.status !== 'success') { invalid(x.d && x.d.message); return; }
+      var d = x.d;
+      document.title = 'Invoice ' + d.invoiceNumber + ' — ChurchGeniusPro';
+      $('title').textContent = 'Invoice ' + d.invoiceNumber;
+      $('church').textContent = d.churchName || '';
+      $('billTo').textContent = d.billToName || d.churchName || '—';
+      $('number').textContent = d.invoiceNumber;
+      $('issued').textContent = day(d.issueDate);
+      $('due').textContent = day(d.dueDate);
+      if (d.periodStart && d.periodEnd) { $('period').textContent = day(d.periodStart) + ' – ' + day(d.periodEnd); $('periodBox').hidden = false; }
+      var tb = $('lines');
+      (d.lines || []).forEach(function (l) {
+        var tr = document.createElement('tr');
+        var a = document.createElement('td'); a.textContent = l.description;
+        var b = document.createElement('td'); b.className = 'amt'; b.textContent = amt(l.amount);
+        tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+      });
+      $('subtotal').textContent = amt(d.subtotal);
+      if (Number(d.discount || 0) > 0) $('discount').textContent = '−' + amt(d.discount); else $('discRow').hidden = true;
+      $('total').textContent = amt(d.total);
+      if (d.note) { $('note').textContent = d.note; $('note').hidden = false; }
+      var se = d.supportEmail || 'support@churchgeniuspro.com';
+      $('support').textContent = se; $('support').href = 'mailto:' + se;
+      var st = $('state');
+      if (d.state === 'PAID') {
+        st.textContent = 'Paid'; st.className = 'badge paid';
+        $('dueLabel').textContent = 'Amount Paid';
+        $('paidMsg').textContent = 'Paid' + (d.paidDate ? ' on ' + day(d.paidDate) : '') + '. Thank you!';
+        $('paidMsg').hidden = false;
+      } else if (d.state === 'OVERDUE') {
+        st.textContent = 'Overdue'; st.className = 'badge overdue';
+        $('overdueMsg').textContent = 'This invoice was due on ' + day(d.dueDate) + '. Please contact us to arrange payment.';
+        $('overdueMsg').hidden = false;
+      } else {
+        st.textContent = 'Due ' + day(d.dueDate);
+      }
+      st.hidden = false;
+      $('loading').hidden = true;
+      $('invoice').hidden = false;
+    })
+    .then(function () { return returnedFromBank(); })
+    .then(function () { return offerCardPayment(); })
+    .catch(function () { invalid('The invoice could not be loaded. Please try again.'); });
+
+  // ── Card payment (Stripe Payment Element; the amount always comes from the server) ──
+  var stripe = null, elements = null, TOTAL = null;
+  function payMsg(text, kind) {
+    var el = $('payMsg');
+    if (!text) { el.hidden = true; return; }
+    el.textContent = text; el.className = 'msg ' + (kind || 'warn'); el.hidden = false;
+  }
+  function post(url, body) {
+    return fetch(url, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }, function () { return { ok: false, d: {} }; }); });
+  }
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = 'https://js.stripe.com/v3/';
+      sc.onload = resolve; sc.onerror = reject;
+      document.head.appendChild(sc);
+    });
+  }
+  function offerCardPayment() {
+    if ($('invoice').hidden || $('state').textContent === 'Paid') return;
+    return fetch('/api/invoice/pay/config?t=' + encodeURIComponent(t), { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.status !== 'success' || !d.available) return;
+        TOTAL = $('total').textContent;
+        $('payAmt').textContent = TOTAL; $('payAmt2').textContent = TOTAL;
+        $('payBox').hidden = false;
+        if (d.pending) showPending(d.pending, d.instructionsUrl);
+      }).catch(function () {});
+  }
+  // A payment already under way (ACH debit clearing, or bank transfer instructions issued).
+  function showPending(state, url) {
+    var el = $('payPending');
+    if (state === 'AWAITING_TRANSFER') {
+      el.textContent = 'Bank transfer instructions have been issued for this invoice. It will show as Paid once the transfer arrives (usually 1–3 business days). ';
+      if (url) { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View the transfer instructions'; el.appendChild(a); }
+      $('payStart').textContent = 'Pay another way instead';
+    } else if (state === 'PROCESSING') {
+      el.textContent = 'A payment is being processed for this invoice. It will show as Paid once the funds clear (bank debits usually take 1–5 business days).';
+      $('payStart').hidden = true;
+    } else { el.hidden = true; return; }
+    el.hidden = false;
+  }
+  $('payStart').addEventListener('click', function () {
+    $('payStart').disabled = true; payMsg('');
+    post('/api/invoice/pay/start', { t: t }).then(function (x) {
+      if (!x.ok || x.d.status !== 'success') {
+        payMsg(x.d.message || 'Online payment is not available right now.', 'err');
+        $('payStart').disabled = false;
+        if (x.d && /already been paid/.test(x.d.message || '')) setTimeout(function () { location.reload(); }, 1500);
+        return;
+      }
+      return loadStripeJs().then(function () {
+        stripe = window.Stripe(x.d.publishableKey);
+        elements = stripe.elements({ clientSecret: x.d.clientSecret, appearance: { variables: { colorPrimary: '#673147' } } });
+        elements.create('payment', { wallets: { applePay: 'never', googlePay: 'never' } }).mount('#payElement');
+        $('payStart').hidden = true; $('payForm').hidden = false;
+      });
+    }).catch(function () { payMsg('The payment form could not be loaded. Please try again.', 'err'); $('payStart').disabled = false; });
+  });
+  $('payCancel').addEventListener('click', function () { location.reload(); });
+  $('paySubmit').addEventListener('click', function () {
+    if (!stripe || !elements) return;
+    $('paySubmit').disabled = true; payMsg('Processing…', 'warn');
+    var back = location.origin + location.pathname + '?t=' + encodeURIComponent(t);
+    stripe.confirmPayment({ elements: elements, confirmParams: { return_url: back }, redirect: 'if_required' })
+      .then(function (res) {
+        if (res.error) { payMsg(res.error.message || 'The payment did not go through.', 'err'); $('paySubmit').disabled = false; return; }
+        return confirmWithServer();
+      });
+  });
+  function confirmWithServer() {
+    return post('/api/invoice/pay/confirm', { t: t }).then(function (x) {
+      var st = x.d && x.d.state;
+      if (st === 'PAID') { payMsg('Payment received — thank you! A receipt is on its way by email.', 'ok'); setTimeout(function () { location.replace(location.pathname + '?t=' + encodeURIComponent(t)); }, 1800); }
+      else if (st === 'PROCESSING') { payMsg('Your payment has been submitted and is being processed. Bank debits usually clear in 1–5 business days; this invoice will show as Paid when the funds arrive. You can close this page.', 'warn'); $('payForm').hidden = true; }
+      else if (st === 'AWAITING_TRANSFER') {
+        payMsg('Please send the bank transfer using the instructions Stripe showed you. This invoice will show as Paid when the transfer arrives (usually 1–3 business days). ', 'warn');
+        if (x.d.instructionsUrl) { var a = document.createElement('a'); a.href = x.d.instructionsUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View the transfer instructions'; $('payMsg').appendChild(a); }
+        $('payForm').hidden = true;
+      }
+      else if (st === 'PENDING') payMsg('Your payment is being processed. This page will show it as paid shortly.', 'warn');
+      else { payMsg((x.d && x.d.message) || 'We could not confirm the payment. If you were charged, the invoice will update shortly.', 'err'); $('paySubmit').disabled = false; }
+    });
+  }
+  // Back from a card-issuer (3-D Secure) or bank redirect: Stripe adds payment_intent / redirect_status.
+  function returnedFromBank() {
+    var q = new URLSearchParams(location.search);
+    if ($('invoice').hidden || (!q.get('payment_intent') && !q.get('redirect_status'))) return;
+    $('payBox').hidden = false; $('payStart').hidden = true;
+    return confirmWithServer();
+  }
+})();
+</script>
+</body>
+</html>

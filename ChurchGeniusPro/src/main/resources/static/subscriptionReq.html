@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request for Subscription — ChurchGeniusPro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; min-height: 100vh; padding: 32px 16px; color: #2b2b2b; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.09); width: 100%; max-width: 720px; margin: 0 auto; overflow: hidden; }
+    .card-head { background: #673147; color: #fff; padding: 26px 30px 22px; }
+    .card-head h1 { font-size: 24px; font-weight: 600; }
+    .card-head .lead { font-size: 15px; opacity: .92; margin-top: 6px; line-height: 1.5; }
+    .church { display: inline-block; margin-top: 14px; background: #fff; color: #673147; font-weight: 700; font-size: 15px; padding: 7px 14px; border-radius: 20px; }
+    .card-body { padding: 26px 30px 30px; }
+    .intro { font-size: 14.5px; color: #4a4a4a; line-height: 1.6; margin-bottom: 18px; }
+    .note-box { font-size: 13.5px; line-height: 1.55; padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; background: #fff8e1; border: 1px solid #ffe0a3; color: #7a5b16; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 13px; font-weight: 600; color: #4a4a4a; margin-bottom: 5px; }
+    .req::after { content: " *"; color: #c0392b; }
+    .opt { font-weight: 400; color: #999; font-size: 12px; }
+    input, textarea, select { width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit; border: 1.5px solid #d8d8e0; border-radius: 8px; background: #fff; color: #2b2b2b; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #673147; }
+    .bad { border-color: #c0392b !important; }
+    textarea { resize: vertical; min-height: 76px; }
+    .actions { margin-top: 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button { background: #673147; color: #fff; border: 0; border-radius: 8px; padding: 12px 30px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { font-size: 12.5px; color: #777; line-height: 1.5; }
+    .msg { margin-top: 18px; padding: 13px 15px; border-radius: 8px; font-size: 14px; line-height: 1.55; display: none; }
+    .msg.err { display: block; background: #fdecea; border: 1px solid #f5c6c2; color: #a5322a; }
+    .msg.ok  { display: block; background: #eaf7ee; border: 1px solid #bfe3c9; color: #256b38; }
+    .step { display: none; }
+    .step.on { display: block; }
+    .done h2 { font-size: 20px; color: #256b38; margin-bottom: 12px; }
+    .done p { font-size: 14.5px; line-height: 1.65; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-head">
+      <h1>Request for Subscription</h1>
+      <p class="lead">Choose the plan you would like. We will contact you with the next steps.</p>
+      <span class="church" id="churchName" hidden></span>
+    </div>
+
+    <div class="card-body">
+      <div class="step" id="stepLoading"><p class="intro">Loading…</p></div>
+
+      <div class="step" id="stepInvalid">
+        <p class="intro" id="invalidText">This subscription request link is no longer valid.
+          Please contact support@churchgeniuspro.com.</p>
+      </div>
+
+      <div class="step" id="stepForm">
+        <div class="note-box" id="sampleNote" hidden>
+          This trial was created with sample data, so it cannot be turned into a paid account.
+          Send your request and we will set up a new account for your church on the plan you choose.
+        </div>
+        <div class="note-box" id="openNote" hidden></div>
+        <div class="grid">
+          <div>
+            <label class="req" for="firstName">First Name</label>
+            <input id="firstName" maxlength="100" autocomplete="given-name" />
+          </div>
+          <div>
+            <label class="req" for="lastName">Last Name</label>
+            <input id="lastName" maxlength="100" autocomplete="family-name" />
+          </div>
+          <div>
+            <label class="req" for="registeredEmail">Registered Email</label>
+            <input id="registeredEmail" type="email" maxlength="320" autocomplete="email" />
+            <span class="hint">The email address this church account is registered with.</span>
+          </div>
+          <div>
+            <label for="phone">Phone Number <span class="opt">(optional)</span></label>
+            <input id="phone" maxlength="40" autocomplete="tel" />
+          </div>
+          <div>
+            <label class="req" for="planCode">Plan</label>
+            <select id="planCode"><option value="">Choose a plan…</option></select>
+          </div>
+          <div id="frequencyWrap">
+            <label for="billingFrequency">Billing</label>
+            <select id="billingFrequency"><option value="MONTHLY">Monthly</option></select>
+          </div>
+          <div class="full">
+            <label for="note">Note <span class="opt">(optional)</span></label>
+            <textarea id="note" maxlength="1000" placeholder="Anything you'd like us to know"></textarea>
+          </div>
+        </div>
+        <!-- Honeypot: named so no browser autofills it; sent under the key PublicFormGuard checks. -->
+        <input type="text" id="cgpFormRef" name="cgp_form_ref" tabindex="-1" autocomplete="off"
+               aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:1px;width:1px;opacity:0;" />
+        <div class="actions">
+          <button id="submitBtn" type="button">Submit</button>
+          <span class="hint">No payment is taken on this page. We will send you the details for your chosen plan.</span>
+        </div>
+        <div class="msg" id="msgForm"></div>
+      </div>
+
+      <div class="step done" id="stepDone">
+        <h2>&#10003; Request sent</h2>
+        <p id="doneText"></p>
+      </div>
+    </div>
+  </div>
+
+<script>
+  var params = new URLSearchParams(window.location.search);
+  var linkKey = params.get('t') || '';
+  var formToken = '';
+  var PLANS = [];
+
+  function $(id) { return document.getElementById(id); }
+  function val(id) { return ($(id).value || '').trim(); }
+  function show(kind, text) { var m = $('msgForm'); m.className = 'msg ' + kind; m.textContent = text; }
+  function step(id) { ['stepLoading','stepInvalid','stepForm','stepDone'].forEach(function (s) { $(s).classList.toggle('on', s === id); }); }
+  function money(v) { return '$' + Number(v || 0).toFixed(2); }
+  function pretty(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    if (!m) return String(iso || '');
+    return ['January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(m[2], 10) - 1]
+         + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+  }
+
+  function setupCaptcha(siteKey) {
+    if (!siteKey || $('captchaBox')) return;
+    var holder = document.createElement('div');
+    holder.id = 'captchaBox'; holder.className = 'g-recaptcha';
+    holder.setAttribute('data-sitekey', siteKey); holder.style.margin = '14px 0 2px';
+    var actions = document.querySelector('#stepForm .actions');
+    actions.parentNode.insertBefore(holder, actions);
+    var sc = document.createElement('script'); sc.src = 'https://www.google.com/recaptcha/api.js'; sc.async = true;
+    document.head.appendChild(sc);
+  }
+
+  // Monthly always; Yearly only when the chosen plan has a yearly price.
+  function refreshFrequency() {
+    var p = PLANS.filter(function (x) { return x.planCode === $('planCode').value; })[0];
+    var sel = $('billingFrequency');
+    var keep = sel.value;
+    sel.innerHTML = '';
+    var m = document.createElement('option');
+    m.value = 'MONTHLY'; m.textContent = 'Monthly' + (p ? ' — ' + money(p.monthlyPrice) + '/month' : '');
+    sel.appendChild(m);
+    if (p && p.yearlyPrice != null) {
+      var y = document.createElement('option');
+      y.value = 'YEARLY'; y.textContent = 'Yearly — ' + money(p.yearlyPrice) + '/year';
+      sel.appendChild(y);
+    }
+    sel.value = (keep === 'YEARLY' && p && p.yearlyPrice != null) ? 'YEARLY' : 'MONTHLY';
+  }
+
+  step('stepLoading');
+  fetch('/api/subscription-request/form-info' + (linkKey ? '?t=' + encodeURIComponent(linkKey) : ''),
+        { credentials: 'same-origin' })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (x) {
+      if (!x.ok) { if (x.d && x.d.message) $('invalidText').textContent = x.d.message; step('stepInvalid'); return; }
+      var d = x.d;
+      formToken = d.formToken || '';
+      if (d.churchName) { $('churchName').textContent = d.churchName; $('churchName').hidden = false; }
+      if (d.registerAsNewClient) $('sampleNote').hidden = false;
+      if (d.openRequestSince) {
+        $('openNote').hidden = false;
+        $('openNote').textContent = 'A subscription request for this church is already open (submitted '
+          + pretty(d.openRequestSince) + '). We will contact you shortly.';
+      }
+      PLANS = d.plans || [];
+      PLANS.forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = p.planCode;
+        o.textContent = p.planName + ' — ' + money(p.monthlyPrice) + '/month'
+                      + (p.yearlyPrice != null ? ' or ' + money(p.yearlyPrice) + '/year' : '');
+        $('planCode').appendChild(o);
+      });
+      refreshFrequency();
+      setupCaptcha(d.captchaSiteKey);
+      step('stepForm');
+    })
+    .catch(function () { step('stepInvalid'); });
+
+  $('planCode').addEventListener('change', refreshFrequency);
+
+  async function submitRequest() {
+    var required = [['firstName','First Name'],['lastName','Last Name'],['registeredEmail','Registered Email'],['planCode','Plan']];
+    var missing = null;
+    required.forEach(function (f) { var bad = !val(f[0]); $(f[0]).classList.toggle('bad', bad); if (bad && !missing) missing = f[1]; });
+    if (missing) { show('err', missing === 'Plan' ? 'Please choose a plan.' : missing + ' is required.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('registeredEmail'))) { $('registeredEmail').classList.add('bad'); show('err', 'Please enter a valid email address.'); return; }
+
+    var payload = { t: linkKey, formToken: formToken,
+      firstName: val('firstName'), lastName: val('lastName'), registeredEmail: val('registeredEmail'),
+      phone: val('phone'), planCode: val('planCode'), billingFrequency: val('billingFrequency'), note: val('note'),
+      website: $('cgpFormRef').value };
+    if (window.grecaptcha && $('captchaBox')) {
+      payload.captchaToken = grecaptcha.getResponse();
+      if (!payload.captchaToken) { show('err', 'Please complete the CAPTCHA.'); return; }
+    }
+    var btn = $('submitBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      var r = await fetch('/api/subscription-request', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      var d = await r.json().catch(function () { return {}; });
+      if (r.ok && d.status === 'success' && d.message) { $('doneText').textContent = d.message; step('stepDone'); return; }
+      if (r.ok && d.status === 'success') {    // the honeypot's decoy: never shown as a real success
+        show('err', 'Your request could not be completed. Please contact support@churchgeniuspro.com.');
+      } else {
+        show('err', d.message || 'We could not send your request. Please try again.');
+      }
+    } catch (e) {
+      show('err', 'Network error — please check your connection and try again.');
+    }
+    if (window.grecaptcha && $('captchaBox')) { try { grecaptcha.reset(); } catch (ignored) {} }
+    btn.disabled = false; btn.textContent = 'Submit';
+  }
+  $('submitBtn').addEventListener('click', submitRequest);
+</script>
+</body>
+</html>

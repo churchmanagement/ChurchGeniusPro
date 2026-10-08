@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Daily Verse Setup — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f5f6fa; color: #333; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .tb-username { font-size: 13px; color: #555; }
+    .page-header { background: #673147; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+    .page-header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .page-body { max-width: 760px; margin: 32px auto; padding: 0 20px 60px; }
+
+    .settings-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); padding: 30px 32px; margin-bottom: 20px; }
+    .settings-card h2 { font-size: 15px; font-weight: 700; color: #673147; margin-bottom: 8px; }
+    .card-sub { font-size: 13px; color: #8b8194; line-height: 1.65; margin-bottom: 22px; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #673147; margin-bottom: 6px; }
+    .field small { display: block; font-size: 13px; color: #aaa; margin-top: 5px; line-height: 1.6; }
+    .field select { width: 100%; max-width: 260px; border: 1.5px solid #dde0ec; border-radius: 8px;
+                    padding: 10px 13px; font-size: 14px; font-family: inherit; color: #673147;
+                    background: #fff; outline: none; transition: border-color .15s; }
+    .field select:focus { border-color: #673147; }
+
+    /* Coverage */
+    .cov { display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
+           background: #faf7f9; border: 1px solid #ecdfe6; border-radius: 10px; padding: 16px 18px; margin-bottom: 22px; }
+    .cov-num { font-size: 26px; font-weight: 800; color: #673147; line-height: 1; }
+    .cov-lbl { font-size: 12px; color: #8b8194; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+    .cov-bar { flex: 1 1 200px; min-width: 160px; height: 9px; border-radius: 5px; background: #eadfe5; overflow: hidden; }
+    .cov-bar > i { display: block; height: 100%; background: #673147; width: 0; transition: width .4s ease; }
+
+    .opt { display: flex; gap: 11px; align-items: flex-start; padding: 13px 15px; border: 1.5px solid #e6e8f2;
+           border-radius: 9px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .opt:hover { border-color: #c5a0b5; background: #fdfbfc; }
+    .opt input { margin-top: 3px; accent-color: #673147; width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .opt-t { display: block; font-size: 14px; font-weight: 600; color: #673147; }
+    .opt-d { display: block; font-size: 13px; color: #8b8194; line-height: 1.6; margin-top: 3px; }
+
+    .preview { border: 1px solid #eef0fb; border-radius: 9px; overflow: hidden; }
+    .preview table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .preview th { background: #f7f8fc; color: #7a7085; font-size: 11px; font-weight: 700; text-transform: uppercase;
+                  letter-spacing: .5px; padding: 9px 12px; text-align: left; }
+    .preview td { padding: 9px 12px; border-top: 1px solid #f2f3f9; color: #555; vertical-align: top; }
+    .preview .ref { font-weight: 600; color: #673147; white-space: nowrap; }
+    .pill { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 2px 9px; }
+    .pill.has { background: #e8f5e9; color: #2e7d32; }
+    .pill.gap { background: #fff3e0; color: #ef6c00; }
+
+    .form-actions { display: flex; justify-content: flex-end; align-items: center; margin-top: 26px; gap: 12px; flex-wrap: wrap; }
+    .btn-save { padding: 11px 28px; background: #673147; color: #fff; font-size: 14px; font-weight: 600;
+                border: none; border-radius: 8px; cursor: pointer; transition: background .2s; font-family: inherit; }
+    .btn-save:hover { background: #4f2538; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-ghost { padding: 10px 18px; background: transparent; color: #673147; border: 1px solid #c5a0b5;
+                 border-radius: 8px; font-size: 13px; font-weight: 600; }
+    .btn-ghost:hover { background: #673147; color: #fff; }
+    .note { font-size: 12px; color: #9b93a3; line-height: 1.7; }
+
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px;
+             border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+             display: none; z-index: 2000; max-width: 420px; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 600px) {
+      .settings-card { padding: 20px 16px; }
+      .form-actions .btn-save { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <span style="font-size:26px;">📖</span>
+        <h1>Daily Verse Setup</h1>
+      </div>
+
+      <div class="page-body">
+
+        <!-- ── Load a year ─────────────────────────────────────────────── -->
+        <div class="settings-card">
+          <h2>Load a full year of verses</h2>
+          <p class="card-sub">
+            Adds one verse for every day of the year to your Daily Verse list, so
+            <strong>Include Daily Verse</strong> in Email Settings always has something to send.
+            <strong>You only ever need to do this once.</strong> Verses are stored against a day of
+            the year rather than a date, so the same list is reused every year automatically — there
+            is nothing to reload next January.
+          </p>
+
+          <div class="field">
+            <label for="yearSel">Year</label>
+            <select id="yearSel" onchange="loadCoverage()"></select>
+            <small>Used to work out how many days the year has (a leap year gets a 29 February
+                   verse) and which date each day falls on.</small>
+          </div>
+
+          <div class="cov" id="covBox">
+            <div>
+              <div class="cov-num" id="covFilled">—</div>
+              <div class="cov-lbl">Days with a verse</div>
+            </div>
+            <div>
+              <div class="cov-num" id="covMissing">—</div>
+              <div class="cov-lbl">Days still empty</div>
+            </div>
+            <div class="cov-bar"><i id="covBar"></i></div>
+          </div>
+
+          <label class="opt">
+            <input type="radio" name="mode" value="fill" checked />
+            <span>
+              <span class="opt-t">Fill the empty days only</span>
+              <span class="opt-d">Recommended. Adds a verse to each day that does not have one and
+                    leaves every verse you have written yourself exactly as it is.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="mode" value="replace" />
+            <span>
+              <span class="opt-t">Replace every day</span>
+              <span class="opt-d">Overwrites the whole year with the standard list. Any verse your
+                    church has written or edited will be replaced.</span>
+            </span>
+          </label>
+
+          <div class="form-actions">
+            <span class="note" id="libNote" style="margin-right:auto;"></span>
+            <a class="btn-ghost" href="/promiseVerse">Edit verses individually</a>
+            <button class="btn-save" id="loadBtn" onclick="populate()">Load verses</button>
+          </div>
+        </div>
+
+        <!-- ── Preview ─────────────────────────────────────────────────── -->
+        <div class="settings-card">
+          <h2>What gets added</h2>
+          <p class="card-sub">The first few days of the year you selected. Every verse can be edited
+             or replaced afterwards on the Promise Verse screen.</p>
+          <div class="preview">
+            <table>
+              <thead>
+                <tr><th style="width:64px;">Day</th><th style="width:120px;">Date</th>
+                    <th style="width:130px;">Reference</th><th>Verse</th><th style="width:92px;">Status</th></tr>
+              </thead>
+              <tbody id="previewBody">
+                <tr><td colspan="5" style="text-align:center;color:#bbb;padding:18px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top:14px;">
+            Verses are from the King James Version, which is in the public domain.
+          </p>
+        </div>
+
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Daily Verse Setup ─────────────────────────────────────────────────────
+   Every call is scoped to the signed-in church by the server, from the session.
+   Nothing on this page sends or can influence which church is written to.      */
+
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+
+function prettyDate(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return esc(iso);
+  return MONTHS[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+}
+
+function selectedYear() {
+  var sel = document.getElementById('yearSel');
+  return sel.value ? parseInt(sel.value, 10) : new Date().getFullYear();
+}
+
+function selectedMode() {
+  var r = document.querySelector('input[name="mode"]:checked');
+  return r ? r.value : 'fill';
+}
+
+async function loadCoverage() {
+  try {
+    var res = await fetch('/api/promise-verses/coverage?year=' + selectedYear());
+    var d   = await res.json();
+    if (!res.ok) { showToast(d.error || 'Could not load the current status.', true); return; }
+    render(d);
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  }
+}
+
+function render(d) {
+  // Year dropdown is filled from the server's own list the first time only, so
+  // re-rendering after a load does not reset the user's choice.
+  var sel = document.getElementById('yearSel');
+  if (!sel.options.length && Array.isArray(d.years)) {
+    d.years.forEach(function (y) {
+      var o = document.createElement('option');
+      o.value = y;
+      o.textContent = y + (y === new Date().getFullYear() ? ' (current)' : '');
+      if (y === d.year) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  document.getElementById('covFilled').textContent  = d.filled;
+  document.getElementById('covMissing').textContent = d.missing;
+  var pct = d.daysInYear ? Math.round((d.filled / d.daysInYear) * 100) : 0;
+  document.getElementById('covBar').style.width = pct + '%';
+
+  document.getElementById('libNote').textContent = d.libraryAvailable
+    ? d.librarySize + ' verses available to load'
+    : 'The verse library is unavailable on this server.';
+  document.getElementById('loadBtn').disabled = !d.libraryAvailable;
+
+  var rows = (d.sample || []).map(function (r) {
+    return '<tr>'
+      + '<td>' + r.day + '</td>'
+      + '<td>' + prettyDate(r.date) + '</td>'
+      + '<td class="ref">' + esc(r.reference) + '</td>'
+      + '<td>' + esc(r.text) + '</td>'
+      + '<td><span class="pill ' + (r.hasVerse ? 'has">Has verse' : 'gap">Empty') + '</span></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('previewBody').innerHTML = rows
+    || '<tr><td colspan="5" style="text-align:center;color:#bbb;padding:18px;">Nothing to preview.</td></tr>';
+}
+
+async function populate() {
+  var mode = selectedMode();
+  if (mode === 'replace' &&
+      !confirm('Replace every day of ' + selectedYear() + ' with the standard list?\n\n'
+             + 'Any verse your church has written or edited will be overwritten.')) return;
+
+  var btn = document.getElementById('loadBtn');
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    var res = await fetch('/api/promise-verses/populate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: selectedYear(), mode: mode })
+    });
+    var d = await res.json();
+    if (!res.ok) { showToast(d.error || 'Could not load the verses.', true); return; }
+
+    var parts = [];
+    if (d.added)        parts.push(d.added + ' added');
+    if (d.replaced)     parts.push(d.replaced + ' replaced');
+    if (d.keptExisting) parts.push(d.keptExisting + ' of your own kept');
+    showToast(parts.length
+      ? 'Done — ' + parts.join(', ') + '. Your list now has ' + d.totalAfter + ' verses.'
+      : 'Every day already had a verse — nothing to change.', false);
+    loadCoverage();
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Load verses';
+  }
+}
+
+function showToast(msg, isError) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(function () { t.className = 'toast'; }, 5000);
+}
+
+loadCoverage();
+</script>
+<script src="/session.js" defer></script>
+<script>
+window.CGP_PAGE = { activePage: 'admin-settings/daily-verse-setup', pageTitle: 'Daily Verse Setup', openSection: 'admin-settings' };
+</script>
+<script src="/shell.js"></script>
+</body>
+</html>

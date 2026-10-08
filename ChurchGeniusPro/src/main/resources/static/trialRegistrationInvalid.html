@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trial Registration — Link Not Valid</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #2b2b2b;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+    }
+    .card {
+      background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+      width: 100%; max-width: 520px; overflow: hidden; text-align: center;
+    }
+    .card-head { background: #673147; color: #fff; padding: 26px 30px; }
+    .card-head h1 { font-size: 20px; font-weight: 600; }
+    .card-body { padding: 28px 30px 32px; }
+    .icon { font-size: 40px; line-height: 1; margin-bottom: 14px; }
+    p { font-size: 15px; line-height: 1.65; color: #444; }
+    .contact { margin-top: 20px; font-size: 14px; color: #666; }
+    a { color: #673147; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-head"><h1>Trial Registration</h1></div>
+    <div class="card-body">
+      <div class="icon" id="icon">&#9888;&#65039;</div>
+      <p id="msg">This Trial Registration link is not valid.
+         Please contact the administrator for a registration link.</p>
+      <p class="contact">
+        Need a new link? Email
+        <a href="mailto:support@churchgeniuspro.com">support@churchgeniuspro.com</a>.
+      </p>
+    </div>
+  </div>
+
+<script>
+  // Cosmetic only. The server already refused this request with 403 and forwarded
+  // here; nothing on this page decides anything.
+  var MESSAGES = {
+    expired: 'This Trial Registration link has expired. '
+           + 'Please contact the administrator for a new registration link.',
+    used:    'This Trial Registration link has already been used to create an account. '
+           + 'Please contact the administrator if you need another one.',
+    revoked: 'This Trial Registration link is no longer valid. '
+           + 'Please contact the administrator for a new registration link.',
+    error:   'We could not check this registration link just now. '
+           + 'Please try again in a few minutes, or contact the administrator.'
+  };
+  var reason = new URLSearchParams(window.location.search).get('reason');
+  if (reason && MESSAGES[reason]) {
+    document.getElementById('msg').textContent = MESSAGES[reason];
+    if (reason === 'expired') document.getElementById('icon').textContent = '⏱️';
+    if (reason === 'used')    document.getElementById('icon').textContent = '✅';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Ticketing — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    .sidebar { background: #673147 !important; }
+    .nav-item-btn { color: rgba(255,255,255,.82) !important; }
+    .nav-sub-btn  { color: rgba(255,255,255,.7)  !important; }
+    .brand-name, .user-name { color: #fff !important; }
+
+    .page-header { margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .page-header-left { flex: 1; }
+    .page-title    { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .btn-primary   { padding: 9px 18px; background: #673147; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: background .15s; white-space: nowrap; }
+    .btn-primary:hover { background: #4f2538; }
+    .btn-primary[disabled] { opacity: .6; cursor: not-allowed; }
+    .btn-secondary { padding: 8px 14px; background: #fff; color: #555; border: 1.5px solid #dde0ec; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: border-color .15s, color .15s; white-space: nowrap; }
+    .btn-secondary:hover { border-color: #673147; color: #673147; }
+
+    /* Trial notice */
+    .trial-note { display: none; background: #fff8e1; border: 1px solid #ffe082; color: #7a5a00; border-radius: 10px; padding: 11px 14px; font-size: 13px; margin-bottom: 16px; }
+    .trial-note.show { display: block; }
+
+    .feedback { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.5; }
+    .feedback.success { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .feedback.error   { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .feedback.info    { display: block; background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.07); overflow: hidden; margin-bottom: 22px; }
+    .card-header { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid #eef0f6; background: #fafbfe; flex-wrap: wrap; }
+    .card-header h2 { font-size: 14px; font-weight: 700; color: #1e2139; flex: 1; }
+    .card-body { padding: 18px; }
+
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 13px; font-weight: 600; color: #555; }
+    .req { color: #c62828; }
+    .field input, .field select, .field textarea { border: 1.5px solid #ddd; border-radius: 8px; padding: 9px 11px; font-size: 13px; color: #333; outline: none; background: #fff; transition: border-color .2s, box-shadow .2s; font-family: inherit; width: 100%; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #673147; box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
+    .field textarea { resize: vertical; min-height: 140px; }
+    .field .note { font-size: 12px; color: #888; }
+    .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: #e53935; }
+    .field .hint { font-size: 12px; color: #c62828; min-height: 14px; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+
+    /* Table */
+    .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 18px 0; }
+    .filter-bar input[type="search"], .filter-bar select { border: 1.5px solid #dde0ec; border-radius: 8px; padding: 7px 12px; font-size: 13px; color: #333; background: #fff; outline: none; }
+    .filter-bar input[type="search"] { min-width: 200px; flex: 1; max-width: 320px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #f5f6fb; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #888; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8eaf0; white-space: nowrap; }
+    td { padding: 11px 14px; border-bottom: 1px solid #f0f0f8; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fdf7f9; }
+    .ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; color: #673147; white-space: nowrap; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+    .st-Open   { background: #e3f2fd; color: #1565c0; }
+    .st-Closed { background: #eceff1; color: #607d8b; }
+    .ur-Low    { background: #e8f5e9; color: #2e7d32; }
+    .ur-Medium { background: #fff8e1; color: #b28704; }
+    .ur-High   { background: #ffebee; color: #c62828; }
+    .empty { text-align: center; color: #999; padding: 22px; }
+    .desc-cell { max-width: 320px; color: #666; }
+
+    /* Detail modal (view only) */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 14px; padding: 24px 26px 20px; max-width: 620px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,.18); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 17px; font-weight: 700; color: #1e2139; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .detail-grid { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 13px; }
+    .detail-grid .k { color: #9fa8c4; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; padding-top: 3px; }
+    .detail-desc { white-space: pre-wrap; background: #faf7f9; border: 1px solid #eadfe6; border-radius: 10px; padding: 12px; font-size: 13px; margin-top: 12px; line-height: 1.55; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+    .readonly-note { font-size: 12px; color: #888; margin-top: 10px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title">🎫 Ticketing</div>
+          <div class="page-subtitle">Report an issue to the ChurchGeniusPro support team and follow your tickets</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" id="newTicketBtn" onclick="showForm(true)">＋ New Ticket</button>
+        </div>
+      </div>
+
+      <div class="trial-note" id="trialNote">
+        <strong>Trial Account:</strong> Support may be limited during the trial period. We will still review every ticket.
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+
+      <!-- ── Submit form ── -->
+      <div class="card" id="formCard">
+        <div class="card-header"><h2>Report an Issue</h2></div>
+        <div class="card-body">
+          <form id="ticketForm" novalidate onsubmit="submitTicket(event)">
+            <div class="form-grid">
+              <div class="field full">
+                <label for="tSubject">Subject <span class="req">*</span></label>
+                <input type="text" id="tSubject" maxlength="200" placeholder="Short summary of the problem" required />
+                <div class="hint" id="hSubject"></div>
+              </div>
+              <div class="field">
+                <label for="tName">Name <span class="req">*</span></label>
+                <input type="text" id="tName" maxlength="200" autocomplete="name" required />
+                <div class="hint" id="hName"></div>
+              </div>
+              <div class="field">
+                <label for="tEmail">Email <span class="req">*</span></label>
+                <input type="email" id="tEmail" maxlength="320" autocomplete="email" required />
+                <div class="hint" id="hEmail"></div>
+              </div>
+              <div class="field full">
+                <label for="tDescription">Error Description <span class="req">*</span></label>
+                <textarea id="tDescription" maxlength="10000" required></textarea>
+                <div class="note">Please include the complete error message and the steps required to reproduce the issue.</div>
+                <div class="hint" id="hDescription"></div>
+              </div>
+              <div class="field">
+                <label for="tUrgency">Urgency <span class="req">*</span></label>
+                <select id="tUrgency" required>
+                  <option value="">— Select —</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+                <div class="hint" id="hUrgency"></div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-secondary" onclick="resetForm()">Clear</button>
+              <button type="submit" class="btn-primary" id="submitBtn">Submit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── Ticket list ── -->
+      <div class="card">
+        <div class="card-header"><h2>Submitted Tickets</h2><span id="ticketCount" style="font-size:12px;color:#888;"></span></div>
+        <div class="filter-bar">
+          <select id="statusFilter" onchange="renderTickets()">
+            <option value="">All statuses</option>
+            <option value="Open">Open</option>
+            <option value="Closed">Closed</option>
+          </select>
+          <input type="search" id="searchInput" placeholder="🔍 Search reference, subject, name…" oninput="renderTickets()" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Reference</th><th>Subject</th><th>Name</th><th>Email</th><th>Description</th><th>Urgency</th><th>Status</th><th>Submitted</th><th></th>
+            </tr></thead>
+            <tbody id="ticketBody"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<!-- ── Ticket detail (view only) ── -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-box">
+    <div class="modal-title"><span id="dRef" class="ref"></span><span id="dStatus" class="pill"></span></div>
+    <div class="detail-grid" id="dGrid"></div>
+    <div class="detail-desc" id="dDesc"></div>
+    <div class="readonly-note">Submitted tickets cannot be edited or deleted. If anything changes, please submit a new ticket and quote this reference number.</div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="closeDetail()">Close</button></div>
+  </div>
+</div>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/ticketing', openSection: 'more', pageTitle: 'Ticketing' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+<script>
+(function () {
+  var TICKETS = [];
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmt(iso) { if (!iso) return '—'; var d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+  function feedback(msg, type) { var el = $('feedback'); el.innerHTML = msg || ''; el.className = 'feedback' + (msg ? ' ' + (type || 'info') : ''); if (msg) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+  // ── Context: trial notice + prefilled name/email ──
+  var CTX = {};
+  function loadContext() {
+    return fetch('/api/tickets/context', { cache: 'no-store' })
+      .then(function (r) { if (r.status === 401) { window.location.href = '/login'; return null; } if (r.status === 403) { window.location.replace('/access-denied'); return null; } return r.ok ? r.json() : null; })
+      .then(function (c) {
+        if (!c) return;
+        CTX = c;
+        $('trialNote').classList.toggle('show', !!c.trial);
+        if (c.defaultName && !$('tName').value)  $('tName').value  = c.defaultName;
+        if (c.defaultEmail && !$('tEmail').value) $('tEmail').value = c.defaultEmail;
+      }).catch(function () {});
+  }
+
+  // ── Form ──
+  var FIELDS = [
+    ['tSubject', 'hSubject', 'Subject is required.'],
+    ['tName', 'hName', 'Name is required.'],
+    ['tEmail', 'hEmail', 'Email is required.'],
+    ['tDescription', 'hDescription', 'Error Description is required.'],
+    ['tUrgency', 'hUrgency', 'Please select an urgency.']
+  ];
+  function validate() {
+    var ok = true, first = null;
+    FIELDS.forEach(function (f) {
+      var el = $(f[0]), hint = $(f[1]), v = (el.value || '').trim(), msg = '';
+      if (!v) msg = f[2];
+      else if (f[0] === 'tEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) msg = 'Please enter a valid email address.';
+      hint.textContent = msg;
+      el.closest('.field').classList.toggle('invalid', !!msg);
+      if (msg) { ok = false; if (!first) first = el; }
+    });
+    if (first) first.focus();
+    return ok;
+  }
+  window.resetForm = function () {
+    $('ticketForm').reset();
+    FIELDS.forEach(function (f) { $(f[1]).textContent = ''; $(f[0]).closest('.field').classList.remove('invalid'); });
+    if (CTX.defaultName)  $('tName').value  = CTX.defaultName;
+    if (CTX.defaultEmail) $('tEmail').value = CTX.defaultEmail;
+  };
+  window.showForm = function (focus) {
+    $('formCard').style.display = '';
+    $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (focus) setTimeout(function () { $('tSubject').focus(); }, 300);
+  };
+  window.submitTicket = function (e) {
+    e.preventDefault();
+    if (!validate()) return;
+    var btn = $('submitBtn'); btn.disabled = true; btn.textContent = 'Submitting…';
+    var body = { subject: $('tSubject').value.trim(), name: $('tName').value.trim(), email: $('tEmail').value.trim(),
+                 description: $('tDescription').value.trim(), urgency: $('tUrgency').value };
+    fetch('/api/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
+      .then(function (res) {
+        btn.disabled = false; btn.textContent = 'Submit';
+        if (!res.ok) { feedback('❌ ' + esc(res.j.error || 'Could not submit the ticket. Please try again.'), 'error'); return; }
+        var msg = '✅ Your support request has been received successfully. Your reference number is <strong>' + esc(res.j.reference) + '</strong>. Our support team will contact you shortly.';
+        if (res.j.emailProblem) msg += '<br><span style="color:#7a5a00;">⚠ ' + esc(res.j.emailProblem) + '</span>';
+        feedback(msg, 'success');
+        resetForm();
+        loadTickets();
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = 'Submit'; feedback('❌ Network error — please try again.', 'error'); });
+  };
+
+  // ── List ──
+  function loadTickets() {
+    fetch('/api/tickets', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (d) { TICKETS = Array.isArray(d) ? d : []; renderTickets(); })
+      .catch(function () { $('ticketBody').innerHTML = '<tr><td colspan="9" class="empty" style="color:#c62828;">Failed to load tickets.</td></tr>'; });
+  }
+  window.renderTickets = function () {
+    var st = $('statusFilter').value, q = ($('searchInput').value || '').toLowerCase();
+    var rows = TICKETS.filter(function (t) {
+      if (st && t.status !== st) return false;
+      var hay = [t.reference, t.subject, t.name, t.email, t.shortDescription].join(' ').toLowerCase();
+      return !q || hay.indexOf(q) >= 0;
+    });
+    $('ticketCount').textContent = TICKETS.length ? TICKETS.length + ' ticket' + (TICKETS.length === 1 ? '' : 's') : '';
+    var tb = $('ticketBody');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">' + (TICKETS.length ? 'No tickets match.' : 'No tickets submitted yet.') + '</td></tr>'; return; }
+    tb.innerHTML = rows.map(function (t) {
+      return '<tr>'
+        + '<td class="ref">' + esc(t.reference) + '</td>'
+        + '<td><b>' + esc(t.subject) + '</b></td>'
+        + '<td>' + esc(t.name) + '</td>'
+        + '<td>' + esc(t.email) + '</td>'
+        + '<td class="desc-cell">' + esc(t.shortDescription) + '</td>'
+        + '<td><span class="pill ur-' + esc(t.urgency) + '">' + esc(t.urgency) + '</span></td>'
+        + '<td><span class="pill st-' + esc(t.status) + '">' + esc(t.status) + '</span></td>'
+        + '<td style="white-space:nowrap;">' + esc(fmt(t.createdAt)) + '</td>'
+        + '<td><button class="btn-secondary" onclick="openDetail(' + t.id + ')">View</button></td>'
+        + '</tr>';
+    }).join('');
+  };
+
+  // ── Detail (view only) ──
+  window.openDetail = function (id) {
+    fetch('/api/tickets/' + id, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (t) {
+        if (!t) { feedback('❌ Ticket not found.', 'error'); return; }
+        $('dRef').textContent = t.reference;
+        $('dStatus').textContent = t.status; $('dStatus').className = 'pill st-' + t.status;
+        var g = [['Subject', t.subject], ['Name', t.name], ['Email', t.email], ['Urgency', t.urgency],
+                 ['Submitted', fmt(t.createdAt)], ['Status', t.status + (t.statusChangedAt ? ' (updated ' + fmt(t.statusChangedAt) + ')' : '')]];
+        $('dGrid').innerHTML = g.map(function (p) { return '<div class="k">' + esc(p[0]) + '</div><div>' + esc(p[1] || '—') + '</div>'; }).join('');
+        $('dDesc').textContent = t.description || '';
+        $('detailModal').classList.add('open');
+      })
+      .catch(function () { feedback('❌ Could not load the ticket.', 'error'); });
+  };
+  window.closeDetail = function () { $('detailModal').classList.remove('open'); };
+
+  loadContext().then(loadTickets);
+})();
+</script>
+</body>
+</html>

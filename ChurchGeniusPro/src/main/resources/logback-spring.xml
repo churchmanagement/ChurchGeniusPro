@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ChurchGeniusPro logging.
+
+  Three daily files, each rolled at midnight and deleted after 30 days:
+
+      security-YYYY-MM-DD.log     LOGIN / LOGOUT audit trail
+      error-YYYY-MM-DD.log        ERROR level only, with full stack traces
+      application-YYYY-MM-DD.log  everything else
+
+  Written to $HOME/LogFiles/churchgeniuspro on Azure App Service — the persistent
+  Azure Files share, which survives restarts, redeployments and instance moves, and
+  is shared across scaled-out instances. See LOGGING.md for the full architecture and
+  for why the security audit trail is ALSO written to PostgreSQL.
+
+  Appenders do NOT use logback's prudent mode by default — see the CGP_LOG_PRUDENT
+  note below. Scaling out is handled by CGP_LOG_PER_INSTANCE_FILES instead.
+
+  Every file appender renders through MaskingPatternLayout, so passwords, tokens,
+  session identifiers and API keys are redacted on the way to disk even if some
+  controller passes one to a logger by accident. There is no appender that bypasses it.
+
+  NOTE: `logging.level.*` in application.properties still applies — Spring Boot sets
+  levels through the LoggingSystem after this file is parsed.
+-->
+<configuration scan="false">
+
+    <!-- Flush the async queues on shutdown so an App Service restart cannot lose
+         buffered security events. -->
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+
+    <define name="LOG_DIR"             class="com.churchgeniuspro.logging.LogDirectoryPropertyDefiner"/>
+    <define name="LOG_INSTANCE_SUFFIX" class="com.churchgeniuspro.logging.InstanceIdPropertyDefiner"/>
+
+    <!-- 30 days, as required. Applied per appender by TimeBasedRollingPolicy, and
+         backstopped by LogRetentionService for files logback no longer tracks. -->
+    <property name="LOG_MAX_HISTORY_DAYS" value="30"/>
+    <!-- Hard ceiling per category, so a runaway error loop cannot fill the share. -->
+    <property name="LOG_TOTAL_SIZE_CAP"   value="2GB"/>
+
+    <!-- Prudent mode makes several JVMs safe to append to ONE file, by taking an
+         exclusive lock per write. Defaults to OFF, deliberately.
+
+         It only helps when the app is scaled out, and its cost is real: every write
+         becomes a byte-range lock on the /home Azure Files (SMB) mount, where locking
+         is not dependable. When it fails, logback writes NOTHING and the only symptom
+         is a missing log directory — an unusually quiet way to lose an audit trail.
+
+         Single instance (the default): leave it off.
+         Scaled out: set CGP_LOG_PER_INSTANCE_FILES=true so each instance owns its own
+         file. That needs no locking at all and is the more reliable of the two options.
+         CGP_LOG_PRUDENT=true remains available if one shared file really is required. -->
+
+    <!-- %ex, not Spring Boot's whitespace-throwable converter: that one is registered by
+         Boot's own defaults.xml, which a standalone logback config does not include, so an
+         unregistered converter prints the literal text "%PARSER_ERROR[...]" in front of every
+         line. %ex is plain logback, always available, emits the same full stack trace, and is
+         what the previous logging.pattern.console used. -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n%ex"/>
+    <property name="SECURITY_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} | %msg%n"/>
+
+    <!-- ── Console ────────────────────────────────────────────────────────────
+         App Service captures stdout for the Log stream blade, and a Diagnostic
+         Setting can forward it to Log Analytics or a Storage Account without any
+         code change. Masked as well — the stream is as sensitive as the files. -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.churchgeniuspro.logging.MaskingPatternLayout">
+                <pattern>${FILE_PATTERN}</pattern>
+            </layout>
+        </encoder>
+    </appender>
+
+    <!-- ── security-YYYY-MM-DD.log ────────────────────────────────────────────
+         Login and logout events only. Kept separate so it can be handed to an
+         auditor, or shipped to a SIEM, without exposing the rest of the app's output.
+
+         On prudent mode (CGP_LOG_PRUDENT), see the note above the property. -->
+    <appender name="SECURITY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>${CGP_LOG_PRUDENT:-false}</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- No <file> element: the dated file IS the active file. -->
+            <fileNamePattern>${LOG_DIR}/security-%d{yyyy-MM-dd}${LOG_INSTANCE_SUFFIX}.log</fileNamePattern>
+            <maxHistory>${LOG_MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.churchgeniuspro.logging.MaskingPatternLayout">
+                <pattern>${SECURITY_PATTERN}</pattern>
+            </layout>
+        </encoder>
+    </appender>
+
+    <!-- ── error-YYYY-MM-DD.log ───────────────────────────────────────────────
+         ERROR only, with the full stack trace (%ex). -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>${CGP_LOG_PRUDENT:-false}</prudent>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/error-%d{yyyy-MM-dd}${LOG_INSTANCE_SUFFIX}.log</fileNamePattern>
+            <maxHistory>${LOG_MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.churchgeniuspro.logging.MaskingPatternLayout">
+                <pattern>${FILE_PATTERN}</pattern>
+            </layout>
+        </encoder>
+    </appender>
+
+    <!-- ── application-YYYY-MM-DD.log ─────────────────────────────────────────
+         General application output at whatever level logging.level.* selects. -->
+    <appender name="APPLICATION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>${CGP_LOG_PRUDENT:-false}</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/application-%d{yyyy-MM-dd}${LOG_INSTANCE_SUFFIX}.log</fileNamePattern>
+            <maxHistory>${LOG_MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.churchgeniuspro.logging.MaskingPatternLayout">
+                <pattern>${FILE_PATTERN}</pattern>
+            </layout>
+        </encoder>
+    </appender>
+
+    <!-- ── Async wrappers ─────────────────────────────────────────────────────
+         Writing to the /home share is an SMB round-trip, which is slower than local
+         disk; buffering keeps that off the request thread.
+
+         discardingThreshold=0 on every appender: logback's default silently drops
+         INFO/DEBUG/WARN once the queue is 80% full. For an audit trail that is the
+         wrong trade — better to block briefly than to lose a login record. -->
+    <appender name="ASYNC_SECURITY" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SECURITY_FILE"/>
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="ERROR_FILE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <!-- Errors are rare and worth the extra cost: keeps the originating line number. -->
+        <includeCallerData>true</includeCallerData>
+    </appender>
+
+    <appender name="ASYNC_APPLICATION" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="APPLICATION_FILE"/>
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <!-- The only appender allowed to drop rather than block: routine app chatter
+             must never be able to stall a request thread. -->
+        <neverBlock>true</neverBlock>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- ── Routing ────────────────────────────────────────────────────────────
+         The audit logger is additivity="false" so login/logout events land in
+         security-*.log and the console, and are NOT duplicated into application-*.log. -->
+    <logger name="com.churchgeniuspro.security.audit" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_SECURITY"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_APPLICATION"/>
+        <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+
+</configuration>

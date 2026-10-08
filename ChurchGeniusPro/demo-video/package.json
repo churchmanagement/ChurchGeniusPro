@@ -1,0 +1,12 @@
+{
+  "name": "churchgeniuspro-demo-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Records a product-demo video of the ChurchGeniusPro event workflow by driving the real application.",
+  "scripts": {
+    "demo": "node record-demo.js"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Your Free Trial — ChurchGeniusPro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; min-height: 100vh; padding: 32px 16px; color: #2b2b2b; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.09); width: 100%; max-width: 720px; margin: 0 auto; overflow: hidden; }
+    .card-head { background: #673147; color: #fff; padding: 28px 30px 24px; }
+    .card-head h1 { font-size: 24px; font-weight: 600; }
+    .card-head .lead { font-size: 15px; opacity: .92; margin-top: 6px; line-height: 1.5; }
+    .badge { display: inline-block; margin-top: 16px; background: #fff; color: #673147; font-weight: 700; font-size: 15px; padding: 7px 14px; border-radius: 20px; }
+    .perks { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-top: 16px; font-size: 14px; }
+    .perks li::before { content: "\2713"; font-weight: 700; margin-right: 8px; color: #f3d389; }
+    @media (max-width: 620px) { .perks { grid-template-columns: 1fr; } }
+    .card-body { padding: 26px 30px 30px; }
+    .intro { font-size: 14.5px; color: #4a4a4a; line-height: 1.6; margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 13px; font-weight: 600; color: #4a4a4a; margin-bottom: 5px; }
+    .req::after { content: " *"; color: #c0392b; }
+    .opt { font-weight: 400; color: #999; font-size: 12px; }
+    input, textarea { width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit; border: 1.5px solid #d8d8e0; border-radius: 8px; background: #fff; color: #2b2b2b; }
+    input:focus, textarea:focus { outline: none; border-color: #673147; }
+    input.bad { border-color: #c0392b; }
+    textarea { resize: vertical; min-height: 76px; }
+    .code { font-size: 26px; letter-spacing: 10px; text-align: center; max-width: 240px; font-weight: 700; }
+    .actions { margin-top: 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button { background: #673147; color: #fff; border: 0; border-radius: 8px; padding: 12px 30px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    button.link { background: none; color: #673147; padding: 0; font-size: 14px; text-decoration: underline; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { font-size: 12.5px; color: #777; line-height: 1.5; }
+    .msg { margin-top: 18px; padding: 13px 15px; border-radius: 8px; font-size: 14px; line-height: 1.55; display: none; }
+    .msg.err { display: block; background: #fdecea; border: 1px solid #f5c6c2; color: #a5322a; }
+    .msg.ok  { display: block; background: #eaf7ee; border: 1px solid #bfe3c9; color: #256b38; }
+    .step { display: none; }
+    .step.on { display: block; }
+    .done h2 { font-size: 20px; color: #256b38; margin-bottom: 12px; }
+    .done p { font-size: 14.5px; line-height: 1.65; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-head">
+      <h1>Request Your Free Trial</h1>
+      <p class="lead">Experience ChurchGeniusPro with advanced features and AI.</p>
+      <span class="badge" id="trialBadge">Free trial</span>
+      <ul class="perks">
+        <li id="perkDays">Free trial of every Pro feature</li>
+        <li>Advanced features with AI</li>
+        <li>No credit card required</li>
+        <li>No payment required</li>
+        <li>Cancel anytime</li>
+        <li>Account created once your request is approved</li>
+      </ul>
+    </div>
+
+    <!-- Step 1: the request -->
+    <div class="card-body step on" id="stepForm">
+      <p class="intro">Submit your request now for a free walkthrough. We&#39;ll confirm your email,
+        review your request, and send you a link to create your trial account.</p>
+      <div class="grid">
+        <div>
+          <label class="req" for="firstName">First Name</label>
+          <input id="firstName" maxlength="100" autocomplete="given-name" />
+        </div>
+        <div>
+          <label class="req" for="lastName">Last Name</label>
+          <input id="lastName" maxlength="100" autocomplete="family-name" />
+        </div>
+        <div class="full">
+          <label class="req" for="churchName">Church Name</label>
+          <input id="churchName" maxlength="200" autocomplete="organization" />
+        </div>
+        <div>
+          <label class="req" for="email">Email</label>
+          <input id="email" type="email" maxlength="320" autocomplete="email" />
+        </div>
+        <div>
+          <label for="phone">Phone <span class="opt">(optional)</span></label>
+          <input id="phone" type="tel" maxlength="40" autocomplete="tel" />
+        </div>
+        <div class="full">
+          <label for="designation">Designation <span class="opt">(optional — e.g. Pastor, Administrator)</span></label>
+          <input id="designation" maxlength="100" autocomplete="organization-title" />
+        </div>
+        <div class="full">
+          <label for="note">Note <span class="opt">(optional)</span></label>
+          <textarea id="note" maxlength="1000" placeholder="Anything you'd like us to know"></textarea>
+        </div>
+      </div>
+
+      <!-- Honeypot: after the real fields, with a name that maps to no autofill group
+           (see trialRegistration.html for why both matter). -->
+      <input type="text" id="cgpFormRef" name="cgp_form_ref" tabindex="-1" autocomplete="off"
+             aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:1px;width:1px;opacity:0;" />
+
+      <div class="actions">
+        <button id="submitBtn" type="button">Submit Request</button>
+        <span class="hint">We&#39;ll email you a code to confirm your address. No payment details are ever requested.</span>
+      </div>
+      <div class="msg" id="msgForm"></div>
+    </div>
+
+    <!-- Step 2: verify the emailed code -->
+    <div class="card-body step" id="stepVerify">
+      <p class="intro">We sent a 6-digit code to <strong id="sentTo"></strong>.
+        Enter it below to confirm your email and submit your request. The code is valid for 10 minutes.</p>
+      <label class="req" for="code">Verification code</label>
+      <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+      <div class="actions">
+        <button id="verifyBtn" type="button">Verify &amp; Submit</button>
+        <button id="resendBtn" type="button" class="link">Send a new code</button>
+      </div>
+      <p class="hint" style="margin-top:12px;">Can&#39;t find it? Check your spam or promotions folder.</p>
+      <div class="msg" id="msgVerify"></div>
+    </div>
+
+    <!-- Step 3: done -->
+    <div class="card-body step done" id="stepDone">
+      <h2>&#10003; Request received</h2>
+      <p id="doneText"></p>
+      <p>Once approved, we&#39;ll email you a link to create your trial account — no credit card or payment required.</p>
+      <p class="hint">Reference: <strong id="doneRef"></strong></p>
+    </div>
+  </div>
+
+<script>
+  var params   = new URLSearchParams(window.location.search);
+  var linkKey  = params.get('k') || '';
+  var formToken = '';
+  var reference = '';
+
+  function $(id) { return document.getElementById(id); }
+  function val(id) { return ($(id).value || '').trim(); }
+  function show(boxId, kind, text) { var m = $(boxId); m.className = 'msg ' + kind; m.textContent = text; }
+  function step(id) { ['stepForm','stepVerify','stepDone'].forEach(function (s) { $(s).classList.toggle('on', s === id); }); }
+
+  function setupCaptcha(siteKey) {
+    if (!siteKey || $('captchaBox')) return;
+    var holder = document.createElement('div');
+    holder.id = 'captchaBox'; holder.className = 'g-recaptcha';
+    holder.setAttribute('data-sitekey', siteKey); holder.style.margin = '14px 0 2px';
+    var actions = document.querySelector('#stepForm .actions');
+    actions.parentNode.insertBefore(holder, actions);
+    var sc = document.createElement('script'); sc.src = 'https://www.google.com/recaptcha/api.js'; sc.async = true;
+    document.head.appendChild(sc);
+  }
+
+  // The trial length is the configured Trial plan duration, supplied by the server.
+  fetch('/api/trial-request/form-info?k=' + encodeURIComponent(linkKey))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) return;
+      formToken = d.formToken || '';
+      if (d.trialDays) {
+        $('trialBadge').textContent = d.trialDays + '-day free trial';
+        $('perkDays').textContent = d.trialDays + ' days of every Pro feature';
+      }
+      setupCaptcha(d.captchaSiteKey);
+    })
+    .catch(function () { /* the server still validates */ });
+
+  async function post(url, body) {
+    var r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var d = await r.json().catch(function () { return {}; });
+    return { ok: r.ok && d.status === 'success', d: d };
+  }
+
+  async function submitRequest() {
+    var required = [['firstName','First Name'],['lastName','Last Name'],['churchName','Church Name'],['email','Email']];
+    var missing = null;
+    required.forEach(function (f) { var bad = !val(f[0]); $(f[0]).classList.toggle('bad', bad); if (bad && !missing) missing = f[1]; });
+    if (missing) { show('msgForm', 'err', missing + ' is required.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('email'))) { $('email').classList.add('bad'); show('msgForm', 'err', 'Please enter a valid email address.'); return; }
+
+    var payload = { k: linkKey, formToken: formToken,
+      firstName: val('firstName'), lastName: val('lastName'), churchName: val('churchName'), email: val('email'),
+      phone: val('phone'), designation: val('designation'), note: val('note'),
+      website: $('cgpFormRef').value };   // honeypot, under the key PublicFormGuard checks
+    if (window.grecaptcha && $('captchaBox')) {
+      payload.captchaToken = grecaptcha.getResponse();
+      if (!payload.captchaToken) { show('msgForm', 'err', 'Please complete the CAPTCHA.'); return; }
+    }
+    var btn = $('submitBtn'); btn.disabled = true; btn.textContent = 'Sending code…';
+    try {
+      var x = await post('/api/trial-request', payload);
+      if (x.ok) {
+        reference = x.d.reference;
+        $('sentTo').textContent = x.d.email || val('email');
+        step('stepVerify'); $('code').focus();
+        return;
+      }
+      if (x.d.code === 'AWAITING_VERIFICATION' && x.d.reference) {
+        // An earlier request for this email (e.g. before a refresh) is still waiting
+        // for its code: continue that one rather than starting another.
+        reference = x.d.reference;
+        $('sentTo').textContent = x.d.email || val('email');
+        step('stepVerify');
+        show('msgVerify', 'ok', x.d.message);
+        $('code').focus();
+        return;
+      }
+      show('msgForm', 'err', x.d.message || 'We could not submit your request. Please try again.');
+    } catch (e) {
+      show('msgForm', 'err', 'Network error — please check your connection and try again.');
+    }
+    if (window.grecaptcha && $('captchaBox')) { try { grecaptcha.reset(); } catch (ignored) {} }
+    btn.disabled = false; btn.textContent = 'Submit Request';
+  }
+
+  async function verify() {
+    var code = val('code').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) { show('msgVerify', 'err', 'Enter the 6-digit code from the email.'); return; }
+    var btn = $('verifyBtn'); btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      var x = await post('/api/trial-request/verify', { k: linkKey, reference: reference, code: code });
+      if (x.ok) { $('doneText').textContent = x.d.message; $('doneRef').textContent = reference; step('stepDone'); return; }
+      show('msgVerify', 'err', x.d.message || 'That code could not be verified.');
+    } catch (e) {
+      show('msgVerify', 'err', 'Network error — please try again.');
+    }
+    btn.disabled = false; btn.textContent = 'Verify & Submit';
+  }
+
+  async function resend() {
+    var btn = $('resendBtn'); btn.disabled = true;
+    try {
+      var x = await post('/api/trial-request/resend', { k: linkKey, reference: reference });
+      show('msgVerify', x.ok ? 'ok' : 'err', x.d.message || (x.ok ? 'A new code is on its way.' : 'Could not send a new code.'));
+    } catch (e) {
+      show('msgVerify', 'err', 'Network error — please try again.');
+    }
+    setTimeout(function () { btn.disabled = false; }, 60000);
+  }
+
+  $('submitBtn').addEventListener('click', submitRequest);
+  $('verifyBtn').addEventListener('click', verify);
+  $('resendBtn').addEventListener('click', resend);
+  $('code').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); verify(); } });
+</script>
+</body>
+</html>

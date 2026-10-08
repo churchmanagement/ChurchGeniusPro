@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Start Your Free Trial — ChurchGeniusPro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f6fa; min-height: 100vh; padding: 32px 16px; color: #2b2b2b;
+    }
+    .card {
+      background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+      width: 100%; max-width: 720px; margin: 0 auto; overflow: hidden;
+    }
+    .card-head { background: #673147; color: #fff; padding: 26px 30px; }
+    .card-head h1 { font-size: 22px; font-weight: 600; }
+    .card-head p  { font-size: 14px; opacity: .9; margin-top: 6px; line-height: 1.5; }
+    .card-body { padding: 26px 30px 30px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 13px; font-weight: 600; color: #4a4a4a; margin-bottom: 5px; }
+    .req::after { content: " *"; color: #c0392b; }
+    input, textarea {
+      width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
+      border: 1.5px solid #d8d8e0; border-radius: 8px; background: #fff; color: #2b2b2b;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #673147; }
+    textarea { resize: vertical; min-height: 76px; }
+    .actions { margin-top: 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button {
+      background: #673147; color: #fff; border: 0; border-radius: 8px;
+      padding: 12px 30px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { font-size: 12.5px; color: #777; line-height: 1.5; }
+    .msg { margin-top: 18px; padding: 13px 15px; border-radius: 8px; font-size: 14px; line-height: 1.55; display: none; }
+    .msg.err { display: block; background: #fdecea; border: 1px solid #f5c6c2; color: #a5322a; }
+    .msg.ok  { display: block; background: #eaf7ee; border: 1px solid #bfe3c9; color: #256b38; }
+    .done { display: none; padding: 26px 30px 30px; }
+    .done h2 { font-size: 19px; color: #256b38; margin-bottom: 12px; }
+    .done p  { font-size: 14.5px; line-height: 1.65; margin-bottom: 12px; }
+    .done .meta { background: #f7f7fa; border-radius: 8px; padding: 14px 16px; font-size: 13.5px; line-height: 1.7; }
+    .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 620px) { .choice { grid-template-columns: 1fr; } }
+    .choice label {
+      display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin: 0;
+      border: 1.5px solid #d8d8e0; border-radius: 10px; padding: 12px 14px; cursor: pointer; line-height: 1.45;
+    }
+    .choice label:has(input:checked) { border-color: #673147; background: #faf5f7; }
+    .choice input { width: auto; margin-top: 3px; }
+    .choice strong { display: block; font-size: 14px; color: #2b2b2b; }
+    .choice span { font-size: 12.5px; color: #666; }
+    .choice.bad label { border-color: #c0392b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-head">
+      <h1>Start your free trial</h1>
+      <p>Tell us about your church and we&#39;ll set up a trial account right away.
+         We&#39;ll email you a link to finish creating your login.</p>
+      <p id="trialLength" hidden style="margin-top:6px;font-weight:600;"></p>
+    </div>
+
+    <div class="card-body" id="formWrap">
+      <div class="grid">
+        <div class="full">
+          <label class="req" id="accountTypeLabel">How should we set up your trial account?</label>
+          <div class="choice" id="accountTypeChoice" role="radiogroup" aria-labelledby="accountTypeLabel">
+            <label><input type="radio" name="accountType" value="SAMPLE" />
+              <div><strong>Start with sample data</strong>
+                <span>Explore a fully populated church right away. A sample-data trial cannot be
+                converted to a paid plan; to subscribe later you register a new account.</span></div></label>
+            <label><input type="radio" name="accountType" value="EMPTY" />
+              <div><strong>Start with an empty account</strong>
+                <span>Enter your own people and data. When you subscribe, this same account
+                continues on your paid plan with everything you entered.</span></div></label>
+          </div>
+        </div>
+        <div class="full">
+          <label class="req" for="churchName">Church Name</label>
+          <input id="churchName" maxlength="200" autocomplete="organization" />
+        </div>
+
+        <div>
+          <label class="req" for="firstName">First Name</label>
+          <input id="firstName" maxlength="100" autocomplete="given-name" />
+        </div>
+        <div>
+          <label class="req" for="lastName">Last Name</label>
+          <input id="lastName" maxlength="100" autocomplete="family-name" />
+        </div>
+
+        <div>
+          <label for="phone">Phone Number</label>
+          <input id="phone" type="tel" maxlength="40" autocomplete="tel" />
+        </div>
+        <div>
+          <label class="req" for="email">Email</label>
+          <input id="email" type="email" maxlength="150" autocomplete="email" />
+        </div>
+
+        <div class="full">
+          <label for="addressLine1">Address Line 1</label>
+          <input id="addressLine1" maxlength="200" autocomplete="address-line1" />
+        </div>
+        <div class="full">
+          <label for="addressLine2">Address Line 2</label>
+          <input id="addressLine2" maxlength="200" autocomplete="address-line2" />
+        </div>
+
+        <div>
+          <label for="city">City</label>
+          <input id="city" maxlength="100" autocomplete="address-level2" />
+        </div>
+        <div>
+          <label for="state">State</label>
+          <input id="state" maxlength="100" autocomplete="address-level1" />
+        </div>
+
+        <div>
+          <label for="country">Country</label>
+          <input id="country" maxlength="100" value="USA – United States" autocomplete="country-name" />
+        </div>
+        <div>
+          <label for="pinCode">ZIP / Postal Code</label>
+          <input id="pinCode" maxlength="20" autocomplete="postal-code" />
+        </div>
+
+        <div class="full">
+          <label for="note">Note</label>
+          <textarea id="note" maxlength="1000"
+                    placeholder="Anything you'd like us to know (optional)"></textarea>
+        </div>
+      </div>
+
+      <!--
+        Honeypot. Humans never see it; bots fill every input and get dropped.
+
+        Two things here are load-bearing, and both were learned the hard way:
+        it sits AFTER the real fields, and its name maps to nothing.
+        This form carries eleven autocomplete tokens (organization, given-name,
+        tel, address-line1 ...), which makes Chrome treat it as an address form
+        and fill the whole group — ignoring autocomplete="off", which Chrome does
+        not honour for address autofill. A field named "website" sitting at the
+        head of that group was being autofilled by the browser, so genuine
+        registrations were classified as bots and silently discarded.
+      -->
+      <input type="text" id="cgpFormRef" name="cgp_form_ref" tabindex="-1" autocomplete="off"
+             aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:1px;width:1px;opacity:0;" />
+
+      <div class="actions">
+        <button id="submitBtn" type="button">Create my trial account</button>
+        <span class="hint">No credit card required. We only use your email to send the setup link.</span>
+      </div>
+
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="done" id="doneWrap">
+      <h2>&#10003; Your trial church is ready</h2>
+      <p id="doneLead"></p>
+      <div class="meta" id="doneMeta"></div>
+    </div>
+  </div>
+
+<script>
+  var FIELDS = ['churchName','firstName','lastName','phone','email','addressLine1',
+                'addressLine2','city','state','country','pinCode','note'];
+
+  // Anti-bot state, supplied by the server when the page loads. The token is
+  // issued on load rather than baked into the page so its age measures how long
+  // this form has actually been open.
+  var formToken = '';
+
+  // The invitation token from the URL. The page is only reachable with a valid one
+  // (TrialRegistrationLinkFilter refuses otherwise), but it is submitted as well:
+  // the POST re-validates and consumes it, so the form's field names are not a way
+  // past the gate, and the link cannot be used twice.
+  var inviteToken = new URLSearchParams(window.location.search).get('id')
+                 || new URLSearchParams(window.location.search).get('token') || '';
+
+  function setupCaptcha(siteKey) {
+    if (!siteKey || document.getElementById('captchaBox')) return;
+    var holder = document.createElement('div');
+    holder.id = 'captchaBox';
+    holder.className = 'g-recaptcha';
+    holder.setAttribute('data-sitekey', siteKey);
+    holder.style.margin = '4px 0 2px';
+    var actions = document.querySelector('.actions');
+    actions.parentNode.insertBefore(holder, actions);
+    var sc = document.createElement('script');
+    sc.src = 'https://www.google.com/recaptcha/api.js';
+    sc.async = true;
+    document.head.appendChild(sc);
+  }
+
+  fetch('/api/trial-registration/form-info' + (inviteToken ? '?id=' + encodeURIComponent(inviteToken) : ''))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) return;
+      formToken = d.formToken || '';
+      if (d.trialDays) {            // the length this link grants, set when it was issued
+        var tl = document.getElementById('trialLength');
+        tl.textContent = d.trialDays + '-day free trial · No credit card required · Cancel anytime';
+        tl.hidden = false;
+      }
+      setupCaptcha(d.captchaSiteKey);   // no site key configured -> no widget
+    })
+    .catch(function () { /* the server still validates; don't block the form */ });
+
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function show(kind, text) {
+    var m = document.getElementById('msg');
+    m.className = 'msg ' + kind;
+    m.textContent = text;
+  }
+
+  async function submitForm() {
+    var btn = document.getElementById('submitBtn');
+    var payload = {};
+    FIELDS.forEach(function (f) { payload[f] = val(f); });
+    payload.formToken   = formToken;
+    payload.inviteToken = inviteToken;
+    // Sent as "website" because that is the key PublicFormGuard checks for every
+    // public form; only the INPUT is renamed, so the shared contract is unchanged.
+    payload.website   = document.getElementById('cgpFormRef').value;   // honeypot
+    if (window.grecaptcha && document.getElementById('captchaBox')) {
+      payload.captchaToken = grecaptcha.getResponse();
+      if (!payload.captchaToken) { show('err', 'Please complete the CAPTCHA.'); return; }
+    }
+
+    // Cheap client-side checks so the obvious omissions don't cost a round trip.
+    // The server validates independently — this is convenience, not enforcement.
+    var chosen = document.querySelector('input[name="accountType"]:checked');
+    document.getElementById('accountTypeChoice').classList.toggle('bad', !chosen);
+    if (!chosen) { show('err', 'Please choose how your trial account should be set up.'); return; }
+    payload.accountType = chosen.value;
+    if (!payload.churchName) { show('err', 'Please enter your church name.'); return; }
+    if (!payload.firstName)  { show('err', 'Please enter your first name.');  return; }
+    if (!payload.lastName)   { show('err', 'Please enter your last name.');   return; }
+    if (!payload.email)      { show('err', 'Please enter your email address.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating your account…';
+    show('ok', 'Setting up your trial church — this takes a few seconds.');
+
+    try {
+      var r = await fetch('/api/trial-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var d = await r.json().catch(function () { return {}; });
+
+      // A real success always carries the tenant it created. Success WITHOUT one is
+      // the honeypot's decoy response, which a human should never be shown — it
+      // would tell them they had registered when nothing exists. Bots post
+      // directly and never run this, so saying so here gives nothing away.
+      if (r.ok && d.status === 'success' && !d.churchName) {
+        show('err', 'Something went wrong creating your trial account and it was not '
+                  + 'completed. Please contact support@churchgeniuspro.com and we will set it up for you.');
+        btn.disabled = false;
+        btn.textContent = 'Create my trial account';
+        return;
+      }
+      if (r.ok && d.status === 'success') {
+        document.getElementById('formWrap').style.display = 'none';
+        var done = document.getElementById('doneWrap');
+        done.style.display = 'block';
+        document.getElementById('doneLead').textContent = d.message || '';
+        document.getElementById('doneMeta').innerHTML =
+            '<strong>Church:</strong> ' + esc(d.churchName) + '<br />' +
+            '<strong>Account:</strong> ' + (d.accountType === 'EMPTY'
+                ? 'Empty account (can be converted to a paid plan)' : 'Sample data') + '<br />' +
+            '<strong>Setup link sent to:</strong> ' + esc(d.email) + '<br />' +
+            (d.trialEndsOn ? '<strong>Trial end date:</strong> ' + esc(d.trialEndsOn) : '');
+        return;
+      }
+      show('err', d.message || 'We could not complete your registration. Please try again.');
+    } catch (e) {
+      show('err', 'Network error — please check your connection and try again.');
+    }
+    // A reCAPTCHA response is single-use: without a reset, every retry after a
+    // rejection would fail on an already-spent token.
+    if (window.grecaptcha && document.getElementById('captchaBox')) {
+      try { grecaptcha.reset(); } catch (ignored) { /* widget not ready */ }
+    }
+    btn.disabled = false;
+    btn.textContent = 'Create my trial account';
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', submitForm);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="accountType"]'), function (r) {
+    r.addEventListener('change', function () { document.getElementById('accountTypeChoice').classList.remove('bad'); });
+  });
+  // Enter submits from any single-line field, but not from the Note textarea.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+      submitForm();
+    }
+  });
+</script>
+</body>
+</html>
