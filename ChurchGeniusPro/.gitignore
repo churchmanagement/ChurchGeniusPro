@@ -56,3 +56,5 @@ Claude outputs/
 /DecryptTest.java
 src/main/resources/application-trial.properties
 **/application-trial.properties
+# Claude Code scratch worktrees (separate git checkouts)
+.claude/worktrees/
