@@ -7,7 +7,6 @@ import com.churchgeniuspro.model.AppUserBO;
 import com.churchgeniuspro.repository.AppUserRepository;
 import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.UserPermissionsRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +25,9 @@ import java.util.stream.Collectors;
 @Service
 public class AppUserService {
 
+    private static final org.slf4j.Logger LOG =
+            org.slf4j.LoggerFactory.getLogger(AppUserService.class);
+
     private final AppUserRepository    userRepository;
     private final LoginRepository      loginRepository;
     private final EmailService         emailService;
@@ -34,6 +36,21 @@ public class AppUserService {
 
     @Value("${app.base-url}")
     private String baseUrl;
+
+    /**
+     * The only roles a staff user may hold. {@code app_user.role} is copied verbatim
+     * into the session, and four service-admin controllers used to trust
+     * {@code role == "ServiceAdmin"} — so an unvalidated role string was a privilege
+     * escalation, not just a typo.
+     */
+    public static final java.util.Set<String> STAFF_ROLES =
+            java.util.Set.of("SuperAdmin", "Admin", "Accountant", "User", "Limited");
+
+    private static void requireValidRole(String role) {
+        if (role == null || !STAFF_ROLES.contains(role.trim())) {
+            throw new IllegalArgumentException("Invalid role.");
+        }
+    }
 
     public AppUserService(AppUserRepository       userRepository,
                           LoginRepository         loginRepository,
@@ -51,9 +68,11 @@ public class AppUserService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getAll(String clientId) {
-        List<AppUser> users = (clientId != null && !clientId.isBlank())
-                ? userRepository.findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(clientId)
-                : userRepository.findByDeleteFlagFalseOrderByLastNameAscFirstNameAsc();
+        // Always tenant-scoped. The old "no clientId → list everything" fallback returned
+        // every church's staff (with privileges JSON and signup ids) to any staff session.
+        if (clientId == null || clientId.isBlank()) return List.of();
+        List<AppUser> users =
+                userRepository.findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(clientId);
         Set<String> activeLoginIds = batchActiveLoginIds(users);
         return users.stream()
                 .map(u -> toMap(u, activeLoginIds))
@@ -64,6 +83,7 @@ public class AppUserService {
 
     @Transactional
     public AppUser create(AppUserBO bo) {
+        requireValidRole(bo.getRole());
         // Uniqueness is per (email + role + clientId) — same email+role allowed across orgs
         String clientId = (bo.getClientId() != null && !bo.getClientId().isBlank())
                 ? bo.getClientId().trim() : null;
@@ -79,10 +99,10 @@ public class AppUserService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public AppUser update(Integer id, AppUserBO bo) {
-        AppUser u = findOrThrow(id);
-        // Use the existing record's clientId to scope the duplicate check to the same org
-        String clientId = u.getClientId();
+    public AppUser update(Integer id, String clientId, AppUserBO bo) {
+        requireValidRole(bo.getRole());
+        AppUser u = findOrThrow(id, clientId);
+        // The record is known to belong to clientId; the duplicate check is scoped to it.
         if (userRepository.existsByEmailRoleClientIdAndNotDeletedAndIdNot(
                 bo.getEmail(), bo.getRole(), clientId, id)) {
             throw new IllegalArgumentException(
@@ -95,8 +115,8 @@ public class AppUserService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        AppUser u = findOrThrow(id);
+    public void delete(Integer id, String clientId) {
+        AppUser u = findOrThrow(id, clientId);
         u.setDeleteFlag(true);
         userRepository.save(u);
     }
@@ -104,9 +124,9 @@ public class AppUserService {
     // ── Update Privileges ─────────────────────────────────────────────────
 
     @Transactional
-    public void updatePrivileges(Integer id, String privilegesJson) {
-        // Verify the user exists
-        findOrThrow(id);
+    public void updatePrivileges(Integer id, String clientId, String privilegesJson) {
+        // Verify the user exists in THIS tenant
+        findOrThrow(id, clientId);
 
         String json = (privilegesJson == null || privilegesJson.isBlank()) ? null : privilegesJson.trim();
 
@@ -114,6 +134,7 @@ public class AppUserService {
         UserPermissions row = permissionsRepository.findByAppUserId(id)
                 .orElseGet(() -> {
                     UserPermissions np = new UserPermissions();
+                    np.setClientId(clientId);
                     np.setAppUserId(id);
                     return np;
                 });
@@ -124,8 +145,8 @@ public class AppUserService {
     // ── Enable / Disable toggle ───────────────────────────────────────────
 
     @Transactional
-    public AppUser toggle(Integer id) {
-        AppUser u = findOrThrow(id);
+    public AppUser toggle(Integer id, String clientId) {
+        AppUser u = findOrThrow(id, clientId);
         u.setEnabled(!u.isEnabled());
         return userRepository.save(u);
     }
@@ -148,12 +169,13 @@ public class AppUserService {
      * {@code link_group} cleared if they would be left alone in a group of one.
      */
     @Transactional
-    public void linkUsers(List<Integer> userIds) {
+    public void linkUsers(List<Integer> userIds, String clientId) {
         if (userIds == null || userIds.size() < 2) {
             throw new IllegalArgumentException("Select at least 2 users to link.");
         }
 
         List<AppUser> users = userRepository.findAllById(userIds);
+        requireAllInTenant(users, clientId);
         if (users.size() < 2) {
             throw new IllegalArgumentException("Could not find the selected users.");
         }
@@ -211,8 +233,8 @@ public class AppUserService {
      * {@code link_group} is also cleared (a group of one is meaningless).
      */
     @Transactional
-    public void unlinkUser(Integer id) {
-        AppUser u = findOrThrow(id);
+    public void unlinkUser(Integer id, String clientId) {
+        AppUser u = findOrThrow(id, clientId);
         String oldGroup = u.getLinkGroup();
         if (oldGroup == null) return;           // not currently linked — nothing to do
 
@@ -277,13 +299,15 @@ public class AppUserService {
     @Transactional
     public void linkWithMembers(java.util.List<Integer> appUserIds,
                                 java.util.List<Integer> memberSignupIds,
-                                LoginRepository loginRepo) {
+                                LoginRepository loginRepo,
+                                String clientId) {
         int total = (appUserIds == null ? 0 : appUserIds.size())
                   + (memberSignupIds == null ? 0 : memberSignupIds.size());
         if (total < 2) throw new IllegalArgumentException("Select at least 2 accounts to link.");
 
         List<AppUser>  users   = appUserIds != null && !appUserIds.isEmpty()
                 ? userRepository.findAllById(appUserIds) : List.of();
+        requireAllInTenant(users, clientId);
         List<com.churchgeniuspro.hibernate.SignUp> signups = memberSignupIds != null && !memberSignupIds.isEmpty()
                 ? loginRepo.findAllById(memberSignupIds) : List.of();
 
@@ -370,30 +394,72 @@ public class AppUserService {
      * Sends a signup invitation email to the user.
      *
      * <p>The email contains a personalised greeting and a "Create My Account"
-     * button linking to {@code {app.base-url}/signup?userId=<encrypted>&type=user}
-     * so the recipient can create their login credentials.
+     * button linking to {@code {app.base-url}/signup?clientId=<encrypted>} so the
+     * recipient can create their login credentials.
      *
-     * <p>The clientId is AES-encrypted before embedding in the URL so that
-     * the raw UUID is never exposed in the email link.
+     * <p>The link carries a random single-use invite token stored on the user row
+     * ({@code app_user.invite_token}); {@code SignupController} looks it up and
+     * clears it when the signup completes. Re-sending replaces the token.
+     *
+     * <h2>Why this is account mail</h2>
+     * An invitation is addressed to the person completing the sign-up, not to the
+     * congregation, and nothing else can get them an account — so it is sent with
+     * {@link EmailService#sendAccountEmailOrThrow} rather than as ordinary
+     * organization mail. Sent as org mail it was being dropped silently by any of
+     * three guards that exist to protect the congregation from a church that is
+     * still evaluating the product: the Trial/demo plan block, the recipient's
+     * unsubscribe preference, and the monthly email allowance. Each returns
+     * quietly, so the admin saw "Email sent successfully" and the invitee received
+     * nothing. This is the same exemption {@code sendSignupInvitation} already
+     * applies to the church registrant's own invitation.
+     *
+     * <p>Failures are thrown, so the button reports the truth: the caller turns
+     * them into the message the admin sees.
+     */
+    /** Controller entry point — the invite may only be (re)sent for a user of the caller's church. */
+    public void sendEmail(Integer id, String clientId) throws Exception {
+        findOrThrow(id, clientId);
+        sendEmail(id);
+    }
+
+    /**
+     * Internal entry point used by tenant provisioning (TrialRegistrationService),
+     * where the caller has just created the user and holds no tenant session.
      */
     public void sendEmail(Integer id) throws Exception {
         AppUser u          = findOrThrow(id);
-        String encryptedId = EncryptionUtil.encrypt(u.getUserId());
-        String link        = baseUrl + "/signup?clientId=" + encryptedId;
+        // A fresh random invite token per send: single-use, and re-sending replaces it.
+        u.setInviteToken(PublicLinkResolver.newToken());
+        userRepository.save(u);
+        String link        = baseUrl + "/signup?clientId=" + u.getInviteToken();
+
+        if (u.getEmail() == null || u.getEmail().isBlank()) {
+            throw new IllegalArgumentException(
+                    "This account has no email address on file. Add one before inviting.");
+        }
 
         // ── Email ──────────────────────────────────────────────────────────
         String churchName = emailService.getChurchName(u.getClientId());
         String html = buildSignupInvitationEmail(u.getFirstName(), link, churchName);
-        emailService.sendOrgEmail(
+        emailService.sendAccountEmailOrThrow(
                 u.getEmail(),
                 "Complete Your " + churchName + " Sign-Up",
                 html,
                 u.getClientId());
 
         // ── WhatsApp ───────────────────────────────────────────────────────
+        // Best-effort, and deliberately after the email: WhatsApp is a convenience
+        // copy of a link that has already been delivered. Letting it throw here
+        // would report a failed invitation for a message that did arrive, and send
+        // the admin chasing an email that is already in the invitee's inbox.
         if (u.getPhone() != null && !u.getPhone().isBlank()) {
-            String whatsAppMsg = buildSignupWhatsAppMessage(u.getFirstName(), link, churchName);
-            whatsAppSender.sendWhatsAppToPhone(u.getPhone(), whatsAppMsg, u.getClientId());
+            try {
+                String whatsAppMsg = buildSignupWhatsAppMessage(u.getFirstName(), link, churchName);
+                whatsAppSender.sendWhatsAppToPhone(u.getPhone(), whatsAppMsg, u.getClientId());
+            } catch (Exception ex) {
+                LOG.warn("Invitation WhatsApp to {} failed (email was sent) - {}",
+                         u.getPhone(), ex.getMessage());
+            }
         }
     }
 
@@ -458,6 +524,28 @@ public class AppUserService {
     private AppUser findOrThrow(Integer id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+    }
+
+    /**
+     * Loads a staff user belonging to {@code clientId}, or throws "not found" — the
+     * same answer whether the id is unknown or belongs to another church, so the
+     * endpoint is not an existence oracle. Rows with a null client_id (pre-tenancy
+     * legacy) are treated as not found: they must be back-filled, not assumed.
+     */
+    public AppUser findOrThrow(Integer id, String clientId) {
+        if (clientId == null || clientId.isBlank()) {
+            throw new IllegalArgumentException("User not found: " + id);
+        }
+        return userRepository.findByIdAndClientId(id, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+    }
+
+    private static void requireAllInTenant(List<AppUser> users, String clientId) {
+        for (AppUser u : users) {
+            if (clientId == null || u.getClientId() == null || !clientId.equals(u.getClientId())) {
+                throw new IllegalArgumentException("Could not find the selected users.");
+            }
+        }
     }
 
     // ── Email builder ─────────────────────────────────────────────────────────

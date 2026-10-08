@@ -74,31 +74,54 @@ public class ReminderService {
 
     // ── Event Reminders ───────────────────────────────────────────────────
 
+    /**
+     * Event reminders for the Event Reminders list.
+     *
+     * <p>Events are soft-deleted ({@code delete_flag}); their reminder rows are not
+     * touched when that happens. A reminder whose event is deleted (or not this
+     * church's) is therefore left out here — it used to be listed as "Event #18",
+     * looking live. The rows themselves stay as they are, untouched, so nothing is
+     * lost and nothing about a live event's reminder changes. The scheduler applies
+     * the same rule independently ({@code ReminderSchedulerService.runEventReminderRule}
+     * only loads non-deleted events), so such a reminder never sends.
+     * A reminder with no event (applies to every event) is still listed.
+     */
     public List<Map<String, Object>> getAllEventReminders(String appClientId) {
+        java.util.Set<Integer> liveEventIds = churchEventRepo
+                .findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(appClientId)
+                .stream().map(ChurchEvent::getId).collect(Collectors.toSet());
         return eventRepo.findByAppClientIdOrderByCreatedDateDesc(appClientId)
-                .stream().map(this::eventToMap).collect(Collectors.toList());
+                .stream()
+                .filter(r -> r.getEventId() == null || liveEventIds.contains(r.getEventId()))
+                .map(this::eventToMap).collect(Collectors.toList());
     }
 
     public Map<String, Object> createEventReminder(EventReminderBO bo, String appClientId) {
         EventReminder r = new EventReminder();
-        applyEventBO(r, bo);
+        applyEventBO(r, bo, appClientId);
         r.setAppClientId(appClientId);
         return eventToMap(eventRepo.save(r));
     }
 
-    public Map<String, Object> updateEventReminder(Integer id, EventReminderBO bo) {
-        EventReminder r = eventRepo.findById(id)
+    public Map<String, Object> updateEventReminder(Integer id, EventReminderBO bo, String appClientId) {
+        EventReminder r = eventRepo.findByIdAndAppClientId(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Event reminder not found"));
-        applyEventBO(r, bo);
+        applyEventBO(r, bo, appClientId);
         return eventToMap(eventRepo.save(r));
     }
 
-    public void deleteEventReminder(Integer id) {
-        if (!eventRepo.existsById(id)) throw new IllegalArgumentException("Event reminder not found");
-        eventRepo.deleteById(id);
+    public void deleteEventReminder(Integer id, String appClientId) {
+        EventReminder r = eventRepo.findByIdAndAppClientId(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Event reminder not found"));
+        eventRepo.delete(r);
     }
 
-    private void applyEventBO(EventReminder r, EventReminderBO bo) {
+    private void applyEventBO(EventReminder r, EventReminderBO bo, String appClientId) {
+        // The referenced event must belong to this church before it is stored.
+        if (bo.getEventId() != null) {
+            churchEventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(bo.getEventId(), appClientId)
+                    .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        }
         r.setEventId(bo.getEventId());
         r.setSameDay(bo.getSameDay() != null ? bo.getSameDay() : false);
         r.setBeforeDays(bo.getBeforeDays());
@@ -121,7 +144,7 @@ public class ReminderService {
         // Resolve event name
         String eventName = "";
         if (r.getEventId() != null) {
-            eventName = churchEventRepo.findByIdAndDeleteFlagFalse(r.getEventId())
+            eventName = churchEventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(r.getEventId(), r.getAppClientId())
                     .map(ChurchEvent::getEventName).orElse("");
         }
         m.put("eventName",   eventName);
@@ -155,16 +178,17 @@ public class ReminderService {
         return autoToMap(autoRepo.save(r));
     }
 
-    public Map<String, Object> updateAutoReminder(Integer id, AutoReminderBO bo) {
-        AutoReminder r = autoRepo.findById(id)
+    public Map<String, Object> updateAutoReminder(Integer id, AutoReminderBO bo, String appClientId) {
+        AutoReminder r = autoRepo.findByIdAndAppClientId(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Auto reminder not found"));
         applyAutoBO(r, bo);
         return autoToMap(autoRepo.save(r));
     }
 
-    public void deleteAutoReminder(Integer id) {
-        if (!autoRepo.existsById(id)) throw new IllegalArgumentException("Auto reminder not found");
-        autoRepo.deleteById(id);
+    public void deleteAutoReminder(Integer id, String appClientId) {
+        AutoReminder r = autoRepo.findByIdAndAppClientId(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Auto reminder not found"));
+        autoRepo.delete(r);
     }
 
     private void applyAutoBO(AutoReminder r, AutoReminderBO bo) {
@@ -213,16 +237,17 @@ public class ReminderService {
         return oneTimeToMap(oneTimeRepo.save(r));
     }
 
-    public Map<String, Object> updateOneTimeReminder(Integer id, OneTimeReminderBO bo) {
-        OneTimeReminder r = oneTimeRepo.findById(id)
+    public Map<String, Object> updateOneTimeReminder(Integer id, OneTimeReminderBO bo, String appClientId) {
+        OneTimeReminder r = oneTimeRepo.findByIdAndAppClientId(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("One-time reminder not found"));
         applyOneTimeBO(r, bo);
         return oneTimeToMap(oneTimeRepo.save(r));
     }
 
-    public void deleteOneTimeReminder(Integer id) {
-        if (!oneTimeRepo.existsById(id)) throw new IllegalArgumentException("One-time reminder not found");
-        oneTimeRepo.deleteById(id);
+    public void deleteOneTimeReminder(Integer id, String appClientId) {
+        OneTimeReminder r = oneTimeRepo.findByIdAndAppClientId(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("One-time reminder not found"));
+        oneTimeRepo.delete(r);
     }
 
     private void applyOneTimeBO(OneTimeReminder r, OneTimeReminderBO bo) {
@@ -264,24 +289,30 @@ public class ReminderService {
 
     public Map<String, Object> createMeetingReminder(MeetingReminderBO bo, String appClientId) {
         MeetingReminder r = new MeetingReminder();
-        applyMeetingBO(r, bo);
+        applyMeetingBO(r, bo, appClientId);
         r.setAppClientId(appClientId);
         return meetingReminderToMap(meetingRepo.save(r));
     }
 
-    public Map<String, Object> updateMeetingReminder(Integer id, MeetingReminderBO bo) {
-        MeetingReminder r = meetingRepo.findById(id)
+    public Map<String, Object> updateMeetingReminder(Integer id, MeetingReminderBO bo, String appClientId) {
+        MeetingReminder r = meetingRepo.findByIdAndAppClientId(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Meeting reminder not found"));
-        applyMeetingBO(r, bo);
+        applyMeetingBO(r, bo, appClientId);
         return meetingReminderToMap(meetingRepo.save(r));
     }
 
-    public void deleteMeetingReminder(Integer id) {
-        if (!meetingRepo.existsById(id)) throw new IllegalArgumentException("Meeting reminder not found");
-        meetingRepo.deleteById(id);
+    public void deleteMeetingReminder(Integer id, String appClientId) {
+        MeetingReminder r = meetingRepo.findByIdAndAppClientId(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Meeting reminder not found"));
+        meetingRepo.delete(r);
     }
 
-    private void applyMeetingBO(MeetingReminder r, MeetingReminderBO bo) {
+    private void applyMeetingBO(MeetingReminder r, MeetingReminderBO bo, String appClientId) {
+        // The referenced meeting must belong to this church before it is stored.
+        if (bo.getMeetingId() != null) {
+            meetingRepository.findByIdAndAppClientIdAndDeleteFlagFalse(bo.getMeetingId(), appClientId)
+                    .orElseThrow(() -> new IllegalArgumentException("Meeting not found"));
+        }
         r.setMeetingId(bo.getMeetingId());
         r.setRecipients(bo.getRecipients());
         if (bo.getDisabled() != null) r.setDisabled(bo.getDisabled());
@@ -296,7 +327,12 @@ public class ReminderService {
         String meetingLabel = "";
         String meetingDate  = "";
         if (r.getMeetingId() != null) {
-            meetingRepository.findActiveById(r.getMeetingId()).ifPresent(meeting -> {
+            // findActiveById fetch-joins meetingType (needed outside a transaction);
+            // the tenant filter keeps a foreign meeting's label from leaking.
+            meetingRepository.findActiveById(r.getMeetingId())
+                    .filter(meeting -> r.getAppClientId() != null
+                            && r.getAppClientId().equals(meeting.getAppClientId()))
+                    .ifPresent(meeting -> {
                 m.put("meetingLabel", meeting.getMeetingType() != null
                         ? meeting.getMeetingType().getTypeName() : "");
                 m.put("meetingDate",  meeting.getMeetingDate() != null

@@ -34,6 +34,9 @@ public class PayrollCalculationResult {
     private BigDecimal totalTaxes           = BigDecimal.ZERO;
 
     private BigDecimal netPay               = BigDecimal.ZERO;
+    // Uncollected shortfall when netPay clamps at zero instead of going negative
+    // (financial audit H4). Exactly one of netPay/arrearsAmount is non-zero.
+    private BigDecimal arrearsAmount        = BigDecimal.ZERO;
 
     // Itemized lines (current + YTD) for the paystub
     private List<PaystubLineItem> earningItems   = new ArrayList<>();

@@ -14,4 +14,8 @@ public interface OneTimeReminderRepository extends JpaRepository<OneTimeReminder
 
     /** All enabled one-time reminders whose event date matches today. Used by the scheduler. */
     List<OneTimeReminder> findByEventDateAndDisabledFalse(LocalDate eventDate);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<OneTimeReminder> findByIdAndAppClientId(Integer id, String appClientId);
 }

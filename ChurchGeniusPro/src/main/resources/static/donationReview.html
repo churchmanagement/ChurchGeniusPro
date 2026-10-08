@@ -63,6 +63,7 @@
     /* ── Feedback ── */
     .feedback{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
     .feedback.error{display:block;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
+    .feedback.ok{display:block;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
     /* ── Card ── */
     .card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px;}
     .card-header{padding:14px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;background:#fafbfd;flex-wrap:wrap;gap:10px;}
@@ -79,6 +80,31 @@
     .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;}
     .badge-success{background:#e8f5e9;color:#2e7d32;}
     .badge-pending{background:#fff8e1;color:#f57f17;}
+    /* ── Review status (Pending / Completed) — separate from Stripe's Status ── */
+    .rv-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .rv-pending{background:#fff3e0;color:#b45309;border:1px solid #fcd9a8;}
+    .rv-done{background:#e8f5e9;color:#2e7d32;border:1px solid #b7dfb9;}
+    .rv-date{display:block;font-size:10.5px;color:#8a9a8b;margin-top:3px;white-space:nowrap;}
+    table.don-tbl tbody tr.row-done td{background:#f7faf7;color:#9aa39b;}
+    table.don-tbl tbody tr.row-done td.amount-cell{color:#9aa39b;font-weight:600;}
+    table.don-tbl tbody tr.row-done td.rv-cell{color:inherit;}
+    table.don-tbl th.sel-col,table.don-tbl td.sel-col{width:34px;padding-right:0;}
+    .sel-col input{width:16px;height:16px;cursor:pointer;accent-color:#673147;}
+    .review-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid #f0f0f0;background:#fff;font-size:13px;}
+    .review-bar .sel-count{color:#666;font-weight:600;margin-right:auto;}
+    .btn-review{padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;}
+    .btn-review:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-complete{background:#2e7d32;color:#fff;}
+    .btn-complete:hover:not(:disabled){background:#246428;}
+    .btn-pending{background:#fff;color:#b45309;border-color:#f3c98b;}
+    .btn-pending:hover:not(:disabled){background:#fff8ee;}
+    .stat-sub{font-size:12px;color:#2e7d32;font-weight:600;margin-top:6px;}
+    /* ── Donations / Member Contributions tabs ── */
+    .src-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid #e8eaf0;}
+    .src-tab{padding:10px 18px;border:0;background:transparent;font-size:14px;font-weight:600;color:#777;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;font-family:inherit;}
+    .src-tab.active{color:#673147;border-bottom-color:#673147;}
+    .src-tab:hover{color:#673147;}
+    .col-member{display:none;} body.src-member .col-member{display:table-cell;}
     /* ── Amount display ── */
     .amount-cell{font-weight:700;color:#1e2139;}
     /* ── Filter bar ── */
@@ -89,6 +115,22 @@
     .btn-filter:hover{background:#673147;color:#fff;border-color:#673147;}
     .btn-clear{padding:7px 12px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;color:#555;}
     .btn-clear:hover{border-color:#673147;color:#673147;}
+    /* ── Stripe fee settings (All Donations heading) ── */
+    .fee-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#666;}
+    .fee-bar label{display:flex;align-items:center;gap:5px;font-weight:600;white-space:nowrap;}
+    .fee-bar .fee-in{display:inline-flex;align-items:center;border:1.5px solid #e0e0e0;border-radius:6px;background:#fff;padding:0 6px;}
+    .fee-bar .fee-in:focus-within{border-color:#673147;}
+    .fee-bar .fee-in input{width:56px;padding:6px 2px;border:none;outline:none;font-size:13px;font-family:inherit;color:#333;text-align:right;background:transparent;}
+    .fee-bar .fee-in span{color:#999;font-size:12px;}
+    /* ── Per-donation fee info ── */
+    .fee-info{position:relative;display:inline-block;margin-left:6px;vertical-align:middle;}
+    .fee-btn{width:18px;height:18px;border-radius:50%;border:1px solid #c5a0b5;background:#fff;color:#673147;font-size:11px;font-weight:700;line-height:16px;text-align:center;cursor:pointer;padding:0;}
+    .fee-btn:hover,.fee-info.open .fee-btn{background:#673147;color:#fff;border-color:#673147;}
+    .fee-pop{display:none;position:absolute;left:0;top:24px;z-index:20;background:#fff;border:1px solid #e8eaf0;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:10px 12px;min-width:210px;font-weight:400;font-size:12.5px;color:#333;text-align:left;}
+    .fee-info.open .fee-pop{display:block;}
+    .fee-pop div{display:flex;justify-content:space-between;gap:16px;padding:2px 0;}
+    .fee-pop .fee-lbl{color:#888;}
+    .fee-pop .fee-rem{border-top:1px solid #f0f0f0;margin-top:4px;padding-top:6px;font-weight:700;color:#2e7d32;}
     ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:3px;}
     .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);}
   </style>
@@ -102,8 +144,15 @@
 
     <main class="page-content">
       <div class="page-header">
-        <div class="page-title">&#9962; Donation</div>
-        <div class="page-sub">Online donations received via Stripe</div>
+        <div class="page-title">&#9962; Donation / Give</div>
+        <div class="page-sub">Online donations and member contributions received via Stripe</div>
+      </div>
+
+      <!-- Phase D: donations made through the public donation page, and contributions
+           made by signed-in members through My Profile → Give / Contribute, on separate tabs. -->
+      <div class="src-tabs" role="tablist">
+        <button type="button" class="src-tab active" id="tabDonations" role="tab" onclick="switchSource('public')">💝 Donations</button>
+        <button type="button" class="src-tab" id="tabMember" role="tab" onclick="switchSource('member')">🙋 Member Contributions</button>
       </div>
 
       <div class="feedback" id="feedbackMsg"></div>
@@ -111,16 +160,17 @@
       <!-- Summary stats -->
       <div class="stats-row">
         <div class="stat-card">
-          <div class="stat-label">Total Received</div>
+          <div class="stat-label">Pending Total</div>
           <div class="stat-value green" id="statTotal">—</div>
+          <div class="stat-sub" id="statCompleted" style="display:none;"></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Donations</div>
+          <div class="stat-label">Pending Donations</div>
           <div class="stat-value" id="statCount">—</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Average Gift</div>
-          <div class="stat-value" id="statAvg">—</div>
+          <div class="stat-label">Pending After Stripe Fees</div>
+          <div class="stat-value" id="statAvg" title="Pending Total minus Stripe fees on the pending donations">—</div>
         </div>
       </div>
 
@@ -129,7 +179,16 @@
         <div class="card-header">
           <div class="card-header-left">
             <span>&#128203;</span>
-            <h3>All Donations</h3>
+            <h3 id="listTitle">All Donations</h3>
+          </div>
+          <!-- Stripe fee settings: apply to every donation in this section (editable; 2.9% + $0.30 are only defaults) -->
+          <div class="fee-bar" id="feeBar">
+            <label for="feePct">Stripe Fee %
+              <span class="fee-in"><input type="number" id="feePct" value="2.9" min="0" step="0.01" inputmode="decimal" aria-label="Stripe fee percentage" /><span>%</span></span>
+            </label>
+            <label for="feeFixed">Stripe Fixed Fee
+              <span class="fee-in"><span>$</span><input type="number" id="feeFixed" value="0.30" min="0" step="0.01" inputmode="decimal" aria-label="Stripe fixed fee" /></span>
+            </label>
           </div>
           <div class="filter-bar">
             <input type="date" id="filterFrom" title="From date" />
@@ -138,23 +197,33 @@
             <button class="btn-clear"  onclick="clearFilter()">Clear</button>
           </div>
         </div>
+        <!-- Review actions: mark the selected donations Completed, or back to Pending (undo).
+             Completed donations stay listed; they are only left out of the Pending figures above. -->
+        <div class="review-bar" id="reviewBar">
+          <span class="sel-count" id="selCount">Select donations to mark them Completed or Pending.</span>
+          <button type="button" class="btn-review btn-complete" id="btnMarkCompleted" onclick="setReviewStatus('COMPLETED')" disabled>&#10003; Mark Completed</button>
+          <button type="button" class="btn-review btn-pending"  id="btnMarkPending"   onclick="setReviewStatus('PENDING')"   disabled>&#8634; Mark Pending</button>
+        </div>
         <div class="table-wrap">
           <table class="don-tbl">
             <thead>
               <tr>
+                <th class="sel-col"><input type="checkbox" id="selAll" onclick="toggleSelectAll(this.checked)" aria-label="Select all listed donations" /></th>
                 <th>#</th>
-                <th>Donor</th>
+                <th id="thDonor">Donor</th>
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Amount</th>
+                <th class="col-member" title="The purpose the member chose">Purpose</th>
                 <th>Payment Method</th>
                 <th>Date</th>
-                <th>Status</th>
+                <th title="Stripe payment status">Status</th>
+                <th title="Donation Review status — Pending or Completed">Review</th>
                 <th>Note</th>
               </tr>
             </thead>
             <tbody id="donTableBody">
-              <tr><td class="empty-row" colspan="9">Loading&#8230;</td></tr>
+              <tr><td class="empty-row" colspan="12">Loading&#8230;</td></tr>
             </tbody>
           </table>
         </div>
@@ -169,7 +238,69 @@
 /* ════ NAVIGATION ════ */
 
 /* ════ DATA ════ */
+let currentSource = 'public';   // 'public' = donation page; 'member' = Member Portal contributions
+function switchSource(src) {
+  if (src === currentSource) return;
+  currentSource = src;
+  document.getElementById('tabDonations').classList.toggle('active', src === 'public');
+  document.getElementById('tabMember').classList.toggle('active', src === 'member');
+  document.body.classList.toggle('src-member', src === 'member');
+  document.getElementById('listTitle').textContent = src === 'member' ? 'Member Contributions' : 'All Donations';
+  document.getElementById('thDonor').textContent   = src === 'member' ? 'Member' : 'Donor';
+  document.getElementById('filterFrom').value = ''; document.getElementById('filterTo').value = '';
+  selectedIds.clear(); hideFeedback();
+  loadDonations();
+}
 let allDonations = [];
+let serverTotals = []; // financial audit M11: server-computed per-currency totals for allDonations
+let currentRows   = [];   // the rows currently displayed (all or date-filtered)
+let currentTotals = null; // the server totals that go with currentRows (null when filtered)
+let selectedIds   = new Set(); // donation ids ticked for Mark Completed / Mark Pending
+let reviewBusy    = false;
+
+/* Donation Review status — separate from Stripe's `status`. Anything not COMPLETED is Pending. */
+function isCompleted(d) { return d && d.reviewStatus === 'COMPLETED'; }
+
+/* ════ STRIPE FEE SETTINGS ════
+ * The two inputs in the All Donations heading apply to every donation shown.
+ * Blank / invalid / negative → 0. All arithmetic is in integer cents, rounded per
+ * donation (the way a processor charges), never as raw floats. */
+function feeSettings() {
+  const pctEl = document.getElementById('feePct');
+  const fixEl = document.getElementById('feeFixed');
+  const pct   = pctEl ? parseFloat(pctEl.value) : 0;
+  const fixed = fixEl ? parseFloat(fixEl.value) : 0;
+  return {
+    pct:        isFinite(pct)   && pct   > 0 ? pct   : 0,
+    fixedCents: isFinite(fixed) && fixed > 0 ? Math.round(fixed * 100) : 0
+  };
+}
+/* Fee in cents for one donation amount (in dollars): amount × % + fixed. */
+function feeCentsFor(amount, settings) {
+  const s = settings || feeSettings();
+  const amountCents = Math.round((parseFloat(amount) || 0) * 100);
+  if (amountCents <= 0) return 0;
+  if (s.pct === 0 && s.fixedCents === 0) return 0;
+  return Math.round(amountCents * s.pct / 100) + s.fixedCents;
+}
+function onFeeChange() {
+  renderStats(currentRows, currentTotals);
+  renderTable(currentRows);
+}
+document.addEventListener('input', function (e) {
+  if (e.target && (e.target.id === 'feePct' || e.target.id === 'feeFixed')) onFeeChange();
+});
+/* Per-donation fee/info popover: click the ⓘ to toggle; click anywhere else to close. */
+function toggleFeeInfo(btn, ev) {
+  if (ev) ev.stopPropagation();
+  const box = btn.parentNode;
+  const wasOpen = box.classList.contains('open');
+  document.querySelectorAll('.fee-info.open').forEach(function (el) { el.classList.remove('open'); });
+  if (!wasOpen) box.classList.add('open');
+}
+document.addEventListener('click', function () {
+  document.querySelectorAll('.fee-info.open').forEach(function (el) { el.classList.remove('open'); });
+});
 
 /* ════ INIT ════ */
 (async function init() {
@@ -178,11 +309,16 @@ let allDonations = [];
 
 async function loadDonations() {
   try {
-    const res = await fetch('/api/donations');
+    const res = await fetch('/api/donations' + (currentSource === 'member' ? '?source=member' : ''));
     if (res.status === 403) { showError('Access denied.'); return; }
     if (!res.ok) { showError('Could not load donations.'); return; }
-    allDonations = await res.json();
-    renderStats(allDonations);
+    const data = await res.json();
+    allDonations = data.rows   || [];
+    serverTotals = data.totals || [];
+    currentRows = allDonations; currentTotals = serverTotals;
+    selectedIds.clear();
+    if (filterActive()) { applyFilter(); return; }
+    renderStats(allDonations, serverTotals);
     renderTable(allDonations);
   } catch {
     showError('Network error loading donations.');
@@ -190,6 +326,10 @@ async function loadDonations() {
 }
 
 /* ════ FILTER ════ */
+function filterActive() {
+  const f = document.getElementById('filterFrom'), t = document.getElementById('filterTo');
+  return !!((f && f.value) || (t && t.value));
+}
 function applyFilter() {
   const from = document.getElementById('filterFrom').value;
   const to   = document.getElementById('filterTo').value;
@@ -200,55 +340,179 @@ function applyFilter() {
     if (to   && date > to)   return false;
     return true;
   });
-  renderStats(filtered);
+  // Financial audit M11: a date filter narrows the rows to a subset the server
+  // was never asked about, so there is no server total for it — pass null and
+  // let renderStats fall back to its own (integer-cent, not float) summation.
+  currentRows = filtered; currentTotals = null;
+  renderStats(filtered, null);
   renderTable(filtered);
 }
 
 function clearFilter() {
   document.getElementById('filterFrom').value = '';
   document.getElementById('filterTo').value   = '';
-  renderStats(allDonations);
+  currentRows = allDonations; currentTotals = serverTotals;
+  renderStats(allDonations, serverTotals);
   renderTable(allDonations);
 }
 
 /* ════ RENDER STATS ════ */
-function renderStats(rows) {
-  const total = rows.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
-  const count = rows.length;
-  const avg   = count > 0 ? total / count : 0;
-  const cur   = rows.length > 0 ? (rows[0].currency || 'USD') : 'USD';
+function renderStats(rows, totals) {
+  // Financial audit M2: one currency only — the first row's — never a mixed sum.
+  const cur     = rows.length > 0 ? (rows[0].currency || 'USD') : 'USD';
+  const sameCur = rows.filter(function(d) { return (d.currency || 'USD') === cur; });
+  // Donation Review: every figure below is over PENDING donations only. Completed
+  // ones stay in the list but are left out here, and summed separately for the
+  // "Completed: n · $x" line. Review status never touches Stripe or Income.
+  const pending   = sameCur.filter(function(d) { return !isCompleted(d); });
+  const completed = sameCur.filter(function(d) { return  isCompleted(d); });
+  const count     = pending.length;
+
+  // Financial audit M11: with the full set showing, `totals` carries the server's
+  // exact BigDecimal sum for `cur` — the server sums Pending donations only, the
+  // same set as `pending` here — and it is shown directly. A date filter passes
+  // `totals` as null, so the narrowed subset is summed here in integer cents
+  // (each amount rounded to its own cent first, never raw float addition).
+  let totalCents;
+  const serverTotal = totals && totals.find(function(t) { return (t.currency || 'USD') === cur; });
+  if (serverTotal) {
+    totalCents = Math.round(serverTotal.total * 100);
+  } else {
+    totalCents = pending.reduce(function(c, d) { return c + Math.round(parseFloat(d.amount || 0) * 100); }, 0);
+  }
+  const total = totalCents / 100;
+  // Pending After Stripe Fees = Pending Total − the Stripe fees on the PENDING
+  // donations only (amount × % + fixed, rounded per donation). A Completed
+  // donation takes out its whole amount AND its own fee, so its fee is never
+  // subtracted twice. Both fee inputs blank/zero → equals Pending Total.
+  const settings  = feeSettings();
+  const feeCents  = pending.reduce(function(c, d) { return c + feeCentsFor(d.amount, settings); }, 0);
+  const remaining = (totalCents - feeCents) / 100;
   document.getElementById('statTotal').textContent = fmt(total, cur);
   document.getElementById('statCount').textContent = count;
-  document.getElementById('statAvg').textContent   = count > 0 ? fmt(avg, cur) : '—';
+  const remEl = document.getElementById('statAvg');
+  remEl.textContent = count > 0 ? fmt(remaining, cur) : '—';
+  remEl.title = count > 0 ? ('Pending Total ' + fmt(total, cur) + ' − Stripe fees ' + fmt(feeCents / 100, cur)) : '';
+
+  const doneCents = completed.reduce(function(c, d) { return c + Math.round(parseFloat(d.amount || 0) * 100); }, 0);
+  const doneEl = document.getElementById('statCompleted');
+  if (doneEl) {
+    doneEl.textContent = completed.length > 0 ? ('Completed: ' + completed.length + ' \u00b7 ' + fmt(doneCents / 100, cur)) : '';
+    doneEl.style.display = completed.length > 0 ? '' : 'none';
+  }
 }
+
 
 /* ════ RENDER TABLE ════ */
 function renderTable(rows) {
   const tbody = document.getElementById('donTableBody');
   if (!tbody) return;
   if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td class="empty-row" colspan="9">No donations found.</td></tr>';
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="12">No donations found.</td></tr>';
+    updateSelectionUi();
     return;
   }
   try {
+    const settings = feeSettings();
     tbody.innerHTML = rows.map(function(d, i) {
       const name = [d.firstName, d.lastName].filter(Boolean).join(' ');
       const cur  = d.currency || 'USD';
-      return '<tr>' +
+      const amount    = parseFloat(d.amount || 0);
+      const feeC      = feeCentsFor(amount, settings);
+      const remaining = (Math.round(amount * 100) - feeC) / 100;
+      const pctPart   = settings.pct > 0 ? Math.round(Math.round(amount * 100) * settings.pct / 100) : 0;
+      const feeDetail = (settings.pct > 0 || settings.fixedCents > 0)
+        ? fmt(pctPart / 100, cur) + ' + ' + fmt(settings.fixedCents / 100, cur) + ' = ' + fmt(feeC / 100, cur)
+        : fmt(0, cur);
+      const feeInfo = '<span class="fee-info">' +
+          '<button type="button" class="fee-btn" title="Stripe fee &amp; remaining" aria-label="Show Stripe fee for this donation" onclick="toggleFeeInfo(this, event)">i</button>' +
+          '<span class="fee-pop" onclick="event.stopPropagation()">' +
+            '<div><span class="fee-lbl">Donation</span><span>' + fmt(amount, cur) + '</span></div>' +
+            '<div><span class="fee-lbl">Stripe fee</span><span>' + feeDetail + '</span></div>' +
+            '<div class="fee-rem"><span>Remaining</span><span>' + fmt(remaining, cur) + '</span></div>' +
+          '</span></span>';
+      const done   = isCompleted(d);
+      const idNum  = Number(d.id);
+      const review = done
+        ? '<span class="rv-badge rv-done">&#10003; Completed</span>' + (d.reviewCompletedAt ? '<span class="rv-date">' + fmtDate(d.reviewCompletedAt) + '</span>' : '')
+        : '<span class="rv-badge rv-pending">Pending</span>';
+      return '<tr' + (done ? ' class="row-done"' : '') + '>' +
+        '<td class="sel-col"><input type="checkbox" class="row-sel" data-id="' + idNum + '"' + (selectedIds.has(idNum) ? ' checked' : '') +
+          ' onclick="toggleRow(' + idNum + ', this.checked)" aria-label="Select donation ' + (i + 1) + '" /></td>' +
         '<td style="color:#aaa;font-size:12px;">' + (i + 1) + '</td>' +
         '<td style="font-weight:600;">' + (name ? esc(name) : '') + '</td>' +
         '<td>' + formatPhone(d.phone) + '</td>' +
         '<td>' + (d.email ? esc(d.email) : '') + '</td>' +
-        '<td class="amount-cell">' + fmt(parseFloat(d.amount || 0), cur) + '</td>' +
+        '<td class="amount-cell">' + fmt(amount, cur) + feeInfo + '</td>' +
+        '<td class="col-member">' + (d.purpose ? esc(d.purpose) : '<span style="color:#aaa;">Online Giving</span>') + '</td>' +
         '<td>' + (d.paymentMethod ? esc(d.paymentMethod) : '') + '</td>' +
         '<td>' + fmtDate(d.donatedAt) + '</td>' +
         '<td><span class="badge ' + statusClass(d.status) + '">' + (d.status ? esc(d.status) : '') + '</span></td>' +
+        '<td class="rv-cell">' + review + '</td>' +
         '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(d.note || '') + '">' + (d.note ? esc(d.note) : '') + '</td>' +
         '</tr>';
     }).join('');
+    updateSelectionUi();
   } catch(e) {
     console.error('renderTable error:', e);
-    tbody.innerHTML = '<tr><td class="empty-row" colspan="9">Error rendering donations — see console.</td></tr>';
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="12">Error rendering donations — see console.</td></tr>';
+  }
+}
+
+/* ════ REVIEW STATUS (Pending / Completed) ════
+ * Marks the ticked donations Completed, or back to Pending to undo a mistake. This
+ * is a Donation Review flag only: the donation, its Stripe status and its Income
+ * entry are unchanged; Completed rows stay listed and leave the Pending figures. */
+function toggleRow(id, on) {
+  if (on) selectedIds.add(id); else selectedIds.delete(id);
+  updateSelectionUi();
+}
+function toggleSelectAll(on) {
+  selectedIds.clear();
+  if (on) currentRows.forEach(function(d) { selectedIds.add(Number(d.id)); });
+  renderTable(currentRows);
+}
+function updateSelectionUi() {
+  // Only ids still on screen count — a date filter can hide earlier ticks.
+  const shown = new Set(currentRows.map(function(d) { return Number(d.id); }));
+  Array.from(selectedIds).forEach(function(id) { if (!shown.has(id)) selectedIds.delete(id); });
+  const n = selectedIds.size;
+  const picked = currentRows.filter(function(d) { return selectedIds.has(Number(d.id)); });
+  const anyPending   = picked.some(function(d) { return !isCompleted(d); });
+  const anyCompleted = picked.some(function(d) { return  isCompleted(d); });
+  const cnt = document.getElementById('selCount');
+  if (cnt) cnt.textContent = n === 0 ? 'Select donations to mark them Completed or Pending.'
+                                     : n + (n === 1 ? ' donation' : ' donations') + ' selected';
+  const bc = document.getElementById('btnMarkCompleted');
+  const bp = document.getElementById('btnMarkPending');
+  if (bc) bc.disabled = reviewBusy || !anyPending;
+  if (bp) bp.disabled = reviewBusy || !anyCompleted;
+  const all = document.getElementById('selAll');
+  if (all) {
+    all.checked = currentRows.length > 0 && n === currentRows.length;
+    all.indeterminate = n > 0 && n < currentRows.length;
+  }
+}
+async function setReviewStatus(status) {
+  if (reviewBusy || selectedIds.size === 0) return;
+  const ids = Array.from(selectedIds);
+  reviewBusy = true; updateSelectionUi(); hideFeedback();
+  try {
+    const res = await fetch('/api/donations/review-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ids, status: status })
+    });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) { showError(data.error || 'Could not update the donations.'); return; }
+    const n = data.updated || 0;
+    showOk(n === 0 ? 'No change — the selected donations were already ' + (status === 'COMPLETED' ? 'Completed.' : 'Pending.')
+                   : n + (n === 1 ? ' donation' : ' donations') + ' marked ' + (status === 'COMPLETED' ? 'Completed.' : 'Pending.'));
+    await loadDonations();
+  } catch {
+    showError('Network error — nothing was changed. Please try again.');
+  } finally {
+    reviewBusy = false; updateSelectionUi();
   }
 }
 
@@ -284,6 +548,14 @@ function formatPhone(p) {
 function showError(msg) {
   const el = document.getElementById('feedbackMsg');
   el.textContent = msg; el.className = 'feedback error';
+}
+function showOk(msg) {
+  const el = document.getElementById('feedbackMsg');
+  el.textContent = msg; el.className = 'feedback ok';
+}
+function hideFeedback() {
+  const el = document.getElementById('feedbackMsg');
+  el.textContent = ''; el.className = 'feedback';
 }
 </script>
 <script>

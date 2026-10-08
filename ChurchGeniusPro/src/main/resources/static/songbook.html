@@ -51,6 +51,7 @@
     .card { background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); padding:16px; margin-bottom:16px; }
     .card-title { font-size:13px; font-weight:700; color:#673147; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
     .ct-count { background:#f0e8ec; color:#673147; border-radius:12px; padding:1px 9px; font-size:12px; }
+    [hidden] { display:none !important; }
     .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
     .btn-primary{ background:#673147;color:#fff; } .btn-primary:hover{background:#52273a;}
     .btn-green{ background:#2e7d32;color:#fff; } .btn-green:hover{background:#246627;}
@@ -88,6 +89,16 @@
     .url-box{display:flex;gap:8px;align-items:center;background:#f7f3f6;border-radius:8px;padding:8px 12px;margin-top:10px;flex-wrap:wrap;}
     .url-box code{font-size:12px;color:#673147;word-break:break-all;flex:1;}
     .fin-sub{font-size:11px;color:#999;}
+    /* Finalized Song Book title (editable) + inline section-heading editor */
+    .fin-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 12px;padding:10px 12px;background:#faf6f8;border:1px solid #efe4ea;border-radius:10px;}
+    .fin-book-title{flex:1 1 180px;min-width:0;font-size:18px;font-weight:800;color:#4f2538;font-family:var(--ml);word-break:break-word;}
+    .fin-book-title.placeholder{color:#b39aa7;font-weight:600;font-style:italic;}
+    .fin-title-row input{flex:1 1 200px;min-width:0;padding:8px 10px;border:1.5px solid #673147;border-radius:7px;font-size:15px;font-weight:700;font-family:var(--ml);outline:none;}
+    .fin-title-lbl{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.3px;width:100%;}
+    .sec-head.editing > .iconbtn{display:none;}
+    .sec-name .sec-edit{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+    .sec-name .sec-edit input{flex:1 1 160px;width:auto;min-width:0;}
+    .sec-name .sec-edit .btn{padding:5px 12px;min-height:32px;}
     /* modal */
     .overlay{position:fixed;inset:0;background:rgba(20,10,18,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
     .overlay.open{display:flex;}
@@ -200,6 +211,18 @@
                 <span style="flex:1"></span>
                 <button class="btn btn-primary edit-only" onclick="addFinalSection()" style="padding:6px 12px;">+ Section</button>
               </div>
+              <div class="fin-title-row" id="finTitleView">
+                <span class="fin-title-lbl">Song Book Title</span>
+                <span class="fin-book-title" id="finTitleText"></span>
+                <button class="btn btn-ghost edit-only" onclick="editFinTitle()" style="padding:6px 12px;" title="Edit the title of the Finalized Song Book">✎ Edit Title</button>
+              </div>
+              <div class="fin-title-row" id="finTitleEdit" hidden>
+                <span class="fin-title-lbl">Song Book Title</span>
+                <input id="finTitleInput" maxlength="300" placeholder="e.g. Sunday Worship"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();saveFinTitle();} if(event.key==='Escape')cancelFinTitle();" />
+                <button class="btn btn-primary" id="finTitleSaveBtn" onclick="saveFinTitle()" style="padding:6px 14px;">Save</button>
+                <button class="btn btn-outline" onclick="cancelFinTitle()" style="padding:6px 14px;">Cancel</button>
+              </div>
               <div id="finalizedWrap"></div>
               <div class="empty" id="finalizedEmpty">Tap ✓ on any song to add it to the Finalized Song Book (it lands in a finalized section named after its source section). You can then create sections, move songs, and reorder.</div>
             </div>
@@ -240,6 +263,38 @@
                 <button class="btn btn-ghost" onclick="openUrl()">Open</button>
               </div>
             </div>
+
+            <!-- Now Singing / Next Song — live service control (visible once published) -->
+            <div class="card edit-only" id="liveCard" style="display:none;">
+              <div class="card-title">🎵 Now Singing &amp; Next Song</div>
+              <div style="font-size:13px;color:#6b5560;margin:-4px 0 12px;line-height:1.5;">
+                Choose what the congregation is singing <b>now</b> and what's <b>next</b>. It updates on
+                everyone's open song book within a few seconds — no refresh needed.
+              </div>
+              <div id="liveRepublish" hidden style="gap:10px;align-items:center;flex-wrap:wrap;background:#fff6e5;border:1px solid #f0d199;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#7a5a1e;">
+                <span style="flex:1;min-width:220px;">⚠️ This song book was published before Now&nbsp;Singing existed, so its songs can't be selected yet. Re-publish to enable it (nothing else changes).</span>
+                <button class="btn btn-green" style="padding:6px 12px;" onclick="republishForLive()">Re-publish now</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                <div class="live-slot" style="display:flex;align-items:center;gap:8px;background:#f6eef2;border-radius:10px;padding:9px 12px;">
+                  <span style="font-size:16px;">🎵</span>
+                  <span style="font-weight:700;color:#673147;min-width:96px;">Now Singing:</span>
+                  <span id="liveCurLabel" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#33293a;">None</span>
+                  <button class="btn btn-ghost" id="liveCurClear" hidden style="padding:6px 10px;" onclick="unsetCurrent()">Unset</button>
+                </div>
+                <div class="live-slot" style="display:flex;align-items:center;gap:8px;background:#eef2f6;border-radius:10px;padding:9px 12px;">
+                  <span style="font-size:16px;">🎶</span>
+                  <span style="font-weight:700;color:#345;min-width:96px;">Next Song:</span>
+                  <span id="liveNextLabel" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#33293a;">None</span>
+                  <button class="btn btn-ghost" id="liveNextClear" hidden style="padding:6px 10px;" onclick="unsetNext()">Unset</button>
+                </div>
+              </div>
+              <input id="liveSearch" placeholder="🔎 Search songs…" oninput="renderLiveList()"
+                     style="width:100%;padding:10px 12px;border:1px solid #e0d3da;border-radius:10px;font-size:14px;margin-bottom:8px;" />
+              <div id="liveList" style="max-height:340px;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px;"></div>
+              <div id="liveEmpty" style="display:none;color:#9a7d8c;font-size:13px;padding:10px 2px;">No songs in the published book yet. Add songs, finalize them, then Publish.</div>
+            </div>
+
             <div class="card view-only" id="viewPubCard" style="display:none;">
               <div class="card-title">🌐 Published Song Book</div>
               <div class="url-box"><code id="viewPubUrl"></code><button class="btn btn-ghost" onclick="openUrl()">Open</button></div>
@@ -394,6 +449,7 @@ async function switchBook(id){
   activeBookId=id;
   try{ localStorage.setItem('sb.activeBook', String(id)); }catch(e){}
   renderBookBar();
+  if(!document.getElementById('finTitleEdit').hidden) cancelFinTitle();   // discard an unsaved title edit from the previous book
   await load();
 }
 async function addBook(){
@@ -452,6 +508,7 @@ function render(){
 
   renderSections();
   renderFinalizedSections();
+  renderFinTitle();
   renderCoverSummary();
 
   const p=DATA.publish||{};
@@ -462,6 +519,8 @@ function render(){
     document.getElementById('unpublishBtn').style.display=live?'':'none';
     document.getElementById('publishBtn').textContent=live?'Re-publish':'Publish';
     if(live) document.getElementById('pubUrl').textContent=location.origin+p.url;
+    const lc=document.getElementById('liveCard');
+    if(lc){ if(live){ lc.style.display=''; loadLive(); } else { lc.style.display='none'; } }
   } else {
     document.getElementById('viewPubCard').style.display=live?'':'none';
     if(live) document.getElementById('viewPubUrl').textContent=location.origin+p.url;
@@ -517,8 +576,40 @@ function songRow(s,i,sec,ed){
 
 async function addSection(){ const name=prompt('Section name (e.g. Malayalam Songs):'); if(!name||!name.trim()) return;
   try{ await api('/api/songbook/sections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}); await load(); }catch(e){ toast(e.message,true); } }
-function renameSection(id){ const cur=document.getElementById('sn-'+id).textContent; const name=prompt('Rename section:',cur); if(name==null||!name.trim()||name===cur) return;
-  api('/api/songbook/sections/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}).then(load).catch(e=>toast(e.message,true)); }
+/* Section heading edit — inline, with an explicit Save. Nothing is persisted
+   until Save is clicked (or Enter pressed); Cancel / Escape discards the edit. */
+function renameSection(id){
+  const cell=document.getElementById('sn-'+id); if(!cell||cell.querySelector('input')) return;
+  const sec=DATA.sections.find(s=>s.id===id); const cur=sec?sec.name:cell.textContent;
+  const head=cell.closest('.sec-head'), secEl=cell.closest('.section');
+  if(head) head.classList.add('editing');
+  if(secEl) secEl.setAttribute('draggable','false');   // let the text field be selected with the mouse
+  cell.dataset.orig=cur;
+  cell.innerHTML=`<span class="sec-edit"><input id="sne-${id}" value="${esc(cur)}" maxlength="200" />
+      <button class="btn btn-primary" onclick="saveSectionName(${id})">Save</button>
+      <button class="btn btn-outline" onclick="cancelSectionName(${id})">Cancel</button></span>`;
+  const inp=document.getElementById('sne-'+id);
+  inp.onkeydown=(e)=>{ if(e.key==='Enter'){ e.preventDefault(); saveSectionName(id); } if(e.key==='Escape'){ e.preventDefault(); cancelSectionName(id); } };
+  inp.focus(); inp.select();
+}
+function cancelSectionName(id){
+  const cell=document.getElementById('sn-'+id); if(!cell) return;
+  const head=cell.closest('.sec-head'), secEl=cell.closest('.section');
+  cell.textContent=cell.dataset.orig!=null?cell.dataset.orig:cell.textContent; delete cell.dataset.orig;
+  if(head) head.classList.remove('editing');
+  if(secEl && DATA.canEdit) secEl.setAttribute('draggable','true');
+}
+async function saveSectionName(id){
+  const inp=document.getElementById('sne-'+id); if(!inp) return;
+  const cell=document.getElementById('sn-'+id);
+  const name=inp.value.trim();
+  if(!name){ toast('Section name required',true); inp.focus(); return; }
+  if(cell && name===cell.dataset.orig){ cancelSectionName(id); return; }
+  try{
+    await api('/api/songbook/sections/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    toast('Section heading saved'); await load();
+  }catch(e){ toast(e.message,true); }
+}
 async function deleteSection(id,name){ if(!confirm('Delete section "'+name+'" and all its songs?')) return;
   try{ await api('/api/songbook/sections/'+id,{method:'DELETE'}); await load(); }catch(e){ toast(e.message,true); } }
 async function moveSection(idx,dir){ const j=idx+dir; if(j<0||j>=DATA.sections.length) return;
@@ -589,9 +680,52 @@ function finSongRow(s,i,sec,ed){
       <button class="iconbtn" title="Up" onclick="moveFinSong(${sec.id},${i},-1)">↑</button>
       <button class="iconbtn" title="Down" onclick="moveFinSong(${sec.id},${i},1)">↓</button>
       <button class="iconbtn" title="Move to finalized section" onclick="openMoveFinal(${s.id})">↪</button>
-      <button class="iconbtn" title="Remove from finalized" onclick="unfinalize(${s.id})">↩</button>`;
+      <button class="iconbtn" title="Remove from finalized" onclick="unfinalize(${s.id})">↩</button>
+      <button class="iconbtn danger" title="Delete song" onclick="delFinal(${s.id})">🗑</button>`;
   return `<div class="song" data-id="${s.id}" ${ed?'draggable="true"':''}>${ed?'<span class="handle">⋮⋮</span>':''}
       <span class="song-title">${esc(s.title)}</span>${lang}<span class="song-actions">${acts}</span></div>`;
+}
+/* Delete an individual song from the Finalized Song Book (permanent — the song
+   and its lyrics are removed). ↩ still returns a song to the library instead. */
+async function delFinal(id){
+  const s=findSong(id);
+  if(!confirm('Delete "'+(s?s.title:'this song')+'" from the Finalized Song Book?\n\nThis permanently deletes the song and its lyrics. To keep it, use ↩ to return it to the library instead.')) return;
+  try{ await api('/api/songbook/songs/'+id,{method:'DELETE'}); toast('Song deleted'); await load(); }catch(e){ toast(e.message,true); }
+}
+/* Finalized Song Book title — the book's heading (same title used by Publish).
+   Saved only when the user clicks Save. */
+function renderFinTitle(){
+  const el=document.getElementById('finTitleText'); if(!el) return;
+  const t=((DATA.publish||{}).bookTitle||'').trim();
+  el.textContent = t || 'Untitled (shown as "Song Book")';
+  el.classList.toggle('placeholder', !t);
+}
+function editFinTitle(){
+  const inp=document.getElementById('finTitleInput');
+  inp.value=((DATA.publish||{}).bookTitle||'').trim();
+  document.getElementById('finTitleView').hidden=true;
+  document.getElementById('finTitleEdit').hidden=false;
+  inp.focus(); inp.select();
+}
+function cancelFinTitle(){
+  document.getElementById('finTitleEdit').hidden=true;
+  document.getElementById('finTitleView').hidden=false;
+  renderFinTitle();
+}
+async function saveFinTitle(){
+  const inp=document.getElementById('finTitleInput'), btn=document.getElementById('finTitleSaveBtn');
+  const bookTitle=inp.value.trim();
+  if(!bookTitle){ toast('Title required',true); inp.focus(); return; }
+  if(bookTitle===((DATA.publish||{}).bookTitle||'').trim()){ cancelFinTitle(); return; }
+  btn.disabled=true;
+  try{
+    const r=await api('/api/songbook/book-title',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookTitle})});
+    DATA.publish=Object.assign({}, DATA.publish||{}, {bookTitle:r.bookTitle});
+    const bt=document.getElementById('bookTitle'); if(bt) bt.value=r.bookTitle;   // keep the Publish tab in step
+    cancelFinTitle();
+    toast(r.published ? 'Title saved — Re-publish to update the live song book' : 'Title saved');
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; }
 }
 async function addFinalSection(){ const name=prompt('Finalized section name (e.g. English, Malayalam):'); if(!name||!name.trim()) return;
   try{ await api('/api/songbook/finalized-sections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}); await load(); }catch(e){ toast(e.message,true); } }
@@ -712,6 +846,103 @@ async function unpublish(){ if(!confirm('Unpublish the song book? The public lin
 function pubUrlText(){ return (DATA.publish&&DATA.publish.url)?(location.origin+DATA.publish.url):''; }
 function copyUrl(){ const u=pubUrlText(); if(u) navigator.clipboard.writeText(u).then(()=>toast('Link copied')); }
 function openUrl(){ const u=pubUrlText(); if(u) window.open(u,'_blank'); }
+
+/* ---------- Now Singing / Next Song (live) ---------- */
+const LIVE_EMPTY = { published:false, needsRepublish:false, songs:[], currentSongId:null, nextSongId:null };
+let LIVE_DATA = Object.assign({}, LIVE_EMPTY);
+
+async function loadLive(){
+  try{ LIVE_DATA = await api('/api/songbook/live'); }catch(e){ LIVE_DATA=null; }
+  if(!LIVE_DATA || !Array.isArray(LIVE_DATA.songs)) LIVE_DATA = Object.assign({}, LIVE_EMPTY);
+  renderLive();
+}
+
+/* Two songs are the same only when BOTH ids are real. Comparing String(a)===String(b)
+   without this made every song match when ids were absent ('null'==='null'), so every
+   row rendered as already-selected and its button cleared instead of setting. */
+function sameSong(a, b){ return a!=null && b!=null && String(a)===String(b); }
+function liveTitleById(id){
+  if(id==null) return null;
+  const s=(LIVE_DATA.songs||[]).find(x=>sameSong(x.songId, id));
+  return s ? s.title : null;
+}
+function setShown(el, on){ if(el) el.hidden = !on; }
+
+function renderLive(){
+  const cur=LIVE_DATA.currentSongId, nx=LIVE_DATA.nextSongId;
+  const ct=liveTitleById(cur), nt=liveTitleById(nx);
+  // The label mirrors exactly what the server holds: a title when set and resolvable,
+  // an explicit warning when the saved song is gone, "None" when nothing is set.
+  const paint=(labelEl, btnEl, id, title)=>{
+    if(!labelEl) return;
+    const none = (id==null);
+    labelEl.textContent = none ? 'None — choose a song below'
+                               : (title || 'Selected song is no longer in the published book');
+    labelEl.style.color = (none || !title) ? '#9a7d8c' : '#33293a';
+    setShown(btnEl, !none);                 // "Unset" only exists when something IS set
+  };
+  paint(document.getElementById('liveCurLabel'),  document.getElementById('liveCurClear'),  cur, ct);
+  paint(document.getElementById('liveNextLabel'), document.getElementById('liveNextClear'), nx, nt);
+  setShown(document.getElementById('liveRepublish'), !!LIVE_DATA.needsRepublish);
+  renderLiveList();
+}
+
+function renderLiveList(){
+  const wrap=document.getElementById('liveList'); if(!wrap) return;
+  const all=LIVE_DATA.songs||[];
+  const blocked=!!LIVE_DATA.needsRepublish;
+  document.getElementById('liveEmpty').style.display = all.length ? 'none' : '';
+  const q=(document.getElementById('liveSearch').value||'').trim().toLowerCase();
+  const songs=all.filter(s=> !q || String(s.title||'').toLowerCase().includes(q) || String(s.section||'').toLowerCase().includes(q));
+  wrap.innerHTML = songs.map(s=>{
+    const id=s.songId;
+    const isCur=sameSong(id, LIVE_DATA.currentSongId);
+    const isNext=sameSong(id, LIVE_DATA.nextSongId);
+    const usable=(id!=null && !blocked);
+    const badge=(on,bg,txt)=> on ? `<span style="background:${bg};color:#fff;border-radius:6px;font-size:10px;font-weight:800;padding:2px 6px;margin-left:6px;">${txt}</span>` : '';
+    const btn=(on,label,onLabel,cls,act,clear)=>{
+      const st=`padding:6px 9px;font-size:12px;white-space:nowrap;`+(usable?'':'opacity:.45;cursor:not-allowed;');
+      return `<button class="btn ${on?'btn-outline':cls}" style="${st}" ${usable?'':'disabled'}`+
+             ` title="${usable?(on?'Tap to clear':'Tap to set'):'Re-publish to enable'}"`+
+             ` onclick="${usable ? (on ? clear+'()' : act+'('+id+')') : ''}">${on?onLabel:label}</button>`;
+    };
+    return `<div style="display:flex;align-items:center;gap:6px;border:1px solid ${isCur?'#673147':(isNext?'#2e5d86':'#ece2e8')};border-radius:10px;padding:8px 10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;color:#33293a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.title||'(untitled)')}${badge(isCur,'#673147','NOW')}${badge(isNext,'#2e5d86','NEXT')}</div>
+        ${s.section?`<div style="font-size:12px;color:#9a7d8c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.section)}</div>`:''}
+      </div>
+      ${btn(isCur,'▶ Now','✓ Now','btn-green','setCurrent','unsetCurrent')}
+      ${btn(isNext,'⏭ Next','✓ Next','btn-ghost','setNext','unsetNext')}
+    </div>`;
+  }).join('');
+}
+
+/* Each action re-reads the server after writing, so the panel always shows what was
+   actually saved rather than an optimistic guess. */
+async function setCurrent(id){
+  if(id==null) return;
+  try{ await api('/api/songbook/current-song',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({songId:id})});
+       await loadLive(); toast('Now Singing set'); }catch(e){ toast(e.message,true); }
+}
+async function unsetCurrent(){
+  try{ await api('/api/songbook/current-song',{method:'DELETE'}); await loadLive(); toast('Now Singing cleared'); }
+  catch(e){ toast(e.message,true); }
+}
+async function setNext(id){
+  if(id==null) return;
+  try{ await api('/api/songbook/next-song',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({songId:id})});
+       await loadLive(); toast('Next Song set'); }catch(e){ toast(e.message,true); }
+}
+async function unsetNext(){
+  try{ await api('/api/songbook/next-song',{method:'DELETE'}); await loadLive(); toast('Next Song cleared'); }
+  catch(e){ toast(e.message,true); }
+}
+/* One-click fix for a book published before this feature shipped. */
+async function republishForLive(){
+  const bt=(document.getElementById('bookTitle').value||'').trim();
+  try{ await api('/api/songbook/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookTitle:bt})});
+       toast('Re-published'); await load(); }catch(e){ toast(e.message,true); }
+}
 async function printBook(){
   const c=DATA.cover||{};
   let html='';

@@ -10,6 +10,7 @@ import com.churchgeniuspro.repository.ChurchLogoRepository;
 import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.service.ChurchEventService;
 import com.churchgeniuspro.util.EncryptionUtil;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,13 +63,34 @@ public class ChurchEventController {
     private final ChurchEventService          eventService;
     private final ChurchLogoRepository        logoRepo;
     private final ChurchRegistrationRepository churchRegRepo;
+    private final PublicSendLimiter           sendLimiter;
 
     public ChurchEventController(ChurchEventService eventService,
                                  ChurchLogoRepository logoRepo,
-                                 ChurchRegistrationRepository churchRegRepo) {
+                                 ChurchRegistrationRepository churchRegRepo,
+                                 PublicSendLimiter sendLimiter) {
         this.eventService  = eventService;
         this.logoRepo      = logoRepo;
         this.churchRegRepo = churchRegRepo;
+        this.sendLimiter   = sendLimiter;
+    }
+
+    /**
+     * Every public RSVP (new or updated) e-mails a confirmation to whatever address the
+     * body carries, so the two endpoints are bounded per network origin, per contact and
+     * per event link before anything is saved or sent (security audit P2). The event
+     * link stands in for the tenant: one token is one event of one church.
+     */
+    private ResponseEntity<Map<String, Object>> rsvpLimited(String token, EventRegistrationBO bo,
+                                                            HttpServletRequest request) {
+        String email = bo != null && bo.getEmail() != null && !bo.getEmail().isBlank() ? bo.getEmail() : null;
+        String phone = bo != null && bo.getPhone() != null && !bo.getPhone().isBlank() ? bo.getPhone() : null;
+        String limited = sendLimiter.check(PublicSendLimiter.EVENT_REGISTRATION, request,
+                                           email != null ? email : phone, token);
+        if (limited == null) return null;
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("error", limited);
+        return ResponseEntity.status(429).body(m);
     }
 
     // ── Page routes ───────────────────────────────────────────────────────
@@ -77,7 +99,7 @@ public class ChurchEventController {
     public String eventPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.events.edit");
+        deny = RoleGuard.requirePagePermission(request, "general.events.edit");
         if (deny != null) return deny;
         return "forward:/event.html";
     }
@@ -86,7 +108,7 @@ public class ChurchEventController {
     public String eventVolunteersPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.events.emailsms");
+        deny = RoleGuard.requirePagePermission(request, "general.events.emailsms");
         if (deny != null) return deny;
         return "forward:/event-volunteers.html";
     }
@@ -102,9 +124,14 @@ public class ChurchEventController {
 
     @ResponseBody
     @GetMapping("/api/events/{id}")
-    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id,
+                                                       HttpServletRequest request) {
+        // Read by several pages (/events, /event-details, /event-checkin-admin) whose
+        // common guard is requireAuth; the tenant scope below is the real fence.
+        String appClientId = authedTenant(request);
+        if (appClientId == null) return unauthorized();
         try {
-            return ResponseEntity.ok(eventService.getById(id));
+            return ResponseEntity.ok(eventService.getById(id, appClientId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -114,13 +141,18 @@ public class ChurchEventController {
     @PostMapping("/api/events")
     public ResponseEntity<Map<String, Object>> create(@RequestBody ChurchEventBO bo,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        // Same pair as the /event page: requireAdminOrUser + general.events.edit.
+        String deny = RoleGuard.requireAdminOrUser(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         String username    = SessionUtil.getUsername(request);
         try {
             ChurchEvent ev = eventService.create(bo, appClientId, username);
             return ResponseEntity.ok(encryptedEventResponse(ev));
+        } catch (ChurchEventService.DuplicateEventCodeException e) {
+            return badField("eventCode", e.getMessage());
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         }
@@ -131,12 +163,17 @@ public class ChurchEventController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                       @RequestBody ChurchEventBO bo,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        String deny = RoleGuard.requireAdminOrUser(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         String username = SessionUtil.getUsername(request);
         try {
-            ChurchEvent ev = eventService.update(id, bo, username);
+            ChurchEvent ev = eventService.update(id, bo, username, appClientId);
             return ResponseEntity.ok(encryptedEventResponse(ev));
+        } catch (ChurchEventService.DuplicateEventCodeException e) {
+            return badField("eventCode", e.getMessage());
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         }
@@ -146,10 +183,15 @@ public class ChurchEventController {
     @DeleteMapping("/api/events/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.delete");
+        // Deleted from both /event (AdminOrUser) and /events (requireAuth: church,
+        // accountant and member sessions included), so requireAuth is the common guard.
+        String deny = RoleGuard.requireAuth(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            eventService.delete(id);
+            eventService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -158,8 +200,15 @@ public class ChurchEventController {
 
     @ResponseBody
     @GetMapping("/api/events/{id}/registrations")
-    public ResponseEntity<List<Map<String, Object>>> getRegistrations(@PathVariable Integer id) {
-        return ResponseEntity.ok(eventService.getRegistrations(id));
+    public ResponseEntity<List<Map<String, Object>>> getRegistrations(@PathVariable Integer id,
+                                                                      HttpServletRequest request) {
+        String appClientId = authedTenant(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        try {
+            return ResponseEntity.ok(eventService.getRegistrations(id, appClientId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @ResponseBody
@@ -168,8 +217,10 @@ public class ChurchEventController {
         if (RoleGuard.requireAdminOrUser(request) != null
                 || RoleGuard.requirePermission(request, "general.events.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            eventService.deleteRegistration(id);
+            eventService.deleteRegistration(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -186,8 +237,10 @@ public class ChurchEventController {
         if (RoleGuard.requireAdminOrUser(request) != null
                 || RoleGuard.requirePermission(request, "general.events.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            EventRegistration reg = eventService.checkInById(id);
+            EventRegistration reg = eventService.checkInById(id, appClientId);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("success",     true);
             m.put("checkedIn",   reg.isCheckedIn());
@@ -208,8 +261,10 @@ public class ChurchEventController {
         if (RoleGuard.requireAdminOrUser(request) != null
                 || RoleGuard.requirePermission(request, "general.events.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            EventRegistration reg = eventService.uncheckInById(id);
+            EventRegistration reg = eventService.uncheckInById(id, appClientId);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("success",   true);
             m.put("checkedIn", reg.isCheckedIn());
@@ -231,8 +286,10 @@ public class ChurchEventController {
         if (RoleGuard.requireAdminOrUser(request) != null
                 || RoleGuard.requirePermission(request, "general.events.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            EventRegistration reg = eventService.adminWalkIn(id, bo);
+            EventRegistration reg = eventService.adminWalkIn(id, bo, appClientId);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("success",          true);
             m.put("id",               reg.getId());
@@ -250,8 +307,15 @@ public class ChurchEventController {
      */
     @ResponseBody
     @GetMapping("/api/events/{id}/checkin-summary")
-    public ResponseEntity<Map<String, Object>> checkinSummary(@PathVariable Integer id) {
-        return ResponseEntity.ok(eventService.getCheckinSummary(id));
+    public ResponseEntity<Map<String, Object>> checkinSummary(@PathVariable Integer id,
+                                                              HttpServletRequest request) {
+        String appClientId = authedTenant(request);
+        if (appClientId == null) return unauthorized();
+        try {
+            return ResponseEntity.ok(eventService.getCheckinSummary(id, appClientId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // ── Public API (no session required, uses AES-encrypted event token) ──
@@ -269,6 +333,8 @@ public class ChurchEventController {
                         .filter(n -> n != null && !n.isBlank())
                         .ifPresent(name -> detail.put("churchName", name));
             }
+            // The tenant id is server-side business; the page never reads it (audit P14).
+            detail.remove("appClientId");
             return ResponseEntity.ok(detail);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -295,7 +361,17 @@ public class ChurchEventController {
     public ResponseEntity<Map<String, Object>> lookupRegistrant(
             @PathVariable String token,
             @RequestParam(value = "email", required = false) String email,
-            @RequestParam(value = "phone", required = false) String phone) {
+            @RequestParam(value = "phone", required = false) String phone,
+            HttpServletRequest request) {
+        // An e-mail/phone probe against the event's registrants (audit N7/P5): the page
+        // needs one or two per visit; bounded per network origin so it cannot be
+        // driven through a contact list.
+        String limited = sendLimiter.check(PublicSendLimiter.EVENT_LOOKUP, request, null, null);
+        if (limited != null) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("error", limited);
+            return ResponseEntity.status(429).body(m);
+        }
         try {
             return ResponseEntity.ok(eventService.lookupRegistrant(token, email, phone));
         } catch (IllegalArgumentException e) {
@@ -307,7 +383,10 @@ public class ChurchEventController {
     @PostMapping("/api/event-register/{token}")
     public ResponseEntity<Map<String, Object>> submitRegistration(
             @PathVariable String token,
-            @RequestBody EventRegistrationBO bo) {
+            @RequestBody EventRegistrationBO bo,
+            HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> limited = rsvpLimited(token, bo, request);
+        if (limited != null) return limited;
         try {
             EventRegistration reg = eventService.registerByToken(token, bo);
             Map<String, Object> m = new LinkedHashMap<>();
@@ -359,7 +438,10 @@ public class ChurchEventController {
     public ResponseEntity<Map<String, Object>> updateRegistration(
             @PathVariable String token,
             @RequestParam String email,
-            @RequestBody EventRegistrationBO bo) {
+            @RequestBody EventRegistrationBO bo,
+            HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> limited = rsvpLimited(token, bo, request);
+        if (limited != null) return limited;
         try {
             EventRegistration reg = eventService.updateRegistration(token, email, bo);
             return ResponseEntity.ok(Map.of("id", reg.getId(), "success", true));
@@ -413,10 +495,13 @@ public class ChurchEventController {
         try {
             Integer eventId = eventService.decryptToken(token);
             ChurchEvent ev = eventService.getEventEntityById(eventId);
-            if (ev == null || ev.getImageData() == null || ev.getImageData().isBlank()) {
+            if (ev == null || !ev.isImagePresent()) {
                 return ResponseEntity.notFound().build();
             }
-            String data = ev.getImageData();
+            String data = eventService.loadImageData(eventId);   // database audit P7: from church_event_image
+            if (data == null || data.isBlank()) {
+                return ResponseEntity.notFound().build();
+            }
             String contentType = "image/png";
             String base64;
             if (data.startsWith("data:")) {
@@ -445,6 +530,25 @@ public class ChurchEventController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorized() {
+        return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+    }
+
+    /** Session tenant for read handlers guarded by {@code requireAuth}; {@code null} when not logged in. */
+    private static String authedTenant(HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return null;
+        return SessionUtil.getAppClientId(request);
+    }
+
+    /**
+     * A rejection the page can attribute to one input. {@code errorField} lets
+     * the form highlight the offending box instead of showing a banner that
+     * leaves the person hunting for what went wrong.
+     */
+    private ResponseEntity<Map<String, Object>> badField(String field, String msg) {
+        return ResponseEntity.badRequest().body(Map.of("error", msg, "errorField", field));
     }
 
     private Map<String, Object> encryptedEventResponse(ChurchEvent ev) {

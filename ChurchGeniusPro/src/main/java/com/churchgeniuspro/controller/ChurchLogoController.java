@@ -74,6 +74,8 @@ public class ChurchLogoController {
 
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Mirrors the /logo (Admin) and /churchSettings (Church) pages that host this control.
+        if (RoleGuard.requireAdminOrChurch(request) != null) return ResponseEntity.status(403).build();
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "No file selected."));
@@ -161,6 +163,8 @@ public class ChurchLogoController {
     public ResponseEntity<Map<String, Object>> deleteLogo(HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Mirrors the /logo (Admin) and /churchSettings (Church) pages that host this control.
+        if (RoleGuard.requireAdminOrChurch(request) != null) return ResponseEntity.status(403).build();
 
         repo.findByClientId(clientId).ifPresent(repo::delete);
         return ResponseEntity.ok(Map.of("success", true));

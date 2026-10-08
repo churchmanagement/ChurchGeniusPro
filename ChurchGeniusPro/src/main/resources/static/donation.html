@@ -150,6 +150,20 @@
     }
     .stripe-wrap.StripeElement--focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(103,49,71,.1); }
 
+    /* Shown in place of the Stripe card field when the church has not finished
+       online-giving setup. The rest of the form stays usable. */
+    .payment-unavailable {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: #faf7f8;
+      border-style: dashed;
+      color: #8a7c83;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+    .payment-unavailable .pu-icon { font-size: 15px; flex-shrink: 0; }
+
     /* ── Submit button (matches the other public pages' .btn) ── */
     .btn-submit {
       width: 100%;
@@ -313,6 +327,10 @@
       <div class="field">
         <label>Payment Details</label>
         <div id="paymentElement" class="stripe-wrap"></div>
+        <div id="paymentUnavailable" class="stripe-wrap payment-unavailable" style="display:none;">
+          <span class="pu-icon">&#128179;</span>
+          <span>Card payments have not been set up for this church yet.</span>
+        </div>
       </div>
 
       <div class="feedback" id="formFeedback"></div>
@@ -355,6 +373,12 @@ let paymentElement  = null;
 let selectedAmount  = null;
 let paymentIntentId = null;
 
+/* Set when the church has not finished online-giving setup. The form still
+   renders and can be filled in; the donation is refused at submit time (and
+   again on the server, which is what actually enforces it). */
+let givingDisabled    = false;
+let givingDisabledMsg = 'Online giving is not configured for this church account.';
+
 /* ═══════════════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════════════ */
@@ -372,12 +396,20 @@ let paymentIntentId = null;
     return;
   }
 
-  // Initialise Stripe.js
-  stripe   = Stripe(config.publishableKey);
-  elements = stripe.elements({ mode: 'payment', amount: 100, currency: 'usd' });
+  // Initialise Stripe.js — only when the church can actually take a payment.
+  // Otherwise show the normal page with a placeholder where the card field goes.
+  if (config.onlineGivingEnabled === false) {
+    givingDisabled    = true;
+    givingDisabledMsg = config.message || givingDisabledMsg;
+    document.getElementById('paymentElement').style.display     = 'none';
+    document.getElementById('paymentUnavailable').style.display = 'flex';
+  } else {
+    stripe   = Stripe(config.publishableKey);
+    elements = stripe.elements({ mode: 'payment', amount: 100, currency: 'usd' });
 
-  paymentElement = elements.create('payment');
-  paymentElement.mount('#paymentElement');
+    paymentElement = elements.create('payment');
+    paymentElement.mount('#paymentElement');
+  }
 
   // Update header icon to church logo if available
   if (config.logoUrl) {
@@ -446,6 +478,11 @@ function updateSubmitLabel() {
 ═══════════════════════════════════════════════════════════════════ */
 async function submitDonation() {
   hideFeedback();
+
+  // Church has not finished online-giving setup: the donor can fill the form in,
+  // but the donation stops here. The server refuses it too, so bypassing this
+  // check in the browser gets the same answer from /api/public/donate/intent.
+  if (givingDisabled) { showFeedback(givingDisabledMsg); return; }
 
   const firstName = document.getElementById('firstName').value.trim();
   if (!firstName) { showFeedback('Please enter your first name.'); return; }

@@ -41,6 +41,15 @@ public class KmCheckin {
     @Column(name = "security_code", length = 20)
     private String securityCode;
 
+    /**
+     * Random token in the parent's pickup link ({@code /kidsPickup?t=…}). Assigned
+     * when the first pickup alert goes out; cleared at checkout so the link dies
+     * with the visit. Replaces AES(clientId|checkinId), which anyone with the key
+     * could mint for every check-in in every church.
+     */
+    @Column(name = "pickup_token", length = 64)
+    private String pickupToken;
+
     /** Name of the guardian/authorized person who picked the child up. */
     @Column(name = "checked_out_by", length = 200)
     private String checkedOutBy;

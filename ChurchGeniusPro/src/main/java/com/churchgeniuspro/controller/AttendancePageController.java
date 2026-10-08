@@ -13,7 +13,7 @@ public class AttendancePageController {
     public String attendancePage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.attendance");
+        deny = RoleGuard.requirePagePermission(request, "general.attendance");
         if (deny != null) return deny;
         return "forward:/attendance.html";
     }

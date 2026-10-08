@@ -2,7 +2,6 @@ package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.hibernate.ChurchEvent;
 import com.churchgeniuspro.repository.ChurchEventRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -22,8 +21,9 @@ import java.nio.charset.StandardCharsets;
  * event image, title, and description.
  *
  * <ul>
- *   <li>{@code GET /event-register/{eventCode}}  — EVT-xxxx → redirect to encrypted-id URL</li>
- *   <li>{@code GET /event-register/{encryptedId}} — serves event-register.html with OG tags injected</li>
+ *   <li>{@code GET /event-register/{token}} — serves event-register.html with OG tags injected
+ *       for the event the random link token resolves to (the short EVT- code is a staff
+ *       search key and no longer opens a page — security audit P6)</li>
  * </ul>
  */
 @Controller
@@ -34,7 +34,10 @@ public class EventRegisterPageController {
     /** Cached page template (loaded once from the classpath). */
     private volatile String pageTemplate;
 
-    public EventRegisterPageController(ChurchEventRepository eventRepo) {
+    private final com.churchgeniuspro.service.EventPublicTokenService publicTokens;
+
+    public EventRegisterPageController(ChurchEventRepository eventRepo, com.churchgeniuspro.service.EventPublicTokenService publicTokens) {
+        this.publicTokens = publicTokens;
         this.eventRepo = eventRepo;
     }
 
@@ -43,7 +46,7 @@ public class EventRegisterPageController {
     public String adminCheckinPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.eventcheckin");
+        deny = RoleGuard.requirePagePermission(request, "general.eventcheckin");
         if (deny != null) return deny;
         return "forward:/event-checkin-admin.html";
     }
@@ -57,17 +60,11 @@ public class EventRegisterPageController {
     @GetMapping(value = "/event-register/{token}", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> handleEventRegister(@PathVariable String token,
                                                       HttpServletRequest request) {
-        // Legacy event-code links redirect to the AES-encrypted numeric-id URL.
-        if (token.startsWith("EVT-")) {
-            ChurchEvent ev = eventRepo.findByEventCodeAndDeleteFlagFalse(token).orElse(null);
-            if (ev != null) {
-                try {
-                    String encryptedId = EncryptionUtil.encrypt(String.valueOf(ev.getId()));
-                    return ResponseEntity.status(HttpStatus.FOUND)
-                            .location(URI.create("/event-register/" + encryptedId)).build();
-                } catch (Exception ignored) { /* fall through to serve the page */ }
-            }
-        }
+        // The short Event ID / Code is a staff search key, not a public address. This
+        // page used to resolve "EVT-…" across every church and redirect to the event's
+        // real link, which made staff-chosen codes an enumerable index of every
+        // church's registration pages (security audit P6). Only the random link
+        // token opens a page now.
 
         String html = template();
         if (html == null) {
@@ -79,8 +76,7 @@ public class EventRegisterPageController {
         // Inject Open Graph tags for a valid event; otherwise strip the placeholder.
         String ogTags = "";
         try {
-            Integer id = Integer.valueOf(EncryptionUtil.decrypt(token));
-            ChurchEvent ev = eventRepo.findById(id).filter(e -> !e.isDeleteFlag()).orElse(null);
+            ChurchEvent ev = publicTokens.resolve(token).orElse(null);
             if (ev != null) ogTags = buildOgTags(ev, token, request);
         } catch (Exception ignored) { /* unknown/invalid token — serve without OG */ }
 
@@ -95,7 +91,7 @@ public class EventRegisterPageController {
         String pageUrl = base + "/event-register/" + token;
         String title = ev.getEventName() != null ? ev.getEventName() : "Event Registration";
         String desc = descriptionFor(ev);
-        boolean hasImage = ev.getImageData() != null && !ev.getImageData().isBlank();
+        boolean hasImage = ev.isImagePresent();   // database audit P7
         String imageUrl = base + "/api/event-register/" + token + "/image";
 
         StringBuilder sb = new StringBuilder();
@@ -138,11 +134,13 @@ public class EventRegisterPageController {
         return "<meta name=\"" + name + "\" content=\"" + esc(content) + "\" />\n";
     }
 
+    /** The site's own address; request headers are not trusted for it (audit P15). */
+    @org.springframework.beans.factory.annotation.Value("${app.base-url:}")
+    private String appBaseUrl;
+
     private String baseUrl(HttpServletRequest request) {
-        String proto = firstNonBlank(request.getHeader("X-Forwarded-Proto"), request.getScheme());
-        String host = firstNonBlank(request.getHeader("X-Forwarded-Host"),
-                request.getHeader("Host"), request.getServerName());
-        return proto + "://" + host;
+        if (appBaseUrl != null && !appBaseUrl.isBlank()) return appBaseUrl.replaceAll("/+$", "");
+        return request.getScheme() + "://" + request.getServerName();
     }
 
     private String template() {

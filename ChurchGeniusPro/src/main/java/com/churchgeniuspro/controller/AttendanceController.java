@@ -23,8 +23,13 @@ import java.util.stream.Collectors;
 public class AttendanceController {
 
     private final AttendanceService svc;
+    private final com.churchgeniuspro.service.AttendanceVolunteerNotifyService volunteerNotify;
 
-    public AttendanceController(AttendanceService svc) { this.svc = svc; }
+    public AttendanceController(AttendanceService svc,
+                                com.churchgeniuspro.service.AttendanceVolunteerNotifyService volunteerNotify) {
+        this.svc = svc;
+        this.volunteerNotify = volunteerNotify;
+    }
 
     private String deny(HttpServletRequest req) { return RoleGuard.requireAdminOrUser(req); }
     /** True if the current user LACKS the given action permission (opt-in denial). */
@@ -38,6 +43,36 @@ public class AttendanceController {
     private String user(HttpServletRequest req) {
         var s = req.getSession(false);
         return s == null ? null : String.valueOf(s.getAttribute("username"));
+    }
+
+    // ── Volunteers: Email / SMS ────────────────────────────────────────────────
+    // The one Attendance action behind the "Email or SMS Volunteers" checkbox
+    // (general.attendance.emailsms). It is a NEW messaging action, not an existing
+    // data API, so the checkbox is enforced here as well as on the button — the
+    // same way the other Attendance actions enforce .edit / .delete.
+
+    @GetMapping("/volunteers")
+    public ResponseEntity<?> volunteers(HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.emailsms")) return forbidden();
+        return ResponseEntity.ok(volunteerNotify.listVolunteers(cid(req)));
+    }
+
+    @PostMapping("/volunteers/notify")
+    public ResponseEntity<?> notifyVolunteers(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.emailsms")) return forbidden();
+        List<Integer> ids = new ArrayList<>();
+        Object raw = b.get("memberIds");
+        if (raw instanceof List<?> l) for (Object o : l) { if (o instanceof Number n) ids.add(n.intValue()); }
+        boolean viaEmail = Boolean.TRUE.equals(b.get("email"));
+        boolean viaSms   = Boolean.TRUE.equals(b.get("sms"));
+        try {
+            return ResponseEntity.ok(volunteerNotify.notify(cid(req), ids, viaEmail, viaSms,
+                    str(b.get("subject")), str(b.get("body"))));
+        } catch (IllegalArgumentException bad) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", bad.getMessage()));
+        }
     }
 
     // ── Settings / reference ──────────────────────────────────────────────────
@@ -142,13 +177,21 @@ public class AttendanceController {
     @GetMapping("/member-code/{memberId}")
     public ResponseEntity<?> memberCode(@PathVariable Integer memberId, HttpServletRequest req) {
         if (deny(req) != null) return forbidden();
-        return ResponseEntity.ok(Map.of("memberId", memberId, "code", svc.memberCode(cid(req), memberId)));
+        try {
+            return ResponseEntity.ok(Map.of("memberId", memberId, "code", svc.memberCode(cid(req), memberId)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @GetMapping("/family/{familyId}/members")
     public ResponseEntity<?> familyMembers(@PathVariable Integer familyId, HttpServletRequest req) {
         if (deny(req) != null) return forbidden();
-        return ResponseEntity.ok(svc.familyMembers(familyId));
+        try {
+            return ResponseEntity.ok(svc.familyMembers(cid(req), familyId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     // ── Check-in actions ─────────────────────────────────────────────────────────
@@ -160,9 +203,13 @@ public class AttendanceController {
         if (memberId == null) return ResponseEntity.badRequest().body(Map.of("error", "memberId required"));
         String service = str(b.get("serviceType"));
         if (service == null) return ResponseEntity.badRequest().body(Map.of("error", "serviceType required"));
-        AttendanceRecord a = svc.checkInMember(cid(req), user(req), memberId, str(b.get("name")), service,
-                str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), str(b.get("method")));
-        return ResponseEntity.ok(svc.recordMap(a));
+        try {
+            AttendanceRecord a = svc.checkInMember(cid(req), user(req), memberId, str(b.get("name")), service,
+                    str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), str(b.get("method")));
+            return ResponseEntity.ok(svc.recordMap(a));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PostMapping("/family-check-in")
@@ -175,10 +222,14 @@ public class AttendanceController {
         List<Integer> ids = new ArrayList<>();
         Object mi = b.get("memberIds");
         if (mi instanceof List<?> l) for (Object o : l) { Integer v = intVal(o); if (v != null) ids.add(v); }
-        List<Map<String, Object>> out = svc.familyCheckIn(cid(req), user(req), familyId, service,
-                str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), ids)
-                .stream().map(svc::recordMap).collect(Collectors.toList());
-        return ResponseEntity.ok(Map.of("checkedIn", out.size(), "records", out));
+        try {
+            List<Map<String, Object>> out = svc.familyCheckIn(cid(req), user(req), familyId, service,
+                    str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), ids)
+                    .stream().map(svc::recordMap).collect(Collectors.toList());
+            return ResponseEntity.ok(Map.of("checkedIn", out.size(), "records", out));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PostMapping("/visitor-check-in")

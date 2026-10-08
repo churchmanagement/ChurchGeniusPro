@@ -12,7 +12,6 @@ import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.MeetingRepository;
 import com.churchgeniuspro.repository.MeetingSkipDateRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
@@ -25,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -45,6 +45,14 @@ import java.util.stream.Collectors;
 @Controller
 public class EventCalendarController {
 
+    // The app's single operational time zone — same constant used for reminder/
+    // scheduling cutoffs elsewhere (ReminderSchedulerService, EventRegistrationReminderService,
+    // and this class's own ICS feed, which is already emitted as TZID=America/Chicago).
+    // Used to decide "today" when the PUBLIC calendar hides past events (see getPublicEvents) —
+    // the server JVM's default zone (typically UTC on a cloud host) would disagree with the
+    // church's own day boundary and could hide or show the wrong day's events.
+    private static final ZoneId CHURCH_ZONE = ZoneId.of("America/Chicago");
+
     private final FamilyMemberRepository       memberRepo;
     private final MeetingRepository            meetingRepo;
     private final ChurchRegistrationRepository churchRepo;
@@ -53,13 +61,17 @@ public class EventCalendarController {
     private final ChurchEventDayRepository     churchEventDayRepo;
     private final MeetingSkipDateRepository    meetingSkipRepo;
 
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+
     public EventCalendarController(FamilyMemberRepository       memberRepo,
                                    MeetingRepository            meetingRepo,
                                    ChurchRegistrationRepository churchRepo,
                                    ChurchLogoRepository         logoRepo,
                                    ChurchEventRepository        churchEventRepo,
                                    ChurchEventDayRepository     churchEventDayRepo,
-                                   MeetingSkipDateRepository    meetingSkipRepo) {
+                                   MeetingSkipDateRepository    meetingSkipRepo,
+            com.churchgeniuspro.service.PublicLinkResolver links) {
+        this.links = links;
         this.memberRepo         = memberRepo;
         this.meetingRepo        = meetingRepo;
         this.churchRepo         = churchRepo;
@@ -75,15 +87,28 @@ public class EventCalendarController {
     public String eventCalendarPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.calendar");
+        deny = RoleGuard.requirePagePermission(request, "general.calendar");
         if (deny != null) return deny;
         return "forward:/eventcalendar.html";
     }
 
-    /** Public calendar page — no auth required; org identified via {@code cid} param. */
+    /**
+     * Public calendar page — no auth required; org identified via {@code cid} param.
+     *
+     * <p>The calendar grid is now built into {@code /upcomingEvents} (a "Calendar"
+     * tab alongside its list view), so every existing {@code /viewEventCalendar}
+     * link — printed, texted, bookmarked, or subscribed to a while back — keeps
+     * working by forwarding straight into that page with the same token, opened
+     * on the Calendar tab. There is no second copy of the calendar UI to keep in
+     * sync any more.
+     */
     @GetMapping("/viewEventCalendar")
-    public String viewEventCalendarPage() {
-        return "forward:/viewEventCalendar.html";
+    public String viewEventCalendarPage(@RequestParam(required = false) String cid) {
+        String target = "/upcomingEvents?view=calendar";
+        if (cid != null && !cid.isBlank()) {
+            target += "&cid=" + java.net.URLEncoder.encode(cid, java.nio.charset.StandardCharsets.UTF_8);
+        }
+        return "redirect:" + target;
     }
 
     // ── Public API (no auth — cid identifies the org) ────────────────────
@@ -139,8 +164,19 @@ public class EventCalendarController {
         String clientId = decryptCid(cid);
         if (clientId == null) return ResponseEntity.badRequest().build();
 
+        // Church-zone "today" (see CHURCH_ZONE) — today's own events/meetings stay in,
+        // only strictly-past dates are dropped. The authenticated staff calendar
+        // (getEvents/buildEvents below) is untouched and still shows past events, since
+        // staff legitimately review history; this cutoff applies to the public view only.
+        LocalDate today = LocalDate.now(CHURCH_ZONE);
         List<Map<String, Object>> publicEvents = buildEvents(clientId, year, month).stream()
                 .filter(e -> isPublicType((String) e.get("type")))
+                .filter(e -> isTodayOrLater(e, today))
+                .map(e -> { // internal row ids are for the staff calendar, not the public one (audit P14)
+                    Map<String, Object> m = new LinkedHashMap<>(e);
+                    m.remove("meetingId"); m.remove("eventId");
+                    return m;
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(publicEvents);
     }
@@ -148,6 +184,12 @@ public class EventCalendarController {
     /** Event types visible to anonymous/public viewers. */
     private static boolean isPublicType(String type) {
         return "meeting".equals(type) || "churchevent".equals(type);
+    }
+
+    /** True when this calendar-event map's "date" (yyyy-MM-dd, set by event() below) isn't in the past. */
+    private static boolean isTodayOrLater(Map<String, Object> e, LocalDate today) {
+        Object d = e.get("date");
+        return d != null && !LocalDate.parse(d.toString()).isBefore(today);
     }
 
     // ── API (authenticated) ───────────────────────────────────────────────
@@ -163,7 +205,14 @@ public class EventCalendarController {
             @RequestParam int year,
             @RequestParam int month,
             HttpServletRequest request) {
+        // Mirrors /eventcalendar: staff role + permission. Birthdays/anniversaries of
+        // every member are in this payload.
+        if (RoleGuard.requireAdminOrUser(request) != null
+                || RoleGuard.requirePermission(request, "general.calendar") != null) {
+            return ResponseEntity.status(403).build();
+        }
         String appClientId = com.churchgeniuspro.util.SessionUtil.getAppClientId(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(buildEvents(appClientId, year, month));
     }
 
@@ -205,12 +254,11 @@ public class EventCalendarController {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return ResponseEntity.status(401).build();
         String appClientId = com.churchgeniuspro.util.SessionUtil.getAppClientId(request);
-        try {
-            String cid = EncryptionUtil.encrypt(appClientId);
-            return ResponseEntity.ok(Map.of("cid", cid));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Token generation failed"));
-        }
+        // The subscription URL carries the church's live calendar link token (created
+        // on first use). Revoking that link on Public Screens ends every subscribed feed.
+        return links.ensureLink(appClientId, com.churchgeniuspro.service.PublicPagePolicy.PUBLIC_CALENDAR_URL, "Event Calendar")
+                .<ResponseEntity<?>>map(l -> ResponseEntity.ok(Map.of("cid", l.getToken())))
+                .orElseGet(() -> ResponseEntity.status(403).body(Map.of("error", "The public calendar is not available for this account.")));
     }
 
     /**
@@ -853,14 +901,17 @@ public class EventCalendarController {
         }
     }
 
-    /** Decrypts an AES-encrypted clientId (the {@code cid} query param). Returns null on failure. */
-    private String decryptCid(String encryptedCid) {
-        if (encryptedCid == null || encryptedCid.isBlank()) return null;
-        try {
-            return EncryptionUtil.decrypt(encryptedCid);
-        } catch (Exception e) {
-            return null;
-        }
+    /**
+     * Resolves the {@code cid} query param to a tenant. Returns null on failure.
+     *
+     * <p>Accepts a live token minted for the Event Calendar OR for the merged
+     * Upcoming Events page (they render the same calendar data now — see
+     * {@link com.churchgeniuspro.service.PublicPagePolicy#UPCOMING_EVENTS_FAMILY})
+     * or for the NTAG landing page. Nothing is decrypted — every candidate is a
+     * real, revocable database lookup.
+     */
+    private String decryptCid(String cid) {
+        return links.resolveClientIdAnyOf(cid, com.churchgeniuspro.service.PublicPagePolicy.UPCOMING_EVENTS_FAMILY);
     }
 
     private Map<String, Object> event(String type, String title,

@@ -326,6 +326,7 @@
     .btn-perms:hover { background: #3949ab; border-color: #3949ab; }
 
     /* ── Permissions modal ──────────────────────────────────────── */
+    .perm-scope-note { padding:8px 18px; font-size:11.5px; color:#8a7f84; border-top:1px solid #f0f0f0; line-height:1.4; }
     .perm-modal-box {
       background: #fff; border-radius: 12px;
       box-shadow: 0 8px 40px rgba(0,0,0,.22);
@@ -471,7 +472,7 @@
           <a class="btn-link-accounts" href="/churchSettings" title="View &amp; edit your church name, address, website and social links">⛪ Church Settings</a>
           <a class="btn-link-accounts" href="/temporaryAccess" title="Create time-limited badge + code access">⏱️ Temporary Access</a>
           <button class="btn-link-accounts" id="btnLinkAccounts" onclick="openLinkModal()" title="Link multiple accounts for role switching" style="display:none;">🔗 Link Accounts</button>
-          <button class="btn-add" onclick="openAddModal()">＋ Add User</button>
+          <button class="btn-add" id="btnAddUser" onclick="openAddModal()">＋ Add User</button>
         </div>
       </div>
 
@@ -809,6 +810,10 @@
       </label>
     </div>
     <div class="perm-tree" id="permTree"></div>
+    <div class="perm-scope-note">
+      Permissions control pages, menus and buttons. Data access is governed by the user's role.
+      Church logins are not affected by these settings.
+    </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closePermModal()">Cancel</button>
       <button class="btn-save-modal" id="permSaveBtn" onclick="savePermissions()">Save Permissions</button>
@@ -953,6 +958,7 @@
     Object.keys(userMap).forEach(k => delete userMap[k]);
     allUsers.forEach(u => { userMap[u.id] = u; });
     renderTable();
+    refreshUserLimit();
     if (isChurchSession) loadLinkedMembers();
   }
 
@@ -1109,7 +1115,36 @@
   /* ════════════════════════════════════
      MODAL — open / close
   ════════════════════════════════════ */
+  /* ── Plan user limit (e.g. Standard = 10). The server enforces it too. ── */
+  var USER_LIMIT = null;
+  async function refreshUserLimit() {
+    try {
+      var sub = window.CGP_SUBSCRIPTION;
+      if (!sub) {
+        var r = await fetch('/api/subscription/features');
+        sub = r.ok ? await r.json() : null;
+      }
+      var lim = sub && sub.limits ? sub.limits.maxStaffUsers : null;
+      USER_LIMIT = (lim === null || lim === undefined) ? null : Number(lim);
+    } catch (e) { USER_LIMIT = null; }
+    var btn = document.getElementById('btnAddUser');
+    if (!btn) return;
+    var atLimit = USER_LIMIT !== null && allUsers.length >= USER_LIMIT;
+    btn.style.opacity = atLimit ? '0.5' : '';
+    btn.title = USER_LIMIT !== null
+      ? (atLimit ? 'User limit reached (' + allUsers.length + ' of ' + USER_LIMIT + ') — upgrade your plan to add more users.'
+                 : allUsers.length + ' of ' + USER_LIMIT + ' users used on your plan.')
+      : '';
+  }
+  function userLimitReached() {
+    return USER_LIMIT !== null && allUsers.length >= USER_LIMIT;
+  }
+
   function openAddModal() {
+    if (userLimitReached()) {
+      showFeedback('❌ Your subscription allows up to ' + USER_LIMIT + ' users. The limit has been reached — please upgrade your plan to add more users.', 'error');
+      return;
+    }
     editingId = null;
     clearForm();
     document.getElementById('modalTitle').textContent    = 'Add User';
@@ -1614,11 +1649,11 @@
             { key: 'admin.groups.delete', label: 'Delete'      },
           ]
         },
-        { key: 'admin.email', label: 'Email',
-          actions: [
-            { key: 'admin.email.delete', label: 'Delete' },
-          ]
-        },
+        // Group Email: the "✉ Email Selected" button on /groups and POST /api/groups/email.
+        // Was "Email" with a single "Delete" action (admin.email.delete) that nothing checked;
+        // records saved with that old key still count via the alias table (admin.email ←
+        // admin.email.delete) and are re-aligned on the next save (see savePermissions).
+        { key: 'admin.email', label: 'Group Email', standalone: true },
         { key: 'admin.membership',  label: 'Membership Requests', standalone: true },
         { key: 'admin.unsubscribed', label: 'Unsubscribed List',  standalone: true },
       ]
@@ -1705,6 +1740,11 @@
         { key: 'more.publicscreens', label: 'Public Screens', standalone: true },
         { key: 'more.followups',     label: 'Follow-ups',     standalone: true },
         { key: 'more.helpcenter',    label: 'Help Center',    standalone: true },
+        // Ticketing / AI Assistant (2026-10-01): on by default for staff roles, OFF by
+        // default for the Member Portal (tick to grant), never available in the Kids
+        // Portal. Enforced server-side by RoleGuard.requireFeature on pages and APIs.
+        { key: 'more.ticketing',     label: 'Ticketing',      standalone: true },
+        { key: 'more.aiassistant',   label: 'AI Assistant',   standalone: true },
       ]
     },
     // (Help removed from permissions — Help Center already lives under the More section.)
@@ -1732,7 +1772,10 @@
     // Admin: Admin + General + More + My Profile (all). 'general'/'more'/'member'
     // prefixes cover their sub-keys (incl. general.attendance.*, more.helpcenter).
     // 'favorites' enabled by default for all roles (preserves prior behavior).
-    Admin:        ['favorites', 'admin', 'general', 'more', 'activity', 'member'],
+    // 'accounting.payroll' is included because Admin reaches Payroll through the
+    // Accounting section (see session.js / shell.js) and /payroll is now gated by
+    // that key: without it, the Admin defaults would save accounting.payroll:false.
+    Admin:        ['favorites', 'admin', 'general', 'more', 'activity', 'member', 'accounting.payroll'],
     // Accountant: Accounting + General + More + My Profile (all).
     Accountant:   ['favorites', 'accounting', 'general', 'more', 'activity', 'member'],
     // User / Limited: General + More + My Profile (no admin, no accounting).
@@ -1918,6 +1961,7 @@
     'general.attendance':     'attendance',
     'general.events':         'eventRegistration',
     'general.eventcheckin':   'eventCheckin',
+    'activity.guessit':       'activityCorner',
     'general.ministry.kids':    'kidsMinistry',
     'general.ministry.worship': 'worship',
     'general.ministry.prayer':  'prayer',
@@ -2167,6 +2211,17 @@
   }
 
   /* ── Save permissions to backend ── */
+  function syncLegacyPermissionKeys(map) {
+    const aliases = window.CGP_PERM_ALIASES || {};
+    Object.keys(aliases).forEach(canonical => {
+      if (typeof map[canonical] !== 'boolean') return;
+      aliases[canonical].forEach(old => {
+        if (Object.prototype.hasOwnProperty.call(map, old)) map[old] = map[canonical];
+      });
+    });
+    return map;
+  }
+
   async function savePermissions() {
     if (!_permUserId) return;
     const btn = document.getElementById('permSaveBtn');
@@ -2177,6 +2232,13 @@
     if (!_permIsMember) {
       _permMap['_noAutoLogout'] = noAutoLogoutChk ? noAutoLogoutChk.checked : true;
     }
+
+    // Legacy key names (earlier versions of this screen) are still honoured by the page
+    // guards through the alias table, so a stale `reports.income:false` from an old save
+    // would keep denying a Report the admin has just ticked. Align every legacy key that
+    // is ALREADY in this record with the checkbox the admin just set; nothing is added,
+    // renamed or removed.
+    syncLegacyPermissionKeys(_permMap);
 
     // Member portal users use /api/members/{id}/permissions; staff use /api/users/{id}/permissions
     const apiUrl = _permIsMember ? `/api/members/${_permUserId}/permissions` : `/api/users/${_permUserId}/permissions`;

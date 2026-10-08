@@ -283,22 +283,103 @@ public final class RoleGuard {
         // For staff: read "privileges"; for member portal: read "memberPrivileges".
         // Either attribute may legitimately be null — that means "no restrictions"
         // (opt-in denial) — so callers should pair this guard with a role check.
+        // The session copy is re-read from the database at most every 15 s, so a
+        // change made in viewUsers applies without a new sign-in.
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         Object privAttr = session.getAttribute(isMember ? "memberPrivileges" : "privileges");
         if (privAttr == null) return null;
+        return permissionAllows(String.valueOf(privAttr), permKey) ? null : FORWARD_ACCESS_DENIED;
+    }
+
+    /**
+     * {@link #requirePermission} for PAGE routes (the ones that {@code forward:} to an
+     * HTML page). Identical semantics, plus the legacy-key aliases in
+     * {@link #PERMISSION_ALIASES}: a record saved by an earlier version of the
+     * Permissions screen under an old key name keeps the restriction the admin set.
+     *
+     * <p>Deliberately NOT used on API endpoints. Permissions control pages, menus and
+     * buttons; data endpoints keep the role checks they have today, and the aliases must
+     * not change what any API refuses. That is why this is a separate method rather than
+     * a change to {@link #requirePermission}.
+     */
+    public static String requirePagePermission(HttpServletRequest request, String permKey) {
+        HttpSession session = request.getSession(false);
+        if (session == null) return REDIRECT_LOGIN;
+        boolean isMember = "Member".equals(role(session)) && session.getAttribute("memberId") != null;
+        if (!isMember && session.getAttribute("username") == null) return REDIRECT_LOGIN;
+        if (isChurchSession(session)) return null;
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
+        Object privAttr = session.getAttribute(isMember ? "memberPrivileges" : "privileges");
+        if (privAttr == null) return null;
+        return pagePermissionAllows(String.valueOf(privAttr), permKey) ? null : FORWARD_ACCESS_DENIED;
+    }
+
+    /**
+     * Legacy key names the Permissions screen used in earlier versions, per current key.
+     *
+     * <p>Three generations of names have been saved into {@code user_permissions} over
+     * time. Nothing is renamed in the database; instead a page check on the current
+     * key also honours an explicit {@code false} stored under any of its old names.
+     * Read-side only, page routes only. An unused alias costs nothing.
+     */
+    public static final java.util.Map<String, java.util.List<String>> PERMISSION_ALIASES = java.util.Map.ofEntries(
+        java.util.Map.entry("accounting.reports", java.util.List.of(
+                "reports.income", "reports.expense", "reports.daterange", "reports.taxreport", "reports.financial",
+                "accountingReports", "accountingReports.income", "accountingReports.expense",
+                "accountingReports.dateRange", "accountingReports.taxReport", "accountingReports.financial")),
+        java.util.Map.entry("general.reminders", java.util.List.of(
+                "reminders", "reminders.event", "reminders.auto", "reminders.onetime",
+                "reminders.eventReminders", "reminders.autoReminders", "reminders.oneTimeReminders")),
+        java.util.Map.entry("general.ministry.kids",    java.util.List.of("general.kidsministry", "general.sundayschool")),
+        java.util.Map.entry("general.ministry.worship", java.util.List.of("general.worshipplanning")),
+        java.util.Map.entry("general.ministry.prayer",  java.util.List.of("general.prayer", "general.prayerRequests")),
+        java.util.Map.entry("general.emailsettings",    java.util.List.of("general.email.settings")),
+        java.util.Map.entry("general.events",           java.util.List.of("general.event")),
+        java.util.Map.entry("admin.membership",         java.util.List.of("admin.membershipRequests")),
+        java.util.Map.entry("admin.unsubscribed",       java.util.List.of("admin.unsubscribedList")),
+        java.util.Map.entry("admin.email",              java.util.List.of("admin.email.delete", "admin.groups.email")),
+        java.util.Map.entry("accounting.donation",      java.util.List.of("accounting.donationReview")),
+        java.util.Map.entry("accounting.settings",      java.util.List.of("accountSettings")),
+        java.util.Map.entry("more.certificates",        java.util.List.of("general.certificates")),
+        java.util.Map.entry("more.publicscreens",       java.util.List.of("general.publicScreens")),
+        java.util.Map.entry("member.classes",           java.util.List.of("member.sundayschool"))
+    );
+
+    /**
+     * {@link #permissionAllows} plus aliases: denied when the key itself, or any of its
+     * legacy names, is explicitly {@code false}. A record with none of them is allowed,
+     * exactly as before.
+     */
+    public static boolean pagePermissionAllows(String privilegesJson, String permKey) {
+        if (!permissionAllows(privilegesJson, permKey)) return false;
+        java.util.List<String> legacy = PERMISSION_ALIASES.get(permKey);
+        if (legacy == null) return true;
+        for (String old : legacy) {
+            if (!permissionAllows(privilegesJson, old)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * The granular-permission rule on its own, for callers that hold a privileges
+     * JSON rather than a request — e.g. one freshly read from {@code user_permissions}
+     * so a change made in viewUsers applies without waiting for the user to sign in
+     * again. Identical semantics to {@link #requirePermission}: no JSON → allowed,
+     * missing key → allowed, explicit {@code false} → denied, unparseable → allowed.
+     */
+    @SuppressWarnings("unchecked")
+    public static boolean permissionAllows(String privilegesJson, String permKey) {
+        if (privilegesJson == null || privilegesJson.isBlank() || "null".equals(privilegesJson)) return true;
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper =
                     new com.fasterxml.jackson.databind.ObjectMapper();
-            java.util.Map<String, Object> map =
-                    mapper.readValue(String.valueOf(privAttr), java.util.Map.class);
+            java.util.Map<String, Object> map = mapper.readValue(privilegesJson, java.util.Map.class);
             // Missing key = full access (opt-in denial); explicit false = denied
-            Object val = map.get(permKey);
-            if (Boolean.FALSE.equals(val)) {
-                return FORWARD_ACCESS_DENIED;
-            }
+            return !Boolean.FALSE.equals(map.get(permKey));
         } catch (Exception e) {
             // Unparseable JSON → treat as full access
+            return true;
         }
-        return null;
     }
 
     /**
@@ -329,6 +410,7 @@ public final class RoleGuard {
         if (session == null) return REDIRECT_LOGIN;
         // Only applies to member portal sessions
         if (!("Member".equals(role(session)) && session.getAttribute("memberId") != null)) return null;
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         Object privAttr = session.getAttribute("memberPrivileges");
         // No stored privileges → all tabs allowed by default
         if (privAttr == null) return null;
@@ -353,6 +435,27 @@ public final class RoleGuard {
             if (Boolean.FALSE.equals(val)) return FORWARD_ACCESS_DENIED;
         } catch (Exception e) {
             // Unparseable JSON → treat as full access
+        }
+        return null;
+    }
+
+    /**
+     * {@link #requireMemberPermission} for PAGE routes: the same rule, and additionally
+     * denied when a legacy alias of {@code memberPermKey} is explicitly {@code false}
+     * (e.g. {@code member.classes} honours an old {@code member.sundayschool:false}).
+     */
+    public static String requireMemberPagePermission(HttpServletRequest request, String memberPermKey) {
+        String deny = requireMemberPermission(request, memberPermKey);
+        if (deny != null) return deny;
+        HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        if (!("Member".equals(role(session)) && session.getAttribute("memberId") != null)) return null;
+        Object privAttr = session.getAttribute("memberPrivileges");
+        if (privAttr == null) return null;
+        java.util.List<String> legacy = PERMISSION_ALIASES.get(memberPermKey);
+        if (legacy == null) return null;
+        for (String old : legacy) {
+            if (!permissionAllows(String.valueOf(privAttr), old)) return FORWARD_ACCESS_DENIED;
         }
         return null;
     }
@@ -398,6 +501,77 @@ public final class RoleGuard {
         // fallback for SuperAdmin whose appClientId may equal clientId
         Object v2 = session.getAttribute("clientId");
         return v2 instanceof String s2 ? s2 : null;
+    }
+
+    // ── Opt-in features: Ticketing and AI Assistant (2026-10-01) ───────────────
+
+    /** Permission key for the Ticketing page and its APIs. */
+    public static final String PERM_TICKETING    = "more.ticketing";
+    /** Permission key for the AI Assistant page and the AI search/assist APIs. */
+    public static final String PERM_AI_ASSISTANT = "more.aiassistant";
+
+    /**
+     * True for a Kids Portal session: a member-portal login whose family-member
+     * role is a child. Ticketing and the AI Assistant are never available there,
+     * whatever the stored permissions say.
+     */
+    public static boolean isKidsPortalSession(HttpSession session) {
+        if (session == null) return false;
+        if (!("Member".equals(role(session)) && session.getAttribute("memberId") != null)) return false;
+        Object mr = session.getAttribute("memberRole");
+        String r = mr == null ? "" : mr.toString().trim().toLowerCase();
+        return r.equals("child") || r.equals("son") || r.equals("daughter");
+    }
+
+    /**
+     * Access rule shared by the Ticketing and AI Assistant pages AND their APIs
+     * (the permission is enforced on both, not just by hiding the menu item):
+     * <ul>
+     *   <li>no session → login;</li>
+     *   <li>Kids Portal → denied, always;</li>
+     *   <li>Church login → allowed (the Church role manages the account);</li>
+     *   <li>Member portal → allowed ONLY when the key is explicitly {@code true} in the
+     *       member's saved permissions — off by default, granted from /viewusers;</li>
+     *   <li>staff (SuperAdmin / Admin / Accountant / User / Limited) → allowed unless the
+     *       key is explicitly {@code false} — on by default, like every staff checkbox.</li>
+     * </ul>
+     * Member and staff permissions are re-read within ~15 s of a change, as for
+     * {@link #requirePermission}.
+     *
+     * @return {@code null} when allowed, otherwise the redirect / forward to return
+     */
+    public static String requireFeature(HttpServletRequest request, String permKey) {
+        HttpSession session = request.getSession(false);
+        if (session == null) return REDIRECT_LOGIN;
+        if (isKidsPortalSession(session)) return FORWARD_ACCESS_DENIED;
+        boolean isMember = "Member".equals(role(session)) && session.getAttribute("memberId") != null;
+        if (!isMember && session.getAttribute("username") == null) return REDIRECT_LOGIN;
+        if (isChurchSession(session)) return null;
+        if (isMember) {
+            com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
+            Object privAttr = session.getAttribute("memberPrivileges");
+            return permissionGrantedExplicitly(privAttr == null ? null : String.valueOf(privAttr), permKey)
+                    ? null : FORWARD_ACCESS_DENIED;
+        }
+        return requirePermission(request, permKey);
+    }
+
+    /** True for a feature a session may use ({@link #requireFeature} returns null). */
+    public static boolean featureAllowed(HttpServletRequest request, String permKey) {
+        return requireFeature(request, permKey) == null;
+    }
+
+    /** Opt-in rule: the key must be present and {@code true}; anything else is denied. */
+    @SuppressWarnings("unchecked")
+    static boolean permissionGrantedExplicitly(String privilegesJson, String permKey) {
+        if (privilegesJson == null || privilegesJson.isBlank() || "null".equals(privilegesJson)) return false;
+        try {
+            java.util.Map<String, Object> map = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(privilegesJson, java.util.Map.class);
+            return Boolean.TRUE.equals(map.get(permKey));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean isChurchSession(HttpSession session) {

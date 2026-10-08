@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -17,23 +18,23 @@ import java.util.Optional;
 @Repository
 public interface SubscriptionUsageRepository extends JpaRepository<SubscriptionUsage, Long> {
 
-    Optional<SubscriptionUsage> findByClientIdAndUsageMonth(String clientId, String usageMonth);
+    Optional<SubscriptionUsage> findByClientIdAndPeriodStart(String clientId, LocalDate periodStart);
 
     @Modifying
     @Transactional
     @Query("UPDATE SubscriptionUsage u SET u.emailsSent = u.emailsSent + :n "
-         + "WHERE u.clientId = :clientId AND u.usageMonth = :month")
-    int addEmails(@Param("clientId") String clientId, @Param("month") String month, @Param("n") int n);
+         + "WHERE u.clientId = :clientId AND u.periodStart = :period")
+    int addEmails(@Param("clientId") String clientId, @Param("period") LocalDate period, @Param("n") int n);
 
     @Modifying
     @Transactional
     @Query("UPDATE SubscriptionUsage u SET u.smsSent = u.smsSent + :n "
-         + "WHERE u.clientId = :clientId AND u.usageMonth = :month")
-    int addSms(@Param("clientId") String clientId, @Param("month") String month, @Param("n") int n);
+         + "WHERE u.clientId = :clientId AND u.periodStart = :period")
+    int addSms(@Param("clientId") String clientId, @Param("period") LocalDate period, @Param("n") int n);
 
     @Modifying
     @Transactional
     @Query("UPDATE SubscriptionUsage u SET u.givingCount = u.givingCount + :n "
-         + "WHERE u.clientId = :clientId AND u.usageMonth = :month")
-    int addGiving(@Param("clientId") String clientId, @Param("month") String month, @Param("n") int n);
+         + "WHERE u.clientId = :clientId AND u.periodStart = :period")
+    int addGiving(@Param("clientId") String clientId, @Param("period") LocalDate period, @Param("n") int n);
 }

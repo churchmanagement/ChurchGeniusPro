@@ -79,10 +79,12 @@ public class FamilyAvatarController {
                     AppUser appUser = appUserRepository
                             .findByUserIdAndDeleteFlagFalse(clientId)
                             .orElse(null);
+                    String appClientId = com.churchgeniuspro.util.SessionUtil.getAppClientId(request);
                     if (appUser != null && appUser.getEmail() != null
-                            && !appUser.getEmail().isBlank()) {
+                            && !appUser.getEmail().isBlank() && appClientId != null) {
+                        // Scoped to the session's church: the same email may exist in another org.
                         thumb = familyMemberRepository
-                                .findFamilyThumbnailByEmail(appUser.getEmail().trim());
+                                .findFamilyThumbnailByEmailAndAppClientId(appUser.getEmail().trim(), appClientId);
                     }
                 }
             }

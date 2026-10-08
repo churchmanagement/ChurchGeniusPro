@@ -42,6 +42,11 @@ public class FollowUpController {
     private final FamilyMemberRepository familyMemberRepo;
     private final VolunteerProfileRepository volunteerProfileRepo;
 
+    /** Plan people limit; optional so hand-built tests are unchanged. */
+    private com.churchgeniuspro.service.SubscriptionService subscriptionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSubscriptionService(com.churchgeniuspro.service.SubscriptionService s) { this.subscriptionService = s; }
+
     public FollowUpController(FollowUpRepository followUpRepo,
                               FamilyService familyService,
                               FamilyRepository familyRepo,
@@ -133,6 +138,16 @@ public class FollowUpController {
         String phone = str(body.get("phone"));
         String role  = str(body.get("role"));
         String notes = str(body.get("notes"));
+
+        // The plan's people limit applies here as on the Family form: a new person is
+        // being added. Fails open on a lookup error, exactly as the Family form does.
+        if (subscriptionService != null) {
+            try {
+                Long current = familyMemberRepo.countActiveMembers(cid);
+                String limitMsg = subscriptionService.checkPeopleLimit(cid, current == null ? 0 : current, 1);
+                if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+            } catch (Exception ignored) { /* fail-open: never block on a limit-check error */ }
+        }
 
         // Shell family to hold the volunteer (family_member.family_id is NOT NULL).
         Family family = new Family();
@@ -279,7 +294,7 @@ public class FollowUpController {
     public String page(HttpServletRequest req) {
         String deny = RoleGuard.requireAdminOrUser(req);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(req, "more.followups");
+        deny = RoleGuard.requirePagePermission(req, "more.followups");
         if (deny != null) return deny;
         return "forward:/followups.html";
     }

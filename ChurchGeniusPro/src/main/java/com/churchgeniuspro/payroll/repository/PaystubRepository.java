@@ -12,4 +12,7 @@ public interface PaystubRepository extends JpaRepository<Paystub, Long> {
 
     /** True if the employee has any payroll history (used to block hard-delete). */
     boolean existsByAppClientIdAndEmployeeId(String appClientId, Long employeeId);
+
+    /** True if this employee already has a non-voided paystub in this run (financial audit H3). */
+    boolean existsByRunIdAndEmployeeIdAndVoidedFalse(Long runId, Long employeeId);
 }

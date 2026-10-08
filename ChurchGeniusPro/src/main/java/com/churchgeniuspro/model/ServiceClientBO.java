@@ -44,6 +44,22 @@ public class ServiceClientBO {
     /** Per-client extra SMS credits on top of the plan's monthly allowance (default 0). */
     private Integer extraSmsCount;
 
+    // ── Billing (optional; null = keep the current value) ───────────────────
+    /** MONTHLY | YEARLY */
+    private String billingFrequency;
+    /** Negotiated price per billing period; used only when priceOverridden is true. */
+    private String subscriptionPrice;
+    /** True = use subscriptionPrice as a custom price; false = the plan's list price. */
+    private Boolean priceOverridden;
+    /** True = re-copy the plan's current list price even if plan and frequency are unchanged. */
+    private Boolean resetPriceToPlan;
+
+    /**
+     * Must be true to save a CHANGED start date (Edit Client): the admin has confirmed
+     * that it moves the end date and re-anchors the 30-day usage period.
+     */
+    private Boolean confirmStartDateChange;
+
     // ── Misc ─────────────────────────────────────────────────────────────────
     private String note;
     /** Active | Hold | Inactive */

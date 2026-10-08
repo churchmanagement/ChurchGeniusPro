@@ -139,6 +139,7 @@ public class SongBookService {
 
     @Transactional
     public List<Song> addTitles(String clientId, Long sectionId, String language, List<String> titles, String actor, String role) {
+        requireOwnSection(clientId, sectionId);
         int order = nextWorkingOrder(clientId, sectionId);
         List<Song> added = new ArrayList<>();
         for (String t : titles) {
@@ -152,9 +153,17 @@ public class SongBookService {
 
     @Transactional
     public Song addTitle(String clientId, Long sectionId, String title, String language, String actor, String role) {
+        requireOwnSection(clientId, sectionId);
         Song s = songRepo.save(newSong(clientId, sectionId, title, language, nextWorkingOrder(clientId, sectionId)));
         audit(clientId, actor, role, "ADD", s.getId(), s.getTitle(), null);
         return s;
+    }
+
+    /** A song may only be filed under one of this church's own sections. */
+    private void requireOwnSection(String clientId, Long sectionId) {
+        if (sectionId == null || sectionRepo.findByIdAndClientId(sectionId, clientId).isEmpty()) {
+            throw new IllegalArgumentException("Section not found");
+        }
     }
 
     private Song newSong(String clientId, Long sectionId, String title, String language, int order) {
@@ -428,6 +437,26 @@ public class SongBookService {
         audit(clientId, actor, role, "COVER_SAVE", null, null, "cover page updated");
     }
 
+    /**
+     * Save the Finalized Song Book's title (the heading used when the book is
+     * published / viewed) WITHOUT publishing. The live public copy keeps its
+     * snapshot title until the next (re)publish, exactly as before.
+     */
+    @Transactional
+    public SongBookPublish saveBookTitle(String clientId, String bookTitle, String actor, String role) {
+        SongBookPublish p = publishRepo.findByClientId(clientId).orElseGet(() -> {
+            SongBookPublish n = new SongBookPublish();
+            n.setClientId(clientId);
+            n.setToken(UUID.randomUUID().toString().replace("-", ""));
+            return n;
+        });
+        p.setBookTitle(bookTitle);
+        p.setUpdatedAt(Instant.now());
+        p = publishRepo.save(p);
+        audit(clientId, actor, role, "BOOK_TITLE", null, bookTitle, "finalized song book title updated");
+        return p;
+    }
+
     /* ════════════════════ advertisement pages ════════════════════ */
 
     private static final int MAX_AD_PDF_PAGES = 20;
@@ -683,6 +712,17 @@ public class SongBookService {
         if (p.getToken() == null || p.getToken().isBlank()) p.setToken(UUID.randomUUID().toString().replace("-", ""));
         p.setBookTitle((String) snap.get("bookTitle"));
         p.setSnapshot(mapper.writeValueAsString(snap));
+        // Preserve the Now Singing / Next Song selections across a (re)publish, but
+        // drop any whose song is no longer in the freshly-built snapshot (e.g. the
+        // song was deleted or removed from the finalized list before republishing).
+        java.util.Set<Long> liveIds = snapshotSongIds(p.getSnapshot());
+        if (p.getCurrentSongId() != null && !liveIds.contains(p.getCurrentSongId())) {
+            p.setCurrentSongId(null);
+            p.setCurrentSongVersion(nextVersion(p));
+        }
+        if (p.getNextSongId() != null && !liveIds.contains(p.getNextSongId())) {
+            p.setNextSongId(null);
+        }
         p.setPublished(true);
         p.setPublishedAt(Instant.now());
         p.setPublishedBy(actor);
@@ -695,6 +735,10 @@ public class SongBookService {
 
     private Map<String, Object> songSnap(Song s, String sectionName) {
         Map<String, Object> m = new LinkedHashMap<>();
+        // The song's stable id is embedded so the public viewer can anchor the
+        // "Now Singing" / "Next Song" selections to a specific song and deep-link
+        // to it, and so set-current/set-next can be validated against the snapshot.
+        m.put("id", s.getId());
         m.put("title", s.getTitle());
         m.put("language", s.getLanguage() == null ? "" : s.getLanguage());
         m.put("lyricsHtml", s.getLyricsHtml() == null ? "" : s.getLyricsHtml());
@@ -717,6 +761,170 @@ public class SongBookService {
         return publishRepo.findByTokenAndPublishedTrue(token).orElse(null);
     }
 
+    /* ════════════════ "Now Singing" / "Next Song" live selections ════════════════ */
+
+    /**
+     * The songs in the published snapshot, in book order, each as
+     * {@code {songId, title, section, sectionIndex, songIndex}}. Used by the admin
+     * picker and to validate/resolve the Current / Next selections. Empty when the
+     * book is not published or has no songs.
+     */
+    public List<Map<String, Object>> snapshotSongs(String snapshot) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (snapshot == null || snapshot.isBlank()) return out;
+        try {
+            Map<?, ?> root = mapper.readValue(snapshot, Map.class);
+            Object secs = root.get("sections");
+            if (secs instanceof List<?> sl) {
+                int si = 0;
+                for (Object secObj : sl) {
+                    if (secObj instanceof Map<?, ?> sm) {
+                        Object nameObj = sm.get("name");
+                        String secName = nameObj == null ? "" : String.valueOf(nameObj);
+                        Object songs = sm.get("songs");
+                        if (songs instanceof List<?> gl) {
+                            int gi = 0;
+                            for (Object soObj : gl) {
+                                if (soObj instanceof Map<?, ?> gm) {
+                                    Long sid = asLong(gm.get("id"));
+                                    Object titleObj = gm.get("title");
+                                    Map<String, Object> m = new LinkedHashMap<>();
+                                    m.put("songId", sid);
+                                    m.put("title", titleObj == null ? "" : String.valueOf(titleObj));
+                                    m.put("section", secName);
+                                    m.put("sectionIndex", si);
+                                    m.put("songIndex", gi);
+                                    out.add(m);
+                                }
+                                gi++;
+                            }
+                        }
+                    }
+                    si++;
+                }
+            }
+        } catch (Exception ignore) { /* malformed snapshot → no songs */ }
+        return out;
+    }
+
+    /** The set of song ids present in the published snapshot (empty when absent). */
+    private java.util.Set<Long> snapshotSongIds(String snapshot) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (Map<String, Object> s : snapshotSongs(snapshot)) {
+            Long id = asLong(s.get("songId"));
+            if (id != null) ids.add(id);
+        }
+        return ids;
+    }
+
+    private static Long asLong(Object o) {
+        if (o == null) return null;
+        try { return Long.valueOf(String.valueOf(o).trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    private long nextVersion(SongBookPublish p) {
+        Long v = p.getCurrentSongVersion();
+        return (v == null ? 0L : v) + 1;
+    }
+
+    private SongBookPublish requirePublished(String clientId) {
+        SongBookPublish p = publishRepo.findByClientId(clientId).orElse(null);
+        if (p == null || !p.isPublished() || p.getSnapshot() == null)
+            throw new IllegalStateException("Publish the song book before choosing a song.");
+        return p;
+    }
+
+    private void requireSongInSnapshot(SongBookPublish p, Long songId) {
+        if (songId == null) throw new IllegalArgumentException("Song is required.");
+        if (!snapshotSongIds(p.getSnapshot()).contains(songId))
+            throw new IllegalArgumentException("That song is not in the published book. Re-publish and try again.");
+    }
+
+    /** Set (or replace) the Current Song. Only one song can be current at a time. */
+    @Transactional
+    public SongBookPublish setCurrentSong(String clientId, Long songId, String actor, String role) {
+        SongBookPublish p = requirePublished(clientId);
+        requireSongInSnapshot(p, songId);
+        p.setCurrentSongId(songId);
+        p.setCurrentSongVersion(nextVersion(p));
+        p.setUpdatedAt(Instant.now());
+        p = publishRepo.save(p);
+        Song s = songRepo.findByIdAndClientId(songId, clientId).orElse(null);
+        audit(clientId, actor, role, "NOW_SINGING_SET", songId, s != null ? s.getTitle() : null, null);
+        return p;
+    }
+
+    /** Unset the Current Song (removes the "Now Singing" banner for viewers). */
+    @Transactional
+    public SongBookPublish clearCurrentSong(String clientId, String actor, String role) {
+        SongBookPublish p = publishRepo.findByClientId(clientId).orElse(null);
+        if (p == null) return null;
+        if (p.getCurrentSongId() != null) {
+            p.setCurrentSongId(null);
+            p.setCurrentSongVersion(nextVersion(p));
+            p.setUpdatedAt(Instant.now());
+            p = publishRepo.save(p);
+            audit(clientId, actor, role, "NOW_SINGING_CLEAR", null, null, null);
+        }
+        return p;
+    }
+
+    /** Set (or replace) the Next Song. Only one song can be next at a time. */
+    @Transactional
+    public SongBookPublish setNextSong(String clientId, Long songId, String actor, String role) {
+        SongBookPublish p = requirePublished(clientId);
+        requireSongInSnapshot(p, songId);
+        p.setNextSongId(songId);
+        p.setUpdatedAt(Instant.now());
+        p = publishRepo.save(p);
+        Song s = songRepo.findByIdAndClientId(songId, clientId).orElse(null);
+        audit(clientId, actor, role, "NEXT_SONG_SET", songId, s != null ? s.getTitle() : null, null);
+        return p;
+    }
+
+    /** Unset the Next Song. */
+    @Transactional
+    public SongBookPublish clearNextSong(String clientId, String actor, String role) {
+        SongBookPublish p = publishRepo.findByClientId(clientId).orElse(null);
+        if (p == null) return null;
+        if (p.getNextSongId() != null) {
+            p.setNextSongId(null);
+            p.setUpdatedAt(Instant.now());
+            p = publishRepo.save(p);
+            audit(clientId, actor, role, "NEXT_SONG_CLEAR", null, null, null);
+        }
+        return p;
+    }
+
+    /**
+     * Live "Now Singing" / "Next Song" state for a published book, with each
+     * selection resolved to its title from the snapshot. A stored id that is no
+     * longer in the snapshot resolves to {@code null} (treated as unset), so the
+     * viewer never shows a stale heading. Shape:
+     * {@code {currentVersion, current:{songId,title}|null, next:{songId,title}|null}}.
+     */
+    public Map<String, Object> liveState(SongBookPublish p) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        long ver = p == null || p.getCurrentSongVersion() == null ? 0L : p.getCurrentSongVersion();
+        out.put("currentVersion", ver);
+        Map<Long, String> titles = new LinkedHashMap<>();
+        if (p != null) for (Map<String, Object> s : snapshotSongs(p.getSnapshot())) {
+            Long id = asLong(s.get("songId"));
+            if (id != null) titles.put(id, String.valueOf(s.get("title")));
+        }
+        out.put("current", slot(p == null ? null : p.getCurrentSongId(), titles));
+        out.put("next", slot(p == null ? null : p.getNextSongId(), titles));
+        return out;
+    }
+
+    private Map<String, Object> slot(Long songId, Map<Long, String> titles) {
+        if (songId == null || !titles.containsKey(songId)) return null;
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("songId", songId);
+        m.put("title", titles.get(songId));
+        return m;
+    }
+
     /* ════════════════════ multi-book support ════════════════════ */
 
     /**
@@ -728,12 +936,19 @@ public class SongBookService {
      */
     @Transactional
     public void purgeScope(String scopedClientId, String actor, String role) {
+        // Songs before their sections/finalized sections (child-before-parent for the
+        // W3 RESTRICT keys song.section_id / song.finalized_section_id); JPA's
+        // flush-before-query between these derived deletes preserves that order.
         songRepo.deleteByClientId(scopedClientId);
         sectionRepo.deleteByClientId(scopedClientId);
         finalRepo.deleteByClientId(scopedClientId);
         publishRepo.deleteByClientId(scopedClientId);
         assetRepo.deleteByClientId(scopedClientId);
         adRepo.deleteByClientId(scopedClientId);
+        // The book's append-only audit rows have no live FK (song_audit_log.song_id is a
+        // historical reference, not a key — see W3), so removing them last is safe and keeps
+        // a deleted book scope from leaving orphaned audit rows behind.
+        auditRepo.deleteByClientId(scopedClientId);
     }
 
     /* ════════════════════ audit ════════════════════ */

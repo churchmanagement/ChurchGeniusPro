@@ -2,7 +2,6 @@ package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.hibernate.PublicScreenLink;
 import com.churchgeniuspro.repository.PublicScreenLinkRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,80 +32,55 @@ import java.util.*;
 public class PublicScreensController {
 
     /** Pages that may NOT be made public. */
-    private static final Set<String> EXCLUDED_PAGES = Set.of("/login", "/event-register");
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(PublicScreensController.class);
 
-    /** Pages that are handled as membership-form links (direct URL, not /pub/{token}). */
-    static final String MEMBERSHIP_FORM_URL = "/membershipForm";
-
-    /** Donation page — served at /donate/{token} instead of /pub/{token}. */
-    static final String DONATION_PAGE_URL = "/donate";
-
-    /** Member Signup page — served at /memberSignup?token=<pubToken>. */
-    static final String MEMBER_SIGNUP_URL = "/memberSignup";
-
-    /** SMS Opt-In page — served at /smsOptIn?token=<pubToken>. */
-    static final String SMS_OPT_IN_URL = "/smsOptIn";
-
-    /** Public Prayer Requests page — served at /viewPrayerRequest?cid={encryptedClientId}. */
-    static final String PUBLIC_PRAYER_URL = "/viewPrayerRequest";
-
-    /** Public Event Calendar page — served at /viewEventCalendar?cid={encryptedClientId}. */
-    static final String PUBLIC_CALENDAR_URL = "/viewEventCalendar";
-
-    /** Guess It game page — served at /guessIt?cid={encryptedClientId}. */
-    static final String GUESS_IT_URL = "/guessIt";
-
-    /** Public Kids Check-In — served at /kidsCheckin?cid={encryptedClientId}. */
-    static final String KIDS_CHECKIN_URL = "/kidsCheckin";
-
-    /** Public "Connect With Us" page — served at /connect?c={encryptedClientId}. */
-    static final String CONNECT_URL = "/connect";
-
-    /** Public Prayer Request form (website source) — served at /publicPrayer?c={encryptedClientId}&src=WEBSITE. */
-    static final String PUBLIC_PRAYER_FORM_URL = "/publicPrayer";
-
-    /**
-     * Pages available for public link generation.
-     * Only congregation/visitor-facing pages are listed here.
-     * Financial data, member records, and admin-only tools are intentionally excluded.
-     */
-    public static final List<Map<String, String>> AVAILABLE_PAGES = List.of(
-            page("Event Calendar",  PUBLIC_CALENDAR_URL),
-            page("Events",          "/event"),
-            page("Groups",          "/groups"),
-            page("Meetings",        "/meetings"),
-            page("Prayer Requests", PUBLIC_PRAYER_URL),
-            page("Certificates",    "/certificates"),
-            page("Membership Form", MEMBERSHIP_FORM_URL),
-            page("Donation Page",   DONATION_PAGE_URL),
-            page("Member Signup",             MEMBER_SIGNUP_URL),
-            page("SMS Opt-In Form",           SMS_OPT_IN_URL),
-            page("Midwest Region Meet RSVP",  "/midRegMeetRsvp"),
-            page("Guess It",                  GUESS_IT_URL),
-            page("Kids Check-In",             KIDS_CHECKIN_URL),
-            page("Connect With Us",           CONNECT_URL),
-            page("Prayer Request (Public)",   PUBLIC_PRAYER_FORM_URL)
-    );
+    // Page identities and the publish rules live in PublicPagePolicy so every link
+    // minter (this page, NTAG landing, reminders, kids QR) applies the same gate.
+    static final String MEMBERSHIP_FORM_URL    = com.churchgeniuspro.service.PublicPagePolicy.MEMBERSHIP_FORM_URL;
+    static final String DONATION_PAGE_URL      = com.churchgeniuspro.service.PublicPagePolicy.DONATION_PAGE_URL;
+    static final String MEMBER_SIGNUP_URL      = com.churchgeniuspro.service.PublicPagePolicy.MEMBER_SIGNUP_URL;
+    static final String SMS_OPT_IN_URL         = com.churchgeniuspro.service.PublicPagePolicy.SMS_OPT_IN_URL;
+    static final String PUBLIC_PRAYER_URL      = com.churchgeniuspro.service.PublicPagePolicy.PUBLIC_PRAYER_URL;
+    static final String PUBLIC_CALENDAR_URL    = com.churchgeniuspro.service.PublicPagePolicy.PUBLIC_CALENDAR_URL;
+    static final String GUESS_IT_URL           = com.churchgeniuspro.service.PublicPagePolicy.GUESS_IT_URL;
+    static final String KIDS_CHECKIN_URL       = com.churchgeniuspro.service.PublicPagePolicy.KIDS_CHECKIN_URL;
+    static final String CONNECT_URL            = com.churchgeniuspro.service.PublicPagePolicy.CONNECT_URL;
+    static final String PUBLIC_PRAYER_FORM_URL = com.churchgeniuspro.service.PublicPagePolicy.PUBLIC_PRAYER_FORM_URL;
+    public static final List<Map<String, String>> AVAILABLE_PAGES = com.churchgeniuspro.service.PublicPagePolicy.AVAILABLE_PAGES;
 
     private final PublicScreenLinkRepository linkRepo;
-    private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
+    private final com.churchgeniuspro.service.PublicPagePolicy policy;
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
 
     @Value("${app.base-url}")
     private String baseUrl;
 
     public PublicScreensController(PublicScreenLinkRepository linkRepo,
-                                   com.churchgeniuspro.service.SubscriptionService subscriptionService) {
+                                   com.churchgeniuspro.service.PublicPagePolicy policy,
+                                   com.churchgeniuspro.service.PublicLinkResolver links) {
         this.linkRepo = linkRepo;
-        this.subscriptionService = subscriptionService;
+        this.policy   = policy;
+        this.links    = links;
     }
 
-    /** Subscription feature key that gates a public-page option, or null. */
-    private static String featureKeyForPage(String pageUrl) {
-        if (pageUrl == null) return null;
-        if (pageUrl.startsWith(MEMBER_SIGNUP_URL))  return "memberPortal";
-        if (pageUrl.startsWith(KIDS_CHECKIN_URL))   return "kidsCheckin";
-        if (pageUrl.startsWith(DONATION_PAGE_URL))  return "onlineGiving";
-        return null;
+    /**
+     * True for an evaluation tenant: a Trial subscription, or a demo/trial tenant
+     * by client-id prefix.
+     *
+     * <p>Both halves are needed. {@code MessagingPolicy} — the one authority on
+     * what Trial means — answers the subscription question, and covers a CHR-
+     * client that has been put on the Trial plan. The prefix check covers a DEMO-
+     * tenant, which {@code loadSmallDemo} can create on any plan and which is
+     * therefore not necessarily Trial at all.
+     *
+     * <p>Never throws: an unreadable subscription answers "restricted", so a
+     * database blip withholds two evaluation-only options rather than publishing
+     * them. The cost of the wrong answer is not symmetric here.
+     */
+    /** Delegates to {@link com.churchgeniuspro.service.PublicPagePolicy} — the one rule for every link minter. */
+    private String publishDenialReason(String pageUrl, String appClientId) {
+        return policy.denialReason(pageUrl, appClientId);
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -115,9 +89,23 @@ public class PublicScreensController {
     public String publicScreensPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "more.publicscreens");
+        deny = RoleGuard.requirePagePermission(request, "more.publicscreens");
         if (deny != null) return deny;
         return "forward:/publicScreens.html";
+    }
+
+    /**
+     * The same gate as the page. These four handlers sat behind AuthFilter's
+     * "/api/public" whitelist entry (bare-prefix match) and had no check of their
+     * own, so an anonymous caller could revoke any church's links by id and a
+     * QR-code visitor (publicView session) could list and mint links for that church.
+     * Returns the staff caller's tenant, or null → respond 403.
+     */
+    private static String staffClientId(HttpServletRequest request) {
+        if (RoleGuard.requireAdminOrUser(request) != null) return null;
+        if (RoleGuard.requirePermission(request, "more.publicscreens") != null) return null;
+        String cid = RoleGuard.clientId(request);   // null for publicView sessions
+        return cid == null || cid.isBlank() ? null : cid;
     }
 
     // ── List available pages ──────────────────────────────────────────────
@@ -125,16 +113,15 @@ public class PublicScreensController {
     @ResponseBody
     @GetMapping("/api/public-screens/pages")
     public ResponseEntity<List<Map<String, String>>> getAvailablePages(HttpServletRequest request) {
+        String appClientId = staffClientId(request);
+        if (appClientId == null) return ResponseEntity.status(403).build();
         // Hide options whose feature is disabled by the client's subscription
         // plan (e.g. Member Signup when the Member Portal feature is off).
-        String appClientId = SessionUtil.getAppClientId(request);
         List<Map<String, String>> pages = new ArrayList<>();
         for (Map<String, String> p : AVAILABLE_PAGES) {
-            String featureKey = featureKeyForPage(p.get("url"));
-            if (featureKey != null && appClientId != null
-                    && !subscriptionService.isFeatureEnabled(appClientId, featureKey)) {
-                continue;
-            }
+            // Exactly the rule the POST enforces, so the dropdown can never offer
+            // something that generation would then refuse.
+            if (publishDenialReason(p.get("url"), appClientId) != null) continue;
             pages.add(p);
         }
         return ResponseEntity.ok(pages);
@@ -145,7 +132,8 @@ public class PublicScreensController {
     @ResponseBody
     @GetMapping("/api/public-screens")
     public ResponseEntity<List<Map<String, Object>>> list(HttpServletRequest request) {
-        String appClientId = SessionUtil.getAppClientId(request);
+        String appClientId = staffClientId(request);
+        if (appClientId == null) return ResponseEntity.status(403).build();
         List<PublicScreenLink> links = linkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(appClientId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (PublicScreenLink l : links) {
@@ -160,33 +148,19 @@ public class PublicScreensController {
     @PostMapping("/api/public-screens")
     public ResponseEntity<Map<String, Object>> generate(@RequestBody Map<String, Object> body,
                                                          HttpServletRequest request) {
-        String appClientId = SessionUtil.getAppClientId(request);
+        String appClientId = staffClientId(request);
+        if (appClientId == null) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
         String pageUrl   = (String) body.get("pageUrl");
         String pageLabel = (String) body.get("pageLabel");
         Object expObj    = body.get("expirationDate");
 
-        if (pageUrl == null || pageUrl.isBlank()) return bad("Page URL is required.");
-        if (EXCLUDED_PAGES.stream().anyMatch(pageUrl::startsWith)) {
-            return bad("This page cannot be made public.");
-        }
+        // Every restriction in one place, so calling this endpoint directly is no
+        // more permissive than using the dropdown.
+        String denial = publishDenialReason(pageUrl, appClientId);
+        if (denial != null) return bad(denial);
 
-        // Subscription plan gate — a disabled feature's page cannot be published
-        // even by calling this endpoint directly.
-        String featureKey = featureKeyForPage(pageUrl);
-        if (featureKey != null && appClientId != null
-                && !subscriptionService.isFeatureEnabled(appClientId, featureKey)) {
-            return bad("This option is not included in your church's subscription plan. "
-                     + "Please contact your administrator about upgrading.");
-        }
-
-        // Encrypt: appClientId | pageUrl
-        String payload = (appClientId != null ? appClientId : "") + "|" + pageUrl;
-        String token;
-        try {
-            token = EncryptionUtil.encrypt(payload);
-        } catch (Exception e) {
-            return bad("Failed to generate link token.");
-        }
+        // A fresh random token per link. It encodes nothing — the row is the link.
+        String token = com.churchgeniuspro.service.PublicLinkResolver.newToken();
 
         LocalDate expiry = null;
         if (expObj instanceof String s && !s.isBlank()) {
@@ -197,10 +171,7 @@ public class PublicScreensController {
         Boolean showDecl = body.get("showDeclaration") instanceof Boolean b ? b : false;
         String  declText = body.get("declarationText") instanceof String s && !s.isBlank() ? s : null;
 
-        // Upsert: if a record with this token already exists (e.g. previously revoked),
-        // reactivate it instead of inserting a duplicate that would violate the unique constraint.
-        Optional<PublicScreenLink> existing = linkRepo.findByToken(token);
-        PublicScreenLink link = existing.orElseGet(PublicScreenLink::new);
+        PublicScreenLink link = new PublicScreenLink();
         link.setPageLabel(pageLabel != null ? pageLabel : pageUrl);
         link.setPageUrl(pageUrl);
         link.setToken(token);
@@ -220,8 +191,12 @@ public class PublicScreensController {
 
     @ResponseBody
     @DeleteMapping("/api/public-screens/{id}")
-    public ResponseEntity<Map<String, Object>> revoke(@PathVariable Integer id) {
-        Optional<PublicScreenLink> opt = linkRepo.findById(id);
+    public ResponseEntity<Map<String, Object>> revoke(@PathVariable Integer id, HttpServletRequest request) {
+        String appClientId = staffClientId(request);
+        if (appClientId == null) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        // Only this church's link. Another tenant's id is "not found", not "revoked".
+        Optional<PublicScreenLink> opt = linkRepo.findById(id)
+                .filter(l -> appClientId.equals(l.getAppClientId()));
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         PublicScreenLink l = opt.get();
         l.setRevoked(true);
@@ -234,9 +209,10 @@ public class PublicScreensController {
     // ── Public access endpoint ────────────────────────────────────────────
 
     /**
-     * Accessed by the public. Decrypts the token to extract the appClientId
-     * and target page, then sets a read-only public session and forwards
-     * to the target page.
+     * Legacy public entry point ({@code /pub/<token>}, the form links took before each
+     * page had its own). Looks the link up, re-checks that its church may still publish
+     * that page, and redirects to the page's own address with the token in the
+     * parameter the page reads. Never touches a signed-in session (audit P11).
      */
     @GetMapping("/pub/{token}")
     public String publicAccess(@PathVariable String token, HttpServletRequest request,
@@ -251,20 +227,39 @@ public class PublicScreensController {
             return "redirect:/login";
         }
 
-        // Decrypt token to verify payload
         try {
-            String payload     = EncryptionUtil.decrypt(token);
-            String[] parts     = payload.split("\\|", 2);
-            String appClientId = parts.length > 0 ? parts[0] : "";
-            String pageUrl     = parts.length > 1 ? parts[1] : "/home";
+            String appClientId = link.getAppClientId() != null ? link.getAppClientId() : "";
+            String pageUrl     = link.getPageUrl() != null ? link.getPageUrl() : "/home";
 
-            // Store in session for public read-only access
+            // A link already in someone's hands must not outlive the restriction.
+            String denial = publishDenialReason(pageUrl, appClientId);
+            if (denial != null) {
+                log.info("Public link refused at resolution — page={} tenant={} reason={}",
+                         pageUrl, appClientId, denial);
+                return "redirect:/login";
+            }
+
+            // Send the visitor to the page's own address, with the token in the parameter
+            // that page reads — every public page resolves its church from the token in
+            // its URL, so nothing has to be stored for it here.
+            //
+            // A signed-in visitor's session is left exactly as it is. It used to be
+            // invalidated when it belonged to another church (and, before that, silently
+            // moved onto the link's tenant), which let any page on the internet sign a
+            // staff user out with an <img> pointing here (security audit P11).
+            String target = linkPath(link);
+            jakarta.servlet.http.HttpSession existing = request.getSession(false);
+            if (existing != null && (existing.getAttribute("username") != null
+                                     || existing.getAttribute("clientId") != null)) {
+                return "redirect:" + target;
+            }
+            // Anonymous visitor: the read-only public-view marker, as before.
             jakarta.servlet.http.HttpSession session = request.getSession(true);
             session.setAttribute("publicView",    true);
             session.setAttribute("appClientId",   appClientId);
             // Don't set username — this keeps auth APIs returning 401 for writes
 
-            return "redirect:" + pageUrl;
+            return "redirect:" + target;
         } catch (Exception e) {
             return "redirect:/login";
         }
@@ -286,84 +281,34 @@ public class PublicScreensController {
         return m;
     }
 
-    /** Returns the correct public URL for the link type. */
-    private static final String MID_REG_MEET_RSVP_URL = "/midRegMeetRsvp";
-
+    /** The link's full public URL: the site address plus {@link #linkPath}. */
     private String buildLinkUrl(PublicScreenLink l) {
-        if (MEMBERSHIP_FORM_URL.equals(l.getPageUrl())) {
-            return baseUrl + MEMBERSHIP_FORM_URL + "?cid=" + l.getToken();
-        }
-        if (DONATION_PAGE_URL.equals(l.getPageUrl())) {
-            return baseUrl + DONATION_PAGE_URL + "/" + l.getToken();
-        }
-        if (MEMBER_SIGNUP_URL.equals(l.getPageUrl())) {
-            return baseUrl + MEMBER_SIGNUP_URL + "?token=" + l.getToken();
-        }
-        if (SMS_OPT_IN_URL.equals(l.getPageUrl())) {
-            return baseUrl + SMS_OPT_IN_URL + "?token=" + l.getToken();
-        }
-        if (MID_REG_MEET_RSVP_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + MID_REG_MEET_RSVP_URL + "?cid=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                // fallback: return link without cid (invalid link, but won't expose plain clientId)
-                return baseUrl + MID_REG_MEET_RSVP_URL;
-            }
-        }
-        if (PUBLIC_PRAYER_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + PUBLIC_PRAYER_URL + "?cid=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                return baseUrl + PUBLIC_PRAYER_URL;
-            }
-        }
-        if (PUBLIC_CALENDAR_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + PUBLIC_CALENDAR_URL + "?cid=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                return baseUrl + PUBLIC_CALENDAR_URL;
-            }
-        }
-        if (GUESS_IT_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + GUESS_IT_URL + "?cid=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                return baseUrl + GUESS_IT_URL;
-            }
-        }
-        if (KIDS_CHECKIN_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + KIDS_CHECKIN_URL + "?cid=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                return baseUrl + KIDS_CHECKIN_URL;
-            }
-        }
-        if (CONNECT_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + CONNECT_URL + "?c=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                return baseUrl + CONNECT_URL;
-            }
-        }
-        if (PUBLIC_PRAYER_FORM_URL.equals(l.getPageUrl()) && l.getAppClientId() != null) {
-            try {
-                String encryptedCid = com.churchgeniuspro.util.EncryptionUtil.encrypt(l.getAppClientId());
-                return baseUrl + PUBLIC_PRAYER_FORM_URL + "?c=" + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8) + "&src=WEBSITE";
-            } catch (Exception e) {
-                return baseUrl + PUBLIC_PRAYER_FORM_URL;
-            }
-        }
-        return buildPublicUrl(l.getToken());
+        return baseUrl + linkPath(l);
     }
 
-    private String buildPublicUrl(String token) {
-        return baseUrl + "/pub/" + token;
+    /**
+     * The page's own address with this link's token in the parameter that page reads
+     * (each page has its own; a page without a dedicated form takes {@code ?c=}).
+     * Used both for the URL handed to staff and as the target of {@code /pub/{token}}.
+     */
+    public static String linkPath(PublicScreenLink l) {
+        String page  = l.getPageUrl();
+        String token = java.net.URLEncoder.encode(l.getToken(), java.nio.charset.StandardCharsets.UTF_8);
+        if (MEMBERSHIP_FORM_URL.equals(page))    return MEMBERSHIP_FORM_URL + "?cid=" + token;
+        if (DONATION_PAGE_URL.equals(page))      return DONATION_PAGE_URL + "/" + token;
+        if (MEMBER_SIGNUP_URL.equals(page))      return MEMBER_SIGNUP_URL + "?token=" + token;
+        if (SMS_OPT_IN_URL.equals(page))         return SMS_OPT_IN_URL + "?token=" + token;
+        if (PUBLIC_PRAYER_URL.equals(page))      return PUBLIC_PRAYER_URL + "?cid=" + token;
+        if (PUBLIC_CALENDAR_URL.equals(page))    return PUBLIC_CALENDAR_URL + "?cid=" + token;
+        if (GUESS_IT_URL.equals(page))           return GUESS_IT_URL + "?cid=" + token;
+        if (KIDS_CHECKIN_URL.equals(page))       return KIDS_CHECKIN_URL + "?cid=" + token;
+        // Connect carries this link's own token, so revoking or expiring this row stops
+        // this URL specifically. Previously every Connect link for a church was the
+        // same ciphertext, which no revocation could distinguish.
+        if (CONNECT_URL.equals(page))            return CONNECT_URL + "?c=" + token;
+        if (PUBLIC_PRAYER_FORM_URL.equals(page)) return PUBLIC_PRAYER_FORM_URL + "?c=" + token + "&src=WEBSITE";
+        String base = page != null && !page.isBlank() ? page : "/home";
+        return base + (base.contains("?") ? "&" : "?") + "c=" + token;
     }
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {

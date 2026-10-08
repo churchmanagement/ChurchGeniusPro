@@ -107,6 +107,7 @@ public class MappingService {
             }
 
             rule.setRunId(runId);
+            rule.setClientId(clientId);
             rule.setTargetTable(targetTable);
             rule.setTargetColumn(s.targetColumn);
             rule.setSourceTable(sourceTable);
@@ -202,6 +203,7 @@ public class MappingService {
             .findByRunIdAndTargetTableAndTargetColumn(runId, targetTable, targetColumn)
             .orElseGet(MappingRule::new);
         rule.setRunId(runId);
+        rule.setClientId(clientId);
         rule.setTargetTable(targetTable);
         rule.setTargetColumn(targetColumn);
         if (sourceTable  != null) rule.setSourceTable(sourceTable);

@@ -261,7 +261,16 @@ public class TemporaryAccessService {
 
     // ── Validation + status ──────────────────────────────────────────────────────
 
-    public enum CheckResult { OK, NOT_FOUND, REVOKED, NOT_STARTED, EXPIRED, BAD_CODE }
+    public enum CheckResult { OK, NOT_FOUND, REVOKED, NOT_STARTED, EXPIRED, BAD_CODE, SUBSCRIPTION_ENDED }
+
+    /**
+     * The church's own account status (deleted, not Active, or past its end date).
+     * Optional so hand-built tests are unchanged; without it only the pass's own
+     * window is checked, as before.
+     */
+    private AccountStatusService accountStatus;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAccountStatus(AccountStatusService a) { this.accountStatus = a; }
 
     /** Effective status for display: REVOKED → EXPIRED → SCHEDULED → ACTIVE. */
     public String effectiveStatus(TemporaryAccess a) {
@@ -297,6 +306,11 @@ public class TemporaryAccessService {
             return new Validation(CheckResult.EXPIRED, a);
         if (code == null || !PasswordUtil.matches(code.trim(), a.getAccessCodeHash()))
             return new Validation(CheckResult.BAD_CODE, a);
+        // A pass is one of the church's logins: when the church's subscription or trial
+        // has ended, it cannot sign in either (checked after the code, so only a holder
+        // of a valid pass learns this).
+        if (accountStatus != null && accountStatus.forTenant(a.getClientId()) != null)
+            return new Validation(CheckResult.SUBSCRIPTION_ENDED, a);
         return new Validation(CheckResult.OK, a);
     }
 

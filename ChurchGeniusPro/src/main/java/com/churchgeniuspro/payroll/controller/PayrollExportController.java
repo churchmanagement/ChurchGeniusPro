@@ -135,6 +135,7 @@ public class PayrollExportController {
             m.put("preTaxDeductions", s.getPreTaxDeductions());
             m.put("postTaxDeductions", s.getPostTaxDeductions());
             m.put("netPay", s.getNetPay());
+            m.put("arrearsAmount", s.getArrearsAmount());
             m.put("voided", s.isVoided());
             rows.add(m);
         }

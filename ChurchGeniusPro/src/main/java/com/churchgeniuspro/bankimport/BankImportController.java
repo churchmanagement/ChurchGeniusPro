@@ -58,7 +58,7 @@ public class BankImportController {
     public String page(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "accounting.bankimport");
+        deny = RoleGuard.requirePagePermission(request, "accounting.bankimport");
         if (deny != null) return deny;
         return "forward:/bank-import.html";
     }
@@ -70,6 +70,11 @@ public class BankImportController {
                                                       HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in to import."));
+        // Mirrors the /bank-import page guard: role + permission, not just "has a session".
+        if (RoleGuard.requireAccountantOrAdmin(request) != null
+                || RoleGuard.requirePermission(request, "accounting.bankimport") != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        }
         if (file == null || file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No file selected."));
 
         String name = file.getOriginalFilename();
@@ -96,6 +101,8 @@ public class BankImportController {
                 m.put("category", t.category);
                 m.put("fund", t.fund);
                 m.put("confidence", t.confidence);
+                String importRef = BankImportFingerprint.of(t.date, t.amount, null, t.description);
+                if (importRef != null) m.put("importRef", importRef);
                 rows.add(m);
                 if (t.amount != null && t.amount.signum() > 0) { credits++; totalIn = totalIn.add(t.amount); }
                 else if (t.amount != null) { debits++; totalOut = totalOut.add(t.amount.abs()); }
@@ -124,6 +131,31 @@ public class BankImportController {
     }
 
     /**
+     * A fictional sample statement for trial/demo tenants ({@link BankImportDemoStatement}).
+     * Role check only: the {@code accounting.bankimport} permission gates the /bank-import
+     * PAGE (permissions govern pages, menus and buttons, not APIs), and this returns no
+     * church data. Every other church gets 404, which
+     * is also how the page decides whether to show its "Load sample statement" button —
+     * so for a regular church the page is exactly as it was.
+     */
+    @ResponseBody
+    @GetMapping("/api/bank-import/demo-statement")
+    public ResponseEntity<?> demoStatement(HttpServletRequest request) {
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in to import."));
+        if (RoleGuard.requireAccountantOrAdmin(request) != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        }
+        if (!com.churchgeniuspro.service.TestDataService.isManagedTenant(clientId)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Not available."));
+        }
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
+                .header("Content-Disposition", "inline; filename=\"" + BankImportDemoStatement.FILE_NAME + "\"")
+                .body(BankImportDemoStatement.csv(LocalDate.now(java.time.ZoneId.of("America/Chicago"))));
+    }
+
+    /**
      * Photo / PDF statement upload → OCR/extract transactions. PDFs are parsed
      * server-side; images are flagged so the browser OCR's them and calls
      * {@code /scan-parse}. Returns the SAME {data, summary} shape as {@code /parse}.
@@ -134,6 +166,11 @@ public class BankImportController {
                                                      HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in to import."));
+        // Mirrors the /bank-import page guard: role + permission, not just "has a session".
+        if (RoleGuard.requireAccountantOrAdmin(request) != null
+                || RoleGuard.requirePermission(request, "accounting.bankimport") != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        }
         if (file == null || file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No file selected."));
         byte[] bytes;
         BankStatementExtractor.Result r;
@@ -178,6 +215,11 @@ public class BankImportController {
                                                          HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in to import."));
+        // Mirrors the /bank-import page guard: role + permission, not just "has a session".
+        if (RoleGuard.requireAccountantOrAdmin(request) != null
+                || RoleGuard.requirePermission(request, "accounting.bankimport") != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        }
         String text = body.get("text") == null ? "" : String.valueOf(body.get("text"));
         int ocrConf = 0;
         try { if (body.get("ocrConfidence") != null) ocrConf = (int) Math.round(Double.parseDouble(String.valueOf(body.get("ocrConfidence")))); }
@@ -198,6 +240,11 @@ public class BankImportController {
                                                               HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
+        // Mirrors the /bank-import page guard: role + permission, not just "has a session".
+        if (RoleGuard.requireAccountantOrAdmin(request) != null
+                || RoleGuard.requirePermission(request, "accounting.bankimport") != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("found", false);
@@ -271,6 +318,17 @@ public class BankImportController {
         resp.put("method", r.method);
         resp.put("readable", r.readable);
         if (r.note != null && !r.note.isEmpty()) resp.put("note", r.note);
+        // Financial audit H8: tag every row with a fingerprint so a later save can
+        // recognize this exact statement line, whichever import channel posted it.
+        for (Map<String, Object> row : r.rows) {
+            Object amt = row.get("amount");
+            String importRef = BankImportFingerprint.of(
+                    row.get("date") == null ? null : String.valueOf(row.get("date")),
+                    amt instanceof BigDecimal ? (BigDecimal) amt : null,
+                    row.get("checkNo") == null ? null : String.valueOf(row.get("checkNo")),
+                    row.get("description") == null ? null : String.valueOf(row.get("description")));
+            if (importRef != null) row.put("importRef", importRef);
+        }
         resp.put("data", r.rows);
         if (fileName != null && r.summary != null) r.summary.put("fileName", fileName);
         resp.put("summary", r.summary);

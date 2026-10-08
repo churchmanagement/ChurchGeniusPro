@@ -24,7 +24,10 @@ public class PrivateAccessController {
 
     private final PrivateAccessService service;
 
-    public PrivateAccessController(PrivateAccessService service) {
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+
+    public PrivateAccessController(PrivateAccessService service, com.churchgeniuspro.service.PublicLinkResolver links) {
+        this.links = links;
         this.service = service;
     }
 
@@ -49,8 +52,8 @@ public class PrivateAccessController {
         String clientId = SessionUtil.getAppClientId(request);
         Map<String, Object> cfg = new java.util.LinkedHashMap<>(service.configMap(clientId));
         // Church-scoped login link token so staff/kiosks can reach the gated login for THIS church.
-        try { cfg.put("loginToken", com.churchgeniuspro.util.EncryptionUtil.encrypt(clientId)); }
-        catch (Exception e) { cfg.put("loginToken", null); }
+        cfg.put("loginToken", links.ensureLink(clientId, com.churchgeniuspro.service.PublicPagePolicy.PRIVATE_ACCESS_URL, "Private Access Login")
+                .map(com.churchgeniuspro.hibernate.PublicScreenLink::getToken).orElse(null));
         return ResponseEntity.ok(cfg);
     }
 
@@ -74,6 +77,7 @@ public class PrivateAccessController {
         Long id = body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
         PrivateNetwork n = service.saveNetwork(clientId, id,
                 str(body.get("name")), str(body.get("ipRanges")), asBool(body.get("enabled"), true));
+        if (n == null) return ResponseEntity.status(404).body(Map.of("error", "Network not found"));
         return ResponseEntity.ok(Map.of("id", n.getId(), "name", n.getName(),
                 "ipRanges", n.getIpRanges() == null ? "" : n.getIpRanges(), "enabled", n.isEnabled()));
     }

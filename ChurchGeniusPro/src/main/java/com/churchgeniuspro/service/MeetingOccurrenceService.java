@@ -48,8 +48,8 @@ public class MeetingOccurrenceService {
         if (m.isDeleteFlag()) {
             throw new IllegalArgumentException("Meeting not found: " + id);
         }
-        if (appClientId != null && m.getAppClientId() != null
-                && !appClientId.equals(m.getAppClientId())) {
+        // No session tenant, or a meeting owned by another (or no) tenant, is "not found".
+        if (appClientId == null || !appClientId.equals(m.getAppClientId())) {
             throw new IllegalArgumentException("Meeting not found: " + id);
         }
         return m;

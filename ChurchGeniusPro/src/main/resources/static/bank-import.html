@@ -148,6 +148,8 @@
           <button class="btn" id="btnParse" disabled>Upload &amp; Categorize</button>
           <button class="btn ghost" id="btnPhoto">📷 Take Photo</button>
           <button class="btn ghost" id="btnClear" disabled>Clear</button>
+          <!-- Trial/demo accounts only: shown when /api/bank-import/demo-statement answers. -->
+          <button class="btn ghost hidden" id="btnSample" title="Load a fictional statement to see how Bank Import works">📄 Load sample statement</button>
           <span id="status" style="font-size:13px;color:var(--muted);"></span>
         </div>
       </div>
@@ -342,6 +344,33 @@
         ingest(res.j);
       })
       .catch(function(){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">Network error — please try again.</span>'; });
+  });
+
+  // ── Sample statement (trial/demo accounts only) ──
+  // The endpoint answers only for trial/demo tenants; everyone else gets 404 and
+  // the button stays hidden, so the page is unchanged for regular churches.
+  var SAMPLE = null;
+  fetch('/api/bank-import/demo-statement', { cache: 'no-store' })
+    .then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(txt){ if (txt) { SAMPLE = txt; $('btnSample').classList.remove('hidden'); } })
+    .catch(function(){ /* not available — keep hidden */ });
+  $('btnSample').addEventListener('click', function(){
+    if (!SAMPLE) return;
+    var name = 'sample-bank-statement-DEMO.csv';
+    var f = new File([SAMPLE], name, { type: 'text/csv' });
+    $('fname').textContent = 'Sample (fictional demo data): ' + name;
+    $('btnSample').disabled = true;
+    $('status').innerHTML = '<span class="spin"></span> Reading &amp; categorizing…';
+    var fd = new FormData(); fd.append('file', f);
+    fetch('/api/bank-import/parse', { method:'POST', body:fd })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        $('btnSample').disabled = false;
+        if (!res.ok || res.j.error) { $('status').innerHTML = '<span style="color:#b42424;">'+esc(res.j.error||'Could not load the sample.')+'</span>'; return; }
+        $('btnClear').disabled = false;
+        ingest(res.j);
+      })
+      .catch(function(){ $('btnSample').disabled = false; $('status').innerHTML = '<span style="color:#b42424;">Network error — please try again.</span>'; });
   });
 
   // ── Photo capture + OCR scan pipeline ──
@@ -607,12 +636,15 @@
   });
 
   // Build the save payload from the current editor state. Returns {url, payload, label} or null (with error shown).
-  function buildSavePayload(){
+  // `t` is the parsed row being saved (ALL[].filter by _id) — carries the server-computed
+  // importRef fingerprint, when the row has one, straight through to the create endpoint.
+  function buildSavePayload(t){
     var amount = parseFloat($('mAmount').value);
     var date   = $('mDate').value;
     var method = $('mMethod').value ? parseInt($('mMethod').value,10) : null;
     var refNo  = $('mRef').value.trim() || null;
     var note   = $('mNote').value.trim() || null;
+    var importRef = (t && t.importRef) || null;
     if(!(amount>0)){ showErr('Amount must be greater than zero.'); return null; }
     if(!date){ showErr('Date is required.'); return null; }
     if(!method){ showErr('Method is required.'); return null; }
@@ -624,7 +656,8 @@
       var guestName = (contrib==='guest') ? ($('mGuestName').value.trim() || null) : null;
       return { url:'/api/income', label:'Income', amount:amount, date:date, refNo:refNo,
         payload:{ memberId:memberId, guestName:guestName, subSourceId:sub, incomeDate:date,
-                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false } };
+                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false,
+                  importRef:importRef } };
     } else {
       var purpose = $('mPurpose').value ? parseInt($('mPurpose').value,10) : null;
       var mainSrc = $('mMainSource').value ? parseInt($('mMainSource').value,10) : null;
@@ -632,19 +665,30 @@
       if(!mainSrc){ showErr('Fund is required.'); return null; }
       return { url:'/api/expense', label:'Expense', amount:amount, date:date, refNo:refNo,
         payload:{ purposeId:purpose, mainSourceId:mainSrc, expenseDate:date,
-                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false } };
+                  transactionTypeId:method, refNo:refNo, amount:amount, note:note, quickAdd:false,
+                  importRef:importRef } };
     }
   }
 
-  // POST a new record, or PUT to overwrite an existing one (overwriteId set).
-  function doSave(spec, overwriteId){
+  // POST a new record, or PUT to overwrite an existing one (overwriteId set). `force`
+  // tells the create endpoint to skip its own soft (date+amount) duplicate check —
+  // used when the reviewer has already seen and dismissed that warning.
+  //
+  // Financial audit H8: duplicate prevention used to live only in the pre-save
+  // /check-duplicate ping — declining its warning, or that call failing outright (see
+  // the .catch below), still let the POST through. It is now enforced by the create
+  // endpoint itself, so a 409 here is handled the same way as a 409 from the pre-check:
+  // routed to the same showDup panel, never silently swallowed.
+  function doSave(spec, overwriteId, force){
     var saveBtn=$('mSave'); saveBtn.disabled=true; saveBtn.textContent='Saving…';
     var url = overwriteId ? (spec.url+'/'+overwriteId) : spec.url;
     var method = overwriteId ? 'PUT' : 'POST';
-    fetch(url, { method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(spec.payload) })
-      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+    var payload = Object.assign({}, spec.payload, { force: !!force });
+    fetch(url, { method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+      .then(function(r){ return r.json().then(function(j){ return {status:r.status, ok:r.ok, j:j}; }); })
       .then(function(res){
         saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>';
+        if(res.status===409 && res.j.duplicate){ showDup(spec, res.j.duplicate); return; }
         if(!res.ok || res.j.error){ showErr(res.j.error || 'Save failed.'); return; }
         SAVED[editingId] = { type:spec.label, id:(res.j.id||overwriteId||null) };
         closeEditor(); applyFilters();
@@ -652,29 +696,33 @@
       .catch(function(){ saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>'; showErr('Network error — please try again.'); });
   }
 
-  // Show the duplicate warning with Skip / Save as New / Overwrite.
+  // Show the duplicate warning with Skip / Save as New / Overwrite. A "hard" duplicate
+  // (dup.hard) means this exact statement line was already imported — re-saving it as
+  // new can never be intended, so that option is not offered, only Skip and (when the
+  // existing row is the same type) Update/Overwrite.
   function showDup(spec, dup){
     var box=$('mDup');
-    box.innerHTML = '⚠️ A possible duplicate already exists — '
+    var isHard = !!dup.hard;
+    box.innerHTML = '⚠️ ' + (isHard ? 'This transaction was already imported — ' : 'A possible duplicate already exists — ')
       + '<b>'+esc(dup.type)+'</b> on '+esc(dup.date)+' for $'+Math.abs(Number(dup.amount)).toFixed(2)
       + (dup.refNo ? ' (ref '+esc(dup.refNo)+')' : '') + '.'
       + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
       +   '<button class="btn ghost sm" id="mDupSkip">Skip</button>'
-      +   '<button class="btn sm" id="mDupNew">Save as New</button>'
+      +   (isHard ? '' : '<button class="btn sm" id="mDupNew">Save as New</button>')
       +   (dup.id && dup.type===spec.label.toLowerCase()
             ? '<button class="btn sm" id="mDupOver" style="background:#b42446;">Update / Overwrite</button>' : '')
       + '</div>';
     box.style.display='';
     $('mDupSkip').addEventListener('click', function(){ box.style.display='none'; SAVED[editingId]={type:'Skipped'}; closeEditor(); applyFilters(); });
-    $('mDupNew').addEventListener('click', function(){ box.style.display='none'; doSave(spec, null); });
-    var ov=$('mDupOver'); if(ov) ov.addEventListener('click', function(){ box.style.display='none'; doSave(spec, dup.id); });
+    var nw=$('mDupNew'); if(nw) nw.addEventListener('click', function(){ box.style.display='none'; doSave(spec, null, true); });
+    var ov=$('mDupOver'); if(ov) ov.addEventListener('click', function(){ box.style.display='none'; doSave(spec, dup.id, true); });
   }
 
   $('mSave').addEventListener('click', function(){
     $('mErr').classList.add('hidden'); $('mDup').style.display='none';
-    var spec = buildSavePayload();
-    if(!spec) return;
     var t = ALL.filter(function(x){ return x._id===editingId; })[0] || {};
+    var spec = buildSavePayload(t);
+    if(!spec) return;
     var saveBtn=$('mSave'); saveBtn.disabled=true; saveBtn.textContent='Checking…';
     fetch('/api/bank-import/check-duplicate', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:spec.label.toLowerCase(), date:spec.date, amount:spec.amount, refNo:spec.refNo, checkNo:(t.checkNo||null) }) })

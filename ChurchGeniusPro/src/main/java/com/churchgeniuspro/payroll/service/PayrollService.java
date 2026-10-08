@@ -5,6 +5,7 @@ import com.churchgeniuspro.payroll.config.FicaConfig;
 import com.churchgeniuspro.payroll.config.StateWithholdingConfig;
 import com.churchgeniuspro.payroll.engine.*;
 import com.churchgeniuspro.payroll.entity.*;
+import com.churchgeniuspro.payroll.model.DeductionScope;
 import com.churchgeniuspro.payroll.model.PayFrequency;
 import com.churchgeniuspro.payroll.model.PayType;
 import com.churchgeniuspro.payroll.model.PayrollRunStatus;
@@ -12,6 +13,7 @@ import com.churchgeniuspro.payroll.model.EarningType;
 import com.churchgeniuspro.payroll.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,6 +106,16 @@ public class PayrollService {
         }
         PayrollEmployee emp = employeeRepo.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found: " + employeeId));
+        // Financial audit H3: a second call for the same employee in the same run
+        // (double-click, retry, or re-running process-all after a partial failure)
+        // must not silently create a duplicate paystub. IllegalArgumentException (not
+        // IllegalStateException) so PayrollAdminController#processAll's existing
+        // skip-and-continue handling covers this the same way it covers "no hours
+        // supplied" — re-running process-all on a partially-processed run just skips
+        // employees who are already done, instead of logging a batch error for them.
+        if (paystubRepo.existsByRunIdAndEmployeeIdAndVoidedFalse(runId, employeeId)) {
+            throw new IllegalArgumentException(emp.fullName() + " already has a paystub in this run.");
+        }
 
         int periods = run.getPayFrequency() != null
                 ? (emp.getPayPeriodsPerYearOverride() != null ? emp.getPayPeriodsPerYearOverride()
@@ -130,13 +142,13 @@ public class PayrollService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Build the calculation input.
+        int year = run.getPayDate() != null ? run.getPayDate().getYear() : LocalDate.now().getYear();
         PayrollCalculationInput in = new PayrollCalculationInput();
         in.setPayFrequency(run.getPayFrequency());
         in.setPayPeriodsPerYearOverride(emp.getPayPeriodsPerYearOverride());
         in.setEarnings(earningLines);
-        in.setDeductions(buildDeductions(emp, gross));
+        in.setDeductions(buildDeductions(emp, gross, year, run.getPayDate()));
         in.setW4(buildW4(employeeId));
-        int year = run.getPayDate() != null ? run.getPayDate().getYear() : LocalDate.now().getYear();
         in.setPriorYtd(computePriorYtd(emp.getAppClientId(), employeeId, year, run.getPayDate()));
 
         FederalWithholdingConfig fed = taxConfig.loadFederal(year);
@@ -145,8 +157,16 @@ public class PayrollService {
 
         PayrollCalculationResult res = PayrollCalculator.calculate(in, fed, fica, state);
 
-        Paystub stub = persistPaystub(run, emp, res);
-        rollUpRunTotals(run, res);
+        Paystub stub;
+        try {
+            stub = persistPaystub(run, emp, res);
+        } catch (DataIntegrityViolationException dup) {
+            // Race-safe backstop for the same duplicate the pre-check above guards
+            // against (see ux_paystub_run_employee in DatabaseIndexInitializer): two
+            // concurrent requests for the same employee could both pass that check.
+            throw new IllegalArgumentException(emp.fullName() + " already has a paystub in this run.");
+        }
+        recomputeRunTotals(run);
         audit(emp.getAppClientId(), "Paystub", stub.getId(), "CREATE", actor,
                 "Paystub for " + emp.fullName() + " — gross " + res.getGrossEarnings()
                         + ", net " + res.getNetPay());
@@ -201,11 +221,14 @@ public class PayrollService {
         run.setVoidedBy(actor);
         run.setVoidedAt(new Date());
         run.setVoidReason(reason);
-        runRepo.save(run);
         for (Paystub s : paystubRepo.findByRunId(runId)) {
             s.setVoided(true);
             paystubRepo.save(s);
         }
+        // Financial audit H3: every stub in the run is now voided, so this recomputes
+        // (and saves) the run's totals down to zero/zero-employees instead of leaving
+        // the last-accumulated gross/net figures standing on a VOIDED run.
+        recomputeRunTotals(run);
         audit(run.getAppClientId(), "PayrollRun", runId, "VOID", actor, "Voided: " + reason);
         return run;
     }
@@ -227,12 +250,21 @@ public class PayrollService {
         return w4;
     }
 
-    private List<DeductionLine> buildDeductions(PayrollEmployee emp, BigDecimal gross) {
+    private List<DeductionLine> buildDeductions(PayrollEmployee emp, BigDecimal gross,
+                                                int year, LocalDate beforePayDate) {
         List<EmployeeDeduction> assignments = employeeDeductionRepo.findByEmployeeIdAndActiveTrue(emp.getId());
         if (assignments.isEmpty()) return new ArrayList<>();
         Map<Long, DeductionDefinition> defs = deductionDefRepo
                 .findByAppClientIdAndActiveTrue(emp.getAppClientId()).stream()
                 .collect(Collectors.toMap(DeductionDefinition::getId, d -> d));
+
+        // Financial audit M12a: lazily fetched only if some assignment actually
+        // carries an annualLimit, and fetched at most once per call (not once per
+        // capped deduction) — the ids of this employee's own non-voided paystubs
+        // so far this year, same "same pay date still counts as prior" boundary
+        // as computePriorYtd.
+        List<Long> priorStubIdsThisYear = null;
+
         List<DeductionLine> lines = new ArrayList<>();
         for (EmployeeDeduction a : assignments) {
             DeductionDefinition def = defs.get(a.getDefinitionId());
@@ -241,8 +273,25 @@ public class PayrollService {
             if (def.isPercentageBased()) {
                 amount = gross.multiply(amount).setScale(2, RoundingMode.HALF_UP);
             }
+            // Financial audit M12a: annualLimit (e.g. a 401(k) elective-deferral
+            // cap) was stored and echoed back by the API but never enforced here,
+            // so a deferral could run past the statutory limit all year. A
+            // non-positive limit is treated as "no cap" (the field's own default/
+            // unset shape), matching how amountOrRate is already treated the same
+            // way elsewhere in this method.
+            if (a.getAnnualLimit() != null && a.getAnnualLimit().signum() > 0) {
+                if (priorStubIdsThisYear == null) {
+                    priorStubIdsThisYear = priorStubIdsThisYear(emp.getAppClientId(), emp.getId(), year, beforePayDate);
+                }
+                PaystubItem.Category cat = def.getScope() == DeductionScope.PRE_TAX
+                        ? PaystubItem.Category.PRE_TAX_DEDUCTION : PaystubItem.Category.POST_TAX_DEDUCTION;
+                BigDecimal ytdSoFar = priorStubIdsThisYear.isEmpty() ? BigDecimal.ZERO
+                        : sumDeductionItems(priorStubIdsThisYear, cat, def.getName());
+                BigDecimal remaining = a.getAnnualLimit().subtract(ytdSoFar);
+                amount = remaining.signum() <= 0 ? BigDecimal.ZERO : amount.min(remaining);
+            }
             DeductionLine line;
-            if (def.getScope() == com.churchgeniuspro.payroll.model.DeductionScope.PRE_TAX) {
+            if (def.getScope() == DeductionScope.PRE_TAX) {
                 line = DeductionLine.preTax(def.getName(), amount,
                         def.isReducesFederalTaxable(), def.isReducesStateTaxable(), def.isReducesFicaWages());
             } else {
@@ -253,22 +302,51 @@ public class PayrollService {
         return lines;
     }
 
-    /**
-     * Prior YTD = sum of this employee's non-voided paystubs earlier in the same
-     * calendar year. Most categories are summed from each stub's current-period
-     * columns; cumulative FICA wages come from the most recent prior stub's
-     * stored YTD-FICA snapshot (FICA wages aren't a per-period column).
-     */
-    private YtdAmounts computePriorYtd(String appClientId, Long employeeId, int year, LocalDate beforePayDate) {
-        YtdAmounts ytd = YtdAmounts.zero();
-        BigDecimal latestYtdFica = BigDecimal.ZERO;
-        LocalDate latest = null;
+    /** Ids of this employee's non-voided paystubs in {@code year}, on or before {@code beforePayDate}. */
+    private List<Long> priorStubIdsThisYear(String appClientId, Long employeeId, int year, LocalDate beforePayDate) {
+        List<Long> ids = new ArrayList<>();
         for (Paystub s : paystubRepo.findByAppClientIdAndEmployeeIdOrderByPayDateDesc(appClientId, employeeId)) {
             if (s.isVoided() || s.getPayDate() == null) continue;
             if (s.getPayDate().getYear() != year) continue;
-            if (beforePayDate != null && !s.getPayDate().isBefore(beforePayDate)) continue;
+            if (beforePayDate != null && s.getPayDate().isAfter(beforePayDate)) continue;
+            ids.add(s.getId());
+        }
+        return ids;
+    }
+
+    /** Sum of currentAmount across the given paystubs' items matching one category + label. */
+    private BigDecimal sumDeductionItems(List<Long> paystubIds, PaystubItem.Category category, String label) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (PaystubItem item : paystubItemRepo.findByPaystubIdInAndCategoryAndLabel(paystubIds, category, label)) {
+            total = total.add(nz(item.getCurrentAmount()));
+        }
+        return total;
+    }
+
+    /**
+     * Prior YTD = sum of this employee's non-voided paystubs on or before
+     * {@code beforePayDate}, within the same calendar year. Every category —
+     * FICA wages included — is summed directly from each stub's own per-period
+     * columns.
+     *
+     * <p>Financial audit H1/H2. Two runs sharing the same pay date (e.g. a
+     * same-day off-cycle correction) both count: the boundary excludes only pay
+     * dates strictly <em>after</em> the run being processed, not same-day stubs.
+     * And because every category (including FICA wages) is a plain sum of each
+     * stub's own current-period amount, a voided stub's contribution can never
+     * leak forward the way it could when FICA wages were instead taken from the
+     * most recent prior stub's cumulative YTD-FICA snapshot — that snapshot could
+     * still include a stub that has since been voided.
+     */
+    private YtdAmounts computePriorYtd(String appClientId, Long employeeId, int year, LocalDate beforePayDate) {
+        YtdAmounts ytd = YtdAmounts.zero();
+        for (Paystub s : paystubRepo.findByAppClientIdAndEmployeeIdOrderByPayDateDesc(appClientId, employeeId)) {
+            if (s.isVoided() || s.getPayDate() == null) continue;
+            if (s.getPayDate().getYear() != year) continue;
+            if (beforePayDate != null && s.getPayDate().isAfter(beforePayDate)) continue;
             ytd.setGrossEarnings(ytd.getGrossEarnings().add(nz(s.getGrossEarnings())));
             ytd.setPreTaxDeductions(ytd.getPreTaxDeductions().add(nz(s.getPreTaxDeductions())));
+            ytd.setFicaWages(ytd.getFicaWages().add(nz(s.getFicaWages())));
             ytd.setFederalWithholding(ytd.getFederalWithholding().add(nz(s.getFederalWithholding())));
             ytd.setSocialSecurity(ytd.getSocialSecurity().add(nz(s.getSocialSecurity())));
             ytd.setMedicare(ytd.getMedicare().add(nz(s.getMedicare())));
@@ -277,12 +355,7 @@ public class PayrollService {
             ytd.setLocalTax(ytd.getLocalTax().add(nz(s.getLocalTax())));
             ytd.setPostTaxDeductions(ytd.getPostTaxDeductions().add(nz(s.getPostTaxDeductions())));
             ytd.setNetPay(ytd.getNetPay().add(nz(s.getNetPay())));
-            if (latest == null || s.getPayDate().isAfter(latest)) {
-                latest = s.getPayDate();
-                latestYtdFica = nz(s.getYtdFicaWages());
-            }
         }
-        ytd.setFicaWages(latestYtdFica);
         return ytd;
     }
 
@@ -311,6 +384,7 @@ public class PayrollService {
         stub.setPostTaxDeductions(res.getTotalPostTaxDeductions());
         stub.setTotalTaxes(res.getTotalTaxes());
         stub.setNetPay(res.getNetPay());
+        stub.setArrearsAmount(res.getArrearsAmount());
         YtdAmounts y = res.getNewYtd();
         stub.setYtdGross(y.getGrossEarnings());
         stub.setYtdPreTaxDeductions(y.getPreTaxDeductions());
@@ -348,13 +422,33 @@ public class PayrollService {
         return order;
     }
 
-    private void rollUpRunTotals(PayrollRun run, PayrollCalculationResult res) {
-        run.setTotalGross(nz(run.getTotalGross()).add(res.getGrossEarnings()));
-        run.setTotalTaxes(nz(run.getTotalTaxes()).add(res.getTotalTaxes()));
-        run.setTotalDeductions(nz(run.getTotalDeductions())
-                .add(res.getTotalPreTaxDeductions()).add(res.getTotalPostTaxDeductions()));
-        run.setTotalNet(nz(run.getTotalNet()).add(res.getNetPay()));
-        run.setEmployeeCount((run.getEmployeeCount() == null ? 0 : run.getEmployeeCount()) + 1);
+    /**
+     * Recompute this run's denormalized totals from its own non-voided paystubs
+     * (and save the run). Financial audit H3: the previous incremental
+     * accumulation (each call adding one more employee's figures) double-counted
+     * a paystub reprocessed after a partial failure, and never reduced the totals
+     * when a run was voided — a VOIDED run kept reporting its last-accumulated
+     * gross/net. Recomputing from source on every mutation is idempotent and
+     * always reflects the true current state, matching how the downstream
+     * reports already aggregate directly from non-voided {@link Paystub} rows.
+     */
+    private void recomputeRunTotals(PayrollRun run) {
+        BigDecimal gross = BigDecimal.ZERO, taxes = BigDecimal.ZERO,
+                deductions = BigDecimal.ZERO, net = BigDecimal.ZERO;
+        int count = 0;
+        for (Paystub s : paystubRepo.findByRunId(run.getId())) {
+            if (s.isVoided()) continue;
+            gross = gross.add(nz(s.getGrossEarnings()));
+            taxes = taxes.add(nz(s.getTotalTaxes()));
+            deductions = deductions.add(nz(s.getPreTaxDeductions())).add(nz(s.getPostTaxDeductions()));
+            net = net.add(nz(s.getNetPay()));
+            count++;
+        }
+        run.setTotalGross(gross);
+        run.setTotalTaxes(taxes);
+        run.setTotalDeductions(deductions);
+        run.setTotalNet(net);
+        run.setEmployeeCount(count);
         runRepo.save(run);
     }
 

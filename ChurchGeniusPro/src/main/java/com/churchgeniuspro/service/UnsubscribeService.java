@@ -47,13 +47,16 @@ public class UnsubscribeService {
         return true;
     }
 
-    /** Removes the unsubscribe record so the address will receive future emails. */
+    /**
+     * Removes the unsubscribe record so the address will receive future emails.
+     * Only a record belonging to {@code clientId} can be removed; a foreign id
+     * fails exactly like an unknown one.
+     */
     @Transactional
-    public void resubscribe(Integer id) {
-        if (!repo.existsById(id)) {
-            throw new IllegalArgumentException("Unsubscribe record not found: " + id);
-        }
-        repo.deleteById(id);
+    public void resubscribe(Integer id, String clientId) {
+        EmailUnsubscribe u = repo.findByIdAndClientId(id, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Unsubscribe record not found: " + id));
+        repo.delete(u);
     }
 
     /** Returns all unsubscribed addresses for an organization, newest first. */

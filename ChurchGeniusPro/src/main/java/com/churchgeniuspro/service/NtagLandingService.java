@@ -2,7 +2,6 @@ package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 /**
@@ -26,6 +26,13 @@ public class NtagLandingService {
     private static final Logger LOG = LoggerFactory.getLogger(NtagLandingService.class);
     private final ObjectMapper mapper = new ObjectMapper();
 
+    // The app's single operational time zone — same constant used for reminder/
+    // scheduling cutoffs elsewhere (ReminderSchedulerService, EventRegistrationReminderService).
+    // "Today" for the public Upcoming Events list must be evaluated here, not in the
+    // server JVM's default zone: a cloud host typically runs in UTC, which can call it
+    // "tomorrow" while it is still today for the church, silently hiding same-day events.
+    private static final ZoneId CHURCH_ZONE = ZoneId.of("America/Chicago");
+
     private final NtagLandingConfigRepository configRepo;
     private final NtagLandingEventRepository eventRepo;
     private final ChurchRegistrationRepository churchRepo;
@@ -33,12 +40,16 @@ public class NtagLandingService {
     private final ChurchEventRepository churchEventRepo;
     private final MeetingRepository meetingRepo;
 
+    private final PublicLinkResolver links;
+
     public NtagLandingService(NtagLandingConfigRepository configRepo,
                               NtagLandingEventRepository eventRepo,
                               ChurchRegistrationRepository churchRepo,
                               ChurchLogoRepository logoRepo,
                               ChurchEventRepository churchEventRepo,
-                              MeetingRepository meetingRepo) {
+                              MeetingRepository meetingRepo,
+            PublicLinkResolver links) {
+        this.links = links;
         this.configRepo = configRepo;
         this.eventRepo = eventRepo;
         this.churchRepo = churchRepo;
@@ -64,7 +75,11 @@ public class NtagLandingService {
     }
 
     private List<Map<String, Object>> defaultButtons(String clientId, ChurchRegistration cr) {
-        String enc = encOrEmpty(clientId);
+        // Each button carries the church's own live link for that page (created here
+        // if needed). Revoking a link on Public Screens ends that button's URL.
+        String connect = tokenFor(clientId, PublicPagePolicy.CONNECT_URL,            "Connect With Us");
+        String events  = tokenFor(clientId, PublicPagePolicy.UPCOMING_EVENTS_URL,    "Upcoming Events");
+        String prayer  = tokenFor(clientId, PublicPagePolicy.PUBLIC_PRAYER_FORM_URL, "Prayer Request (Public)");
         String website   = cr != null ? nz(cr.getWebsiteUrl())   : "";
         String facebook  = cr != null ? nz(cr.getFacebookUrl())  : "";
         String instagram = cr != null ? nz(cr.getInstagramUrl()) : "";
@@ -73,9 +88,9 @@ public class NtagLandingService {
         List<Map<String, Object>> b = new ArrayList<>();
         // Main action buttons.
         b.add(button("website",   "Website",          "🌐", website, true, 1, "main"));
-        b.add(button("connect",   "Connect With Us",  "🤝", "/connect?c=" + enc, true, 2, "main"));
-        b.add(button("events",    "Upcoming Events",  "📅", "/upcomingEvents?c=" + enc, true, 3, "main"));
-        b.add(button("prayer",    "Prayer Request",   "🙏", "/publicPrayer?c=" + enc + "&src=NTAG", true, 4, "main"));
+        b.add(button("connect",   "Connect With Us",  "🤝", connect.isEmpty() ? "" : "/connect?c=" + connect, true, 2, "main"));
+        b.add(button("events",    "Upcoming Events",  "📅", events.isEmpty()  ? "" : "/upcomingEvents?c=" + events, true, 3, "main"));
+        b.add(button("prayer",    "Prayer Request",   "🙏", prayer.isEmpty()  ? "" : "/publicPrayer?c=" + prayer + "&src=NTAG", true, 4, "main"));
         b.add(button("give",      "Give",             "💝", "", true, 5, "main"));
         // Footer / social links (icon-only on the public page).
         b.add(button("facebook",  "Facebook",         "📘", facebook, true, 6, "social"));
@@ -183,7 +198,7 @@ public class NtagLandingService {
         m.put("buttons", applyChurchSocials(readButtons(c.getButtonsJson()), cr, clientId));
         m.put("churchName", cr != null ? cr.getChurchName() : "Church");
         m.put("logo", logoDataUrl(clientId));
-        m.put("cidToken", encOrEmpty(clientId));
+        m.put("cidToken", tokenFor(clientId, PublicPagePolicy.NTAG_LANDING_URL, "Tap-to-Connect Landing"));
         return m;
     }
 
@@ -263,9 +278,14 @@ public class NtagLandingService {
     // ── Public upcoming events (events + meetings) ─────────────────────────────
 
     public List<Map<String, Object>> upcomingEvents(String cid) {
-        String clientId = decrypt(cid);
+        // The events/calendar page is reached from the landing page's button (its own
+        // link), directly from the landing token, or from an Event Calendar link
+        // (the two pages' content is merged now) — accept any of their live tokens.
+        String clientId = links.resolveClientIdAnyOf(cid, PublicPagePolicy.UPCOMING_EVENTS_FAMILY);
         if (clientId == null) return List.of();
-        LocalDate today = LocalDate.now();
+        // Church-zone "today" — see CHURCH_ZONE. Today's own events/meetings stay in
+        // (>= today, not > today), only strictly-past dates are dropped.
+        LocalDate today = LocalDate.now(CHURCH_ZONE);
         List<Map<String, Object>> out = new ArrayList<>();
 
         for (ChurchEvent ev : churchEventRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(clientId)) {
@@ -317,9 +337,12 @@ public class NtagLandingService {
         try { return mapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {}); }
         catch (Exception e) { return new ArrayList<>(); }
     }
-    private static String decryptStatic(String cid) { try { return EncryptionUtil.decrypt(cid); } catch (Exception e) { return null; } }
-    private String decrypt(String cid) { return (cid == null || cid.isBlank()) ? null : decryptStatic(cid.trim()); }
-    private static String encOrEmpty(String clientId) { try { return EncryptionUtil.encrypt(clientId); } catch (Exception e) { return ""; } }
+    /** The landing-page token → tenant. Nothing is decrypted; the link row is looked up. */
+    private String decrypt(String cid) { return links.resolveClientId(cid, PublicPagePolicy.NTAG_LANDING_URL); }
+    /** Live link token for a page, minting one when the church has none. Empty when the policy forbids it. */
+    private String tokenFor(String clientId, String pageUrl, String label) {
+        return links.ensureLink(clientId, pageUrl, label).map(com.churchgeniuspro.hibernate.PublicScreenLink::getToken).orElse("");
+    }
     private static int asInt(Object o) { try { return Integer.parseInt(String.valueOf(o)); } catch (Exception e) { return 999; } }
     private static String nz(String s) { return s == null ? "" : s; }
     private static String joinLoc(String a1, String city, String state) {

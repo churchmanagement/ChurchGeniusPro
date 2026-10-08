@@ -26,11 +26,14 @@ public class ServiceAdminPlaidController {
 
     private final ServiceAdminPlaidService service;
     private final ServiceClientRepository serviceClientRepository;
+    private final com.churchgeniuspro.plaid.service.PlaidTokenRotationService rotationService;
 
     public ServiceAdminPlaidController(ServiceAdminPlaidService service,
-                                       ServiceClientRepository serviceClientRepository) {
+                                       ServiceClientRepository serviceClientRepository,
+                                       com.churchgeniuspro.plaid.service.PlaidTokenRotationService rotationService) {
         this.service = service;
         this.serviceClientRepository = serviceClientRepository;
+        this.rotationService = rotationService;
     }
 
     /** Current Plaid settings + connected accounts for one church. */
@@ -81,6 +84,39 @@ public class ServiceAdminPlaidController {
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
+
+    /* ── Token-encryption key rotation ──────────────────────────────────── */
+
+    /**
+     * What a rotation would do. Read-only — run this before the real thing.
+     */
+    @GetMapping("/api/serviceadmin/plaid/token-rotation")
+    public ResponseEntity<Map<String, Object>> rotationStatus(HttpServletRequest req) {
+        if (!isServiceAdmin(req)) return unauthorized();
+        return ResponseEntity.ok(rotationService.status());
+    }
+
+    /**
+     * Re-encrypts stored access tokens onto the current PLAID_TOKEN_ENC_KEY.
+     *
+     * <p>Safe to run repeatedly: rows already on the current key are skipped.
+     * Pass {@code ?invalidateCodes=true} to also retire outstanding Bank Sync
+     * verification codes, which the old key can no longer open.
+     */
+    @PostMapping("/api/serviceadmin/plaid/token-rotation")
+    public ResponseEntity<Map<String, Object>> rotate(
+            HttpServletRequest req,
+            @RequestParam(name = "invalidateCodes", defaultValue = "false") boolean invalidateCodes) {
+        if (!isServiceAdmin(req)) return unauthorized();
+        String actor = String.valueOf(req.getSession(false) == null
+                ? "SERVICE_ADMIN" : req.getSession(false).getAttribute("username"));
+        Map<String, Object> out = new java.util.LinkedHashMap<>(rotationService.rotate(false, actor));
+        if (invalidateCodes) {
+            out.put("verificationCodesInvalidated",
+                    rotationService.invalidateOutstandingVerificationCodes());
+        }
+        return ResponseEntity.ok(out);
+    }
 
     private boolean isServiceAdmin(HttpServletRequest req) {
         HttpSession s = req.getSession(false);

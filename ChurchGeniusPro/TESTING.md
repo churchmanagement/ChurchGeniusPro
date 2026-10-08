@@ -77,6 +77,46 @@ Production is promoted **only** when every critical check passes:
 - SpotBugs/PMD are report-first (`failOn* = false`); flip to `true` once the
   baseline is clean.
 
+## Reading the build output
+
+Surefire prints the application's own logs while tests run, so **a green build
+still contains ERROR lines and stack traces**. 32 test classes deliberately make a
+dependency throw in order to prove the failure path behaves; the log entry that
+follows is the code under test doing its job.
+
+Judge a run by the Surefire summary, never by the presence of a trace:
+
+```
+[INFO] Tests run: 1547, Failures: 0, Errors: 0, Skipped: 1
+[INFO] BUILD SUCCESS
+```
+
+A real failure names the test and the assertion — e.g. `PublicSurfaceFollowupTest.callerCodeIsIgnored`,
+`Expecting actual "6-0513" to match pattern "[A-Z]-\d{4}"` — and is written to
+`target/surefire-reports/<class>.txt`.
+
+Two tells that a trace was injected rather than hit for real:
+
+- the exception message is a test's stub (`RuntimeException: db down`,
+  `IllegalArgumentException: Church name is required.`);
+- a `*Test` frame sits directly beneath the production frames, so the throw came
+  from a mock inside the test rather than from a live dependency:
+
+```
+at com.churchgeniuspro.service.TrialRegistrationService.register(TrialRegistrationService.java:75)
+at com.churchgeniuspro.controller.TrialRegistrationController.register(TrialRegistrationController.java:151)
+at com.churchgeniuspro.trial.TrialLinkAtomicClaimTest.failureReleasesTheLink(TrialLinkAtomicClaimTest.java:173)
+```
+
+That example is `TrialLinkAtomicClaimTest#failureReleasesTheLink`: it stubs
+provisioning to fail with `db down`, and the INFO line printed just above the trace —
+`Trial registration link released after a failed registration` — is exactly what the
+test asserts. If that trace ever disappeared, it would mean the controller had
+stopped logging failed registrations.
+
+Don't quiet these logs globally to clean up the output: the same logger
+configuration is what makes a real production failure legible.
+
 ## Notes / constraints
 
 - The React frontend is shipped as **pre-built bundles** in
@@ -87,3 +127,6 @@ Production is promoted **only** when every critical check passes:
   `make unit` (fast, no Docker) for the inner loop.
 - `application-test.properties` (H2, PostgreSQL mode) backs fast context tests;
   `application-it.properties` backs the Testcontainers integration profile.
+- The active profile is never hard-coded: Azure sets `SPRING_PROFILES_ACTIVE=prod`;
+  run the app locally with `restart-app.bat` or
+  `./mvnw spring-boot:run -Dspring-boot.run.profiles=local` (or `trial`).

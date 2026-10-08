@@ -45,19 +45,22 @@ public class PushNotificationScheduler {
     private final FamilyMemberRepository     familyMemberRepo;
     private final ChurchEventRepository      eventRepo;
     private final MeetingRepository          meetingRepo;
+    private final SubscriptionService        subscriptions;
 
     public PushNotificationScheduler(WebPushService pushService,
                                      PushSubscriptionRepository pushSubRepo,
                                      MemberMessageRepository messageRepo,
                                      FamilyMemberRepository familyMemberRepo,
                                      ChurchEventRepository eventRepo,
-                                     MeetingRepository meetingRepo) {
+                                     MeetingRepository meetingRepo,
+                                     SubscriptionService subscriptions) {
         this.pushService      = pushService;
         this.pushSubRepo      = pushSubRepo;
         this.messageRepo      = messageRepo;
         this.familyMemberRepo = familyMemberRepo;
         this.eventRepo        = eventRepo;
         this.meetingRepo      = meetingRepo;
+        this.subscriptions    = subscriptions;
     }
 
     // ── Every minute: unread-message notifications for members ───────────────
@@ -73,6 +76,10 @@ public class PushNotificationScheduler {
         if (!pushService.isEnabled()) return;
 
         List<PushSubscription> allMemberSubs = pushSubRepo.findByUserTypeAndActiveTrue("member");
+        if (allMemberSubs.isEmpty()) return;
+
+        // Expired / inactive churches get no pushes. Loaded once per run.
+        java.util.Set<String> activeChurches = subscriptions.activeAccountClientIds();
 
         // Group by userKey — one notification per user regardless of how many devices
         Map<String, List<PushSubscription>> byUser = allMemberSubs.stream()
@@ -91,6 +98,8 @@ public class PushNotificationScheduler {
                     : "You have " + unread + " unread messages.";
 
             String appClientId = entry.getValue().get(0).getAppClientId();
+            if (appClientId == null) appClientId = fm.get().getAppClientId();
+            if (appClientId == null || !activeChurches.contains(appClientId)) continue;
 
             pushService.logAndSendToUser(
                     userKey, appClientId, "member",
@@ -129,6 +138,15 @@ public class PushNotificationScheduler {
                 .map(PushSubscription::getAppClientId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+
+        // Expired / inactive churches get no digest.
+        java.util.Set<String> activeChurches = subscriptions.activeAccountClientIds();
+        int skipped = orgIds.size();
+        orgIds.retainAll(activeChurches);
+        skipped -= orgIds.size();
+        if (skipped > 0) {
+            log.info("Daily push digest: skipped {} expired/inactive church(es)", skipped);
+        }
 
         for (String appClientId : orgIds) {
 

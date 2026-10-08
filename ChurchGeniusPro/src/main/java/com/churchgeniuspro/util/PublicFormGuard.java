@@ -73,11 +73,47 @@ public class PublicFormGuard {
     }
 
     // ── time-trap token ───────────────────────────────────────────────────
+    //
+    // Tokens are HMAC-signed with a key generated when this process starts. They
+    // live for at most MAX_FORM_HOURS, so nothing needs to survive a restart (a
+    // visitor with a form open across one just reloads the page), and nothing
+    // about them can be minted from a copy of the JAR — which was the case while
+    // they were AES under EncryptionUtil's built-in fallback key (security audit P10).
 
-    /** Issues an encrypted form token bound to the (encrypted) cid param. */
+    private static final java.security.SecureRandom TOKEN_RANDOM = new java.security.SecureRandom();
+    private final byte[] tokenKey = newTokenKey();
+
+    private static byte[] newTokenKey() {
+        byte[] k = new byte[32];
+        TOKEN_RANDOM.nextBytes(k);
+        return k;
+    }
+
+    private java.util.function.LongSupplier clock = System::currentTimeMillis;
+
+    /** Test seam — the clock token ages are measured against. */
+    public void setClock(java.util.function.LongSupplier clock) {
+        this.clock = clock != null ? clock : System::currentTimeMillis;
+    }
+
+    private String sign(String payload) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(tokenKey, "HmacSHA256"));
+            return java.util.Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(mac.doFinal(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("HMAC unavailable", e);
+        }
+    }
+
+    /** Issues a signed form token bound to the (public-link) cid param. */
     public String issueToken(String cid) {
         try {
-            return EncryptionUtil.encrypt(TOKEN_PREFIX + "|" + safe(cid) + "|" + System.currentTimeMillis());
+            String payload = TOKEN_PREFIX + "|" + safe(cid) + "|" + clock.getAsLong();
+            String body = java.util.Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return body + "." + sign(payload);
         } catch (Exception e) {
             return null;
         }
@@ -91,17 +127,26 @@ public class PublicFormGuard {
         if (token == null || token.isBlank()) return "Invalid submission. Please reload the page and try again.";
         String plain;
         try {
-            plain = EncryptionUtil.decrypt(token.trim());
+            String t = token.trim();
+            int dot = t.indexOf('.');
+            if (dot <= 0) return "Invalid submission. Please reload the page and try again.";
+            plain = new String(java.util.Base64.getUrlDecoder().decode(t.substring(0, dot)),
+                               java.nio.charset.StandardCharsets.UTF_8);
+            byte[] expected = sign(plain).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] given    = t.substring(dot + 1).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            if (!java.security.MessageDigest.isEqual(expected, given)) {
+                return "Invalid submission. Please reload the page and try again.";
+            }
         } catch (Exception e) {
             return "Invalid submission. Please reload the page and try again.";
         }
-        String[] parts = plain == null ? new String[0] : plain.split("\\|");
+        String[] parts = plain.split("\\|");
         if (parts.length != 3 || !TOKEN_PREFIX.equals(parts[0]) || !safe(cid).equals(parts[1])) {
             return "Invalid submission. Please reload the page and try again.";
         }
         long issued;
         try { issued = Long.parseLong(parts[2]); } catch (NumberFormatException e) { return "Invalid submission."; }
-        long age = System.currentTimeMillis() - issued;
+        long age = clock.getAsLong() - issued;
         if (age < MIN_FORM_SECONDS * 1000L) return "Please take a moment to review your details, then submit again.";
         if (age > MAX_FORM_HOURS * 3600_000L) return "This page has expired. Please reload it and try again.";
         return null;

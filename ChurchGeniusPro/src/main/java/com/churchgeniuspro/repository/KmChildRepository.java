@@ -5,8 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface KmChildRepository extends JpaRepository<KmChild, Long> {
+
+    /** Tenant-scoped lookup for upsert-by-id and detail handlers. */
+    Optional<KmChild> findByIdAndClientId(Long id, String clientId);
 
     List<KmChild> findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(String clientId);
 
@@ -30,7 +34,7 @@ public interface KmChildRepository extends JpaRepository<KmChild, Long> {
         "  AND c.delete_flag = false " +
         "  AND c.inactive = false " +
         "  AND regexp_replace(COALESCE(c.parent_phone, ''), '[^0-9]', '', 'g') " +
-        "      LIKE CONCAT('%', :phone, '%')",
+        "      LIKE CONCAT('%', :phone)",   // suffix match: full number, country code optional
         nativeQuery = true)
     List<KmChild> findByClientIdAndParentPhone(@Param("clientId") String clientId,
                                                @Param("phone") String phone);

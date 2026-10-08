@@ -45,13 +45,6 @@ public interface FamilyRepository extends JpaRepository<Family, Integer> {
             @Param("appClientId") String appClientId);
 
     /**
-     * Returns all families with their member collections (no appClientId filter).
-     * Used by service-admin endpoints.
-     */
-    @Query("SELECT DISTINCT f FROM Family f LEFT JOIN FETCH f.members")
-    List<Family> findBySearchOrderByName(@Param("search") String search);
-
-    /**
      * Fetches a single family together with its members collection in one query.
      * Used by the detail / view-mode / edit-mode endpoints.
      * DISTINCT prevents Spring Data from receiving multiple identical Family rows
@@ -60,12 +53,14 @@ public interface FamilyRepository extends JpaRepository<Family, Integer> {
     @Query("SELECT DISTINCT f FROM Family f LEFT JOIN FETCH f.members WHERE f.id = :id")
     Optional<Family> findByIdWithMembers(@Param("id") Integer id);
 
-    /**
-     * Returns all non-deleted families ordered by id.
-     * Used to populate dropdowns (meeting Location, etc.) alongside individual members.
-     */
-    @Query("SELECT f FROM Family f WHERE f.deleteFlag = false ORDER BY f.id ASC")
-    List<Family> findAllActiveForLocation();
+    /** Tenant-scoped variant of {@link #findByIdWithMembers} for the session-bound detail endpoint. */
+    @Query("SELECT DISTINCT f FROM Family f LEFT JOIN FETCH f.members " +
+           "WHERE f.id = :id AND f.appClientId = :appClientId")
+    Optional<Family> findByIdAndAppClientIdWithMembers(@Param("id") Integer id,
+                                                       @Param("appClientId") String appClientId);
+
+    /** Tenant-scoped lookup regardless of delete flag (restore / soft-delete / inactive toggles). */
+    Optional<Family> findByIdAndAppClientId(Integer id, String appClientId);
 
     /**
      * Returns all non-deleted, non-inactive families with their members eager-loaded, filtered by appClientId.

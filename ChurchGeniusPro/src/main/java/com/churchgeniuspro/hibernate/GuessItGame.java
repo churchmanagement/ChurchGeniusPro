@@ -41,6 +41,28 @@ public class GuessItGame {
     @Column(name = "client_id", nullable = false, length = 100)
     private String clientId;
 
+    /**
+     * Owning {@link GuessItGroup}, or {@code null} for a standalone game.
+     *
+     * <p>Games created before groups existed have {@code null} here and keep
+     * their original single-game behaviour: no cumulative scoring, visible
+     * without a join code, driven purely by the admin's start/next/end controls.
+     */
+    @Column(name = "group_id")
+    private Long groupId;
+
+    /**
+     * Whether this game has been released to participants.
+     *
+     * <p>Only meaningful for grouped games: an unpublished game is invisible to
+     * participants so an admin can build a whole set in advance and release the
+     * rounds one at a time. Standalone (ungrouped) games ignore this flag
+     * entirely, which is why the column defaults to {@code false} without
+     * changing how legacy games behave.
+     */
+    @Column(name = "published", nullable = false, columnDefinition = "boolean default false")
+    private boolean published = false;
+
     /** Display title shown to participants, e.g. "Guess the Bible Character". */
     @Column(name = "title", nullable = false, length = 500)
     private String title;
@@ -100,12 +122,15 @@ public class GuessItGame {
     /**
      * Per-clue countdown duration in seconds chosen by the admin.
      * {@code 0} means no timer (unlimited time).
+     * New games default to 60 seconds (one minute); the admin can still change
+     * it. The column DEFAULT stays 0 so games stored before this change keep
+     * whatever duration they were created with.
      * Stored once per game; every clue uses the same duration.
      * columnDefinition supplies the DEFAULT so PostgreSQL can add this column
      * to existing rows without rejecting the NOT NULL constraint.
      */
     @Column(name = "timer_secs", nullable = false, columnDefinition = "integer default 0")
-    private int timerSecs = 0;
+    private int timerSecs = 60;
 
     /**
      * Server-side UTC timestamp of when the current clue was revealed.

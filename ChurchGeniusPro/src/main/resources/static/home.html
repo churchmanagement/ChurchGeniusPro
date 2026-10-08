@@ -466,7 +466,29 @@
       padding: 9px 20px; font-size: 13px; font-weight: 600;
       position: sticky; top: 0; z-index: 50; flex-shrink: 0;
     }
-    #editModeBanner.active { display: flex; }
+    #editModeBanner.active { display: flex; flex-wrap: wrap; gap: 8px; }
+    #editModeBanner .emb-text { min-width: 0; }
+    #editModeBanner .emb-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    #addSectionWrap { position: relative; }
+    #addSectionMenu {
+      display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 60;
+      min-width: 240px; max-width: min(320px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto;
+      background: #fff; color: #333; border-radius: 10px; border: 1px solid #e8eaf0;
+      box-shadow: 0 10px 30px rgba(0,0,0,.18); padding: 6px;
+    }
+    #addSectionMenu.open { display: block; }
+    #addSectionMenu .asm-item {
+      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+      background: none; border: none; border-radius: 8px; padding: 10px 10px;
+      font-size: 13px; font-weight: 600; color: #333; cursor: pointer;
+    }
+    #addSectionMenu .asm-item:hover { background: #f5edf1; color: #673147; }
+    #addSectionMenu .asm-plus { color: #673147; font-size: 16px; line-height: 1; }
+    #addSectionMenu .asm-empty { padding: 12px 10px; font-size: 12.5px; color: #888; font-weight: 400; }
+    /* Long-press must not trigger the OS text-selection / callout on touch devices */
+    .dash-section[data-sid].lp-arming, .dash-section[data-sid].lp-moving {
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+    }
     #editModeBanner span { opacity: .85; font-weight: 400; }
     #editModeBanner button {
       background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);
@@ -491,6 +513,30 @@
     body.edit-mode .dash-section[data-sid].dragging {
       opacity: .35;
     }
+
+    /* ── Press-and-hold reorder (works in and out of edit mode) ──
+       .lp-arming: finger/mouse is held still; a thin ring fills over the hold time.
+       .lp-moving: the section is being moved (original dimmed, ghost follows). */
+    .dash-section[data-sid].lp-arming {
+      border-radius: 10px;
+      box-shadow: 0 0 0 2px rgba(103,49,71,.18);
+      animation: lpArm var(--lp-ms, 1000ms) linear forwards;
+    }
+    @keyframes lpArm {
+      from { box-shadow: 0 0 0 2px rgba(103,49,71,.18); }
+      to   { box-shadow: 0 0 0 4px rgba(103,49,71,.55); }
+    }
+    .dash-section[data-sid].lp-moving { opacity: .25; transition: opacity .15s; }
+    body.lp-dragging, body.lp-dragging * { user-select: none !important; -webkit-user-select: none !important; }
+    body.lp-dragging { cursor: grabbing; }
+    #lpMoveToast {
+      display: none; position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+      background: #673147; color: #fff; font-size: 13px; font-weight: 600;
+      padding: 9px 16px; border-radius: 999px; z-index: 1001; pointer-events: none;
+      box-shadow: 0 6px 20px rgba(103,49,71,.35); white-space: nowrap; max-width: 92vw;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    #lpMoveToast.show { display: block; }
 
     /* ── Per-section edit controls (shown in edit mode) ── */
     .sec-edit-bar {
@@ -548,6 +594,17 @@
     }
     .hs-chip-add:hover { color: #4f2538; }
 
+    /* ── Dashboard toolbar (inline Customize button) ── */
+    #dashToolbar { display: flex; justify-content: flex-end; padding: 10px 24px 0; }
+    #dashCustomizeBtn {
+      background: #fff; color: #673147; border: 1px solid #c5a0b5; border-radius: 999px;
+      padding: 6px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06); transition: background .15s, color .15s;
+    }
+    #dashCustomizeBtn:hover { background: #673147; color: #fff; }
+    body.edit-mode #dashCustomizeBtn { background: #673147; color: #fff; }
+    @media (max-width: 768px) { #dashToolbar { padding: 8px 14px 0; } }
+
     /* ── Floating edit FAB ── */
     #editFab {
       position: fixed; bottom: 28px; right: 24px; z-index: 100;
@@ -572,6 +629,9 @@
     /* ── Mobile touch drag: no cursor changes needed ── */
     @media (max-width: 768px) {
       #editFab { bottom: 20px; right: 16px; }
+      #editModeBanner { padding: 8px 12px; }
+      #editModeBanner .emb-text span { display: none; }   /* keep the banner one line on phones */
+      #addSectionMenu { position: fixed; left: 12px; right: 12px; top: auto; max-width: none; margin-top: 6px; }
       #hiddenSectionsTray { margin: 0 12px 20px; }
     }
   </style>
@@ -597,14 +657,20 @@
 
     <!-- Edit-mode sticky banner -->
     <div id="editModeBanner">
-      <div>✏️ Edit Layout &nbsp;<span>Drag to reorder · ✕ to remove</span></div>
-      <button onclick="exitEditMode()">Done</button>
+      <div class="emb-text">✏️ Edit Layout &nbsp;<span>Drag ⠿ or press &amp; hold to reorder · ✕ to remove</span></div>
+      <div class="emb-actions">
+        <div id="addSectionWrap">
+          <button type="button" id="addSectionBtn" aria-haspopup="true" aria-expanded="false" onclick="toggleAddMenu(event)">＋ Add section</button>
+          <div id="addSectionMenu" role="menu"></div>
+        </div>
+        <button type="button" onclick="exitEditMode()">Done</button>
+      </div>
     </div>
 
     <main class="page-content" id="pageContent">
 
       <!-- ── AI Search Bar ── -->
-      <div class="ai-search-wrap">
+      <div class="ai-search-wrap" data-perm="more.aiassistant">
         <div class="ai-search-bar">
           <span class="ai-search-icon">✨</span>
           <input type="text" id="aiSearchInput" class="ai-search-input"
@@ -619,14 +685,28 @@
       <div class="banner-greeting" id="bannerGreeting" style="display:none; padding: 18px 24px 0;"></div>
       <div class="banner-sub" id="bannerSub" style="padding: 0 24px 12px; font-size:13px; color:#888;"></div>
 
+      <!-- ── Trial / demo portal sign-ins ────────────────────────────────────
+           Only rendered for a demo or trial tenant, and only for a staff session:
+           /api/demo/portal-credentials answers with an empty list otherwise, so a
+           real church never sees this block at all. -->
+      <div id="portalCredsPanel" style="display:none; padding: 0 24px 18px;"></div>
+
       <!-- ══════════════════════════════════════
            UNIFIED DASHBOARD SECTIONS
       ══════════════════════════════════════ -->
+      <!-- Dashboard toolbar: opens/closes Edit Layout (inline, so it never overlaps a section or the FAB) -->
+      <div id="dashToolbar" style="display:none;">
+        <button type="button" id="dashCustomizeBtn" onclick="toggleEditMode()" title="Add, remove or reorder dashboard sections">✏️ Customize layout</button>
+      </div>
       <div id="dashSections" style="display:none;">
 
         <!-- ─── Admin: Banner + Stats ─── -->
         <div class="dash-section" data-sid="s-admin-banner">
           <div class="banner">
+            <div class="acct-section-hdr">
+              <div class="acct-section-title">People</div>
+              <div class="acct-section-sub">Members · New Members · Guests · Families</div>
+            </div>
             <div class="stat-cards" id="statCards"></div>
             <svg class="banner-wave" viewBox="0 0 1440 30" preserveAspectRatio="none"
                  xmlns="http://www.w3.org/2000/svg">
@@ -939,7 +1019,7 @@ async function doLogout() {
    DASHBOARD SECTION DEFINITIONS & PREFERENCES
 ══════════════════════════════════════════════ */
 const SECTION_DEFS = [
-  { sid: 's-admin-banner',                label: 'Stats Overview',              roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-banner',                label: 'People',                      roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-admin-growth-calendar',       label: 'Church Growth & Calendar',    roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-admin-events-distribution',   label: 'Events & Distribution',       roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-acct-banner',                 label: 'Financial Greeting',          roles: ['Accountant'] },
@@ -1170,7 +1250,10 @@ function enterEditMode() {
   fab.classList.add('active');
   fab.title = 'Exit edit mode';
   fab.textContent = '✓';
+  const cb = document.getElementById('dashCustomizeBtn');
+  if (cb) cb.textContent = '✓ Done';
   _refreshHiddenTray();
+  _refreshAddMenu();
 }
 
 function exitEditMode() {
@@ -1181,6 +1264,9 @@ function exitEditMode() {
   fab.classList.remove('active');
   fab.title = 'Edit layout';
   fab.textContent = '✏️';
+  const cb = document.getElementById('dashCustomizeBtn');
+  if (cb) cb.textContent = '✏️ Customize layout';
+  closeAddMenu();
 }
 
 /* ── Hidden sections tray ── */
@@ -1210,28 +1296,81 @@ function _refreshHiddenTray() {
 /* ── Remove / restore section inline ── */
 function inlineHideSection(sid) {
   const prefs = loadPrefs();
-  prefs.hidden.add(sid);
-  prefs.order = _domOrder();
+  prefs.hidden.add(sid);        // removed from the dashboard only — still available under "＋ Add section"
+  prefs.order = _domOrder();    // its slot is kept, so re-adding puts it back where it was
   savePrefs(prefs);
   applyDashPrefs(_custRole(), _custIsChurch());
   _refreshHiddenTray();
+  _refreshAddMenu();
   _updateArrows();
 }
 
 function inlineShowSection(sid) {
   const prefs = loadPrefs();
-  prefs.hidden.delete(sid);
+  if (!allowedSids(_custRole(), _custIsChurch()).includes(sid)) return;   // not available to this role
+  prefs.hidden.delete(sid);                                                // already shown → no-op (no duplicates possible: one element per section)
   if (!prefs.order.includes(sid)) prefs.order.push(sid);
   savePrefs(prefs);
   applyDashPrefs(_custRole(), _custIsChurch());
   _refreshHiddenTray();
+  _refreshAddMenu();
   _updateArrows();
+  const el = document.querySelector(`#dashSections .dash-section[data-sid="${sid}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.boxShadow = '0 0 0 3px rgba(103,49,71,.3)'; el.style.transition = 'box-shadow .4s';
+    setTimeout(() => { el.style.boxShadow = ''; el.style.transition = ''; }, 900);
+  }
 }
 
-/* ── Read current DOM order of visible sections ── */
+/* ── "＋ Add section" menu (edit-mode banner) ──
+   Lists every section this role may have that is not on the dashboard right now.
+   A section is a single element, so it can only ever appear once; adding simply
+   clears its hidden flag and it returns to its remembered slot. */
+function _refreshAddMenu() {
+  const menu = document.getElementById('addSectionMenu');
+  const btn  = document.getElementById('addSectionBtn');
+  if (!menu || !btn) return;
+  const prefs   = loadPrefs();
+  const allowed = allowedSids(_custRole(), _custIsChurch());
+  const hidden  = allowed.filter(sid => prefs.hidden.has(sid));
+  btn.textContent = '＋ Add section' + (hidden.length ? ' (' + hidden.length + ')' : '');
+  if (!hidden.length) {
+    menu.innerHTML = '<div class="asm-empty">All available sections are on your dashboard.</div>';
+    return;
+  }
+  menu.innerHTML = hidden.map(sid => {
+    const def = SECTION_DEFS.find(s => s.sid === sid);
+    return `<button type="button" class="asm-item" onclick="inlineShowSection('${sid}'); closeAddMenu();">
+      <span class="asm-plus">＋</span><span>${def ? def.label : sid}</span></button>`;
+  }).join('');
+}
+function toggleAddMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById('addSectionMenu');
+  if (!menu) return;
+  const open = !menu.classList.contains('open');
+  _refreshAddMenu();
+  menu.classList.toggle('open', open);
+  document.getElementById('addSectionBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeAddMenu() {
+  const menu = document.getElementById('addSectionMenu');
+  if (menu) menu.classList.remove('open');
+  const btn = document.getElementById('addSectionBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#addSectionWrap')) closeAddMenu();
+});
+
+/* ── Read the current DOM order of ALL sections ──
+   Hidden (removed) sections stay in the DOM at their slot with display:none, and
+   applyDashPrefs positions them from the saved order, so keeping them here means a
+   section that is removed and later re-added comes back where it used to be, and
+   removing/re-adding never disturbs the order of the others. */
 function _domOrder() {
   return [...document.querySelectorAll('#dashSections .dash-section[data-sid]')]
-    .filter(el => el.style.display !== 'none')
     .map(el => el.getAttribute('data-sid'));
 }
 
@@ -1281,7 +1420,7 @@ function _reorderSections(dragSid, targetSid) {
   const dragIdx  = allSecs.indexOf(dragEl);
   const targetIdx = allSecs.indexOf(targetEl);
 
-  if (dragIdx < targetIdx) container.insertBefore(dragEl, targetEl.nextSibling);
+  if (dragIdx < targetIdx) container.insertBefore(dragEl, _afterTarget(targetEl) || _dropIndicator);
   else                     container.insertBefore(dragEl, targetEl);
 
   const prefs = loadPrefs();
@@ -1356,7 +1495,8 @@ function _visibleMovable() {
 }
 
 /* Given a clientY, find which movable section the finger is over and
-   whether it's in the top or bottom half (determines insert position) */
+   whether it's in the top or bottom half (determines insert position).
+   Above the first section → before the first; below the last → after the last. */
 function _findDropTarget(clientY) {
   const movable = _visibleMovable();
   for (const el of movable) {
@@ -1368,21 +1508,58 @@ function _findDropTarget(clientY) {
   }
   return { el: movable[movable.length - 1] || null, before: false };
 }
+/* The node a dragged section is inserted before when it lands AFTER `el`:
+   the next VISIBLE section (skipping hidden ones and the drop indicator),
+   or null = end of the list. Hidden sections keep their own slot in the order. */
+function _afterTarget(el) {
+  let n = el.nextElementSibling;
+  while (n && (!n.hasAttribute('data-sid') || n.style.display === 'none')) n = n.nextElementSibling;
+  return n;
+}
 
-/* Auto-scroll speed when near viewport edges */
+/* Auto-scroll speed when near the edges of the scrolling area */
 const _SCROLL_ZONE = 80;  // px from edge
-const _SCROLL_SPEED = 10; // px per frame
+const _SCROLL_SPEED = 14; // px per frame (max)
 let   _scrollFrame  = null;
 
-function _startAutoScroll(clientY) {
+/* The dashboard does not scroll on `window`: the app shell is a 100vh flex box and
+   `.page-content` (overflow-y:auto) is the element that actually scrolls. The old
+   window.scrollBy() therefore never moved anything, which is why a section could
+   only be dropped on a target that was already on screen — dragging DOWN past
+   the bottom of the screen (e.g. Net Balance below a tall People section) was
+   impossible. Find the nearest scrollable ancestor once and scroll that. */
+let _dashScroller = null;
+function _scroller() {
+  if (_dashScroller && document.contains(_dashScroller)) return _dashScroller;
+  let el = document.getElementById('dashSections');
+  while (el && el !== document.body) {
+    const oy = getComputedStyle(el).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) { _dashScroller = el; return el; }
+    el = el.parentElement;
+  }
+  _dashScroller = document.scrollingElement || document.documentElement;
+  return _dashScroller;
+}
+
+/* While the pointer sits still in an edge zone the content moves under it, so the
+   caller passes a callback that re-evaluates the drop target after each scroll step. */
+function _startAutoScroll(clientY, onScrolled) {
   cancelAnimationFrame(_scrollFrame);
-  const vH = window.innerHeight;
+  const sc   = _scroller();
+  const isDoc = sc === document.scrollingElement || sc === document.documentElement;
+  const rect = isDoc ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
   function step() {
     if (!_td) return;
-    if (clientY < _SCROLL_ZONE) {
-      window.scrollBy(0, -_SCROLL_SPEED * (1 - clientY / _SCROLL_ZONE));
-    } else if (clientY > vH - _SCROLL_ZONE) {
-      window.scrollBy(0,  _SCROLL_SPEED * (1 - (vH - clientY) / _SCROLL_ZONE));
+    let dy = 0;
+    if (clientY < rect.top + _SCROLL_ZONE) {
+      dy = -_SCROLL_SPEED * Math.min(1, (rect.top + _SCROLL_ZONE - clientY) / _SCROLL_ZONE);
+    } else if (clientY > rect.bottom - _SCROLL_ZONE) {
+      dy =  _SCROLL_SPEED * Math.min(1, (clientY - (rect.bottom - _SCROLL_ZONE)) / _SCROLL_ZONE);
+    }
+    if (dy !== 0) {
+      const before = sc.scrollTop;
+      sc.scrollTop = before + dy;
+      if (sc.scrollTop !== before && typeof onScrolled === 'function') onScrolled();
     }
     _scrollFrame = requestAnimationFrame(step);
   }
@@ -1396,32 +1573,11 @@ function _stopAutoScroll() {
 
 function _onSecTouchStart(e) {
   if (!_editMode) return;
-
-  const handle  = e.target.closest('.sec-drag-handle');
-  const section = this;
-
-  /* Long-press on section body also starts drag (300 ms) */
-  let longPressTimer = null;
-  if (!handle) {
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null;
-      _initTouchDrag(e, section);
-    }, 300);
-
-    const cancelLP = () => {
-      clearTimeout(longPressTimer);
-      section.removeEventListener('touchend',    cancelLP);
-      section.removeEventListener('touchcancel', cancelLP);
-      section.removeEventListener('touchmove',   cancelLP);
-    };
-    section.addEventListener('touchend',    cancelLP, { once: true });
-    section.addEventListener('touchcancel', cancelLP, { once: true });
-    section.addEventListener('touchmove',   cancelLP, { once: true, passive: true });
-    return;
-  }
-
-  /* Immediate drag from handle */
-  _initTouchDrag(e, section);
+  /* In edit mode the ⠿ handle starts a touch drag at once. Everywhere else a
+     press-and-hold (see _lpInstall below) is the deliberate gesture, so a
+     normal swipe on a section still scrolls the page. */
+  if (!e.target.closest('.sec-drag-handle')) return;
+  _initTouchDrag(e, this);
 }
 
 function _initTouchDrag(e, section) {
@@ -1468,16 +1624,17 @@ function _initTouchDrag(e, section) {
     ghost.style.left = (t.clientX - grabOffsetX) + 'px';
     ghost.style.top  = (t.clientY - grabOffsetY) + 'px';
 
-    /* Auto-scroll */
-    _startAutoScroll(t.clientY);
-
-    /* Find drop target */
-    const { el, before } = _findDropTarget(t.clientY);
-    if (el && el !== section) {
-      _showDropIndicator(before ? el : el.nextElementSibling);
-    } else {
-      _hideDropIndicator();
-    }
+    /* Find drop target (also re-run after every auto-scroll step) */
+    const aim = () => {
+      const { el, before } = _findDropTarget(_td ? _td.lastY : t.clientY);
+      if (el && el !== section) {
+        _showDropIndicator(before ? el : _afterTarget(el));
+      } else {
+        _hideDropIndicator();
+      }
+    };
+    _startAutoScroll(t.clientY, aim);
+    aim();
   };
 
   const onEnd = (ev) => {
@@ -1496,10 +1653,10 @@ function _initTouchDrag(e, section) {
     const { el, before } = _findDropTarget(t.clientY);
 
     if (el && el !== section) {
-      const insertBefore = before ? el : el.nextElementSibling;
+      const insertBefore = before ? el : _afterTarget(el);
       const container    = document.getElementById('dashSections');
       if (insertBefore) container.insertBefore(section, insertBefore);
-      else              container.appendChild(section);
+      else              container.insertBefore(section, _dropIndicator);   // after the last visible section
 
       const prefs = loadPrefs();
       prefs.order = _domOrder();
@@ -1519,6 +1676,180 @@ function _initTouchDrag(e, section) {
   document.addEventListener('touchmove',   onMove,   { passive: false });
   document.addEventListener('touchend',    onEnd,    { passive: true  });
   document.addEventListener('touchcancel', onEnd,    { passive: true  });
+}
+
+/* ════════ Press-and-hold reorder (mouse + touch + pen, any mode) ════════
+ *
+ * The deliberate gesture: press a section and hold STILL for LP_HOLD_MS (1 s). Only
+ * then does the section start moving with the pointer. Anything that looks like
+ * ordinary use cancels the hold before it arms:
+ *   - moving more than LP_SLOP_PX (a scroll/swipe or a mouse drag-select),
+ *   - lifting the finger/button,
+ *   - the browser taking the touch for scrolling (pointercancel),
+ *   - pressing on a button, link, input or the ⠿ handle (which has its own drag).
+ * While armed, a ring fills around the section; when the hold completes the
+ * section is dimmed, a ghost follows the pointer, a toast names what is moving
+ * and the drop line shows where it will land — the same indicator, target
+ * finding, auto-scroll and saving the handle-drag already uses.
+ * Only reorders: it never hides/shows sections, so hidden-section prefs are untouched.
+ */
+const LP_HOLD_MS = 1000;
+const LP_SLOP_PX = 10;
+let   _lp = null;   // { section, pointerId, startX, startY, timer }
+
+function _lpToast(text) {
+  let t = document.getElementById('lpMoveToast');
+  if (!t) { t = document.createElement('div'); t.id = 'lpMoveToast'; document.body.appendChild(t); }
+  if (text) { t.textContent = text; t.classList.add('show'); } else { t.classList.remove('show'); }
+}
+
+function _lpLabel(section) {
+  const def = SECTION_DEFS.find(s => s.sid === section.getAttribute('data-sid'));
+  return def ? def.label : 'section';
+}
+
+function _lpInstall() {
+  const container = document.getElementById('dashSections');
+  if (!container || container._lpInstalled) return;
+  container._lpInstalled = true;
+
+  container.addEventListener('pointerdown', (e) => {
+    if (_lp || _td || _dragSid) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const section = e.target.closest('#dashSections .dash-section[data-sid]');
+    if (!section || section.style.display === 'none') return;
+    // Interactive content keeps its normal behaviour; the ⠿ handle has its own drag.
+    if (e.target.closest('button, a, input, select, textarea, label, [contenteditable], .sec-edit-bar, .sec-drag-handle')) return;
+    if (_visibleMovable().length < 2) return;
+
+    const state = { section, pointerId: e.pointerId, pointerType: e.pointerType,
+                    startX: e.clientX, startY: e.clientY, timer: null };
+    _lp = state;
+    section.style.setProperty('--lp-ms', LP_HOLD_MS + 'ms');
+    section.classList.add('lp-arming');
+
+    state.timer = setTimeout(() => {
+      if (_lp !== state) return;
+      section.classList.remove('lp-arming');
+      _lpBeginDrag(state, e);
+    }, LP_HOLD_MS);
+  });
+
+  const cancelIfArming = (e) => {
+    if (!_lp || _lp.dragging) return;
+    if (e.type === 'pointermove') {
+      if (e.pointerId !== _lp.pointerId) return;
+      const dx = e.clientX - _lp.startX, dy = e.clientY - _lp.startY;
+      if (Math.hypot(dx, dy) < LP_SLOP_PX) return;     // still holding still
+    }
+    _lpCancelArming();
+  };
+  document.addEventListener('pointermove',   cancelIfArming, { passive: true });
+  document.addEventListener('pointerup',     cancelIfArming, { passive: true });
+  document.addEventListener('pointercancel', cancelIfArming, { passive: true });
+  // While a section is being moved the page must not scroll under the finger. This
+  // listener is registered up-front (not mid-gesture) so the browser knows at
+  // touchstart that a blocking handler exists and never takes the touch for a pan,
+  // which would end the drag with pointercancel. It is a no-op unless dragging.
+  container.addEventListener('touchmove', (e) => { if (_td && e.cancelable) e.preventDefault(); }, { passive: false });
+  // A long touch would otherwise open the context menu / text selection.
+  container.addEventListener('contextmenu', (e) => { if (_lp) e.preventDefault(); });
+  container.addEventListener('selectstart', (e) => { if (_lp) e.preventDefault(); });
+}
+
+function _lpCancelArming() {
+  if (!_lp) return;
+  clearTimeout(_lp.timer);
+  _lp.section.classList.remove('lp-arming');
+  _lp = null;
+}
+
+function _lpBeginDrag(state, downEvent) {
+  _ensureDropIndicator();
+  const section = state.section;
+  const rect    = section.getBoundingClientRect();
+  const grabOffsetX = state.startX - rect.left;
+  const grabOffsetY = state.startY - rect.top;
+
+  const ghost = section.cloneNode(true);
+  ghost.querySelectorAll('.sec-edit-bar').forEach(b => b.remove());
+  ghost.classList.remove('lp-arming', 'lp-moving');
+  ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;
+    opacity:.8;pointer-events:none;z-index:1000;border-radius:10px;background:#fff;
+    box-shadow:0 12px 32px rgba(0,0,0,.22);transform:scale(1.01);margin:0;`;
+  document.body.appendChild(ghost);
+
+  section.classList.add('lp-moving');
+  document.body.classList.add('lp-dragging');
+  if (navigator.vibrate) navigator.vibrate(30);
+  _lpToast('Moving "' + _lpLabel(section) + '" — drag up or down, release to drop');
+
+  state.dragging = true;
+  state.ghost = ghost;
+  state.lastY = state.startY;
+  _td = state;   // shares the auto-scroll guard with the handle touch-drag
+
+  const aim = (clientY) => {
+    const { el, before } = _findDropTarget(clientY);
+    if (el && el !== section) _showDropIndicator(before ? el : _afterTarget(el));
+    else _hideDropIndicator();
+  };
+  const place = (clientX, clientY) => {
+    ghost.style.left = (clientX - grabOffsetX) + 'px';
+    ghost.style.top  = (clientY - grabOffsetY) + 'px';
+    _startAutoScroll(clientY, () => aim(state.lastY));   // content moves under a still pointer
+    aim(clientY);
+  };
+
+  const onMove = (ev) => {
+    if (ev.pointerId !== state.pointerId) return;
+    state.lastY = ev.clientY;
+    place(ev.clientX, ev.clientY);
+  };
+  // Touch: the page must not scroll while a section is being moved.
+  const blockScroll = (ev) => { if (ev.cancelable) ev.preventDefault(); };
+
+  const finish = (ev, drop) => {
+    if (ev && ev.pointerId !== undefined && ev.pointerId !== state.pointerId) return;
+    document.removeEventListener('pointermove',   onMove);
+    document.removeEventListener('pointerup',     onUp);
+    document.removeEventListener('pointercancel', onCancel);
+    document.removeEventListener('touchmove',     blockScroll);
+    _stopAutoScroll();
+    _hideDropIndicator();
+    _lpToast(null);
+    ghost.remove();
+    section.classList.remove('lp-moving');
+    document.body.classList.remove('lp-dragging');
+
+    if (drop) {
+      const y = ev && ev.clientY != null ? ev.clientY : state.lastY;
+      const { el, before } = _findDropTarget(y);
+      if (el && el !== section) {
+        const insertBefore = before ? el : _afterTarget(el);
+        const container    = document.getElementById('dashSections');
+        if (insertBefore) container.insertBefore(section, insertBefore);
+        else              container.insertBefore(section, _dropIndicator);   // after the last visible section
+        const prefs = loadPrefs();
+        prefs.order = _domOrder();          // saved exactly as the handle-drag saves it
+        savePrefs(prefs);
+        _updateArrows();
+        section.style.boxShadow  = '0 0 0 3px rgba(103,49,71,.3)';
+        section.style.transition = 'box-shadow .4s';
+        setTimeout(() => { section.style.boxShadow = ''; section.style.transition = ''; }, 500);
+      }
+    }
+    _td = null;
+    _lp = null;
+  };
+  const onUp     = (ev) => finish(ev, true);
+  const onCancel = (ev) => finish(ev, false);
+
+  document.addEventListener('pointermove',   onMove,   { passive: true });
+  document.addEventListener('pointerup',     onUp,     { passive: true });
+  document.addEventListener('pointercancel', onCancel, { passive: true });
+  document.addEventListener('touchmove',     blockScroll, { passive: false });
+  place(state.startX, state.startY);
 }
 
 /* ════════ Reset ════════ */
@@ -1784,11 +2115,39 @@ let _cachedDashData = null; // store last dashboard response for re-render
 
 const STAT_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function shiftStatMonth(delta) {
+let _statFetchSeq = 0; // guards against an older cross-year fetch resolving after a newer one
+
+async function shiftStatMonth(delta) {
+  const prevYear = _statYear;
   _statMonth += delta;
   if (_statMonth > 11) { _statMonth = 0;  _statYear++; }
   if (_statMonth < 0)  { _statMonth = 11; _statYear--; }
+
+  if (_statYear === prevYear) {
+    // Still within the year already cached — no refetch needed.
+    renderStatPiesForMonth(_cachedDashData);
+    return;
+  }
+
+  // Financial audit M10: _cachedDashData only ever holds ONE year's worth of
+  // monthly series (whatever year was last fetched). Paging the month past
+  // Dec/Jan used to just bump _statYear and re-render the SAME cached year,
+  // so the label changed year but the pies kept showing the old year's data
+  // for that month. Refetch the newly-selected year, matching how the bar
+  // chart's own year navigation (shiftBarYear) already works.
+  const seq = ++_statFetchSeq;
+  const data = await fetchDashDataForYear(_statYear);
+  if (seq !== _statFetchSeq) return; // a newer navigation already superseded this one
+  if (data) _cachedDashData = data;
   renderStatPiesForMonth(_cachedDashData);
+}
+
+async function fetchDashDataForYear(year) {
+  const clientId = localStorage.getItem('clientId') || '';
+  try {
+    const res = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
+    return await res.json();
+  } catch (e) { console.error('Stat pie year fetch error', e); return null; }
 }
 
 function shiftBarYear(delta) {
@@ -2054,17 +2413,17 @@ function renderQuickAddIncome(templates) {
       <td class="qa-view">${esc(t.memberName || '')}</td>
       <td class="qa-view">${localStorage.getItem('showMainWithSub') !== 'false' && t.mainSourceName ? esc(t.mainSourceName) + ' / ' + esc(t.subSourceName || '') : esc(t.subSourceName || '')}</td>
       <td class="qa-view">${esc(t.method || '')}</td>
-      <td><input class="qa-input" type="date" id="qai-date-${i}" value="${today}" /></td>
-      <td><input class="qa-input" type="number" id="qai-amt-${i}" min="0.01" step="0.01"
+      <td><input class="qa-input" type="date" id="qai-date-${t.id}" value="${today}" /></td>
+      <td><input class="qa-input" type="number" id="qai-amt-${t.id}" min="0.01" step="0.01"
            placeholder="0.00" value="${t.amount != null ? Number(t.amount).toFixed(2) : ''}" /></td>
       <td>${isCheck
-        ? `<input class="qa-input" type="text" id="qai-ref-${i}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
+        ? `<input class="qa-input" type="text" id="qai-ref-${t.id}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
         : `<span style="color:#ccc;font-size: 13px;">—</span>`}</td>
-      <td><input class="qa-input" type="text" id="qai-note-${i}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
+      <td><input class="qa-input" type="text" id="qai-note-${t.id}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
       <td style="white-space:nowrap;">
-        <button class="qa-btn" id="qai-btn-${i}" data-perm="accounting.income.edit">Add</button>
-        <button class="qa-remove-btn" id="qai-rm-${i}" data-perm="accounting.income.edit" title="Remove from dashboard">✕</button>
-        <div id="qai-msg-${i}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
+        <button class="qa-btn" id="qai-btn-${t.id}" data-perm="accounting.income.edit">Add</button>
+        <button class="qa-remove-btn" id="qai-rm-${t.id}" data-perm="accounting.income.edit" title="Remove from dashboard">✕</button>
+        <div id="qai-msg-${t.id}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
           Transaction added successfully.
         </div>
       </td>
@@ -2077,28 +2436,34 @@ function renderQuickAddIncome(templates) {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-  templates.forEach((t, i) => {
-    const btn    = document.getElementById(`qai-btn-${i}`);
-    const rmBtn  = document.getElementById(`qai-rm-${i}`);
-    const dateEl = document.getElementById(`qai-date-${i}`);
-    const amtEl  = document.getElementById(`qai-amt-${i}`);
-    if (btn)    btn.addEventListener('click',  () => submitQuickAddIncome(i));
-    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddIncome(t.id, i));
-    if (dateEl) dateEl.addEventListener('input', () => resetQaiRow(i));
-    if (amtEl)  amtEl.addEventListener('input',  () => resetQaiRow(i));
+  // Rows are keyed by the template's own id, never by array position. Financial
+  // audit H7: they used to be keyed by index, and removing a row re-indexed the
+  // array without re-rendering the DOM — so "Add" on the next row looked up a
+  // different template and posted a real transaction against the wrong
+  // member and fund with the amount the user had typed. An id cannot shift.
+  templates.forEach(t => {
+    const btn    = document.getElementById(`qai-btn-${t.id}`);
+    const rmBtn  = document.getElementById(`qai-rm-${t.id}`);
+    const dateEl = document.getElementById(`qai-date-${t.id}`);
+    const amtEl  = document.getElementById(`qai-amt-${t.id}`);
+    if (btn)    btn.addEventListener('click',  () => submitQuickAddIncome(t.id));
+    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddIncome(t.id));
+    if (dateEl) dateEl.addEventListener('input', () => resetQaiRow(t.id));
+    if (amtEl)  amtEl.addEventListener('input',  () => resetQaiRow(t.id));
   });
 }
 
-function resetQaiRow(i) {
-  const btn = document.getElementById(`qai-btn-${i}`);
-  const msg = document.getElementById(`qai-msg-${i}`);
+function resetQaiRow(id) {
+  const btn = document.getElementById(`qai-btn-${id}`);
+  const msg = document.getElementById(`qai-msg-${id}`);
   if (btn) { btn.disabled = false; btn.textContent = 'Add'; btn.style.background = ''; }
   if (msg) { msg.style.display = 'none'; }
 }
 
-async function submitQuickAddIncome(rowIdx) {
-  const template = quickAddIncomeTemplates[rowIdx];
+async function submitQuickAddIncome(templateId) {
+  const template = quickAddIncomeTemplates.find(t => t.id === templateId);
   if (!template) return;
+  const rowIdx = templateId;   // element ids are keyed by template id
   const dateEl = document.getElementById(`qai-date-${rowIdx}`);
   const amtEl  = document.getElementById(`qai-amt-${rowIdx}`);
   const refEl  = document.getElementById(`qai-ref-${rowIdx}`);
@@ -2138,7 +2503,8 @@ async function submitQuickAddIncome(rowIdx) {
   }
 }
 
-async function removeQuickAddIncome(incomeId, rowIdx) {
+async function removeQuickAddIncome(incomeId) {
+  const rowIdx = incomeId;    // element ids are keyed by template id
   if (!confirm('Do you want to remove this contribution from the dashboard? This will only remove it from the dashboard. You can add it back using the recurring checkbox.')) return;
   const rmBtn = document.getElementById(`qai-rm-${rowIdx}`);
   if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
@@ -2149,7 +2515,7 @@ async function removeQuickAddIncome(incomeId, rowIdx) {
       const row = rmBtn ? rmBtn.closest('tr') : null;
       if (row) row.remove();
       // If table is now empty show the empty state message
-      quickAddIncomeTemplates = quickAddIncomeTemplates.filter((_, i) => i !== rowIdx);
+      quickAddIncomeTemplates = quickAddIncomeTemplates.filter(t => t.id !== incomeId);
       if (!quickAddIncomeTemplates.length) {
         document.getElementById('quickAddIncomePanel').innerHTML =
           '<div class="qa-empty">No recurring income record yet. Set an income record on the <a href="/income" style="color:#673147;">Income page</a>.</div>';
@@ -2183,17 +2549,17 @@ function renderQuickAddExpense(templates) {
       <td class="qa-view">${esc(t.purposeName || '')}</td>
       <td class="qa-view">${esc(t.mainSourceName || '')}</td>
       <td class="qa-view">${esc(t.method || '')}</td>
-      <td><input class="qa-input" type="date" id="qae-date-${i}" value="${today}" /></td>
-      <td><input class="qa-input" type="number" id="qae-amt-${i}" min="0.01" step="0.01"
+      <td><input class="qa-input" type="date" id="qae-date-${t.id}" value="${today}" /></td>
+      <td><input class="qa-input" type="number" id="qae-amt-${t.id}" min="0.01" step="0.01"
            placeholder="0.00" value="${t.amount != null ? Number(t.amount).toFixed(2) : ''}" /></td>
       <td>${isCheck
-        ? `<input class="qa-input" type="text" id="qae-ref-${i}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
+        ? `<input class="qa-input" type="text" id="qae-ref-${t.id}" maxlength="6" placeholder="Ref #" style="max-width:60px;" />`
         : `<span style="color:#ccc;font-size: 13px;">—</span>`}</td>
-      <td><input class="qa-input" type="text" id="qae-note-${i}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
+      <td><input class="qa-input" type="text" id="qae-note-${t.id}" maxlength="15" placeholder="Note…" style="max-width:90px;" value="${esc(t.note || '')}" /></td>
       <td style="white-space:nowrap;">
-        <button class="qa-btn" id="qae-btn-${i}" data-perm="accounting.expense.edit">Add</button>
-        <button class="qa-remove-btn" id="qae-rm-${i}" data-perm="accounting.expense.edit" title="Remove from dashboard">✕</button>
-        <div id="qae-msg-${i}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
+        <button class="qa-btn" id="qae-btn-${t.id}" data-perm="accounting.expense.edit">Add</button>
+        <button class="qa-remove-btn" id="qae-rm-${t.id}" data-perm="accounting.expense.edit" title="Remove from dashboard">✕</button>
+        <div id="qae-msg-${t.id}" style="font-size:11px;color:#2e7d32;margin-top:4px;display:none;">
           Transaction added successfully.
         </div>
       </td>
@@ -2206,28 +2572,34 @@ function renderQuickAddExpense(templates) {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-  templates.forEach((t, i) => {
-    const btn    = document.getElementById(`qae-btn-${i}`);
-    const rmBtn  = document.getElementById(`qae-rm-${i}`);
-    const dateEl = document.getElementById(`qae-date-${i}`);
-    const amtEl  = document.getElementById(`qae-amt-${i}`);
-    if (btn)    btn.addEventListener('click',  () => submitQuickAddExpense(i));
-    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddExpense(t.id, i));
-    if (dateEl) dateEl.addEventListener('input', () => resetQaeRow(i));
-    if (amtEl)  amtEl.addEventListener('input',  () => resetQaeRow(i));
+  // Rows are keyed by the template's own id, never by array position. Financial
+  // audit H7: they used to be keyed by index, and removing a row re-indexed the
+  // array without re-rendering the DOM — so "Add" on the next row looked up a
+  // different template and posted a real transaction against the wrong
+  // category and fund with the amount the user had typed. An id cannot shift.
+  templates.forEach(t => {
+    const btn    = document.getElementById(`qae-btn-${t.id}`);
+    const rmBtn  = document.getElementById(`qae-rm-${t.id}`);
+    const dateEl = document.getElementById(`qae-date-${t.id}`);
+    const amtEl  = document.getElementById(`qae-amt-${t.id}`);
+    if (btn)    btn.addEventListener('click',  () => submitQuickAddExpense(t.id));
+    if (rmBtn)  rmBtn.addEventListener('click', () => removeQuickAddExpense(t.id));
+    if (dateEl) dateEl.addEventListener('input', () => resetQaeRow(t.id));
+    if (amtEl)  amtEl.addEventListener('input',  () => resetQaeRow(t.id));
   });
 }
 
-function resetQaeRow(i) {
-  const btn = document.getElementById(`qae-btn-${i}`);
-  const msg = document.getElementById(`qae-msg-${i}`);
+function resetQaeRow(id) {
+  const btn = document.getElementById(`qae-btn-${id}`);
+  const msg = document.getElementById(`qae-msg-${id}`);
   if (btn) { btn.disabled = false; btn.textContent = 'Add'; btn.style.background = ''; }
   if (msg) { msg.style.display = 'none'; }
 }
 
-async function submitQuickAddExpense(rowIdx) {
-  const template = quickAddExpenseTemplates[rowIdx];
+async function submitQuickAddExpense(templateId) {
+  const template = quickAddExpenseTemplates.find(t => t.id === templateId);
   if (!template) return;
+  const rowIdx = templateId;   // element ids are keyed by template id
   const dateEl    = document.getElementById(`qae-date-${rowIdx}`);
   const amtEl     = document.getElementById(`qae-amt-${rowIdx}`);
   const refEl     = document.getElementById(`qae-ref-${rowIdx}`);
@@ -2267,7 +2639,8 @@ async function submitQuickAddExpense(rowIdx) {
   }
 }
 
-async function removeQuickAddExpense(expenseId, rowIdx) {
+async function removeQuickAddExpense(expenseId) {
+  const rowIdx = expenseId;    // element ids are keyed by template id
   if (!confirm('Do you want to remove this expense from the dashboard? This will only remove it from the dashboard. You can add it back using the recurring checkbox.')) return;
   const rmBtn = document.getElementById(`qae-rm-${rowIdx}`);
   if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
@@ -2278,7 +2651,7 @@ async function removeQuickAddExpense(expenseId, rowIdx) {
       const row = rmBtn ? rmBtn.closest('tr') : null;
       if (row) row.remove();
       // If table is now empty show the empty state message
-      quickAddExpenseTemplates = quickAddExpenseTemplates.filter((_, i) => i !== rowIdx);
+      quickAddExpenseTemplates = quickAddExpenseTemplates.filter(t => t.id !== expenseId);
       if (!quickAddExpenseTemplates.length) {
         document.getElementById('quickAddExpensePanel').innerHTML =
           '<div class="qa-empty">No recurring expense record yet. Set an expense record on the <a href="/expense" style="color:#673147;">Expense page</a>.</div>';
@@ -2626,6 +2999,8 @@ function fmtCurrency(num) {
 
   /* Show dashboard + customize button */
   document.getElementById('dashSections').style.display = '';
+  const _tb = document.getElementById('dashToolbar');
+  if (_tb) _tb.style.display = '';
   const _fab = document.getElementById('editFab');
   if (_fab) _fab.style.display = '';
 
@@ -2640,6 +3015,7 @@ function fmtCurrency(num) {
   loadPrefsFromDb(role, isChurch).then(() => {
     if (needsAdmin) { loadDashboard(); loadCalEvents(); }
     if (needsAcct)  { loadAccountantDashboard(); }
+    _lpInstall();   // press-and-hold reorder, available without entering edit mode
   });
 })();
 </script>
@@ -2661,6 +3037,86 @@ function fmtCurrency(num) {
     }
   };
   document.addEventListener('privilegesReady', function() { window.applyPagePrivileges(); });
+
+  /* ── Trial / demo portal sign-ins ────────────────────────────────────────
+   * A trial account is one church with three ways in, and until now only the
+   * Service Admin console could see two of them — so the person actually
+   * evaluating the product could not open their own Member or Kids Portal.
+   *
+   * The endpoint answers with an empty list for anything that is not a demo or
+   * trial tenant, and for anyone who is not staff inside it, so this block
+   * simply never appears for a real church.
+   */
+  (function loadPortalCredentials() {
+    var panel = document.getElementById('portalCredsPanel');
+    if (!panel) return;
+
+    fetch('/api/demo/portal-credentials', { headers: { 'X-CGP-Quiet': '1' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.demo || !d.portals || !d.portals.length) return;
+        panel.innerHTML =
+            '<div class="card" style="border-left:3px solid #673147;">'
+          +   '<div class="card-hdr">'
+          +     '<div>'
+          +       '<div class="card-title">Your trial portals</div>'
+          +       '<div class="card-sub">Three sign-ins, one account &mdash; they share the same '
+          +         'sample data and end on the same date.</div>'
+          +     '</div>'
+          +   '</div>'
+          +   '<div class="card-body" id="portalCredsBody" style="padding-top:10px;'
+          +     'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">'
+          +   '</div>'
+          + '</div>';
+
+        var body = document.getElementById('portalCredsBody');
+        d.portals.forEach(function (p, i) {
+          var id = 'portalHelp' + i;
+          var card = document.createElement('div');
+          card.style.cssText = 'border:1px solid #e6e0e3;border-radius:8px;padding:14px 16px;background:#fff;';
+          card.innerHTML =
+              '<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">'
+            +   '<strong style="color:#673147;font-size:15px;"></strong>'
+            +   '<button type="button" class="portal-help-btn" aria-expanded="false" '
+            +           'aria-controls="' + id + '" '
+            +           'title="What is this portal?" '
+            +           'style="border:1px solid #d9cfd5;background:#faf7f8;color:#673147;'
+            +           'width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;'
+            +           'cursor:pointer;padding:0;">i</button>'
+            + '</div>'
+            + '<div id="' + id + '" hidden '
+            +      'style="font-size:12.5px;color:#55495a;line-height:1.5;margin:6px 0 10px;'
+            +      'padding:8px 10px;background:#faf7f8;border-radius:6px;"></div>'
+            + '<div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;'
+            +      'line-height:1.9;margin-top:8px;">'
+            +   '<div>Username: <strong class="pc-user"></strong></div>'
+            +   '<div>Password: <strong class="pc-pass"></strong></div>'
+            + '</div>'
+            + '<div class="pc-who" style="font-size:12px;color:#888;margin-top:6px;"></div>';
+
+          // textContent throughout: these values come from the database, and a
+          // church name or member name with an ampersand in it must not be able
+          // to rewrite this panel.
+          card.querySelector('strong').textContent = p.label || '';
+          card.querySelector('#' + id).textContent = p.purpose || '';
+          card.querySelector('.pc-user').textContent = p.username || '—';
+          card.querySelector('.pc-pass').textContent = p.password || 'Set during sign-up';
+          var who = card.querySelector('.pc-who');
+          if (p.memberName) who.textContent = 'Signs in as ' + p.memberName;
+
+          var btn  = card.querySelector('.portal-help-btn');
+          var help = card.querySelector('#' + id);
+          btn.addEventListener('click', function () {
+            var open = !help.hidden;
+            help.hidden = open;
+            btn.setAttribute('aria-expanded', String(!open));
+          });
+          body.appendChild(card);
+        });
+        panel.style.display = '';
+      })
+      .catch(function () { /* the dashboard must never fail on this */ });
+  })();
   (function() {
     ['renderDashboard','renderQuickAdd','renderAccountant','render'].forEach(function(fn) {
       if (typeof window[fn] === 'function') {

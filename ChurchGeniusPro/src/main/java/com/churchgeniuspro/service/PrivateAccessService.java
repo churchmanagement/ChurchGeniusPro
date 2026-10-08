@@ -57,9 +57,19 @@ public class PrivateAccessService {
 
     // ── Networks ───────────────────────────────────────────────────────────
 
+    /**
+     * Create ({@code id == null}) or update a network. Returns {@code null} when the id
+     * is unknown or belongs to another tenant — never re-parents a foreign row.
+     */
     @Transactional
     public PrivateNetwork saveNetwork(String clientId, Long id, String name, String ipRanges, boolean enabled) {
-        PrivateNetwork n = (id != null) ? networkRepo.findById(id).orElse(new PrivateNetwork()) : new PrivateNetwork();
+        PrivateNetwork n;
+        if (id != null) {
+            n = networkRepo.findById(id).filter(x -> clientId.equals(x.getClientId())).orElse(null);
+            if (n == null) return null;
+        } else {
+            n = new PrivateNetwork();
+        }
         n.setClientId(clientId);
         n.setName(name == null ? "Network" : name.trim());
         n.setIpRanges(ipRanges);
@@ -88,6 +98,12 @@ public class PrivateAccessService {
         r.setClientId(clientId);
         r.setPageKey(pageKey);
         r.setEnabled(enabled);
+        // Only this tenant's networks may be referenced by a rule.
+        if (networkIds != null && !networkIds.isEmpty()) {
+            Set<Long> owned = networkRepo.findByClientIdOrderByNameAsc(clientId).stream()
+                    .map(PrivateNetwork::getId).collect(Collectors.toSet());
+            networkIds = networkIds.stream().filter(owned::contains).collect(Collectors.toList());
+        }
         r.setNetworkIds(networkIds == null || networkIds.isEmpty() ? null
                 : networkIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
         return ruleRepo.save(r);

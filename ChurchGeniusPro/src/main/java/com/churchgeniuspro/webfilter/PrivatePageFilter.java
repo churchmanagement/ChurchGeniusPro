@@ -4,7 +4,6 @@ import com.churchgeniuspro.hibernate.PrivateAccessSetting;
 import com.churchgeniuspro.hibernate.SignUp;
 import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.service.PrivateAccessService;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.NetworkMatcher;
 import com.churchgeniuspro.util.PrivatePageCatalog;
 import com.churchgeniuspro.util.SessionUtil;
@@ -37,10 +36,14 @@ public class PrivatePageFilter implements Filter {
     private final LoginRepository loginRepository;
     private final String bypassToken;
 
-    public PrivatePageFilter(PrivateAccessService service, LoginRepository loginRepository, String bypassToken) {
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+
+    public PrivatePageFilter(PrivateAccessService service, LoginRepository loginRepository, String bypassToken,
+                             com.churchgeniuspro.service.PublicLinkResolver links) {
         this.service = service;
         this.loginRepository = loginRepository;
         this.bypassToken = bypassToken == null ? "" : bypassToken.trim();
+        this.links = links;
     }
 
     @Override
@@ -50,7 +53,9 @@ public class PrivatePageFilter implements Filter {
         HttpServletResponse response = (HttpServletResponse) res;
 
         try {
-            String path = request.getRequestURI();
+            // Decoded + normalised, so an encoded spelling of a gated page
+            // ("/%68ome.html") is recognised as the page it will be served as.
+            String path = RequestPaths.path(request);
             String pageKey = PrivatePageCatalog.keyForPath(path);
             if (pageKey == null) { chain.doFilter(req, res); return; }
 
@@ -94,17 +99,15 @@ public class PrivatePageFilter implements Filter {
         }
     }
 
-    /** Identify the church for a pre-login request: ?c=<encrypted>, ?cid=<raw>, or remember-me cookie. */
+    /** Identify the church for a pre-login request: ?c=<live private-access link token> or remember-me cookie. */
     private String resolveChurch(HttpServletRequest request) {
         String c = request.getParameter("c");
         if (c != null && !c.isBlank()) {
-            try {
-                String dec = EncryptionUtil.decrypt(c.trim());
-                if (dec != null && !dec.isBlank()) return dec.trim();
-            } catch (Exception ignored) {}
+            String tenant = links.resolveClientId(c.trim(), com.churchgeniuspro.service.PublicPagePolicy.PRIVATE_ACCESS_URL);
+            if (tenant != null) return tenant;
         }
-        String cid = request.getParameter("cid");
-        if (cid != null && !cid.isBlank()) return cid.trim();
+        // A raw "?cid=<clientId>" used to be accepted here; a plaintext tenant id must
+        // never select whose network rules apply.
 
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
@@ -123,12 +126,20 @@ public class PrivatePageFilter implements Filter {
 
     private boolean hasBypassToken(HttpServletRequest request) {
         if (bypassToken.isEmpty()) return false;
-        if (bypassToken.equals(request.getParameter("bypass"))) return true;
+        if (sameToken(request.getParameter("bypass"))) return true;
         Cookie[] cookies = request.getCookies();
         if (cookies != null) for (Cookie c : cookies) {
-            if ("cgp_net_bypass".equals(c.getName()) && bypassToken.equals(c.getValue())) return true;
+            if ("cgp_net_bypass".equals(c.getName()) && sameToken(c.getValue())) return true;
         }
         return false;
+    }
+
+    /** Constant-time comparison — a break-glass secret must not leak by timing (audit P15). */
+    private boolean sameToken(String candidate) {
+        if (candidate == null) return false;
+        return java.security.MessageDigest.isEqual(
+                bypassToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                candidate.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private PrivateAccessService.Decision override(String pageKey, String reason) {
@@ -144,7 +155,7 @@ public class PrivatePageFilter implements Filter {
 
     private void writeBlocked(HttpServletRequest request, HttpServletResponse response, String ip)
             throws IOException {
-        String path = request.getRequestURI();
+        String path = RequestPaths.path(request);
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         if (path.startsWith("/api/")) {
             response.setContentType("application/json;charset=UTF-8");

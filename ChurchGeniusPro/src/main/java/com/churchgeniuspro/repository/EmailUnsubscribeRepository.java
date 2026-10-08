@@ -15,4 +15,8 @@ public interface EmailUnsubscribeRepository extends JpaRepository<EmailUnsubscri
     boolean existsByEmailAndClientId(String email, String clientId);
 
     List<EmailUnsubscribe> findByClientIdOrderByUnsubscribedAtDesc(String clientId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    Optional<EmailUnsubscribe> findByIdAndClientId(Integer id, String clientId);
 }

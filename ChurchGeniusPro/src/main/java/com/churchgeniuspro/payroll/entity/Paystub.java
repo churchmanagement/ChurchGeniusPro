@@ -54,6 +54,9 @@ public class Paystub {
     private BigDecimal postTaxDeductions    = BigDecimal.ZERO;
     private BigDecimal totalTaxes           = BigDecimal.ZERO;
     private BigDecimal netPay               = BigDecimal.ZERO;
+    // Uncollected shortfall when netPay clamps at zero instead of going negative
+    // (financial audit H4). Exactly one of netPay/arrearsAmount is non-zero.
+    private BigDecimal arrearsAmount        = BigDecimal.ZERO;
 
     // Year-to-date snapshots (after this stub)
     private BigDecimal ytdGross             = BigDecimal.ZERO;

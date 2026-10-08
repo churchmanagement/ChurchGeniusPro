@@ -57,7 +57,9 @@ public class FilesController {
    // @ResponseBody
     @GetMapping("/api/files")
     public ResponseEntity<List<Map<String, Object>>> list(HttpServletRequest request) {
+        if (filesGuard(request) != null) return ResponseEntity.status(403).build();
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
         List<UploadedFile> files = fileRepo.findByAppClientIdAndDeleteFlagFalseOrderByUploadDateDesc(appClientId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (UploadedFile f : files) {
@@ -72,7 +74,9 @@ public class FilesController {
     @PostMapping("/api/files")
     public ResponseEntity<Map<String, Object>> upload(@RequestBody Map<String, Object> body,
                                                        HttpServletRequest request) {
+        if (filesGuard(request) != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
         String fileName = (String) body.get("fileName");
         String fileType = (String) body.get("fileType");
@@ -125,8 +129,12 @@ public class FilesController {
 
     @ResponseBody
     @GetMapping("/api/files/{id}")
-    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id) {
-        Optional<UploadedFile> opt = fileRepo.findByIdAndDeleteFlagFalse(id);
+    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id,
+                                                       HttpServletRequest request) {
+        if (filesGuard(request) != null) return ResponseEntity.status(403).build();
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        Optional<UploadedFile> opt = fileRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Map<String, Object> m = toMetaMap(opt.get());
         m.put("fileData", opt.get().getFileData());
@@ -137,8 +145,12 @@ public class FilesController {
 
     @ResponseBody
     @DeleteMapping("/api/files/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
-        Optional<UploadedFile> opt = fileRepo.findByIdAndDeleteFlagFalse(id);
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
+                                                      HttpServletRequest request) {
+        if (filesGuard(request) != null) return ResponseEntity.status(403).build();
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        Optional<UploadedFile> opt = fileRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         UploadedFile f = opt.get();
         f.setDeleteFlag(true);
@@ -165,5 +177,12 @@ public class FilesController {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("error", msg);
         return ResponseEntity.badRequest().body(m);
+    }
+
+    /** Same gate as the (currently disabled) {@code /filesUpload} page route. */
+    private static String filesGuard(HttpServletRequest request) {
+        String deny = RoleGuard.requireAuth(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, "admin.files");
     }
 }

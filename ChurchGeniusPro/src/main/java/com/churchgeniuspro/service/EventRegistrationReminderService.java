@@ -13,7 +13,6 @@ import com.churchgeniuspro.repository.EventRegistrationReminderContactRepository
 import com.churchgeniuspro.repository.EventRegistrationReminderLogRepository;
 import com.churchgeniuspro.repository.EventRegistrationRepository;
 import com.churchgeniuspro.repository.ReminderSentLogRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -97,6 +96,9 @@ public class EventRegistrationReminderService {
     private final SmsService                                 smsService;
     private final WhatsAppSenderService                      whatsAppSender;
 
+    private final EventPublicTokenService publicTokens;
+    private final com.churchgeniuspro.repository.ChurchEventImageRepository eventImageRepo;
+
     public EventRegistrationReminderService(
             ChurchEventRepository                      eventRepo,
             ChurchEventDayRepository                   eventDayRepo,
@@ -107,7 +109,10 @@ public class EventRegistrationReminderService {
             AutoReminderRepository                     autoReminderRepo,
             EmailService                               emailService,
             SmsService                                 smsService,
-            WhatsAppSenderService                      whatsAppSender) {
+            WhatsAppSenderService                      whatsAppSender,
+            com.churchgeniuspro.repository.ChurchEventImageRepository eventImageRepo,
+            EventPublicTokenService publicTokens) {
+        this.publicTokens = publicTokens;
         this.eventRepo        = eventRepo;
         this.eventDayRepo     = eventDayRepo;
         this.registrationRepo = registrationRepo;
@@ -118,6 +123,7 @@ public class EventRegistrationReminderService {
         this.emailService     = emailService;
         this.smsService       = smsService;
         this.whatsAppSender   = whatsAppSender;
+        this.eventImageRepo   = eventImageRepo;
     }
 
     // =========================================================================
@@ -132,6 +138,9 @@ public class EventRegistrationReminderService {
         /** {@code null} when the event was processed; otherwise why it was skipped. */
         public String skipReason;
         public int emailsSent, smsSent, skipped, failed;
+        /** Phase B (Trial/Demo with a verified test address): test copies actually sent, and where. */
+        public int testEmailsSent;
+        public String testEmail;
         public boolean processed() { return skipReason == null; }
     }
 
@@ -218,8 +227,17 @@ public class EventRegistrationReminderService {
         String emailBody    = buildInviteEmailBody(event, eventDate, clientId);
         String smsBody      = buildInviteSmsBody(event, eventDate);
 
+        // Trial/demo: congregation mail is dropped inside EmailService (Phase A: logged
+        // SKIPPED with the reason, not SENT) or, with a verified test address, sent ONCE
+        // for this action to that address (Phase B: the first contact's copy; the rest
+        // are logged as simulated). Asked once per run.
+        EmailService.Delivery delivery = emailService.delivery(clientId);
+        r.testEmail = delivery.test() ? delivery.testEmail() : null;
         Set<String> emailedThisRun = new HashSet<>();
         Set<String> textedThisRun  = new HashSet<>();
+        com.churchgeniuspro.util.EmailActionScope scope =
+                com.churchgeniuspro.util.EmailActionScope.begin("registration-invite:" + event.getId());
+        try {
 
         for (EventRegistrationReminderContact contact : contacts) {
             String rawEmail  = trimToNull(contact.getEmail());
@@ -237,6 +255,17 @@ public class EventRegistrationReminderService {
                                 event.getId(), TYPE_INVITE, CHANNEL_EMAIL, normEmail, STATUS_SENT)) {
                     log(r, event, contact, TYPE_INVITE, CHANNEL_EMAIL, rawEmail, normEmail,
                             STATUS_SKIPPED, "Duplicate — invitation already sent to this email", null);
+                } else if (delivery.blocked()) {
+                    log(r, event, contact, TYPE_INVITE, CHANNEL_EMAIL, rawEmail, normEmail,
+                            STATUS_SKIPPED, delivery.reason(), null);
+                } else if (delivery.test()) {
+                    int before = scope.testEmailsSent();
+                    emailService.sendOrgEmail(rawEmail, emailSubject, emailBody, clientId);
+                    boolean copy = scope.testEmailsSent() > before;
+                    if (copy) r.testEmailsSent++;
+                    log(r, event, contact, TYPE_INVITE, CHANNEL_EMAIL, rawEmail, normEmail, STATUS_SKIPPED,
+                            copy ? "Trial/Demo test copy sent to " + delivery.testEmail() + " — not sent to this contact"
+                                 : "Trial/Demo — simulated (one test email per action)", null);
                 } else {
                     emailService.sendOrgEmail(rawEmail, emailSubject, emailBody, clientId);
                     log(r, event, contact, TYPE_INVITE, CHANNEL_EMAIL, rawEmail, normEmail,
@@ -263,6 +292,9 @@ public class EventRegistrationReminderService {
                             STATUS_SENT, null, null);
                 }
             }
+        }
+        } finally {
+            scope.close();
         }
         return r;
     }
@@ -334,8 +366,17 @@ public class EventRegistrationReminderService {
         }
 
         // In-run dedupe: two contact rows listing the same email/phone → one message.
+        // Trial/demo: congregation mail is dropped inside EmailService (Phase A: logged
+        // SKIPPED with the reason, not SENT) or, with a verified test address, sent ONCE
+        // for this action to that address (Phase B: the first contact's copy; the rest
+        // are logged as simulated). Asked once per run.
+        EmailService.Delivery delivery = emailService.delivery(clientId);
+        r.testEmail = delivery.test() ? delivery.testEmail() : null;
         Set<String> emailedThisRun = new HashSet<>();
         Set<String> textedThisRun  = new HashSet<>();
+        com.churchgeniuspro.util.EmailActionScope scope =
+                com.churchgeniuspro.util.EmailActionScope.begin("registration-reminder:" + event.getId() + ":" + daysBefore);
+        try {
 
         String emailSubject = "Reminder: RSVP for " + safe(event.getEventName());
         String emailBody    = buildReminderEmailBody(event, eventDate);
@@ -370,6 +411,17 @@ public class EventRegistrationReminderService {
                                 event.getId(), TYPE_REMINDER, CHANNEL_EMAIL, normEmail, STATUS_SENT)) {
                     log(r, event, contact, TYPE_REMINDER, CHANNEL_EMAIL, rawEmail, normEmail,
                             STATUS_SKIPPED, "Duplicate reminder — email already sent for this event", daysBefore);
+                } else if (delivery.blocked()) {
+                    log(r, event, contact, TYPE_REMINDER, CHANNEL_EMAIL, rawEmail, normEmail,
+                            STATUS_SKIPPED, delivery.reason(), daysBefore);
+                } else if (delivery.test()) {
+                    int before = scope.testEmailsSent();
+                    emailService.sendOrgEmail(rawEmail, emailSubject, emailBody, clientId);
+                    boolean copy = scope.testEmailsSent() > before;
+                    if (copy) r.testEmailsSent++;
+                    log(r, event, contact, TYPE_REMINDER, CHANNEL_EMAIL, rawEmail, normEmail, STATUS_SKIPPED,
+                            copy ? "Trial/Demo test copy sent to " + delivery.testEmail() + " — not sent to this contact"
+                                 : "Trial/Demo — simulated (one test email per action)", daysBefore);
                 } else {
                     emailService.sendOrgEmail(rawEmail, emailSubject, emailBody, clientId);
                     log(r, event, contact, TYPE_REMINDER, CHANNEL_EMAIL, rawEmail, normEmail,
@@ -398,6 +450,9 @@ public class EventRegistrationReminderService {
                             STATUS_SENT, null, daysBefore);
                 }
             }
+        }
+        } finally {
+            scope.close();
         }
         return r;
     }
@@ -437,12 +492,8 @@ public class EventRegistrationReminderService {
         if (event.getRegistrationLink() != null && !event.getRegistrationLink().isBlank()) {
             return event.getRegistrationLink().trim();
         }
-        try {
-            String token = EncryptionUtil.encrypt(String.valueOf(event.getId()));
-            return baseUrl + "/event-register/" + URLEncoder.encode(token, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return baseUrl + "/events";
-        }
+        String token = publicTokens.tokenFor(event);
+        return baseUrl + "/event-register/" + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
     /** "5:00 PM – 6:30 PM" for the event (first day for multi-day events); empty when unset. */
@@ -528,9 +579,11 @@ public class EventRegistrationReminderService {
               .append("</p>");
         }
 
-        // Event image (data URI → converted to CID attachment by EmailService)
-        if (event.getImageData() != null && !event.getImageData().isBlank()) {
-            sb.append("<div style='margin:0 0 22px;'><img src='").append(event.getImageData())
+        // Event image (data URI → converted to CID attachment by EmailService), loaded
+        // from its own table only when an email is built (database audit P7).
+        String eventImg = eventImageRepo.findImageDataByEventId(event.getId()).orElse(null);
+        if (eventImg != null && !eventImg.isBlank()) {
+            sb.append("<div style='margin:0 0 22px;'><img src='").append(eventImg)
               .append("' alt='Event' style='max-width:100%;border-radius:8px;'/></div>");
         }
 
@@ -611,9 +664,11 @@ public class EventRegistrationReminderService {
               .append("</p>");
         }
 
-        // Event image (data URI → converted to CID attachment by EmailService)
-        if (event.getImageData() != null && !event.getImageData().isBlank()) {
-            sb.append("<div style='margin:0 0 22px;'><img src='").append(event.getImageData())
+        // Event image (data URI → converted to CID attachment by EmailService), loaded
+        // from its own table only when an email is built (database audit P7).
+        String eventImg = eventImageRepo.findImageDataByEventId(event.getId()).orElse(null);
+        if (eventImg != null && !eventImg.isBlank()) {
+            sb.append("<div style='margin:0 0 22px;'><img src='").append(eventImg)
               .append("' alt='Event' style='max-width:100%;border-radius:8px;'/></div>");
         }
 

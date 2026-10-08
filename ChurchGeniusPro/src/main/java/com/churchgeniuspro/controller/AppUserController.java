@@ -58,6 +58,19 @@ public class AppUserController {
     private final EmailService               emailService;
     private final PasswordResetService       passwordResetService;
 
+    /** Plan user limit (e.g. Standard = 10). Optional so existing construction sites are unaffected. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.SubscriptionService subscriptionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.AppUserRepository appUserRepository;
+
+    /** Test seam. */
+    public void setPlanLimitDeps(com.churchgeniuspro.service.SubscriptionService s,
+                          com.churchgeniuspro.repository.AppUserRepository r) {
+        this.subscriptionService = s;
+        this.appUserRepository = r;
+    }
+
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
@@ -73,6 +86,25 @@ public class AppUserController {
         this.loginRepository        = loginRepository;
         this.emailService           = emailService;
         this.passwordResetService   = passwordResetService;
+    }
+
+    // ── Authorisation helpers ─────────────────────────────────────────────
+
+    /**
+     * Staff-user management is owner-only (the {@code /viewusers} page already says
+     * so via {@code RoleGuard.requireChurch}); the JSON API now enforces the same.
+     * Returns the owner's clientId, or {@code null} when the caller is not a church
+     * session — callers respond 403 in that case. The clientId is taken from the
+     * session, never from the request body.
+     */
+    private static String ownerClientId(HttpServletRequest request) {
+        if (RoleGuard.requireChurch(request) != null) return null;
+        Object v = request.getSession(false).getAttribute("clientId");
+        return v instanceof String s && !s.isBlank() ? s : null;
+    }
+
+    private static ResponseEntity<Map<String, Object>> forbidden() {
+        return ResponseEntity.status(403).body(Map.of("error", "Only the church account can manage users."));
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -93,16 +125,11 @@ public class AppUserController {
     @ResponseBody
     @GetMapping("/api/users")
     public ResponseEntity<List<Map<String, Object>>> getAll(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        String clientId = null;
-        if (session != null) {
-            Object churchAttr = session.getAttribute("church");
-            boolean isChurch = Boolean.TRUE.equals(churchAttr)
-                    || "true".equalsIgnoreCase(String.valueOf(churchAttr));
-            if (isChurch) {
-                clientId = (String) session.getAttribute("clientId");
-            }
-        }
+        // Every session type resolves to its own tenant; a null tenant is 401, never
+        // "list everyone". (Previously only church sessions were scoped and any staff
+        // or member session received every church's user directory.)
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null) return ResponseEntity.status(401).body(List.of());
         return ResponseEntity.ok(userService.getAll(clientId));
     }
 
@@ -110,11 +137,21 @@ public class AppUserController {
 
     @ResponseBody
     @PostMapping("/api/users")
-    public ResponseEntity<Map<String, Object>> create(@RequestBody AppUserBO bo) {
+    public ResponseEntity<Map<String, Object>> create(@RequestBody AppUserBO bo, HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
+        bo.setClientId(clientId);   // never from the body — that was a create-SuperAdmin-anywhere hole
         if (blank(bo.getFirstName())) return bad("First name is required.");
         if (blank(bo.getLastName()))  return bad("Last name is required.");
         if (blank(bo.getEmail()))     return bad("Email is required.");
         if (blank(bo.getRole()))      return bad("Role is required.");
+        // Plan user limit: counted from the database (non-deleted users of this church),
+        // never from what the page has loaded, so paging or a stale page cannot miscount.
+        if (subscriptionService != null && appUserRepository != null) {
+            String limit = subscriptionService.checkStaffUserLimit(clientId,
+                    appUserRepository.countByClientIdAndDeleteFlagFalse(clientId));
+            if (limit != null) return ResponseEntity.status(403).body(Map.of("error", limit, "limitReached", true));
+        }
         try {
             AppUser saved = userService.create(bo);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -131,13 +168,16 @@ public class AppUserController {
     @ResponseBody
     @PutMapping("/api/users/{id}")
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
-                                                      @RequestBody AppUserBO bo) {
+                                                      @RequestBody AppUserBO bo,
+                                                      HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         if (blank(bo.getFirstName())) return bad("First name is required.");
         if (blank(bo.getLastName()))  return bad("Last name is required.");
         if (blank(bo.getEmail()))     return bad("Email is required.");
         if (blank(bo.getRole()))      return bad("Role is required.");
         try {
-            AppUser saved = userService.update(id, bo);
+            AppUser saved = userService.update(id, clientId, bo);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -151,9 +191,11 @@ public class AppUserController {
 
     @ResponseBody
     @DeleteMapping("/api/users/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id, HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         try {
-            userService.delete(id);
+            userService.delete(id, clientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -164,9 +206,11 @@ public class AppUserController {
 
     @ResponseBody
     @PatchMapping("/api/users/{id}/toggle")
-    public ResponseEntity<Map<String, Object>> toggle(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> toggle(@PathVariable Integer id, HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         try {
-            AppUser u = userService.toggle(id);
+            AppUser u = userService.toggle(id, clientId);
             return ResponseEntity.ok(Map.of("success", true, "enabled", u.isEnabled()));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -181,14 +225,17 @@ public class AppUserController {
      */
     @ResponseBody
     @PostMapping("/api/users/link")
-    public ResponseEntity<Map<String, Object>> linkUsers(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> linkUsers(@RequestBody Map<String, Object> body,
+                                                         HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         Object rawIds = body.get("userIds");
         if (!(rawIds instanceof List)) return bad("userIds list is required.");
         try {
             List<Integer> ids = ((List<?>) rawIds).stream()
                     .map(v -> v instanceof Number n ? n.intValue() : Integer.parseInt(String.valueOf(v)))
                     .collect(Collectors.toList());
-            userService.linkUsers(ids);
+            userService.linkUsers(ids, clientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -204,9 +251,11 @@ public class AppUserController {
      */
     @ResponseBody
     @DeleteMapping("/api/users/{id}/unlink")
-    public ResponseEntity<Map<String, Object>> unlinkUser(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> unlinkUser(@PathVariable Integer id, HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         try {
-            userService.unlinkUser(id);
+            userService.unlinkUser(id, clientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -315,7 +364,11 @@ public class AppUserController {
             return bad("Select at least 2 accounts to link.");
         }
         try {
-            userService.linkWithMembers(appUserIds, memberSignupIds, loginRepository);
+            String churchClientId = (String) session.getAttribute("clientId");
+            for (Integer sid : memberSignupIds) {
+                if (!memberSignupBelongsTo(sid, churchClientId)) return bad("Could not find the selected accounts.");
+            }
+            userService.linkWithMembers(appUserIds, memberSignupIds, loginRepository, churchClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -340,6 +393,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Only Church accounts can unlink accounts."));
         try {
+            if (!memberSignupBelongsTo(signupId, (String) session.getAttribute("clientId"))) {
+                return bad("Member account not found.");
+            }
             userService.unlinkMemberSignup(signupId, loginRepository);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
@@ -367,11 +423,14 @@ public class AppUserController {
     @ResponseBody
     @PatchMapping("/api/users/{id}/privileges")
     public ResponseEntity<Map<String, Object>> updatePrivileges(@PathVariable Integer id,
-                                                                @RequestBody Map<String, Object> body) {
+                                                                @RequestBody Map<String, Object> body,
+                                                                HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         try {
             Object raw = body.get("privileges");
             String privilegesJson = raw != null ? raw.toString() : null;
-            userService.updatePrivileges(id, privilegesJson);
+            userService.updatePrivileges(id, clientId, privilegesJson);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -385,9 +444,11 @@ public class AppUserController {
 
     @ResponseBody
     @PostMapping("/api/users/{id}/email")
-    public ResponseEntity<Map<String, Object>> sendEmail(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> sendEmail(@PathVariable Integer id, HttpServletRequest request) {
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
         try {
-            userService.sendEmail(id);
+            userService.sendEmail(id, clientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -405,7 +466,16 @@ public class AppUserController {
      */
     @ResponseBody
     @GetMapping("/api/users/{id}/permissions")
-    public ResponseEntity<Map<String, Object>> getPermissions(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> getPermissions(@PathVariable Integer id,
+                                                              HttpServletRequest request) {
+        // session.js reads the CURRENT user's own map at login; the owner reads any
+        // user's map from the permissions modal. Nobody reads another church's.
+        if (!isSelf(request, id)) {
+            String clientId = ownerClientId(request);
+            if (clientId == null) return forbidden();
+            try { userService.findOrThrow(id, clientId); }
+            catch (IllegalArgumentException ex) { return ResponseEntity.status(404).body(Map.of("error", "User not found.")); }
+        }
         Map<String, Object> res = new HashMap<>();
         permissionsRepo.findByAppUserId(id)
                 .ifPresentOrElse(
@@ -424,6 +494,12 @@ public class AppUserController {
             @PathVariable Integer id,
             @RequestBody  Map<String, Object> body,
             HttpServletRequest request) {
+        // Owner-only. A staff session posting "{}" to its own id used to grant itself
+        // full access (the session's privileges were refreshed in place below).
+        String clientId = ownerClientId(request);
+        if (clientId == null) return forbidden();
+        try { userService.findOrThrow(id, clientId); }
+        catch (IllegalArgumentException ex) { return ResponseEntity.status(404).body(Map.of("error", "User not found.")); }
         Object raw = body.get("permissions");
         String json = raw != null ? raw.toString() : "{}";
 
@@ -440,6 +516,7 @@ public class AppUserController {
             Object sessionUserId = session.getAttribute("appUserId");
             if (sessionUserId != null && sessionUserId.toString().equals(id.toString())) {
                 session.setAttribute("privileges", json);
+                com.churchgeniuspro.service.PermissionRefresher.markFresh(session);
             }
         }
 
@@ -521,7 +598,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id).orElse(null);
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
+                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+                .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
         if (body.containsKey("firstName") && body.get("firstName") != null)
@@ -551,7 +630,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id).orElse(null);
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
+                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+                .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
         fm.setDeleteFlag(true);
@@ -584,7 +665,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id).orElse(null);
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
+                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+                .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
         String memberRef = fm.getMemberRef();
@@ -657,7 +740,8 @@ public class AppUserController {
                 + "<p style='font-size:12px;color:#888;'>This link expires in 10 minutes. "
                 + "If you did not request this, you can ignore this email.</p></div>";
 
-            emailService.sendGenericEmail(sendToEmail, "Password Reset — " + churchName, htmlBody);
+            // Account recovery: delivered whatever the tenant's plan says.
+            emailService.sendAccountEmail(sendToEmail, "Password Reset — " + churchName, htmlBody);
             String successMsg = sentToHoh
                     ? "Reset link sent to Head of Household (" + sendToEmail + ") on behalf of " + fm.getFirstName()
                     : "Reset link sent to " + sendToEmail;
@@ -680,7 +764,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id).orElse(null);
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
+                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+                .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
         Map<String, Object> res = new HashMap<>();
@@ -702,7 +788,9 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm2 = familyMemberRepository.findById(id).orElse(null);
+        com.churchgeniuspro.hibernate.FamilyMember fm2 = familyMemberRepository.findById(id)
+                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+                .orElse(null);
         if (fm2 == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
         Object raw = body.get("permissions");
@@ -723,5 +811,35 @@ public class AppUserController {
     private static String esc(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    // ── Tenant helpers ────────────────────────────────────────────────────
+
+    /** True when the session's own appUserId is {@code id}. */
+    private static boolean isSelf(HttpServletRequest request, Integer id) {
+        HttpSession session = request.getSession(false);
+        if (session == null || id == null) return false;
+        Object v = session.getAttribute("appUserId");
+        return v != null && v.toString().equals(id.toString());
+    }
+
+    /** A family member belongs to the church whose clientId is on the family (or the member itself). */
+    private static boolean belongsToChurch(com.churchgeniuspro.hibernate.FamilyMember fm, String churchClientId) {
+        if (fm == null || churchClientId == null) return false;
+        String owner = fm.getFamily() != null ? fm.getFamily().getAppClientId() : fm.getAppClientId();
+        return churchClientId.equals(owner);
+    }
+
+    /**
+     * A member signup ({@code signup.client_id = MBR…}) belongs to a church only
+     * through the family member that carries that memberRef.
+     */
+    private boolean memberSignupBelongsTo(Integer signupId, String churchClientId) {
+        if (signupId == null || churchClientId == null) return false;
+        return loginRepository.findById(signupId)
+                .map(su -> su.getClientId())
+                .flatMap(ref -> ref == null ? java.util.Optional.empty() : familyMemberRepository.findByMemberRef(ref))
+                .map(fm -> belongsToChurch(fm, churchClientId))
+                .orElse(false);
     }
 }

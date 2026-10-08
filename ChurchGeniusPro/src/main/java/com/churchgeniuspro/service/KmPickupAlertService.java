@@ -8,7 +8,6 @@ import com.churchgeniuspro.repository.KmCheckinRepository;
 import com.churchgeniuspro.repository.KmChildRepository;
 import com.churchgeniuspro.repository.KmChildSetupRepository;
 import com.churchgeniuspro.repository.KmClassroomRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.KmPickupUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -85,6 +84,7 @@ public class KmPickupAlertService {
     }
 
     private void processTenant(KmChildSetup setup, List<Recipient> recipients) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("km-pickup-alert")) {
         String clientId = setup.getClientId();
         LocalDateTime now = LocalDateTime.now();
 
@@ -121,7 +121,7 @@ public class KmPickupAlertService {
                 String sms = buildSms(child, overdueMins, url);
                 for (Recipient r : recipients)
                     if (notBlank(r.phone())) {
-                        try { smsService.send(r.phone().trim(), sms); }
+                        try { smsService.sendForClient(clientId, r.phone().trim(), sms); }
                         catch (Exception e) { log.warn("pickup SMS to {} failed: {}", r.phone(), e.getMessage()); }
                     }
             }
@@ -130,12 +130,14 @@ public class KmPickupAlertService {
             log.info("KM overdue pickup alert sent for child {} (checkin {}), {} min overdue",
                 ci.getChildId(), ci.getId(), overdueMins);
         }
+            }
     }
 
     // ───────────────────────── picked-up broadcast ─────────────────────────
 
     /** Notify all configured recipients that {@code byName} confirmed the pickup. */
     public void broadcastPickedUp(String clientId, String childName, String byName) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("km-picked-up")) {
         KmChildSetup setup = setupRepo.findByClientId(clientId).orElse(null);
         if (setup == null) return;
         List<Recipient> recipients = parseRecipients(setup.getAlertRecipients());
@@ -151,21 +153,24 @@ public class KmPickupAlertService {
                 catch (Exception e) { log.warn("pickup-confirm email failed: {}", e.getMessage()); }
             }
             if (setup.isSmsAlertsEnabled() && smsService.isConfigured() && notBlank(r.phone())) {
-                try { smsService.send(r.phone().trim(), msg); }
+                try { smsService.sendForClient(clientId, r.phone().trim(), msg); }
                 catch (Exception e) { log.warn("pickup-confirm SMS failed: {}", e.getMessage()); }
             }
         }
+            }
     }
 
     // ───────────────────────── helpers ─────────────────────────
 
+    /** The parent's pickup link for this visit — a random per-check-in token, minted on first use. */
     public String pickupUrl(String clientId, Long checkinId) {
-        try {
-            String token = EncryptionUtil.encrypt(clientId + "|" + checkinId);
-            return baseUrl + "/kidsPickup?t=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return baseUrl + "/kidsPickup";
+        KmCheckin ci = clientId == null ? null : checkinRepo.findByIdAndClientId(checkinId, clientId).orElse(null);
+        if (ci == null) return baseUrl + "/kidsPickup";
+        if (ci.getPickupToken() == null || ci.getPickupToken().isBlank()) {
+            ci.setPickupToken(PublicLinkResolver.newToken());
+            checkinRepo.save(ci);
         }
+        return baseUrl + "/kidsPickup?t=" + URLEncoder.encode(ci.getPickupToken(), StandardCharsets.UTF_8);
     }
 
     public List<Recipient> parseRecipients(String json) {

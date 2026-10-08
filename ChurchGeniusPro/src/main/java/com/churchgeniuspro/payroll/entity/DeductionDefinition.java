@@ -40,6 +40,7 @@ public class DeductionDefinition {
     private boolean percentageBased;
 
     /** Default flat amount or percentage (e.g., 0.06 for 6%). */
+    @Column(precision = 15, scale = 6)   // wide enough for an amount, precise enough for a rate (audit C1)
     private BigDecimal defaultAmount;
 
     private boolean active = true;

@@ -131,8 +131,30 @@
     .ltr-sig-name{font-size:14px;font-weight:bold;color:#1a237e;border-top:1px solid #333;display:inline-block;padding-top:4px;margin-top:32px;min-width:220px;}
     .ltr-sig-title{font-size: 13px;color:#666;margin-top:2px;}
 
+    /* ── Letter-text editor ──
+       Styled like .btn-admin-settings but deliberately NOT that class:
+       session.js claims every .btn-admin-settings on the page, strips its
+       onclick and turns it into the Admin Settings dropdown — and hides it
+       from anyone who is not Admin or SuperAdmin, which would have taken it
+       away from the Accountant, who may edit this letter. */
+    .btn-letter-text { font-size:13px; background:transparent; color:#673147; border:1px solid #c5a0b5; border-radius:6px; padding:6px 14px; cursor:pointer; font-weight:600; transition:background .15s, color .15s, border-color .15s; }
+    .btn-letter-text:hover { background:#673147; color:#fff; border-color:#673147; }
+
+    .lt-hint{font-size:12px;color:#888;line-height:1.6;margin-bottom:14px;}
+    .lt-hint code{background:#f3eef1;color:#673147;padding:1px 5px;border-radius:3px;font-size:11.5px;}
+    .lt-label{font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px;}
+    .lt-toolbar{display:flex;gap:4px;flex-wrap:wrap;padding:6px 8px;border:1px solid #ddd;border-bottom:none;border-radius:7px 7px 0 0;background:#f9f9f9;}
+    .lt-toolbar button{padding:3px 9px;font-size:13px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;color:#444;}
+    .lt-toolbar button:hover{background:#eef0f8;border-color:#673147;color:#673147;}
+    .lt-editor{border:1px solid #ddd;border-radius:0 0 7px 7px;padding:12px 14px;min-height:110px;outline:none;background:#fff;overflow-y:auto;font-family:Georgia,'Times New Roman',serif;}
+    .lt-editor:focus{border-color:#673147;box-shadow:0 0 0 3px rgba(103,49,71,.08);}
+    .lt-editor p:last-child,.lt-editor .ltr-closing:last-child,.lt-editor .ltr-disclaimer:last-child{margin-bottom:0;}
+    .lt-status{font-size:12px;color:#43a047;margin-left:auto;align-self:center;}
+    .lt-status.err{color:#e53935;}
+    .btn-link{background:none;border:none;color:#673147;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;padding:6px 8px;}
+
     @media print{
-      .sidebar,.topbar,.filter-card,.rpt-actions .btn-pdf{display:none!important;}
+      .sidebar,.topbar,.filter-card,#letterTextCard,.rpt-actions .btn-pdf{display:none!important;}
       .page-content{padding:0!important;}
       .letter-page{border:none;border-radius:0;padding:28px 36px;margin-bottom:0;box-shadow:none;}
       .card{box-shadow:none;border-radius:0;}
@@ -153,9 +175,74 @@
     <header id="topbar" class="topbar"></header>
 
     <main class="page-content">
-      <div class="rpt-header">
-        <div class="rpt-title">📄 Year-End Tax Report</div>
-        <div class="rpt-sub">Annual giving statements. Select a year and optionally a specific member to generate individual contribution letters.</div>
+      <div class="rpt-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div>
+          <div class="rpt-title">📄 Year-End Tax Report</div>
+          <div class="rpt-sub">Annual giving statements. Select a year and optionally a specific member to generate individual contribution letters.</div>
+        </div>
+        <button class="btn-letter-text" onclick="toggleLetterText()">✎ Edit letter text</button>
+      </div>
+
+      <!-- The wording around the contribution table: this church's own, shown on
+           every statement here and in each member's Financial Report. -->
+      <div class="card" id="letterTextCard" style="display:none;">
+        <div class="rpt-actions">
+          <div class="rpt-actions-title">✎ Letter Text</div>
+          <span class="lt-status" id="ltStatus"></span>
+        </div>
+        <div class="lt-hint">
+          This text appears on every giving statement — on the letters below and on each
+          member's Financial Report in the member portal. Write <code>{ChurchName}</code> and
+          <code>{Year}</code> where the church name and tax year should appear.
+          The contribution table itself is not editable.
+        </div>
+
+        <div class="lt-label">Above the contribution table</div>
+        <div class="lt-toolbar">
+          <button type="button" title="Bold" onclick="ltFmt('bold')"><b>B</b></button>
+          <button type="button" title="Italic" onclick="ltFmt('italic')"><i>I</i></button>
+          <button type="button" title="Underline" onclick="ltFmt('underline')"><u>U</u></button>
+          <button type="button" title="Bulleted list" onclick="ltFmt('insertUnorderedList')">• List</button>
+          <button type="button" title="Numbered list" onclick="ltFmt('insertOrderedList')">1. List</button>
+          <button type="button" title="Align left" onclick="ltFmt('justifyLeft')">≡</button>
+          <button type="button" title="Centre" onclick="ltFmt('justifyCenter')">☲</button>
+          <button type="button" title="Clear formatting" onclick="ltFmt('removeFormat')" style="margin-left:auto;">✕ Clear</button>
+        </div>
+        <div class="lt-editor" id="ltIntro" contenteditable="true" onfocus="ltActive=this"></div>
+
+        <div class="lt-label">Below the contribution table</div>
+        <div class="lt-toolbar">
+          <button type="button" title="Bold" onclick="ltFmt('bold')"><b>B</b></button>
+          <button type="button" title="Italic" onclick="ltFmt('italic')"><i>I</i></button>
+          <button type="button" title="Underline" onclick="ltFmt('underline')"><u>U</u></button>
+          <button type="button" title="Bulleted list" onclick="ltFmt('insertUnorderedList')">• List</button>
+          <button type="button" title="Numbered list" onclick="ltFmt('insertOrderedList')">1. List</button>
+          <button type="button" title="Align left" onclick="ltFmt('justifyLeft')">≡</button>
+          <button type="button" title="Centre" onclick="ltFmt('justifyCenter')">☲</button>
+          <button type="button" title="Put this paragraph in the bordered notice box" onclick="ltNoticeBox()">▢ Notice box</button>
+          <button type="button" title="Clear formatting" onclick="ltFmt('removeFormat')" style="margin-left:auto;">✕ Clear</button>
+        </div>
+        <div class="lt-editor" id="ltClosing" contenteditable="true" onfocus="ltActive=this"></div>
+
+        <div class="lt-label">Signature (under "Sincerely,")</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:640px;">
+          <div>
+            <input type="text" id="ltSigName" maxlength="200" placeholder="Church name (default)"
+                   style="width:100%;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;font-family:inherit;" />
+            <div style="font-size:11px;color:#888;margin-top:3px;">Name — leave blank to print your church name.</div>
+          </div>
+          <div>
+            <input type="text" id="ltSigTitle" maxlength="200" placeholder="Finance Department (default)"
+                   style="width:100%;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;font-family:inherit;" />
+            <div style="font-size:11px;color:#888;margin-top:3px;">Title — leave blank for "Finance Department".</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-top:16px;">
+          <button class="btn-primary" onclick="saveLetterText()">Save letter text</button>
+          <button class="btn-link" onclick="resetLetterText()">Restore original wording</button>
+          <button class="btn-link" style="margin-left:auto;" onclick="toggleLetterText()">Close</button>
+        </div>
       </div>
 
       <div class="card filter-card">
@@ -385,6 +472,129 @@ async function generateReport(){
 }
 
 /* ══════════════════════════════════════════════
+   LETTER TEXT — the wording around the table
+   Saved per church; shown here and on every
+   member's Financial Report.
+══════════════════════════════════════════════ */
+/* The original wording, used only if the server sends none. */
+function DEFAULT_INTRO_HTML(churchName, year) {
+  return '<p class="ltr-body">Thank you for your faithful giving and generous support to <strong>'
+    + churchName + '</strong> during the <strong>' + year + '</strong> calendar year. This letter '
+    + 'serves as your official charitable contribution statement for income tax purposes.</p>';
+}
+const DEFAULT_CLOSING_HTML =
+    '<div class="ltr-disclaimer"><strong>Important Tax Notice:</strong> No goods or services were '
+  + 'provided to you in exchange for these contributions. This statement is provided in accordance '
+  + 'with IRS requirements for charitable contributions. Please retain this letter for your tax '
+  + 'records. We recommend consulting a qualified tax professional for guidance on deductibility.</div>'
+  + '<p class="ltr-closing">We are truly grateful for your partnership and continued support of our '
+  + 'ministry. Your generosity makes a meaningful difference in our congregation and community. '
+  + 'May God bless you abundantly for your faithfulness.</p>';
+
+let ltActive = null;     // the editor that last had focus, so one toolbar serves both
+let ltLoaded = false;
+
+function ltSay(msg, isErr) {
+  const el = document.getElementById('ltStatus');
+  el.textContent = msg || '';
+  el.classList.toggle('err', !!isErr);
+  if (msg && !isErr) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function toggleLetterText() {
+  const card = document.getElementById('letterTextCard');
+  const show = card.style.display === 'none';
+  card.style.display = show ? '' : 'none';
+  if (show) {
+    if (!ltLoaded) await loadLetterText();
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+async function loadLetterText() {
+  try {
+    const res  = await fetch('/api/reports/letter-content');
+    const data = await res.json();
+    if (!res.ok) { ltSay(data.error || 'Could not load the letter text.', true); return; }
+    ltFill(data);
+    ltLoaded = true;
+  } catch (e) {
+    ltSay('Could not load the letter text.', true);
+  }
+}
+
+function ltFmt(cmd) {
+  const ed = ltActive || document.getElementById('ltIntro');
+  ed.focus();
+  document.execCommand(cmd, false, null);
+}
+
+/* Puts the paragraph the cursor is in into the bordered tax-notice box, or takes
+   it back out — so a church that deletes the box can put one back. */
+function ltNoticeBox() {
+  const ed = document.getElementById('ltClosing');
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  let node = sel.getRangeAt(0).startContainer;
+  if (node.nodeType === 3) node = node.parentNode;
+  while (node && node !== ed && node.parentNode !== ed) node = node.parentNode;
+  if (!node || node === ed) { ltSay('Put the cursor in the paragraph first.', true); return; }
+  if (node.classList.contains('ltr-disclaimer')) {
+    node.classList.remove('ltr-disclaimer');
+    if (node.tagName === 'P') node.classList.add('ltr-closing');
+  } else {
+    node.classList.remove('ltr-closing');
+    node.classList.add('ltr-disclaimer');
+  }
+}
+
+function ltFill(data) {
+  document.getElementById('ltIntro').innerHTML   = data.introHtml   || '';
+  document.getElementById('ltClosing').innerHTML = data.closingHtml || '';
+  document.getElementById('ltSigName').value     = data.signatureName  || '';
+  document.getElementById('ltSigTitle').value    = data.signatureTitle || '';
+}
+
+async function saveLetterText() {
+  try {
+    const res = await fetch('/api/reports/letter-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        introHtml:      document.getElementById('ltIntro').innerHTML,
+        closingHtml:    document.getElementById('ltClosing').innerHTML,
+        signatureName:  document.getElementById('ltSigName').value,
+        signatureTitle: document.getElementById('ltSigTitle').value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { ltSay(data.error || 'Could not save the letter text.', true); return; }
+    // Show it back exactly as stored, so any formatting the editor could not keep
+    // is visible now rather than a surprise on the next statement.
+    ltFill(data);
+    ltSay('Saved.');
+    if (document.getElementById('reportCard').style.display !== 'none') generateReport();
+  } catch (e) {
+    ltSay('Could not save the letter text.', true);
+  }
+}
+
+async function resetLetterText() {
+  if (!confirm('Restore the original wording? Your edits to this letter will be discarded.')) return;
+  try {
+    const res  = await fetch('/api/reports/letter-content/reset', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { ltSay(data.error || 'Could not restore the original wording.', true); return; }
+    ltFill(data);
+    ltSay('Original wording restored.');
+    if (document.getElementById('reportCard').style.display !== 'none') generateReport();
+  } catch (e) {
+    ltSay('Could not restore the original wording.', true);
+  }
+}
+
+/* ══════════════════════════════════════════════
    RENDER LETTER-STYLE REPORT
 ══════════════════════════════════════════════ */
 function renderReport(data, year, selectedLabel) {
@@ -400,6 +610,11 @@ function renderReport(data, year, selectedLabel) {
   }
 
   const churchName = esc(data.churchName || localStorage.getItem('churchName') || '');
+  // The church's own wording around the contribution table, sanitised and
+  // placeholder-filled server-side. The literals are the original text, kept only
+  // as a fallback for a server that sends neither.
+  const introHtml   = data.introHtml   || DEFAULT_INTRO_HTML(churchName, year);
+  const closingHtml = data.closingHtml || DEFAULT_CLOSING_HTML;
   const logoHtml = churchLogoDataUrl
     ? `<div style="text-align:center;margin-bottom:14px;"><img src="${churchLogoDataUrl}" alt="Church Logo" style="max-height:90px;max-width:220px;object-fit:contain;" /></div>`
     : '';
@@ -461,11 +676,7 @@ function renderReport(data, year, selectedLabel) {
         <div class="ltr-address">${addrHtml}</div>
       </div>
       <p class="ltr-salutation">Dear ${salutationName},</p>
-      <p class="ltr-body">
-        Thank you for your faithful giving and generous support to <strong>${churchName}</strong>
-        during the <strong>${year}</strong> calendar year. This letter serves as your official
-        charitable contribution statement for income tax purposes.
-      </p>
+      ${introHtml}
       <div class="ltr-table-wrap">
         <table class="ltr-tbl">
           <thead><tr>
@@ -482,20 +693,10 @@ function renderReport(data, year, selectedLabel) {
           </tr></tfoot>
         </table>
       </div>
-      <div class="ltr-disclaimer">
-        <strong>Important Tax Notice:</strong> No goods or services were provided to you in
-        exchange for these contributions. This statement is provided in accordance with IRS
-        requirements for charitable contributions. Please retain this letter for your tax records.
-        We recommend consulting a qualified tax professional for guidance on deductibility.
-      </div>
-      <p class="ltr-closing">
-        We are truly grateful for your partnership and continued support of our ministry.
-        Your generosity makes a meaningful difference in our congregation and community.
-        May God bless you abundantly for your faithfulness.
-      </p>
+      ${closingHtml}
       <p class="ltr-closing">Sincerely,</p>
-      <div class="ltr-sig-name">${churchName}</div>
-      <div class="ltr-sig-title">Finance Department</div>
+      <div class="ltr-sig-name">${data.signatureName || churchName}</div>
+      <div class="ltr-sig-title">${data.signatureTitle || 'Finance Department'}</div>
     </div>`;
   });
 

@@ -42,6 +42,11 @@ public class AiDataSearchController {
             resp.put("error", "Not signed in.");
             return ResponseEntity.status(401).body(resp);
         }
+        // AI Assistant permission (viewUsers → More → AI Assistant) — see AiSearchController.
+        if (com.churchgeniuspro.util.RoleGuard.requireFeature(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT) != null) {
+            resp.put("error", "You do not have access to the AI Assistant.");
+            return ResponseEntity.status(403).body(resp);
+        }
         String question = body == null ? "" : String.valueOf(body.getOrDefault("query", "")).trim();
         if (question.isBlank()) {
             resp.put("handled", false);

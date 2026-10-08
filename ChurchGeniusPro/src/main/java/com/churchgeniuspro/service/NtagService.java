@@ -43,6 +43,11 @@ public class NtagService {
     private final EmailService emailService;
     private final TemporaryAccessService tempAccessService;
 
+    /** The church's own account status; optional so hand-built tests are unchanged. */
+    private AccountStatusService accountStatus;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAccountStatus(AccountStatusService a) { this.accountStatus = a; }
+
     public NtagService(NtagCredentialRepository credRepo,
                        NtagLoginChallengeRepository challengeRepo,
                        NtagLoginHistoryRepository historyRepo,
@@ -211,8 +216,10 @@ public class NtagService {
         return toHistoryMaps(historyRepo.findByClientIdOrderByLoginTimeDesc(clientId, PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
     }
 
-    public List<Map<String, Object>> historyForCredential(Long credentialId, int limit) {
-        return toHistoryMaps(historyRepo.findByCredentialIdOrderByLoginTimeDesc(credentialId, PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
+    /** Login history for one credential of this tenant; unknown / foreign id → IllegalArgumentException. */
+    public List<Map<String, Object>> historyForCredential(Long credentialId, String clientId, int limit) {
+        NtagCredential c = mustFind(credentialId, clientId);
+        return toHistoryMaps(historyRepo.findByCredentialIdOrderByLoginTimeDesc(c.getId(), PageRequest.of(0, Math.max(1, Math.min(limit, 500)))));
     }
 
     private List<Map<String, Object>> toHistoryMaps(List<NtagLoginHistory> rows) {
@@ -252,6 +259,12 @@ public class NtagService {
                 || (c.getValidUntil() != null && now.isAfter(c.getValidUntil()))) {
             logHist(c, ip, device, "EXPIRED", "outside validity window");
             throw new NtagLoginException("This NTAG tag is not valid at this time.");
+        }
+        // A tag is one of the church's logins: when the church's subscription or trial
+        // has ended it cannot start a sign-in either.
+        if (accountStatus != null && accountStatus.forTenant(c.getClientId()) != null) {
+            logHist(c, ip, device, "SUBSCRIPTION_ENDED", "church subscription ended");
+            throw new NtagLoginException("This church's subscription has ended. Please contact the church administrator.");
         }
 
         NtagLoginChallenge ch = new NtagLoginChallenge();

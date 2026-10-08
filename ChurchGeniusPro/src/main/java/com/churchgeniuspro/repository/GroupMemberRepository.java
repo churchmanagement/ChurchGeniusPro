@@ -28,6 +28,11 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Intege
             @Param("groupId")    Integer groupId,
             @Param("appClientId") String appClientId);
 
+    /** Every active member email in this church's groups — the only addresses the group mailer may send to. */
+    @Query("SELECT DISTINCT LOWER(m.email) FROM GroupMember m " +
+           "WHERE m.appClientId = :appClientId AND m.deleteFlag = false AND m.email IS NOT NULL")
+    List<String> findActiveEmailsByAppClientId(@Param("appClientId") String appClientId);
+
     /** Member count for a given group (used in group list for badge display). */
     long countByGroup_IdAndDeleteFlagFalse(Integer groupId);
 
@@ -42,4 +47,8 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Intege
     /** Duplicate-check on update (same email in same group, excluding the record being updated). */
     boolean existsByEmailIgnoreCaseAndDeleteFlagFalseAndGroup_IdAndIdNot(
             String email, Integer groupId, Integer id);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<GroupMember> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

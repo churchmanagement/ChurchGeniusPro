@@ -1,6 +1,7 @@
 package com.churchgeniuspro.plaid.service;
 
 import com.churchgeniuspro.plaid.entity.PlaidItem;
+import com.churchgeniuspro.plaid.entity.PlaidAccount;
 import com.churchgeniuspro.plaid.repository.PlaidAccountRepository;
 import com.churchgeniuspro.plaid.repository.PlaidItemRepository;
 import com.churchgeniuspro.plaid.repository.PlaidTransactionStagingRepository;
@@ -28,8 +29,47 @@ public class PlaidLinkService {
     private final PlaidTransactionStagingRepository stagingRepo;
     private final PlaidSyncService syncService;
     private final PlaidAuditService audit;
+    private final PlaidEnvironmentService plaidEnv;
+
+    /**
+     * Plan limits (Bank Sync account cap). Setter-injected so the constructor and the
+     * tests built on it are unchanged; without it no cap is enforced.
+     */
+    private com.churchgeniuspro.service.SubscriptionService subscriptions;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSubscriptions(com.churchgeniuspro.service.SubscriptionService s) { this.subscriptions = s; }
+
+    /**
+     * Accounts currently connected for this church. A user-initiated delete purges the
+     * rows, but a Service Admin force-disconnect keeps them with {@code active=false}
+     * (ServiceAdminPlaidService) — those are not connected and must not count, or a
+     * force-disconnected church could never reconnect within its limit.
+     */
+    public long connectedAccountCount(String clientId) {
+        return accountRepo.findByClientId(clientId).stream().filter(PlaidAccount::isActive).count();
+    }
+
+    /** The plan's cap on connected accounts; null = unlimited. */
+    public Integer accountLimit(String clientId) {
+        return subscriptions == null ? null : subscriptions.bankAccountLimit(clientId);
+    }
+
+    /**
+     * Thrown with a user-facing message when a connection would exceed the plan's
+     * Bank Sync account limit. Nothing is persisted when this is raised.
+     */
+    public static class AccountLimitExceeded extends IllegalArgumentException {
+        public AccountLimitExceeded(String message) { super(message); }
+    }
+
+    private void requireRoomFor(String clientId, int adding) {
+        if (subscriptions == null) return;
+        String deny = subscriptions.checkBankAccountLimit(clientId, connectedAccountCount(clientId), adding);
+        if (deny != null) throw new AccountLimitExceeded(deny);
+    }
 
     public PlaidLinkService(PlaidClient client,
+                            PlaidEnvironmentService plaidEnv,
                             PlaidTokenCipher cipher,
                             PlaidItemRepository itemRepo,
                             PlaidAccountRepository accountRepo,
@@ -37,6 +77,7 @@ public class PlaidLinkService {
                             PlaidSyncService syncService,
                             PlaidAuditService audit) {
         this.client = client;
+        this.plaidEnv = plaidEnv;
         this.cipher = cipher;
         this.itemRepo = itemRepo;
         this.accountRepo = accountRepo;
@@ -45,11 +86,23 @@ public class PlaidLinkService {
         this.audit = audit;
     }
 
-    /** Create a Plaid Link token for the given church user. Returns the link_token. */
+    /**
+     * Create a Plaid Link token for the given church user. Returns the link_token.
+     *
+     * <p>The environment comes from the tenant's subscription, so a Trial tenant is
+     * handed a sandbox Link token and Link itself will only ever offer them Plaid's
+     * test institutions. This is the front door of the whole flow: everything
+     * downstream inherits the environment of the token issued here.
+     */
     public String createLinkToken(String clientId, String clientUserId, String actor) {
-        Map<String, Object> resp = client.createLinkToken(clientUserId, "ChurchGeniusPro");
+        // Already at (or over) the plan's account limit: refuse before Plaid Link opens,
+        // rather than letting the user pick a bank and fail at the end.
+        requireRoomFor(clientId, 1);
+        String env = plaidEnv.envForClient(clientId);
+        Map<String, Object> resp = client.createLinkToken(env, clientUserId, "ChurchGeniusPro");
         Object token = resp.get("link_token");
-        audit.record(clientId, actor, "LINK_CREATED", clientUserId, "Link token created");
+        audit.record(clientId, actor, "LINK_CREATED", clientUserId,
+                "Link token created (" + env + ")");
         return token != null ? token.toString() : null;
     }
 
@@ -60,15 +113,24 @@ public class PlaidLinkService {
      */
     public Map<String, Object> exchangePublicToken(String clientId, Integer appUserId,
                                                    String publicToken, String actor) {
-        Map<String, Object> ex = client.exchangePublicToken(publicToken);
+        // Resolved from the plan again rather than trusted from the caller: the
+        // public token arrives from the browser, and the environment it is redeemed
+        // in decides which Plaid the resulting access token can reach.
+        String env = plaidEnv.envForClient(clientId);
+        Map<String, Object> ex = client.exchangePublicToken(env, publicToken);
         String accessToken = str(ex.get("access_token"));
         String itemId = str(ex.get("item_id"));
         if (accessToken == null || itemId == null) {
             throw new IllegalStateException("Plaid did not return an access token.");
         }
 
-        // Re-link support: update the token if this item already exists for the tenant.
-        PlaidItem item = itemRepo.findByItemId(itemId).orElseGet(PlaidItem::new);
+        // Re-link support: update the token if this item already exists for the
+        // tenant. Scoped by clientId (financial audit M7) — a Plaid item_id is
+        // not guaranteed unique across tenants, and an unscoped lookup here would
+        // let one church's Link flow silently overwrite another church's item
+        // row, access token included, quietly pointing that church's own sync at
+        // a different church's bank data.
+        PlaidItem item = itemRepo.findByItemIdAndClientId(itemId, clientId).orElseGet(PlaidItem::new);
         boolean isNew = item.getId() == null;
         if (isNew) {
             item.setClientId(clientId);
@@ -76,22 +138,55 @@ public class PlaidLinkService {
             item.setCreatedByUserId(appUserId);
         }
         item.setAccessTokenEnc(cipher.encrypt(accessToken));
+        item.setPlaidEnv(env);          // the token is only valid in this environment
         item.setStatus("ACTIVE");
         item.setDeleteFlag(false);
 
-        // Institution id (name resolution deferred to a later phase).
+        // Institution id (name resolution deferred to a later phase), and the
+        // accounts this connection brings — needed for the plan limit below.
+        int incomingAccounts = 1;
+        boolean accountCountKnown = false;
         try {
-            Map<String, Object> acctResp = client.accountsGet(accessToken);
+            Map<String, Object> acctResp = client.accountsGet(env, accessToken);
             Object itemObj = acctResp.get("item");
             if (itemObj instanceof Map<?, ?> m) {
                 item.setInstitutionId(str(m.get("institution_id")));
+            }
+            if (acctResp.get("accounts") instanceof java.util.List<?> accts && !accts.isEmpty()) {
+                incomingAccounts = accts.size();
+                accountCountKnown = true;
             }
         } catch (Exception e) {
             log.debug("accounts/get during link failed (non-fatal): {}", e.getMessage());
         }
 
+        // Plan limit on connected bank accounts (each account selected in Plaid Link
+        // counts). Checked for a NEW connection only — a re-link of an existing item
+        // adds nothing. Over the limit: revoke the brand-new item at Plaid so no
+        // orphaned access token survives, persist nothing, and tell the user how
+        // many accounts their plan allows. All-or-nothing, never a partial connection.
+        if (isNew) {
+            try {
+                // With a finite limit, an unknown account count cannot be checked — and
+                // the initial sync below would store however many accounts there are.
+                // Refuse rather than risk a partial over-limit connection.
+                if (!accountCountKnown && accountLimit(clientId) != null) {
+                    throw new AccountLimitExceeded("We could not confirm how many bank accounts this "
+                            + "connection includes, so it was not saved. Please try connecting again.");
+                }
+                requireRoomFor(clientId, incomingAccounts);
+            } catch (AccountLimitExceeded limit) {
+                try { client.itemRemove(env, accessToken); }
+                catch (Exception e) { log.warn("item/remove after limit refusal failed: {}", e.getMessage()); }
+                audit.record(clientId, actor, "ITEM_REFUSED_LIMIT", itemId,
+                        "Bank connection refused — " + incomingAccounts + " account(s) would exceed the plan limit");
+                throw limit;
+            }
+        }
+
         itemRepo.save(item);
-        audit.record(clientId, actor, "ITEM_LINKED", itemId, isNew ? "Bank connected" : "Bank re-linked");
+        audit.record(clientId, actor, "ITEM_LINKED", itemId,
+                (isNew ? "Bank connected" : "Bank re-linked") + " (" + env + ")");
 
         // Initial pull → accounts + transactions into the review queue.
         int staged = syncService.sync(item, actor);
@@ -123,7 +218,7 @@ public class PlaidLinkService {
         if (item.getAccessTokenEnc() != null && !item.getAccessTokenEnc().isBlank()) {
             try {
                 String accessToken = cipher.decrypt(item.getAccessTokenEnc());
-                client.itemRemove(accessToken);
+                client.itemRemove(plaidEnv.envForItem(item), accessToken);
             } catch (Exception e) {
                 log.warn("Plaid /item/remove failed for item {} (continuing local cleanup): {}",
                         item.getItemId(), e.getMessage());

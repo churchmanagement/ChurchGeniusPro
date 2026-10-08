@@ -16,7 +16,7 @@ public class ReminderController {
     public String remindersHub(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.reminders");
+        deny = RoleGuard.requirePagePermission(request, "general.reminders");
         if (deny != null) return deny;
         return "forward:/reminders.html";
     }
@@ -25,7 +25,7 @@ public class ReminderController {
     public String eventReminders(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reminders.event");
+        deny = RoleGuard.requirePagePermission(request, "general.reminders");
         if (deny != null) return deny;
         return "forward:/eventReminders.html";
     }
@@ -34,7 +34,7 @@ public class ReminderController {
     public String autoReminders(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reminders.auto");
+        deny = RoleGuard.requirePagePermission(request, "general.reminders");
         if (deny != null) return deny;
         return "forward:/autoReminders.html";
     }
@@ -43,7 +43,7 @@ public class ReminderController {
     public String oneReminders(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reminders.onetime");
+        deny = RoleGuard.requirePagePermission(request, "general.reminders");
         if (deny != null) return deny;
         return "forward:/oneReminders.html";
     }

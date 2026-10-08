@@ -11,8 +11,9 @@ import com.churchgeniuspro.repository.PublicScreenLinkRepository;
 import com.churchgeniuspro.repository.SmsOptInRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
 import com.churchgeniuspro.service.SmsService;
-import com.churchgeniuspro.util.EncryptionUtil;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.SessionUtil;
+import com.churchgeniuspro.util.PhoneNumbers;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +41,27 @@ public class SmsOptInController {
     @Value("${app.base-url:http://localhost:8080}")
     private String appBaseUrl;
 
+    /** Twilio auth token — the HMAC key for X-Twilio-Signature. Blank = SMS not configured. */
+    @Value("${twilio.auth-token:}")
+    private String twilioAuthToken;
+
+    /** Twilio account SID; an inbound request from any other account is refused. */
+    @Value("${twilio.account-sid:}")
+    private String twilioAccountSid;
+
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+    private final PublicSendLimiter sendLimiter;
+
     public SmsOptInController(SmsOptInRepository smsOptInRepo,
                                ChurchRegistrationRepository churchRepo,
                                FamilyMemberRepository familyMemberRepo,
                                PublicScreenLinkRepository linkRepo,
                                StripeSettingsRepository stripeRepo,
-                               SmsService smsService) {
+                               SmsService smsService,
+            com.churchgeniuspro.service.PublicLinkResolver links,
+            PublicSendLimiter sendLimiter) {
+        this.links = links;
+        this.sendLimiter = sendLimiter;
         this.smsOptInRepo     = smsOptInRepo;
         this.churchRepo       = churchRepo;
         this.familyMemberRepo = familyMemberRepo;
@@ -77,7 +93,7 @@ public class SmsOptInController {
                     .findByClientIdAndDeleteFlagFalse(appClientId).orElse(null);
             res.put("found",      church != null);
             res.put("churchName", church != null ? church.getChurchName() : "Our Church");
-            res.put("appClientId", appClientId);
+            // The tenant id stayed server-side from here on; the page only needs the name (audit P14).
         } catch (Exception e) {
             res.put("found",      false);
             res.put("churchName", "Our Church");
@@ -89,7 +105,8 @@ public class SmsOptInController {
 
     @ResponseBody
     @PostMapping("/api/public/sms-opt-in")
-    public ResponseEntity<Map<String, Object>> submitOptIn(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> submitOptIn(@RequestBody Map<String, Object> body,
+                                                           HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
         String token      = str(body, "token");
@@ -135,6 +152,28 @@ public class SmsOptInController {
                 .findByPhoneNumberAndAppClientId(phone, appClientId)
                 .orElseGet(SmsOptIn::new);
 
+        // A number that is already a confirmed subscriber has nothing to gain from a
+        // re-submission — and used to lose from it: the form reset confirmed=false and
+        // rewrote the name, so anyone who knew a subscriber's number could silently
+        // drop them off the confirmed list (security audit P2). Leave the record alone
+        // and send nothing; the wording is the one a caller gets whenever no text goes
+        // out, so it does not reveal who is subscribed.
+        if (record.getId() != null && record.isConfirmed() && record.isConsent()) {
+            res.put("status",  "success");
+            res.put("smsSent", false);
+            res.put("message", "Thank you! Your opt-in has been recorded. You will receive a confirmation shortly.");
+            return ResponseEntity.ok(res);
+        }
+
+        // One text per submission to a number the caller typed: bounded per network
+        // origin, per number and per church before anything is written or sent.
+        String limited = sendLimiter.check(PublicSendLimiter.SMS_OPT_IN, request, phone, appClientId);
+        if (limited != null) {
+            res.put("status",  "error");
+            res.put("message", limited);
+            return ResponseEntity.status(429).body(res);
+        }
+
         record.setAppClientId(appClientId);
         record.setFirstName(firstName.trim());
         record.setLastName(lastName.trim());
@@ -145,7 +184,9 @@ public class SmsOptInController {
         record.setOptedOutAt(null);
         smsOptInRepo.save(record);
 
-        boolean smsSent = smsService.sendConfirmationRequest(phone, churchName);
+        // The tenant is known here, so the opt-in text is subject to the same
+        // Trial / demo block as everything else this church sends.
+        boolean smsSent = smsService.sendConfirmationRequest(phone, churchName, appClientId);
 
         res.put("status",  "success");
         res.put("smsSent", smsSent);
@@ -163,7 +204,15 @@ public class SmsOptInController {
                  produces = MediaType.TEXT_XML_VALUE)
     public String handleInboundSms(@RequestParam(value = "From",       required = false) String from,
                                    @RequestParam(value = "Body",       required = false) String body,
-                                   @RequestParam(value = "AccountSid", required = false) String accountSid) {
+                                   @RequestParam(value = "AccountSid", required = false) String accountSid,
+                                   HttpServletRequest request) {
+
+        // Authenticate the caller before anything else. Without this, any HTTP client
+        // could POST From=<victim>&Body=STOP (or YES) and rewrite consent for that
+        // number in every church, or use GIVE as a phone→church oracle.
+        if (!isGenuineTwilioRequest(request, accountSid)) {
+            return "<Response/>";
+        }
 
         if (from == null || body == null) return "<Response/>";
 
@@ -332,7 +381,8 @@ public class SmsOptInController {
     @ResponseBody
     @GetMapping("/api/sms-opt-in")
     public ResponseEntity<List<Map<String, Object>>> listOptIns(HttpServletRequest request) {
-        String appClientId = SessionUtil.getAppClientId(request);
+        String appClientId = staffClientId(request);
+        if (appClientId == null) return ResponseEntity.status(403).build();
         List<SmsOptIn> records = smsOptInRepo.findByAppClientIdOrderByCreatedAtDesc(appClientId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (SmsOptIn r : records) {
@@ -356,7 +406,8 @@ public class SmsOptInController {
     public ResponseEntity<Map<String, Object>> deleteOptIn(@PathVariable Integer id,
                                                             HttpServletRequest request) {
         Map<String, Object> res = new LinkedHashMap<>();
-        String appClientId = SessionUtil.getAppClientId(request);
+        String appClientId = staffClientId(request);
+        if (appClientId == null) { res.put("error", "Access denied."); return ResponseEntity.status(403).body(res); }
         SmsOptIn record = smsOptInRepo.findById(id).orElse(null);
         if (record == null || !appClientId.equals(record.getAppClientId())) {
             res.put("error", "Record not found.");
@@ -370,24 +421,18 @@ public class SmsOptInController {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String decryptToken(String token) {
-        if (token == null || token.isBlank()) return null;
-        try {
-            String payload  = EncryptionUtil.decrypt(token);
-            String[] parts  = payload.split("\\|", 2);
-            String clientId = parts.length > 0 ? parts[0].trim() : "";
-            return clientId.isBlank() ? null : clientId;
-        } catch (Exception e) {
-            log.warn("SmsOptIn: failed to decrypt token — {}", e.getMessage());
-            return null;
-        }
+        // The link token names one PublicScreenLink row; nothing is decrypted.
+        return links.resolveClientId(token, com.churchgeniuspro.service.PublicPagePolicy.SMS_OPT_IN_URL);
     }
 
+    /**
+     * Delegates to {@link PhoneNumbers#toE164}. The behaviour is the same for every number
+     * this previously accepted, and it additionally handles international numbers and
+     * rejects ten-digit strings that cannot be dialled (a leading 0 or 1 on the area code
+     * or exchange), which used to be stored as opt-in records no message could reach.
+     */
     static String normalizePhone(String raw) {
-        if (raw == null) return null;
-        String digits = raw.replaceAll("[^0-9]", "");
-        if (digits.length() == 11 && digits.startsWith("1")) digits = digits.substring(1);
-        if (digits.length() != 10) return null;
-        return "+1" + digits;
+        return PhoneNumbers.toE164(raw);
     }
 
     private static String str(Map<String, Object> body, String key) {
@@ -399,5 +444,60 @@ public class SmsOptInController {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    // ── Auth helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * Staff caller's tenant for the admin listing, or null. This path used to sit on
+     * AuthFilter's whitelist (the comment said "public SMS opt-in form", but the form
+     * is under /api/public/sms-opt-in) and resolved the tenant from any session —
+     * including the publicView session a QR-code visitor gets.
+     */
+    private static String staffClientId(HttpServletRequest request) {
+        if (com.churchgeniuspro.util.RoleGuard.requireAdminOrUser(request) != null) return null;
+        String cid = com.churchgeniuspro.util.RoleGuard.clientId(request);
+        return cid == null || cid.isBlank() ? null : cid;
+    }
+
+    /**
+     * Validates {@code X-Twilio-Signature} (HMAC-SHA1 over the public URL plus the
+     * sorted POST parameters, keyed with the auth token) and the account SID.
+     *
+     * <p>The URL Twilio signed is the one configured in the Twilio console — the
+     * public one. Behind Azure's proxy {@code request.getRequestURL()} may report an
+     * internal scheme/host, so the canonical candidate is built from
+     * {@code app.base-url}; the raw request URL is tried second for local setups.
+     * Fails closed when SMS is not configured.
+     */
+    private boolean isGenuineTwilioRequest(HttpServletRequest request, String accountSid) {
+        if (twilioAuthToken == null || twilioAuthToken.isBlank()) {
+            log.warn("SmsWebhook: refused — twilio.auth-token not configured");
+            return false;
+        }
+        if (twilioAccountSid != null && !twilioAccountSid.isBlank()
+                && (accountSid == null || !twilioAccountSid.equals(accountSid))) {
+            log.warn("SmsWebhook: refused — AccountSid mismatch");
+            return false;
+        }
+        String signature = request.getHeader("X-Twilio-Signature");
+        if (signature == null || signature.isBlank()) {
+            log.warn("SmsWebhook: refused — missing X-Twilio-Signature");
+            return false;
+        }
+
+        Map<String, String> params = new HashMap<>();
+        request.getParameterMap().forEach((k, v) -> params.put(k, v != null && v.length > 0 ? v[0] : ""));
+
+        String query = request.getQueryString();
+        String suffix = request.getRequestURI() + (query != null && !query.isBlank() ? "?" + query : "");
+        String canonical = appBaseUrl.replaceAll("/$", "") + suffix;
+        String raw = request.getRequestURL().toString() + (query != null && !query.isBlank() ? "?" + query : "");
+
+        com.twilio.security.RequestValidator validator = new com.twilio.security.RequestValidator(twilioAuthToken);
+        boolean ok = validator.validate(canonical, params, signature)
+                  || (!raw.equals(canonical) && validator.validate(raw, params, signature));
+        if (!ok) log.warn("SmsWebhook: refused — signature did not verify for {}", canonical);
+        return ok;
     }
 }

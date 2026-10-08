@@ -17,6 +17,9 @@ public interface EventEmailTemplateRepository extends JpaRepository<EventEmailTe
 
     Optional<EventEmailTemplate> findByIdAndDeleteFlagFalse(Integer id);
 
+    /** Tenant-scoped single lookup (security audit, week 1). */
+    Optional<EventEmailTemplate> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
     // Explicit JPQL avoids any "is"-prefixed boolean ambiguity in derived queries.
     @Query("SELECT t FROM EventEmailTemplate t WHERE t.appClientId = :appClientId AND t.isDefault = true AND t.deleteFlag = false")
     List<EventEmailTemplate> findDefaults(@Param("appClientId") String appClientId);

@@ -34,6 +34,11 @@ public class AiSearchController {
         if (session == null || session.getAttribute("username") == null) {
             return ResponseEntity.status(401).build();
         }
+        // AI Assistant permission (viewUsers → More → AI Assistant): enforced here as
+        // well as on the /ai-assistant page, not only by hiding the menu item.
+        if (RoleGuard.requireFeature(request, RoleGuard.PERM_AI_ASSISTANT) != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not have access to the AI Assistant."));
+        }
 
         String  role      = (String) session.getAttribute("role");
         boolean isChurch  = Boolean.TRUE.equals(session.getAttribute("church"));

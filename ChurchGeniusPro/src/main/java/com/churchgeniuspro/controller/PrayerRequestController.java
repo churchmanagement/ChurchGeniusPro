@@ -19,7 +19,6 @@ import com.churchgeniuspro.repository.PrayerRequestRepository;
 import com.churchgeniuspro.repository.PrayerScheduleRepository;
 import com.churchgeniuspro.repository.PrayerSectionRepository;
 import com.churchgeniuspro.service.EmailService;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +63,7 @@ public class PrayerRequestController {
     private final PrayerVolunteerRepository         volunteerRepo;
     private final PrayerNoteRepository              noteRepo;
     private final PrayerRequestVolunteerRepository  reqVolRepo;
+    private final com.churchgeniuspro.service.PublicLinkResolver publicLinkResolver;
 
     @Value("${app.mail.from:${spring.mail.username:noreply@churchgeniuspro.com}}")
     private String fromAddress;
@@ -79,7 +79,8 @@ public class PrayerRequestController {
                                    PromiseVerseRepository       verseRepo,
                                    PrayerVolunteerRepository         volunteerRepo,
                                    PrayerNoteRepository              noteRepo,
-                                   PrayerRequestVolunteerRepository  reqVolRepo) {
+                                   PrayerRequestVolunteerRepository  reqVolRepo,
+                                   com.churchgeniuspro.service.PublicLinkResolver publicLinkResolver) {
         this.sectionRepo  = sectionRepo;
         this.requestRepo  = requestRepo;
         this.scheduleRepo = scheduleRepo;
@@ -92,6 +93,7 @@ public class PrayerRequestController {
         this.volunteerRepo= volunteerRepo;
         this.noteRepo     = noteRepo;
         this.reqVolRepo   = reqVolRepo;
+        this.publicLinkResolver = publicLinkResolver;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ public class PrayerRequestController {
     public String page(HttpServletRequest req) {
         String deny = RoleGuard.requireAdminOrUser(req);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(req, "general.prayer");
+        deny = RoleGuard.requirePagePermission(req, "general.ministry.prayer");
         if (deny != null) return deny;
         return "forward:/prayerRequest.html";
     }
@@ -114,6 +116,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/schedule")
     public ResponseEntity<?> getSchedule(HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerSchedule sched = scheduleRepo.findByClientId(clientId).orElse(new PrayerSchedule());
@@ -127,6 +131,8 @@ public class PrayerRequestController {
     @PutMapping("/api/prayer/schedule")
     public ResponseEntity<?> saveSchedule(@RequestBody Map<String, Object> body,
                                           HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
@@ -142,6 +148,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/sections")
     public ResponseEntity<?> listSections(HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         List<PrayerSection> sections =
@@ -158,6 +166,8 @@ public class PrayerRequestController {
     @PostMapping("/api/prayer/sections")
     public ResponseEntity<?> createSection(@RequestBody Map<String, String> body,
                                            HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         String name = body.get("name");
@@ -176,6 +186,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> updateSection(@PathVariable Long id,
                                            @RequestBody Map<String, String> body,
                                            HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerSection s = sectionRepo.findById(id).orElse(null);
@@ -192,6 +204,8 @@ public class PrayerRequestController {
     @ResponseBody
     @DeleteMapping("/api/prayer/sections/{id}")
     public ResponseEntity<?> deleteSection(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerSection s = sectionRepo.findById(id).orElse(null);
@@ -214,6 +228,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/requests")
     public ResponseEntity<?> listRequests(HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         List<PrayerRequest> requests =
@@ -225,6 +241,8 @@ public class PrayerRequestController {
     @PostMapping("/api/prayer/requests")
     public ResponseEntity<?> createRequest(@RequestBody Map<String, Object> body,
                                            HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
@@ -248,7 +266,10 @@ public class PrayerRequestController {
         r.setRequesterName(str(body, "requesterName"));
         // Default to "New" per v1 spec; @PrePersist also enforces this.
         r.setStatus(str(body, "status").isBlank() ? "New" : str(body, "status"));
-        r.setAssignedVolunteerId(toIntOrNull(body.get("assignedVolunteerId")));
+        Integer assigneeId = toIntOrNull(body.get("assignedVolunteerId"));
+        if (assigneeId != null && memberRepo.findByIdAndTenant(assigneeId, clientId).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid volunteer"));
+        r.setAssignedVolunteerId(assigneeId);
         r.setClientId(clientId);
         requestRepo.save(r);
         return ResponseEntity.ok(toMap(r));
@@ -259,6 +280,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> updateRequest(@PathVariable Long id,
                                            @RequestBody Map<String, Object> body,
                                            HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -290,7 +313,10 @@ public class PrayerRequestController {
             r.setStatus(newStatus);
         }
         if (body.containsKey("assignedVolunteerId")) {
-            r.setAssignedVolunteerId(toIntOrNull(body.get("assignedVolunteerId")));
+            Integer assigneeId = toIntOrNull(body.get("assignedVolunteerId"));
+            if (assigneeId != null && memberRepo.findByIdAndTenant(assigneeId, clientId).isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid volunteer"));
+            r.setAssignedVolunteerId(assigneeId);
         }
         requestRepo.save(r);
         return ResponseEntity.ok(toMap(r));
@@ -299,6 +325,8 @@ public class PrayerRequestController {
     @ResponseBody
     @DeleteMapping("/api/prayer/requests/{id}")
     public ResponseEntity<?> deleteRequest(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -309,11 +337,21 @@ public class PrayerRequestController {
         return ResponseEntity.ok(Map.of("status", "deleted"));
     }
 
+    /**
+     * The one authority on whether a tenant may send at all. This controller
+     * builds its own MimeMessage instead of going through EmailService, so it
+     * asks for itself rather than inheriting that service's guard.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.MessagingPolicy messagingPolicy;
+
     // ── Email notification ────────────────────────────────────────────────
 
     @ResponseBody
     @PostMapping("/api/prayer/notify")
     public ResponseEntity<?> notifyMembers(HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
@@ -326,6 +364,11 @@ public class PrayerRequestController {
 
         if (emails.isEmpty())
             return ResponseEntity.badRequest().body(Map.of("error", "No member email addresses found."));
+
+        if (messagingPolicy != null) {
+            String why = messagingPolicy.emailBlockReason(clientId);
+            if (why != null) return ResponseEntity.status(403).body(Map.of("error", why));
+        }
 
         // Load sections and requests grouped by section
         List<PrayerSection> sections =
@@ -373,7 +416,7 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/public-church-info")
     public ResponseEntity<?> publicChurchInfo(@RequestParam(name = "cid") String encryptedCid) {
-        String clientId = decryptCid(encryptedCid);
+        String clientId = resolvePublicCid(encryptedCid);
         if (clientId == null) return ResponseEntity.badRequest().body(Map.of("error", "Invalid cid"));
         String name = churchRepo.findByClientIdAndDeleteFlagFalse(clientId)
                 .map(c -> c.getChurchName())
@@ -387,7 +430,7 @@ public class PrayerRequestController {
      */
     @GetMapping("/api/prayer/public-logo")
     public ResponseEntity<byte[]> publicLogo(@RequestParam(name = "cid") String encryptedCid) {
-        String clientId = decryptCid(encryptedCid);
+        String clientId = resolvePublicCid(encryptedCid);
         if (clientId == null) return ResponseEntity.notFound().build();
         return logoRepo.findByClientId(clientId)
                 .filter(l -> l.getLogoData() != null && l.getLogoData().length > 0)
@@ -406,7 +449,7 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/public-verse")
     public ResponseEntity<?> publicVerse(@RequestParam(name = "cid") String encryptedCid) {
-        String clientId = decryptCid(encryptedCid);
+        String clientId = resolvePublicCid(encryptedCid);
         if (clientId == null) return ResponseEntity.badRequest().body(Map.of("error", "Invalid cid"));
 
         int dayOfYear = java.time.LocalDate.now().getDayOfYear();
@@ -428,7 +471,7 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/public-requests")
     public ResponseEntity<?> listPublicRequests(@RequestParam(name = "cid") String encryptedCid) {
-        String clientId = decryptCid(encryptedCid);
+        String clientId = resolvePublicCid(encryptedCid);
         if (clientId == null) return ResponseEntity.status(400).body(Map.of("error", "Invalid or missing cid"));
 
         List<PrayerSection> sections =
@@ -473,7 +516,7 @@ public class PrayerRequestController {
     @PostMapping("/api/prayer/public-submit")
     public ResponseEntity<?> publicSubmit(@RequestParam(name = "cid") String encryptedCid,
                                           @RequestBody Map<String, Object> body) {
-        String clientId = decryptCid(encryptedCid);
+        String clientId = resolvePublicCid(encryptedCid);
         if (clientId == null) return ResponseEntity.status(400).body(Map.of("error", "Invalid or missing cid"));
 
         String title = str(body, "title");
@@ -515,6 +558,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/volunteers")
     public ResponseEntity<?> listVolunteers(HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         List<Map<String, Object>> out = new ArrayList<>();
@@ -540,13 +585,15 @@ public class PrayerRequestController {
     @PostMapping("/api/prayer/volunteers")
     public ResponseEntity<?> addVolunteer(@RequestBody Map<String, Object> body,
                                           HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         Integer memberId = toIntOrNull(body.get("familyMemberId"));
 
         PrayerVolunteer v;
         if (memberId != null) {
-            FamilyMember fm = memberRepo.findById(memberId).orElse(null);
+            FamilyMember fm = memberRepo.findByIdAndTenant(memberId, clientId).orElse(null);
             if (fm == null) return ResponseEntity.badRequest().body(Map.of("error", "Member not found"));
             v = volunteerRepo.findByMember(clientId, memberId).orElseGet(() -> {
                 PrayerVolunteer fresh = new PrayerVolunteer();
@@ -591,6 +638,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> updateVolunteer(@PathVariable Integer id,
                                              @RequestBody Map<String, Object> body,
                                              HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerVolunteer v = volunteerRepo.findByIdAndClientId(id, clientId).orElse(null);
@@ -620,6 +669,8 @@ public class PrayerRequestController {
     @ResponseBody
     @DeleteMapping("/api/prayer/volunteers/{id}")
     public ResponseEntity<?> deleteVolunteer(@PathVariable Integer id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerVolunteer v = volunteerRepo.findByIdAndClientId(id, clientId).orElse(null);
@@ -639,6 +690,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/requests/{id}/volunteers")
     public ResponseEntity<?> listRequestVolunteers(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -659,6 +712,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> addRequestVolunteer(@PathVariable Long id,
                                                  @RequestBody Map<String, Object> body,
                                                  HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -696,6 +751,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> removeRequestVolunteer(@PathVariable Long id,
                                                     @PathVariable Integer volunteerId,
                                                     HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -744,12 +801,16 @@ public class PrayerRequestController {
     public ResponseEntity<?> assignRequest(@PathVariable Long id,
                                            @RequestBody Map<String, Object> body,
                                            HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
         if (r == null || r.isDeleteFlag() || !clientId.equals(r.getClientId()))
             return ResponseEntity.notFound().build();
         Integer volunteerId = toIntOrNull(body.get("assignedVolunteerId"));
+        if (volunteerId != null && memberRepo.findByIdAndTenant(volunteerId, clientId).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid volunteer"));
         r.setAssignedVolunteerId(volunteerId);
         // When attaching a volunteer, advance "New" → "Assigned"; leave other
         // statuses alone so the assignee swap doesn't reset progress.
@@ -764,6 +825,8 @@ public class PrayerRequestController {
     @ResponseBody
     @PostMapping("/api/prayer/requests/{id}/close")
     public ResponseEntity<?> closeRequest(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -779,6 +842,8 @@ public class PrayerRequestController {
     @ResponseBody
     @PostMapping("/api/prayer/requests/{id}/reopen")
     public ResponseEntity<?> reopenRequest(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -795,6 +860,8 @@ public class PrayerRequestController {
     @ResponseBody
     @GetMapping("/api/prayer/requests/{id}/notes")
     public ResponseEntity<?> listNotes(@PathVariable Long id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         // Validate the request belongs to this tenant.
@@ -813,6 +880,8 @@ public class PrayerRequestController {
     public ResponseEntity<?> addNote(@PathVariable Long id,
                                      @RequestBody Map<String, Object> body,
                                      HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerRequest r = requestRepo.findById(id).orElse(null);
@@ -833,6 +902,8 @@ public class PrayerRequestController {
     @ResponseBody
     @DeleteMapping("/api/prayer/notes/{id}")
     public ResponseEntity<?> deleteNote(@PathVariable Integer id, HttpServletRequest req) {
+        String deny = apiDeny(req);
+        if (deny != null) return ResponseEntity.status(RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403).body(Map.of("error", "Access denied"));
         String clientId = resolveClientId(req);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         PrayerNote n = noteRepo.findByIdAndClientId(id, clientId).orElse(null);
@@ -855,7 +926,7 @@ public class PrayerRequestController {
         String email;
         if (v.getFamilyMemberId() != null) {
             name  = resolveAssigneeName(v.getFamilyMemberId(), clientId);
-            FamilyMember fm = memberRepo.findById(v.getFamilyMemberId()).orElse(null);
+            FamilyMember fm = memberRepo.findByIdAndTenant(v.getFamilyMemberId(), clientId).orElse(null);
             phone = fm != null ? fm.getPhone() : null;
             email = fm != null ? fm.getEmail() : null;
         } else {
@@ -907,6 +978,16 @@ public class PrayerRequestController {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
+
+    /**
+     * Same guard chain as the {@code /prayerRequest} page route, applied to the
+     * session-backed API handlers. Returns {@code null} when allowed.
+     */
+    private static String apiDeny(HttpServletRequest req) {
+        String deny = RoleGuard.requireAdminOrUser(req);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(req, "general.prayer");
+    }
 
     /** Resolves the organization clientId from the session regardless of login type. */
     private String resolveClientId(HttpServletRequest req) {
@@ -967,7 +1048,7 @@ public class PrayerRequestController {
      *  unassigned, or "(unknown)" when the linked FamilyMember was removed. */
     private String resolveAssigneeName(Integer familyMemberId, String clientId) {
         if (familyMemberId == null || clientId == null) return null;
-        FamilyMember fm = memberRepo.findById(familyMemberId).orElse(null);
+        FamilyMember fm = memberRepo.findByIdAndTenant(familyMemberId, clientId).orElse(null);
         if (fm == null) return "(unknown)";
         String n = ((fm.getFirstName() != null ? fm.getFirstName() : "") + " "
                   + (fm.getLastName()  != null ? fm.getLastName()  : "")).trim();
@@ -1132,16 +1213,21 @@ public class PrayerRequestController {
     }
 
     /**
-     * Decrypts an AES-encrypted clientId passed as the {@code cid} query param on public pages.
-     * Returns {@code null} on failure.
+     * Resolves the tenant behind the {@code cid} query param on the public prayer
+     * endpoints. Goes through {@link com.churchgeniuspro.service.PublicLinkResolver}
+     * (page {@code /publicPrayer}) so a link the church has revoked or let expire
+     * stops working, instead of accepting any ciphertext that decrypts.
+     * Returns {@code null} when access is refused.
      */
-    private String decryptCid(String encryptedCid) {
+    private String resolvePublicCid(String encryptedCid) {
         if (encryptedCid == null || encryptedCid.isBlank()) return null;
+        String param;
         try {
-            return EncryptionUtil.decrypt(java.net.URLDecoder.decode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8));
+            param = java.net.URLDecoder.decode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
         } catch (Exception e) {
             return null;
         }
+        return publicLinkResolver.resolveClientId(param, "/publicPrayer");
     }
 
     private String escHtml(String s) {

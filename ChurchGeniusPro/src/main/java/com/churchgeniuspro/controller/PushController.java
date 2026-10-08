@@ -47,6 +47,13 @@ public class PushController {
     private final PushSubscriptionRepository    pushSubRepo;
     private final PushNotificationLogRepository logRepo;
 
+    /** Public-page submission notifications (Prayer, Connect, Membership, Donation). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.PublicSubmissionNotificationService submissions;
+
+    /** Test seam. */
+    public void setSubmissions(com.churchgeniuspro.service.PublicSubmissionNotificationService s) { this.submissions = s; }
+
     public PushController(WebPushService pushService,
                           PushSubscriptionRepository pushSubRepo,
                           PushNotificationLogRepository logRepo) {
@@ -196,6 +203,25 @@ public class PushController {
 
         long unread = deduped.stream().filter(n -> n.getReadAt() == null).count();
 
+        // Public-page submissions the user is allowed to see (permissions, destination
+        // page guard, own church, active account — all decided in the service).
+        if (submissions != null) {
+            try {
+                List<Map<String, Object>> subs = submissions.listFor(request);
+                if (!subs.isEmpty()) {
+                    unread += subs.stream().filter(m -> !Boolean.TRUE.equals(m.get("read"))).count();
+                    List<Map<String, Object>> merged = new java.util.ArrayList<>(subs);
+                    merged.addAll(items);
+                    merged.sort((a, b) -> String.valueOf(b.get("sentAt")).compareTo(String.valueOf(a.get("sentAt"))));
+                    items = merged;
+                }
+            } catch (Exception e) {
+                // Never let this break the existing panel.
+                org.slf4j.LoggerFactory.getLogger(PushController.class)
+                        .warn("Submission notifications unavailable — {}", e.getMessage());
+            }
+        }
+
         return ResponseEntity.ok(Map.of(
             "notifications", items,
             "unreadCount",   unread
@@ -217,7 +243,39 @@ public class PushController {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
         logRepo.markAllRead(userKey, Instant.now());
+        if (submissions != null) {
+            try { submissions.markAllRead(request); } catch (Exception ignored) { /* non-critical */ }
+        }
         return ResponseEntity.ok(Map.of("count", 0));
+    }
+
+    // ── POST /api/push/dismiss/{id}  ·  /api/push/dismiss-all ────────────────
+
+    /**
+     * Clears one public-submission notification ({@code ps-<id>}) from the caller's
+     * panel. 404 unless it belongs to the caller's own church and the caller may
+     * view its type — ids from other churches are indistinguishable from missing ones.
+     */
+    @PostMapping("/api/push/dismiss/{id}")
+    public ResponseEntity<Map<String, Object>> dismiss(@PathVariable String id, HttpServletRequest request) {
+        if (resolveUserKey(request) == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        Long sid = com.churchgeniuspro.service.PublicSubmissionNotificationService.parseId(id);
+        if (submissions == null || sid == null || !submissions.dismiss(request, sid)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Notification not found"));
+        }
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    /** Clears every public-submission notification currently in the caller's panel. */
+    @PostMapping("/api/push/dismiss-all")
+    public ResponseEntity<Map<String, Object>> dismissAll(HttpServletRequest request) {
+        if (resolveUserKey(request) == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        int n = submissions == null ? 0 : submissions.dismissAll(request);
+        return ResponseEntity.ok(Map.of("success", true, "cleared", n));
     }
 
     // ── POST /api/push/mark-read/{id} ────────────────────────────────────────
@@ -232,7 +290,7 @@ public class PushController {
         if (userKey == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
-        logRepo.markReadById(id, Instant.now());
+        logRepo.markReadById(id, userKey, Instant.now());   // only the caller's own notification
         long remaining = logRepo.countUnread(userKey);
         return ResponseEntity.ok(Map.of("count", remaining));
     }

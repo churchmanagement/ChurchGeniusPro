@@ -446,6 +446,15 @@
   function startListening(){ if(recorder && !recorder.isRecording()) recorder.start(); }
   function stopListening(){ converse=false; if(recorder && recorder.isRecording()) recorder.stop(); setListening(false); }
 
+  // The text shown when the server refuses voice (403): the server's reason, never
+  // a generic "limit reached" unless the quota gate said so.
+  function voiceRefusalMessage(st, why){
+    var reason = (why && why.reason) || '';
+    if (reason === 'LIMIT' || (!reason && st && st.voiceAvailable === false && st.voiceEnabled !== false)) return 'Voice limit reached. Please contact your administrator.';
+    if (reason === 'VOICE_OFF' || (st && st.voiceEnabled === false)) return 'Voice is disabled by your administrator.';
+    if (why && why.error) return why.error;
+    return 'Voice is not available for this login. Please contact your administrator.';
+  }
   function disableVoice(msg){
     [voiceBtn,converseBtn].forEach(function(b){ if(b){ b.disabled=true; b.title=msg||'Voice unavailable'; } });
     if(msg) setStatus('🔇 '+msg);
@@ -463,7 +472,7 @@
       onState:      function(on){ setListening(on); },
       onStatus:     function(m,k){ if(k==='error') setStatus('⚠️ '+m); },
       onTranscript: function(t){ if(navigating) return; setTranscript(t); dbg.status='Speaking'; renderDebug(); processCommand(t); if(!converse) { /* single-shot keeps listening until auto-stop */ } },
-      onDisabled:   function(st){ disableVoice(st && st.voiceEnabled === false ? 'Voice is disabled by your administrator.' : 'Voice limit reached. Please contact your administrator.'); }
+      onDisabled:   function(st, why){ disableVoice(voiceRefusalMessage(st, why)); }
     }) : null;
 
     var row = document.createElement('div'); row.className = 'hv-bar';

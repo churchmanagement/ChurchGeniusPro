@@ -93,6 +93,15 @@
     .role-other{background:#fff3e0;color:#e65100;}
     /* ── Actions ── */
     .detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+    .mem-cards{display:grid;gap:12px;}
+    .mem-card{border:1px solid #ececf2;border-radius:10px;padding:14px 16px;background:#fcfcfe;}
+    .mem-card-head{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+    .mem-card-name{font-size:14px;font-weight:700;color:#1e2139;margin-bottom:4px;}
+    .mem-nick{font-size:12px;font-weight:500;color:#777;}
+    .mem-type{font-size:11px;color:#666;margin-left:6px;}
+    .mem-photo{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #e0e0e0;flex-shrink:0;}
+    .mem-photo-empty{display:flex;align-items:center;justify-content:center;background:#f0f0f4;color:#bbb;font-size:24px;}
+    .priv-badge{font-size:10px;color:#b26a00;background:#fff4e0;border:1px solid #ffe0a3;border-radius:8px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
     .btn-approve{padding:9px 22px;background:#2e7d32;color:#fff;border-radius:7px;font-size:13px;font-weight:700;transition:background .15s;}
     .btn-approve:hover{background:#1b5e20;}
     .btn-approve:disabled{opacity:.55;cursor:not-allowed;}
@@ -144,14 +153,13 @@
               <tr>
                 <th>#</th>
                 <th>Family Name</th>
-                <th>City</th>
                 <th>Members</th>
                 <th>Submitted</th>
                 <th>Declaration</th>
               </tr>
             </thead>
             <tbody id="reqTableBody">
-              <tr><td class="empty-row" colspan="6">Loading…</td></tr>
+              <tr><td class="empty-row" colspan="5">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -172,6 +180,16 @@ function fmtDate(s) {
   var d = new Date(s);
   if (isNaN(d)) return s;
   return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+/* Formats a phone number for display; always returns escaped HTML. Used by the
+   request detail's member table — it was called there but never defined, so
+   opening any request with members failed with "Network error". */
+function formatPhone(p) {
+  if (!p) return '—';
+  var d = String(p).replace(/\D/g, '');
+  if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  if (d.length === 11 && d[0] === '1') return '+1 (' + d.slice(1,4) + ') ' + d.slice(4,7) + '-' + d.slice(7);
+  return esc(p);
 }
 function roleClass(role) {
   if (!role) return '';
@@ -207,14 +225,13 @@ async function loadRequests() {
 function renderTable(rows) {
   const tbody = document.getElementById('reqTableBody');
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td class="empty-row" colspan="6">No membership requests yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-row" colspan="5">No membership requests yet.</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map((r, i) => `
     <tr onclick="openDetail(${r.id})">
       <td>${i + 1}</td>
       <td style="font-weight:600;">${esc(r.familyName||'')}</td>
-      <td>${esc(r.familyCity||'—')}</td>
       <td><span style="background:#e8eaf6;color:#673147;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;" id="memCount_${r.id}">…</span></td>
       <td>${fmtDate(r.createdDate)}</td>
       <td>${r.declarationAccepted ? '<span style="color:#2e7d32;font-weight:600;">✅ Accepted</span>' : '<span style="color:#aaa;">—</span>'}</td>
@@ -247,20 +264,55 @@ async function openDetail(id) {
 
 function renderDetail(d) {
   document.getElementById('detailTitle').textContent = d.familyName || 'Family Details';
-  const addr = [d.familyAddress1, d.familyAddress2, d.familyCity, d.familyState, d.familyCountry, d.familyPinCode]
-               .filter(Boolean).join(', ') || '—';
   const members = d.members || [];
+  const head = members.find(m => /^head/i.test(m.role || '')) || members[0] || {};
+  const dash = '<span style="color:#aaa;">—</span>';
+  function val(v) { return (v === null || v === undefined || String(v).trim() === '') ? dash : esc(String(v)); }
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function mdy(mo, da, yr) {
+    if (!mo && !da && !yr) return dash;
+    const mm = mo ? (MONTHS[Number(mo) - 1] || mo) : '?';
+    return esc([mm, da ? String(da) : null].filter(Boolean).join(' ') + (yr ? ', ' + yr : ''));
+  }
+  function addrOf(o) { return [o.address1, o.address2, o.city, o.state, o.country, o.pinCode].filter(x => x && String(x).trim()).join(', '); }
+  function priv(flag) { return flag ? ' <span class="priv-badge" title="The applicant asked to keep this private">🔒 private</span>' : ''; }
+  const familyAddr = addrOf({ address1: d.familyAddress1, address2: d.familyAddress2, city: d.familyCity, state: d.familyState, country: d.familyCountry, pinCode: d.familyPinCode });
+  function field(label, html) { return `<div class="detail-field"><label>${label}</label><span>${html}</span></div>`; }
 
-  const memRows = members.length
-    ? members.map(m => `
-        <tr>
-          <td><span class="role-badge ${roleClass(m.role)}">${esc(m.role||'')}</span></td>
-          <td>${esc((m.firstName||'') + ' ' + (m.middleName ? m.middleName+' ':''  ) + (m.lastName||''))}</td>
-          <td>${formatPhone(m.phone)}</td>
-          <td>${esc(m.email||'—')}</td>
-          <td>${esc(m.memberType||'Guest')}</td>
-        </tr>`).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:#bbb;padding:12px;">No members found.</td></tr>`;
+  // One card per member: everything the applicant submitted, blanks shown as "—".
+  const memCards = members.length
+    ? members.map((m, i) => {
+        const name = [m.firstName, m.middleName, m.lastName].filter(x => x && String(x).trim()).join(' ');
+        const own = m.sameAsFamilyAddress === false;
+        const addrHtml = own
+          ? (addrOf(m) ? esc(addrOf(m)) : dash) + ' <span style="font-size:11px;color:#888;">(own address)</span>'
+          : '<span style="color:#555;">Same as family address</span>' + (familyAddr ? ' — ' + esc(familyAddr) : '');
+        const photo = m.hasPhoto && m.photoData && /^data:image\//.test(m.photoData)
+          ? `<img src="${m.photoData}" alt="Photo" class="mem-photo" />`
+          : `<div class="mem-photo mem-photo-empty" title="No photo submitted">👤</div>`;
+        return `
+        <div class="mem-card">
+          <div class="mem-card-head">
+            ${photo}
+            <div>
+              <div class="mem-card-name">${esc(name || '(no name)')}${m.otherName ? ' <span class="mem-nick">“' + esc(m.otherName) + '”</span>' : ''}</div>
+              <div><span class="role-badge ${roleClass(m.role)}">${esc(m.role || '—')}</span>
+                   <span class="mem-type">${esc(m.memberType || 'Guest')}</span></div>
+            </div>
+          </div>
+          <div class="detail-grid" style="margin-bottom:0;">
+            ${field('Gender', val(m.gender))}
+            ${field('Date of Birth', mdy(m.birthdayMonth, m.birthdayDay, m.birthdayYear))}
+            ${field('Wedding Anniversary', mdy(m.anniversaryMonth, m.anniversaryDay, m.anniversaryYear))}
+            ${field('Nickname / Other Name', val(m.otherName))}
+            ${field('Phone', (m.phone ? esc(formatPhone(m.phone)) : dash) + priv(m.phonePrivate))}
+            ${field('Email', val(m.email) + priv(m.emailPrivate))}
+            <div class="detail-field" style="grid-column:1 / -1;"><label>Address</label><span>${addrHtml}${priv(m.addressPrivate)}</span></div>
+            ${m.comments ? `<div class="detail-field" style="grid-column:1 / -1;"><label>Comments</label><span>${esc(m.comments)}</span></div>` : ''}
+          </div>
+        </div>`;
+      }).join('')
+    : `<div style="text-align:center;color:#bbb;padding:12px;">No members found.</div>`;
 
   // Build signup account section if signup exists
   const signupSection = d.signupId ? `
@@ -298,21 +350,19 @@ function renderDetail(d) {
 
   document.getElementById('detailBody').innerHTML = `
     <div class="detail-grid">
-      <div class="detail-field"><label>Family Name</label><span>${esc(d.familyName||'')}</span></div>
-      <div class="detail-field"><label>Address</label><span>${esc(addr)}</span></div>
-      <div class="detail-field"><label>Submitted</label><span>${fmtDate(d.createdDate)}</span></div>
-      <div class="detail-field"><label>Declaration</label><span>${d.declarationAccepted ? '✅ Accepted' : '—'}</span></div>
-      <div class="detail-field"><label>Request Type</label><span>${isExisting
+      ${field('Family Name', val(d.familyName))}
+      ${field('Request Type', isExisting
         ? '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Renewal / Update</span>'
-        : '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">New Member</span>'}</span></div>
+        : '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">New Member</span>')}
+      <div class="detail-field" style="grid-column:1 / -1;"><label>Family Address</label><span>${familyAddr ? esc(familyAddr) : dash}${priv(head.addressPrivate)}</span></div>
+      ${field('Family Phone', (d.familyPhone ? esc(formatPhone(d.familyPhone)) : dash) + priv(head.phonePrivate))}
+      ${field('Family Email', val(d.familyEmail) + priv(head.emailPrivate))}
+      ${field('Submitted', fmtDate(d.createdDate))}
+      ${field('Declaration', d.declarationAccepted ? '✅ Accepted' : dash)}
     </div>
     <h4 style="font-size:13px;font-weight:700;color:#673147;margin:16px 0 8px;">Family Members (${members.length})</h4>
-    <div style="overflow-x:auto;">
-      <table class="mem-tbl">
-        <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Email</th><th>Type</th></tr></thead>
-        <tbody>${memRows}</tbody>
-      </table>
-    </div>
+    <p style="font-size:12px;color:#888;margin:0 0 10px;">Everything submitted on the membership form is shown below; “—” means the applicant left it blank.</p>
+    <div class="mem-cards">${memCards}</div>
     ${signupSection}
     <div class="detail-actions">
       ${approveBtn}

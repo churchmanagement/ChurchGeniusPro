@@ -6,8 +6,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface VolunteerAssignmentRepository extends JpaRepository<VolunteerAssignment, Long> {
+
+    /** Tenant-scoped lookup for upsert-by-id and attendance marking. */
+    Optional<VolunteerAssignment> findByIdAndAppClientId(Long id, String appClientId);
 
     /** All assignments for an event. */
     List<VolunteerAssignment> findByAppClientIdAndEventIdAndDeleteFlagFalseOrderByRoleIdAscFamilyMemberIdAsc(

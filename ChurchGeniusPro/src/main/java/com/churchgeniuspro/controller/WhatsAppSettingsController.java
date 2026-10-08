@@ -53,6 +53,8 @@ public class WhatsAppSettingsController {
     public ResponseEntity<?> get(HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Owner-only, like the /whatsappIntegration page: this holds the Twilio auth token.
+        if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
 
         WhatsAppSettings s = repo.findByClientId(clientId).orElse(new WhatsAppSettings());
 
@@ -79,6 +81,8 @@ public class WhatsAppSettingsController {
                                    HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Owner-only, like the /whatsappIntegration page: this holds the Twilio auth token.
+        if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
 
         String accountSid                = str(body.get("accountSid"));
         String authToken                 = str(body.get("authToken"));

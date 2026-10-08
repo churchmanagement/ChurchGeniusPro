@@ -34,6 +34,8 @@ public class FederalTaxBracket {
     private BigDecimal lowerBound;
     private BigDecimal upperBound;   // null = no upper limit
     private BigDecimal baseTax;
+    /** Marginal rate, e.g. 0.22 — explicit precision so a rate is never rounded to two places (audit C1). */
+    @Column(precision = 9, scale = 6)
     private BigDecimal rate;
     private Integer sortOrder;
 }

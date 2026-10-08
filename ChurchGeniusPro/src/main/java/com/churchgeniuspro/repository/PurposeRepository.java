@@ -30,4 +30,8 @@ public interface PurposeRepository extends JpaRepository<Purpose, Integer> {
     /** Duplicate-check on update — scoped to the same church, excluding the record being updated. */
     boolean existsByPurposeNameIgnoreCaseAndDeleteFlagFalseAndAppClientIdAndIdNot(
             String purposeName, String appClientId, Integer id);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<Purpose> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

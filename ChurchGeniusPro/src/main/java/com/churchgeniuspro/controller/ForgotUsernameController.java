@@ -11,7 +11,10 @@ import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.UsernameRecoveryLogRepository;
 import com.churchgeniuspro.service.EmailService;
+import com.churchgeniuspro.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +43,8 @@ import java.util.*;
 @RestController
 public class ForgotUsernameController {
 
+    private static final Logger LOG = LoggerFactory.getLogger(ForgotUsernameController.class);
+
     private static final int  CAPTCHA_THRESHOLD = 3;   // show captcha after this many attempts
     private static final int  BLOCK_THRESHOLD   = 5;   // block after this many attempts per hour
     private static final long WINDOW_HOURS      = 1L;
@@ -51,12 +56,16 @@ public class ForgotUsernameController {
     private final UsernameRecoveryLogRepository recoveryLogRepo;
     private final EmailService                 emailService;
 
+    private final com.churchgeniuspro.util.PublicFormGuard formGuard;
+
     public ForgotUsernameController(LoginRepository loginRepo,
                                     AppUserRepository appUserRepo,
                                     FamilyMemberRepository familyMemberRepo,
                                     ChurchRegistrationRepository churchRepo,
                                     UsernameRecoveryLogRepository recoveryLogRepo,
-                                    EmailService emailService) {
+                                    EmailService emailService,
+            com.churchgeniuspro.util.PublicFormGuard formGuard) {
+        this.formGuard = formGuard;
         this.loginRepo       = loginRepo;
         this.appUserRepo     = appUserRepo;
         this.familyMemberRepo = familyMemberRepo;
@@ -81,12 +90,12 @@ public class ForgotUsernameController {
             HttpServletRequest req) {
         String ip = clientIp(req);
         LocalDateTime since = LocalDateTime.now().minusHours(WINDOW_HOURS);
-        long identifierCount = 0;
-        if (identifier != null && !identifier.isBlank()) {
-            identifierCount = recoveryLogRepo.countByIdentifierSince(normalise(identifier), since);
-        }
+        // Only the caller's own (IP) history decides what the page shows. The identifier
+        // count used to be included, which let anyone ask "has someone been trying to
+        // recover this address?" (security audit P5). The submit endpoint still enforces
+        // both dimensions; the page merely learns about a captcha one request later.
         long ipCount = recoveryLogRepo.countByIpSince(ip, since);
-        long maxCount = Math.max(identifierCount, ipCount);
+        long maxCount = ipCount;
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("attempts",        maxCount);
         res.put("requireCaptcha",  maxCount >= CAPTCHA_THRESHOLD);
@@ -104,7 +113,7 @@ public class ForgotUsernameController {
         if (body == null) body = Collections.emptyMap();
 
         String rawIdentifier = str(body.get("identifier"));
-        String captchaToken  = str(body.get("captchaToken")); // reserved for future hCaptcha verify
+        String captchaToken  = str(body.get("captchaToken"));
 
         // ── Basic validation ──────────────────────────────────────────────
         if (rawIdentifier == null) {
@@ -122,6 +131,16 @@ public class ForgotUsernameController {
         long identifierAttempts = recoveryLogRepo.countByIdentifierSince(identifier, since);
         long ipAttempts         = recoveryLogRepo.countByIpSince(ip, since);
 
+        // Once the CAPTCHA threshold is reached the token is verified, not just requested.
+        if ((identifierAttempts >= CAPTCHA_THRESHOLD || ipAttempts >= CAPTCHA_THRESHOLD)
+                && formGuard.captchaEnabled()) {
+            String captchaErr = formGuard.checkCaptcha(captchaToken, ip);
+            if (captchaErr != null) {
+                audit(identifier, idType, ip, false);
+                return ResponseEntity.status(400).body(Map.of("error", captchaErr, "requireCaptcha", true));
+            }
+        }
+
         if (identifierAttempts >= BLOCK_THRESHOLD || ipAttempts >= BLOCK_THRESHOLD) {
             // Still log the blocked attempt
             audit(identifier, idType, ip, false);
@@ -133,28 +152,27 @@ public class ForgotUsernameController {
         // ── Account search ────────────────────────────────────────────────
         // Collect (username → role) pairs from all tiers.
         // Key = username, Value = display role label.
-        Map<String, String> usernameRoleMap = new LinkedHashMap<>();
+        // Grouped by the email ON THAT ACCOUNT. A phone number shared by a member of
+        // church B and a staff member of church A must not put A's username in B's inbox.
+        Map<String, Map<String, String>> byDeliveryEmail = new LinkedHashMap<>();
 
         if (isEmail) {
+            Map<String, String> usernameRoleMap = new LinkedHashMap<>();
             collectByEmail(identifier, usernameRoleMap);
+            if (!usernameRoleMap.isEmpty()) byDeliveryEmail.put(rawIdentifier.trim(), usernameRoleMap);
         } else {
-            collectByPhone(identifier, usernameRoleMap);
+            collectByPhone(identifier, byDeliveryEmail);
         }
 
-        boolean matchFound = !usernameRoleMap.isEmpty();
+        boolean matchFound = !byDeliveryEmail.isEmpty();
 
         // ── Audit log ─────────────────────────────────────────────────────
         audit(identifier, idType, ip, matchFound);
 
         // ── Send email if match found ─────────────────────────────────────
         if (matchFound) {
-            // Resolve the delivery address
-            String deliveryEmail = isEmail ? rawIdentifier.trim() : resolveEmailFromPhone(identifier);
-            if (deliveryEmail != null && !deliveryEmail.isBlank()) {
-                sendRecoveryEmail(deliveryEmail, usernameRoleMap);
-            }
-            // If phone and no email found, a partial mask could be shown — but per requirements
-            // we NEVER expose usernames on-screen, so we just return the generic message.
+            byDeliveryEmail.forEach(this::sendRecoveryEmail);
+            // Accounts with no email on file get nothing — usernames are never shown on-screen.
         }
 
         // ── Generic response (no enumeration) ────────────────────────────
@@ -201,43 +219,27 @@ public class ForgotUsernameController {
 
     // ── Phone-based search ────────────────────────────────────────────────
 
-    private void collectByPhone(String phone, Map<String, String> out) {
-        // Tier 1: staff (app_user)
-        List<AppUser> staffUsers = appUserRepo.findActiveByPhone(phone);
-        for (AppUser u : staffUsers) {
+    private void collectByPhone(String phone, Map<String, Map<String, String>> byEmail) {
+        // Tier 1: staff (app_user) — delivered to that staff record's own email
+        for (AppUser u : appUserRepo.findActiveByPhone(phone)) {
+            if (u.getEmail() == null || u.getEmail().isBlank()) continue;
             SignUp signup = loginRepo.findActiveSignupByUserId(u.getUserId()).orElse(null);
             if (signup != null) {
-                out.putIfAbsent(signup.getUsername(), u.getRole());
+                byEmail.computeIfAbsent(u.getEmail().trim(), k -> new LinkedHashMap<>())
+                       .putIfAbsent(signup.getUsername(), u.getRole());
             }
         }
 
-        // Tier 2: members (family_member)
-        List<FamilyMember> members = familyMemberRepo.findActiveByPhoneAnyChurch(phone);
-        for (FamilyMember fm : members) {
-            if (fm.getMemberRef() == null) continue;
+        // Tier 2: members (family_member) — delivered to that member's own email
+        for (FamilyMember fm : familyMemberRepo.findActiveByPhoneAnyChurch(phone)) {
+            if (fm.getMemberRef() == null || fm.getEmail() == null || fm.getEmail().isBlank()) continue;
             SignUp signup = loginRepo.findActiveSignupByMemberRef(fm.getMemberRef()).orElse(null);
             if (signup != null) {
                 String role = fm.getRole() != null ? fm.getRole() : "Member";
-                out.putIfAbsent(signup.getUsername(), role);
+                byEmail.computeIfAbsent(fm.getEmail().trim(), k -> new LinkedHashMap<>())
+                       .putIfAbsent(signup.getUsername(), role);
             }
         }
-    }
-
-    // ── Email fallback for phone-based recovery ───────────────────────────
-
-    /** Finds the first email address on record for the given phone number (for sending recovery). */
-    private String resolveEmailFromPhone(String phone) {
-        // Try staff first
-        List<AppUser> staff = appUserRepo.findActiveByPhone(phone);
-        for (AppUser u : staff) {
-            if (u.getEmail() != null && !u.getEmail().isBlank()) return u.getEmail();
-        }
-        // Then members
-        List<FamilyMember> members = familyMemberRepo.findActiveByPhoneAnyChurch(phone);
-        for (FamilyMember fm : members) {
-            if (fm.getEmail() != null && !fm.getEmail().isBlank()) return fm.getEmail();
-        }
-        return null;
     }
 
     // ── Email builder ─────────────────────────────────────────────────────
@@ -264,7 +266,8 @@ public class ForgotUsernameController {
                 + "<p style='color:#888;font-size:13px;margin:0;'>Thank you,<br/>Church Genius Pro</p>"
                 + "</div>";
 
-        emailService.sendGenericEmail(toEmail, "Your Church Genius Pro Username(s)", html);
+        // Account recovery: delivered whatever the tenant's plan says.
+        emailService.sendAccountEmail(toEmail, "Your Church Genius Pro Username(s)", html);
     }
 
     // ── Audit helper ──────────────────────────────────────────────────────
@@ -278,7 +281,7 @@ public class ForgotUsernameController {
             log.setMatchFound(matchFound);
             recoveryLogRepo.save(log);
         } catch (Exception e) {
-            System.err.println("[ForgotUsername] Audit log failed: " + e.getMessage());
+            LOG.warn("[ForgotUsername] audit log failed", e);
         }
     }
 
@@ -300,10 +303,18 @@ public class ForgotUsernameController {
         return s.isEmpty() ? null : s;
     }
 
+    /**
+     * Delegates to the shared resolver so this rate limiter keys on the same value as the
+     * login one.
+     *
+     * <p>The previous inline version returned the raw first hop of {@code X-Forwarded-For},
+     * which on Azure App Service carries the client's ephemeral port
+     * ({@code 203.0.113.7:54321}). That made every request from one client look like a
+     * different address, so the 5-per-hour recovery limit below never actually accumulated
+     * in production. {@link ClientIpResolver#resolve} strips the port.
+     */
     private static String clientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
-        return req.getRemoteAddr();
+        return ClientIpResolver.resolve(req, true);
     }
 
     private static String escHtml(String s) {

@@ -32,6 +32,12 @@ public class VoiceCommandController {
     private final OpenAiVoiceService voiceService;
     private final OpenAiUsageService usageService;
     private final ChurchVoiceSettingService voiceFeatures;
+
+    /** Reason codes on a 403 from {@code /api/voice/command}. */
+    public static final String REASON_STAFF_ONLY  = "STAFF_ONLY";
+    public static final String REASON_FEATURE_OFF = "FEATURE_OFF";
+    public static final String REASON_VOICE_OFF   = "VOICE_OFF";
+    public static final String REASON_LIMIT       = "LIMIT";
     private final ObjectMapper mapper = new ObjectMapper();
 
     public VoiceCommandController(OpenAiVoiceService voiceService,
@@ -73,6 +79,14 @@ public class VoiceCommandController {
             resp.put("error", "Not signed in.");
             return ResponseEntity.status(401).body(resp);
         }
+        // Every refusal carries a machine-readable reason and the usage status, so the
+        // pages can show the real cause instead of assuming "limit reached" (2026-10-07).
+        if (!isStaffSession(request)) {
+            resp.put("error", "Voice is available to staff logins only. Please sign in with a staff account.");
+            resp.put("reason", REASON_STAFF_ONLY);
+            resp.put("status", usageService.statusMap(clientId));
+            return ResponseEntity.status(403).body(resp);
+        }
         if (!voiceService.isEnabled()) {
             resp.put("error", "Voice service is not configured — the OpenAI API key is missing on the server. "
                     + "An administrator must set OPENAI_API_KEY (or openai.api.key) and restart the app.");
@@ -83,12 +97,17 @@ public class VoiceCommandController {
         // Service Admin → refuse so a cached page can't keep using a disabled feature.
         if (!voiceFeatures.audioEnabled(clientId)) {
             resp.put("error", "Voice features are disabled for this church.");
+            resp.put("reason", REASON_FEATURE_OFF);
+            resp.put("status", usageService.statusMap(clientId));
             return ResponseEntity.status(403).body(resp);
         }
         // Church-level quota gate (shared across all pages).
         if (!usageService.voiceAvailable(clientId)) {
-            resp.put("error", "Voice limit reached or disabled. Please contact your administrator.");
-            resp.put("status", usageService.statusMap(clientId));
+            Map<String, Object> st = usageService.statusMap(clientId);
+            boolean off = Boolean.FALSE.equals(st.get("voiceEnabled"));
+            resp.put("error", off ? "Voice is disabled by your administrator." : "Voice limit reached. Please contact your administrator.");
+            resp.put("reason", off ? REASON_VOICE_OFF : REASON_LIMIT);
+            resp.put("status", st);
             return ResponseEntity.status(403).body(resp);
         }
         if (audio == null || audio.isEmpty()) {
@@ -156,6 +175,15 @@ public class VoiceCommandController {
             resp.put("error", "Not signed in.");
             return ResponseEntity.status(401).body(resp);
         }
+        if (!isStaffSession(request)) {
+            resp.put("error", "Voice and AI features are available to staff accounts.");
+            return ResponseEntity.status(403).body(resp);
+        }
+        // AI Assistant permission (viewUsers → More → AI Assistant) — see AiSearchController.
+        if (com.churchgeniuspro.util.RoleGuard.requireFeature(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT) != null) {
+            resp.put("error", "You do not have access to the AI Assistant.");
+            return ResponseEntity.status(403).body(resp);
+        }
         if (!voiceService.isEnabled()) {
             resp.put("error", "AI assistant is not configured — the OpenAI API key is missing on the server.");
             resp.put("intent", "error");
@@ -213,6 +241,10 @@ public class VoiceCommandController {
             resp.put("error", "Not signed in.");
             return ResponseEntity.status(401).body(resp);
         }
+        if (!isStaffSession(request)) {
+            resp.put("error", "Voice and AI features are available to staff accounts.");
+            return ResponseEntity.status(403).body(resp);
+        }
         if (!voiceService.isEnabled()) {
             resp.put("error", "AI is not configured — the OpenAI API key is missing on the server.");
             return ResponseEntity.status(503).body(resp);
@@ -235,4 +267,15 @@ public class VoiceCommandController {
     }
 
     private static String str(Object o) { return o == null ? "" : String.valueOf(o).trim(); }
+
+    /**
+     * Voice/AI calls are metered against the church's paid OpenAI quota, so they are
+     * for staff logins only — not member-portal or temporary-badge sessions.
+     */
+    private static boolean isStaffSession(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession s = request.getSession(false);
+        if (s == null || s.getAttribute("username") == null) return false;
+        if (s.getAttribute("memberId") != null || s.getAttribute("tempAccessId") != null) return false;
+        return !"Member".equals(s.getAttribute("role"));
+    }
 }

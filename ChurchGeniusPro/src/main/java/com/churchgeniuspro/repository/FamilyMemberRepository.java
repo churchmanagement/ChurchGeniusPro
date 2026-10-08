@@ -25,26 +25,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 
     /**
      * Returns all non-deleted family members (any role) who have their own address
-     * (i.e. {@code sameAsFamilyAddress = false}).  Used to populate the meeting
-     * Location dropdown.  The parent family is JOIN FETCH-ed to avoid N+1 queries.
-     */
-    @Query("SELECT m FROM FamilyMember m JOIN FETCH m.family " +
-           "WHERE m.sameAsFamilyAddress = false " +
-           "AND m.deleteFlag = false " +
-           "ORDER BY m.firstName ASC, m.lastName ASC")
-    List<FamilyMember> findAllMembersWithOwnAddress();
-
-    /**
-     * Active, non-deleted family members who have a non-blank email address and
-     * have not opted out of alerts.  Used to resolve the "Event Guests" recipient
-     * list for bulk notifications.
-     */
-    @Query("SELECT m FROM FamilyMember m " +
-           "WHERE m.deleteFlag = false AND m.inactive = false " +
-           "AND m.disableAlerts = false " +
-           "AND m.email IS NOT NULL AND m.email <> '' " +
-           "ORDER BY m.firstName ASC, m.lastName ASC")
-    List<FamilyMember> findAllWithEmail();
+     * (i.e. {
 
     /**
      * Active, non-deleted family members filtered by {@code memberType} who have a
@@ -60,15 +41,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
     List<FamilyMember> findByMemberTypeWithEmail(@Param("memberType") String memberType);
 
     /**
-     * All non-deleted family members who have {@code includeContributions = true},
-     * ordered by first name then last name.  Used to populate the Contributor
-     * dropdown on the Income screen.
-     */
-    @Query("SELECT m FROM FamilyMember m " +
-           "WHERE m.includeContributions = true " +
-           "AND m.deleteFlag = false " +
-           "ORDER BY m.firstName ASC, m.lastName ASC")
-    List<FamilyMember> findContributors();
+     * All non-deleted family members who have {
 
     /**
      * Returns all non-deleted family members with parent family, filtered by appClientId.
@@ -562,17 +535,57 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
      * contains a member with the given email address. Prefers the Head of
      * Household's photo, then any member with a thumbnail. Used to resolve the
      * shared family photo for a staff account (whose login email matches a
-     * family member). Returns {@code null} when no match or no photo exists.
+     * family member). Returns {
+
+    /**
+     * Tenant-scoped variant of {@link #findFamilyThumbnailByEmail}: the matching
+     * member (and the family whose photo is returned) must belong to the church
+     * identified by {@code appClientId}, so a login email that also exists in
+     * another church can never surface that church's family photo.
      */
     @Query(value =
            "SELECT fm.photo_thumbnail FROM family_member fm " +
+           "JOIN family f ON f.id = fm.family_id " +
            "WHERE fm.family_id = (SELECT m2.family_id FROM family_member m2 " +
+           "    JOIN family f2 ON f2.id = m2.family_id " +
            "    WHERE LOWER(m2.email) = LOWER(:email) AND m2.delete_flag = false " +
+           "    AND f2.app_client_id = :appClientId " +
            "    ORDER BY m2.id ASC LIMIT 1) " +
+           "AND f.app_client_id = :appClientId " +
            "AND fm.delete_flag = false " +
            "AND fm.photo_thumbnail IS NOT NULL AND fm.photo_thumbnail <> '' " +
            "ORDER BY CASE WHEN LOWER(fm.role) IN ('head','head of household') THEN 0 ELSE 1 END, fm.id ASC " +
            "LIMIT 1",
            nativeQuery = true)
-    String findFamilyThumbnailByEmail(@Param("email") String email);
+    String findFamilyThumbnailByEmailAndAppClientId(@Param("email") String email,
+                                                    @Param("appClientId") String appClientId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    /**
+     * A member of the given church, by id. Tenant is the family's appClientId when
+     * the member belongs to a family, otherwise the member's own. Returns empty for
+     * an id that exists in another church, so callers cannot tell the difference.
+     */
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+           "WHERE m.id = :id AND m.deleteFlag = false " +
+           "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
+    java.util.Optional<FamilyMember> findByIdAndTenant(@Param("id") Integer id,
+                                                       @Param("appClientId") String appClientId);
+
+    /**
+     * Active members of the given church whose email matches exactly
+     * (case-insensitive). Deliberately tenant-scoped — unlike
+     * {@link #findActiveByEmail}, which searches every church and exists
+     * only for the signup self-heal flow — so an online donor's email can
+     * never be matched against a different church's member. Returns every
+     * match rather than one: the caller treats more than one hit (a shared
+     * family inbox) the same as no hit, rather than guessing which member
+     * to credit. Financial audit H9.
+     */
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+           "WHERE LOWER(m.email) = LOWER(:email) AND m.deleteFlag = false AND m.inactive = false " +
+           "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
+    List<FamilyMember> findActiveByEmailAndTenant(@Param("email") String email,
+                                                  @Param("appClientId") String appClientId);
 }

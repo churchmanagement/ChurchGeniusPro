@@ -14,6 +14,7 @@ public interface SsSubmissionRepository extends JpaRepository<SsSubmission, Long
     Optional<SsSubmission> findByExamIdAndStudentIdAndDeleteFlagFalse(Long examId, Long studentId);
     List<SsSubmission> findByExamIdAndDeleteFlagFalse(Long examId);
     List<SsSubmission> findByStudentIdAndDeleteFlagFalse(Long studentId);
+    Optional<SsSubmission> findByIdAndClientIdAndDeleteFlagFalse(Long id, String clientId);
 
     /** Immediately hard-deletes any submission for this (examId, studentId) pair regardless of deleteFlag.
      *  Used before re-inserting after a republish, to avoid unique constraint violations from soft-deleted rows. */

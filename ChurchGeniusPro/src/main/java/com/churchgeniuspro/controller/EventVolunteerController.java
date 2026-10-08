@@ -130,6 +130,10 @@ public class EventVolunteerController {
         String deny = RoleGuard.requireAdmin(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
+        if (cid == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        // The path's eventId must be one of this church's events.
+        if (churchEventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(eventId, cid).isEmpty())
+            return ResponseEntity.status(404).body(Map.of("error", "Event not found"));
 
         EventVolunteer ev = new EventVolunteer();
         ev.setAppClientId(cid);
@@ -139,17 +143,21 @@ public class EventVolunteerController {
         Integer fmId = toInt(body.get("familyMemberId"));
         boolean manual = Boolean.TRUE.equals(body.get("isManual")) || fmId == null;
         ev.setManual(manual);
+
+        // A linked member must belong to this church; a foreign id is never stored.
+        FamilyMember fm = null;
+        if (fmId != null) {
+            fm = memberRepo.findByIdAndTenant(fmId, cid).orElse(null);
+            if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found"));
+        }
         ev.setFamilyMemberId(fmId);
 
         // If linked to a member, pull latest contact info from DB
-        if (fmId != null && !manual) {
-            FamilyMember fm = memberRepo.findById(fmId).orElse(null);
-            if (fm != null) {
-                ev.setFirstName(fm.getFirstName());
-                ev.setLastName(fm.getLastName());
-                ev.setEmail(fm.getEmail());
-                ev.setPhone(fm.getPhone());
-            }
+        if (fm != null && !manual) {
+            ev.setFirstName(fm.getFirstName());
+            ev.setLastName(fm.getLastName());
+            ev.setEmail(fm.getEmail());
+            ev.setPhone(fm.getPhone());
         }
         // Caller-supplied overrides (or manual entry)
         if (str(body, "firstName") != null) ev.setFirstName(str(body, "firstName"));
@@ -258,18 +266,35 @@ public class EventVolunteerController {
         if (subject == null) subject = "Volunteer Assignment";
         if (msgBody  == null) msgBody = "";
 
-        int sent = 0;
-        for (String email : to) {
-            if (email == null || email.isBlank()) continue;
-            try {
-                String html = "<p>" + msgBody.replace("\n", "<br>") + "</p>";
-                emailService.sendGenericEmail(email, subject, html, cid);
-                sent++;
-            } catch (Exception e) {
-                // log and continue
+        // A Trial/demo tenant's congregation mail is dropped inside EmailService; ask
+        // first so the reply says "blocked" rather than counting dropped mail as sent.
+        EmailService.Delivery d = emailService.delivery(cid);
+        int sent = 0, blocked = 0;
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        // Phase B: a Trial/Demo tenant with a verified test address gets ONE test
+        // email for this action; the volunteers are simulated, never emailed.
+        try (com.churchgeniuspro.util.EmailActionScope scope =
+                     com.churchgeniuspro.util.EmailActionScope.begin("volunteer-email:" + eventId)) {
+            for (String email : to) {
+                if (email == null || email.isBlank()) continue;
+                if (d.blocked()) { blocked++; continue; }
+                try {
+                    String html = "<p>" + msgBody.replace("\n", "<br>") + "</p>";
+                    emailService.sendGenericEmail(email, subject, html, cid);
+                    if (!d.test()) sent++;
+                } catch (Exception e) {
+                    // log and continue
+                }
+            }
+            if (d.test()) {
+                out.put("testEmailsSent", scope.testEmailsSent());
+                out.put("simulated",      scope.simulated());
+                out.put("testEmail",      d.testEmail());
             }
         }
-        return ResponseEntity.ok(Map.of("success", true, "sent", sent));
+        out.put("success", true); out.put("sent", sent); out.put("blocked", blocked);
+        if (d.blocked()) out.put("blockReason", d.reason());
+        return ResponseEntity.ok(out);
     }
 
     // ── POST /api/events/{eventId}/volunteers/send-sms ───────────────────────
@@ -293,7 +318,8 @@ public class EventVolunteerController {
         for (String phone : to) {
             if (phone == null || phone.isBlank()) continue;
             try {
-                boolean ok = smsService.send(phone, message);
+                boolean ok = smsService.sendForClient(
+                        com.churchgeniuspro.util.SessionUtil.getAppClientId(req), phone, message).sent();
                 if (ok) sent++;
             } catch (Exception e) {
                 // log and continue
@@ -354,7 +380,7 @@ public class EventVolunteerController {
         evRepo.save(ev);
 
         // Look up the event for name/details
-        ChurchEvent churchEvent = churchEventRepo.findByIdAndDeleteFlagFalse(eventId).orElse(null);
+        ChurchEvent churchEvent = churchEventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(eventId, cid).orElse(null);
         String eventName = churchEvent != null ? churchEvent.getEventName() : "an event";
 
         // Look up volunteer name

@@ -291,6 +291,19 @@
     }
     .toggle-checkbox:checked::after { left: 21px; }
     .toggle-label { font-size: 13px; color: #555; user-select: none; }
+
+    /* Click-to-reveal help, identical to the "Event ID / Code" pattern on /event.
+       Hidden by default, so a long explanation never adds height to the form. */
+    .help-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #b9a4ae;
+                background: #fff; color: #673147; font-size: 11px; font-weight: 700;
+                line-height: 1; cursor: pointer; margin-left: 5px; padding: 0;
+                vertical-align: middle; flex: 0 0 auto; }
+    .help-dot:hover, .help-dot[aria-expanded="true"] { background: #673147; color: #fff; border-color: #673147; }
+    .help-note { margin-top: 6px; padding: 9px 11px; background: #faf6f8; border: 1px solid #ecdfe5;
+                 border-left: 3px solid #673147; border-radius: 6px;
+                 font-size: 12px; line-height: 1.5; color: #5a4a52; }
+    .help-note strong { color: #673147; }
+    .help-note[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -412,17 +425,22 @@
           <!-- Recurring toggle -->
           <div style="display:flex;align-items:center;gap:10px;margin-top:16px;
                       padding:12px 14px;background:#f0f2ff;border:1px solid #c5cae9;
-                      border-radius:8px;">
+                      border-radius:8px;flex-wrap:wrap;">
             <label class="toggle-row" title="Mark as recurring">
               <input type="checkbox" class="toggle-checkbox" id="fQuickAdd" />
               <span style="font-size:13px;color:#673147;font-weight:500;user-select:none;">
                 🔁 Recurring
-                <span style="font-size:13px;color:#777;font-weight:400;margin-left:4px;">
-                  — show this as a template in the Accountant dashboard Recurring Income panel
-                </span>
               </span>
             </label>
+            <button type="button" class="help-dot" aria-label="What does Recurring do?"
+                    aria-expanded="false" onclick="toggleHelp('recurringHelp', this)">?</button>
           </div>
+          <div class="help-note" id="recurringHelp" hidden>
+            When <strong>Recurring</strong> is enabled, this transaction is kept as a template and
+            listed in the <strong>Recurring Income</strong> panel on the dashboard. From there the
+            next one can be recorded with minimal data entry — the income type and details are
+            carried over, so you only enter the date and amount. The transaction itself is still
+            saved normally.</div>
 
           <div class="form-actions">
             <button class="btn-clear" onclick="clearForm()">Clear</button>
@@ -460,6 +478,19 @@
 
 <script>
   /* ════════════════════════════════════
+     CLICK-TO-REVEAL HELP
+     Same implementation as the "Event ID / Code" ? on /event: the note lives in
+     the markup with [hidden], so it costs no layout until it is opened.
+  ════════════════════════════════════ */
+  function toggleHelp(id, btn) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    const showing = box.hasAttribute('hidden');
+    if (showing) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+    if (btn) btn.setAttribute('aria-expanded', showing ? 'true' : 'false');
+  }
+
+  /* ════════════════════════════════════
      MENU
   ════════════════════════════════════ */
   
@@ -467,8 +498,12 @@
   /* ════════════════════════════════════
      STATE
   ════════════════════════════════════ */
-  let allTransactions       = [];   // full list from server
+  let allTransactions       = [];   // rows fetched so far (server pages of PAGE_SIZE)
   let visibleIncomeCount    = 10;   // rows currently shown (Load More increments)
+  const PAGE_SIZE           = 50;   // rows per server page (/api/income?page=N&size=50)
+  let nextPage              = 0;    // next server page to fetch
+  let serverHasMore         = false;// X-Has-More from the last page fetched
+  let pageLoading           = false;
   let contributors          = [];   // [{id, fullName}, …] from server
   let selectedContributorId = null; // currently chosen contributor ID
   let editingId             = null; // null = add mode, integer = edit mode
@@ -675,24 +710,47 @@
   /* ════════════════════════════════════
      LOAD TRANSACTIONS
   ════════════════════════════════════ */
-  async function loadTransactions() {
+  /* The server pages the list (ledger scalability, part A): a church with years of
+     history can have hundreds of thousands of rows, so the page fetches PAGE_SIZE at a
+     time and appends. Load More first reveals already-fetched rows, then fetches the
+     next page when it runs out. A fresh load (after add/edit/delete) restarts at page 0. */
+  async function fetchIncomePage() {
+    if (pageLoading) return false;
+    pageLoading = true;
     try {
-      const res  = await fetch('/api/income');
+      const res  = await fetch(`/api/income?page=${nextPage}&size=${PAGE_SIZE}`);
       if (!res.ok) throw new Error();
-      allTransactions = await res.json();
+      const rows = await res.json();
+      allTransactions = allTransactions.concat(rows);
+      serverHasMore   = res.headers.get('X-Has-More') === 'true';
+      nextPage       += 1;
+      return true;
     } catch {
-      allTransactions = [];
+      serverHasMore = false;
       showFeedback('❌ Failed to load income records.', 'error');
+      return false;
+    } finally {
+      pageLoading = false;
     }
+  }
+
+  async function loadTransactions() {
+    allTransactions    = [];
+    nextPage           = 0;
+    serverHasMore      = false;
     visibleIncomeCount = 10;   // reset Load More on every fresh load
+    await fetchIncomePage();
     renderTransactions();
   }
 
   /* ════════════════════════════════════
      RENDER TRANSACTIONS TABLE
   ════════════════════════════════════ */
-  function loadMoreIncome() {
+  async function loadMoreIncome() {
     visibleIncomeCount += 10;
+    if (visibleIncomeCount > allTransactions.length && serverHasMore) {
+      await fetchIncomePage();
+    }
     renderTransactions();
   }
 
@@ -701,7 +759,7 @@
     const content = document.getElementById('txnContent');
     /* show/hide Load More button */
     const wrap = document.getElementById('loadMoreIncomeWrap');
-    if (wrap) wrap.style.display = allTransactions.length > visibleIncomeCount ? 'block' : 'none';
+    if (wrap) wrap.style.display = (allTransactions.length > visibleIncomeCount || serverHasMore) ? 'block' : 'none';
 
     if (rows.length === 0) {
       content.innerHTML = `

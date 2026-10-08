@@ -21,9 +21,15 @@ public class FicaRate {
     @Column(name = "effective_year", nullable = false, unique = true)
     private Integer effectiveYear;
 
+    // Rates carry an explicit precision: without one Hibernate creates numeric(38,2),
+    // which silently rounded the seed to 0.06 / 0.01 / 0.01 (database audit C1).
+    // SchemaFixService widens the columns of an existing database to match.
+    @Column(precision = 9, scale = 6)
     private BigDecimal socialSecurityRate;          // employee, e.g. 0.062
     private BigDecimal socialSecurityWageBase;      // e.g. 184500
+    @Column(precision = 9, scale = 6)
     private BigDecimal medicareRate;                // e.g. 0.0145
+    @Column(precision = 9, scale = 6)
     private BigDecimal additionalMedicareRate;      // e.g. 0.009
     private BigDecimal additionalMedicareThreshold; // e.g. 200000
 }

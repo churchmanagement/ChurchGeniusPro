@@ -138,7 +138,7 @@ public class FamilyController {
         }
         String deny = RoleGuard.requireAdminOrAccountant(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "admin.family");
+        deny = RoleGuard.requirePagePermission(request, "admin.family");
         if (deny != null) return deny;
         return "forward:/viewFamily.html";
     }
@@ -284,9 +284,14 @@ public class FamilyController {
      */
     @ResponseBody
     @GetMapping("/api/families/{id}")
-    public ResponseEntity<Map<String, Object>> getFamilyById(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> getFamilyById(@PathVariable Integer id,
+                                                             HttpServletRequest request) {
+        String deny = familyPageGuard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            return ResponseEntity.ok(familyService.getById(id));
+            return ResponseEntity.ok(familyService.getById(id, appClientId));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
@@ -315,8 +320,26 @@ public class FamilyController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "At least one family member is required."));
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+
+        // Subscription plan: the maximum-people limit applies here too. It was
+        // enforced only on POST, so a church at its limit could keep adding people
+        // indefinitely by putting them into an existing family. Only members with no
+        // id are new; editing or removing the existing ones is never blocked.
         try {
-            Family saved = familyService.update(id, bo);
+            int adding = (int) bo.getMembers().stream()
+                    .filter(m -> m.getId() == null || m.getId() == 0)
+                    .count();
+            if (adding > 0) {
+                long current = familyMemberRepository.countActiveMembers(appClientId);
+                String limitMsg = subscriptionService.checkPeopleLimit(appClientId, current, adding);
+                if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+            }
+        } catch (Exception ignored) { /* fail-open: never block an edit on a limit-check error */ }
+
+        try {
+            Family saved = familyService.update(id, bo, appClientId);
             String primaryName = saved.getMembers().stream()
                     .filter(m -> !m.isDeleteFlag())
                     .filter(m -> "Head".equalsIgnoreCase(m.getRole())
@@ -353,8 +376,10 @@ public class FamilyController {
                                                             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            familyService.softDelete(id);
+            familyService.softDelete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
@@ -375,8 +400,10 @@ public class FamilyController {
                                                             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            familyService.softDeleteMember(familyId, memberId);
+            familyService.softDeleteMember(familyId, memberId, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
@@ -390,9 +417,14 @@ public class FamilyController {
      */
     @ResponseBody
     @PatchMapping("/api/families/{id}/restore")
-    public ResponseEntity<Map<String, Object>> restoreFamily(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> restoreFamily(@PathVariable Integer id,
+                                                             HttpServletRequest request) {
+        String deny = familyPageGuard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            familyService.restore(id);
+            familyService.restore(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
@@ -414,8 +446,10 @@ public class FamilyController {
             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.inactive");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            familyService.setInactive(id, value);
+            familyService.setInactive(id, value, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
@@ -443,6 +477,8 @@ public class FamilyController {
                        : "admin.family";
         String deny = RoleGuard.requirePermission(request, permKey);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
             @SuppressWarnings("unchecked")
             List<Integer> ids = (List<Integer>) body.get("ids");
@@ -451,11 +487,29 @@ public class FamilyController {
             if (ids == null || ids.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "No ids provided"));
             }
-            int count = familyService.bulkAction(ids, action);
+            int count = familyService.bulkAction(ids, action, appClientId);
             return ResponseEntity.ok(Map.of("count", count));
         } catch (Exception ex) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", ex.getMessage()));
         }
+    }
+
+    // ── Guards ────────────────────────────────────────────────────────────
+
+    /**
+     * Same role gate as the {@code /viewfamily} page route: member-portal sessions
+     * need the {@code admin.family} member permission; staff must be Admin /
+     * Accountant / SuperAdmin with {@code admin.family} enabled.
+     */
+    private static String familyPageGuard(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        boolean isMember = session != null
+                && "Member".equals(session.getAttribute("role"))
+                && session.getAttribute("memberId") != null;
+        if (isMember) return RoleGuard.requireMemberPermission(request, "admin.family");
+        String deny = RoleGuard.requireAdminOrAccountant(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, "admin.family");
     }
 }

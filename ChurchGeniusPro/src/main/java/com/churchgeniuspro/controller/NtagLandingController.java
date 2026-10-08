@@ -1,6 +1,7 @@
 package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.service.NtagLandingService;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,8 +21,12 @@ import java.util.Map;
 public class NtagLandingController {
 
     private final NtagLandingService svc;
+    private final PublicSendLimiter sendLimiter;
 
-    public NtagLandingController(NtagLandingService svc) { this.svc = svc; }
+    public NtagLandingController(NtagLandingService svc, PublicSendLimiter sendLimiter) {
+        this.svc = svc;
+        this.sendLimiter = sendLimiter;
+    }
 
     // ── Public page routes (no login) ──
     @GetMapping("/ntagLanding")
@@ -50,7 +55,14 @@ public class NtagLandingController {
     @ResponseBody
     @PostMapping("/api/public/ntag-landing/track")
     public ResponseEntity<?> track(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        svc.track(str(body, "cid"), str(body, "type"), str(body, "buttonKey"), str(body, "label"),
+        // Anonymous analytics rows with caller-chosen labels (security audit P7): keep the
+        // strings to their columns and bound the volume per origin and per landing link.
+        // A refused event is simply not recorded — the page never fails on analytics.
+        String cid = str(body, "cid");
+        if (sendLimiter.check(PublicSendLimiter.NTAG_TRACK, request, null, cid) != null) {
+            return ResponseEntity.ok(Map.of("ok", true));
+        }
+        svc.track(cid, str(body, "type"), clip(str(body, "buttonKey"), 60), clip(str(body, "label"), 120),
                 clientIp(request), request.getHeader("User-Agent"));
         return ResponseEntity.ok(Map.of("ok", true));
     }
@@ -97,6 +109,7 @@ public class NtagLandingController {
         return null;
     }
     private static String str(Map<String, Object> b, String k) { Object v = b.get(k); return v == null ? null : v.toString(); }
+    private static String clip(String s, int max) { return s == null || s.length() <= max ? s : s.substring(0, max); }
     private static Boolean boolN(Object v) { if (v == null) return null; return (v instanceof Boolean b) ? b : Boolean.parseBoolean(v.toString()); }
     private static String clientIp(HttpServletRequest request) {
         String xff = request.getHeader("X-Forwarded-For");

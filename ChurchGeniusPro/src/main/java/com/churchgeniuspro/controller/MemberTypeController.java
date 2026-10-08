@@ -67,11 +67,14 @@ public class MemberTypeController {
     @PostMapping("/api/member-types")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
+        String deny = RoleGuard.requireAdmin(request);   // same gate as the /membertype page
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Member type name is required.");
         }
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
             MemberType saved = memberTypeService.create(typeName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -85,13 +88,18 @@ public class MemberTypeController {
     @ResponseBody
     @PutMapping("/api/member-types/{id}")
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
-                                                      @RequestBody Map<String, String> body) {
+                                                      @RequestBody Map<String, String> body,
+                                                      HttpServletRequest request) {
+        String deny = RoleGuard.requireAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Member type name is required.");
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            MemberType saved = memberTypeService.update(id, typeName);
+            MemberType saved = memberTypeService.update(id, typeName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -102,9 +110,14 @@ public class MemberTypeController {
 
     @ResponseBody
     @DeleteMapping("/api/member-types/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
+                                                      HttpServletRequest request) {
+        String deny = RoleGuard.requireAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            memberTypeService.delete(id);
+            memberTypeService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());

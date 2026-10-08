@@ -4,10 +4,14 @@ import com.churchgeniuspro.hibernate.Expense;
 import com.churchgeniuspro.hibernate.MainSource;
 import com.churchgeniuspro.hibernate.Purpose;
 import com.churchgeniuspro.hibernate.TransactionType;
+import com.churchgeniuspro.model.PageSlice;
+import com.churchgeniuspro.repository.OffsetWindow;
 import com.churchgeniuspro.repository.ExpenseRepository;
 import com.churchgeniuspro.repository.MainSourceRepository;
 import com.churchgeniuspro.repository.PurposeRepository;
 import com.churchgeniuspro.repository.TransactionTypeRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +21,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -77,13 +82,24 @@ public class ExpenseService {
 
     // ── Expense – List ────────────────────────────────────────────────────
 
-    /** Returns all active expense records ordered most-recent first, filtered by appUserId. */
+    /** Largest page a caller may request from {@link #getRecentExpenses}. */
+    public static final int MAX_PAGE_SIZE = 200;
+
+    /**
+     * Returns one page of active expense records, most-recent first.
+     * {@code page} is zero-based; {@code size} is clamped to 1..{@link #MAX_PAGE_SIZE}.
+     * The repository is asked for one extra row so {@code hasMore} needs no count query.
+     */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getRecentExpenses(String appClientId) {
-        return expenseRepo.findAllActiveByAppUser(appClientId)
+    public PageSlice<Map<String, Object>> getRecentExpenses(String appClientId, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+        int safePage = Math.max(0, page);
+        Pageable window = new OffsetWindow((long) safePage * safeSize, safeSize + 1);
+        List<Map<String, Object>> rows = expenseRepo.findActivePageByAppUser(appClientId, window)
                 .stream()
                 .map(this::expenseToMap)
                 .collect(Collectors.toList());
+        return PageSlice.of(rows, safeSize);
     }
 
     // ── Quick Add – List ──────────────────────────────────────────────────
@@ -114,9 +130,37 @@ public class ExpenseService {
                                  boolean    quickAdd,
                                  String     appClientId,
                                  String     createdBy) {
-        Purpose         purpose         = findPurposeOrThrow(purposeId);
-        MainSource      mainSource      = findMainSourceOrThrow(mainSourceId);
-        TransactionType transactionType = findTransactionTypeOrThrow(transactionTypeId);
+        return createExpense(purposeId, mainSourceId, expenseDate, transactionTypeId, refNo, amount, note,
+                quickAdd, appClientId, createdBy, null, false);
+    }
+
+    /**
+     * Same as the shorter overload above, but for an import pipeline (Bank Import,
+     * Plaid) that can identify the same source transaction across re-imports.
+     * Financial audit H8 — see {@code IncomeService.createIncome} for the full
+     * explanation of {@code importRef} / {@code force}; the rules are identical.
+     */
+    @Transactional
+    public Expense createExpense(Integer    purposeId,
+                                 Integer    mainSourceId,
+                                 LocalDate  expenseDate,
+                                 Integer    transactionTypeId,
+                                 String     refNo,
+                                 BigDecimal amount,
+                                 String     note,
+                                 boolean    quickAdd,
+                                 String     appClientId,
+                                 String     createdBy,
+                                 String     importRef,
+                                 boolean    force) {
+        String ref = (importRef != null && !importRef.isBlank()) ? importRef.trim() : null;
+        if (ref != null) {
+            checkImportDuplicate(appClientId, ref, expenseDate, amount, force);
+        }
+
+        Purpose         purpose         = findPurposeOrThrow(purposeId, appClientId);
+        MainSource      mainSource      = findMainSourceOrThrow(mainSourceId, appClientId);
+        TransactionType transactionType = findTransactionTypeOrThrow(transactionTypeId, appClientId);
 
         Expense expense = new Expense();
         expense.setPurpose(purpose);
@@ -127,12 +171,52 @@ public class ExpenseService {
         expense.setAmount(amount);
         expense.setNote(note != null ? note.trim() : null);
         expense.setQuickAdd(quickAdd);
+        expense.setImportRef(ref);
         expense.setAppClientId(appClientId);
         expense.setCreatedBy(createdBy);
         expense.setUpdatedBy(createdBy);
         expense.setUpdatedDate(new Date());
-        return expenseRepo.save(expense);
+        try {
+            return expenseRepo.save(expense);
+        } catch (DataIntegrityViolationException race) {
+            // The per-tenant unique index caught a concurrent import of the same
+            // statement line between our check above and this insert.
+            throw duplicateFromRace("expense", appClientId, ref, expenseDate, amount);
+        }
     }
+
+    /** Financial audit H8 — see {@code IncomeService.createIncome}. */
+    private void checkImportDuplicate(String appClientId, String importRef, LocalDate date, BigDecimal amount,
+                                      boolean force) {
+        Optional<Expense> hard = expenseRepo.findFirstByAppClientIdAndImportRefAndDeleteFlagFalse(appClientId, importRef);
+        if (hard.isPresent()) {
+            Expense existing = hard.get();
+            throw new DuplicateImportException("This transaction was already imported.", "expense",
+                    existing.getId(), str(existing.getExpenseDate()), existing.getAmount(), existing.getRefNo(), true);
+        }
+        if (!force) {
+            List<Expense> possible = expenseRepo.findByAppClientIdAndExpenseDateAndAmountAndDeleteFlagFalse(
+                    appClientId, date, amount);
+            if (!possible.isEmpty()) {
+                Expense existing = possible.get(0);
+                throw new DuplicateImportException("A possible duplicate already exists for this date and amount.",
+                        "expense", existing.getId(), str(existing.getExpenseDate()), existing.getAmount(),
+                        existing.getRefNo(), false);
+            }
+        }
+    }
+
+    /** Financial audit H8 — see {@code IncomeService.createIncome}. */
+    private DuplicateImportException duplicateFromRace(String type, String appClientId, String importRef,
+                                                        LocalDate fallbackDate, BigDecimal fallbackAmount) {
+        return expenseRepo.findFirstByAppClientIdAndImportRefAndDeleteFlagFalse(appClientId, importRef)
+                .map(existing -> new DuplicateImportException("This transaction was already imported.", type,
+                        existing.getId(), str(existing.getExpenseDate()), existing.getAmount(), existing.getRefNo(), true))
+                .orElseGet(() -> new DuplicateImportException("This transaction was already imported.", type,
+                        null, str(fallbackDate), fallbackAmount, null, true));
+    }
+
+    private static String str(LocalDate d) { return d == null ? null : d.toString(); }
 
     // ── Expense – Update ──────────────────────────────────────────────────
 
@@ -146,12 +230,13 @@ public class ExpenseService {
                                  BigDecimal amount,
                                  String     note,
                                  boolean    quickAdd,
+                                 String     appClientId,
                                  String     updatedBy) {
-        Expense expense = findExpenseOrThrow(id);
-        expense.setPurpose(findPurposeOrThrow(purposeId));
-        expense.setMainSource(findMainSourceOrThrow(mainSourceId));
+        Expense expense = findExpenseOrThrow(id, appClientId);
+        expense.setPurpose(findPurposeOrThrow(purposeId, appClientId));
+        expense.setMainSource(findMainSourceOrThrow(mainSourceId, appClientId));
         expense.setExpenseDate(expenseDate);
-        expense.setTransactionType(findTransactionTypeOrThrow(transactionTypeId));
+        expense.setTransactionType(findTransactionTypeOrThrow(transactionTypeId, appClientId));
         expense.setRefNo(refNo != null ? refNo.trim() : null);
         expense.setAmount(amount);
         expense.setNote(note != null ? note.trim() : null);
@@ -164,8 +249,8 @@ public class ExpenseService {
     // ── Expense – Unstar (remove from Recurring panel) ───────────────────
 
     @Transactional
-    public void unstarExpense(Integer id) {
-        Expense expense = findExpenseOrThrow(id);
+    public void unstarExpense(Integer id, String appClientId) {
+        Expense expense = findExpenseOrThrow(id, appClientId);
         expense.setQuickAdd(false);
         expenseRepo.save(expense);
     }
@@ -173,8 +258,8 @@ public class ExpenseService {
     // ── Expense – Soft-Delete ─────────────────────────────────────────────
 
     @Transactional
-    public void deleteExpense(Integer id) {
-        Expense expense = findExpenseOrThrow(id);
+    public void deleteExpense(Integer id, String appClientId) {
+        Expense expense = findExpenseOrThrow(id, appClientId);
         expense.setDeleteFlag(true);
         expenseRepo.save(expense);
     }
@@ -216,28 +301,27 @@ public class ExpenseService {
         return map;
     }
 
-    private Purpose findPurposeOrThrow(Integer id) {
-        return purposeRepo.findById(id)
-                .filter(p -> !p.isDeleteFlag())
+    // All lookups are tenant-scoped: an id that exists in another church yields the
+    // same "not found" as an unknown id, so the API cannot be used as an oracle.
+
+    private Purpose findPurposeOrThrow(Integer id, String appClientId) {
+        return purposeRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Purpose not found: " + id));
     }
 
-    private MainSource findMainSourceOrThrow(Integer id) {
-        return mainSourceRepo.findById(id)
-                .filter(ms -> !ms.isDeleteFlag())
+    private MainSource findMainSourceOrThrow(Integer id, String appClientId) {
+        return mainSourceRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Fund not found: " + id));
     }
 
-    private Expense findExpenseOrThrow(Integer id) {
-        return expenseRepo.findById(id)
-                .filter(e -> !e.isDeleteFlag())
+    private Expense findExpenseOrThrow(Integer id, String appClientId) {
+        return expenseRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Expense record not found: " + id));
     }
 
-    private TransactionType findTransactionTypeOrThrow(Integer id) {
+    private TransactionType findTransactionTypeOrThrow(Integer id, String appClientId) {
         if (id == null) throw new IllegalArgumentException("Transaction type is required.");
-        return transactionTypeRepo.findById(id)
-                .filter(tt -> !tt.isDeleteFlag())
+        return transactionTypeRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction type not found: " + id));
     }
 }

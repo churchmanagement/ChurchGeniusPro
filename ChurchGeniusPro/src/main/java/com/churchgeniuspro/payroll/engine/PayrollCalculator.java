@@ -44,11 +44,20 @@ public final class PayrollCalculator {
         int periods = in.payPeriodsPerYear();
 
         // ── 1. Gross earnings ──────────────────────────────────────────────
+        // Financial audit M12c: gross used to accumulate each line's RAW amount
+        // while the displayed line item separately rounded that same amount —
+        // round-then-sum and sum-then-round can differ by a cent, so the printed
+        // line items didn't always foot to the printed gross. Round each line
+        // exactly once, into a local, and use that identical value for both the
+        // running gross and the line item — the two can no longer disagree.
+        // (EarningLine's own factories already round at construction; this
+        // re-rounds defensively so the identity holds even for a line built by
+        // hand rather than through them.)
         BigDecimal gross = BigDecimal.ZERO;
         for (EarningLine e : in.getEarnings()) {
-            gross = gross.add(e.amountOrZero());
-            r.getEarningItems().add(new PaystubLineItem(
-                    label(e), money(e.amountOrZero()), null));
+            BigDecimal lineAmount = money(e.amountOrZero());
+            gross = gross.add(lineAmount);
+            r.getEarningItems().add(new PaystubLineItem(label(e), lineAmount, null));
         }
 
         // ── 2. Deduction partitioning ──────────────────────────────────────
@@ -107,7 +116,16 @@ public final class PayrollCalculator {
 
         // ── 7. Totals and net pay ──────────────────────────────────────────
         BigDecimal totalTaxes = federalWH.add(ss).add(medicare).add(addlMedicare).add(stateWH).add(localTax);
-        BigDecimal netPay = money(gross.subtract(preTaxTotal).subtract(totalTaxes).subtract(postTaxTotal));
+        BigDecimal netBeforeFloor = money(gross.subtract(preTaxTotal).subtract(totalTaxes).subtract(postTaxTotal));
+        // Financial audit H4: heavy pre-tax/post-tax deductions (e.g. a benefit premium
+        // or garnishment) on a light period (few hours, unpaid leave) could drive this
+        // below zero — an unclamped negative "net pay" a bank can't actually pay out.
+        // Taxes and deductions are never reduced to force a non-negative result — the
+        // full computed amount is still owed/withheld — so net pay clamps at zero and
+        // the shortfall is carried separately as arrearsAmount, never silently dropped.
+        // Exactly one of the two is non-zero: netPay − arrearsAmount == netBeforeFloor.
+        BigDecimal netPay = floorZero(netBeforeFloor);
+        BigDecimal arrearsAmount = floorZero(netBeforeFloor.negate());
 
         // ── 8. Populate result ─────────────────────────────────────────────
         r.setGrossEarnings(money(gross));
@@ -123,7 +141,8 @@ public final class PayrollCalculator {
         r.setStateWithholding(stateWH);
         r.setLocalTax(localTax);
         r.setTotalTaxes(money(totalTaxes));
-        r.setNetPay(netPay);
+        r.setNetPay(money(netPay));
+        r.setArrearsAmount(money(arrearsAmount));
 
         // Roll YTD forward first so tax line items can show YTD figures.
         YtdAmounts newYtd = in.getPriorYtd().plus(r);

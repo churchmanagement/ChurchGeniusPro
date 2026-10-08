@@ -36,17 +36,20 @@ public class PlaidScheduledService {
     private final PlaidTransactionStagingRepository stagingRepo;
     private final PlaidSyncService syncService;
     private final PlaidGuard guard;
+    private final com.churchgeniuspro.service.SubscriptionService subscriptions;
 
     public PlaidScheduledService(PlaidProperties props,
                                  PlaidItemRepository itemRepo,
                                  PlaidTransactionStagingRepository stagingRepo,
                                  PlaidSyncService syncService,
-                                 PlaidGuard guard) {
+                                 PlaidGuard guard,
+                                 com.churchgeniuspro.service.SubscriptionService subscriptions) {
         this.props = props;
         this.itemRepo = itemRepo;
         this.stagingRepo = stagingRepo;
         this.syncService = syncService;
         this.guard = guard;
+        this.subscriptions = subscriptions;
     }
 
     /** Hourly (at :15) safety-net sync for active items in sync-enabled churches. */
@@ -54,8 +57,22 @@ public class PlaidScheduledService {
     public void safetyNetSync() {
         if (!props.isConfigured()) return;
         int synced = 0;
+        int paused = 0;
+        // Expired / inactive churches are SKIPPED, not disconnected: the item, its
+        // access token, cursor and staged rows are left exactly as they are, so the
+        // first run after a renewal resumes from the stored cursor.
+        java.util.Set<String> activeChurches;
+        try {
+            activeChurches = subscriptions.activeAccountClientIds();
+        } catch (Exception e) {
+            log.warn("Plaid safety-net sync skipped this run — could not read active accounts: {}", e.getMessage());
+            return;
+        }
         for (PlaidItem item : itemRepo.findByDeleteFlagFalse()) {
             if ("DISCONNECTED".equals(item.getStatus())) continue;
+            if (!activeChurches.contains(item.getClientId())) { paused++; continue; }
+            // Plan without Bank Sync (e.g. Free, Standard): skipped the same way — nothing is disconnected.
+            if (!subscriptions.isFeatureEnabled(item.getClientId(), "bankSync")) { paused++; continue; }
             if (!guard.isSyncEnabled(item.getClientId())) continue;
             try {
                 syncService.sync(item, "SCHEDULED");
@@ -65,6 +82,7 @@ public class PlaidScheduledService {
             }
         }
         if (synced > 0) log.info("Plaid safety-net sync ran for {} item(s)", synced);
+        if (paused > 0) log.info("Plaid safety-net sync skipped {} item(s) of expired/inactive churches", paused);
     }
 
     /** Daily (03:30) purge of old rejected/removed staging rows. */

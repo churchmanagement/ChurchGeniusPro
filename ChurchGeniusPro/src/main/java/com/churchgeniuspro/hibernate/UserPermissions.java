@@ -53,4 +53,10 @@ public class UserPermissions {
     protected void onUpdate() {
         this.updatedDate = new Date();
     }
+
+    /** Tenant column (H2): backfilled by W4 from the parent; set on create by the owning
+     *  service/controller. Nullable for now — flipped to NOT NULL once every create-path
+     *  is deployed (see db/window/W4_tenant_columns.sql). */
+    @Column(name = "client_id")
+    private String clientId;
 }

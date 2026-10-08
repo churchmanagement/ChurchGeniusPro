@@ -80,6 +80,15 @@
   }
   async function sendInitial() {
     var res = await api('/api/plaid/gate/send');
+    // Trial subscriptions skip this gate entirely. /bankSync already forwards
+    // past this page for them; this only catches someone who reached the verify
+    // URL directly, and sends them on rather than showing a code form that will
+    // never be filled.
+    if (res.ok && res.d.verificationRequired === false) {
+      show('ok', 'Verification is not required for your subscription. Opening Bank Sync…');
+      window.location.href = '/bankSync';
+      return;
+    }
     if (res.ok) show('info', 'We emailed a verification code to your registered address. Enter it below.');
     else show('err', res.d.message || 'Could not send a code. Please contact your administrator.');
   }

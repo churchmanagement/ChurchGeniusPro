@@ -6,7 +6,8 @@ import com.churchgeniuspro.hibernate.KmChild;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.KmCheckinRepository;
 import com.churchgeniuspro.repository.KmChildRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
+import com.churchgeniuspro.util.PublicSendLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +38,27 @@ import java.util.*;
 @Controller
 public class PublicKidsCheckinController {
 
+    /** A full North-American number; anything shorter is not a lookup key. */
+    static final int MIN_PHONE_DIGITS = 10;
+
+    /** A shared family code issued earlier than this is not reused for a new row. */
+    static final long CODE_REUSE_WINDOW_MINUTES = 15;
+
     private final KmChildRepository      childRepo;
     private final KmCheckinRepository    checkinRepo;
     private final FamilyMemberRepository familyMemberRepo;
 
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+    private final PublicSendLimiter sendLimiter;
+    private final java.security.SecureRandom codeRandom = new java.security.SecureRandom();
+
     public PublicKidsCheckinController(KmChildRepository childRepo,
                                        KmCheckinRepository checkinRepo,
-                                       FamilyMemberRepository familyMemberRepo) {
+                                       FamilyMemberRepository familyMemberRepo,
+            com.churchgeniuspro.service.PublicLinkResolver links,
+            PublicSendLimiter sendLimiter) {
+        this.links = links;
+        this.sendLimiter = sendLimiter;
         this.childRepo        = childRepo;
         this.checkinRepo      = checkinRepo;
         this.familyMemberRepo = familyMemberRepo;
@@ -58,70 +73,85 @@ public class PublicKidsCheckinController {
 
     // ── Search children by parent phone ──────────────────────────────────
 
+    /**
+     * The kiosk's lookup: the household's children and designated guardians for
+     * the full phone number a parent types.
+     *
+     * <p>What comes back is only what the kiosk shows to pick people: names, age
+     * and grade, an allergy flag, and guardian names/roles. Dates of birth, the
+     * allergy text, classroom, family ids and every phone number / e-mail stay
+     * server-side — anyone holding the kiosk link and a parent's number could
+     * otherwise pull a child's full profile (security audit P3). Bounded per
+     * network origin and per kiosk link per day.
+     */
     @ResponseBody
     @GetMapping("/api/public/kids-checkin/search")
     public ResponseEntity<?> search(@RequestParam("cid") String encryptedCid,
-                                    @RequestParam(value = "phone", defaultValue = "") String phone) {
+                                    @RequestParam(value = "phone", defaultValue = "") String phone,
+                                    HttpServletRequest request) {
         String clientId = decryptCid(encryptedCid);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Invalid link"));
-        String digits = onlyDigits(phone);
-        if (digits.length() < 4) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Enter at least the last 4 digits of the phone number"));
+
+        String limited = sendLimiter.check(PublicSendLimiter.KIDS_CHECKIN_SEARCH, request, null, encryptedCid);
+        if (limited != null) {
+            return ResponseEntity.status(429).body(Map.of("error", "Too many searches. Please wait a moment and try again."));
         }
-        List<KmChild> kids = childRepo.findByClientIdAndParentPhone(clientId, digits);
+        String digits = onlyDigits(phone);
+        if (digits.length() < MIN_PHONE_DIGITS) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Enter the full phone number"));
+        }
 
-        // Build per-child guardian lists. The OLD behavior pulled in every
-        // non-child family-member, which surfaced unrelated household members
-        // (e.g. a different parent / extended family) the church-staff hadn't
-        // designated as the guardian for THIS child.
-        //
-        // New rule: the guardian for a kid is the FamilyMember whose name
-        // matches the kid's KmChild.parentName (the value the staff typed on
-        // the Register Child form). Falls back to matching by phone if the
-        // name isn't a clean match. If still no hit, no guardian row is
-        // surfaced — the parent can fall back to manual entry.
         List<Map<String, Object>> children = new ArrayList<>();
-        for (KmChild c : kids) {
-            Integer fid = null;
-            if (c.getFamilyMemberId() != null) {
-                FamilyMember linked = familyMemberRepo.findById(c.getFamilyMemberId()).orElse(null);
-                if (linked != null && linked.getFamily() != null) fid = linked.getFamily().getId();
-            }
-
+        for (Household h : households(clientId, digits)) {
+            KmChild c = h.child();
             List<Map<String, Object>> guardians = new ArrayList<>();
-            if (fid != null) {
-                List<FamilyMember> all = familyMemberRepo.findActiveMembersByFamilyId(fid);
-                FamilyMember match = pickRegisteredGuardian(all, c.getParentName(), c.getParentPhone());
-                if (match != null) {
-                    Map<String, Object> g = new LinkedHashMap<>();
-                    g.put("id",        match.getId());
-                    g.put("firstName", match.getFirstName());
-                    g.put("lastName",  match.getLastName());
-                    g.put("role",      match.getRole());
-                    g.put("phone",     match.getPhone());
-                    g.put("email",     match.getEmail());
-                    guardians.add(g);
-                }
+            if (h.guardian() != null) {
+                Map<String, Object> g = new LinkedHashMap<>();
+                g.put("id",        h.guardian().getId());
+                g.put("firstName", h.guardian().getFirstName());
+                g.put("lastName",  h.guardian().getLastName());
+                g.put("role",      h.guardian().getRole());
+                guardians.add(g);
             }
-
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id",          c.getId());
-            row.put("firstName",   c.getFirstName());
-            row.put("lastName",    c.getLastName());
-            row.put("dob",         c.getDob() != null ? c.getDob().toString() : null);
-            row.put("age",         c.getDob() != null
-                    ? Period.between(c.getDob(), LocalDate.now()).getYears() : null);
-            row.put("grade",       c.getGrade());
-            row.put("parentName",  c.getParentName());
-            row.put("parentPhone", c.getParentPhone());
-            row.put("parentEmail", c.getParentEmail());
-            row.put("allergies",   c.getAllergies());
-            row.put("classroomId", c.getClassroomId());
-            row.put("familyId",    fid);
-            row.put("guardians",   guardians);
+            row.put("id",         c.getId());
+            row.put("firstName",  c.getFirstName());
+            row.put("lastName",   c.getLastName());
+            row.put("age",        c.getDob() != null ? Period.between(c.getDob(), LocalDate.now()).getYears() : null);
+            row.put("grade",      c.getGrade());
+            row.put("hasAllergy", c.getAllergies() != null && !c.getAllergies().isBlank());
+            row.put("guardians",  guardians);
             children.add(row);
         }
         return ResponseEntity.ok(Map.of("children", children));
+    }
+
+    /** One child the phone number resolves to, with the guardian the search would surface for it. */
+    private record Household(KmChild child, Integer familyId, FamilyMember guardian) {}
+
+    /**
+     * The households a parent's number unlocks — the same resolution for search and
+     * for submit, so a check-in can only ever name a child (or guardian) that the
+     * number it was made with would have shown.
+     */
+    private List<Household> households(String clientId, String phoneDigits) {
+        List<Household> out = new ArrayList<>();
+        for (KmChild c : childRepo.findByClientIdAndParentPhone(clientId, phoneDigits)) {
+            Integer fid = null;
+            FamilyMember guardian = null;
+            if (c.getFamilyMemberId() != null) {
+                FamilyMember linked = familyMemberRepo.findByIdAndTenant(c.getFamilyMemberId(), clientId).orElse(null);
+                if (linked != null && linked.getFamily() != null) fid = linked.getFamily().getId();
+            }
+            if (fid != null) {
+                // Only the FamilyMember whose name matches the child's registered
+                // parent (or, failing that, the phone) — never the whole household.
+                guardian = pickRegisteredGuardian(familyMemberRepo.findActiveMembersByFamilyId(fid),
+                                                  c.getParentName(), c.getParentPhone());
+            }
+            out.add(new Household(c, fid, guardian));
+        }
+        return out;
     }
 
     /**
@@ -179,6 +209,17 @@ public class PublicKidsCheckinController {
 
     // ── Submit check-in (kid only / parent only / both) ──────────────────
 
+    /**
+     * Records a check-in for a child and/or a guardian.
+     *
+     * <p>The body carries the phone number the kiosk searched with, and a child or
+     * guardian is accepted only if that number would have surfaced them — the same
+     * household rule as {@link #search}. Ids alone are small integers; the number is
+     * the thing the parent actually knew. The shared family code on the labels is
+     * issued here: a caller may pass back a code this endpoint issued moments ago
+     * for the same household (so one submission per person still prints one code),
+     * but never a code of its own choosing (security audit P3).
+     */
     @ResponseBody
     @PostMapping("/api/public/kids-checkin/submit")
     public ResponseEntity<?> submit(@RequestBody Map<String, Object> body) {
@@ -191,13 +232,18 @@ public class PublicKidsCheckinController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Pick at least one person to check in"));
         }
+        String digits = onlyDigits(str(body.get("phone")));
+        if (digits.length() < MIN_PHONE_DIGITS) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Enter the full phone number"));
+        }
+        List<Household> households = households(clientId, digits);
 
-        // Validate child ownership: if a childId was sent, it must belong to
-        // this clientId. (Prevents cross-org check-ins via a stale cid.)
+        // The child must be one the phone number resolves to.
         KmChild child = null;
         if (childId != null) {
-            child = childRepo.findById(childId).orElse(null);
-            if (child == null || !clientId.equals(child.getClientId())) {
+            child = households.stream().map(Household::child)
+                    .filter(c -> childId.equals(c.getId())).findFirst().orElse(null);
+            if (child == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "Child not found"));
             }
             // Prevent duplicate active check-in for the same child.
@@ -207,23 +253,26 @@ public class PublicKidsCheckinController {
                         .body(Map.of("error", "Child is already checked in"));
             }
         }
+        // The guardian must be the designated guardian of one of those children —
+        // and, when a child is named, of that child's household.
+        FamilyMember guardian = null;
         if (guardianId != null) {
-            FamilyMember g = familyMemberRepo.findById(guardianId).orElse(null);
-            if (g == null) {
+            final KmChild forChild = child;
+            guardian = households.stream()
+                    .filter(h -> h.guardian() != null && guardianId.equals(h.guardian().getId()))
+                    .filter(h -> forChild == null || forChild.getId().equals(h.child().getId()))
+                    .map(Household::guardian).findFirst().orElse(null);
+            if (guardian == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "Guardian not found"));
             }
         }
 
-        // Caller may pre-supply a familyCheckinCode so multiple submissions
-        // (one per child/guardian) stamp the same shared code on every row.
-        // Falls back to a freshly-generated code when omitted, preserving
-        // the original single-row behaviour. The code is sanity-checked to
-        // stay within the column width and avoid SQL/JSON injection vectors
-        // — only the [A-Z0-9-] subset our generator already uses is allowed.
-        String supplied = str(body.get("familyCheckinCode"));
-        String code = (supplied != null && supplied.matches("[A-Z0-9\\-]{1,20}"))
-                ? supplied : generateCode();
+        // One shared code per family submission: reuse a code this endpoint issued in
+        // the last few minutes for the same household (the kiosk posts one row per
+        // person), otherwise mint a fresh one. Caller-chosen codes are never accepted.
         LocalDateTime now = LocalDateTime.now();
+        String code = reusableCode(clientId, str(body.get("familyCheckinCode")), households, now);
+        if (code == null) code = generateCode();
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("success", true);
@@ -246,7 +295,7 @@ public class PublicKidsCheckinController {
             result.put("child", kidOut);
         }
         if (guardianId != null) {
-            FamilyMember g = familyMemberRepo.findById(guardianId).orElse(null);
+            FamilyMember g = guardian;
             KmCheckin row = new KmCheckin();
             row.setClientId(clientId);
             row.setGuardianMemberId(guardianId);
@@ -265,16 +314,35 @@ public class PublicKidsCheckinController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * {@code supplied}, when it is a code this endpoint issued within
+     * {@link #CODE_REUSE_WINDOW_MINUTES} for a child or guardian of one of these
+     * households; otherwise {@code null}.
+     */
+    private String reusableCode(String clientId, String supplied, List<Household> households, LocalDateTime now) {
+        if (supplied == null || !supplied.matches("[A-Z0-9\\-]{1,20}")) return null;
+        Set<Long> childIds = new HashSet<>();
+        Set<Integer> guardianIds = new HashSet<>();
+        for (Household h : households) {
+            childIds.add(h.child().getId());
+            if (h.guardian() != null) guardianIds.add(h.guardian().getId());
+        }
+        for (KmCheckin row : checkinRepo.findByClientIdAndFamilyCheckinCode(clientId, supplied)) {
+            boolean recent = row.getCheckinTime() != null
+                    && !row.getCheckinTime().isBefore(now.minusMinutes(CODE_REUSE_WINDOW_MINUTES));
+            boolean sameHousehold = (row.getChildId() != null && childIds.contains(row.getChildId()))
+                    || (row.getGuardianMemberId() != null && guardianIds.contains(row.getGuardianMemberId()));
+            if (recent && sameHousehold) return supplied;
+        }
+        return null;
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private String decryptCid(String encryptedCid) {
-        if (encryptedCid == null || encryptedCid.isBlank()) return null;
-        try {
-            String plain = EncryptionUtil.decrypt(encryptedCid.trim());
-            return (plain != null && !plain.isBlank()) ? plain : null;
-        } catch (Exception e) {
-            return null;
-        }
+    private String decryptCid(String cid) {
+        // A live Kids Check-In link token only. A church that never published the
+        // page, or revoked its link, has no check-in kiosk — by design.
+        return links.resolveClientId(cid, com.churchgeniuspro.service.PublicPagePolicy.KIDS_CHECKIN_URL);
     }
 
     private static String onlyDigits(String s) {
@@ -287,12 +355,16 @@ public class PublicKidsCheckinController {
         return sb.toString();
     }
 
-    /** Same alphanumeric shape as KidsMinistryController#generateSecurityCode. */
-    private static String generateCode() {
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        Random rnd = new Random();
-        return String.valueOf(chars.charAt(rnd.nextInt(chars.length())))
-                + "-" + String.format("%04d", rnd.nextInt(10000));
+    /**
+     * A letter, a dash, four digits — the shape a family reads off the label at pickup, and
+     * the shape {@code KidsMinistryController#generateSecurityCode} issues at the desk. Drawn
+     * from {@link java.security.SecureRandom} so one code seen in the lobby does not predict
+     * the next. I and O are left out of the letters: printed small, they are read back as 1 and 0.
+     */
+    private String generateCode() {
+        String letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        return String.valueOf(letters.charAt(codeRandom.nextInt(letters.length())))
+                + "-" + String.format("%04d", codeRandom.nextInt(10000));
     }
 
     private static String str(Object v) { return v == null ? null : v.toString(); }
@@ -305,4 +377,5 @@ public class PublicKidsCheckinController {
         if (v == null) return null;
         try { return Integer.parseInt(v.toString()); } catch (Exception e) { return null; }
     }
+
 }

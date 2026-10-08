@@ -44,7 +44,7 @@ public class NotifyEmailController {
     public String notifyEmailPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.email");
+        deny = RoleGuard.requirePagePermission(request, "general.email");
         if (deny != null) return deny;
         return "forward:/notifyEmail.html";
     }
@@ -71,8 +71,16 @@ public class NotifyEmailController {
     @GetMapping("/api/notify/recipients")
     public ResponseEntity<List<Map<String, Object>>> getRecipients(
             @RequestParam String type,
-            @RequestParam(required = false) Integer eventId) {
-        return ResponseEntity.ok(notifyEmailService.getRecipients(type, eventId));
+            @RequestParam(required = false) Integer eventId,
+            HttpServletRequest request) {
+        // Same gate as the page route and send(): the preview lists real member emails.
+        if (RoleGuard.requireAdminOrUser(request) != null
+                || RoleGuard.requirePermission(request, "general.email") != null) {
+            return ResponseEntity.status(403).build();
+        }
+        String clientId = com.churchgeniuspro.util.SessionUtil.getAppClientId(request);
+        if (clientId == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(notifyEmailService.getRecipients(type, eventId, clientId));
     }
 
     // ── Send ──────────────────────────────────────────────────────────────
@@ -102,12 +110,17 @@ public class NotifyEmailController {
                 || RoleGuard.requirePermission(request, "general.email") != null) {
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         }
+        String clientId = com.churchgeniuspro.util.SessionUtil.getAppClientId(request);
+        if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
             int count = notifyEmailService.sendEmail(
-                    recipientType, eventId, manualEmails, subject, content, files);
+                    recipientType, eventId, manualEmails, subject, content, files, clientId);
+            String test = notifyEmailService.lastTestAddress();
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", "Email sent to " + count + " recipient(s)."));
+                    "message", test != null
+                        ? "Trial/Demo test: 1 test email sent to " + test + " — " + count + " recipient(s) simulated, none emailed."
+                        : "Email sent to " + count + " recipient(s)."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

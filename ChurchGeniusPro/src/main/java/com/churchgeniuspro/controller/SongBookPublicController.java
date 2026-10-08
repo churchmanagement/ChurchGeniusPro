@@ -24,6 +24,21 @@ public class SongBookPublicController {
         this.service = service;
     }
 
+    /**
+     * Live "Now Singing" / "Next Song" state for a published book, resolved by its
+     * public token. The viewer polls this to update the banner / next-song badge
+     * without a page refresh. Tenant-safe: the token maps to exactly one book of
+     * one church, so no cross-tenant state is ever exposed. Unknown / unpublished
+     * tokens get a neutral empty state (not a 404) so the poller can stay quiet.
+     */
+    @GetMapping("/api/public/songbook/live")
+    public ResponseEntity<?> live(@RequestParam("t") String token) {
+        SongBookPublish p = service.publicByToken(token);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/json;charset=UTF-8"))
+                .body(service.liveState(p));   // p == null → {currentVersion:0, current:null, next:null}
+    }
+
     @GetMapping("/api/public/songbook")
     public ResponseEntity<?> view(@RequestParam("t") String token) {
         SongBookPublish p = service.publicByToken(token);

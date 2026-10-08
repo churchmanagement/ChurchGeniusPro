@@ -2,7 +2,6 @@ package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.common.States;
 import com.churchgeniuspro.hibernate.AutoReminder;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.hibernate.ChurchEvent;
 import com.churchgeniuspro.hibernate.EventRegistration;
 import com.churchgeniuspro.hibernate.EventReminder;
@@ -129,6 +128,11 @@ public class ReminderSchedulerService {
     private final com.churchgeniuspro.repository.ReminderSentLogRepository sentLogRepo;
     private final PublicScreenLinkRepository publicScreenLinkRepo;
     private final com.churchgeniuspro.repository.MeetingSkipDateRepository meetingSkipRepo;
+    /** Per-recipient audit trail for event reminders — see {@link #recordEventAttempt}. */
+    private final com.churchgeniuspro.repository.EventRegistrationReminderLogRepository eventReminderLogRepo;
+
+    private final EventPublicTokenService publicTokens;
+    private final com.churchgeniuspro.repository.ChurchEventImageRepository eventImageRepo;
 
     public ReminderSchedulerService(AutoReminderRepository      autoReminderRepo,
                                     OneTimeReminderRepository   oneTimeReminderRepo,
@@ -150,7 +154,12 @@ public class ReminderSchedulerService {
                                     FollowUpRepository          followUpRepo,
                                     com.churchgeniuspro.repository.ReminderSentLogRepository sentLogRepo,
                                     PublicScreenLinkRepository  publicScreenLinkRepo,
-                                    com.churchgeniuspro.repository.MeetingSkipDateRepository meetingSkipRepo) {
+                                    com.churchgeniuspro.repository.MeetingSkipDateRepository meetingSkipRepo,
+                                    com.churchgeniuspro.repository.EventRegistrationReminderLogRepository eventReminderLogRepo,
+                                    com.churchgeniuspro.repository.ChurchEventImageRepository eventImageRepo,
+            EventPublicTokenService publicTokens) {
+        this.publicTokens = publicTokens;
+        this.eventImageRepo      = eventImageRepo;
         this.autoReminderRepo    = autoReminderRepo;
         this.oneTimeReminderRepo = oneTimeReminderRepo;
         this.eventReminderRepo   = eventReminderRepo;
@@ -172,6 +181,7 @@ public class ReminderSchedulerService {
         this.sentLogRepo         = sentLogRepo;
         this.publicScreenLinkRepo = publicScreenLinkRepo;
         this.meetingSkipRepo     = meetingSkipRepo;
+        this.eventReminderLogRepo = eventReminderLogRepo;
     }
 
     /**
@@ -219,6 +229,7 @@ public class ReminderSchedulerService {
 
     @Scheduled(cron = "${scheduler.job.birthday-reminders}", zone = "America/Chicago")
     public void runBirthdayReminders() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:birthday-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today = LocalDate.now();
         int month = today.getMonthValue();
@@ -293,6 +304,7 @@ public class ReminderSchedulerService {
                         "/home", "cgp-birthday");
             }
         }
+            }
     }
 
     // =========================================================================
@@ -301,6 +313,7 @@ public class ReminderSchedulerService {
 
     @Scheduled(cron = "${scheduler.job.anniversary-reminders}", zone = "America/Chicago")
     public void runAnniversaryReminders() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:anniversary-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today = LocalDate.now();
         int month = today.getMonthValue();
@@ -425,6 +438,7 @@ public class ReminderSchedulerService {
                         "/home", "cgp-anniversary");
             }
         }
+            }
     }
 
     // =========================================================================
@@ -435,6 +449,7 @@ public class ReminderSchedulerService {
 
     @Scheduled(cron = "${scheduler.job.celebrants-members-reminders}", zone = "America/Chicago")
     public void runCelebrantsMembersReminders() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:celebrants-members-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today = LocalDate.now();
         int month = today.getMonthValue();
@@ -485,6 +500,7 @@ public class ReminderSchedulerService {
                 }
             }
         }
+            }
     }
 
     /** {@code true} when the family member's type is "Member" (excludes Guests/Visitors). */
@@ -503,6 +519,7 @@ public class ReminderSchedulerService {
     }
 
     private void runBirthdaysAndAnniversarySummary() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:monthly-summary")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today   = LocalDate.now();
         int       month   = today.getMonthValue();
@@ -539,9 +556,11 @@ public class ReminderSchedulerService {
                     Boolean.TRUE.equals(reminder.getSendWhatsApp()),
                     Boolean.TRUE.equals(reminder.getSendSms()));
         }
+            }
     }
 
     private void runMonthlyStatementReminders() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:monthly-statements")) {
         Set<String> activeClients = loadActiveClientIds();
 
         for (AutoReminder reminder : autoReminderRepo.findByReminderTypeIdAndDisabledFalse(TYPE_MONTHLY_STATEMENT)) {
@@ -557,6 +576,7 @@ public class ReminderSchedulerService {
                             buildMonthlyStatementBody(u.getFirstName()),
                             clientId));
         }
+            }
     }
 
     // =========================================================================
@@ -587,14 +607,39 @@ public class ReminderSchedulerService {
     // Hourly at :30 — Event, Meeting (type 1), One-time, dynamic holidays
     // =========================================================================
 
+    /**
+     * Hourly at :30 — event, meeting, dynamic-holiday, one-time and prayer reminders.
+     *
+     * <p>Each sub-job is isolated. They were previously called in a bare
+     * sequence, so an exception anywhere in the first one — a transient database
+     * error while looking up a single recipient was enough — propagated out of
+     * the scheduled method and silently cancelled every job after it for that
+     * tick. Reminders that were never even evaluated look exactly like reminders
+     * that were evaluated and correctly skipped, which is why this went unnoticed.
+     */
     @Scheduled(cron = "${scheduler.job.half-hourly-reminders}", zone = "America/Chicago")
     public void runHalfHourlyReminders() {
-        LocalDate today = LocalDate.now();
-        runEventReminders(today);
-        runMeetingReminders(today);        // type 1
-        runDynamicHolidayReminders(today);
-        runOneTimeReminders(today);
-        runPrayerRequestReminders(today);  // type 15
+        LocalDate today = LocalDate.now(SCHED_ZONE);
+        runIsolated("event reminders",           () -> runEventReminders(today));
+        runIsolated("meeting reminders",         () -> runMeetingReminders(today));        // type 1
+        runIsolated("dynamic holiday reminders", () -> runDynamicHolidayReminders(today));
+        runIsolated("one-time reminders",        () -> runOneTimeReminders(today));
+        runIsolated("prayer request reminders",  () -> runPrayerRequestReminders(today));  // type 15
+    }
+
+    /**
+     * Runs one sub-job, logging and absorbing any failure so the rest of the
+     * tick still happens. A failing job must not take its siblings down with it.
+     */
+    private void runIsolated(String label, Runnable job) {
+        // Phase B: the sub-job is one email action per tenant (refined per event /
+        // meeting below), so a Trial/Demo tenant gets one test email for it.
+        try (com.churchgeniuspro.util.EmailActionScope __scope =
+                     com.churchgeniuspro.util.EmailActionScope.begin("scheduler:" + label)) {
+            job.run();
+        } catch (Exception e) {
+            LOGGER.error("Scheduler: {} failed — {}", label, e.getMessage(), e);
+        }
     }
 
     // =========================================================================
@@ -838,13 +883,10 @@ public class ReminderSchedulerService {
      * Returns {@code null} if encryption fails.
      */
     private String buildPublicPrayerLink(String clientId) {
-        try {
-            String encryptedCid = EncryptionUtil.encrypt(clientId);
-            return baseUrl + "/viewPrayerRequest?cid="
-                    + java.net.URLEncoder.encode(encryptedCid, java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return baseUrl + "/viewPrayerRequest";
-        }
+        // /viewPrayerRequest is withdrawn from public links (it is the internal request
+        // list), so there is nothing safe to link to; the notification carries the
+        // preview only. Returning null omits the "View all" line.
+        return null;
     }
 
     /** Builds the HTML digest email for prayer request reminders. */
@@ -891,6 +933,7 @@ public class ReminderSchedulerService {
 
     @Scheduled(cron = "${scheduler.job.weekly-meeting-reminders}", zone = "America/Chicago")
     public void runWeeklyMeetingRemiznders() {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:weekly-meeting-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today    = LocalDate.now();                       // Monday
         LocalDate weekEnd  = today.plusDays(6);                     // Sunday
@@ -938,6 +981,7 @@ public class ReminderSchedulerService {
                         clientId, doWaWeekly, doSmsWeekly);
             }
         }
+            }
     }
 
     /**
@@ -1037,6 +1081,8 @@ public class ReminderSchedulerService {
             // One Time / Daily / Weekly occurrence patterns
             for (Meeting meeting : meetingRepo.findByAppClientIdAndDeleteFlagFalse(clientId)) {
                 if (!meetingOccursToday(meeting, today)) continue;
+                { com.churchgeniuspro.util.EmailActionScope __s = com.churchgeniuspro.util.EmailActionScope.current();
+                  if (__s != null) __s.sub("meeting:" + meeting.getId()); }   // one test email per meeting
                 // Occurrence deleted by user → no reminder of any kind today
                 if (isOccurrenceSkipped(meeting, today)) continue;
 
@@ -1226,121 +1272,309 @@ public class ReminderSchedulerService {
         Set<String> activeClients = loadActiveClientIds();
 
         for (EventReminder reminder : eventReminderRepo.findByDisabledFalse()) {
-            String clientId = reminder.getAppClientId();
-            if (!isActiveClient(clientId, activeClients)) continue;
-
-            // Events to process: specific event if eventId is set, otherwise all for this church
-            List<ChurchEvent> clientEvents;
-            if (reminder.getEventId() != null) {
-                clientEvents = eventRepo.findByIdAndDeleteFlagFalse(reminder.getEventId())
-                        .map(List::of).orElse(List.of());
-            } else {
-                clientEvents = eventRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(clientId);
-            }
-            
-
-            for (ChurchEvent event : clientEvents) {
-                LocalDate eventDate = event.getEventDate();
-                if (eventDate == null) continue;
-
-                // Recipients: those who RSVP'd "Yes" (attending=true) or "Maybe"
-                // (attending=null), excluding anyone who declined with "No" (false).
-                List<EventRegistration> attendees =
-                        registrationRepo.findRemindableByEventId(event.getId());
-                
-                
-                if (attendees.isEmpty()) continue;
-
-                // Same-day trigger — include calendar invite
-                if (Boolean.TRUE.equals(reminder.getSameDay()) && eventDate.equals(today)) {
-                    String evtSameDayKey = event.getId() + "_SAME_DAY";
-                    if (!alreadySent(clientId, "EVENT", evtSameDayKey, today) && markSent(clientId, "EVENT", evtSameDayKey, today)) {
-                        byte[] ics = buildIcsContent(event);
-                        String subject = "Reminder: " + eventDisplayName(event) + " is Today!";
-                        String body    = hasTemplate(reminder.getSameDayTemplate())
-                                ? renderEventTemplate(reminder.getSameDayTemplate(), event, 0)
-                                : buildEventSameDayBody(event);
-                        if (!Boolean.FALSE.equals(reminder.getSendEmail()))
-                            sendToEventRegistrants(attendees, subject, body, clientId, ics);
-                        sendEventRegistrantMessages(attendees, event, clientId, reminder);
-                        webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + eventDisplayName(event),
-                                subject,
-                                "/event", "cgp-event-reminder");
-                    }
-                }
-
-                // Before-days trigger — include calendar invite
-                if (reminder.getBeforeDays() != null && reminder.getBeforeDays() > 0
-                        && eventDate.minusDays(reminder.getBeforeDays()).equals(today)) {
-                    String evtBeforeKey = event.getId() + "_BEFORE_" + reminder.getBeforeDays();
-                    if (!alreadySent(clientId, "EVENT", evtBeforeKey, today) && markSent(clientId, "EVENT", evtBeforeKey, today)) {
-                        byte[] ics = buildIcsContent(event);
-                        String subject = "Reminder: " + eventDisplayName(event) + " in " + reminder.getBeforeDays() + " day(s)";
-                        String body    = hasTemplate(reminder.getBeforeDaysTemplate())
-                                ? renderEventTemplate(reminder.getBeforeDaysTemplate(), event, reminder.getBeforeDays())
-                                : buildEventBeforeDaysBody(event, reminder.getBeforeDays());
-                        if (!Boolean.FALSE.equals(reminder.getSendEmail()))
-                            sendToEventRegistrants(attendees, subject, body, clientId, ics);
-                        sendEventRegistrantMessages(attendees, event, clientId, reminder);
-                        webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + eventDisplayName(event),
-                                subject,
-                                "/event", "cgp-event-reminder");
-                    }
-                }
-
-                // After-days trigger — event already past, no calendar invite needed
-                if (reminder.getAfterDays() != null && reminder.getAfterDays() > 0
-                        && eventDate.plusDays(reminder.getAfterDays()).equals(today)) {
-                    String evtAfterKey = event.getId() + "_AFTER_" + reminder.getAfterDays();
-                    if (!alreadySent(clientId, "EVENT", evtAfterKey, today) && markSent(clientId, "EVENT", evtAfterKey, today)) {
-                        String subject = "Hope you enjoyed " + eventDisplayName(event) + "!";
-                        String body    = hasTemplate(reminder.getAfterDaysTemplate())
-                                ? renderEventTemplate(reminder.getAfterDaysTemplate(), event, reminder.getAfterDays())
-                                : buildEventAfterDaysBody(event);
-                        if (!Boolean.FALSE.equals(reminder.getSendEmail()))
-                            sendToEventRegistrants(attendees, subject, body, clientId, null);
-                        sendEventRegistrantMessages(attendees, event, clientId, reminder);
-                        webPushService.logAndSendToOrg(clientId,
-                                "📅 Event Reminder: " + eventDisplayName(event),
-                                subject,
-                                "/event", "cgp-event-reminder");
-                    }
-                }
+            // One broken rule must not stop the rules after it. Before this, a
+            // single failure anywhere below abandoned every remaining reminder,
+            // every remaining event, and every remaining recipient — with the
+            // sent-log row already written, so nothing ever retried.
+            try {
+                runEventReminderRule(reminder, today, activeClients);
+            } catch (Exception e) {
+                LOGGER.error("Event reminders: rule {} failed — {}",
+                        reminder.getId(), e.getMessage(), e);
             }
         }
     }
 
-    private void sendToEventRegistrants(List<EventRegistration> registrants, String subject,
-                                         String body, String clientId, byte[] icsData) {
-        for (EventRegistration reg : registrants) {
-            if (reg.getEmail() != null && !reg.getEmail().isBlank()) {
-                emailService.sendOrgEmail(reg.getEmail(), subject, body, clientId, icsData);
+    /** Evaluates one {@link EventReminder} rule against today's date. */
+    private void runEventReminderRule(EventReminder reminder, LocalDate today,
+                                      Set<String> activeClients) {
+        String clientId = reminder.getAppClientId();
+        if (!isActiveClient(clientId, activeClients)) return;
+
+        // Events to process: specific event if eventId is set, otherwise all for this church
+        List<ChurchEvent> clientEvents;
+        if (reminder.getEventId() != null) {
+            clientEvents = eventRepo.findByIdAndDeleteFlagFalse(reminder.getEventId())
+                    .map(List::of).orElse(List.of());
+        } else {
+            clientEvents = eventRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(clientId);
+        }
+
+        for (ChurchEvent event : clientEvents) {
+            try {
+                runEventReminderForEvent(reminder, event, today, clientId);
+            } catch (Exception e) {
+                LOGGER.error("Event reminders: rule {} / event {} failed — {}",
+                        reminder.getId(), event.getId(), e.getMessage(), e);
             }
+        }
+    }
+
+    /** Evaluates the same-day / before / after triggers for one event. */
+    private void runEventReminderForEvent(EventReminder reminder, ChurchEvent event,
+                                          LocalDate today, String clientId) {
+        LocalDate eventDate = event.getEventDate();
+        if (eventDate == null) return;
+
+        // Recipients: those who RSVP'd "Yes" (attending=true) or "Maybe"
+        // (attending=null), excluding anyone who declined with "No" (false).
+        List<EventRegistration> attendees =
+                registrationRepo.findRemindableByEventId(event.getId());
+        if (attendees.isEmpty()) return;
+
+        // Same-day trigger — include calendar invite
+        if (Boolean.TRUE.equals(reminder.getSameDay()) && eventDate.equals(today)) {
+            String key = event.getId() + "_SAME_DAY";
+            if (!alreadySent(clientId, "EVENT", key, today) && markSent(clientId, "EVENT", key, today)) {
+                String subject = "Reminder: " + eventDisplayName(event) + " is Today!";
+                String body    = hasTemplate(reminder.getSameDayTemplate())
+                        ? renderEventTemplate(reminder.getSameDayTemplate(), event, 0)
+                        : buildEventSameDayBody(event);
+                fireEventOccurrence(reminder, event, attendees, clientId,
+                        subject, body, buildIcsContent(event), OCCURRENCE_SAME_DAY, null);
+            }
+        }
+
+        // Before-days trigger — include calendar invite
+        if (reminder.getBeforeDays() != null && reminder.getBeforeDays() > 0
+                && eventDate.minusDays(reminder.getBeforeDays()).equals(today)) {
+            String key = event.getId() + "_BEFORE_" + reminder.getBeforeDays();
+            if (!alreadySent(clientId, "EVENT", key, today) && markSent(clientId, "EVENT", key, today)) {
+                String subject = "Reminder: " + eventDisplayName(event)
+                        + " in " + reminder.getBeforeDays() + " day(s)";
+                String body    = hasTemplate(reminder.getBeforeDaysTemplate())
+                        ? renderEventTemplate(reminder.getBeforeDaysTemplate(), event, reminder.getBeforeDays())
+                        : buildEventBeforeDaysBody(event, reminder.getBeforeDays());
+                fireEventOccurrence(reminder, event, attendees, clientId,
+                        subject, body, buildIcsContent(event), OCCURRENCE_BEFORE, reminder.getBeforeDays());
+            }
+        }
+
+        // After-days trigger — event already past, no calendar invite needed
+        if (reminder.getAfterDays() != null && reminder.getAfterDays() > 0
+                && eventDate.plusDays(reminder.getAfterDays()).equals(today)) {
+            String key = event.getId() + "_AFTER_" + reminder.getAfterDays();
+            if (!alreadySent(clientId, "EVENT", key, today) && markSent(clientId, "EVENT", key, today)) {
+                String subject = "Hope you enjoyed " + eventDisplayName(event) + "!";
+                String body    = hasTemplate(reminder.getAfterDaysTemplate())
+                        ? renderEventTemplate(reminder.getAfterDaysTemplate(), event, reminder.getAfterDays())
+                        : buildEventAfterDaysBody(event);
+                fireEventOccurrence(reminder, event, attendees, clientId,
+                        subject, body, null, OCCURRENCE_AFTER, reminder.getAfterDays());
+            }
+        }
+    }
+
+    /** Audit {@code message_type} values for the three event-reminder triggers. */
+    private static final String OCCURRENCE_SAME_DAY = "SAME_DAY";
+    private static final String OCCURRENCE_BEFORE   = "BEFORE";
+    private static final String OCCURRENCE_AFTER    = "AFTER";
+
+    /**
+     * Delivers one fired occurrence to every registrant, over every enabled
+     * channel, and records what happened to each of them.
+     *
+     * <p>The recipient loops are the part that mattered. Each recipient is now
+     * isolated, so one unusable address or one transient database error costs
+     * that recipient and nobody else; every attempt writes an audit row with a
+     * reason; and the run ends with a single summary line stating how many were
+     * attempted, sent, skipped and failed. Without those numbers, a send that
+     * reached two people out of forty is indistinguishable from one that reached
+     * everybody, which is exactly the position this feature was in.
+     */
+    private void fireEventOccurrence(EventReminder reminder, ChurchEvent event,
+                                     List<EventRegistration> attendees, String clientId,
+                                     String subject, String body, byte[] ics,
+                                     String occurrence, Integer days) {
+        if (!Boolean.FALSE.equals(reminder.getSendEmail())) {
+            sendToEventRegistrants(attendees, subject, body, clientId, ics, event, occurrence, days);
+        }
+        sendEventRegistrantMessages(attendees, event, clientId, reminder, occurrence, days);
+
+        try {
+            webPushService.logAndSendToOrg(clientId,
+                    "\uD83D\uDCC5 Event Reminder: " + eventDisplayName(event),
+                    subject, "/event", "cgp-event-reminder");
+        } catch (Exception e) {
+            LOGGER.warn("Event reminders: web push failed for event {} — {}",
+                    event.getId(), e.getMessage());
         }
     }
 
     /**
-     * Sends WhatsApp and/or SMS to event registrants whose phone numbers are non-null.
-     * SMS messages include date/time, location, and a public view link for the event.
+     * Emails every registrant who has an address, one failure at a time.
+     * Duplicate addresses are collapsed so a person registered twice is not
+     * emailed twice for the same reminder.
+     */
+    private void sendToEventRegistrants(List<EventRegistration> registrants, String subject,
+                                         String body, String clientId, byte[] icsData,
+                                         ChurchEvent event, String occurrence, Integer days) {
+        // Each event occurrence is its own email action for a Trial/Demo test copy.
+        com.churchgeniuspro.util.EmailActionScope __s = com.churchgeniuspro.util.EmailActionScope.current();
+        if (__s != null) __s.sub("event:" + event.getId() + ":" + occurrence + ":" + days);
+        int sent = 0, skipped = 0, failed = 0;
+        Set<String> seen = new java.util.HashSet<>();
+        // Trial/demo: EmailService drops congregation mail; record it as SKIPPED with
+        // the reason so the event's attempt log never shows a dropped email as SENT.
+        String blockReason = emailService.emailBlockReason(clientId);
+
+        for (EventRegistration reg : registrants) {
+            String email = reg.getEmail();
+            if (email == null || email.isBlank()) { skipped++; continue; }
+            String norm = email.trim().toLowerCase(java.util.Locale.ROOT);
+            if (!seen.add(norm)) { skipped++; continue; }
+            if (blockReason != null) {
+                skipped++;
+                recordEventAttempt(event, clientId, "EMAIL", occurrence, email.trim(), norm,
+                        com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_SKIPPED, blockReason, days);
+                continue;
+            }
+
+            try {
+                emailService.sendOrgEmail(email.trim(), subject, body, clientId, icsData);
+                sent++;
+                recordEventAttempt(event, clientId, "EMAIL", occurrence, email.trim(), norm,
+                        com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_SENT, null, days);
+            } catch (Exception e) {
+                failed++;
+                LOGGER.error("Event reminders: email to {} failed for event {} — {}",
+                        email, event.getId(), e.getMessage());
+                recordEventAttempt(event, clientId, "EMAIL", occurrence, email.trim(), norm,
+                        com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_FAILED,
+                        e.getMessage(), days);
+            }
+        }
+        LOGGER.info("Event reminders: event {} [{}] email — {} sent, {} skipped, {} failed (of {} registrant(s))",
+                event.getId(), occurrence, sent, skipped, failed, registrants.size());
+    }
+
+    /**
+     * Sends the SMS for one fired occurrence to every registrant with a usable
+     * phone number.
+     *
+     * <p>Four things could previously stop a message with no trace an
+     * administrator could find, and all four looked the same from outside — the
+     * text simply did not arrive:
+     * <ul>
+     *   <li>a number the normaliser refused, dropped with no log at any level;</li>
+     *   <li>the plan's monthly SMS allowance running out mid-list;</li>
+     *   <li>the provider rejecting the message — a recipient who had replied
+     *       STOP, a landline, or an unregistered A2P 10DLC campaign, all of
+     *       which the provider reports with a specific code that was discarded;</li>
+     *   <li>any exception at all, which abandoned every remaining recipient.</li>
+     * </ul>
+     * Each of those now produces a recorded outcome with a reason.
      */
     private void sendEventRegistrantMessages(List<EventRegistration> registrants,
                                               ChurchEvent event,
                                               String clientId,
-                                              EventReminder reminder) {
-        boolean doWhatsApp = Boolean.TRUE.equals(reminder.getSendWhatsApp());
-        boolean doSms      = Boolean.TRUE.equals(reminder.getSendSms());
-        if (!doWhatsApp && !doSms) return;
+                                              EventReminder reminder,
+                                              String occurrence,
+                                              Integer days) {
+        if (!Boolean.TRUE.equals(reminder.getSendSms())) return;
 
+        // Built once. It used to be rebuilt per recipient, and rebuilding it
+        // involved a database lookup, so a list of forty people meant forty extra
+        // queries and forty extra chances to throw inside the loop.
         String message = buildEventReminderSms(event, clientId);
+
+        int sent = 0, skipped = 0, failed = 0;
+        boolean allowanceExhausted = false;
+        Set<String> seen = new java.util.HashSet<>();
 
         for (EventRegistration reg : registrants) {
             String phone = reg.getPhone();
-            if (phone == null || phone.isBlank()) continue;
-            // Use multi-channel helper to avoid sending both WhatsApp and SMS to the same number.
-            whatsAppSender.sendToPhoneMultiChannel(phone, message, clientId, doWhatsApp, doSms);
+            if (phone == null || phone.isBlank()) { skipped++; continue; }
+
+            String norm = com.churchgeniuspro.util.PhoneNumbers.nationalDigits(phone);
+            String e164 = com.churchgeniuspro.util.PhoneNumbers.toE164(phone);
+            if (e164 == null) {
+                // Named explicitly: this is a data problem someone can fix, and
+                // it is invisible unless it is said out loud.
+                skipped++;
+                LOGGER.warn("Event reminders: registrant {} phone '{}' is not usable — skipped (event {})",
+                        reg.getId(), phone, event.getId());
+                recordEventAttempt(event, clientId, "SMS", occurrence, phone, norm,
+                        com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_SKIPPED,
+                        "Not a usable phone number", days);
+                continue;
+            }
+            if (!seen.add(e164)) { skipped++; continue; }   // same person registered twice
+
+            try {
+                SmsService.SendOutcome outcome =
+                        whatsAppSender.sendSmsWithOutcome(e164, message, clientId);
+                if (outcome.sent()) {
+                    sent++;
+                    recordEventAttempt(event, clientId, "SMS", occurrence, e164, norm,
+                            com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_SENT, null, days);
+                } else {
+                    failed++;
+                    if (outcome.reason() != null && outcome.reason().startsWith("Monthly SMS allowance"))
+                        allowanceExhausted = true;
+                    recordEventAttempt(event, clientId, "SMS", occurrence, e164, norm,
+                            com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_FAILED,
+                            outcome.reason(), days);
+                }
+            } catch (Exception e) {
+                failed++;
+                LOGGER.error("Event reminders: SMS to {} failed for event {} — {}",
+                        e164, event.getId(), e.getMessage());
+                recordEventAttempt(event, clientId, "SMS", occurrence, e164, norm,
+                        com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_FAILED,
+                        e.getMessage(), days);
+            }
         }
+
+        LOGGER.info("Event reminders: event {} [{}] SMS — {} sent, {} skipped, {} failed (of {} registrant(s))",
+                event.getId(), occurrence, sent, skipped, failed, registrants.size());
+        if (allowanceExhausted) {
+            LOGGER.error("Event reminders: event {} [{}] — the monthly SMS allowance for client {} "
+                       + "ran out part-way through this send. {} recipient(s) did not receive it. "
+                       + "Increase the plan's SMS limit or add extra SMS credit.",
+                    event.getId(), occurrence, clientId, failed);
+        }
+    }
+
+    /**
+     * Writes one row describing what happened to one recipient.
+     *
+     * <p>Reuses {@code event_registration_reminder_log}, which already holds
+     * exactly this shape for the registration-reminder feature. The
+     * {@code message_type} values used here ({@code SAME_DAY} / {@code BEFORE} /
+     * {@code AFTER}) are distinct from that feature's {@code REMINDER} /
+     * {@code INVITE}, and its duplicate check is scoped by type, so the two
+     * features share a table without either gating the other.
+     *
+     * <p>Failing to write an audit row must never stop a send, so this absorbs
+     * its own errors.
+     */
+    private void recordEventAttempt(ChurchEvent event, String clientId, String channel,
+                                    String occurrence, String recipient, String recipientNorm,
+                                    String status, String reason, Integer days) {
+        try {
+            com.churchgeniuspro.hibernate.EventRegistrationReminderLog row =
+                    new com.churchgeniuspro.hibernate.EventRegistrationReminderLog();
+            row.setEventId(event.getId());
+            row.setChannel(channel);
+            row.setMessageType(occurrence);
+            row.setRecipient(trimForColumn(recipient));
+            row.setRecipientNorm(trimForColumn(recipientNorm));
+            row.setStatus(status);
+            row.setReason(trimForColumn(reason));
+            row.setDaysBefore(days);
+            row.setAppClientId(clientId);
+            eventReminderLogRepo.save(row);
+        } catch (Exception e) {
+            LOGGER.warn("Event reminders: could not record the {} attempt for event {} — {}",
+                    channel, event.getId(), e.getMessage());
+        }
+    }
+
+    /** Keeps a value inside the log table's 255-character columns. */
+    private static String trimForColumn(String v) {
+        if (v == null) return null;
+        return v.length() <= 255 ? v : v.substring(0, 255);
     }
 
     /**
@@ -1383,11 +1617,8 @@ public class ReminderSchedulerService {
         }
 
         // Public view link on the next line
-        try {
-            String token = EncryptionUtil.encrypt(String.valueOf(event.getId()));
-            sb.append("\nDetails: ").append(baseUrl)
-              .append("/event-register/").append(token).append("?view=1");
-        } catch (Exception ignored) {}
+        sb.append("\nDetails: ").append(baseUrl)
+          .append("/event-register/").append(publicTokens.tokenFor(event)).append("?view=1");
 
         return sb.toString();
     }
@@ -1424,6 +1655,7 @@ public class ReminderSchedulerService {
     // ── Holiday helper ────────────────────────────────────────────────────────
 
     private void sendHolidayReminder(int typeId, String subject, String heading) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:holiday-reminder")) {
         Set<String> activeClients = loadActiveClientIds();
         LocalDate today = LocalDate.now();
         for (AutoReminder reminder : autoReminderRepo.findByReminderTypeIdAndDisabledFalse(typeId)) {
@@ -1465,6 +1697,7 @@ public class ReminderSchedulerService {
                     Boolean.TRUE.equals(reminder.getSendWhatsApp()),
                     Boolean.TRUE.equals(reminder.getSendSms()));
         }
+            }
     }
 
     /**
@@ -2054,13 +2287,8 @@ public class ReminderSchedulerService {
                 .findFirst()
                 .orElse(null);
         if (link == null) return null;
-        try {
-            String encCid = EncryptionUtil.encrypt(clientId);
-            return baseUrl + "/viewEventCalendar?cid="
-                    + URLEncoder.encode(encCid, StandardCharsets.UTF_8.name());
-        } catch (Exception ignored) {
-            return null;
-        }
+        // The link's own token — revoking that row ends this URL.
+        return baseUrl + "/viewEventCalendar?cid=" + URLEncoder.encode(link.getToken(), StandardCharsets.UTF_8);
     }
 
     private String buildMeetingReminderBody(Meeting meeting, String typeName, AutoReminder reminder, LocalDate referenceDate, String clientId) {
@@ -2545,9 +2773,11 @@ public class ReminderSchedulerService {
         sb.append("</table>");
         // Action buttons: Add to Calendar + Get Directions
         sb.append(buildCalendarLinksHtml(event));
-        // Event image (rendered via CID to work in all email clients)
-        if (event.getImageData() != null && !event.getImageData().isBlank()) {
-            sb.append("<div style='margin-top:16px;'><img src='").append(event.getImageData())
+        // Event image (rendered via CID to work in all email clients) — loaded from its
+        // own table only when an email is actually built (database audit P7).
+        String eventImg = eventImageRepo.findImageDataByEventId(event.getId()).orElse(null);
+        if (eventImg != null && !eventImg.isBlank()) {
+            sb.append("<div style='margin-top:16px;'><img src='").append(eventImg)
               .append("' alt='Event' style='max-width:100%;border-radius:8px;'/></div>");
         }
         return sb.toString();
@@ -2762,7 +2992,7 @@ public class ReminderSchedulerService {
         java.util.Date now   = new java.util.Date();
         int updated = followUpRepo.markOverdueMissed(today, now);
         if (updated > 0) {
-            System.out.println("[FollowUp] Marked " + updated + " overdue follow-up(s) as MISSED.");
+            LOGGER.info("[FollowUp] marked {} overdue follow-up(s) as MISSED", updated);
         }
     }
 }

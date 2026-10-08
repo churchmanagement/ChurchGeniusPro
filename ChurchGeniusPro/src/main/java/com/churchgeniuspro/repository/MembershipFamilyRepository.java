@@ -16,9 +16,8 @@ public interface MembershipFamilyRepository extends JpaRepository<MembershipFami
 
     Optional<MembershipFamily> findByIdAndDeleteFlagFalse(Integer id);
 
-    /** Finds any MembershipFamily row (active or soft-deleted) with the given signupId. */
-    @Query("SELECT m FROM MembershipFamily m WHERE m.signupId = :signupId ORDER BY m.id DESC")
-    MembershipFamily findTopBySignupId(@Param("signupId") Integer signupId);
+    /** Tenant-scoped: an application id from another church resolves to empty. */
+    Optional<MembershipFamily> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 
     /** Finds an active (not deleted) MembershipFamily by signupId. */
     Optional<MembershipFamily> findBySignupIdAndDeleteFlagFalse(Integer signupId);

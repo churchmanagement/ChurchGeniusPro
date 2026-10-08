@@ -315,17 +315,35 @@
           <select class="admin-timer-select" id="timerSelect" onchange="adminSetTimer(this.value)">
             <option value="0">Off (no timer)</option>
             <option value="30">30 seconds</option>
-            <option value="60">1 minute</option>
+            <option value="60" selected>1 minute</option>
             <option value="90">90 seconds</option>
             <option value="120">2 minutes</option>
+            <option value="150">2&frac12; minutes</option>
+            <option value="180">3 minutes (max)</option>
           </select>
         </div>
         <div class="admin-hint" id="timerHint" style="margin-top:-4px;">Timer resets automatically when admin reveals the next clue.</div>
       </div>
 
+      <!-- Groups: several games sharing participants and a running score -->
+      <div class="admin-section">
+        <div class="admin-section-title">👥 Groups</div>
+        <div class="admin-hint">A group holds several games and keeps a running score for everyone playing them.</div>
+        <button class="btn-admin btn-create" onclick="ggAdminCreateGroup()" style="margin-bottom:8px;">➕ Generate New Group</button>
+        <div id="ggAdminNewCode" style="display:none;"></div>
+        <select class="admin-input" id="ggAdminGroupSelect" onchange="ggAdminSelectGroup(this.value)">
+          <option value="">— Select a group —</option>
+        </select>
+        <div id="ggAdminGroupPanel"></div>
+      </div>
+
       <!-- Create new game -->
       <div class="admin-section">
         <div class="admin-section-title">➕ Create New Game</div>
+        <div class="admin-hint">Add to group:</div>
+        <select class="admin-input" id="newGameGroup">
+          <option value="">No group — standalone game</option>
+        </select>
         <input class="admin-input" id="newGameTitle"   placeholder="Game title (e.g. Guess the Bible Character)" />
         <div class="admin-hint">Clues — one per line (they will be revealed one at a time):</div>
         <textarea class="admin-textarea" id="newGameClues" placeholder="Female&#10;Humility&#10;King David&#10;Moabite&#10;Naomi"></textarea>
@@ -340,6 +358,125 @@
   </div>
 
 </div>
+
+<!-- ============================================================
+     Public group play. Shown only when the page is opened without a
+     ?cid= link, i.e. plain /guessIt — participants join with a code.
+     The big-screen display above is untouched and still owns the ?cid= view.
+     ============================================================ -->
+<div id="ggRoot" style="display:none;max-width:560px;margin:0 auto;padding:16px;">
+
+  <!-- Step 1: group code -->
+  <div id="ggStepCode" class="gg-card">
+    <div class="gg-title">🎯 Join a Guess It game</div>
+    <div class="gg-sub">Enter the 6-character group code from your game host.</div>
+    <input id="ggCodeInput" class="gg-input gg-code" maxlength="6" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" placeholder="A1768G" />
+    <div class="gg-err" id="ggCodeErr"></div>
+    <button class="gg-btn" id="ggCodeBtn" onclick="ggVerifyCode()">Continue</button>
+  </div>
+
+  <!-- Step 2: name (public participants only) -->
+  <div id="ggStepName" class="gg-card" style="display:none;">
+    <div class="gg-title">👋 What shall we call you?</div>
+    <div class="gg-sub" id="ggNameSub">This is the name shown on the leaderboard.</div>
+    <input id="ggNameInput" class="gg-input" maxlength="40" autocomplete="off" placeholder="Your name" />
+    <div class="gg-err" id="ggNameErr"></div>
+    <button class="gg-btn" id="ggNameBtn" onclick="ggJoin()">Join game</button>
+    <button class="gg-btn gg-btn-ghost" onclick="ggBackToCode()">Use a different code</button>
+  </div>
+
+  <!-- Step 3: play -->
+  <div id="ggStepPlay" style="display:none;">
+    <div class="gg-bar">
+      <span id="ggWhoami"></span>
+      <button class="gg-leave" onclick="ggLeave()" title="Leave this group on this device only">Leave</button>
+    </div>
+    <!-- Shown while polls are failing. The session is kept and retried; this is
+         only so the participant knows the screen has stopped updating. -->
+    <div id="ggOfflineBar" class="gg-note wait" style="display:none;">
+      Reconnecting… your place in the game is saved on this device.
+    </div>
+    <div id="ggPlayBody"></div>
+    <div class="gg-card" id="ggBoardCard" style="display:none;">
+      <div class="gg-title" id="ggBoardTitle">🏅 Leaderboard</div>
+      <div id="ggBoard"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .gg-card{background:#1e1e2e;border:1px solid #33334d;border-radius:14px;padding:20px;margin-bottom:14px;}
+  .gg-title{font-size:19px;font-weight:700;color:#fff;margin-bottom:4px;}
+  .gg-sub{font-size:13px;color:#a9a9c2;margin-bottom:14px;}
+  .gg-input{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;
+            border:1px solid #44446a;background:#15151f;color:#fff;font-size:16px;margin-bottom:8px;}
+  .gg-input:focus{outline:none;border-color:#7c5cff;}
+  .gg-code{letter-spacing:6px;text-transform:uppercase;text-align:center;font-size:26px;font-weight:700;}
+  .gg-btn{width:100%;padding:12px;border:0;border-radius:10px;background:#7c5cff;color:#fff;
+          font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;}
+  .gg-btn:disabled{opacity:.55;cursor:default;}
+  .gg-btn-ghost{background:transparent;border:1px solid #44446a;color:#a9a9c2;font-weight:500;}
+  .gg-err{color:#ff8080;font-size:13px;min-height:18px;margin-bottom:2px;}
+  .gg-bar{display:flex;justify-content:space-between;align-items:center;color:#a9a9c2;
+          font-size:13px;padding:0 4px 8px;}
+  .gg-leave{background:none;border:0;color:#8a8aa8;font-size:12px;cursor:pointer;text-decoration:underline;}
+  .gg-clue{background:#15151f;border:1px solid #33334d;border-radius:10px;padding:12px 14px;
+           margin-bottom:8px;color:#d8d8ea;font-size:15px;}
+  .gg-clue.latest{background:linear-gradient(135deg,#4a2fa8,#7c5cff);border-color:#7c5cff;color:#fff;font-weight:600;}
+  .gg-opt{display:flex;justify-content:space-between;align-items:center;gap:10px;
+          background:#15151f;border:1px solid #44446a;border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .gg-opt span{color:#e6e6f5;font-size:15px;}
+  .gg-opt button{background:#7c5cff;border:0;border-radius:8px;color:#fff;padding:7px 14px;
+                 font-size:13px;font-weight:600;cursor:pointer;}
+  .gg-opt button:disabled{opacity:.45;cursor:default;}
+  .gg-note{border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:14px;font-weight:600;}
+  .gg-note.win{background:#123d24;border:1px solid #2e7d4f;color:#8ff0b5;}
+  .gg-note.out{background:#3d1620;border:1px solid #7d2e3f;color:#ffa3b5;}
+  .gg-note.wait{background:#3d3218;border:1px solid #7d6a2e;color:#ffd98a;}
+  .gg-note.info{background:#1a2a3d;border:1px solid #2e5a7d;color:#9ed0ff;}
+  .gg-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;
+          border-radius:9px;margin-bottom:6px;background:#15151f;border:1px solid #2a2a40;}
+  .gg-row.win{background:#123d24;border-color:#2e7d4f;}
+  .gg-row.me{border-color:#7c5cff;}
+  .gg-row .nm{color:#e6e6f5;font-size:14px;}
+  .gg-row .pt{color:#a9a9c2;font-size:13px;font-weight:700;}
+
+  /* ── Group code chip ────────────────────────────────────────────────
+     The code used to be white text on the white admin panel, which made it
+     effectively invisible. It is the one thing on this screen a host has to
+     read out to a room, so it now gets its own solid dark block, a large
+     monospace face and generous letter-spacing — characters that are easy to
+     confuse when spoken (8/B, 5/S) stay distinguishable at a glance. */
+  .gi-code-chip{background:#4a2233;border:2px solid #673147;border-radius:14px;
+                padding:14px 16px;margin:10px 0 12px;text-align:center;
+                box-shadow:0 2px 10px rgba(103,49,71,.25);}
+  .gi-code-chip.ended{background:#3a3a44;border-color:#5a5a68;}
+  .gi-code-label{font-size:11px;font-weight:700;letter-spacing:1.2px;
+                 text-transform:uppercase;color:#f3c9dc;margin-bottom:6px;}
+  .gi-code-chip.ended .gi-code-label{color:#d3d3dd;}
+  .gi-code-value{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+                 font-size:40px;line-height:1.1;font-weight:800;color:#fff;
+                 letter-spacing:10px;text-indent:10px;word-break:break-all;
+                 text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .gi-code-foot{display:flex;align-items:center;justify-content:center;gap:10px;
+                margin-top:9px;flex-wrap:wrap;}
+  .gi-code-state{font-size:11px;font-weight:700;letter-spacing:.6px;padding:3px 10px;
+                 border-radius:20px;background:#1e6b3a;color:#c9f5da;text-transform:uppercase;}
+  .gi-code-state.ended{background:#6b2233;color:#ffd0da;}
+  .gi-code-copy{background:#fff;color:#673147;border:0;border-radius:8px;
+                padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;}
+  .gi-code-copy:hover{opacity:.88;}
+  .gi-code-hint{font-size:11px;color:#f0cddd;margin-top:8px;word-break:break-all;}
+  .gi-code-chip.ended .gi-code-hint{color:#d3d3dd;}
+  @media(max-width:420px){ .gi-code-value{font-size:30px;letter-spacing:6px;text-indent:6px;} }
+
+  /* Duration control inside a group panel */
+  .gi-dur-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;}
+  .gi-dur-row label{font-size:13px;color:#555;font-weight:600;white-space:nowrap;}
+  .gi-dur-saved{font-size:12px;font-weight:700;color:#2e7d32;opacity:0;transition:opacity .2s;}
+  .gi-dur-saved.show{opacity:1;}
+</style>
 
 <!-- Small hidden toggle button to reveal admin panel -->
 <button class="admin-toggle-btn" title="Admin" onclick="toggleAdminPanel()">⚙</button>
@@ -381,10 +518,17 @@ document.addEventListener('DOMContentLoaded', function() {
   if (adminChevron) { adminChevron.textContent  = '▶'; }
   adminPanelOpen = false;
 
+  // Master Controls visibility for signed-in STAFF: the GuessIt checkbox in viewUsers
+  // (activity.guessit) hides the ⚙ toggle and the panel. Cosmetic only — the
+  // /api/guess-it/admin/** endpoints keep their own checks. Anonymous visitors, the
+  // big-screen cid view, church, temporary and NTAG sessions are left exactly as before.
+  giApplyStaffPermission();
+
   if (!cid) {
-    document.getElementById('gameDisplay').innerHTML =
-      '<div class="no-game"><div class="emoji">⚠️</div><div>No game link provided.</div>'
-      + '<div style="font-size:13px;margin-top:8px;color:#bbb;">Ask the game master for the correct link.</div></div>';
+    // Plain /guessIt is the public participant entry point: join with a code
+    // and play. The ?cid= big-screen display is unaffected.
+    document.getElementById('gameDisplay').style.display = 'none';
+    ggInit();
     return;
   }
   startPolling();
@@ -611,7 +755,28 @@ function renderPublicGame(data) {
 }
 
 /* ── Admin panel ─────────────────────────────────────────────────── */
+var giMasterControlsDenied = false;
+function giApplyStaffPermission() {
+  try {
+    fetch('/api/session', { credentials: 'include', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) {
+        if (!s || !s.authenticated || s.church === true || s.church === 'true' || s.temporary || s.ntag) return;
+        if (!s.privileges) return;                       // no saved permissions → full access
+        var p = typeof s.privileges === 'string' ? JSON.parse(s.privileges) : s.privileges;
+        if (!p || (p['activity.guessit'] !== false && p['activity'] !== false)) return;
+        giMasterControlsDenied = true;
+        document.querySelectorAll('.admin-toggle-btn').forEach(function (b) { b.style.setProperty('display', 'none', 'important'); });
+        var panel = document.getElementById('adminPanel');
+        if (panel) panel.style.setProperty('display', 'none', 'important');
+        adminPanelOpen = false;
+      })
+      .catch(function () { /* not signed in / offline — leave the page as it is */ });
+  } catch (e) { /* never let a permission lookup break the game page */ }
+}
+
 function toggleAdminPanel() {
+  if (giMasterControlsDenied) return;
   adminPanelOpen = !adminPanelOpen;
   var panel   = document.getElementById('adminPanel');
   var bar     = document.getElementById('activeGameBar');
@@ -624,7 +789,7 @@ function toggleAdminPanel() {
     if (chevron) chevron.textContent  = '▶';
     // Restore saved timer selection
     try {
-      var saved = localStorage.getItem('gi_pendingTimerSecs');
+      var saved = (localStorage.getItem('gi_pendingTimerSecs') || '60');
       var timerSel = document.getElementById('timerSelect');
       if (timerSel && saved !== null) { timerSel.value = saved; updateTimerHint(parseInt(saved,10)||0); }
     } catch(e) {}
@@ -767,7 +932,7 @@ async function adminStartGame(gameId) {
     activeGameId = gameId;
     // Apply pending timer setting if one is saved
     try {
-      var pendingSecs = parseInt(localStorage.getItem('gi_pendingTimerSecs') || '0', 10);
+      var pendingSecs = parseInt((localStorage.getItem('gi_pendingTimerSecs') || '60') || '0', 10);
       if (pendingSecs > 0) {
         await fetch('/api/guess-it/admin/games/' + gameId + '/timer', {
           method: 'PUT',
@@ -954,6 +1119,760 @@ async function adminCreateGame() {
     await loadAdminGames();
   } catch(e) { errEl.textContent = 'Error creating game.'; }
 }
+</script>
+
+<script>
+/* =====================================================================
+   Guess It — group play (public participants + admin group controls)
+   ---------------------------------------------------------------------
+   Everything here is namespaced gg* so it cannot collide with the
+   big-screen display code above, which is left exactly as it was.
+   ===================================================================== */
+
+/* ── Participant session storage ──────────────────────────────────────
+   One browser can hold a session for several group codes at once, and each
+   browser (and each device) holds its own. The rules that matter:
+
+   * The token is stored under a key that includes the group code, so joining
+     a second game never overwrites the first, and a leftover token from last
+     week's game cannot hijack today's code.
+   * Nothing is ever keyed to a login or an HTTP session, so two phones, a
+     laptop and a tablet can all play the same code simultaneously, each with
+     its own name and its own score.
+   * Storage can throw outright (Safari private browsing, "block site data"),
+     so every access is wrapped and falls back: localStorage → sessionStorage
+     → an in-memory map that at least survives re-renders within the tab.
+*/
+var GG_TOKEN_KEY  = 'gi_group_token';        // legacy single-session key, migrated on load
+var GG_TOKEN_PFX  = 'gi_group_token:';       // gi_group_token:<CODE>
+var GG_LAST_KEY   = 'gi_group_last';         // the code this browser was last playing
+var ggMemStore    = {};                      // last-resort store when both others are blocked
+
+function ggStoreGet(key){
+  try { var v = window.localStorage.getItem(key); if (v !== null) return v; } catch(e){}
+  try { var v2 = window.sessionStorage.getItem(key); if (v2 !== null) return v2; } catch(e){}
+  return Object.prototype.hasOwnProperty.call(ggMemStore, key) ? ggMemStore[key] : null;
+}
+function ggStoreSet(key, value){
+  ggMemStore[key] = value;
+  try { window.localStorage.setItem(key, value); return; } catch(e){}
+  try { window.sessionStorage.setItem(key, value); } catch(e){}
+}
+function ggStoreDel(key){
+  delete ggMemStore[key];
+  try { window.localStorage.removeItem(key); } catch(e){}
+  try { window.sessionStorage.removeItem(key); } catch(e){}
+}
+
+function ggNormCode(raw){
+  return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+function ggTokenKey(code){ return GG_TOKEN_PFX + ggNormCode(code); }
+function ggTokenFor(code){ var c = ggNormCode(code); return c ? ggStoreGet(ggTokenKey(c)) : null; }
+function ggRememberToken(code, token){
+  var c = ggNormCode(code);
+  if (!c || !token) return;
+  ggStoreSet(ggTokenKey(c), token);
+  ggStoreSet(GG_LAST_KEY, c);
+}
+/* Drop only this code's session. Sessions held for other codes — and every
+   other device playing this one — are untouched. */
+function ggForgetToken(code){
+  var c = ggNormCode(code);
+  if (c) ggStoreDel(ggTokenKey(c));
+  if (ggStoreGet(GG_LAST_KEY) === c) ggStoreDel(GG_LAST_KEY);
+}
+
+var ggToken = null, ggCode = '', ggPollTimer = null, ggLastV = null;
+var ggBusy = false, ggState = null, ggTick = null;
+
+function ggEsc(x){ return String(x==null?'':x)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ggEl(id){ return document.getElementById(id); }
+function ggShow(id, on){ var e = ggEl(id); if (e) e.style.display = on ? '' : 'none'; }
+function ggSetErr(id, msg){ var e = ggEl(id); if (e) e.textContent = msg || ''; }
+
+function ggPost(url, body){
+  return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
+                     credentials:'include', body: JSON.stringify(body||{})})
+         .then(function(r){ return r.json().catch(function(){ return {}; }); });
+}
+
+/* ── entry ─────────────────────────────────────────────────────────── */
+function ggInit(){
+  ggShow('ggRoot', true);
+  ggMigrateLegacyToken();
+
+  var urlCode = ggNormCode(new URLSearchParams(location.search).get('code'));
+  if (urlCode) { var i = ggEl('ggCodeInput'); if (i) i.value = urlCode; }
+
+  // Resume in this order: the code in the link, then whatever this browser was
+  // last playing. Each is only resumed if THIS browser holds a token for it —
+  // a code alone never adopts somebody else's identity.
+  var resumeCode = (urlCode && ggTokenFor(urlCode)) ? urlCode
+                 : (ggStoreGet(GG_LAST_KEY) || '');
+  var resumeToken = resumeCode ? ggTokenFor(resumeCode) : null;
+  if (resumeToken){
+    ggCode  = ggNormCode(resumeCode);
+    ggToken = resumeToken;
+    ggGoPlay();
+    return;
+  }
+  ggShow('ggStepCode', true);
+  var inp = ggEl('ggCodeInput');
+  if (inp) {
+    inp.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') ggVerifyCode(); });
+    inp.focus();
+  }
+  var nm = ggEl('ggNameInput');
+  if (nm) nm.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') ggJoin(); });
+}
+
+/* Sessions created before per-code keys existed live under a single key with
+   no code attached. Move one across the first time it is seen, so anybody
+   mid-game when this version ships is not thrown out of it. */
+function ggMigrateLegacyToken(){
+  var legacy = ggStoreGet(GG_TOKEN_KEY);
+  if (!legacy) return;
+  ggStoreDel(GG_TOKEN_KEY);
+  fetch('/api/guess-it/group/state?token=' + encodeURIComponent(legacy),
+        {cache:'no-store', credentials:'include'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d || d.error || !d.group || !d.group.code) return;
+      ggRememberToken(d.group.code, legacy);
+      // Only take over the screen if the participant is still sitting on the
+      // code entry step — never yank them out of a game they have re-joined.
+      var step = ggEl('ggStepCode');
+      if (step && step.style.display !== 'none' && !ggToken){
+        ggCode = ggNormCode(d.group.code); ggToken = legacy; ggGoPlay();
+      }
+    })
+    .catch(function(){});
+}
+
+function ggBackToCode(){
+  ggShow('ggStepName', false); ggShow('ggStepPlay', false); ggShow('ggStepCode', true);
+  ggSetErr('ggCodeErr',''); ggSetErr('ggNameErr','');
+  var inp = ggEl('ggCodeInput'); if (inp){ inp.value = ''; inp.focus(); }
+}
+
+/* Leaving clears this browser's session for THIS code only. Other codes this
+   browser holds, and every other device playing this one, are unaffected. */
+function ggLeave(){
+  ggForgetToken(ggCode);
+  ggToken = null; ggState = null; ggLastV = null; ggCode = '';
+  if (ggPollTimer) { clearTimeout(ggPollTimer); ggPollTimer = null; }
+  ggBackToCode();
+}
+
+/* ── step 1: verify the code ───────────────────────────────────────── */
+function ggVerifyCode(){
+  var btn = ggEl('ggCodeBtn'); var raw = (ggEl('ggCodeInput')||{}).value || '';
+  var code = ggNormCode(raw);
+  ggSetErr('ggCodeErr','');
+  if (code.length !== 6){ ggSetErr('ggCodeErr','Please enter all 6 characters of the group code.'); return; }
+  if (btn) btn.disabled = true;
+
+  // If this browser already has a session for this code, hand it over: the
+  // server then resumes that participant instead of treating the entry as a
+  // brand new person whose name is already taken.
+  var held = ggTokenFor(code);
+
+  ggPost('/api/guess-it/group/verify', {code: code, token: held || undefined}).then(function(d){
+    if (btn) btn.disabled = false;
+    if (!d || d.error){ ggSetErr('ggCodeErr', (d && d.error) || 'Could not check that code.'); return; }
+    ggCode = ggNormCode(d.code || code);
+    if (d.alreadyJoined && held){
+      // Same browser, same code — walk straight back into the game.
+      ggToken = held; ggRememberToken(ggCode, held); ggGoPlay();
+      return;
+    }
+    if (d.needsName === false){
+      // Signed-in member: join straight away under their own first name.
+      ggJoinWith({code: ggCode});
+      return;
+    }
+    ggShow('ggStepCode', false); ggShow('ggStepName', true);
+    var sub = ggEl('ggNameSub');
+    if (sub) sub.textContent = d.groupName
+      ? ('Joining "' + d.groupName + '". This name appears on the leaderboard.')
+      : 'This is the name shown on the leaderboard.';
+    var nm = ggEl('ggNameInput'); if (nm) nm.focus();
+  }).catch(function(){
+    if (btn) btn.disabled = false;
+    ggSetErr('ggCodeErr','Network problem. Please try again.');
+  });
+}
+
+/* ── step 2: join ──────────────────────────────────────────────────── */
+function ggJoin(){
+  var name = ((ggEl('ggNameInput')||{}).value || '').trim();
+  ggSetErr('ggNameErr','');
+  if (!name){ ggSetErr('ggNameErr','Please enter your name.'); return; }
+  ggJoinWith({code: ggCode, name: name});
+}
+
+function ggJoinWith(payload){
+  var btn = ggEl('ggNameBtn'); if (btn) btn.disabled = true;
+  // Carrying the token makes joining idempotent: a retry after a dropped
+  // response resumes the identity the first attempt created rather than
+  // colliding with its own name.
+  var held = ggTokenFor(payload.code);
+  if (held) payload = Object.assign({}, payload, {token: held});
+
+  ggPost('/api/guess-it/group/join', payload).then(function(d){
+    if (btn) btn.disabled = false;
+    if (!d || d.error){
+      // The duplicate-name message is shown against whichever step is visible.
+      var target = (ggEl('ggStepName') && ggEl('ggStepName').style.display !== 'none')
+                   ? 'ggNameErr' : 'ggCodeErr';
+      ggSetErr(target, (d && d.error) || 'Could not join.');
+      if (d && d.errorKey === 'nameTaken'){
+        var nm = ggEl('ggNameInput'); if (nm){ nm.focus(); nm.select(); }
+      }
+      return;
+    }
+    ggToken = d.token;
+    ggCode  = ggNormCode((d.group && d.group.code) || payload.code || ggCode);
+    ggRememberToken(ggCode, ggToken);
+    ggGoPlay();
+  }).catch(function(){
+    if (btn) btn.disabled = false;
+    ggSetErr('ggNameErr','Network problem. Please try again.');
+  });
+}
+
+/* ── step 3: play ──────────────────────────────────────────────────── */
+function ggGoPlay(){
+  ggShow('ggStepCode', false); ggShow('ggStepName', false); ggShow('ggStepPlay', true);
+  ggLastV = null;
+  ggSchedule(0);
+}
+
+function ggSchedule(ms){
+  if (ggPollTimer) clearTimeout(ggPollTimer);
+  ggPollTimer = setTimeout(ggPoll, ms);
+}
+
+/* Consecutive failed polls. Used to back off, and to show a quiet
+   "reconnecting" line — never to discard the participant's session. */
+var ggPollFails = 0;
+
+function ggOffline(on){
+  var bar = ggEl('ggOfflineBar');
+  if (!bar) return;
+  bar.style.display = on ? '' : 'none';
+}
+
+function ggPoll(){
+  if (!ggToken){ return; }
+  if (document.hidden){ ggSchedule(2000); return; }
+  fetch('/api/guess-it/group/state?token=' + encodeURIComponent(ggToken),
+        {cache:'no-store', credentials:'include'})
+    .then(function(r){ return r.json().catch(function(){ return {networkError:true}; }); })
+    .then(function(d){
+      if (d && d.networkError) throw new Error('unreadable');
+
+      if (d && d.error){
+        // Only an explicit "this token is dead" clears the stored session.
+        // Every other error — the group withdrawn, a request that arrived
+        // malformed, a server hiccup — leaves it in place, because throwing a
+        // participant's identity away means they have to re-join under a name
+        // that is, by then, already taken by themselves.
+        if (d.expired){
+          ggForgetToken(ggCode);
+          ggToken = null; ggState = null; ggLastV = null;
+          if (ggPollTimer){ clearTimeout(ggPollTimer); ggPollTimer = null; }
+          ggShow('ggStepName', false); ggShow('ggStepPlay', false); ggShow('ggStepCode', true);
+          ggSetErr('ggCodeErr', d.error);
+          return;
+        }
+        ggPollFails++;
+        ggOffline(true);
+        ggSchedule(Math.min(2000 * ggPollFails, 15000));
+        return;
+      }
+
+      ggPollFails = 0;
+      ggOffline(false);
+      ggState = d;
+      if (d.group && d.group.code){
+        // Keep the stored key aligned with the group the server says we are in.
+        ggCode = ggNormCode(d.group.code);
+        ggRememberToken(ggCode, ggToken);
+      }
+      var live = d.hasGame && d.status === 'active';
+      if (d.v !== ggLastV){ ggLastV = d.v; ggRender(d); }
+      ggSchedule(live ? 1500 : 4000);
+    })
+    .catch(function(){
+      // Network dropped, tunnel died, phone changed cell. Keep the session and
+      // keep trying, backing off so a long outage does not hammer the server.
+      ggPollFails++;
+      if (ggPollFails >= 2) ggOffline(true);
+      ggSchedule(Math.min(2000 * ggPollFails, 15000));
+    });
+}
+
+function ggRender(d){
+  if (ggBusy) return;
+  var who = ggEl('ggWhoami');
+  if (who) who.innerHTML = ggEsc(d.me.name) + ' · <strong>' + d.me.score + '</strong> pt'
+                         + (d.me.score === 1 ? '' : 's')
+                         + ' · code <strong style="letter-spacing:2px;color:#fff;">'
+                         + ggEsc(d.group.code) + '</strong>';
+
+  var body = ggEl('ggPlayBody'); if (!body) return;
+  var h = '';
+
+  if (d.group.ended){
+    h += '<div class="gg-note info">This group has finished. Final results are below.</div>'
+       + '<div class="gg-card" style="margin-top:10px;">'
+       + '<button class="gg-btn" onclick="ggLeave()">Join another game</button></div>';
+  } else if (!d.hasGame){
+    h += '<div class="gg-card"><div class="gg-title">⏳ Waiting for the next game</div>'
+       + '<div class="gg-sub" style="margin:0;">Your host has not started a game yet. '
+       + 'Keep this page open — it updates on its own.</div></div>';
+  } else {
+    h += '<div class="gg-card">';
+    h += '<div class="gg-title">' + ggEsc(d.title) + '</div>';
+
+    if (d.winner)            h += '<div class="gg-note win">🎉 You got it right — 1 point!</div>';
+    else if (d.eliminated)   h += '<div class="gg-note out">You are out of this game. Sit tight for the next one.</div>';
+    else if (d.hasSubmitted) h += '<div class="gg-note wait">Answer submitted — waiting for the result…</div>';
+
+    if (d.winners && d.winners.length && !d.winner){
+      h += '<div class="gg-note info">🏆 ' + ggEsc(d.winners[0].name) + ' answered correctly first.</div>';
+    }
+
+    var clues = d.revealedClues || [];
+    if (!clues.length){
+      h += '<div class="gg-clue">Waiting for the first clue…</div>';
+    } else {
+      for (var i = 0; i < clues.length; i++){
+        var last = (i === clues.length - 1);
+        h += '<div class="gg-clue' + (last ? ' latest' : '') + '">'
+           + (last ? '' : '<span style="opacity:.6;">' + (i+1) + '. </span>')
+           + ggEsc(clues[i]) + '</div>';
+      }
+    }
+    h += '<div class="gg-sub" style="margin:8px 0 0;">Clue ' + clues.length + ' of ' + d.totalClues + '</div>';
+
+    var gameWon  = d.winners && d.winners.length;
+    var canPlay  = d.status === 'active' && !d.winner && !d.eliminated && !d.hasSubmitted && !gameWon;
+    if (canPlay && d.options && d.options.length){
+      h += '<div style="margin-top:14px;">';
+      for (var j = 0; j < d.options.length; j++){
+        var o = d.options[j];
+        h += '<div class="gg-opt"><span>' + ggEsc(o) + '</span>'
+           + '<button class="gg-opt-btn" data-opt="' + ggEsc(o) + '"'
+           + (d.timerExpired ? ' disabled' : '') + '>Submit ✓</button></div>';
+      }
+      h += '</div>';
+      if (d.timerExpired) h += '<div class="gg-note wait" style="margin-top:8px;">Time is up for this clue.</div>';
+    }
+    h += '</div>';
+  }
+
+  body.innerHTML = h;
+
+  var btns = body.querySelectorAll('.gg-opt-btn');
+  for (var k = 0; k < btns.length; k++){
+    btns[k].addEventListener('click', function(){
+      ggSubmit(d.gameId, this.getAttribute('data-opt'), this);
+    });
+  }
+
+  ggRenderBoard(d);
+}
+
+function ggRenderBoard(d){
+  var board = ggEl('ggBoard'), card = ggEl('ggBoardCard'), title = ggEl('ggBoardTitle');
+  if (!board || !card) return;
+  var rows = d.leaderboard || [];
+  if (!rows.length){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  if (title) title.textContent = d.group.ended ? '🏆 Final results' : '🏅 Leaderboard';
+
+  var h = '';
+  for (var i = 0; i < rows.length; i++){
+    var r = rows[i];
+    var mine = (r.name === d.me.name);
+    h += '<div class="gg-row' + (r.isWinner ? ' win' : '') + (mine ? ' me' : '') + '">'
+       + '<span class="nm">' + r.rank + '. ' + ggEsc(r.name)
+       + (r.isWinner ? ' 🏆' : '') + (mine ? ' <span style="opacity:.6;">(you)</span>' : '')
+       + '</span>'
+       + '<span class="pt">' + r.score + ' pt' + (r.score === 1 ? '' : 's') + '</span></div>';
+  }
+  if (d.group.ended){
+    var champs = rows.filter(function(r){ return r.isWinner; });
+    if (champs.length){
+      h = '<div class="gg-note win" style="margin-bottom:10px;">Group winner'
+        + (champs.length > 1 ? 's' : '') + ': '
+        + champs.map(function(c){ return ggEsc(c.name) + ' — ' + c.score
+            + ' point' + (c.score === 1 ? '' : 's'); }).join(', ')
+        + '</div>' + h;
+    }
+  }
+  board.innerHTML = h;
+}
+
+function ggSubmit(gameId, option, btn){
+  if (ggBusy) return;
+  ggBusy = true;
+  var all = document.querySelectorAll('.gg-opt-btn');
+  for (var i = 0; i < all.length; i++) all[i].disabled = true;
+
+  ggPost('/api/guess-it/group/action', {token: ggToken, gameId: gameId, option: option})
+    .then(function(d){
+      ggBusy = false;
+      if (d && d.error){
+        var body = ggEl('ggPlayBody');
+        if (body){
+          var n = document.createElement('div');
+          n.className = 'gg-note out'; n.textContent = d.error;
+          body.insertBefore(n, body.firstChild);
+        }
+        // A dead token surfaces here too; let the poll handle the transition so
+        // there is exactly one place that ends a session.
+        if (d.expired){ ggLastV = null; ggSchedule(0); return; }
+        if (!d.eliminated && !d.alreadyWon && !d.timerExpired){
+          for (var i = 0; i < all.length; i++) all[i].disabled = false;
+        }
+        ggLastV = null; ggSchedule(1200);
+        return;
+      }
+      ggState = d; ggLastV = d.v; ggRender(d); ggSchedule(1200);
+    })
+    .catch(function(){
+      ggBusy = false;
+      for (var i = 0; i < all.length; i++) all[i].disabled = false;
+    });
+}
+
+/* =====================================================================
+   Admin — group management inside Master Controls
+   ===================================================================== */
+var ggAdminGroups = [], ggAdminCurrent = null;
+
+/* ── Clue duration ───────────────────────────────────────────────────
+   One list, used by both the standalone "Timer Per Clue" dropdown and the
+   per-group Duration control, so the two can never offer different values.
+   The 180-second ceiling is also enforced on the server; this list is only
+   what the host is offered. */
+var GG_MAX_TIMER = 180;
+var GG_DURATIONS = [
+  {v:0,   label:'Off (no timer)'},
+  {v:30,  label:'30 seconds'},
+  {v:60,  label:'1 minute'},
+  {v:90,  label:'90 seconds'},
+  {v:120, label:'2 minutes'},
+  {v:150, label:'2\u00BD minutes'},
+  {v:180, label:'3 minutes (max)'}
+];
+
+function ggDurationLabel(secs){
+  var n = parseInt(secs, 10); if (isNaN(n)) n = 0;
+  for (var i = 0; i < GG_DURATIONS.length; i++)
+    if (GG_DURATIONS[i].v === n) return GG_DURATIONS[i].label;
+  return n + ' seconds';
+}
+
+/* Options for a duration <select>. A stored value that is not one of the
+   presets (an older game, or one set through the API) is added to the list
+   rather than silently snapping to a neighbour, so the dropdown always shows
+   what is actually in force. */
+function ggDurationOptions(selected){
+  var n = parseInt(selected, 10); if (isNaN(n) || n < 0) n = 0;
+  if (n > GG_MAX_TIMER) n = GG_MAX_TIMER;
+  var list = GG_DURATIONS.slice();
+  var known = false;
+  for (var i = 0; i < list.length; i++) if (list[i].v === n) known = true;
+  if (!known){
+    list.push({v:n, label:n + ' seconds (current)'});
+    list.sort(function(a,b){ return a.v - b.v; });
+  }
+  return list.map(function(o){
+    return '<option value="' + o.v + '"' + (o.v === n ? ' selected' : '') + '>'
+         + ggEsc(o.label) + '</option>';
+  }).join('');
+}
+
+/* ── Group code chip ─────────────────────────────────────────────────
+   The host reads this aloud, so it gets a solid dark block and a large
+   monospace face rather than the near-invisible white-on-white it was. */
+function ggCodeChipHtml(code, ended){
+  var join = (location.origin || '') + '/guessIt';
+  return '<div class="gi-code-chip' + (ended ? ' ended' : '') + '">'
+       + '<div class="gi-code-label">Group code</div>'
+       + '<div class="gi-code-value">' + ggEsc(code) + '</div>'
+       + '<div class="gi-code-foot">'
+       +   '<span class="gi-code-state' + (ended ? ' ended' : '') + '">'
+       +     (ended ? 'Ended' : 'Active') + '</span>'
+       +   '<button type="button" class="gi-code-copy" data-code="' + ggEsc(code) + '" '
+       +     'onclick="ggCopyCode(this)">Copy code</button>'
+       + '</div>'
+       + '<div class="gi-code-hint">Participants join at ' + ggEsc(join)
+       +   ' and enter this code. It works on any number of phones, tablets and '
+       +   'computers at the same time.</div>'
+       + '</div>';
+}
+
+function ggCopyCode(btn){
+  var code = btn.getAttribute('data-code') || '';
+  var done = function(){
+    var was = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(function(){ btn.textContent = was; }, 1400);
+  };
+  // navigator.clipboard needs a secure context; fall back to the old
+  // hidden-textarea trick so this still works over plain http on a laptop.
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, function(){ ggCopyFallback(code, done); });
+  } else {
+    ggCopyFallback(code, done);
+  }
+}
+
+function ggCopyFallback(text, done){
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    done();
+  } catch(e){ /* copying is a convenience; the code is on screen regardless */ }
+}
+
+/* Change a group's per-clue duration after the group already exists. */
+function ggAdminSetDuration(value){
+  if (!ggAdminCurrent) return;
+  var secs = parseInt(value, 10); if (isNaN(secs) || secs < 0) secs = 0;
+  if (secs > GG_MAX_TIMER) secs = GG_MAX_TIMER;
+  var groupId = ggAdminCurrent.id;
+
+  fetch('/api/guess-it/admin/groups/' + encodeURIComponent(groupId) + '/timer', {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({timerSecs: secs})
+    })
+    .then(function(r){ return r.json().catch(function(){ return {}; }); })
+    .then(function(d){
+      if (!d || d.error){ alert((d && d.error) || 'Could not update the duration.'); return; }
+      if (ggAdminCurrent && ggAdminCurrent.id === groupId) ggAdminCurrent.timerSecs = d.timerSecs;
+
+      var sel = ggEl('ggAdminDuration');
+      if (sel) sel.value = String(d.timerSecs);
+
+      var hint = ggEl('ggAdminDurationHint');
+      if (hint){
+        hint.textContent = d.timerSecs > 0
+          ? ('Now ' + ggDurationLabel(d.timerSecs) + ' per clue'
+             + (d.gamesUpdated ? ' — ' + d.gamesUpdated + ' round(s) updated.' : '.')
+             + ' A change to the live round takes effect on its next clue.')
+          : 'Timer off — participants get unlimited time on every clue in this group.';
+      }
+      var saved = ggEl('ggAdminDurationSaved');
+      if (saved){ saved.classList.add('show');
+                  setTimeout(function(){ saved.classList.remove('show'); }, 1600); }
+
+      // Keep the standalone dropdown honest when the live game belongs to this
+      // group: it is the same clock, so it must not keep showing the old value.
+      if (typeof activeGameId !== 'undefined' && activeGameId && typeof allGames !== 'undefined'){
+        var g = allGames.filter(function(x){ return x.id === activeGameId; })[0];
+        if (g && d.gamesUpdated){ g.timerSecs = d.timerSecs; }
+      }
+      if (typeof loadAdminGames === 'function') loadAdminGames();
+    })
+    .catch(function(){ alert('Network problem updating the duration.'); });
+}
+
+function ggAdminLoadGroups(){
+  return fetch('/api/guess-it/admin/groups', {credentials:'include', cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){
+      ggAdminGroups = Array.isArray(list) ? list : [];
+      var opts = '<option value="">— Select a group —</option>';
+      var createOpts = '<option value="">No group — standalone game</option>';
+      ggAdminGroups.forEach(function(g){
+        var label = g.code + (g.name ? ' · ' + g.name : '')
+                  + (g.ended ? ' (ended)' : '') + ' · ' + g.games + ' game(s)';
+        opts += '<option value="' + g.id + '">' + ggEsc(label) + '</option>';
+        if (!g.ended) createOpts += '<option value="' + g.id + '">'
+                    + ggEsc(g.code + (g.name ? ' · ' + g.name : '')) + '</option>';
+      });
+      var sel = ggEl('ggAdminGroupSelect');
+      if (sel){ var keep = sel.value; sel.innerHTML = opts; sel.value = keep; }
+      var cg = ggEl('newGameGroup');
+      if (cg){ var keep2 = cg.value; cg.innerHTML = createOpts; cg.value = keep2; }
+    })
+    .catch(function(){});
+}
+
+function ggAdminCreateGroup(){
+  ggPost('/api/guess-it/admin/groups', {}).then(function(d){
+    if (!d || d.error){ alert((d && d.error) || 'Could not create the group.'); return; }
+    var box = ggEl('ggAdminNewCode');
+    if (box){
+      box.style.display = '';
+      box.innerHTML = ggCodeChipHtml(d.code, false);
+    }
+    ggAdminLoadGroups().then(function(){
+      var sel = ggEl('ggAdminGroupSelect');
+      if (sel){ sel.value = String(d.id); ggAdminSelectGroup(String(d.id)); }
+      var cg = ggEl('newGameGroup'); if (cg) cg.value = String(d.id);
+    });
+  });
+}
+
+function ggAdminSelectGroup(id){
+  var panel = ggEl('ggAdminGroupPanel');
+  if (!panel) return;
+  if (!id){ ggAdminCurrent = null; panel.innerHTML = ''; return; }
+  fetch('/api/guess-it/admin/groups/' + encodeURIComponent(id),
+        {credentials:'include', cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d || d.error){ panel.innerHTML = ''; return; }
+      ggAdminCurrent = d;
+      var h = ggCodeChipHtml(d.code, d.ended);
+
+      // Duration lives on the group, so it can be changed at any point after
+      // the group was created — before the first round or between rounds.
+      if (d.ended){
+        h += '<div class="admin-hint">Duration per clue: <strong>'
+           + ggEsc(ggDurationLabel(d.timerSecs)) + '</strong> (this group has ended).</div>';
+      } else {
+        h += '<div class="gi-dur-row">'
+           + '<label for="ggAdminDuration">⏱ Duration per clue:</label>'
+           + '<select class="admin-timer-select" id="ggAdminDuration" '
+           +   'onchange="ggAdminSetDuration(this.value)">'
+           +   ggDurationOptions(d.timerSecs)
+           + '</select>'
+           + '<span class="gi-dur-saved" id="ggAdminDurationSaved">✓ Saved</span>'
+           + '</div>'
+           + '<div class="admin-hint" id="ggAdminDurationHint">'
+           + 'Applies to every round in this group that has not finished, including '
+           + 'the live one — a change to the live round takes effect on its next clue. '
+           + 'Maximum 3 minutes.</div>';
+      }
+
+      var games = d.gamesList || [];
+      if (!games.length){
+        h += '<div class="admin-hint">No games yet — create one below with this group selected.</div>';
+      } else {
+        h += '<div style="margin-bottom:6px;">';
+        games.forEach(function(g, i){
+          h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;'
+             + 'background:#15151f;border:1px solid #2a2a40;border-radius:8px;padding:7px 10px;margin-bottom:5px;">'
+             + '<span style="color:#e6e6f5;font-size:13px;">' + (i+1) + '. ' + ggEsc(g.title)
+             + ' <span style="opacity:.6;">(' + ggEsc(g.status) + ')</span>'
+             + (g.winners && g.winners.length
+                 ? ' <span style="color:#8ff0b5;">🏆 ' + ggEsc(g.winners[0].name) + '</span>' : '')
+             + '</span>'
+             + (d.ended ? '' :
+                 '<button class="btn-admin" onclick="ggAdminPublish(' + g.id + ',' + (g.published?'true':'false') + ')">'
+                 + (g.published ? 'Unpublish' : 'Publish') + '</button>')
+             + '</div>';
+        });
+        h += '</div>';
+        if (!d.ended)
+          h += '<button class="btn-admin btn-create" onclick="ggAdminPublishAll()" style="margin-bottom:8px;">📣 Publish All</button>';
+      }
+
+      var board = d.leaderboard || [];
+      if (board.length){
+        h += '<div class="admin-section-title" style="margin-top:10px;">'
+           + (d.ended ? '🏆 Final Results' : '🏅 Leaderboard') + '</div>';
+        board.forEach(function(r){
+          h += '<div style="display:flex;justify-content:space-between;padding:5px 10px;'
+             + 'border-radius:7px;margin-bottom:4px;background:'
+             + (r.isWinner ? '#123d24' : '#15151f') + ';">'
+             + '<span style="color:#e6e6f5;font-size:13px;">' + r.rank + '. ' + ggEsc(r.name)
+             + (r.isWinner ? ' 🏆' : '') + '</span>'
+             + '<span style="color:#a9a9c2;font-size:12px;font-weight:700;">' + r.score + '</span></div>';
+        });
+      } else {
+        h += '<div class="admin-hint">No participants have joined yet.</div>';
+      }
+
+      if (!d.ended)
+        h += '<button class="btn-admin" onclick="ggAdminEndGroup()" style="margin-top:8px;">🏁 End Group</button>';
+
+      panel.innerHTML = h;
+    });
+}
+
+function ggAdminPublish(gameId, currentlyPublished){
+  if (!ggAdminCurrent) return;
+  ggPost('/api/guess-it/admin/groups/' + ggAdminCurrent.id + '/publish',
+         {gameId: gameId, unpublish: !!currentlyPublished})
+    .then(function(){ ggAdminSelectGroup(String(ggAdminCurrent.id)); });
+}
+
+function ggAdminPublishAll(){
+  if (!ggAdminCurrent) return;
+  ggPost('/api/guess-it/admin/groups/' + ggAdminCurrent.id + '/publish', {all: true})
+    .then(function(){ ggAdminSelectGroup(String(ggAdminCurrent.id)); });
+}
+
+function ggAdminEndGroup(){
+  if (!ggAdminCurrent) return;
+  if (!confirm('End group ' + ggAdminCurrent.code + '? No further games can be played, '
+             + 'but the final results stay visible.')) return;
+  ggPost('/api/guess-it/admin/groups/' + ggAdminCurrent.id + '/end', {})
+    .then(function(){ ggAdminLoadGroups(); ggAdminSelectGroup(String(ggAdminCurrent.id)); });
+}
+
+/* Route Create Game to the group endpoint when a group is chosen; otherwise
+   fall through to the original standalone behaviour, unchanged. */
+(function(){
+  var original = window.adminCreateGame;
+  window.adminCreateGame = function(){
+    var sel = ggEl('newGameGroup');
+    var groupId = sel ? sel.value : '';
+    if (!groupId) return original.apply(this, arguments);
+
+    var title  = (ggEl('newGameTitle')  ||{}).value || '';
+    var clues  = ((ggEl('newGameClues') ||{}).value || '').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+    var opts   = ((ggEl('newGameOptions')||{}).value || '').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+    var answer = ((ggEl('newGameAnswer')||{}).value || '').trim();
+    var errEl  = ggEl('createGameErr'); if (errEl) errEl.textContent = '';
+
+    if (!title.trim())         { if (errEl) errEl.textContent = 'Game title is required.'; return; }
+    if (!clues.length)         { if (errEl) errEl.textContent = 'At least one clue is required.'; return; }
+    if (opts.length < 2)       { if (errEl) errEl.textContent = 'At least two answer options are required.'; return; }
+    if (!opts.includes(answer)){ if (errEl) errEl.textContent = 'The correct answer must match one option exactly.'; return; }
+
+    ggPost('/api/guess-it/admin/groups/' + encodeURIComponent(groupId) + '/games',
+           {title: title.trim(), clues: clues, options: opts, correctAnswer: answer})
+      .then(function(d){
+        if (!d || d.error){ if (errEl) errEl.textContent = (d && d.error) || 'Could not create the game.'; return; }
+        ['newGameTitle','newGameClues','newGameOptions','newGameAnswer'].forEach(function(id){
+          var e = ggEl(id); if (e) e.value = '';
+        });
+        if (typeof loadAdminGames === 'function') loadAdminGames();
+        ggAdminSelectGroup(String(groupId));
+      });
+  };
+})();
+
+/* Load the group lists whenever Master Controls is opened. */
+(function(){
+  var original = window.toggleAdminPanel;
+  if (typeof original !== 'function') return;
+  window.toggleAdminPanel = function(){
+    var result = original.apply(this, arguments);
+    setTimeout(ggAdminLoadGroups, 150);
+    return result;
+  };
+})();
 </script>
 </body>
 </html>

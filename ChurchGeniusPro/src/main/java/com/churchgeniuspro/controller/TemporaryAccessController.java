@@ -239,6 +239,8 @@ public class TemporaryAccessController {
                 case NOT_STARTED -> "This access has not started yet.";
                 case EXPIRED     -> "This access has expired.";
                 case REVOKED     -> "This access has been revoked.";
+                case SUBSCRIPTION_ENDED -> "This church's subscription has ended, so temporary access is not available. "
+                                         + "Please contact the church administrator.";
                 default          -> "Invalid badge or code.";
             };
             return ResponseEntity.status(401).body(Map.of("status", "error", "message", msg));
@@ -248,6 +250,10 @@ public class TemporaryAccessController {
         // Establish the session, mirroring a normal staff session enough that
         // AuthFilter + RoleGuard treat it as a low-privilege ("User") staff session,
         // while the granted-pages privileges JSON gates which pages are reachable.
+        // Rotate: a pre-authentication session id must not survive login, and this
+        // identity must never be layered onto a session that already holds another.
+        HttpSession existing = request.getSession(false);
+        if (existing != null) existing.invalidate();
         HttpSession session = request.getSession(true);
         AccessAudit audit = svc.recordLogin(a, request.getHeader("User-Agent"), clientIp(request));
         session.setAttribute("clientId",     a.getClientId());

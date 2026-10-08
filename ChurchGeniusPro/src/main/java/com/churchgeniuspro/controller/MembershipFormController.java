@@ -54,6 +54,7 @@ import com.churchgeniuspro.repository.WorshipSongRepository;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.VerificationStore;
 import com.churchgeniuspro.service.WhatsAppSenderService;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,7 +79,16 @@ import java.util.*;
  *   <li>{@code GET  /api/membership-form/config}           → declaration config for a CID token</li>
  *   <li>{@code POST /api/membership-form/submit}           → saves family + members from public form</li>
  *   <li>{@code GET  /api/membership-form/lookup}           → looks up existing member by phone/email</li>
+ *   <li>{@code POST /api/membership-form/verify-otp}       → checks the emailed code, returns the family
+ *                                                            and a one-time {@code updateToken}</li>
  * </ul>
+ *
+ * <p><strong>Updating an existing family</strong> is honoured only when {@code submit} carries the
+ * {@code updateToken} that {@code verify-otp} issued for that family under the same link. The
+ * family id alone is a small integer that anyone holding the public link could send; the token is
+ * the proof that the code we emailed to the family was actually entered. The form never creates
+ * logins: member portal accounts come from the Member Signup flow, whose code goes to the member's
+ * own address.
  *
  * <h3>Admin routes (Admin / SuperAdmin only)</h3>
  * <ul>
@@ -97,12 +107,103 @@ public class MembershipFormController {
 
     private static final Logger log = LoggerFactory.getLogger(MembershipFormController.class);
 
+    /** In-app notification for staff with the right permissions. Optional: absent in unit tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.PublicSubmissionNotificationService submissionNotifications;
+
+    /** Test seam. */
+    public void setSubmissionNotifications(com.churchgeniuspro.service.PublicSubmissionNotificationService s) {
+        this.submissionNotifications = s;
+    }
+
     @Value("${app.base-url}")
     private String baseUrl;
+
+    // ── Verified-family proof (verify-otp → submit) ────────────────────────
+    //
+    // verify-otp used to just return the family; submit then trusted whatever
+    // existingFamilyId the anonymous body carried, so an "update" of any family in the
+    // church could be queued for approval by anyone with the public link. The proof
+    // issued here is what ties the two steps together: opaque, random, bound to one
+    // family of one tenant, time-boxed, and spent by the submission that uses it.
+    // In-memory on the same terms as MemberSignupController's lookup handles (single
+    // instance); a restart just sends the applicant back to the code step.
+
+    /** How long a proof stays valid — long enough to fill in a large family. */
+    public static final long UPDATE_PROOF_TTL_MS = 60 * 60_000L;
+
+    public static final String UPDATE_PROOF_REQUIRED_MSG =
+            "Please look up your family and enter the code we emailed before updating an existing record.";
+
+    private record UpdateProof(Integer familyId, String appClientId, long issuedAt) {}
+
+    private final java.util.concurrent.ConcurrentHashMap<String, UpdateProof> updateProofs =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.security.SecureRandom proofRandom = new java.security.SecureRandom();
+
+    private java.util.function.LongSupplier proofClock = System::currentTimeMillis;
+
+    /** Test seam — the clock proofs are aged against, without a Spring context. */
+    public void setProofClock(java.util.function.LongSupplier clock) {
+        this.proofClock = clock != null ? clock : System::currentTimeMillis;
+    }
+
+    /** Issues a fresh one-time proof that {@code familyId} of {@code appClientId} was verified. */
+    private String issueUpdateProof(Integer familyId, String appClientId) {
+        byte[] raw = new byte[32];
+        proofRandom.nextBytes(raw);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+        if (updateProofs.size() > 10_000) updateProofs.clear();   // safety valve
+        updateProofs.put(token, new UpdateProof(familyId, appClientId, proofClock.getAsLong()));
+        return token;
+    }
+
+    /** True when {@code token} is a live proof for exactly this family and tenant. Never consumes. */
+    private boolean isValidUpdateProof(String token, Integer familyId, String appClientId) {
+        if (token == null || token.isBlank() || familyId == null || appClientId == null) return false;
+        UpdateProof p = updateProofs.get(token.trim());
+        if (p == null) return false;
+        if (proofClock.getAsLong() - p.issuedAt() > UPDATE_PROOF_TTL_MS) {
+            updateProofs.remove(token.trim());
+            return false;
+        }
+        return familyId.equals(p.familyId()) && appClientId.equals(p.appClientId());
+    }
+
+    /** A proof is good for one submission. */
+    private void spendUpdateProof(String token) {
+        if (token != null) updateProofs.remove(token.trim());
+    }
 
     private final PublicScreenLinkRepository        linkRepo;
     private final MembershipFamilyRepository        mfRepo;
     private final MembershipFamilyMemberRepository  mfmRepo;
+
+    /**
+     * The subscription plan, for the maximum-people limit applied when a public
+     * membership request is approved. Field-injected and null-checked so this
+     * controller's existing construction sites (and their tests) are unchanged.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.SubscriptionService subscriptionService;
+
+    /** Test seam — supply the plan without a Spring context. */
+    public void setSubscriptionService(com.churchgeniuspro.service.SubscriptionService s) {
+        this.subscriptionService = s;
+    }
+
+    /**
+     * The church's own wording for the Financial Report letter. Field-injected on
+     * the same terms as the plan above; absent, the report falls back to the
+     * built-in wording rather than losing the letter around the table.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.FinancialReportLetterService letterService;
+
+    /** Test seam — supply the letter text without a Spring context. */
+    public void setLetterService(com.churchgeniuspro.service.FinancialReportLetterService s) {
+        this.letterService = s;
+    }
     private final FamilyRepository                  familyRepo;
     private final FamilyMemberRepository            familyMemberRepo;
     private final ChurchRegistrationRepository      churchRegRepo;
@@ -131,6 +232,7 @@ public class MembershipFormController {
     private final PledgeCampaignRepository           pledgeCampaignRepo;
     private final PledgeMemberRepository             pledgeMemberRepo;
     private final PledgeController                    pledgeController;
+    private final PublicSendLimiter                   sendLimiter;
 
     public MembershipFormController(PublicScreenLinkRepository linkRepo,
                                     MembershipFamilyRepository mfRepo,
@@ -162,7 +264,8 @@ public class MembershipFormController {
                                     EventCalendarController eventCalendarController,
                                     PledgeCampaignRepository pledgeCampaignRepo,
                                     PledgeMemberRepository   pledgeMemberRepo,
-                                    PledgeController         pledgeController) {
+                                    PledgeController         pledgeController,
+                                    PublicSendLimiter        sendLimiter) {
         this.linkRepo          = linkRepo;
         this.mfRepo            = mfRepo;
         this.mfmRepo           = mfmRepo;
@@ -194,6 +297,7 @@ public class MembershipFormController {
         this.pledgeCampaignRepo          = pledgeCampaignRepo;
         this.pledgeMemberRepo            = pledgeMemberRepo;
         this.pledgeController            = pledgeController;
+        this.sendLimiter                 = sendLimiter;
     }
 
     // -- Public page -------------------------------------------------------
@@ -255,10 +359,16 @@ public class MembershipFormController {
     @ResponseBody
     @GetMapping("/api/membership-form/lookup")
     public ResponseEntity<Map<String, Object>> lookup(@RequestParam String cid,
-                                                      @RequestParam String query) {
+                                                      @RequestParam String query,
+                                                      HttpServletRequest request) {
         PublicScreenLink link = resolveLink(cid);
         if (link == null) return bad("Invalid or expired link.");
         if (query == null || query.isBlank()) return bad("Phone or email is required.");
+        // Unauthenticated phone/email probe that also triggers an OTP email: bounded
+        // per network origin here, and per family once the family is known (below), so
+        // it can neither enumerate members nor keep re-issuing one family's code.
+        String rateErr = sendLimiter.check(PublicSendLimiter.MEMBERSHIP_OTP, request, null, null);
+        if (rateErr != null) return ResponseEntity.status(429).body(Map.of("error", rateErr));
 
         String appClientId = link.getAppClientId();
 
@@ -293,6 +403,11 @@ public class MembershipFormController {
             return ResponseEntity.ok(r);
         }
 
+        // Per-family ceiling on codes (the network dimension was applied above).
+        String familyLimited = sendLimiter.check(PublicSendLimiter.MEMBERSHIP_OTP, (String) null,
+                                                 family.getId().toString(), null);
+        if (familyLimited != null) return ResponseEntity.status(429).body(Map.of("error", familyLimited));
+
         // Generate OTP and send email
         String otp = verificationStore.generateAndStore(family.getId().toString(), "member-lookup", targetEmail);
         String maskedEmail = maskEmail(targetEmail);
@@ -316,7 +431,8 @@ public class MembershipFormController {
 
     @ResponseBody
     @PostMapping("/api/membership-form/resend-otp")
-    public ResponseEntity<Map<String, Object>> resendOtp(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> resendOtp(@RequestBody Map<String, Object> body,
+                                                         HttpServletRequest request) {
         String cid      = (String) body.get("cid");
         Object fidObj   = body.get("familyId");
         if (cid == null || fidObj == null) return bad("Missing parameters.");
@@ -336,6 +452,12 @@ public class MembershipFormController {
 
         String storedEmail = verificationStore.getEmail(familyId.toString(), "member-lookup");
         if (storedEmail == null) return bad("Session expired. Please search again.");
+
+        // Each resend replaces the live code and e-mails the family again: bounded per
+        // network origin and per family, or a caller could both flood the inbox and keep
+        // the real applicant's code from ever staying valid (security audit P2).
+        String limited = sendLimiter.check(PublicSendLimiter.MEMBERSHIP_OTP, request, familyId.toString(), null);
+        if (limited != null) return ResponseEntity.status(429).body(Map.of("error", limited));
 
         String otp = verificationStore.generateAndStore(familyId.toString(), "member-lookup", storedEmail);
         String html = "<p>Hi,</p>"
@@ -367,16 +489,19 @@ public class MembershipFormController {
             Integer familyId = fidObj instanceof Number n ? n.intValue() : null;
             if (familyId == null) return bad("Invalid family ID.");
 
+            String appClientId = link.getAppClientId();
+
+            // The family must belong to the link's church BEFORE any code is checked
+            // or member data returned; same message as an unknown id (no oracle).
+            Family family = familyRepo.findById(familyId)
+                    .filter(f -> appClientId.equals(f.getAppClientId()))
+                    .orElse(null);
+            if (family == null) return bad("Family not found.");
+
             boolean valid = verificationStore.validate(familyId.toString(), "member-lookup", code.trim());
             if (!valid) return bad("Invalid or expired verification code.");
 
             verificationStore.remove(familyId.toString(), "member-lookup");
-
-            // Return full family data
-            Family family = familyRepo.findById(familyId).orElse(null);
-            if (family == null) return bad("Family not found.");
-
-            String appClientId = link.getAppClientId();
 
             List<Map<String, Object>> memberList = new ArrayList<>();
             for (FamilyMember fm : familyMemberRepo.findActiveMembersByFamilyId(familyId)) {
@@ -390,79 +515,41 @@ public class MembershipFormController {
             Map<String, Object> r = new LinkedHashMap<>();
             r.put("success", true);
             r.put("family",  familyMap);
+            // The page must hand this back on submit to update THIS family (see class note).
+            r.put("updateToken", issueUpdateProof(familyId, appClientId));
             return ResponseEntity.ok(r);
         } catch (Exception e) {
             log.error("Error in verify-otp: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of("error", "Server error: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Something went wrong. Please try again."));
         }
     }
 
-    // -- Public API: check username availability ----------------------------
-
-    @ResponseBody
-    @GetMapping("/api/membership-form/check-username")
-    public ResponseEntity<Map<String, Object>> checkUsername(@RequestParam String username) {
-        if (username == null || username.isBlank()) return bad("Username is required.");
-        boolean taken = loginRepository.existsByUsername(username.trim());
-        Map<String, Object> r = new LinkedHashMap<>();
-        r.put("available", !taken);
-        return ResponseEntity.ok(r);
-    }
-
-    // -- Public API: send email verification for signup ---------------------
-
-    @ResponseBody
-    @PostMapping("/api/membership-form/send-signup-otp")
-    public ResponseEntity<Map<String, Object>> sendSignupOtp(@RequestBody Map<String, Object> body) {
-        String cid   = (String) body.get("cid");
-        String email = (String) body.get("email");
-        if (cid == null || email == null || email.isBlank()) return bad("Missing parameters.");
-        PublicScreenLink link = resolveLink(cid);
-        if (link == null) return bad("Invalid or expired link.");
-
-        String otp = verificationStore.generateAndStore(cid, "signup-email", email.trim());
-        String html = "<p>Hi,</p>"
-                + "<p>Your email verification code for creating your membership account is:</p>"
-                + "<h2 style='letter-spacing:4px;color:#673147;'>" + otp + "</h2>"
-                + "<p>This code expires in <strong>10 minutes</strong>.</p>";
-        emailService.sendGenericEmail(email.trim(), "Verify Your Email", html);
-
-        Map<String, Object> r = new LinkedHashMap<>();
-        r.put("success", true);
-        r.put("maskedEmail", maskEmail(email.trim()));
-        return ResponseEntity.ok(r);
-    }
-
-    // -- Public API: verify signup email OTP -------------------------------
-
-    @ResponseBody
-    @PostMapping("/api/membership-form/verify-signup-otp")
-    public ResponseEntity<Map<String, Object>> verifySignupOtp(@RequestBody Map<String, Object> body) {
-        String cid  = (String) body.get("cid");
-        String code = (String) body.get("code");
-        if (cid == null || code == null) return bad("Missing parameters.");
-        PublicScreenLink link = resolveLink(cid);
-        if (link == null) return bad("Invalid or expired link.");
-
-        boolean valid = verificationStore.validate(cid, "signup-email", code.trim());
-        if (!valid) return bad("Invalid or expired verification code.");
-        // Don't remove yet — keep until actual signup save
-
-        Map<String, Object> r = new LinkedHashMap<>();
-        r.put("success", true);
-        return ResponseEntity.ok(r);
-    }
+    // The public form no longer creates logins. The former check-username /
+    // send-signup-otp / verify-signup-otp endpoints and the signup* fields of submit
+    // were removed (security audit P1 / N5 / N8): no shipped page called them, the
+    // code they emailed went to an address the caller chose, and the account they
+    // created was stamped onto an existing member before any approval. Member portal
+    // accounts are created through the Member Signup flow.
 
     // -- Public API: submit membership form --------------------------------
 
     @ResponseBody
     @PostMapping("/api/membership-form/submit")
-    public ResponseEntity<Map<String, Object>> submit(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> submit(@RequestBody Map<String, Object> body,
+                                                      HttpServletRequest request) {
         String cid = (String) body.get("cid");
         if (cid == null || cid.isBlank()) return bad("Missing link token.");
 
         PublicScreenLink link = resolveLink(cid);
         if (link == null) return bad("Invalid or expired link.");
+
+        // Every submission e-mails every admin of the church and stages a row (with an
+        // optional photo): bounded per network origin and per church before anything is
+        // written (security audit P2). The photo is capped to what the page itself allows.
+        String limited = sendLimiter.check(PublicSendLimiter.MEMBERSHIP_SUBMIT, request, null, link.getAppClientId());
+        if (limited != null) return ResponseEntity.status(429).body(Map.of("error", limited));
+        String photoError = checkPhotos(body.get("members"));
+        if (photoError != null) return bad(photoError);
 
         // Validate declaration when required
         Boolean declAccepted = body.get("declarationAccepted") instanceof Boolean b ? b : false;
@@ -477,11 +564,37 @@ public class MembershipFormController {
         mf.setDeclarationAccepted(declAccepted);
         mf.setAppClientId(appClientId);
 
+        // existingFamilyId arrives from an anonymous request body. It is honoured only
+        // with the proof verify-otp issued for THAT family under THIS link — the id
+        // alone is a small integer anyone holding the public link could send, and on
+        // approval the request overwrites the real members' contact details. A missing,
+        // spent, expired or mismatched proof is refused outright (never downgraded to a
+        // "new family": the applicant is told to enter their code again), and the family
+        // is still re-checked against the link's tenant as defence in depth.
         Object existingFamilyIdObj = body.get("existingFamilyId");
+        String updateToken = str(body, "updateToken");
         if (existingFamilyIdObj instanceof Number n) {
-            mf.setExistingFamilyId(n.intValue());
+            Integer famId = n.intValue();
+            if (!isValidUpdateProof(updateToken, famId, appClientId)) {
+                log.warn("Membership submit: refusing existingFamilyId={} for client {} — no valid verification proof",
+                         famId, appClientId);
+                return ResponseEntity.status(403).body(Map.of("error", UPDATE_PROOF_REQUIRED_MSG));
+            }
+            Family claimed = familyRepo.findById(famId).orElse(null);
+            if (claimed != null
+                    && !claimed.isDeleteFlag()
+                    && appClientId != null
+                    && appClientId.equals(claimed.getAppClientId())) {
+                mf.setExistingFamilyId(famId);
+            } else {
+                // Verified earlier but gone (deleted) since: treat the submission as a
+                // brand-new family rather than rejecting the applicant outright.
+                log.warn("Membership submit: ignoring existingFamilyId={} for client {} (not owned by this link)",
+                         famId, appClientId);
+            }
         }
         MembershipFamily saved = mfRepo.save(mf);
+        if (saved.getExistingFamilyId() != null) spendUpdateProof(updateToken);   // one submission per proof
 
         // Build and persist each member
         @SuppressWarnings("unchecked")
@@ -528,55 +641,8 @@ public class MembershipFormController {
             }
         }
 
-        // -- Optional: create signup credentials ---------------------------
-        String signupUsername = str(body, "signupUsername");
-        String signupPassword = str(body, "signupPassword");
-        Integer signupFamilyMemberId = body.get("signupFamilyMemberId") instanceof Number n ? n.intValue() : null;
-
-        Integer newSignupId = null;
-        if (signupUsername != null && !signupUsername.isBlank()
-                && signupPassword != null && !signupPassword.isBlank()) {
-            // Accept email as verified if:
-            //   (a) the frontend already completed the OTP step (signupEmailVerified=true), OR
-            //   (b) a valid OTP code is present in the store and matches signupEmailCode
-            boolean emailVerified = Boolean.TRUE.equals(body.get("signupEmailVerified"));
-            if (!emailVerified) {
-                String code = str(body, "signupEmailCode");
-                if (code != null && !code.isBlank()) {
-                    emailVerified = verificationStore.validate(cid, "signup-email", code.trim());
-                }
-            }
-            // Clean up OTP entry either way
-            verificationStore.remove(cid, "signup-email");
-
-            if (emailVerified && !loginRepository.existsByUsername(signupUsername.trim())) {
-                verificationStore.remove(cid, "signup-email");
-
-                SignUp signup = new SignUp();
-                signup.setUsername(signupUsername.trim());
-                signup.setPassword(com.churchgeniuspro.util.PasswordUtil.encode(signupPassword)); // BCrypt-hashed
-                signup.setActive(false);             // requires admin approval
-                signup.setDeleted(false);
-                signup.setLocked(false);
-                signup.setChurch(false);
-                signup.setCreated(new java.util.Date());
-
-                // client_id = "MBR<uuid>" — unique token, independent of the numeric ID
-                String newMemberRef = "MBR" + java.util.UUID.randomUUID().toString().replace("-", "");
-                signup.setClientId(newMemberRef);
-                SignUp savedSignup = loginRepository.save(signup);
-                newSignupId = savedSignup.getId();
-
-                // Link the family member by setting their memberRef to match signup.clientId
-                if (signupFamilyMemberId != null) {
-                    FamilyMember fm = familyMemberRepo.findById(signupFamilyMemberId).orElse(null);
-                    if (fm != null) { fm.setMemberRef(newMemberRef); familyMemberRepo.save(fm); }
-                }
-                // Also store signupId on the MembershipFamily staging record
-                saved.setSignupId(newSignupId);
-                mfRepo.save(saved);
-            }
-        }
+        // No login is created here and nothing in family_member is touched by an
+        // anonymous submission (see class note): the request is staged for review only.
 
         // -- Notify Admin & SuperAdmin users -------------------------------
         try {
@@ -598,64 +664,52 @@ public class MembershipFormController {
                         .orElse("A member");
             }
             final String finalHeadName = headName;
-            final Integer finalSignupId = newSignupId;
 
+            // Phase B: notifying every admin of one new request is ONE email action.
+            try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("membership-request-admin-notify")) {
             for (AppUser admin : admins) {
                 if (admin.getEmail() == null || admin.getEmail().isBlank()) continue;
                 String html = "<p>Hi " + admin.getFirstName() + ",</p>"
                         + "<p><strong>" + finalHeadName + "</strong> has submitted a membership form for "
                         + churchName + ".</p>"
                         + "<p>Please log in to the <strong>Membership Requests</strong> page to review and approve it.</p>"
-                        + (finalSignupId != null ? "<p>This submission includes a new login account that requires activation.</p>" : "")
                         + "<p>— " + churchName + "</p>";
                 emailService.sendOrgEmail(admin.getEmail(),
                         "New Membership Form Submitted – " + finalHeadName,
                         html, appClientId);
             }
+            }
         } catch (Exception e) {
             // Never fail the submission due to notification errors
+        }
+
+        if (submissionNotifications != null) {
+            String who = "A family";
+            try {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> ms = (List<Map<String, Object>>) body.get("members");
+                if (ms != null) {
+                    who = ms.stream()
+                            .filter(m -> "Head".equalsIgnoreCase(str(m, "role")))
+                            .map(m -> ((str(m, "firstName") != null ? str(m, "firstName") : "") + " "
+                                     + (str(m, "lastName")  != null ? str(m, "lastName")  : "")).trim())
+                            .filter(n -> !n.isBlank()).findFirst().orElse(who);
+                }
+            } catch (Exception ignored) { }
+            submissionNotifications.record(appClientId,
+                    com.churchgeniuspro.service.PublicSubmissionNotificationService.Type.MEMBERSHIP,
+                    "New membership form",
+                    who + " submitted a membership form for review.",
+                    saved.getId() == null ? null : saved.getId().longValue());
         }
 
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("success", true);
         r.put("id", saved.getId());
-        if (newSignupId != null) r.put("signupCreated", true);
         return ResponseEntity.ok(r);
     }
 
-    // -- Member debug endpoint ---------------------------------------------
-
-    @ResponseBody
-    @GetMapping("/api/member/debug")
-    public ResponseEntity<?> memberDebug(HttpServletRequest request) {
-        jakarta.servlet.http.HttpSession session = request.getSession(false);
-        Map<String, Object> info = new LinkedHashMap<>();
-        if (session == null) { info.put("session", "null"); return ResponseEntity.ok(info); }
-        info.put("memberId",   session.getAttribute("memberId"));
-        info.put("signupId",   session.getAttribute("signupId"));
-        info.put("role",       session.getAttribute("role"));
-        info.put("clientId",   session.getAttribute("clientId"));
-        info.put("appClientId",session.getAttribute("appClientId"));
-        info.put("firstName",  session.getAttribute("firstName"));
-
-        // Lookup via memberRef (clientId = MBR<uuid> stored in session)
-        String memberRefDebug = session.getAttribute("clientId") instanceof String s ? s : null;
-        info.put("memberRef", memberRefDebug);
-        if (memberRefDebug != null && memberRefDebug.startsWith("MBR")) {
-            FamilyMember byMemberRef = familyMemberRepo.findByMemberRef(memberRefDebug).orElse(null);
-            info.put("familyMember_byMemberRef", byMemberRef != null
-                ? Map.of("id", byMemberRef.getId(),
-                         "name", (byMemberRef.getFirstName() != null ? byMemberRef.getFirstName() : "") + " " + (byMemberRef.getLastName() != null ? byMemberRef.getLastName() : ""),
-                         "email", byMemberRef.getEmail() != null ? byMemberRef.getEmail() : "")
-                : "null");
-            com.churchgeniuspro.hibernate.SignUp su = loginRepository.findByClientId(memberRefDebug).orElse(null);
-            if (su != null) {
-                info.put("signup_username", su.getUsername());
-                info.put("signup_active",   su.getActive());
-            }
-        }
-        return ResponseEntity.ok(info);
-    }
+    // (The former /api/member/debug session dump was removed — security audit P16.)
 
     // -- Admin: manually link a signup to a family member -----------------
     @ResponseBody
@@ -668,10 +722,23 @@ public class MembershipFormController {
         Integer familyMemberId = body.get("familyMemberId") instanceof Number n ? n.intValue() : null;
         if (signupId == null || familyMemberId == null)
             return ResponseEntity.badRequest().body(Map.of("error", "signupId and familyMemberId are required"));
-        FamilyMember fm = familyMemberRepo.findById(familyMemberId).orElse(null);
+        String adminClientId = RoleGuard.clientId(request);
+        FamilyMember fm = familyMemberRepo.findById(familyMemberId)
+                .filter(m -> adminClientId != null && adminClientId.equals(
+                        m.getFamily() != null ? m.getFamily().getAppClientId() : m.getAppClientId()))
+                .orElse(null);
         if (fm == null) return ResponseEntity.badRequest().body(Map.of("error", "Family member not found"));
         com.churchgeniuspro.hibernate.SignUp su = loginRepository.findById(signupId).orElse(null);
         if (su == null) return ResponseEntity.badRequest().body(Map.of("error", "Signup not found"));
+        // The signup must have been created by an application to THIS church, or be an
+        // unbound member signup. Never re-bind a signup that is already someone's login.
+        boolean fromThisChurch = mfRepo.findBySignupIdAndDeleteFlagFalse(signupId)
+                .map(mf -> adminClientId.equals(mf.getAppClientId())).orElse(false);
+        boolean alreadyBound = su.getClientId() != null && su.getClientId().startsWith("MBR")
+                && familyMemberRepo.findByMemberRef(su.getClientId()).map(m -> !m.getId().equals(fm.getId())).orElse(false);
+        if (!fromThisChurch || alreadyBound) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Signup not found"));
+        }
         // Link by setting the family member's memberRef to match the signup's clientId
         if (su.getClientId() != null && su.getClientId().startsWith("MBR")) {
             fm.setMemberRef(su.getClientId());
@@ -700,29 +767,14 @@ public class MembershipFormController {
             self = familyMemberRepo.findById(memberId).orElse(null);
         }
 
-        // memberId not in session — resolve via clientId (= memberRef = MBR<uuid>)
+        // memberId not in session — resolve via clientId (= memberRef = MBR<uuid>).
+        // The MBR token is the only trusted member<->row binding (unique member_ref; the
+        // same rule LoginController.buildResponse applies). There is deliberately no
+        // email/username fallback: a lookup must never change the session's tenant.
         if (self == null) {
             String clientId = session.getAttribute("clientId") instanceof String s ? s : null;
             if (clientId != null && clientId.startsWith("MBR")) {
                 self = familyMemberRepo.findByMemberRef(clientId).orElse(null);
-
-                // Self-heal: memberRef not linked yet — try matching by email (username)
-                if (self == null) {
-                    com.churchgeniuspro.hibernate.SignUp su =
-                            loginRepository.findByClientId(clientId).orElse(null);
-                    if (su != null) {
-                        java.util.List<FamilyMember> candidates =
-                                familyMemberRepo.findActiveByEmail(su.getUsername());
-                        if (!candidates.isEmpty()) {
-                            self = candidates.get(0);
-                            if (self.getMemberRef() == null) {
-                                self.setMemberRef(clientId);
-                                familyMemberRepo.save(self);
-                            }
-                        }
-                    }
-                }
-
                 if (self != null) {
                     session.setAttribute("memberId", self.getId());
                     if (self.getMemberRef() != null)
@@ -746,17 +798,13 @@ public class MembershipFormController {
                 if (appUser != null && appUser.getEmail() != null && !appUser.getEmail().isBlank()) {
                     String staffEmail    = appUser.getEmail().trim().toLowerCase();
                     String staffClientId = appUser.getClientId(); // org's appClientId
-                    // Find a FamilyMember with matching email in the same org
-                    java.util.List<FamilyMember> candidates =
-                            familyMemberRepo.findActiveByEmail(staffEmail);
-                    for (FamilyMember candidate : candidates) {
-                        String candidateOrg = candidate.getFamily() != null
-                                ? candidate.getFamily().getAppClientId()
-                                : candidate.getAppClientId();
-                        if (staffClientId != null && staffClientId.equals(candidateOrg)) {
-                            self = candidate;
-                            break;
-                        }
+                    // Find a FamilyMember with matching email in the same org. The query is
+                    // tenant-scoped (never a cross-tenant scan) — same predicate the previous
+                    // in-memory filter applied, so results are unchanged.
+                    if (staffClientId != null) {
+                        java.util.List<FamilyMember> candidates =
+                                familyMemberRepo.findActiveByEmailAndTenant(staffEmail, staffClientId);
+                        if (!candidates.isEmpty()) self = candidates.get(0);
                     }
                     if (self != null) {
                         // Cache in session so subsequent API calls resolve instantly
@@ -1268,6 +1316,7 @@ public class MembershipFormController {
     @ResponseBody
     @PostMapping("/api/member/contact-admin")
     public ResponseEntity<?> contactAdmin(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("member-contact-admin")) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         ResponseEntity<?> guard = guardMemberApi(session, Map.of("success", false, "error", "Not a member account"));
         if (guard != null) return guard;
@@ -1293,6 +1342,7 @@ public class MembershipFormController {
             for (AppUser admin : admins) { if (admin.getEmail()==null||admin.getEmail().isBlank()) continue; emailService.sendOrgEmail(admin.getEmail(), emailSubject, html, appClientId); }
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) { return ResponseEntity.status(500).body(Map.of("error", "Failed to send email.")); }
+            }
     }
 
     // -- Member API: get purposes for Give ---------------------------------
@@ -1315,28 +1365,14 @@ public class MembershipFormController {
     @ResponseBody
     @PostMapping("/api/member/give")
     public ResponseEntity<?> memberGive(@RequestBody Map<String,Object> body, HttpServletRequest request) {
+        // Phase D: a contribution is a real Stripe payment made through
+        // MemberContributionController (/api/member/give/intent + /save). This
+        // endpoint used to record an income row with no payment behind it; it no
+        // longer records anything.
         Object memberIdObj = request.getSession(false)!=null?request.getSession(false).getAttribute("memberId"):null;
         if (memberIdObj == null) return ResponseEntity.status(401).body(Map.of("error","Not authenticated"));
-        Integer memberId = memberIdObj instanceof Number n ? n.intValue() : null;
-        Object appCidObj = request.getSession(false).getAttribute("appClientId");
-        String appClientId = appCidObj!=null?String.valueOf(appCidObj):null;
-        FamilyMember fm = memberId!=null?familyMemberRepo.findById(memberId).orElse(null):null;
-        if (fm==null) return ResponseEntity.status(400).body(Map.of("error","Member not found"));
-        Integer subSourceId = body.get("subSourceId") instanceof Number n ? n.intValue():null;
-        if (subSourceId==null) return ResponseEntity.badRequest().body(Map.of("error","Purpose is required."));
-        SubSource ss = subSourceRepo.findById(subSourceId).orElse(null);
-        if (ss==null) return ResponseEntity.badRequest().body(Map.of("error","Invalid purpose."));
-        BigDecimal amount; try { amount=new BigDecimal(String.valueOf(body.get("amount"))); if(amount.compareTo(BigDecimal.ZERO)<=0) throw new NumberFormatException(); } catch(Exception e){ return ResponseEntity.badRequest().body(Map.of("error","A valid amount greater than zero is required.")); }
-        String dateStr=(String)body.get("incomeDate"); LocalDate incomeDate; try{incomeDate=LocalDate.parse(dateStr);}catch(Exception e){incomeDate=LocalDate.now();}
-        Income income=new Income(); income.setMember(fm); income.setSubSource(ss); income.setIncomeDate(incomeDate); income.setAmount(amount); income.setNote((String)body.get("note")); income.setAppClientId(appClientId); income.setCreatedBy(String.valueOf(request.getSession(false).getAttribute("username")));
-        incomeRepo.save(income);
-        // Auto-credit the member's pledge balance when this purpose (fund) is tied to
-        // an active campaign they've pledged to. No-op for non-campaign purposes.
-        // Mirrors the admin giving path (IncomeService.createIncome). Silent on failure.
-        try {
-            pledgeController.applyIncomeToPledge(appClientId, ss.getId(), fm.getId(), amount);
-        } catch (Exception ignored) { /* pledge module is optional */ }
-        return ResponseEntity.ok(Map.of("success",true));
+        return ResponseEntity.status(410).body(Map.of("error",
+                "Contributions are now made as online payments. Please use the Give / Contribute form to pay by card."));
     }
 
     // -- Member API: personal tax / giving report -------------------------
@@ -1415,6 +1451,13 @@ public class MembershipFormController {
         result.put("churchName",  churchName);
         result.put("member",      memberData);
         result.put("grandTotal",  memberTotal);
+        // The wording above and below the contribution table, this church's own
+        // where it has edited it. Same source as the staff Year-End Tax Report, so
+        // a member's statement and the printed one cannot drift apart.
+        result.putAll(letterService != null
+                ? letterService.rendered(appClientId, churchName, filterYear)
+                : com.churchgeniuspro.service.FinancialReportLetterService
+                        .defaults(churchName, filterYear));
         return ResponseEntity.ok(result);
     }
 
@@ -1449,7 +1492,7 @@ public class MembershipFormController {
         // Member portal users (isMember) bypass this — sub-tab visibility is
         // governed separately by memberPrivileges, not the section-level gate.
         if (isStaff && !isMember) {
-            String deny = com.churchgeniuspro.util.RoleGuard.requirePermission(request, "member");
+            String deny = com.churchgeniuspro.util.RoleGuard.requirePagePermission(request, "member");
             if (deny != null) return deny;
         }
 
@@ -1463,7 +1506,7 @@ public class MembershipFormController {
     public ResponseEntity<?> approveSignup(@PathVariable Integer id, HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrChurch(request);
         if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
-        MembershipFamily mf = mfRepo.findByIdAndDeleteFlagFalse(id).orElse(null);
+        MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, SessionUtil.getAppClientId(request)).orElse(null);
         if (mf==null) return ResponseEntity.notFound().build();
         if (mf.getSignupId()==null) return ResponseEntity.badRequest().body(Map.of("error","No signup account."));
         SignUp signup = loginRepository.findById(mf.getSignupId()).orElse(null);
@@ -1486,7 +1529,7 @@ public class MembershipFormController {
             return deny != null ? deny : "forward:/membershipRequests.html";
         }
         String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return deny;
-        deny = RoleGuard.requirePermission(request, "admin.membership"); if (deny!=null) return deny;
+        deny = RoleGuard.requirePagePermission(request, "admin.membership"); if (deny!=null) return deny;
         return "forward:/membershipRequests.html";
     }
 
@@ -1517,7 +1560,8 @@ public class MembershipFormController {
         } else {
             String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
         }
-        MembershipFamily mf = mfRepo.findByIdAndDeleteFlagFalse(id).orElse(null);
+        String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
+        MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
         if (mf==null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(toFamilyMap(mf,true));
     }
@@ -1532,13 +1576,36 @@ public class MembershipFormController {
         } else {
             String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
         }
-        MembershipFamily mf = mfRepo.findByIdAndDeleteFlagFalse(id).orElse(null);
+        String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
+        MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
         if (mf==null) return ResponseEntity.notFound().build();
         List<MembershipFamilyMember> mfMembers = mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(id);
+
+        // Subscription plan: approving turns a public request into real people, so
+        // it answers to the same maximum-people limit the admin Add Family screen
+        // does. Checked at approval rather than at submission: a visitor filling in
+        // the public form must not be told about the church's plan, and a request
+        // that arrives while the church is at its limit is still worth keeping.
+        try {
+            if (subscriptionService != null) {
+                long current = familyMemberRepo.countActiveMembers(appClientId);
+                String limitMsg = subscriptionService.checkPeopleLimit(appClientId, current, mfMembers.size());
+                if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+            }
+        } catch (Exception ignored) { /* fail-open: never block an approval on a limit-check error */ }
+
         Family targetFamily; boolean isExisting = mf.getExistingFamilyId()!=null;
         if (isExisting) {
             targetFamily = familyRepo.findById(mf.getExistingFamilyId()).orElse(null);
             if (targetFamily==null) return bad("Existing family not found.");
+            // Defence in depth: never merge a request into a family belonging to a
+            // different tenant, even if a stale row predates the check in submit().
+            if (mf.getAppClientId() == null
+                    || !mf.getAppClientId().equals(targetFamily.getAppClientId())) {
+                log.warn("Membership approve: refusing cross-tenant merge of request {} (request client {}, family {} client {})",
+                         id, mf.getAppClientId(), targetFamily.getId(), targetFamily.getAppClientId());
+                return bad("This request refers to a family that does not belong to your church.");
+            }
             familyRepo.save(targetFamily);
             List<FamilyMember> existing = familyMemberRepo.findActiveMembersByFamilyId(targetFamily.getId());
             // Track which existing members have already been matched to avoid double-matching
@@ -1621,7 +1688,13 @@ public class MembershipFormController {
     }
 
     private PublicScreenLink resolveLink(String cid) {
-        return linkRepo.findByToken(cid).filter(l->!l.isRevoked()).filter(l->l.getExpirationDate()==null||!l.getExpirationDate().isBefore(LocalDate.now())).orElse(null);
+        // Only a token minted for the Membership Form page may unlock these endpoints;
+        // a Member Signup / SMS Opt-In / Donation token for the same church must not.
+        return linkRepo.findByToken(cid)
+                .filter(l->PublicScreensController.MEMBERSHIP_FORM_URL.equals(l.getPageUrl()))
+                .filter(l->!l.isRevoked())
+                .filter(l->l.getExpirationDate()==null||!l.getExpirationDate().isBefore(LocalDate.now()))
+                .orElse(null);
     }
 
     private Map<String,Object> toFamilyMap(MembershipFamily f, boolean includeMembers) {
@@ -1630,6 +1703,12 @@ public class MembershipFormController {
         String familyName = head!=null&&head.getLastName()!=null&&!head.getLastName().isBlank() ? head.getLastName()+" Family" : (head!=null&&head.getFirstName()!=null?head.getFirstName()+"'s Family":"—");
         Map<String,Object> m=new LinkedHashMap<>();
         m.put("id",f.getId()); m.put("familyName",familyName); m.put("familyCity",head!=null&&head.getCity()!=null?head.getCity():"");
+        // The family's contact details are the Head's (the public form has one address/phone/email for the family).
+        if (head != null) {
+            m.put("familyAddress1", head.getAddress1()); m.put("familyAddress2", head.getAddress2());
+            m.put("familyState", head.getState()); m.put("familyCountry", head.getCountry()); m.put("familyPinCode", head.getPinCode());
+            m.put("familyPhone", head.getPhone()); m.put("familyEmail", head.getEmail());
+        }
         m.put("declarationAccepted",f.getDeclarationAccepted()); m.put("existingFamilyId",f.getExistingFamilyId()); m.put("hasExistingFamily",f.getExistingFamilyId()!=null);
         m.put("signupId",f.getSignupId()); m.put("createdDate",f.getCreatedDate()!=null?f.getCreatedDate().toString():null);
         if (f.getSignupId()!=null){SignUp su=loginRepository.findById(f.getSignupId()).orElse(null);if(su!=null){m.put("signupUsername",su.getUsername());m.put("signupActive",Boolean.TRUE.equals(su.getActive()));}}
@@ -1640,7 +1719,12 @@ public class MembershipFormController {
                 row.put("id",mfm.getId()); row.put("role",mfm.getRole()); row.put("gender",mfm.getGender()); row.put("firstName",mfm.getFirstName()); row.put("middleName",mfm.getMiddleName()); row.put("lastName",mfm.getLastName());
                 row.put("phone",mfm.getPhone()); row.put("email",mfm.getEmail()); row.put("memberType",mfm.getMemberType());
                 row.put("birthdayMonth",mfm.getBirthdayMonth()); row.put("birthdayDay",mfm.getBirthdayDay()); row.put("birthdayYear",mfm.getBirthdayYear());
+                row.put("anniversaryMonth",mfm.getAnniversaryMonth()); row.put("anniversaryDay",mfm.getAnniversaryDay()); row.put("anniversaryYear",mfm.getAnniversaryYear());
                 row.put("address1",mfm.getAddress1()); row.put("address2",mfm.getAddress2()); row.put("city",mfm.getCity()); row.put("state",mfm.getState()); row.put("country",mfm.getCountry()); row.put("pinCode",mfm.getPinCode());
+                row.put("sameAsFamilyAddress",mfm.isSameAsFamilyAddress()); row.put("otherName",mfm.getOtherName()); row.put("comments",mfm.getComments());
+                row.put("phonePrivate",Boolean.TRUE.equals(mfm.getPhonePrivate())); row.put("emailPrivate",Boolean.TRUE.equals(mfm.getEmailPrivate())); row.put("addressPrivate",Boolean.TRUE.equals(mfm.getAddressPrivate()));
+                boolean hasPhoto = mfm.getPhotoData()!=null && !mfm.getPhotoData().isBlank();
+                row.put("hasPhoto",hasPhoto); if (hasPhoto) row.put("photoData",mfm.getPhotoData());   // review screen only (admin, own tenant)
                 mm.add(row);
             }
             m.put("members",mm);
@@ -1711,6 +1795,28 @@ public class MembershipFormController {
         if (obj instanceof java.sql.Date sd)       return sd.toLocalDate().toString();
         if (obj instanceof java.util.Date ud)      return new java.sql.Date(ud.getTime()).toLocalDate().toString();
         return obj.toString();
+    }
+
+    /** The page refuses files over 2 MB; a data-URL of one is under this. */
+    public static final int MAX_PHOTO_CHARS = 3_000_000;
+
+    /**
+     * A member photo must be an image data-URL of at most {@link #MAX_PHOTO_CHARS}
+     * characters. Returns the message to show, or {@code null} when every photo is fine.
+     */
+    static String checkPhotos(Object members) {
+        if (!(members instanceof List<?> list)) return null;
+        for (Object o : list) {
+            if (!(o instanceof Map<?, ?> m)) continue;
+            Object photo = m.get("photo");
+            if (photo == null) continue;
+            String p = photo.toString();
+            if (p.isBlank()) continue;
+            if (!p.startsWith("data:image/") || p.length() > MAX_PHOTO_CHARS) {
+                return "Photo must be an image under 2 MB.";
+            }
+        }
+        return null;
     }
 
     private String str(Map<String, Object> m, String key) {
@@ -1926,6 +2032,10 @@ public class MembershipFormController {
                         : (recipObj != null ? Integer.parseInt(recipObj.toString()) : null);
         if (recipId == null) return ResponseEntity.badRequest().body(Map.of("error", "Recipient required."));
         if (recipId.equals(selfId)) return ResponseEntity.badRequest().body(Map.of("error", "Cannot message yourself."));
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        // The recipient id comes straight from the body: it must be a member of the same church.
+        if (familyMemberRepo.findByIdAndTenant(recipId, appClientId).isEmpty())
+            return ResponseEntity.status(404).body(Map.of("error", "Recipient not found."));
 
         String msgBody = str(body, "body");
         if (msgBody == null || msgBody.isBlank())
@@ -2018,6 +2128,10 @@ public class MembershipFormController {
 
         MemberMessage root = memberMessageRepo.findById(rootId).orElse(null);
         if (root == null) return ResponseEntity.notFound().build();
+        // Only a participant of this thread, in this church, may reply into it.
+        boolean participant = selfId.equals(root.getSenderMemberId()) || selfId.equals(root.getRecipientMemberId());
+        if (!participant || appClientId == null || !appClientId.equals(root.getAppClientId()))
+            return ResponseEntity.notFound().build();
 
         // Reply goes to the OTHER party in the thread
         Integer recipId = root.getSenderMemberId().equals(selfId)
@@ -2130,6 +2244,7 @@ public class MembershipFormController {
     @PostMapping("/api/member/send-email")
     public ResponseEntity<?> sendEmailToMembers(@RequestBody Map<String, Object> body,
                                                 HttpServletRequest request) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("member-send-email")) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         ResponseEntity<?> guard = guardMemberApi(session, Map.of("success", false, "error", "Not a member account"));
         if (guard != null) return guard;
@@ -2155,16 +2270,10 @@ public class MembershipFormController {
                 + msgBody.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
                 + "</div>";
 
-        // Support direct email to a raw address (e.g. non-account group member)
-        String directEmail = str(body, "directEmail");
-        if (directEmail != null && !directEmail.isBlank()) {
-            try {
-                emailService.sendOrgEmail(directEmail.trim(),
-                        subject + " (from " + senderName + ")",
-                        htmlBody, appClientId);
-            } catch (Exception ignored) { /* non-fatal */ }
-            return ResponseEntity.ok(Map.of("success", true, "sent", 1));
-        }
+        // The former "directEmail" raw-address path was removed: it let any member
+        // account relay arbitrary mail to any address under the church's sender
+        // identity. memberHome.html never sets it. Recipients are member ids only.
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
         @SuppressWarnings("unchecked")
         List<Object> recipIds = body.get("recipientIds") instanceof List<?> l
@@ -2176,7 +2285,7 @@ public class MembershipFormController {
         for (Object idObj : recipIds) {
             Integer rid = idObj instanceof Number n ? n.intValue()
                         : Integer.parseInt(idObj.toString());
-            FamilyMember recip = familyMemberRepo.findById(rid).orElse(null);
+            FamilyMember recip = familyMemberRepo.findByIdAndTenant(rid, appClientId).orElse(null);
             if (recip == null || recip.getEmail() == null || recip.getEmail().isBlank()) continue;
             try {
                 emailService.sendOrgEmail(recip.getEmail(),
@@ -2186,7 +2295,20 @@ public class MembershipFormController {
             } catch (Exception ignored) { /* non-fatal */ }
         }
 
+        // Phase B: on a Trial/Demo tenant with a verified test address one test copy
+        // went there and the recipients were simulated; say so instead of "sent".
+        EmailService.Delivery d = emailService.delivery(appClientId);
+        if (d.test()) {
+            return ResponseEntity.ok(Map.of("success", true, "sent", 0,
+                    "testEmailsSent", __scope.testEmailsSent(), "simulated", __scope.simulated(), "testEmail", d.testEmail(),
+                    "message", "Trial/Demo test: " + __scope.testEmailsSent() + " test email sent to " + d.testEmail()
+                             + " — " + __scope.simulated() + " recipient(s) simulated, none emailed."));
+        }
+        if (d.blocked()) {
+            return ResponseEntity.ok(Map.of("success", true, "sent", 0, "blocked", sent, "blockReason", d.reason()));
+        }
         return ResponseEntity.ok(Map.of("success", true, "sent", sent));
+            }
     }
 
     // -- Member API: send email to all group members with email ----------------
@@ -2196,6 +2318,7 @@ public class MembershipFormController {
     public ResponseEntity<?> sendGroupEmail(@PathVariable Integer groupId,
                                             @RequestBody Map<String, Object> body,
                                             HttpServletRequest request) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("member-group-email")) {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         ResponseEntity<?> guard = guardMemberApi(session, Map.of("success", false, "error", "Not a member account"));
         if (guard != null) return guard;
@@ -2257,6 +2380,7 @@ public class MembershipFormController {
                        : noEmail > 0 ? "No emails sent — group members have no email addresses on file."
                        : "No other members to email.";
         return ResponseEntity.ok(Map.of("success", true, "sent", sent, "message", message));
+            }
     }
 
     // -- Member API: send SMS to a member ---------------------------------------
@@ -2281,9 +2405,13 @@ public class MembershipFormController {
         String msg   = str(body, "message");
         if (phone == null) return ResponseEntity.badRequest().body(Map.of("error", "Phone required."));
         if (msg   == null) return ResponseEntity.badRequest().body(Map.of("error", "Message required."));
+        // The number must be a member of this church. A member could otherwise use the
+        // church's Twilio/WhatsApp identity to message any phone in the world.
+        String target = memberPhoneInTenant(phone, appClientId);
+        if (target == null) return ResponseEntity.status(404).body(Map.of("error", "That number is not in your church directory."));
 
         try {
-            whatsAppSenderService.sendSmsToPhone(phone, senderName + ": " + msg, appClientId);
+            whatsAppSenderService.sendSmsToPhone(target, senderName + ": " + msg, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Failed to send SMS: " + e.getMessage()));
@@ -2312,9 +2440,13 @@ public class MembershipFormController {
         String msg   = str(body, "message");
         if (phone == null) return ResponseEntity.badRequest().body(Map.of("error", "Phone required."));
         if (msg   == null) return ResponseEntity.badRequest().body(Map.of("error", "Message required."));
+        // The number must be a member of this church. A member could otherwise use the
+        // church's Twilio/WhatsApp identity to message any phone in the world.
+        String target = memberPhoneInTenant(phone, appClientId);
+        if (target == null) return ResponseEntity.status(404).body(Map.of("error", "That number is not in your church directory."));
 
         try {
-            whatsAppSenderService.sendWhatsAppToPhone(phone, senderName + ": " + msg, appClientId);
+            whatsAppSenderService.sendWhatsAppToPhone(target, senderName + ": " + msg, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Failed to send WhatsApp: " + e.getMessage()));
@@ -2662,4 +2794,18 @@ public class MembershipFormController {
     }
 
 
+
+    /**
+     * Returns the E.164 form of {@code phone} when it belongs to an active member of
+     * {@code appClientId}'s directory, else null. Compared in normalised form so the
+     * directory's stored formatting does not matter.
+     */
+    private String memberPhoneInTenant(String phone, String appClientId) {
+        String wanted = com.churchgeniuspro.util.PhoneNumbers.toE164(phone);
+        if (wanted == null || appClientId == null) return null;
+        boolean known = familyMemberRepo.findAllWithFamilyByAppUser(appClientId).stream()
+                .map(m -> com.churchgeniuspro.util.PhoneNumbers.toE164(m.getPhone()))
+                .anyMatch(wanted::equals);
+        return known ? wanted : null;
+    }
 }

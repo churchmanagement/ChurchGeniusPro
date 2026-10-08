@@ -98,6 +98,7 @@ public class PayrollReportsController {
             m.put("grossEarnings", s.getGrossEarnings());
             m.put("totalTaxes", s.getTotalTaxes());
             m.put("netPay", s.getNetPay());
+            m.put("arrearsAmount", s.getArrearsAmount());
             m.put("voided", s.isVoided());
             m.put("pdfUrl", "/api/payroll/paystubs/" + s.getId() + "/pdf");
             out.add(m);

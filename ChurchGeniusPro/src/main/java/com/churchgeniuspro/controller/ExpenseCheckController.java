@@ -2,6 +2,7 @@ package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.hibernate.ExpenseCheckImage;
 import com.churchgeniuspro.repository.ExpenseCheckImageRepository;
+import com.churchgeniuspro.repository.ExpenseRepository;
 import com.churchgeniuspro.service.CheckExtractor;
 import com.churchgeniuspro.service.VisionCheckService;
 import com.churchgeniuspro.util.RoleGuard;
@@ -30,15 +31,18 @@ public class ExpenseCheckController {
     private final CheckExtractor extractor;
     private final VisionCheckService vision;
     private final ExpenseCheckImageRepository imageRepo;
+    private final ExpenseRepository expenseRepo;
     private final com.churchgeniuspro.service.VisionUploadService visionUpload;
 
     public ExpenseCheckController(CheckExtractor extractor,
                                   VisionCheckService vision,
                                   ExpenseCheckImageRepository imageRepo,
+                                  ExpenseRepository expenseRepo,
                                   com.churchgeniuspro.service.VisionUploadService visionUpload) {
         this.extractor = extractor;
         this.vision = vision;
         this.imageRepo = imageRepo;
+        this.expenseRepo = expenseRepo;
         this.visionUpload = visionUpload;
     }
 
@@ -47,7 +51,8 @@ public class ExpenseCheckController {
     @PostMapping(value = "/api/expense/check-scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> scan(@RequestParam("file") MultipartFile file,
                                                      HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
@@ -93,7 +98,8 @@ public class ExpenseCheckController {
     @PostMapping(value = "/api/expense/check-parse", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> parse(@RequestBody Map<String, Object> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
@@ -111,11 +117,16 @@ public class ExpenseCheckController {
     public ResponseEntity<Map<String, Object>> storeImage(@PathVariable Integer expenseId,
                                                            @RequestParam("file") MultipartFile file,
                                                            HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         if (file == null || file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No file."));
+        // The image is attached to an expense row: only accept an id that belongs to this church.
+        if (expenseRepo.findByIdAndAppClientIdAndDeleteFlagFalse(expenseId, clientId).isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "Expense record not found: " + expenseId));
+        }
         try {
             ExpenseCheckImage img = new ExpenseCheckImage();
             img.setExpenseId(expenseId);
@@ -134,7 +145,8 @@ public class ExpenseCheckController {
     /** Retrieve the most recent stored check image for an expense record. */
     @GetMapping("/api/expense/{expenseId}/check-image")
     public ResponseEntity<byte[]> getImage(@PathVariable Integer expenseId, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.expense");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense");
         if (deny != null) return ResponseEntity.status(403).build();
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();

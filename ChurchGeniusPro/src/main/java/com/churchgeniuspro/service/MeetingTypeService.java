@@ -50,9 +50,9 @@ public class MeetingTypeService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public MeetingType update(Integer id, String typeName) {
+    public MeetingType update(Integer id, String typeName, String appClientId) {
         String name = typeName.trim();
-        MeetingType mt = findOrThrow(id);
+        MeetingType mt = findOrThrow(id, appClientId);
         // Use the existing record's appClientId so the check stays within the same org
         if (repository.existsByTypeNameAndClientIdAndIdNot(name, mt.getAppClientId(), id)) {
             throw new IllegalArgumentException(
@@ -65,8 +65,8 @@ public class MeetingTypeService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        MeetingType mt = findOrThrow(id);
+    public void delete(Integer id, String appClientId) {
+        MeetingType mt = findOrThrow(id, appClientId);
         mt.setDeleteFlag(true);
         repository.save(mt);
     }
@@ -80,8 +80,9 @@ public class MeetingTypeService {
         return m;
     }
 
-    private MeetingType findOrThrow(Integer id) {
-        return repository.findById(id)
+    /** Tenant-scoped, non-deleted lookup; unknown and foreign ids fail identically. */
+    private MeetingType findOrThrow(Integer id, String appClientId) {
+        return repository.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Meeting type not found: " + id));
     }

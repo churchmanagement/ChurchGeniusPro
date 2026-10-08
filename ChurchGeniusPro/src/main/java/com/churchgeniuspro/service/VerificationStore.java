@@ -5,9 +5,10 @@ import com.churchgeniuspro.repository.VerificationCodeRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Persistent store for 6-digit email verification (OTP) codes.
@@ -21,9 +22,18 @@ public class VerificationStore {
 
     private static final int  OTP_BOUND      = 1_000_000; // 000000–999999
     private static final long EXPIRY_MINUTES = 10;
+    /** Wrong guesses allowed per stored code before it is discarded. */
+    public static final int   MAX_ATTEMPTS   = 5;
 
     private final VerificationCodeRepository repo;
-    private final Random random = new Random();
+    // OTPs are a secret; java.util.Random is predictable from a few outputs.
+    private final SecureRandom random = new SecureRandom();
+    /**
+     * Wrong-guess counter per clientId|type. The entity has no attempts column,
+     * so this lives in memory (single-instance deployment, like PublicFormGuard);
+     * a restart simply resets it, the 10-minute expiry still bounds the window.
+     */
+    private final ConcurrentHashMap<String, Integer> attempts = new ConcurrentHashMap<>();
 
     public VerificationStore(VerificationCodeRepository repo) {
         this.repo = repo;
@@ -40,6 +50,7 @@ public class VerificationStore {
 
         // Upsert: delete existing entry for this clientId+type then insert fresh
         repo.deleteByClientIdAndType(clientId, type);
+        attempts.remove(key(clientId, type));
 
         VerificationCode vc = new VerificationCode();
         vc.setClientId(clientId);
@@ -54,7 +65,9 @@ public class VerificationStore {
 
     /**
      * Returns {@code true} when the supplied code matches the stored code AND
-     * the entry has not yet expired.
+     * the entry has not yet expired. After {@link #MAX_ATTEMPTS} wrong codes the
+     * stored code is deleted (a 6-digit OTP is trivially brute-forced otherwise);
+     * the caller must request a fresh one. A correct guess clears the counter.
      */
     public boolean validate(String clientId, String type, String code) {
         Optional<VerificationCode> opt = repo.findByClientIdAndType(clientId, type);
@@ -62,9 +75,21 @@ public class VerificationStore {
         VerificationCode vc = opt.get();
         if (LocalDateTime.now().isAfter(vc.getExpiresAt())) {
             repo.deleteByClientIdAndType(clientId, type);
+            attempts.remove(key(clientId, type));
             return false;
         }
-        return vc.getCode().equals(code);
+        String k = key(clientId, type);
+        if (code != null && vc.getCode().equals(code)) {
+            attempts.remove(k);
+            return true;
+        }
+        int n = attempts.merge(k, 1, Integer::sum);
+        if (n >= MAX_ATTEMPTS) {
+            repo.deleteByClientIdAndType(clientId, type);
+            attempts.remove(k);
+        }
+        if (attempts.size() > 10_000) attempts.clear();   // safety valve
+        return false;
     }
 
     /**
@@ -85,6 +110,11 @@ public class VerificationStore {
     /** Removes the entry after a successful verification. */
     public void remove(String clientId, String type) {
         repo.deleteByClientIdAndType(clientId, type);
+        attempts.remove(key(clientId, type));
+    }
+
+    private static String key(String clientId, String type) {
+        return clientId + "|" + type;
     }
 
     /** Purges expired rows every 5 minutes to keep the table small. */

@@ -85,7 +85,13 @@ public class VolunteerController {
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = toLong(body.get("id"));
-        VolunteerRole role = id != null ? roleRepo.findById(id).orElse(new VolunteerRole()) : new VolunteerRole();
+        VolunteerRole role;
+        if (id != null) {
+            role = roleRepo.findByIdAndAppClientId(id, cid).orElse(null);
+            if (role == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        } else {
+            role = new VolunteerRole();
+        }
         role.setAppClientId(cid);
         role.setRoleName(str(body, "roleName"));
         role.setMinistry(str(body, "ministry"));
@@ -280,8 +286,8 @@ public class VolunteerController {
         if (memberId == null)
             return ResponseEntity.badRequest().body(Map.of("error", "familyMemberId is required"));
 
-        // Check member exists
-        FamilyMember fm = memberRepo.findById(memberId).orElse(null);
+        // Check member exists (in this church)
+        FamilyMember fm = memberRepo.findByIdAndTenant(memberId, cid).orElse(null);
         if (fm == null)
             return ResponseEntity.status(404).body(Map.of("error", "Member not found"));
 
@@ -442,9 +448,13 @@ public class VolunteerController {
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = toLong(body.get("id"));
-        VolunteerAssignment a = id != null
-                ? assignmentRepo.findById(id).orElse(new VolunteerAssignment())
-                : new VolunteerAssignment();
+        VolunteerAssignment a;
+        if (id != null) {
+            a = assignmentRepo.findByIdAndAppClientId(id, cid).orElse(null);
+            if (a == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        } else {
+            a = new VolunteerAssignment();
+        }
 
         a.setAppClientId(cid);
         // Only overwrite familyMemberId when the caller supplies it — partial updates
@@ -453,12 +463,24 @@ public class VolunteerController {
             Integer fmId = toInt(body.get("familyMemberId"));
             if (fmId == null)
                 return ResponseEntity.badRequest().body(Map.of("error", "familyMemberId is required"));
+            if (memberRepo.findByIdAndTenant(fmId, cid).isEmpty())
+                return ResponseEntity.status(404).body(Map.of("error", "Member not found"));
             a.setFamilyMemberId(fmId);
         }
         if (a.getFamilyMemberId() == null)
             return ResponseEntity.badRequest().body(Map.of("error", "familyMemberId is required"));
-        if (body.containsKey("roleId")) a.setRoleId(toLong(body.get("roleId")));
-        if (body.get("eventId") != null) a.setEventId(toInt(body.get("eventId")));
+        if (body.containsKey("roleId")) {
+            Long roleId = toLong(body.get("roleId"));
+            if (roleId != null && roleRepo.findByIdAndAppClientId(roleId, cid).isEmpty())
+                return ResponseEntity.status(404).body(Map.of("error", "Role not found"));
+            a.setRoleId(roleId);
+        }
+        if (body.get("eventId") != null) {
+            Integer eventId = toInt(body.get("eventId"));
+            if (eventId != null && eventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(eventId, cid).isEmpty())
+                return ResponseEntity.status(404).body(Map.of("error", "Event not found"));
+            a.setEventId(eventId);
+        }
         if (body.containsKey("eventLabel")) a.setEventLabel(str(body, "eventLabel"));
         String dateStr = str(body, "eventDate");
         if (dateStr != null && !dateStr.isBlank()) a.setEventDate(LocalDate.parse(dateStr));
@@ -512,7 +534,8 @@ public class VolunteerController {
 
         int sent = 0;
         for (VolunteerAssignment a : targets) {
-            FamilyMember fm = memberRepo.findById(a.getFamilyMemberId()).orElse(null);
+            FamilyMember fm = a.getFamilyMemberId() != null
+                    ? memberRepo.findByIdAndTenant(a.getFamilyMemberId(), cid).orElse(null) : null;
             if (fm == null) continue;
             String roleName  = a.getRoleId() != null ? roleNames.getOrDefault(a.getRoleId(), "Volunteer") : "Volunteer";
             String eventLabel = a.getEventLabel() != null ? a.getEventLabel() : "upcoming event";
@@ -646,7 +669,8 @@ public class VolunteerController {
         int sent = 0;
         List<String> failed = new ArrayList<>();
         for (String phone : toList) {
-            boolean ok = smsService.send(phone, message);
+            boolean ok = smsService.sendForClient(
+                    com.churchgeniuspro.util.SessionUtil.getAppClientId(req), phone, message).sent();
             if (ok) sent++; else failed.add(phone);
         }
 
@@ -673,7 +697,11 @@ public class VolunteerController {
         if (assignmentId == null)
             return ResponseEntity.badRequest().body(Map.of("error", "assignmentId required"));
 
-        VolunteerAttendance att = attendanceRepo.findByAssignmentId(assignmentId)
+        VolunteerAssignment assignment = assignmentRepo.findByIdAndAppClientId(assignmentId, cid).orElse(null);
+        if (assignment == null)
+            return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+
+        VolunteerAttendance att = attendanceRepo.findByAppClientIdAndAssignmentId(cid, assignmentId)
                 .orElse(new VolunteerAttendance());
         att.setAppClientId(cid);
         att.setAssignmentId(assignmentId);
@@ -682,10 +710,8 @@ public class VolunteerController {
         attendanceRepo.save(att);
 
         // Also update assignment status to confirmed
-        assignmentRepo.findById(assignmentId).ifPresent(a -> {
-            a.setAssignmentStatus("confirmed");
-            assignmentRepo.save(a);
-        });
+        assignment.setAssignmentStatus("confirmed");
+        assignmentRepo.save(assignment);
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -872,7 +898,7 @@ public class VolunteerController {
             return ResponseEntity.badRequest().body(Map.of("error", "You are already signed up for this role"));
 
         // Find event label
-        String eventLabel = eventRepo.findById(eventId)
+        String eventLabel = eventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(eventId, cid)
                 .map(ChurchEvent::getEventName).orElse("Event #" + eventId);
 
         VolunteerAssignment a = new VolunteerAssignment();
@@ -916,7 +942,8 @@ public class VolunteerController {
     private Map<String, Object> enrichProfile(VolunteerProfile p, String cid,
                                                List<Map<String,Object>> roles) {
         Map<String, Object> m = new LinkedHashMap<>(profileMap(p));
-        FamilyMember fm = memberRepo.findById(p.getFamilyMemberId()).orElse(null);
+        FamilyMember fm = p.getFamilyMemberId() != null
+                ? memberRepo.findByIdAndTenant(p.getFamilyMemberId(), cid).orElse(null) : null;
         if (fm != null) {
             m.put("firstName", fm.getFirstName()); m.put("lastName", fm.getLastName());
             m.put("email", fm.getEmail()); m.put("phone", fm.getPhone());
@@ -961,7 +988,8 @@ public class VolunteerController {
         m.put("notes", a.getNotes());
         m.put("createdAt", a.getCreatedAt() != null ? a.getCreatedAt().toString() : null);
         // Enrich with member name and contact info
-        FamilyMember fm = memberRepo.findById(a.getFamilyMemberId()).orElse(null);
+        FamilyMember fm = a.getFamilyMemberId() != null
+                ? memberRepo.findByIdAndTenant(a.getFamilyMemberId(), cid).orElse(null) : null;
         if (fm != null) {
             String first = fm.getFirstName() != null ? fm.getFirstName() : "";
             String last  = fm.getLastName()  != null ? fm.getLastName()  : "";

@@ -54,6 +54,16 @@ public interface AppUserRepository extends JpaRepository<AppUser, Integer> {
     /** All non-deleted users for a specific organization (church), ordered alphabetically. */
     List<AppUser> findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(String clientId);
 
+    /** Users the church currently has — the same rows /viewusers lists (not deleted). */
+    long countByClientIdAndDeleteFlagFalse(String clientId);
+
+    /**
+     * Tenant-scoped single-row lookup. Every management operation on a staff user
+     * must load through this so an id from another church resolves to "not found"
+     * rather than to that church's user.
+     */
+    java.util.Optional<AppUser> findByIdAndClientId(Integer id, String clientId);
+
     /** All non-deleted users sharing the same link-group (used for role switching). */
     List<AppUser> findByLinkGroupAndDeleteFlagFalse(String linkGroup);
 
@@ -74,4 +84,5 @@ public interface AppUserRepository extends JpaRepository<AppUser, Integer> {
     /** Find all active staff users by phone (normalised) — used by username recovery. */
     @Query("SELECT u FROM AppUser u WHERE REPLACE(REPLACE(REPLACE(u.phone,' ',''),'-',''),'(','') LIKE CONCAT('%', :phone, '%') AND u.deleteFlag = false AND u.enabled = true")
     java.util.List<AppUser> findActiveByPhone(@Param("phone") String phone);
+    java.util.Optional<AppUser> findByInviteTokenAndDeleteFlagFalse(String inviteToken);
 }

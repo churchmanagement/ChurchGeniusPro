@@ -386,10 +386,62 @@
         <button class="hc-cat-pill" data-cat="reminders"  onclick="filterCat(this,'reminders')">🔔 Reminders</button>
         <button class="hc-cat-pill" data-cat="admin"      onclick="filterCat(this,'admin')">⚙️ Admin</button>
         <button class="hc-cat-pill" data-cat="member-portal" onclick="filterCat(this,'member-portal')">🙋 Member Portal</button>
+        <button class="hc-cat-pill" data-cat="mobile-app" onclick="filterCat(this,'mobile-app')">📱 Mobile App</button>
       </div>
 
       <!-- Module cards -->
       <div class="hc-grid" id="hcGrid">
+
+        <!-- ═══ INSTALL THE APP (Android & iPhone) ═══ -->
+        <div class="hc-card" id="hcInstallApp" data-cat="mobile-app" data-keywords="install-app install app download android iphone ipad phone mobile home screen pwa chrome safari play store app store icon shortcut">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📱</span>
+            <div class="hc-card-head-text">
+              <h3>Install the App (Android &amp; iPhone)</h3>
+              <div class="hc-card-nav">Your phone's browser → churchgeniuspro.net</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Church Genius Pro installs straight from the website onto your phone's home screen. It opens full-screen like any other app — there is nothing to download from a store.</p>
+            <div class="hc-section-label">Android (Chrome)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Chrome</strong> and go to <strong>churchgeniuspro.net</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Tap the <strong>⋮</strong> menu (top-right) → <strong>Install app</strong> (or <strong>Add to Home screen → Install</strong>)</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Open <strong>Church Genius Pro</strong> from your home screen and sign in</span></div>
+            </div>
+            <div class="hc-section-label">iPhone / iPad (Safari)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Safari</strong> and go to <strong>churchgeniuspro.net</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Tap the <strong>Share</strong> button (square with an arrow) → <strong>Add to Home Screen</strong> → <strong>Add</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Open <strong>Church Genius Pro</strong> from your home screen and sign in</span></div>
+            </div>
+            <hr class="hc-divider" />
+            <div class="hc-section-label">FAQ</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">I don't see an Install option.</div>
+                <div class="hc-faq-a">Open the site directly in <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone) — not from a link inside another app such as email, Facebook or WhatsApp, which open their own built-in browser.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Is it in the Play Store or App Store?</div>
+                <div class="hc-faq-a">No. It installs from the website as shown above.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">How do I get updates?</div>
+                <div class="hc-faq-a">Updates are automatic — the app always opens the latest version.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Are there shortcuts?</div>
+                <div class="hc-faq-a">On Android, long-press the app icon for the <strong>Member Home</strong> and <strong>Dashboard</strong> shortcuts.</div>
+              </div>
+              <div class="hc-faq-item">
+                <div class="hc-faq-q">Should I allow notifications?</div>
+                <div class="hc-faq-a">If you'd like reminders and alerts on your phone, tap <strong>Allow</strong> when asked. You can change this later in your phone's settings.</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- ═══ MEMBERS & FAMILIES ═══ -->
         <div class="hc-card" data-cat="members" data-keywords="member family add edit search household directory viewfamily">
@@ -752,10 +804,12 @@
             </div>
             <div class="hc-section-label">How to Add a Staff User</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → View Users</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Users</strong></span></div>
               <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ Add User</strong></span></div>
-              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter name, email, and select a role (SuperAdmin / Admin / Accountant / User)</span></div>
-              <div class="hc-step"><span class="hc-step-num">4</span><span>Set a temporary password and click <strong>Save</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter name, email, phone, and select a role (SuperAdmin / Admin / Accountant / User)</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Click <strong>Save</strong>. You do not set a password — the new user chooses their own</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Click <strong>Invite</strong> on their row to email them a sign-up link</span></div>
+              <div class="hc-step"><span class="hc-step-num">6</span><span>They open the link, pick a username and password, and their account is active</span></div>
             </div>
             <div class="hc-section-label">How to Configure Email Settings</div>
             <div class="hc-steps">
@@ -1002,16 +1056,254 @@
             <span class="hc-card-chevron">▼</span>
           </div>
           <div class="hc-card-body">
-            <p class="hc-desc">Display live church announcements, events, and information on a projector or TV screen without requiring a login. Shareable via a secure public link.</p>
-            <div class="hc-section-label">How to Set Up a Public Screen</div>
+            <p class="hc-desc">Share a church page with visitors through a secure public link — no login required. Use it on a projector or TV, or send the link out for people to open on their own phones.</p>
+            <div class="hc-section-label">How to Generate a Public Link</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>More → Public Screens</strong></span></div>
-              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>Generate Link</strong></span></div>
-              <div class="hc-step"><span class="hc-step-num">3</span><span>Copy the public URL and open it on the TV/projector browser</span></div>
-              <div class="hc-step"><span class="hc-step-num">4</span><span>The screen auto-refreshes with the latest church information</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Choose a page from <strong>Select Page</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Optionally set an <strong>Expiration Date</strong> — leave it blank for a link that does not expire</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Click <strong>Generate Link</strong>, then copy the URL</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Open it on the TV/projector browser, or share it with your congregation</span></div>
+            </div>
+            <div class="hc-section-label">Pages You Can Share</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Event Calendar, Membership Form, Donation Page, Member Signup</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span>SMS Opt-In Form, Kids Check-In, Connect With Us, Prayer Request (Public)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Guess It — not available on trial or demo accounts</span></div>
+            </div>
+            <div class="hc-section-label">Managing Links You Have Already Made</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Generated links are listed on the same page with their page name and expiry</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>Revoke</strong> to switch a link off immediately — anyone who still has the URL is sent to the login screen</span></div>
             </div>
             <div class="hc-quick-links">
               <a class="hc-qlink" href="/publicScreens">📺 Public Screens</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ BANK SYNC ═══ -->
+        <div class="hc-card" data-cat="accounting" data-keywords="bank sync plaid connect bank account transactions review verification code test mode sandbox">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🏦</span>
+            <div class="hc-card-head-text">
+              <h3>Bank Sync</h3>
+              <div class="hc-card-nav">Accounting → Bank Sync</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Connect your church bank account and have transactions flow into a review queue. Nothing reaches your books until someone approves it.</p>
+            <div class="hc-section-label">First Visit — Email Verification</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Accounting → Bank Sync</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>A 6-digit code is emailed to your registered address — it lasts 15 minutes and works once</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter the code. Tick <strong>Remember this device</strong> to skip this step for 30 days on the same computer</span></div>
+            </div>
+            <div class="hc-section-label">Connecting a Bank</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Click <strong>+ Connect a bank</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Choose your bank and sign in through the secure bank window</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Recent transactions are pulled into the review list below</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Use <strong>Sync now</strong> on a connection at any time to pull the latest</span></div>
+            </div>
+            <div class="hc-section-label">Reviewing Transactions</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Set the fund and category on a row, then click <strong>Approve</strong> to post it as income or an expense</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>Reject</strong> for anything that does not belong in the books — it leaves the queue and nothing is posted</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Use the bulk actions to approve or reject several rows at once</span></div>
+            </div>
+            <div class="hc-section-label">On a Trial Account</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span>No verification code is needed — Bank Sync opens straight away</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Trials run in <strong>test mode</strong> against practice banks, so no real account can be linked. An orange banner tells you when you are in test mode</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Sign in to any practice bank with username <strong>user_good</strong> and password <strong>pass_good</strong></span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/bankSync">🏦 Bank Sync</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ BANK IMPORT ═══ -->
+        <div class="hc-card" data-cat="accounting" data-keywords="bank import statement csv upload photo scan categorize transactions">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🧾</span>
+            <div class="hc-card-head-text">
+              <h3>Bank Import</h3>
+              <div class="hc-card-nav">Accounting → Bank Import</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Bring transactions in from a file or a photo of a statement. Useful when your bank is not supported by Bank Sync, or for catching up on past months.</p>
+            <div class="hc-section-label">How to Import Transactions</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Accounting → Bank Import</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Upload a statement file, or photograph a paper statement with your phone camera</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>Upload &amp; Categorize</strong> — each row is read and matched to a fund and category where possible</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Check the rows and correct anything matched wrongly</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Choose <strong>Save</strong> for a new entry, <strong>Update</strong> to overwrite a matching one, or <strong>Skip</strong> to leave a row out</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/bank-import">🧾 Bank Import</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PAYROLL ═══ -->
+        <div class="hc-card" data-cat="accounting" data-keywords="payroll staff salary wages w2 paystub withholding tax employee pay run">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">💵</span>
+            <div class="hc-card-head-text">
+              <h3>Payroll</h3>
+              <div class="hc-card-nav">Accounting → Payroll</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Pay salaried and hourly church staff, with federal and FICA withholding worked out for you, paystubs to hand out, and year-end W-2 figures.</p>
+            <div class="hc-section-label">Setting Up</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Accounting → Payroll</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Open <strong>Employees</strong> and add each staff member with their pay type, rate, and pay frequency</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Enter their W-4 details so withholding is calculated correctly</span></div>
+            </div>
+            <div class="hc-section-label">Running Payroll</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Runs</strong> and start a new pay run for the period</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Review the gross pay, withholding, and net pay calculated for each employee</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Approve the run, then download or print the paystubs</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Use <strong>Reports</strong> for year-end W-2 totals, and <strong>Activity</strong> to see who changed what</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/payroll">💵 Payroll</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ ATTENDANCE ═══ -->
+        <div class="hc-card" data-cat="events" data-keywords="attendance check in service ministry headcount visitor code report csv">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📊</span>
+            <div class="hc-card-head-text">
+              <h3>Attendance</h3>
+              <div class="hc-card-nav">General → Attendance</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Record who came to a service or ministry meeting, and see how attendance changes over time.</p>
+            <div class="hc-section-label">How to Take Attendance</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Attendance</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Pick the service or ministry and the date</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>Check in</strong> next to each person, or tick several and use <strong>Check in selected</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Use <strong>Check in visitor</strong> for someone who is not yet a member</span></div>
+            </div>
+            <div class="hc-section-label">Self Check-In and Reports</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Share the attendance <strong>Code</strong> so people can check themselves in</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Switch between <strong>Attendance by service</strong> and <strong>Attendance by ministry</strong> to compare</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>CSV</strong> to export the figures for a spreadsheet</span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/attendance">📊 Attendance</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SONG BOOK ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="song book lyrics hymn worship music sections publish cover access">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🎵</span>
+            <div class="hc-card-head-text">
+              <h3>Song Book</h3>
+              <div class="hc-card-nav">My Profile → Song Book</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Keep your congregation's songs and lyrics in one place, organised into books and sections, and publish them for members to open on their phones.</p>
+            <div class="hc-section-label">How to Build a Song Book</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>My Profile → Song Book</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <strong>+ New Book</strong> and name it</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <strong>+ Add Section</strong> to group songs (for example Hymns, Choruses)</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Add each song and paste or type its <strong>Lyrics</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Use <strong>Design Cover</strong> to set a cover, then click <strong>Publish</strong> to make the book available</span></div>
+            </div>
+            <div class="hc-section-label">Who Can See It</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Control which members and groups can open a published book under <strong>More → Song Book Access</strong></span></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/songbook">🎵 Song Book</a>
+              <a class="hc-qlink" href="/admin/songbook-access">🔐 Song Book Access</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ AI ASSISTANT ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="ai assistant voice search converse guide scan check help ask type">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🤖</span>
+            <div class="hc-card-head-text">
+              <h3>AI Assistant</h3>
+              <div class="hc-card-nav">Available on every page</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">A search bar and assistant sit at the top of every page. Use it to jump somewhere, ask how something works, or enter information by speaking instead of typing.</p>
+            <div class="hc-section-label">What Each Button Does</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Type</strong> — ask in your own words ("last month's income", "add a family") and go straight there</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Voice</strong> — speak instead of typing; useful for entering contributions with your hands full</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Converse</strong> — hold a back-and-forth conversation rather than asking a single question</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Guide</strong> — the full list of commands the assistant understands</span></div>
+            </div>
+            <div class="hc-section-label">Scanning a Check or Statement</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Accounting → Expense</strong> or <strong>Income</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Use the scan option and photograph the check or statement</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>The amount, date, and payer are read for you — check them before saving</span></div>
+            </div>
+            <div class="hc-section-label">Good to Know</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Which AI features are switched on depends on your subscription plan, so you may not see all four buttons</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ TRIAL ACCOUNTS ═══ -->
+        <div class="hc-card" data-cat="admin" data-keywords="trial account demo evaluation limits upgrade subscription plan test period">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">⏳</span>
+            <div class="hc-card-head-text">
+              <h3>Trial Accounts</h3>
+              <div class="hc-card-nav">What is different while you are evaluating</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">A trial church is a complete, working copy of ChurchGeniusPro, already filled with sample members, families, contributions, and events so you can try things straight away. A few things behave differently while you are on a trial.</p>
+            <div class="hc-section-label">Getting Started</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>When you first sign in you are shown a short note confirming this is a trial account and the date it ends. Click <strong>OK</strong> to continue</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Explore freely — the sample data is yours to edit or delete</span></div>
+            </div>
+            <div class="hc-section-label">What Is Limited</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Text messages and emails</strong> are not delivered to real people until an administrator switches them on, so you can test reminders safely</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Bank Sync</strong> runs against practice banks only — no real account can be linked</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Activity Corner</strong>, and two of the Public Screens options, are not available</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span>Setup emails, verification codes, and password resets are always delivered as normal</span></div>
+            </div>
+            <div class="hc-section-label">Moving to a Full Plan</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Contact your administrator to move to the Free, Standard, or Pro plan</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span><strong>Nothing you entered is deleted.</strong> If a plan allows fewer members than you already have, everything stays and you are simply asked to upgrade before adding more</span></div>
             </div>
           </div>
         </div>
@@ -1169,6 +1461,168 @@ const HC_KB = [
     steps: ['Go to Worship Planning from the sidebar','Click + New Assignment','Enter the date/service name','Add team members and assign instruments and songs','Members can view their assignments in the Member Portal under Volunteer'],
     links: [{label:'Worship Planning', url:'/worshipPlanning', icon:'🎵'}],
     related: ['volunteer assignment','event volunteer','member portal']
+  },
+  {
+    id: 'connect-bank',
+    q: ['connect bank','bank sync','link bank account','plaid','sync transactions','bank feed','connect a bank'],
+    title: '🏦 Connect a Bank Account',
+    answer: 'Bank Sync pulls transactions from your bank into a review queue. The first visit asks for a 6-digit code emailed to you; nothing is posted to your books until you approve it.',
+    steps: ['Go to Accounting → Bank Sync','Enter the 6-digit code emailed to you (tick Remember this device to skip it for 30 days)','Click + Connect a bank and sign in through the secure bank window','Set the fund and category on each transaction, then click Approve','Click Reject for anything that does not belong in the books'],
+    links: [{label:'Bank Sync', url:'/bankSync', icon:'🏦'}],
+    related: ['bank import','review transactions','trial account']
+  },
+  {
+    id: 'import-statement',
+    q: ['bank import','import statement','upload statement','csv import','scan statement','import transactions'],
+    title: '🧾 Import a Bank Statement',
+    answer: 'Bank Import reads a statement file or a photo of a paper statement and matches each row to a fund and category for you to confirm.',
+    steps: ['Go to Accounting → Bank Import','Upload a statement file, or photograph a paper statement','Click Upload & Categorize','Correct anything matched wrongly','Choose Save, Update, or Skip for each row'],
+    links: [{label:'Bank Import', url:'/bank-import', icon:'🧾'}],
+    related: ['connect bank','add expense','view contributions']
+  },
+  {
+    id: 'run-payroll',
+    q: ['payroll','pay staff','paystub','w2','withholding','salary','run payroll','employee pay'],
+    title: '💵 Run Payroll',
+    answer: 'Payroll handles W-2 staff: federal and FICA withholding are calculated for you, and paystubs and year-end W-2 totals are produced from the run.',
+    steps: ['Go to Accounting → Payroll','Open Employees and add each staff member with pay type, rate, and frequency','Enter their W-4 details','Open Runs and start a pay run for the period','Review the calculated amounts, approve the run, then print the paystubs'],
+    links: [{label:'Payroll', url:'/payroll', icon:'💵'}],
+    related: ['add expense','accounting report']
+  },
+  {
+    id: 'take-attendance',
+    q: ['attendance','take attendance','check in','headcount','who attended','attendance report','service attendance'],
+    title: '📊 Take Attendance',
+    answer: 'Attendance records who came to a service or ministry meeting, with a shareable code for self check-in and CSV export for reporting.',
+    steps: ['Go to General → Attendance','Pick the service or ministry and the date','Click Check in next to each person, or tick several and use Check in selected','Use Check in visitor for someone who is not yet a member','Share the attendance Code so people can check themselves in'],
+    links: [{label:'Attendance', url:'/attendance', icon:'📊'}],
+    related: ['create event','qr code check-in','check-in child']
+  },
+  {
+    id: 'song-book',
+    q: ['song book','songbook','lyrics','hymns','add a song','publish songs','worship songs'],
+    title: '🎵 Build a Song Book',
+    answer: 'Song Book holds your songs and lyrics in books and sections, and publishes them for members to open on their phones.',
+    steps: ['Go to My Profile → Song Book','Click + New Book and name it','Click + Add Section to group songs','Add each song and enter its Lyrics','Use Design Cover, then click Publish','Control who can open it under More → Song Book Access'],
+    links: [{label:'Song Book', url:'/songbook', icon:'🎵'},{label:'Song Book Access', url:'/admin/songbook-access', icon:'🔐'}],
+    related: ['worship planning','member portal']
+  },
+  {
+    id: 'ai-assistant',
+    q: ['ai','assistant','voice','search bar','ask a question','converse','scan check','voice command'],
+    title: '🤖 Use the AI Assistant',
+    answer: 'The assistant sits at the top of every page. Type or speak a request to jump somewhere, ask how something works, or enter information hands-free.',
+    steps: ['Type — ask in your own words and go straight there','Voice — speak instead of typing','Converse — hold a back-and-forth conversation','Guide — the full list of commands it understands','To scan a check, open Accounting → Expense or Income and use the scan option'],
+    links: [],
+    related: ['add expense','view contributions']
+  },
+  {
+    id: 'trial-account',
+    q: ['trial','trial account','demo account','evaluation','what is limited','upgrade plan','trial ends'],
+    title: '⏳ What Is Different on a Trial Account',
+    answer: 'A trial church is a full working copy with sample data. Texts and emails are not delivered to real people until an administrator enables them, Bank Sync uses practice banks, and Activity Corner is unavailable. Setup emails and password resets always arrive.',
+    steps: ['On first sign-in, click OK on the note confirming the trial and its end date','Explore freely — the sample data is yours to edit or delete','To move to Free, Standard, or Pro, contact your administrator','Nothing you entered is deleted when the plan changes'],
+    links: [],
+    related: ['connect bank','public screens']
+  },
+  {
+    id: 'install-app',
+    q: ['install app','install the app','download app','download the app','mobile app','phone app','android','iphone','ipad','home screen','add to home screen','play store','app store'],
+    title: '📱 Install the App (Android & iPhone)',
+    answer: 'Church Genius Pro installs from the website onto your phone\'s home screen — it is not in the Play Store or App Store. Updates are automatic.',
+    steps: ['Android: open Chrome, go to churchgeniuspro.net, tap ⋮ → Install app (or Add to Home screen → Install)','iPhone/iPad: open Safari, go to churchgeniuspro.net, tap Share → Add to Home Screen → Add','Open Church Genius Pro from your home screen and sign in','No Install option? Open the site directly in Chrome or Safari, not from inside another app','Android: long-press the icon for the Member Home and Dashboard shortcuts','Allow notifications if you want reminders on your phone'],
+    links: [],
+    related: ['member portal']
+  },
+  {
+    id: 'ticketing',
+    q: ['ticketing','ticket','support ticket','raise a ticket','contact support','what is ticketing'],
+    title: '🎫 Ticketing — Raise a Support Ticket',
+    answer: 'Ticketing (More → Ticketing) sends a support request to the ChurchGeniusPro team with a subject, description, urgency and your contact details. You get a reference number and email updates. Administrators switch it on or off per login under Users → permissions.',
+    steps: ['Go to More → Ticketing','Click New Ticket and choose the urgency','Describe the problem and submit','Watch for the confirmation email with your reference number'],
+    links: [{label:'Ticketing', url:'/tickets', icon:'🎫'}],
+    related: ['ai assistant','help center']
+  },
+  {
+    id: 'donation-give',
+    q: ['donation','donations','give','online giving','member contributions','donation review','donation give'],
+    title: '💝 Online Giving — Donation / Give',
+    answer: 'Connect the church’s Stripe account (Admin → Stripe Integration), share the donation page from Public Screens, and let members give from the Member Portal. Review every payment under Accounting → Donation/Give — a Donations tab and a Member Contributions tab — with Stripe fees and a Pending / Completed review mark. Payments are posted to Income automatically.',
+    steps: ['Admin → Stripe Integration: enter the church’s Stripe keys and test the connection','Public Screens: share the donation page link','Accounting → Donation/Give: review payments and Mark Completed when reconciled'],
+    links: [{label:'Donation/Give', url:'/donation-review', icon:'💝'},{label:'Stripe Integration', url:'/stripeIntegration', icon:'💳'}],
+    related: ['stripe integration','record contribution']
+  },
+  {
+    id: 'membership-requests',
+    q: ['membership request','membership requests','application','apply for membership','renewal','membership form link'],
+    title: '📋 Review Membership Requests',
+    answer: 'Share the public Membership Form link (Public Screens). Applications appear under Admin → Membership Requests with every submitted detail — family address, phone and email, and each member’s name, nickname, gender, date of birth, wedding anniversary, contact details, privacy choices, address and photo — so you can verify them before clicking Add as Member or Approve (renewal).',
+    steps: ['Public Screens: share the Membership Form link','Admin → Membership Requests: open an application','Check every field, then Add as Member (new) or Approve (renewal)','Approve the login account if one was requested'],
+    links: [{label:'Membership Requests', url:'/membershipRequests', icon:'📋'},{label:'Public Screens', url:'/publicScreens', icon:'🖥️'}],
+    related: ['add member','member portal']
+  },
+  {
+    id: 'stripe-integration',
+    q: ['stripe','stripe integration','stripe keys','payment setup','online giving setup'],
+    title: '💳 Connect Stripe for Online Giving',
+    answer: 'Admin → Stripe Integration stores the church’s own Stripe keys (separate from ChurchGeniusPro billing). Once connected, the public donation page and Member Portal giving work, and payments show under Donation/Give.',
+    steps: ['Create a Stripe account for the church','Admin → Stripe Integration: enter the publishable and secret keys','Click Test connection','Share the donation page from Public Screens'],
+    links: [{label:'Stripe Integration', url:'/stripeIntegration', icon:'💳'}],
+    related: ['online giving','donation give']
+  },
+  {
+    id: 'email-settings',
+    q: ['email settings','test email','verified email','trial test email','demo test email','unsubscribed'],
+    title: '📧 Email Settings & the Trial Test Email',
+    answer: 'Email Settings holds the church’s sender details. Trial and Demo accounts never email real recipients: verify one test email address there and each email action (bulk email, reminders, alerts) sends one test copy to it; the rest are counted as simulated.',
+    steps: ['Open Email Settings','On a trial: enter your test address and verify it with the emailed code','Send a bulk email or reminder — one test copy arrives at the verified address'],
+    links: [{label:'Email Settings', url:'/emailSettings', icon:'📧'}],
+    related: ['bulk email','trial account']
+  },
+  {
+    id: 'private-page-access',
+    q: ['private page','private pages','private access','restrict pages','network restriction'],
+    title: '🔒 Restrict Pages to Your Church Network',
+    answer: 'Admin → Private Page Access limits Kids Ministry, Event Check-in and Temporary Login so they only work from the church’s own Wi-Fi/network — ideal for check-in stations.',
+    steps: ['Go to Admin → Private Page Access','Choose the pages to restrict','Save'],
+    links: [{label:'Private Page Access', url:'/private-access-settings', icon:'🔒'}],
+    related: ['check-in child','temporary access']
+  },
+  {
+    id: 'temporary-access',
+    q: ['temporary access','temporary login','badge','access card','barcode login','print badge'],
+    title: '🪪 Temporary Access & Printable Badges',
+    answer: 'Admin → Temporary Access creates time-limited logins for helpers with a printable barcode badge. NTAG (NFC) login is the tap-to-sign-in alternative.',
+    steps: ['Go to Admin → Temporary Access','Create the access with its validity period','Print the badge'],
+    links: [{label:'Temporary Access', url:'/temporaryAccess', icon:'🪪'},{label:'NTAG Login', url:'/ntagAccess', icon:'📶'}],
+    related: ['ntag login','private page access']
+  },
+  {
+    id: 'favorites',
+    q: ['favorites','favourites','favorite page','star','pin page'],
+    title: '⭐ Favorites',
+    answer: 'Click the ⭐ next to a page in the left menu or on a listing page to add it to Favorites at the top of the menu.',
+    steps: ['Find the page in the left menu','Click its ⭐'],
+    links: [],
+    related: ['help center']
+  },
+  {
+    id: 'users-permissions',
+    q: ['users','permissions','roles','add user','superadmin','accountant role','link accounts','switch account'],
+    title: '🧑‍💼 Users, Roles & Permissions',
+    answer: 'Admin → Users manages staff logins. Roles: SuperAdmin, Admin, Accountant and User. The permission checkboxes control which pages, menus and buttons a login sees (data access follows the role). Opt-in features like Ticketing and AI Assistant are set per login. Link several church accounts to switch between them without signing out.',
+    steps: ['Go to Admin → Users','Add a user with a role, or edit a login’s permissions','Use Link Accounts to join multiple church accounts'],
+    links: [{label:'Users', url:'/viewusers', icon:'🧑‍💼'}],
+    related: ['add user']
+  },
+  {
+    id: 'pledges',
+    q: ['pledge','pledges','pledge campaign'],
+    title: '🤝 Pledges',
+    answer: 'Accounting → Pledges runs pledge campaigns with a goal and dates, records each member’s pledge and tracks progress as contributions arrive. Members see their pledges in the Member Portal.',
+    steps: ['Go to Accounting → Pledges','Create a campaign','Add member pledges'],
+    links: [{label:'Pledges', url:'/pledges', icon:'🤝'}],
+    related: ['pledge campaign','record contribution']
   }
 ];
 

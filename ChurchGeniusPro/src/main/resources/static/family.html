@@ -111,6 +111,21 @@
     .field textarea { resize: vertical; min-height: 90px; }
     .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
     .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
+    /* Click-to-reveal help, identical to the "Event ID / Code" pattern on /event.
+       Hidden by default, so a long explanation never pushes the form down. */
+    .help-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #b9a4ae;
+                background: #fff; color: #673147; font-size: 11px; font-weight: 700;
+                line-height: 1; cursor: pointer; margin-left: 5px; padding: 0; vertical-align: middle;
+                flex: 0 0 auto; }
+    .help-dot:hover, .help-dot[aria-expanded="true"] { background: #673147; color: #fff; border-color: #673147; }
+    .help-note { margin-top: 6px; padding: 9px 11px; background: #faf6f8; border: 1px solid #ecdfe5;
+                 border-left: 3px solid #673147; border-radius: 6px;
+                 font-size: 12px; line-height: 1.5; color: #5a4a52; }
+    .help-note strong { color: #673147; }
+    .help-note[hidden] { display: none; }
+    /* Keeps a Private checkbox and its ? on one line without the button
+       becoming part of the label's click target. */
+    .priv-row { display: flex; align-items: center; flex-wrap: wrap; }
     .field-note { font-size: 11px; color: #aaa; margin-top: 2px; }
 
     /* ── Date row ── */
@@ -249,10 +264,20 @@
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <button type="button" class="btn-view-families" onclick="window.open('/api/membership-form/pdf','_blank')" title="Download a printable / fillable membership form">📄 Membership Form (PDF)</button>
+          <button type="button" class="help-dot" aria-label="How does the Membership Form PDF work?"
+                  aria-expanded="false" onclick="toggleHelp('membershipFormHelp', this)">?</button>
           <button type="button" class="btn-view-families" onclick="document.getElementById('scanUploadInput').click()" title="Upload a completed membership form to auto-fill">📤 Upload Scanned Form</button>
           <a href="/viewfamily" class="btn-view-families">👪 View Families</a>
         </div>
         <input type="file" id="scanUploadInput" accept=".pdf,image/*" style="display:none;" onchange="MFSCAN.upload(this)" />
+      </div>
+
+      <!-- How the PDF round-trip works. Revealed by the ? beside the button. -->
+      <div class="help-note" id="membershipFormHelp" hidden>
+        Download and fill out the <strong>Membership Form PDF</strong>, then use
+        <strong>Upload Scanned Form</strong> to upload the completed / scanned document.
+        The information will be automatically extracted and used to fill in the
+        corresponding fields below.
       </div>
 
       <!-- ══════════════════════════════════════════════════
@@ -293,16 +318,26 @@
                 <div class="field">
                   <label for="pPhone">Phone</label>
                   <input type="tel" id="pPhone" placeholder="Phone number" />
-                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
-                    <input type="checkbox" id="pPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
-                  </label>
+                  <div class="priv-row" style="margin-top:4px;">
+                    <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                      <input type="checkbox" id="pPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
+                    </label>
+                    <button type="button" class="help-dot" aria-label="What does Private mean?"
+                            aria-expanded="false" onclick="toggleHelp('pPhonePrivateHelp', this)">?</button>
+                  </div>
+                  <div class="help-note" id="pPhonePrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
                 </div>
                 <div class="field">
                   <label for="pEmail">Email</label>
                   <input type="email" id="pEmail" placeholder="Email address" />
-                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
-                    <input type="checkbox" id="pEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
-                  </label>
+                  <div class="priv-row" style="margin-top:4px;">
+                    <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                      <input type="checkbox" id="pEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
+                    </label>
+                    <button type="button" class="help-dot" aria-label="What does Private mean?"
+                            aria-expanded="false" onclick="toggleHelp('pEmailPrivateHelp', this)">?</button>
+                  </div>
+                  <div class="help-note" id="pEmailPrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
                 </div>
               </div>
             </div>
@@ -384,9 +419,14 @@
                 <input type="text" id="pNickName" placeholder="Nickname / other name" />
               </div>
             </div>
-            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#888;font-weight:600;margin-top:10px;cursor:pointer;">
-              <input type="checkbox" id="pAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
-            </label>
+            <div class="priv-row" style="margin-top:10px;">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#888;font-weight:600;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                <input type="checkbox" id="pAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
+              </label>
+              <button type="button" class="help-dot" aria-label="What does Private mean?"
+                      aria-expanded="false" onclick="toggleHelp('pAddressPrivateHelp', this)">?</button>
+            </div>
+            <div class="help-note" id="pAddressPrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
           </div>
 
           <!-- Options -->
@@ -400,11 +440,16 @@
                 <input type="checkbox" class="toggle-checkbox" id="pDisableAlerts" />
                 <span class="toggle-label">Disable Alerts</span>
               </label>
-              <label class="check-item toggle-row">
-                <input type="checkbox" class="toggle-checkbox" id="pIncludeContrib" checked />
-                <span class="toggle-label">Include in Contributions</span>
-              </label>
+              <span class="check-item" style="cursor:default;gap:0;">
+                <label class="check-item toggle-row">
+                  <input type="checkbox" class="toggle-checkbox" id="pIncludeContrib" checked />
+                  <span class="toggle-label">Include in Contributions</span>
+                </label>
+                <button type="button" class="help-dot" aria-label="What does Include in Contributions do?"
+                        aria-expanded="false" onclick="toggleHelp('pIncludeContribHelp', this)">?</button>
+              </span>
             </div>
+            <div class="help-note" id="pIncludeContribHelp" hidden><strong>Include in Contributions</strong> — when this option is enabled, this member will be available in the <strong>Contributor</strong> field on the Income page.</div>
           </div>
 
         </div>
@@ -458,16 +503,26 @@
                 <div class="field">
                   <label for="mPhone">Phone</label>
                   <input type="tel" id="mPhone" placeholder="Phone number" />
-                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
-                    <input type="checkbox" id="mPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
-                  </label>
+                  <div class="priv-row" style="margin-top:4px;">
+                    <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                      <input type="checkbox" id="mPhonePrivate" style="width:auto;margin:0;" /> 🔒 Private
+                    </label>
+                    <button type="button" class="help-dot" aria-label="What does Private mean?"
+                            aria-expanded="false" onclick="toggleHelp('mPhonePrivateHelp', this)">?</button>
+                  </div>
+                  <div class="help-note" id="mPhonePrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
                 </div>
                 <div class="field">
                   <label for="mEmail">Email</label>
                   <input type="email" id="mEmail" placeholder="Email address" />
-                  <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;margin-top:4px;cursor:pointer;">
-                    <input type="checkbox" id="mEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
-                  </label>
+                  <div class="priv-row" style="margin-top:4px;">
+                    <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#888;font-weight:500;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                      <input type="checkbox" id="mEmailPrivate" style="width:auto;margin:0;" /> 🔒 Private
+                    </label>
+                    <button type="button" class="help-dot" aria-label="What does Private mean?"
+                            aria-expanded="false" onclick="toggleHelp('mEmailPrivateHelp', this)">?</button>
+                  </div>
+                  <div class="help-note" id="mEmailPrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
                 </div>
               </div>
 
@@ -550,9 +605,14 @@
                   <input type="text" id="mNickName" placeholder="Nickname" />
                 </div>
               </div>
-              <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#888;font-weight:500;margin-top:8px;margin-bottom:8px;cursor:pointer;">
-                <input type="checkbox" id="mAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
-              </label>
+              <div class="priv-row" style="margin-top:8px;margin-bottom:8px;">
+                <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#888;font-weight:500;cursor:pointer;" title="When Private is checked, this information is hidden from members browsing the Member Portal directory. Authorized staff roles can still see it.">
+                  <input type="checkbox" id="mAddressPrivate" style="width:auto;margin:0;" /> 🔒 Private
+                </label>
+                <button type="button" class="help-dot" aria-label="What does Private mean?"
+                        aria-expanded="false" onclick="toggleHelp('mAddressPrivateHelp', this)">?</button>
+              </div>
+              <div class="help-note" id="mAddressPrivateHelp" hidden>🔒 <strong>Private</strong> — when checked, this information is not displayed to the public (members browsing the Member Portal directory). It remains visible to authorized staff roles. Leave it unchecked and the current visibility is unchanged.</div>
 
               <!-- Options -->
               <div style="margin-bottom:16px;">
@@ -565,11 +625,16 @@
                     <input type="checkbox" class="toggle-checkbox" id="mDisableAlerts" />
                     <span class="toggle-label">Disable Alerts</span>
                   </label>
-                  <label class="check-item toggle-row">
-                    <input type="checkbox" class="toggle-checkbox" id="mIncludeContrib" />
-                    <span class="toggle-label">Include in Contributions</span>
-                  </label>
+                  <span class="check-item" style="cursor:default;gap:0;">
+                    <label class="check-item toggle-row">
+                      <input type="checkbox" class="toggle-checkbox" id="mIncludeContrib" />
+                      <span class="toggle-label">Include in Contributions</span>
+                    </label>
+                    <button type="button" class="help-dot" aria-label="What does Include in Contributions do?"
+                            aria-expanded="false" onclick="toggleHelp('mIncludeContribHelp', this)">?</button>
+                  </span>
                 </div>
+                <div class="help-note" id="mIncludeContribHelp" hidden><strong>Include in Contributions</strong> — when this option is enabled, this member will be available in the <strong>Contributor</strong> field on the Income page.</div>
               </div>
 
               <!-- Form actions -->
@@ -653,6 +718,19 @@
 </div>
 
 <script>
+  /* ════════════════════════════════════
+     CLICK-TO-REVEAL HELP
+     Same implementation as the "Event ID / Code" ? on /event: the note lives
+     in the markup with [hidden], so it costs no layout until it is opened.
+  ════════════════════════════════════ */
+  function toggleHelp(id, btn) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    const showing = box.hasAttribute('hidden');
+    if (showing) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+    if (btn) btn.setAttribute('aria-expanded', showing ? 'true' : 'false');
+  }
+
   /* ════════════════════════════════════
      MENU
   ════════════════════════════════════ */

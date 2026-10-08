@@ -6,7 +6,11 @@ import com.churchgeniuspro.plaid.entity.BankSyncVerification;
 import com.churchgeniuspro.plaid.repository.BankSyncTrustedDeviceRepository;
 import com.churchgeniuspro.plaid.repository.BankSyncVerificationRepository;
 import com.churchgeniuspro.repository.AppUserRepository;
+import com.churchgeniuspro.plaid.config.PlaidProperties;
+import com.churchgeniuspro.plaid.entity.PlaidItem;
 import com.churchgeniuspro.service.EmailService;
+import com.churchgeniuspro.service.EvaluationTenant;
+import com.churchgeniuspro.service.MessagingPolicy;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,9 +38,21 @@ import java.util.List;
  * <p>Codes are securely generated, stored only in encrypted form, decrypted and
  * compared during verification, single-use, and expire after 15 minutes. Every
  * action is written to the Plaid audit log.
+ *
+ * <h2>Trial subscriptions</h2>
+ * A Trial tenant skips the gate entirely: no code is generated, none is emailed,
+ * and the page and its APIs open directly. The decision is made in one place,
+ * {@link #verificationRequired}, which {@link #isVerified} consults first — so
+ * the page gate, the API guard and the status endpoint cannot disagree about it.
+ * Every other subscription keeps the gate exactly as it was.
  */
 @Service
 public class BankSyncGateService {
+
+    /** Wrong-code counter per app user; cleared on success or lock-out. */
+    static final int MAX_FAILED_ATTEMPTS = 5;
+    private final java.util.concurrent.ConcurrentHashMap<Integer, Integer> failedAttempts = new java.util.concurrent.ConcurrentHashMap<>();
+
 
     private static final Logger log = LoggerFactory.getLogger(BankSyncGateService.class);
 
@@ -51,6 +67,26 @@ public class BankSyncGateService {
     private final EmailService emailService;
     private final AppUserRepository appUserRepository;
     private final PlaidAuditService audit;
+    private final MessagingPolicy messagingPolicy;
+
+    /**
+     * Connections and their environments, used only to keep the Trial/Demo exemption
+     * away from a tenant that holds a live production link. Field-injected and
+     * null-checked so the existing construction sites (and their unit tests) are
+     * unchanged; absent, the exemption behaves exactly as it did.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.plaid.repository.PlaidItemRepository itemRepo;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PlaidEnvironmentService plaidEnv;
+
+    /** Test seam — supply the connection lookup without a Spring context. */
+    public void setConnectionLookup(com.churchgeniuspro.plaid.repository.PlaidItemRepository itemRepo,
+                                    PlaidEnvironmentService plaidEnv) {
+        this.itemRepo = itemRepo;
+        this.plaidEnv = plaidEnv;
+    }
     private final SecureRandom random = new SecureRandom();
 
     public BankSyncGateService(BankSyncVerificationRepository verificationRepo,
@@ -58,13 +94,15 @@ public class BankSyncGateService {
                                PlaidTokenCipher cipher,
                                EmailService emailService,
                                AppUserRepository appUserRepository,
-                               PlaidAuditService audit) {
+                               PlaidAuditService audit,
+                               MessagingPolicy messagingPolicy) {
         this.verificationRepo = verificationRepo;
         this.deviceRepo = deviceRepo;
         this.cipher = cipher;
         this.emailService = emailService;
         this.appUserRepository = appUserRepository;
         this.audit = audit;
+        this.messagingPolicy = messagingPolicy;
     }
 
     /** Outcome of a verify attempt. */
@@ -72,10 +110,67 @@ public class BankSyncGateService {
 
     // ── Access check (used by the page gate AND the API guard) ───────────────
 
+    /**
+     * Whether this tenant has to pass the gate at all.
+     *
+     * <p>False only for an evaluation tenant: a demo/trial client id, or a Trial
+     * subscription — the same set {@code PlaidEnvironmentService} confines to the
+     * sandbox, so the gate and the environment can never disagree about who is
+     * evaluating. The prefix half needs no lookup; for the plan half
+     * {@link MessagingPolicy} is the
+     * single authority on what "Trial" means — reused rather than re-derived here
+     * so the two definitions cannot drift apart — and it answers from a 60-second
+     * cache, so a subscription change takes effect within the minute without a
+     * lookup on every request.
+     *
+     * <p>Its documented fail-open (a lookup error reports "not Trial") lands on
+     * the safe side for this caller: an error keeps the verification step in
+     * place rather than silently switching a security control off.
+     */
+    public boolean verificationRequired(HttpServletRequest req) {
+        String clientId = SessionUtil.getAppClientId(req);
+        if (clientId == null || clientId.isBlank()) return true;   // unknown tenant → verify
+
+        // A tenant holding a PRODUCTION-stamped connection is never exempt, whatever
+        // its subscription says today. Evaluation tenants are sandbox-only, so the
+        // exemption is safe precisely because the data behind it is Plaid's test
+        // data — but a paying church moved onto the Trial plan (a lapsed renewal, an
+        // extended evaluation) still has live bank connections, and switching a
+        // security step-up off underneath them is not part of that change.
+        try {
+            if (itemRepo != null && plaidEnv != null) {
+                for (PlaidItem item : itemRepo.findByClientIdAndDeleteFlagFalse(clientId)) {
+                    if (PlaidProperties.PRODUCTION.equals(plaidEnv.stampedEnv(item))) return true;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Bank Sync gate: could not inspect connections for {} — keeping verification. {}",
+                     clientId, e.getMessage());
+            return true;
+        }
+
+        // Demo and self-service trial tenants are sandbox-only (see
+        // PlaidEnvironmentService.sandboxState), so they get the Trial treatment
+        // whatever plan their row carries — a demo login's generated mailbox
+        // could never receive the code anyway.
+        try {
+            return !EvaluationTenant.isEvaluation(clientId, messagingPolicy.trialState(clientId));
+        } catch (Exception e) {
+            log.warn("Bank Sync gate: subscription lookup failed for {} — keeping verification. {}",
+                     clientId, e.getMessage());
+            return true;
+        }
+    }
+
     /** True when this request/session has passed verification or is a trusted device. */
     public boolean isVerified(HttpServletRequest req) {
         Integer uid = appUserId(req);
         if (uid == null) return false;
+
+        // Trial tenants are not gated. Checked after the authentication check
+        // above on purpose: skipping the step-up gate must never also skip being
+        // a signed-in staff user with an app_user row.
+        if (!verificationRequired(req)) return true;
 
         HttpSession s = req.getSession(false);
         if (s != null && uid.equals(s.getAttribute(SESSION_VERIFIED))) return true;
@@ -95,11 +190,22 @@ public class BankSyncGateService {
 
     // ── Send / resend ────────────────────────────────────────────────────────
 
-    /** Generate a fresh code and email it to the current user. */
+    /**
+     * Generate a fresh code and email it to the current user.
+     *
+     * <p>No-op for a Trial tenant: with the gate skipped there is nothing to
+     * verify, so generating a code and emailing it would only be noise in the
+     * user's inbox. Callers distinguish this from a failure with
+     * {@link #verificationRequired}.
+     */
     public boolean sendCode(HttpServletRequest req, boolean isResend) {
         Integer uid = appUserId(req);
         String clientId = SessionUtil.getAppClientId(req);
         if (uid == null) return false;
+        if (!verificationRequired(req)) {
+            log.debug("Bank Sync gate: skipping verification code for Trial tenant {}", clientId);
+            return false;
+        }
         AppUser user = appUserRepository.findById(uid).orElse(null);
         if (user == null || user.getEmail() == null || user.getEmail().isBlank()) return false;
 
@@ -111,7 +217,7 @@ public class BankSyncGateService {
                 + "<p>This code expires in " + CODE_TTL_MINUTES + " minutes and can be used once. "
                 + "If you did not request access to Bank Sync, you can ignore this email.</p>";
         try {
-            emailService.sendOrgEmail(user.getEmail(), "Your Bank Sync verification code", html, clientId);
+            emailService.sendAccountEmail(user.getEmail(), "Your Bank Sync verification code", html, clientId);
         } catch (Exception e) {
             log.warn("Bank Sync verification email failed for user {}: {}", uid, e.getMessage());
             return false;
@@ -150,6 +256,12 @@ public class BankSyncGateService {
         String clientId = SessionUtil.getAppClientId(req);
         String actor = SessionUtil.getUsername(req);
         if (uid == null) return new VerifyOutcome(false, "Not authenticated.");
+        // Trial: nothing was ever sent, so there is no code to match. Report the
+        // gate as passed rather than failing a check this tenant is exempt from.
+        if (!verificationRequired(req)) {
+            req.getSession(true).setAttribute(SESSION_VERIFIED, uid);
+            return new VerifyOutcome(true, "Verification is not required for Trial subscriptions.");
+        }
         if (code == null || code.isBlank()) return new VerifyOutcome(false, "Enter the code.");
         code = code.trim();
 
@@ -166,8 +278,20 @@ public class BankSyncGateService {
         if (matched == null) {
             audit.record(clientId, actor, "GATE_FAILED", "user:" + uid,
                     "Invalid or expired verification code");
+            // Five wrong guesses burn every outstanding code for this user: a 6-digit
+            // code in a 15-minute window is otherwise brute-forceable.
+            int n = failedAttempts.merge(uid, 1, Integer::sum);
+            if (n >= MAX_FAILED_ATTEMPTS) {
+                for (BankSyncVerification v : verificationRepo.findByAppUserIdAndUsed(uid, false)) {
+                    v.setUsed(true); v.setUsedDate(new Date()); verificationRepo.save(v);
+                }
+                failedAttempts.remove(uid);
+                audit.record(clientId, actor, "GATE_LOCKED", "user:" + uid, "Too many wrong codes — codes invalidated");
+                return new VerifyOutcome(false, "Too many incorrect codes. Please request a new code.");
+            }
             return new VerifyOutcome(false, "Invalid or expired code. Please try again or resend.");
         }
+        failedAttempts.remove(uid);
 
         // Consume the code (one-time) and mark this session verified.
         matched.setUsed(true);

@@ -295,8 +295,8 @@
 
           <!-- Group actions -->
           <div class="vol-group-actions" id="volGroupActions" style="display:none;">
-            <button class="btn-group-email" onclick="evGroupEmail()">✉️ Email All</button>
-            <button class="btn-group-sms"   onclick="evGroupSms()">💬 SMS All</button>
+            <button class="btn-group-email" data-perm="general.events.emailsms" onclick="evGroupEmail()">✉️ Email All</button>
+            <button class="btn-group-sms"   data-perm="general.events.emailsms" onclick="evGroupSms()">💬 SMS All</button>
           </div>
 
         </div>
@@ -749,8 +749,8 @@
         '</select></td>' +
         '<td style="white-space:nowrap;">' + contact + '</td>' +
         '<td style="white-space:nowrap;">' +
-          (email ? '<button class="vol-act-btn" title="Email" onclick="evSendEmailById(' + v.id + ')">✉️</button>' : '') +
-          (phone ? '<button class="vol-act-btn" title="SMS"   onclick="evSendSmsById('   + v.id + ')">💬</button>' : '') +
+          (email ? '<button class="vol-act-btn" title="Email" data-perm="general.events.emailsms" onclick="evSendEmailById(' + v.id + ')">✉️</button>' : '') +
+          (phone ? '<button class="vol-act-btn" title="SMS"   data-perm="general.events.emailsms" onclick="evSendSmsById('   + v.id + ')">💬</button>' : '') +
           (canEdit   ? '<button class="vol-act-btn" title="Edit"   onclick="evOpenEditModal(' + v.id + ')">✏️</button>' : '') +
           (canDelete ? '<button class="vol-act-btn del" title="Remove" onclick="evDeleteVolunteer(' + v.id + ')">🗑️</button>' : '') +
         '</td>' +
@@ -868,7 +868,9 @@
         body: JSON.stringify({ to: targets.map(r => r.email), subject, body })
       }).then(r => r.json()).then(d => {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
-        if (d.success) { evtCmpClose(); evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
+        if (d.success && d.testEmail) { evtCmpClose(); evToast('🧪 Trial/Demo test: ' + d.testEmailsSent + ' test email sent to ' + d.testEmail + ' — ' + d.simulated + ' volunteer(s) simulated'); }
+        else if (d.success && d.blocked > 0 && !d.sent) { evtCmpClose(); alert('No email was sent — ' + (d.blockReason || 'email sending is blocked for this account.')); }
+        else if (d.success) { evtCmpClose(); evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
         else alert(d.error || 'Failed to send email.');
       }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
     } else {

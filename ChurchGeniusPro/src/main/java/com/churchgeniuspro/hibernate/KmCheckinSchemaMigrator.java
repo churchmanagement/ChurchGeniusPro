@@ -3,6 +3,7 @@ package com.churchgeniuspro.hibernate;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -31,6 +32,7 @@ import java.sql.Statement;
  * not alarming.
  */
 @Component
+@DependsOn("entityManagerFactory")   // after Hibernate's own schema update, so the tables exist (database audit M5)
 public class KmCheckinSchemaMigrator {
 
     private static final Logger log = LoggerFactory.getLogger(KmCheckinSchemaMigrator.class);

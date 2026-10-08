@@ -37,7 +37,6 @@ import java.util.List;
 public class PaystubPdfService {
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-    private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
 
     // Page geometry (US Letter, points)
     private static final float LEFT = 50f, RIGHT = 562f, TOP = 742f, BOTTOM = 50f;
@@ -204,6 +203,17 @@ public class PaystubPdfService {
         d.rightText(CUR_RIGHT, 12, d.bold, money(stub.getNetPay()));
         d.rightText(YTD_RIGHT, 11, d.bold, money(stub.getYtdNetPay()));
         d.move(22);
+        // Financial audit H4: net pay is clamped at zero rather than shown negative, so
+        // the shortfall must still be visible somewhere on the printed stub.
+        if (nz(stub.getArrearsAmount()).signum() > 0) {
+            d.ensure(2 * LINE);
+            d.text(LEFT, 8, d.normal,
+                    "Earnings this period did not fully cover taxes and deductions owed.");
+            d.move(LINE);
+            d.text(LEFT, 9, d.bold, "Amount Not Collected (Arrears)");
+            d.rightText(YTD_RIGHT, 9, d.bold, money(stub.getArrearsAmount()));
+            d.move(LINE);
+        }
     }
 
     private void directDeposit(Doc d, Paystub stub) throws IOException {
@@ -261,7 +271,13 @@ public class PaystubPdfService {
 
     private static String money(BigDecimal v) {
         BigDecimal x = v == null ? BigDecimal.ZERO : v;
-        String s = MONEY.format(x.abs());
+        // Financial audit M12d: DecimalFormat is documented as not thread-safe;
+        // a single shared static instance formatting concurrent paystub
+        // downloads (a Spring @Service bean is a singleton called from the app's
+        // whole request thread pool) could corrupt output. A stub calls this a
+        // couple dozen times per request, so a fresh instance per call costs
+        // nothing worth trading correctness for.
+        String s = new DecimalFormat("#,##0.00").format(x.abs());
         return (x.signum() < 0 ? "-$" : "$") + s;
     }
 

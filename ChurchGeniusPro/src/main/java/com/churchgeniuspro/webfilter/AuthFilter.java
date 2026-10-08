@@ -27,13 +27,15 @@ import java.io.IOException;
  *   <li>{@code POST /api/logout}              — invalidate session (safe to call when unauthenticated)</li>
  *   <li>{@code /api/churchregistration/**}   — public church self-registration</li>
  *   <li>{@code /api/signup/**}               — public user-signup link flow</li>
+ *   <li>{@code /api/trial-request/**}        — public Trial Request form (token-gated, email-verified)</li>
+ *   <li>{@code /api/subscription-request/**} — Request for Subscription (request-link token or church admin session)</li>
+ *   <li>{@code /api/invoice/**}              — secure invoice page (hashed link token)</li>
  *   <li>{@code /api/serviceadmin/**}          — service-admin endpoints (own auth)</li>
  *   <li>{@code POST /api/forgot-password}        — request password-reset email (unauthenticated)</li>
  *   <li>{@code POST /api/reset-password}         — apply new password via token (unauthenticated)</li>
  *   <li>{@code GET  /api/reset-password/**}      — validate reset token (unauthenticated)</li>
  *   <li>{@code /api/event-register/**}           — public event registration page (no login required)</li>
- *   <li>{@code /api/mid-reg-meet/public/**}     — Midwest Region Meet RSVP public endpoints (no login required)</li>
- *   <li>{@code /api/event-calendar/public-*}    — public event calendar data (public-church-info, public-logo, public-events, public-ics — no login required)</li>
+ *   <li>{@code /api/event-calendar/public-church-info|public-logo|public-events|public-ics} — public event calendar data (no login required)</li>
  * </ul>
  *
  * <p>In addition to session presence, this filter re-validates the account status on
@@ -66,8 +68,7 @@ public class AuthFilter implements Filter {
             "/api/logout",
             "/api/churchregistration",
             "/api/signup",
-            "/api/serviceadmin",
-            "/api/service",
+            "/api/serviceadmin",             // service-admin API — gated by ServiceAdminAuthFilter (serviceAdminId), not by tenant session
             "/api/forgot-password",
             "/api/reset-password",
             "/api/membership-form",          // public membership application form (no login required)
@@ -78,14 +79,22 @@ public class AuthFilter implements Filter {
             "/webhook/sms",                  // Twilio inbound SMS webhook (no session)
             "/api/plaid/webhook",            // Plaid webhook (no session; verified by JWT signature). Only the webhook is public — other /api/plaid/* endpoints remain session-protected.
             "/api/event-register",           // public event registration page (no login required)
-            "/api/mid-reg-meet/public",      // public Midwest Region Meet RSVP endpoints (no login required)
-            "/api/sms-opt-in",               // public SMS opt-in form (no login required)
-            "/api/event-calendar/public-",  // public event calendar endpoints (public-church-info, public-logo, public-events, public-ics — no login required)
+            "/api/event-checkin",            // registrant self check-in by the 122-bit code on their QR/link (no login required)
+            "/api/event-calendar/public-church-info",   // public event calendar (no login required) — listed
+            "/api/event-calendar/public-logo",          //   individually: the matcher is by segment, so a
+            "/api/event-calendar/public-events",        //   "public-" string prefix would no longer match
+            "/api/event-calendar/public-ics",
             "/api/guess-it/public",         // GuessIt big-screen display — no session required (org identified by encrypted cid param)
+            "/api/guess-it/group",          // GuessIt group play — public participants join with a 6-character group code and are identified by an opaque per-group token. A member session, when present, is still read and takes precedence over the token.
             "/api/temp-access/login",       // temporary-access badge + code login (establishes the session — no prior session)
             "/api/ntag-login",              // NTAG (NFC) 3-factor temporary login (start/pin/otp/finalize — no prior session)
             "/api/policy-acceptance",       // legal policy acceptance recording (cookie banner / pre-session accept)
-            "/api/web"                      // public marketing website endpoints (/web/* pages: contact form — no login required)
+            "/api/web",                     // public marketing website endpoints (/web/* pages: contact form — no login required)
+            "/api/trial-request",           // public Trial Request form (token-gated link, email-verified) — the requester has no account. Rate-limited per IP in its controller.
+            "/api/billing/stripe-webhook",  // platform Stripe webhook (Phase 6) — no session by nature; nothing is applied unless the Stripe-Signature HMAC verifies within tolerance (InvoicePaymentController / PlatformStripeService).
+            "/api/invoice",                 // secure invoice page — the invoice is identified only by the hashed 32-byte token in its emailed link (checked in InvoiceController); bad tokens are throttled per IP.
+            "/api/subscription-request",    // Request for Subscription page — church identified by its emailed request-link token or a signed-in church admin session (checked in the controller). Rate-limited per IP.
+            "/api/trial-registration"       // public self-service trial signup — the registrant has no account yet, which is the point. Rate-limited per IP in its controller.
     };
 
     @Override
@@ -97,12 +106,22 @@ public class AuthFilter implements Filter {
         HttpServletRequest  req = (HttpServletRequest)  request;
         HttpServletResponse res = (HttpServletResponse) response;
 
-        String uri = req.getRequestURI();
+        // Decide on the CANONICAL, decoded, normalised path — the same path Spring MVC
+        // and the static handler route on — never the raw request line. getRequestURI()
+        // is verbatim (percent-encoded, dot-segments intact), so matching the whitelist
+        // against it could be bypassed by an encoded-traversal URL that this filter reads
+        // as a public prefix but the dispatcher routes to a protected endpoint — e.g.
+        // "/api/public/x/%2e%2e/%2e%2e/groups/5/members" → routed to "/api/groups/5/members".
+        // RequestPaths.path() is the shared helper the sibling filters already use.
+        String uri = RequestPaths.path(req);
 
         // ── Whitelist check ────────────────────────────────────────────────
+        // Exact path or a path *segment* under it. A bare startsWith(prefix) used
+        // to be the fourth condition here; it made "/api/public" also exempt
+        // "/api/public-screens", which is the admin API for minting public links.
+        // Whitelisting is by segment only — never by string prefix.
         for (String prefix : PUBLIC_PREFIXES) {
-            if (uri.equals(prefix) || uri.startsWith(prefix + "/")
-                    || uri.startsWith(prefix + "?") || uri.startsWith(prefix)) {
+            if (uri.equals(prefix) || uri.startsWith(prefix + "/")) {
                 chain.doFilter(request, response);
                 return;
             }
@@ -163,6 +182,12 @@ public class AuthFilter implements Filter {
                 return;
             }
         }
+
+        // Same idea for permissions: a change saved in viewUsers reaches this session
+        // on its next request (re-read at most every 15 s; see PermissionRefresher).
+        // Only the session copy is replaced — nothing here decides access, the guards
+        // downstream still do. No-op for church, temporary-access and NTag sessions.
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
 
         chain.doFilter(request, response);
     }

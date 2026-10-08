@@ -584,11 +584,84 @@ public class SongBookController {
         }
     }
 
+    /** Rename the Finalized Song Book (its title / heading) without publishing. */
+    @PutMapping("/book-title")
+    public ResponseEntity<?> saveBookTitle(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        String title = str(b.get("bookTitle"));
+        if (title.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Title required"));
+        if (title.length() > 300) return ResponseEntity.badRequest().body(Map.of("error", "Title is too long (max 300 characters)."));
+        SongBookPublish p = service.saveBookTitle(c.clientId(), title, c.actor(), c.role());
+        return ResponseEntity.ok(Map.of("bookTitle", p.getBookTitle(), "published", p.isPublished()));
+    }
+
     @PostMapping("/unpublish")
     public ResponseEntity<?> unpublish(HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
         service.unpublish(c.clientId(), c.actor(), c.role());
         return ResponseEntity.ok(Map.of("published", false));
+    }
+
+    /* ─────────────────── "Now Singing" / "Next Song" (FULL) ─────────────────── */
+
+    /**
+     * The published book's songs (for the Set Current / Next picker) plus the
+     * current selections. Scoped to the caller's active book + tenant via {@link #ctx}.
+     */
+    @GetMapping("/live")
+    public ResponseEntity<?> live(HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        SongBookPublish p = service.publishState(c.clientId());
+        boolean published = p != null && p.isPublished() && p.getSnapshot() != null;
+        List<Map<String, Object>> songs = published ? service.snapshotSongs(p.getSnapshot()) : new ArrayList<>();
+        // A book published before this feature shipped has a snapshot whose songs carry no
+        // id, so nothing can be selected against it. Say so explicitly rather than serving a
+        // list that cannot be used — the page offers a one-click re-publish.
+        boolean needsRepublish = published && !songs.isEmpty()
+                && songs.stream().anyMatch(m -> m.get("songId") == null);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("published", published);
+        out.put("needsRepublish", needsRepublish);
+        out.put("songs", songs);
+        out.put("currentSongId", p != null ? p.getCurrentSongId() : null);
+        out.put("nextSongId", p != null ? p.getNextSongId() : null);
+        return ResponseEntity.ok(out);
+    }
+
+    @PostMapping("/current-song")
+    public ResponseEntity<?> setCurrentSong(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        try {
+            service.setCurrentSong(c.clientId(), lng(b.get("songId")), c.actor(), c.role());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/current-song")
+    public ResponseEntity<?> clearCurrentSong(HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        service.clearCurrentSong(c.clientId(), c.actor(), c.role());
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    @PostMapping("/next-song")
+    public ResponseEntity<?> setNextSong(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        try {
+            service.setNextSong(c.clientId(), lng(b.get("songId")), c.actor(), c.role());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/next-song")
+    public ResponseEntity<?> clearNextSong(HttpServletRequest req) {
+        Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        service.clearNextSong(c.clientId(), c.actor(), c.role());
+        return ResponseEntity.ok(Map.of("ok", true));
     }
 
     /* ─────────────────── helpers ─────────────────── */

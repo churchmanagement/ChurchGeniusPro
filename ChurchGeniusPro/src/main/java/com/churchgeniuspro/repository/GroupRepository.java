@@ -28,4 +28,8 @@ public interface GroupRepository extends JpaRepository<Group, Integer> {
 
     /** Duplicate-check on update — scoped to the same org, excluding the record being updated. */
     boolean existsByGroupNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(String groupName, String appClientId, Integer id);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<Group> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

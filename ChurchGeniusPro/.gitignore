@@ -42,3 +42,17 @@ src/main/resources/application-local.properties
 **/application-local.properties
 *.env
 .env
+
+### Runtime output / backups / scratch (never commit) ###
+logs/
+*.log
+*.log.*.gz
+logsapp_start.log
+_bak_*/
+_to_delete/
+_sync_tmp/
+~$*
+Claude outputs/
+/DecryptTest.java
+src/main/resources/application-trial.properties
+**/application-trial.properties

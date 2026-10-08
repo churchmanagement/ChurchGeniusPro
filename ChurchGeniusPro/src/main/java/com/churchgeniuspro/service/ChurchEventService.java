@@ -2,6 +2,7 @@ package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.common.States;
 import com.churchgeniuspro.hibernate.ChurchEvent;
+import com.churchgeniuspro.hibernate.ChurchEventImage;
 import com.churchgeniuspro.hibernate.ChurchEventDay;
 import com.churchgeniuspro.hibernate.EmailSettings;
 import com.churchgeniuspro.hibernate.EventRegistration;
@@ -9,15 +10,20 @@ import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.model.ChurchEventBO;
 import com.churchgeniuspro.model.EventRegistrationBO;
 import com.churchgeniuspro.repository.ChurchEventDayRepository;
+import com.churchgeniuspro.repository.ChurchEventImageRepository;
 import com.churchgeniuspro.repository.ChurchEventRepository;
 import com.churchgeniuspro.repository.EmailSettingsRepository;
 import com.churchgeniuspro.repository.EventRegistrationRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.PhoneUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.churchgeniuspro.repository.SmsOptInRepository;
+import com.churchgeniuspro.util.PhoneNumbers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +43,8 @@ import java.util.stream.Collectors;
 @Service
 public class ChurchEventService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChurchEventService.class);
+
     private final ChurchEventRepository          eventRepo;
     private final ChurchEventDayRepository       dayRepo;
     private final EventRegistrationRepository    regRepo;
@@ -45,10 +53,32 @@ public class ChurchEventService {
     private final SmsService                     smsService;
     private final FamilyMemberRepository         memberRepo;
     private final EventEmailTemplateService      eventEmailTemplateService;
+    private final WhatsAppSenderService          smsSender;
+    private final SmsOptInRepository             smsOptInRepo;
 
     /** Public base URL — used to build the RSVP update link embedded in emails. */
     @Value("${app.base-url}")
     private String baseUrl;
+
+    /**
+     * Whether a registration confirmation SMS requires a confirmed opt-in for that number.
+     *
+     * <p>Configurable because the trade-off is a judgement call, not a technical one.
+     * Left on, only numbers that completed the double opt-in (consent + a YES reply) get
+     * a text — which is the rule {@link SmsService} has always documented, and the safe
+     * reading of TCPA. Turned off, a phone number typed into the registration form is
+     * itself treated as consent for that one confirmation.
+     *
+     * <p>Note the practical consequence of leaving it on: a church with no opt-in records
+     * sends no registration texts at all. That is the intended behaviour, not a fault, and
+     * every skip is logged with the number and the reason so it is visible rather than
+     * mysterious.
+     */
+    @Value("${sms.event-registration.require-opt-in:true}")
+    private boolean requireSmsOptIn;
+
+    private final EventPublicTokenService publicTokens;
+    private final ChurchEventImageRepository imageRepo;
 
     public ChurchEventService(ChurchEventRepository eventRepo,
                               ChurchEventDayRepository dayRepo,
@@ -57,7 +87,12 @@ public class ChurchEventService {
                               EmailSettingsRepository emailSettingsRepo,
                               SmsService smsService,
                               FamilyMemberRepository memberRepo,
-                              EventEmailTemplateService eventEmailTemplateService) {
+                              EventEmailTemplateService eventEmailTemplateService,
+                              WhatsAppSenderService smsSender,
+                              SmsOptInRepository smsOptInRepo,
+                              ChurchEventImageRepository imageRepo,
+            EventPublicTokenService publicTokens) {
+        this.publicTokens = publicTokens;
         this.eventRepo         = eventRepo;
         this.dayRepo           = dayRepo;
         this.regRepo           = regRepo;
@@ -66,6 +101,39 @@ public class ChurchEventService {
         this.smsService        = smsService;
         this.memberRepo        = memberRepo;
         this.eventEmailTemplateService = eventEmailTemplateService;
+        this.smsSender         = smsSender;
+        this.smsOptInRepo      = smsOptInRepo;
+        this.imageRepo         = imageRepo;
+    }
+
+    // ── Event image (database audit P7: stored in its own table) ────────────
+
+    /** The flyer for one event, or {@code null} — loaded only when a caller asks for it. */
+    @Transactional(readOnly = true)
+    public String loadImageData(Integer eventId) {
+        return imageRepo.findImageDataByEventId(eventId).orElse(null);
+    }
+
+    /**
+     * Stores (or clears) an event's flyer in {@code church_event_image}. A {@code null}
+     * payload means "no change"; a blank one clears the image. Keeps
+     * {@code church_event.image_present} in step so a list never has to load the image.
+     */
+    private void persistImage(ChurchEvent ev, String imageData) {
+        if (imageData == null) {
+            return;                                     // no change on this save
+        }
+        if (imageData.isBlank()) {
+            imageRepo.deleteByEventId(ev.getId());
+            if (ev.isImagePresent()) { ev.setImagePresent(false); eventRepo.save(ev); }
+            return;
+        }
+        ChurchEventImage img = imageRepo.findByEventId(ev.getId()).orElseGet(ChurchEventImage::new);
+        img.setEventId(ev.getId());
+        img.setAppClientId(ev.getAppClientId());
+        img.setImageData(imageData);
+        imageRepo.save(img);
+        if (!ev.isImagePresent()) { ev.setImagePresent(true); eventRepo.save(ev); }
     }
 
     // ── List ──────────────────────────────────────────────────────────────
@@ -81,12 +149,12 @@ public class ChurchEventService {
     // ── Single ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getById(Integer id) {
-        ChurchEvent ev = eventRepo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + id));
+    public Map<String, Object> getById(Integer id, String appClientId) {
+        ChurchEvent ev = findOrThrow(id, appClientId);
         Map<String, Object> m = toMap(ev);
-        // Single-event fetch may include the full image (small payload for one event).
-        m.put("imageData", ev.getImageData());
+        // Single-event fetch may include the full image (small payload for one event),
+        // loaded from its own table (database audit P7).
+        m.put("imageData", loadImageData(ev.getId()));
         m.put("days", getDaysForEvent(ev.getId()));
         return m;
     }
@@ -95,12 +163,21 @@ public class ChurchEventService {
 
     /**
      * Returns the raw {@link ChurchEvent} entity by ID, or {@code null} if not found.
-     * Used by the controller to access fields (e.g. {@code appClientId}) not exposed
-     * in the BO map.
+     *
+     * <p>INTERNAL / TOKEN-ONLY: no tenant scope. The only callers are the public
+     * {@code /api/event-register/{token}/**} handlers, where the AES event token is
+     * the authorisation and there is no session. Session-backed code must go
+     * through the tenant-scoped methods ({@link #getById(Integer, String)} etc.).
      */
     @Transactional(readOnly = true)
     public ChurchEvent getEventEntityById(Integer id) {
         return eventRepo.findByIdAndDeleteFlagFalse(id).orElse(null);
+    }
+
+    /** Tenant-scoped, non-deleted lookup; unknown and foreign ids fail identically. */
+    private ChurchEvent findOrThrow(Integer id, String appClientId) {
+        return eventRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + id));
     }
 
     // ── Public event detail (for registration page) ───────────────────────
@@ -117,10 +194,39 @@ public class ChurchEventService {
         return m;
     }
 
+    /**
+     * PUBLIC roster for the registration page's "Who else is attending?" card.
+     *
+     * <p>Returns only what that card displays — name, party size, attending choice and
+     * the RSVP note — and nothing that identifies or contacts a person: no email, phone,
+     * address, registration code, row ids or check-in state (security audit N2; the
+     * registration link is a broadcast value, not a secret). Honours the event's
+     * {@code showRegistrants} setting: when the church has switched the list off, the
+     * token yields an empty list. The full roster is staff-only — see
+     * {@link #getRegistrations(Integer, String)}, which is session- and tenant-gated.
+     */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getRegistrationsByToken(String token) {
-        Integer id = decryptToken(token);
-        return getRegistrations(id);
+        // The token resolves to exactly one live event of one tenant — that is the scope.
+        ChurchEvent ev = publicTokens.resolve(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid event token"));
+        if (!ev.isShowRegistrants()) return List.of();
+        return regRepo.findByEventIdOrderByCreatedDateAsc(ev.getId())
+                .stream()
+                .map(ChurchEventService::publicRegToMap)
+                .collect(Collectors.toList());
+    }
+
+    /** The public projection of a registration: display fields only, never contact/PII. */
+    private static Map<String, Object> publicRegToMap(EventRegistration r) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("firstName", r.getFirstName());
+        m.put("lastName",  r.getLastName());
+        m.put("adults",    r.getAdults());
+        m.put("kids",      r.getKids());
+        m.put("attending", r.getAttending());
+        m.put("note",      r.getNote());
+        return m;
     }
 
     @Transactional
@@ -133,47 +239,57 @@ public class ChurchEventService {
 
     @Transactional
     public ChurchEvent create(ChurchEventBO bo, String appClientId, String createdBy) {
+        requireUniqueEventCode(bo.getEventCode(), null, appClientId);
         ChurchEvent ev = new ChurchEvent();
         applyBO(ev, bo);
+        ev.setPublicToken(PublicLinkResolver.newToken());
         ev.setAppClientId(appClientId);
         ev.setCreatedBy(createdBy);
         ChurchEvent saved = eventRepo.save(ev);
-        saveDays(saved.getId(), bo);
+        persistImage(saved, bo.getImageData());
+        saveDays(saved.getId(), bo, appClientId);
         return saved;
     }
 
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public ChurchEvent update(Integer id, ChurchEventBO bo, String createdBy) {
-        ChurchEvent ev = eventRepo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + id));
+    public ChurchEvent update(Integer id, ChurchEventBO bo, String createdBy, String appClientId) {
+        ChurchEvent ev = findOrThrow(id, appClientId);
+        requireUniqueEventCode(bo.getEventCode(), id, appClientId);
         applyBO(ev, bo);
         // Only update createdBy if provided (preserves original creator on edits)
         if (createdBy != null && ev.getCreatedBy() == null) {
             ev.setCreatedBy(createdBy);
         }
         ChurchEvent saved = eventRepo.save(ev);
+        persistImage(saved, bo.getImageData());
         // Replace all day records
         dayRepo.deleteByEventId(id);
-        saveDays(id, bo);
+        saveDays(id, bo, appClientId);
         return saved;
     }
 
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        ChurchEvent ev = eventRepo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + id));
+    public void delete(Integer id, String appClientId) {
+        ChurchEvent ev = findOrThrow(id, appClientId);
         ev.setDeleteFlag(true);
         eventRepo.save(ev);
     }
 
     // ── Registrations ─────────────────────────────────────────────────────
 
+    /** Registrations of an event this church owns; throws "not found" otherwise. */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getRegistrations(Integer eventId) {
+    public List<Map<String, Object>> getRegistrations(Integer eventId, String appClientId) {
+        findOrThrow(eventId, appClientId);
+        return registrationsFor(eventId);
+    }
+
+    /** Unscoped list — callers must already have authorised the event (session tenant or token). */
+    private List<Map<String, Object>> registrationsFor(Integer eventId) {
         return regRepo.findByEventIdOrderByCreatedDateAsc(eventId)
                 .stream()
                 .map(this::regToMap)
@@ -249,7 +365,33 @@ public class ChurchEventService {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("found", false);
+        out.put("registeredForThisEvent", false);
         if ((em == null || em.isBlank()) && (ph == null || ph.isBlank())) return out;
+
+        // 0) The caller's own RSVP for THIS event — what "update my RSVP" edits and what the
+        //    duplicate check needs. Event-scoped via the same finder the update path uses, so
+        //    it can only return the single record behind the supplied email/phone. (This is
+        //    what the page used to pull out of the full public roster — audit N2.)
+        EventRegistration own = null;
+        if (em != null && !em.isBlank()) own = regRepo.findByEventIdAndEmailIgnoreCase(eventId, em).orElse(null);
+        if (own == null && ph != null && !ph.isBlank()) own = regRepo.findFirstByEventIdAndPhone(eventId, ph).orElse(null);
+        if (own != null) {
+            out.put("found", true);
+            out.put("registeredForThisEvent", true);
+            out.put("source", "registration");
+            out.put("firstName",         own.getFirstName());
+            out.put("lastName",          own.getLastName());
+            out.put("email",             own.getEmail());
+            out.put("phone",             own.getPhone());
+            out.put("adults",            own.getAdults());
+            out.put("kids",              own.getKids());
+            out.put("attending",         own.getAttending());
+            out.put("attendingDays",     own.getAttendingDays());
+            out.put("note",              own.getNote());
+            out.put("vegetarian",        own.getVegetarian());
+            out.put("selectedFoodItems", own.getSelectedFoodItems());
+            return out;
+        }
 
         // 1) Existing registration for this client (richest match — has adults/kids).
         EventRegistration reg = null;
@@ -292,11 +434,10 @@ public class ChurchEventService {
     }
 
     @Transactional
-    public void deleteRegistration(Integer registrationId) {
-        if (!regRepo.existsById(registrationId)) {
-            throw new IllegalArgumentException("Registration not found: " + registrationId);
-        }
-        regRepo.deleteById(registrationId);
+    public void deleteRegistration(Integer registrationId, String appClientId) {
+        EventRegistration reg = regRepo.findByIdAndClientId(registrationId, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
+        regRepo.delete(reg);
     }
 
     /**
@@ -358,7 +499,7 @@ public class ChurchEventService {
         String registrantEmail = reg.getEmail() != null ? reg.getEmail().trim() : "";
         String rsvpLink = "";
         try {
-            String token = EncryptionUtil.encrypt(String.valueOf(ev.getId()));
+            String token = publicTokens.tokenFor(ev);
             rsvpLink = baseUrl + "/event-register/" + token
                      + (registrantEmail.isBlank() ? ""
                         : "?email=" + URLEncoder.encode(registrantEmail, StandardCharsets.UTF_8));
@@ -555,8 +696,39 @@ public class ChurchEventService {
 
     // ── SMS ───────────────────────────────────────────────────────────────
 
-    private void sendRegistrationSms(EventRegistration reg, ChurchEvent ev) {
+    /**
+     * Package-private rather than private so the delivery rules — normalisation, the
+     * opt-in gate, and routing through the quota choke-point — can be asserted directly.
+     * Reaching them through {@code register(...)} would mean standing up a dozen unrelated
+     * repositories to test three decisions.
+     */
+    void sendRegistrationSms(EventRegistration reg, ChurchEvent ev) {
         if (!smsService.isConfigured()) return;
+
+        // ── Deliverability ───────────────────────────────────────────────────
+        // Registrants type their number into a free-text field, so it arrives in every
+        // shape imaginable: "9135550100", "1-913-555-0100", "(913) 555-0100". Twilio
+        // needs E.164 and rejects the rest, so resolve it here — and if it cannot be
+        // resolved, say so once with the offending value rather than handing the provider
+        // something that will fail out of sight.
+        String to = PhoneNumbers.toE164(reg.getPhone());
+        if (to == null) {
+            log.warn("Event registration SMS skipped — registrant {} gave '{}', which is not "
+                   + "a usable phone number (event {}).",
+                    reg.getId(), reg.getPhone(), ev.getId());
+            return;
+        }
+
+        // ── Consent ──────────────────────────────────────────────────────────
+        // The opt-in table is keyed by the E.164 number, which is why the lookup uses the
+        // normalised value: matching on the raw string finds nothing and would read as
+        // "not opted in", silently suppressing every message for a reason nobody could see.
+        if (requireSmsOptIn && !smsOptInRepo.isOptedIn(to, ev.getAppClientId())) {
+            log.info("Event registration SMS skipped for {} — no confirmed SMS opt-in for "
+                   + "church {}. (Set sms.event-registration.require-opt-in=false to treat "
+                   + "submitting the form as consent.)", to, ev.getAppClientId());
+            return;
+        }
 
         String firstName  = reg.getFirstName() != null ? reg.getFirstName() : "Friend";
         String eventName  = ev.getEventName()  != null ? ev.getEventName()  : "the event";
@@ -566,7 +738,7 @@ public class ChurchEventService {
         // Build public view link (event-register page with registration section hidden)
         String viewLink = "";
         try {
-            String token = EncryptionUtil.encrypt(String.valueOf(ev.getId()));
+            String token = publicTokens.tokenFor(ev);
             viewLink = baseUrl + "/event-register/" + token + "?view=1";
         } catch (Exception ignored) {}
 
@@ -596,7 +768,11 @@ public class ChurchEventService {
                  + " Reply STOP to opt out.";
         }
 
-        smsService.send(reg.getPhone().trim(), body);
+        // Routed through the sender rather than SmsService directly: that is the choke
+        // point which applies the subscription plan's monthly SMS allowance and records
+        // usage. Calling SmsService.send() here meant event texts never counted against a
+        // church's plan limit and could run past it unnoticed.
+        smsSender.sendSingleSms(to, body, ev.getAppClientId());
     }
 
     // ── Shared email wrapper ──────────────────────────────────────────────────
@@ -940,6 +1116,47 @@ public class ChurchEventService {
 
     // ── Private helpers ───────────────────────────────────────────────────
 
+    /**
+     * Rejects an Event ID / Code that another event already holds.
+     *
+     * <p>The code is optional, so a blank one is always fine. When one IS given
+     * it has to be unique, and that was previously enforced only by the unique
+     * index on {@code church_event.event_code}: typing a code someone else's
+     * event already used surfaced as an opaque save failure with no indication
+     * of which field was at fault. Checking here turns it into a sentence the
+     * person can act on, and names the field so the page can point at it.
+     *
+     * <p>Comparison is case-insensitive and trimmed, because {@code evt-a3b7c2}
+     * and {@code EVT-A3B7C2 } are the same code to everyone except the database.
+     *
+     * @param selfId id of the event being updated, so it does not collide with
+     *               its own existing code; {@code null} when creating
+     */
+    private void requireUniqueEventCode(String rawCode, Integer selfId, String appClientId) {
+        if (rawCode == null || rawCode.isBlank()) return;      // optional field
+        String code = rawCode.trim();
+        eventRepo.findFirstByEventCodeIgnoreCaseAndDeleteFlagFalse(code).ifPresent(other -> {
+            if (selfId != null && selfId.equals(other.getId())) return;   // its own code
+            // The index is global, so the holder may be another church's event. Name it
+            // only when it is this church's own — otherwise the message would disclose
+            // another tenant's event name (security audit P6).
+            boolean ours = appClientId != null && appClientId.equals(other.getAppClientId());
+            String holder = ours && other.getEventName() != null ? other.getEventName() : "another event";
+            throw new DuplicateEventCodeException(
+                    "Event ID / Code \"" + code + "\" is already used by \"" + holder
+                    + "\". Enter a different code or click Generate.");
+        });
+    }
+
+    /**
+     * A duplicate Event ID / Code. Distinct from a plain
+     * {@link IllegalArgumentException} so the controller can tell the page which
+     * field to highlight instead of showing a generic save error.
+     */
+    public static class DuplicateEventCodeException extends IllegalArgumentException {
+        public DuplicateEventCodeException(String message) { super(message); }
+    }
+
     private void applyBO(ChurchEvent ev, ChurchEventBO bo) {
         ev.setEventName(bo.getEventName() != null ? bo.getEventName().trim() : "");
         ev.setEventCode(bo.getEventCode() != null && !bo.getEventCode().isBlank()
@@ -985,20 +1202,23 @@ public class ChurchEventService {
         ev.setAccommodationAvailable(Boolean.TRUE.equals(bo.getAccommodationAvailable()));
         ev.setAccommodationAddress(bo.getAccommodationAddress());
         ev.setAccommodationComments(bo.getAccommodationComments());
-        // Only overwrite the image when a new one is supplied. A null payload means
-        // "no change", so editing an event without re-uploading preserves the image.
+        // Database audit P7: the image itself is stored in church_event_image by
+        // persistImage() after the event is saved (it needs the event id). Here we only
+        // keep the cheap presence flag in step. A null payload means "no change"; a blank
+        // one clears the image.
         if (bo.getImageData() != null) {
-            ev.setImageData(bo.getImageData());
+            ev.setImagePresent(!bo.getImageData().isBlank());
         }
     }
 
-    private void saveDays(Integer eventId, ChurchEventBO bo) {
+    private void saveDays(Integer eventId, ChurchEventBO bo, String appClientId) {
         if ("Multiple Days".equals(bo.getEventType())
                 && bo.getDays() != null && !bo.getDays().isEmpty()) {
             int order = 1;
             for (ChurchEventBO.DayBO d : bo.getDays()) {
                 ChurchEventDay day = new ChurchEventDay();
                 day.setEventId(eventId);
+                day.setClientId(appClientId);
                 day.setEventDate(parseDate(d.getEventDate()));
                 day.setStartTime(d.getStartTime());
                 day.setEndTime(d.getEndTime());
@@ -1038,8 +1258,7 @@ public class ChurchEventService {
         m.put("id",                  ev.getId());
         m.put("eventName",           ev.getEventName());
         m.put("eventCode",           ev.getEventCode());
-        try { m.put("encryptedId", EncryptionUtil.encrypt(String.valueOf(ev.getId()))); }
-        catch (Exception ignored) { m.put("encryptedId", null); }
+        m.put("encryptedId", publicTokens.tokenFor(ev));   // key name kept for the page; value is the random public token
         m.put("eventType",           ev.getEventType());
         m.put("eventDate",           ev.getEventDate()           != null ? ev.getEventDate().toString()           : null);
         m.put("startTime",           ev.getStartTime());
@@ -1072,7 +1291,7 @@ public class ChurchEventService {
         m.put("accommodationComments",   ev.getAccommodationComments());
         // Do NOT inline the base64 image in list/detail payloads — it bloats the
         // response. Callers load it via GET /api/event-register/{encryptedId}/image.
-        m.put("hasImage",                ev.getImageData() != null && !ev.getImageData().isBlank());
+        m.put("hasImage",                ev.isImagePresent());
         m.put("appClientId",             ev.getAppClientId());
         return m;
     }
@@ -1137,8 +1356,8 @@ public class ChurchEventService {
      * @throws IllegalArgumentException when the ID is not found
      */
     @Transactional
-    public EventRegistration checkInById(Integer registrationId) {
-        EventRegistration reg = regRepo.findById(registrationId)
+    public EventRegistration checkInById(Integer registrationId, String appClientId) {
+        EventRegistration reg = regRepo.findByIdAndClientId(registrationId, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
         if (!reg.isCheckedIn()) {
             reg.setCheckedIn(true);
@@ -1155,8 +1374,8 @@ public class ChurchEventService {
      * @return the updated {@link EventRegistration}
      */
     @Transactional
-    public EventRegistration uncheckInById(Integer registrationId) {
-        EventRegistration reg = regRepo.findById(registrationId)
+    public EventRegistration uncheckInById(Integer registrationId, String appClientId) {
+        EventRegistration reg = regRepo.findByIdAndClientId(registrationId, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
         reg.setCheckedIn(false);
         reg.setCheckedInAt(null);
@@ -1172,9 +1391,8 @@ public class ChurchEventService {
      * @return the saved {@link EventRegistration}
      */
     @Transactional
-    public EventRegistration adminWalkIn(Integer eventId, EventRegistrationBO bo) {
-        ChurchEvent ev = eventRepo.findByIdAndDeleteFlagFalse(eventId)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+    public EventRegistration adminWalkIn(Integer eventId, EventRegistrationBO bo, String appClientId) {
+        ChurchEvent ev = findOrThrow(eventId, appClientId);
 
         EventRegistration reg = new EventRegistration();
         reg.setEventId(eventId);
@@ -1206,7 +1424,8 @@ public class ChurchEventService {
      * @return map with keys: totalRegistered, totalCheckedIn, totalNotCheckedIn
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> getCheckinSummary(Integer eventId) {
+    public Map<String, Object> getCheckinSummary(Integer eventId, String appClientId) {
+        findOrThrow(eventId, appClientId);
         long total     = regRepo.countByEventId(eventId);
         long checkedIn = regRepo.countByEventIdAndCheckedInTrue(eventId);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -1216,13 +1435,11 @@ public class ChurchEventService {
         return m;
     }
 
-    /** Decrypt an AES-encrypted event token back to numeric event ID. */
+    /** Resolve a public event token to the numeric event id. */
     public Integer decryptToken(String token) {
-        try {
-            return Integer.parseInt(EncryptionUtil.decrypt(token));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid event token");
-        }
+        return publicTokens.resolve(token)
+                .map(ChurchEvent::getId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid event token"));
     }
 
     private LocalDate parseDate(String s) {

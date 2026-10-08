@@ -551,7 +551,7 @@
         <div class="table-wrap">
           <!-- Email Selected toolbar above the table -->
           <div class="email-toolbar" id="emailToolbar">
-            <button class="btn-email-group" onclick="openEmailModal()">
+            <button class="btn-email-group" data-perm="admin.email" onclick="openEmailModal()">
               ✉ Email Selected<span class="sel-info" id="selInfo"></span>
             </button>
           </div>
@@ -1532,7 +1532,8 @@ window.CGP_applyPerms = function(p) {
   function hide(sel) { document.querySelectorAll(sel).forEach(function(el){ el.style.display='none'; }); }
   if (p) {
     if (p['admin.groups.edit']  === false) hide('#addBtn,#addExistingBtn,#addMemberBtn');
-    if (p['admin.email.delete'] === false) hide('.btn-email-group');
+    // Group Email permission (admin.email; legacy admin.email.delete via the alias table)
+    if (!window.CGP_permAllowed(p, 'admin.email')) hide('.btn-email-group');
   }
   if (typeof renderGroupsTable === 'function') renderGroupsTable();
 };

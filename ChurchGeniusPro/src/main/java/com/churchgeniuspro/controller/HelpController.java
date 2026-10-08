@@ -51,7 +51,7 @@ public class HelpController {
     public String helpCenterPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "more.helpcenter");
+        deny = RoleGuard.requirePagePermission(request, "more.helpcenter");
         if (deny != null) return deny;
         return "forward:/helpCenter.html";
     }

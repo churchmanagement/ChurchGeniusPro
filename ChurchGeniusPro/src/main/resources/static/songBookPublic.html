@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Devanagari&family=Noto+Sans+Kannada&display=swap" rel="stylesheet" />
   <title>Song Book</title>
+  <!-- Same PDF-export libraries (and pinned versions) as the certificate pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root { --brand:#673147; --paper:#fbf7f3;
       --ml:'Noto Sans Malayalam','Noto Sans Tamil','Noto Sans Telugu','Noto Sans Devanagari','Noto Sans Kannada', Georgia,'Times New Roman',serif; }
@@ -15,11 +18,46 @@
     body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
            background:linear-gradient(160deg,#4a2336,#7a3a55); color:#2a2230; min-height:100vh; }
     .wrap { max-width:780px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
-    .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; color:#fff; gap:8px; position:sticky; top:0; z-index:30; }
+    .stickyhead { position:sticky; top:0; z-index:30; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; color:#fff; gap:8px; }
     .book-name { font-size:15px; font-weight:700; flex:1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* ── "Now Singing" banner: compact, sits under the top bar on every page ── */
+    .nowbanner { display:flex; align-items:center; background:linear-gradient(90deg,#5c2b3f,#7d3a57);
+                 color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.28); }
+    .nb-track { flex:1; overflow:hidden; padding:9px 0; cursor:pointer; min-width:0;
+                -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+                        mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent); }
+    .nb-move { display:inline-flex; white-space:nowrap; animation:nbscroll 18s linear infinite; will-change:transform; }
+    .nb-track:hover .nb-move { animation-play-state:paused; }
+    .nb-seg { padding:0 40px; font-weight:800; font-size:14.5px; letter-spacing:.2px; }
+    .nb-seg .ic { display:inline-block; animation:nbpulse 1.5s ease-in-out infinite; }
+    .nb-x { flex:0 0 auto; margin:0 8px; width:28px; height:28px; border-radius:50%; border:none;
+            background:rgba(255,255,255,.22); color:#fff; font-size:13px; font-weight:800; cursor:pointer; line-height:1; }
+    .nb-x:active { transform:scale(.9); }
+    @keyframes nbscroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+    @keyframes nbpulse  { 0%,100% { transform:scale(1); } 50% { transform:scale(1.22); } }
+
+    /* ── "Next Song" badge: compact pill, shown on every page like the banner ── */
+    .nextbadge { position:fixed; left:50%; transform:translateX(-50%); bottom:80px; z-index:29;
+                 display:none; align-items:center; gap:7px; max-width:92%;
+                 background:#fff; color:var(--brand); border:2px solid var(--brand); border-radius:999px;
+                 padding:9px 16px; font-weight:800; font-size:14px; box-shadow:0 8px 22px rgba(0,0,0,.28);
+                 white-space:nowrap;
+                 cursor:pointer; animation:nbrise .35s ease; }
+    .nextbadge:active { transform:translateX(-50%) scale(.97); }
+    .nextbadge .nx-t { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:64vw; }
+    .nextbadge .nx-ar { font-size:18px; line-height:1; }
+    @keyframes nbrise { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .nb-move { animation:none; } .nb-seg .ic { animation:none; } .nextbadge { animation:none; }
+    }
     .topbtn { background:rgba(255,255,255,.16); color:#fff; border:none; border-radius:9px; padding:8px 11px; font-size:13px; font-weight:600; cursor:pointer; }
     .topbtn:active { transform:scale(.96); }
     .stage { flex:1; padding:8px 14px 92px; overflow:hidden; }
+    /* when the Next Song pill is on screen, keep the lyrics clear of it */
+    body.has-next .stage { padding-bottom:134px; }
     .page { background:var(--paper); border-radius:16px; box-shadow:0 14px 40px rgba(0,0,0,.28); min-height:70vh; padding:30px 26px; position:relative; display:flex; flex-direction:column; }
     .page.anim { animation:slidein .3s ease; }
     /* Custom image pages (cover / last / ads): edge-to-edge — no white padding.
@@ -41,9 +79,21 @@
     .cover .c-foot { position:absolute; bottom:26px; left:0; right:0; font-size:12px; opacity:.65; }
 
     /* toc */
-    .toc-title { font-size:24px; font-weight:800; color:var(--brand); text-align:center; margin-bottom:18px; }
+    .toc-title { font-size:24px; font-weight:800; color:var(--brand); text-align:center; margin-bottom:14px; cursor:help; }
+    .toc-search-wrap { position:relative; margin-bottom:16px; }
+    .toc-search { width:100%; padding:11px 14px 11px 38px; border:1.5px solid #e3d5dc; border-radius:11px;
+                  font-size:15px; color:#33293a; background:#fff; outline:none; font-family:inherit; }
+    .toc-search:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(103,49,71,.12); }
+    .toc-search-ic { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:15px; opacity:.55; pointer-events:none; }
+    .toc-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); width:24px; height:24px;
+                         border:none; border-radius:50%; background:#f0e8ec; color:var(--brand); font-size:13px; font-weight:800;
+                         cursor:pointer; display:none; align-items:center; justify-content:center; }
+    .toc-search-wrap.has-text .toc-search-clear { display:flex; }
+    .toc-empty { text-align:center; color:#a993a2; font-size:14px; font-style:italic; padding:24px 4px; }
+    .toc-group.toc-hidden { display:none; }
     .toc-sec { font-size:15px; font-weight:800; color:var(--brand); text-transform:uppercase; letter-spacing:.6px; margin:16px 0 6px; font-family:var(--ml); }
     .toc-item { display:flex; align-items:flex-end; gap:6px; padding:7px 2px; cursor:pointer; font-family:var(--ml); }
+    .toc-item.toc-hidden { display:none; }
     .toc-item:hover .toc-name { color:var(--brand); }
     .toc-name { font-size:15px; color:#33293a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .toc-dots { flex:1; border-bottom:2px dotted #cbb9c4; margin-bottom:4px; min-width:18px; }
@@ -76,7 +126,7 @@
     .spinner { width:34px;height:34px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;}
     @keyframes spin { to { transform:rotate(360deg);} }
 
-    @media print { body{background:#fff;} .topbar,.nav{display:none!important;} .stage{padding:0;overflow:visible;} .page{display:none;}
+    @media print { body{background:#fff;} .topbar,.nav,.nowbanner,.nextbadge{display:none!important;} .stage{padding:0;overflow:visible;} .page{display:none;}
       #printAll{display:block!important;} .pb-page{page-break-after:always;padding:18px 6px;}
       .pb-cover{text-align:center;padding-top:90px;} .pb-cover .t{font-size:38px;font-weight:800;color:var(--brand);font-family:var(--ml);}
       .pb-cover .c{font-size:18px;font-weight:600;margin-top:8px;} .pb-cover .m{font-size:14px;color:#555;margin-top:6px;}
@@ -91,17 +141,50 @@
       .pb-page.pb-imgpage.bleed{padding:0;}
       .pb-imgpage.bleed img{width:100%;height:100vh;max-width:none;max-height:none;object-fit:cover;} }
     #printAll{display:none;}
+
+    /* ── PDF export (Download button) ──────────────────────────────────────
+       html2canvas renders on-screen computed styles — it does not simulate
+       @media print — so #printAll needs its own always-applicable ruleset,
+       active whenever <body> carries .exporting-pdf. downloadSongBookPdf()
+       captures each .pb-page separately and gives it its own PDF page sized
+       to what was actually captured, so — unlike the fixed-sheet print
+       rules above — no page here needs a forced viewport-relative height:
+       every page is simply as tall as its own content, and a long song
+       never gets cropped. A generous min-height keeps short pages (cover,
+       divider, ads) looking like real pages instead of thin strips. */
+    body.exporting-pdf #printAll{display:block!important;position:fixed;left:-10000px;top:0;width:900px;background:#fff;}
+    body.exporting-pdf .pb-page{width:900px;min-height:1150px;background:#fff;padding:48px 44px;}
+    body.exporting-pdf .pb-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 44px;}
+    body.exporting-pdf .pb-cover .t{font-size:38px;font-weight:800;color:var(--brand);font-family:var(--ml);}
+    body.exporting-pdf .pb-cover .c{font-size:18px;font-weight:600;margin-top:8px;}
+    body.exporting-pdf .pb-cover .m{font-size:14px;color:#555;margin-top:6px;}
+    body.exporting-pdf .pb-sec{display:flex;align-items:center;justify-content:center;text-align:center;font-size:26px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:1px;font-family:var(--ml);}
+    body.exporting-pdf .pb-toc-title{font-size:26px;font-weight:800;color:var(--brand);text-align:center;margin-bottom:18px;}
+    body.exporting-pdf .pb-toc-sec{font-size:16px;font-weight:800;color:var(--brand);margin:14px 0 5px;text-transform:uppercase;font-family:var(--ml);}
+    body.exporting-pdf .pb-toc-item{display:flex;justify-content:space-between;padding:4px 0;font-family:var(--ml);font-size:14px;}
+    body.exporting-pdf .pb-title{font-size:22px;font-weight:700;color:var(--brand);border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:14px;font-family:var(--ml);}
+    body.exporting-pdf .pb-lyrics{font-family:var(--ml);font-size:15px;line-height:1.65;}
+    body.exporting-pdf .pb-lyrics p{margin:0 0 12px;}
+    body.exporting-pdf .pb-imgpage{min-height:0;padding:0;}
+    body.exporting-pdf .pb-imgpage img{width:100%;height:auto;display:block;}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="topbar">
-      <button class="topbtn" id="tocBtn" onclick="goToc()" style="display:none;">☰ Contents</button>
-      <div class="book-name" id="bookName">Song Book</div>
-      <button class="topbtn" id="printBtn" onclick="doPrint()" style="display:none;">🖨</button>
+    <div class="stickyhead">
+      <div class="topbar">
+        <button class="topbtn" id="tocBtn" onclick="goToc()" style="display:none;">☰ Index</button>
+        <div class="book-name" id="bookName">Song Book</div>
+        <button class="topbtn" id="printBtn" onclick="downloadSongBookPdf()" style="display:none;">⬇ Download</button>
+      </div>
+      <!-- "Now Singing" banner (populated by live polling; hidden until a Current Song is set) -->
+      <div class="nowbanner" id="nowBanner" style="display:none;"></div>
     </div>
     <div class="stage" id="stage"><div class="state"><div class="spinner"></div>Loading song book…</div></div>
   </div>
+
+  <!-- "Next Song" pill — shown on every page while a Next Song is set -->
+  <div class="nextbadge" id="nextBadge"></div>
 
   <div class="nav" id="nav" style="display:none;">
     <button class="prev" id="prevBtn" onclick="go(-1)">‹ Prev</button>
@@ -114,6 +197,9 @@
 
   <script>
   let PAGES = [], TOC = [], COVER = {}, idx = 0, tocPage = 1, TOKEN = null;
+  let SONG_PAGE = {};                                   // songId → PAGES index (for deep-linking)
+  let LIVE = { currentVersion:0, current:null, next:null };
+  let POLL = null;
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function qp(k){ return new URLSearchParams(location.search).get(k); }
   // resolve display mode for a custom page image: 'fill' crops edge-to-edge (aspect
@@ -137,6 +223,7 @@
       document.getElementById('tocBtn').style.display='';
       document.getElementById('printBtn').style.display='';
       show(0);
+      startPolling();                                    // begin live "Now Singing" / "Next Song" updates
     }catch(e){ stageMsg('This song book is currently unavailable.'); }
   }
   function stageMsg(m){ document.getElementById('stage').innerHTML='<div class="state">'+esc(m)+'</div>'; }
@@ -146,7 +233,7 @@
     // Advertisement pages grouped by slot: cover | toc | sec:<i> | end
     const ADS={}; (d.ads||[]).forEach(a=>{ const k=a.slot||'end'; (ADS[k]=ADS[k]||[]).push(a); });
     const pushAds=k=>{ (ADS[k]||[]).forEach(a=>PAGES.push({type:'ad', id:a.id, title:a.title})); };
-    PAGES=[{type:'cover'}]; TOC=[];
+    PAGES=[{type:'cover'}]; TOC=[]; SONG_PAGE={};
     pushAds('cover');                                    // ads right after the cover
     tocPage=PAGES.length; PAGES.push({type:'toc'});
     pushAds('toc');                                      // ads after the table of contents
@@ -154,7 +241,7 @@
       if(!sec.songs||!sec.songs.length) return;
       PAGES.push({type:'section', name:sec.name});
       const items=[];
-      sec.songs.forEach(s=>{ const i=PAGES.length; PAGES.push({type:'song', title:s.title, language:s.language, lyricsHtml:s.lyricsHtml, section:sec.name}); items.push({title:s.title, idx:i}); });
+      sec.songs.forEach(s=>{ const i=PAGES.length; PAGES.push({type:'song', id:s.id, title:s.title, language:s.language, lyricsHtml:s.lyricsHtml, section:sec.name}); if(s.id!=null) SONG_PAGE[String(s.id)]=i; items.push({title:s.title, idx:i}); });
       TOC.push({name:sec.name, items});
       pushAds('sec:'+si);                                // ads after this section
     });
@@ -181,6 +268,7 @@
     document.getElementById('prevBtn').disabled=idx===0;
     document.getElementById('nextBtn').disabled=idx===PAGES.length-1;
     document.getElementById('stage').scrollTop=0;
+    renderNextBadge();                                   // the "Next Song" pill is front-page only
   }
   function coverHtml(){ const c=COVER;
     if(c.customCover){ const b=imgFill('cover')?' bleed':''; return `<div class="page imgpage anim${b}"><img class="full-img${b}" src="/api/public/songbook/cover-image?t=${encodeURIComponent(TOKEN)}&kind=cover"/></div>`; }
@@ -198,10 +286,49 @@
       `<div class="pageno">1</div></div>`;
   }
   function tocHtml(){
-    let body=TOC.map(g=>`<div class="toc-sec">${esc(g.name)}</div>`+
-      g.items.map(it=>`<div class="toc-item" onclick="show(${it.idx})"><span class="toc-name">${esc(it.title)}</span><span class="toc-dots"></span><span class="toc-pg">${it.idx+1}</span></div>`).join('')
+    let body=TOC.map(g=>`<div class="toc-group"><div class="toc-sec">${esc(g.name)}</div>`+
+      g.items.map(it=>`<div class="toc-item" onclick="show(${it.idx})" title="Click to go to this page"><span class="toc-name">${esc(it.title)}</span><span class="toc-dots"></span><span class="toc-pg">${it.idx+1}</span></div>`).join('')
+      +`</div>`
     ).join('');
-    return `<div class="page anim"><div class="toc-title">Table of Contents</div>${body}<div class="pageno">${tocPage+1}</div></div>`;
+    return `<div class="page anim">`+
+      `<div class="toc-title" title="Click a song below to jump straight to its page">Index</div>`+
+      `<div class="toc-search-wrap" id="tocSearchWrap"><span class="toc-search-ic">🔍</span>`+
+      `<input class="toc-search" id="tocSearch" type="text" placeholder="Search by title, page #, or section…" oninput="filterToc(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off"/>`+
+      `<button class="toc-search-clear" id="tocSearchClear" onclick="clearTocSearch()" aria-label="Clear search" title="Clear search">✕</button></div>`+
+      `<div id="tocList">${body}</div>`+
+      `<div class="toc-empty" id="tocEmpty" style="display:none;">No matching songs found.</div>`+
+      `<div class="pageno">${tocPage+1}</div></div>`;
+  }
+  // The search box always starts empty — tocHtml() rebuilds the Index page fresh
+  // every time it's shown (go/goToc/nav), so a query never lingers stale into a
+  // later visit; filterToc() just needs to re-apply live as the user types.
+  function filterToc(qRaw){
+    const q=(qRaw||'').trim().toLowerCase();
+    const wrap=document.getElementById('tocSearchWrap');
+    if(wrap) wrap.classList.toggle('has-text', !!q);
+    const groups=[...document.querySelectorAll('#tocList .toc-group')];
+    let anyVisible=false;
+    groups.forEach((gEl,gi)=>{
+      const g=TOC[gi]; if(!g) return;
+      const items=[...gEl.querySelectorAll('.toc-item')];
+      let groupHasMatch=false;
+      items.forEach((itEl,ii)=>{
+        const it=g.items[ii]; if(!it) return;
+        const hay=(it.title+' '+g.name+' '+(it.idx+1)).toLowerCase();
+        const match=!q || hay.indexOf(q)>=0;
+        itEl.classList.toggle('toc-hidden', !match);
+        if(match){ groupHasMatch=true; anyVisible=true; }
+      });
+      gEl.classList.toggle('toc-hidden', !groupHasMatch);
+    });
+    const empty=document.getElementById('tocEmpty');
+    if(empty) empty.style.display = (q && !anyVisible) ? '' : 'none';
+  }
+  function clearTocSearch(){
+    const inp=document.getElementById('tocSearch');
+    if(inp) inp.value='';
+    filterToc('');
+    if(inp) inp.focus();
   }
   function go(dir){ document.getElementById('stage').style.setProperty('--dir', dir>0?'24px':'-24px'); show(idx+dir); }
   function goToc(){ go(0); show(tocPage); }
@@ -219,7 +346,7 @@
     for(let i=1;i<tocPage;i++){ const p=PAGES[i];
       if(p.type==='ad') html+=`<div class="pb-page pb-imgpage"><img src="/api/public/songbook/ad-image?t=${encodeURIComponent(TOKEN)}&id=${p.id}"/></div>`;
     }
-    html+=`<div class="pb-page"><div class="pb-toc-title">Table of Contents</div>`+
+    html+=`<div class="pb-page"><div class="pb-toc-title">Index</div>`+
       TOC.map(g=>`<div class="pb-toc-sec">${esc(g.name)}</div>`+g.items.map(it=>`<div class="pb-toc-item"><span>${esc(it.title)}</span><span>${it.idx+1}</span></div>`).join('')).join('')+`</div>`;
     for(let i=tocPage+1;i<PAGES.length;i++){ const p=PAGES[i];
       if(p.type==='section') html+=`<div class="pb-page pb-sec">${esc(p.name)}</div>`;
@@ -229,11 +356,128 @@
     }
     document.getElementById('printAll').innerHTML=html;
   }
-  async function doPrint(){
-    const imgs=[...document.querySelectorAll('#printAll img')];
-    await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=im.onerror=r;})));
-    window.print();
+  // Fully load the non-Latin lyrics fonts before an html2canvas capture — a page
+  // captured mid-swap renders with fallback/tofu glyphs baked permanently into the
+  // PDF, and display:none content (used elsewhere) doesn't reliably trigger a font
+  // load the way an explicit document.fonts.load() call does.
+  async function warmFonts(){
+    try{
+      const specs=["18px 'Noto Sans Malayalam'","18px 'Noto Sans Tamil'","18px 'Noto Sans Telugu'",
+                   "18px 'Noto Sans Devanagari'","18px 'Noto Sans Kannada'"];
+      await Promise.all(specs.map(f=>document.fonts.load(f).catch(()=>{})));
+      await document.fonts.ready;
+    }catch(e){ /* best effort — capture still proceeds, worst case with a fallback font */ }
   }
+
+  const PDF_SCALE=2, PX_TO_MM=25.4/96;      // html2canvas capture scale; CSS-px→mm at 96dpi
+
+  // Downloads the whole song book as one PDF — one page per .pb-page, each sized to
+  // match what was actually captured (see the body.exporting-pdf CSS above), so a
+  // long song is never cropped the way a fixed page size would crop it.
+  async function downloadSongBookPdf(){
+    const btn=document.getElementById('printBtn');
+    if(!btn || btn.disabled) return;
+    const orig=btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='⏳';
+    document.body.classList.add('exporting-pdf');
+    try{
+      const host=document.getElementById('printAll');
+      const pages=[...host.querySelectorAll('.pb-page')];
+      if(!pages.length) throw new Error('nothing to export');
+      const imgs=[...host.querySelectorAll('img')];
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=im.onerror=r;})));
+      await warmFonts();
+      const jsPDF=window.jspdf.jsPDF;
+      let pdf=null;
+      for(let i=0;i<pages.length;i++){
+        btn.innerHTML='⏳ '+(i+1)+'/'+pages.length;
+        const canvas=await html2canvas(pages[i], { scale:PDF_SCALE, useCORS:true, allowTaint:true, backgroundColor:'#ffffff', logging:false });
+        const wMm=(canvas.width/PDF_SCALE)*PX_TO_MM, hMm=(canvas.height/PDF_SCALE)*PX_TO_MM;
+        const orientation=wMm>=hMm?'landscape':'portrait';
+        const data=canvas.toDataURL('image/jpeg',0.95);
+        if(!pdf) pdf=new jsPDF({ orientation, unit:'mm', format:[wMm,hMm] });
+        else pdf.addPage([wMm,hMm], orientation);
+        pdf.addImage(data,'JPEG',0,0,wMm,hMm);
+      }
+      const safe=(document.getElementById('bookName').textContent||'Song Book').replace(/[^a-zA-Z0-9\s]/g,'').trim().replace(/\s+/g,'_')||'Song_Book';
+      pdf.save(safe+'.pdf');
+    }catch(e){
+      console.error(e);
+      alert('Could not generate the PDF. Please try again in a moment.');
+    }finally{
+      document.body.classList.remove('exporting-pdf');
+      btn.disabled=false; btn.innerHTML=orig;
+    }
+  }
+
+  /* ─────────── "Now Singing" / "Next Song" live layer (polling) ─────────── */
+  function gotoSong(songId){
+    if(songId==null) return;
+    const i=SONG_PAGE[String(songId)];
+    if(i!=null){ document.getElementById('stage').style.setProperty('--dir','24px'); show(i); }
+  }
+  function dismissKey(){ return 'sb.nowDismiss.'+(TOKEN||''); }
+  function getDismissed(){ try{ return sessionStorage.getItem(dismissKey()); }catch(e){ return null; } }
+  function setDismissed(v){ try{ sessionStorage.setItem(dismissKey(), String(v)); }catch(e){} }
+
+  function applyLive(state){
+    if(!state) return;
+    LIVE = { currentVersion: state.currentVersion||0, current: state.current||null, next: state.next||null };
+    renderNowBanner();
+    renderNextBadge();
+  }
+  // The banner/pill are re-rendered only when their content actually changes, so a
+  // 5-second poll never restarts the marquee or re-animates the pill under the reader.
+  let nowSig=null, nextSig=null;
+
+  function renderNowBanner(){
+    const el=document.getElementById('nowBanner'); if(!el) return;
+    const cur=LIVE.current;
+    const visible = !!cur && String(LIVE.currentVersion)!==String(getDismissed());
+    const sig = visible ? (cur.songId+'|'+cur.title+'|'+LIVE.currentVersion) : '';
+    if(sig===nowSig) return;
+    nowSig=sig;
+    if(!visible){ el.style.display='none'; el.innerHTML=''; return; }
+    const seg=`<span class="nb-seg"><span class="ic">🎵</span> Now Singing: ${esc(cur.title)}</span>`;
+    el.innerHTML =
+      `<div class="nb-track" title="Go to this song" onclick="gotoSong(${Number(cur.songId)})"><div class="nb-move">${seg}${seg}</div></div>`+
+      `<button class="nb-x" aria-label="Dismiss" title="Hide until the song changes" onclick="dismissNow(event)">✕</button>`;
+    el.style.display='flex';
+  }
+  function dismissNow(e){ if(e) e.stopPropagation(); setDismissed(LIVE.currentVersion);
+    nowSig='';
+    const el=document.getElementById('nowBanner'); el.style.display='none'; el.innerHTML=''; }
+
+  // Next Song is shown on EVERY page, exactly like the Now Singing banner. It used to be
+  // gated to the cover page, so setting it while someone was reading a song showed nothing
+  // until they reloaded (a reload restarts the viewer on the cover).
+  function renderNextBadge(){
+    const el=document.getElementById('nextBadge'); if(!el) return;
+    const nx=LIVE.next;
+    const sig = nx ? (nx.songId+'|'+nx.title) : '';
+    if(sig===nextSig) return;
+    nextSig=sig;
+    if(!nx){
+      el.style.display='none'; el.innerHTML=''; el.onclick=null;
+      document.body.classList.remove('has-next');
+      return;
+    }
+    el.innerHTML=`<span class="ic">🎶</span><span>Next Song:</span> <span class="nx-t">${esc(nx.title)}</span><span class="nx-ar">›</span>`;
+    el.onclick=()=>gotoSong(Number(nx.songId));
+    el.style.display='flex';
+    document.body.classList.add('has-next');
+  }
+  let livePolling=false;
+  async function pollLive(){
+    if(!TOKEN || livePolling) return; livePolling=true;
+    try{
+      const r=await fetch('/api/public/songbook/live?t='+encodeURIComponent(TOKEN),{cache:'no-store'});
+      if(r.ok) applyLive(await r.json());
+    }catch(e){ /* transient — keep last state, never disrupt reading */ }
+    finally{ livePolling=false; }
+  }
+  function startPolling(){ pollLive(); if(POLL) clearInterval(POLL); POLL=setInterval(pollLive, 5000); }
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pollLive(); });
 
   document.addEventListener('keydown', e=>{ if(e.key==='ArrowRight') go(1); if(e.key==='ArrowLeft') go(-1); });
   let sx=null;

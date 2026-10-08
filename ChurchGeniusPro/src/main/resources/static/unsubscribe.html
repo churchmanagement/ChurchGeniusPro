@@ -62,6 +62,7 @@
   const params   = new URLSearchParams(window.location.search);
   const email    = (params.get('email')    || '').trim();
   const clientId = (params.get('clientId') || '').trim();
+  const sig      = (params.get('sig') || '').trim();
 
   document.getElementById('emailDisplay').textContent = email || '(email not provided)';
 
@@ -79,7 +80,7 @@
       const res  = await fetch('/api/public/unsubscribe', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, clientId })
+        body:    JSON.stringify({ email, clientId, sig })
       });
       const data = await res.json();
       if (res.ok) {

@@ -9,10 +9,16 @@
  * button again for a new session.
  *
  * window.VoiceOpenAI:
- *   createRecorder(opts) -> { supported, start(), stop(), toggle(), isRecording() }
+ *   createRecorder(opts) -> { supported, start(), stop(), cancel(), toggle(),
+ *                              isRecording(), isBusy() }
+ *     stop()   finishes cleanly: the phrase in progress is flushed and sent.
+ *     cancel() aborts: pending audio is discarded, in-flight requests are
+ *              aborted, timers cleared and the mic released immediately, and
+ *              no queued callback may touch the UI afterwards.
  *     opts callbacks: onState(recording), onStatus(msg,kind), onDebug(label,detail),
  *                     onTranscript(text), onStatusData(status), onResult(payload),
- *                     onDisabled(status)
+ *                     onDisabled(status), onPhase('listening'|'processing'|'idle'),
+ *                     onCancel()
  *   getStatus()      -> Promise<usage status>   (voice/vision availability)
  *   getVoiceStatus() -> Promise<diagnostics>    (apiType, models, endpoint…)
  * ========================================================================== */
@@ -104,6 +110,14 @@
     var levelThresh  = (opts.levelThreshold != null) ? opts.levelThreshold : 0.020;
 
     var inFlight = 0;   // OpenAI requests currently being processed
+
+    /* -- Hard-cancel bookkeeping ------------------------------------------
+       `gen` is bumped by cancel(); every async callback captures the value it
+       started with and returns early if it no longer matches, so a cancelled
+       phrase can never write to the UI. `pending` holds the AbortControllers
+       for requests still in flight so cancel() can tear the sockets down
+       rather than merely ignoring the replies. */
+    var gen = 0, pending = [], cancelled = false;
     function status(m, k) { if (opts.onStatus) opts.onStatus(m, k || 'info'); }
     function setState(on) { running = on; if (opts.onState) opts.onState(on); refreshIndicator(); }
     function dbg(label, detail) { if (opts.onDebug) { try { opts.onDebug(label, detail); } catch (e) {} } }
@@ -111,9 +125,11 @@
     // recording, Processing while a phrase is in flight, hidden once stopped
     // and all phrases are done.
     function refreshIndicator() {
-      if (running) showIndicator(inFlight > 0 ? 'processing' : 'listening');
-      else if (inFlight > 0) showIndicator('processing');
-      else hideIndicator();
+      var phase = running ? (inFlight > 0 ? 'processing' : 'listening')
+                          : (inFlight > 0 ? 'processing' : 'idle');
+      if (phase === 'idle') hideIndicator(); else showIndicator(phase);
+      // Let the host page mirror the phase (e.g. swap its mic icon for Stop).
+      if (opts.onPhase) { try { opts.onPhase(phase); } catch (e) {} }
     }
 
     function pickMime() {
@@ -161,10 +177,15 @@
     api.start = function () {
       if (!supported) { status('Voice recording isn’t supported in this browser. Use a recent Chrome, Edge, or Safari.', 'error'); return; }
       if (running) return;
+      cancelled = false;
+      var startGen = gen;
       lastVoiceAt = Date.now();
       status('🎤 Listening… say a field, pause, and it fills in. Tap Stop when done (auto-stops after 1 minute).', 'listening');
       dbg('mic', 'requesting microphone access…');
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+        // Cancelled while the permission prompt was open: release the mic and
+        // never enter the running state.
+        if (startGen !== gen) { try { s.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} return; }
         stream = s;
         try {
           var AC = window.AudioContext || window.webkitAudioContext;
@@ -180,6 +201,7 @@
           api.stop();
         }, maxMs);
       }).catch(function (err) {
+        if (startGen !== gen) return;          // cancelled - stay quiet
         teardown(); setState(false);
         var name = err && err.name;
         dbg('error', 'microphone error: ' + (name || 'unknown'));
@@ -202,6 +224,38 @@
 
     api.toggle = function () { if (running) api.stop(); else api.start(); };
     api.isRecording = function () { return running; };
+    // True while anything is still happening - listening OR a phrase in flight.
+    api.isBusy = function () { return !!running || inFlight > 0; };
+
+    /* Hard cancel. Unlike stop(), this does NOT flush the phrase in progress:
+       the pending audio is discarded, in-flight requests are aborted, timers
+       are cleared and the microphone is released immediately. Bumping `gen`
+       turns any callback that was already queued into a no-op, so nothing can
+       update the UI after the user has pressed Stop. */
+    api.cancel = function () {
+      cancelled = true;
+      gen++;
+      if (monitorTimer) { clearInterval(monitorTimer); monitorTimer = null; }
+      if (maxT) { clearTimeout(maxT); maxT = null; }
+      var c = cur; cur = null;
+      if (c && c.rec) {
+        // Detach onstop FIRST so stopping the recorder cannot queue a send.
+        try { c.rec.ondataavailable = null; c.rec.onstop = null; } catch (e) {}
+        try { if (c.rec.state !== 'inactive') c.rec.stop(); } catch (e) {}
+      }
+      if (c && c.chunks) { try { c.chunks.length = 0; } catch (e) {} }
+      for (var i = 0; i < pending.length; i++) { try { pending[i].abort(); } catch (e) {} }
+      pending.length = 0;
+      inFlight = 0;
+      muted = false;
+      running = false;
+      teardown();
+      hideIndicator();
+      dbg('recording', 'cancelled - audio discarded, requests aborted, mic released');
+      if (opts.onState) { try { opts.onState(false); } catch (e) {} }
+      if (opts.onPhase) { try { opts.onPhase('idle'); } catch (e) {} }
+      if (opts.onCancel) { try { opts.onCancel(); } catch (e) {} }
+    };
 
     /* Pause/resume capture without releasing the mic — used during voice
        playback (TTS) so the system's own speech isn't recorded. */
@@ -232,6 +286,7 @@
     }
 
     function sendPhrase(chunks, type, had, startedAt) {
+      if (cancelled) return;                                  // stopped by the user
       if (!had || !chunks || !chunks.length) return;          // silence-only segment
       var blob = new Blob(chunks, { type: type || 'audio/webm' });
       if (blob.size < 1200) { dbg('audio', 'phrase too short — skipped'); return; }
@@ -247,15 +302,23 @@
       fd.append('context', opts.context || 'income');
       var t0 = Date.now();
       dbg('request', 'POST /api/voice/command  context=' + (opts.context || 'income'));
+      var myGen = gen;
+      var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      if (ac) pending.push(ac);
       inFlight++; refreshIndicator();          // → "Processing…"
-      fetch('/api/voice/command', { method: 'POST', body: fd })
+      fetch('/api/voice/command', ac ? { method: 'POST', body: fd, signal: ac.signal }
+                                     : { method: 'POST', body: fd })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, code: r.status, d: d }; }); })
         .then(function (res) {
+          if (myGen !== gen) return;           // cancelled - discard the reply
           dbg('response', 'HTTP ' + res.code + ' in ' + (Date.now() - t0) + ' ms');
           if (res.code === 403) {
             status(res.d.error || 'Voice limit reached or disabled.', 'error');
             dbg('warn', res.d.error || 'voice limit reached / disabled');
-            if (opts.onDisabled) opts.onDisabled(res.d.status || {});
+            // Pass the server's own reason through: only the quota gate is a "limit";
+            // staff-only, plan and per-church feature refusals must not be reported as one.
+            var stat = res.d.status || {};
+            if (opts.onDisabled) opts.onDisabled(stat, { reason: res.d.reason || res.d.code || '', error: res.d.error || '' });
             api.stop();
             return;
           }
@@ -267,10 +330,16 @@
           if (opts.onResult) opts.onResult(res.d);
         })
         .catch(function (e) {
+          if (myGen !== gen) return;           // cancelled - stay quiet
+          if (e && e.name === 'AbortError') return;
           dbg('error', 'network error: ' + (e && e.message ? e.message : 'fetch failed'));
           status('Network error talking to the voice service. Try again.', 'error');
         })
-        .then(function () { inFlight = Math.max(0, inFlight - 1); refreshIndicator(); });  // back to Listening, or hide
+        .then(function () {
+          if (ac) { var ix = pending.indexOf(ac); if (ix >= 0) pending.splice(ix, 1); }
+          if (myGen !== gen) return;           // cancel() already zeroed inFlight
+          inFlight = Math.max(0, inFlight - 1); refreshIndicator();
+        });  // back to Listening, or hide
     }
 
     return api;

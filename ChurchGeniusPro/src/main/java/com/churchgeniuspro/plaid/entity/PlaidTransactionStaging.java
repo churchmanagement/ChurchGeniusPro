@@ -18,14 +18,17 @@ import java.util.Date;
 /**
  * The mandatory review queue. Every imported Plaid transaction lands here first
  * and is only promoted to the {@code income}/{@code expense} ledger on human
- * approval. Uniqueness on {@code plaid_transaction_id} makes webhook re-delivery
- * and re-sync idempotent.
+ * approval. Uniqueness on ({@code client_id}, {@code plaid_transaction_id})
+ * makes webhook re-delivery and re-sync idempotent — scoped per tenant, not
+ * globally, since a Plaid {@code transaction_id} is not guaranteed unique
+ * across tenants (financial audit M7: two churches routinely share Plaid's
+ * sandbox test institution, whose ids are deterministic, not random).
  */
 @Data
 @Entity
 @Table(name = "plaid_transaction_staging",
-        uniqueConstraints = @UniqueConstraint(name = "uq_plaid_txn_txn_id",
-                columnNames = {"plaid_transaction_id"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_plaid_txn_client_txn_id",
+                columnNames = {"client_id", "plaid_transaction_id"}))
 public class PlaidTransactionStaging {
 
     @Id
@@ -48,11 +51,23 @@ public class PlaidTransactionStaging {
     @Column(name = "plaid_transaction_id", nullable = false, length = 200)
     private String plaidTransactionId;
 
-    /** INCOME or EXPENSE — derived from amount sign, user-editable before approval. */
+    /**
+     * INCOME, EXPENSE, or REFUND — defaulted from the Plaid amount's sign,
+     * user-editable before approval (whitelisted to exactly these three by
+     * {@code PlaidReviewService}, financial audit M8 — free text here used to
+     * fall through to INCOME at approval time). Null while the row is ERROR
+     * (amount unreadable): there is nothing to derive a direction from yet.
+     * REFUND is for money in that is not new revenue (most concretely, a
+     * vendor/card refund) — approving it is reviewed and recorded without
+     * posting to the income ledger, so it can never inflate a fund's giving
+     * total, a pledge's "collected" figure, or a contribution statement.
+     */
     @Column(name = "direction", length = 10)
     private String direction;
 
-    /** Absolute value of the transaction amount. */
+    /** Absolute value of the transaction amount. Null while the row is ERROR
+     *  (financial audit M8) — Plaid sent an amount that couldn't be parsed,
+     *  and it is never guessed at as $0. */
     @Column(name = "amount", precision = 15, scale = 2)
     private BigDecimal amount;
 
@@ -85,7 +100,14 @@ public class PlaidTransactionStaging {
     @Column(name = "mapped_transaction_type_id")
     private Integer mappedTransactionTypeId;  // payment method
 
-    /** PENDING, APPROVED, REJECTED. */
+    /**
+     * PENDING, APPROVED, REJECTED, or ERROR. ERROR is not a reviewer decision —
+     * it is PENDING's unreadable-amount twin, set when Plaid sends an amount
+     * that can't be parsed (financial audit M8: this used to be silently
+     * treated as a real $0 transaction, staged as an ordinary, approvable
+     * PENDING row). It reverts to PENDING on its own once a valid amount is
+     * supplied, whether by a reviewer's edit or a later sync repairing it.
+     */
     @Column(name = "status", nullable = false, length = 15)
     private String status;
 

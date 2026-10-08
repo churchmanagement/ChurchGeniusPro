@@ -32,6 +32,10 @@ public class PasswordResetToken {
     @Column(name = "token", nullable = false, unique = true)
     private String token;
 
+    /** When the token was issued — drives the reset-request cooldown. */
+    @Column(name = "created_at")
+    private Date createdAt;
+
     /** Timestamp after which the token is no longer valid (10 minutes from creation). */
     @Column(name = "expiry_time", nullable = false)
     private Date expiryTime;
@@ -43,5 +47,6 @@ public class PasswordResetToken {
     @PrePersist
     protected void onCreate() {
         this.used = false;
+        if (this.createdAt == null) this.createdAt = new Date();
     }
 }

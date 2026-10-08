@@ -29,6 +29,8 @@ public class StateTaxBracket {
     private BigDecimal lowerBound;
     private BigDecimal upperBound;   // null = no upper limit
     private BigDecimal baseTax;
+    /** Marginal rate, e.g. 0.0475 — explicit precision so a rate is never rounded to two places (audit C1). */
+    @Column(precision = 9, scale = 6)
     private BigDecimal rate;
     private Integer sortOrder;
 }

@@ -12,4 +12,7 @@ import java.util.List;
 public interface SongAuditLogRepository extends JpaRepository<SongAuditLog, Long> {
 
     List<SongAuditLog> findByClientIdOrderByCreatedAtDesc(String clientId, Pageable pageable);
+
+    /** Remove a (book-)scoped client's audit rows — used when a whole Song Book scope is purged. */
+    void deleteByClientId(String clientId);
 }

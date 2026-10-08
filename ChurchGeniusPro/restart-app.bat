@@ -7,4 +7,4 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8080 ^| findstr LISTENING') 
 timeout /t 2 /nobreak > nul
 echo Building and starting app...
 cd /d "%~dp0"
-call mvnw.cmd spring-boot:run
+call mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local

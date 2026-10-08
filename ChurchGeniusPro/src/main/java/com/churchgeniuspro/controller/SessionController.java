@@ -30,8 +30,20 @@ public class SessionController {
 
     private final AppUserRepository appUserRepository;
 
+    /**
+     * The plan, for the two flags below. Field-injected and null-checked so this
+     * controller's existing construction sites (and their tests) are unchanged.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.SubscriptionService subscriptionService;
+
     public SessionController(AppUserRepository appUserRepository) {
         this.appUserRepository = appUserRepository;
+    }
+
+    /** Test seam — supply the plan without a Spring context. */
+    public void setSubscriptionService(com.churchgeniuspro.service.SubscriptionService s) {
+        this.subscriptionService = s;
     }
 
     // ── GET /api/session ──────────────────────────────────────────────────────
@@ -107,7 +119,38 @@ public class SessionController {
         res.put("memberId",         session.getAttribute("memberId"));               // Integer or null
         res.put("memberPrivileges", session.getAttribute("memberPrivileges"));       // JSON string or null (Member portal only)
 
+        // ── Plan state, for pages that do not load session.js ─────────────────
+        // The Member and Kids portals render their own sidebar and never load
+        // session.js, so window.CGP_FEATURES was never populated there and every
+        // feature read as enabled — which is why a trial's Member Portal still
+        // offered Guess It. Carried on the session payload those pages already
+        // fetch, rather than sending them to a second endpoint.
+        //
+        // evaluationAccount is the same predicate the feature overlay, the public
+        // page rule and the Plaid environment use (SubscriptionService →
+        // EvaluationTenant), so "is this a trial or demo account" has one answer
+        // across the application.
+        String planTenant = firstNonBlank(str(session.getAttribute("appClientId")),
+                                          str(session.getAttribute("clientId")));
+        boolean evaluation = false;
+        Map<String, Boolean> features = java.util.Collections.emptyMap();
+        if (subscriptionService != null && planTenant != null) {
+            try {
+                evaluation = subscriptionService.isEvaluationTenant(planTenant);
+                features   = subscriptionService.featureMap(planTenant);
+            } catch (Exception ignored) { /* fail open: nothing hidden on a lookup error */ }
+        }
+        res.put("evaluationAccount", evaluation);
+        res.put("features",          features);
+
         return ResponseEntity.ok(res);
+    }
+
+    private static String str(Object o) { return o == null ? null : String.valueOf(o); }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        return (b != null && !b.isBlank()) ? b : null;
     }
 
     // ── POST /api/logout ──────────────────────────────────────────────────────

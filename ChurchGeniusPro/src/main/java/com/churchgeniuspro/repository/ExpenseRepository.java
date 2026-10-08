@@ -1,13 +1,16 @@
 package com.churchgeniuspro.repository;
 
 import com.churchgeniuspro.hibernate.Expense;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Spring Data repository for {@link Expense}.
@@ -23,44 +26,11 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
             String appClientId, java.time.LocalDate expenseDate, BigDecimal amount);
 
     /**
-     * All active (non-deleted) expense records, eagerly fetching purpose and
-     * mainSource to avoid N+1 queries.  Ordered most-recent first.
+     * Hard duplicate check for imports (Bank Import / Plaid): is this exact source
+     * transaction already on the ledger for this church? Financial audit H8.
      */
-    @Query("SELECT e FROM Expense e " +
-           "JOIN FETCH e.purpose " +
-           "JOIN FETCH e.mainSource " +
-           "WHERE e.deleteFlag = false " +
-           "ORDER BY e.expenseDate DESC, e.createdDate DESC")
-    List<Expense> findAllActive();
-
-    /**
-     * All active expense records for a specific purpose, ordered most-recent
-     * first.  Used to auto-fill form fields from the last entry.
-     */
-    @Query("SELECT e FROM Expense e " +
-           "JOIN FETCH e.purpose " +
-           "JOIN FETCH e.mainSource " +
-           "WHERE e.purpose.id = :purposeId AND e.deleteFlag = false " +
-           "ORDER BY e.expenseDate DESC, e.createdDate DESC")
-    List<Expense> findByPurposeActive(@Param("purposeId") Integer purposeId);
-
-    /**
-     * Expense Statistics chart: totals grouped by month AND main source for a given year.
-     * Native SQL. Returns rows of: [month (1-12), main_id, main_name, total].
-     */
-    @Query(value =
-           "SELECT EXTRACT(MONTH FROM e.expense_date)::int AS m, " +
-           "       ms.id          AS main_id, " +
-           "       ms.source_name AS main_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense    e " +
-           "JOIN   main_source ms ON ms.id = e.main_source_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "GROUP  BY m, ms.id, ms.source_name " +
-           "ORDER  BY m ASC, ms.source_name ASC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByMainSourceAndMonthForYear(@Param("year") int year);
+    Optional<Expense> findFirstByAppClientIdAndImportRefAndDeleteFlagFalse(
+            String appClientId, String importRef);
 
     /**
      * Latest quick-add expense templates for the Accountant dashboard.
@@ -91,7 +61,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
            "LEFT JOIN transaction_type tt ON tt.id = e.transaction_type_id " +
            "WHERE  e.delete_flag = false " +
            "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
+           "  AND  e.app_client_id = :appClientId " +
            "ORDER  BY ms.source_name, e.expense_date",
            nativeQuery = true)
     List<Object[]> reportExpenseByMainSource(
@@ -114,7 +84,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
            "LEFT JOIN transaction_type tt ON tt.id = e.transaction_type_id " +
            "WHERE  e.delete_flag = false " +
            "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
+           "  AND  e.app_client_id = :appClientId " +
            "ORDER  BY e.expense_date DESC",
            nativeQuery = true)
     List<Object[]> reportExpenseTransactionsInRange(
@@ -122,23 +92,42 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
             @Param("endDate")     java.sql.Date endDate,
             @Param("appClientId") String appClientId);
 
+    // ── Year-scoped queries ───────────────────────────────────────────────
+    // Each "...ForYear..." method is a default wrapper that turns the year into a
+    // half-open date range [Jan 1, next Jan 1) for an "...InRange..." query, so the
+    // predicate can use idx_expense_tenant_date (Flyway V4) instead of scanning every
+    // year the church has. Ledger scalability, part A.
+
+    private static java.sql.Date yearStart(int year) {
+        return java.sql.Date.valueOf(LocalDate.of(year, 1, 1));
+    }
+
+    private static java.sql.Date nextYearStart(int year) {
+        return java.sql.Date.valueOf(LocalDate.of(year + 1, 1, 1));
+    }
+
     /**
      * Financial Report: expense totals grouped by main source for a year.
      * Scoped to the logged-in org via appClientId.
      * Returns rows of: [main_name, total].
      */
+    default List<Object[]> reportFinancialExpenseByYear(int year, String appClientId) {
+        return reportFinancialExpenseInRange(yearStart(year), nextYearStart(year), appClientId);
+    }
+
     @Query(value =
            "SELECT ms.source_name AS main_name, SUM(e.amount) AS total " +
            "FROM   expense     e " +
            "JOIN   main_source ms ON ms.id = e.main_source_id " +
            "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
+           "  AND  e.app_client_id = :appClientId " +
+           "  AND  e.expense_date >= :fromDate AND e.expense_date < :toDate " +
            "GROUP  BY ms.source_name " +
            "ORDER  BY ms.source_name",
            nativeQuery = true)
-    List<Object[]> reportFinancialExpenseByYear(
-            @Param("year")        int year,
+    List<Object[]> reportFinancialExpenseInRange(
+            @Param("fromDate")    java.sql.Date fromDate,
+            @Param("toDate")      java.sql.Date toDate,
             @Param("appClientId") String appClientId);
 
     /**
@@ -146,32 +135,42 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
      * Scoped to the logged-in org via appClientId.
      * Returns rows of: [main_name, purpose_name, total].
      */
+    default List<Object[]> reportFinancialExpenseByYearWithPurpose(int year, String appClientId) {
+        return reportFinancialExpenseWithPurposeInRange(yearStart(year), nextYearStart(year), appClientId);
+    }
+
     @Query(value =
            "SELECT ms.source_name AS main_name, p.purpose_name AS purpose_name, SUM(e.amount) AS total " +
            "FROM   expense     e " +
            "JOIN   main_source ms ON ms.id = e.main_source_id " +
            "JOIN   purpose     p  ON p.id  = e.purpose_id " +
            "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
+           "  AND  e.app_client_id = :appClientId " +
+           "  AND  e.expense_date >= :fromDate AND e.expense_date < :toDate " +
            "GROUP  BY ms.source_name, p.purpose_name " +
            "ORDER  BY ms.source_name, p.purpose_name",
            nativeQuery = true)
-    List<Object[]> reportFinancialExpenseByYearWithPurpose(
-            @Param("year")        int year,
+    List<Object[]> reportFinancialExpenseWithPurposeInRange(
+            @Param("fromDate")    java.sql.Date fromDate,
+            @Param("toDate")      java.sql.Date toDate,
             @Param("appClientId") String appClientId);
 
     /**
-     * All active expense records filtered by appClientId, ordered most-recent first.
+     * One page of active expense records for a church, most-recent first, with
+     * purpose, fund and payment method fetched. Replaces the former unbounded
+     * {@code findAllActiveByAppUser}, which the Expense page and the Accountant
+     * dashboard both used to load every row the church ever recorded (ledger
+     * scalability, part A). {@code id} is the final sort key so paging is stable.
+     * The dashboard's activity feed passes {@code PageRequest.of(0, 10)}.
      */
     @Query("SELECT e FROM Expense e " +
            "JOIN FETCH e.purpose " +
            "JOIN FETCH e.mainSource " +
            "LEFT JOIN FETCH e.transactionType " +
            "WHERE e.deleteFlag = false " +
-           "AND (:appClientId IS NULL OR e.appClientId = :appClientId) " +
-           "ORDER BY e.expenseDate DESC, e.createdDate DESC")
-    List<Expense> findAllActiveByAppUser(@Param("appClientId") String appClientId);
+           "AND e.appClientId = :appClientId " +
+           "ORDER BY e.expenseDate DESC, e.createdDate DESC, e.id DESC")
+    List<Expense> findActivePageByAppUser(@Param("appClientId") String appClientId, Pageable page);
 
     /**
      * Active expense records for a specific purpose, filtered by appClientId,
@@ -187,104 +186,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
     List<Expense> findByPurposeActiveByAppUser(
             @Param("purposeId")   Integer purposeId,
             @Param("appClientId") String appClientId);
-
-    /**
-     * Expense Statistics chart: totals grouped by month AND main source for a given year,
-     * filtered by appClientId. Returns rows of: [month (1-12), main_id, main_name, total].
-     */
-    @Query(value =
-           "SELECT EXTRACT(MONTH FROM e.expense_date)::int AS m, " +
-           "       ms.id          AS main_id, " +
-           "       ms.source_name AS main_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense    e " +
-           "JOIN   main_source ms ON ms.id = e.main_source_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
-           "GROUP  BY m, ms.id, ms.source_name " +
-           "ORDER  BY m ASC, ms.source_name ASC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByMainSourceAndMonthForYearByAppUser(
-            @Param("year")        int year,
-            @Param("appClientId") String appClientId);
-
-    /**
-     * Dashboard aggregate: expense totals grouped by main source (ALL time),
-     * filtered by appClientId and delete_flag = false.
-     * Returns rows of: [main_id, main_name, total].
-     */
-    @Query(value =
-           "SELECT ms.id          AS main_id, " +
-           "       ms.source_name AS main_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense     e " +
-           "JOIN   main_source ms ON ms.id = e.main_source_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
-           "GROUP  BY ms.id, ms.source_name " +
-           "ORDER  BY ms.source_name ASC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByMainSourceNativeByAppUser(@Param("appClientId") String appClientId);
-
-    /**
-     * Dashboard pie chart: expense totals grouped by purpose (ALL time),
-     * filtered by appClientId and delete_flag = false.
-     * Returns rows of: [purpose_id, purpose_name, total].
-     */
-    @Query(value =
-           "SELECT p.id           AS purpose_id, " +
-           "       p.purpose_name AS purpose_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense  e " +
-           "JOIN   purpose  p ON p.id = e.purpose_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
-           "GROUP  BY p.id, p.purpose_name " +
-           "ORDER  BY total DESC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByPurposeNativeByAppUser(@Param("appClientId") String appClientId);
-
-    /**
-     * Expense Statistics chart: totals grouped by month AND purpose for a given year,
-     * filtered by appClientId. Returns rows of: [month (1-12), purpose_id, purpose_name, total].
-     */
-    @Query(value =
-           "SELECT EXTRACT(MONTH FROM e.expense_date)::int AS m, " +
-           "       p.id           AS purpose_id, " +
-           "       p.purpose_name AS purpose_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense  e " +
-           "JOIN   purpose  p ON p.id = e.purpose_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
-           "GROUP  BY m, p.id, p.purpose_name " +
-           "ORDER  BY m ASC, p.purpose_name ASC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByPurposeAndMonthForYearByAppUser(
-            @Param("year")        int year,
-            @Param("appClientId") String appClientId);
-
-    /**
-     * Dashboard pie chart: expense totals grouped by purpose for a given year,
-     * filtered by appClientId and delete_flag = false.
-     * Returns rows of: [purpose_id, purpose_name, total].
-     */
-    @Query(value =
-           "SELECT p.id           AS purpose_id, " +
-           "       p.purpose_name AS purpose_name, " +
-           "       SUM(e.amount)  AS total " +
-           "FROM   expense  e " +
-           "JOIN   purpose  p ON p.id = e.purpose_id " +
-           "WHERE  e.delete_flag = false " +
-           "  AND  EXTRACT(YEAR FROM e.expense_date) = :year " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
-           "GROUP  BY p.id, p.purpose_name " +
-           "ORDER  BY total DESC",
-           nativeQuery = true)
-    List<Object[]> sumAmountByPurposeForYearByAppUser(@Param("year") int year,
-                                                      @Param("appClientId") String appClientId);
 
     // ── AI Search query ───────────────────────────────────────────────────
 
@@ -327,7 +228,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
            "LEFT JOIN transaction_type tt ON tt.id = e.transaction_type_id " +
            "WHERE  e.delete_flag = false " +
            "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
-           "  AND  (:appClientId IS NULL OR e.app_client_id = :appClientId) " +
+           "  AND  e.app_client_id = :appClientId " +
            "  AND  (CAST(:purposeId AS integer) IS NULL OR e.purpose_id = CAST(:purposeId AS integer)) " +
            "ORDER  BY ms.source_name, e.expense_date",
            nativeQuery = true)
@@ -336,4 +237,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
             @Param("endDate")     java.sql.Date endDate,
             @Param("appClientId") String appClientId,
             @Param("purposeId")   Integer purposeId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<Expense> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

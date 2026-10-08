@@ -2,6 +2,7 @@ package com.churchgeniuspro.plaid.controller;
 
 import com.churchgeniuspro.plaid.service.PlaidReviewService;
 import com.churchgeniuspro.plaid.util.PlaidGuard;
+import com.churchgeniuspro.service.DuplicateImportException;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -71,13 +72,18 @@ public class PlaidReviewController {
     }
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<Map<String, Object>> approve(@PathVariable Integer id, HttpServletRequest req) {
+    public ResponseEntity<Map<String, Object>> approve(@PathVariable Integer id,
+                                                       @RequestBody(required = false) Map<String, Object> body,
+                                                       HttpServletRequest req) {
         String deny = guard.requireBankAccess(req);
         if (deny != null) return forbidden(deny);
         String clientId = SessionUtil.getAppClientId(req);
+        boolean force = body != null && Boolean.TRUE.equals(body.get("force"));
         try {
-            Map<String, Object> row = review.approve(clientId, id, SessionUtil.getUsername(req));
+            Map<String, Object> row = review.approve(clientId, id, SessionUtil.getUsername(req), force);
             return ResponseEntity.ok(ok("transaction", row));
+        } catch (DuplicateImportException e) {
+            return duplicateConflict(e);
         } catch (IllegalArgumentException e) {
             return error(e.getMessage());
         } catch (Exception e) {
@@ -144,5 +150,21 @@ public class PlaidReviewController {
         m.put("status", "error");
         m.put("message", message);
         return ResponseEntity.status(400).body(m);
+    }
+
+    /** Financial audit H8: an approval collided with an existing ledger row. */
+    private ResponseEntity<Map<String, Object>> duplicateConflict(DuplicateImportException ex) {
+        Map<String, Object> dup = new LinkedHashMap<>();
+        dup.put("type", ex.type);
+        dup.put("id", ex.existingId);
+        dup.put("date", ex.existingDate);
+        dup.put("amount", ex.existingAmount);
+        dup.put("refNo", ex.existingRefNo);
+        dup.put("hard", ex.hard);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("status", "error");
+        m.put("message", ex.getMessage());
+        m.put("duplicate", dup);
+        return ResponseEntity.status(409).body(m);
     }
 }

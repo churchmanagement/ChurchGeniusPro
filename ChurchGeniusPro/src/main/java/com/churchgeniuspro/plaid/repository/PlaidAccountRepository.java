@@ -10,7 +10,14 @@ import java.util.Optional;
 @Repository
 public interface PlaidAccountRepository extends JpaRepository<PlaidAccount, Integer> {
 
-    Optional<PlaidAccount> findByAccountId(String accountId);
+    /**
+     * Financial audit M7: a Plaid {@code account_id} is not guaranteed unique
+     * across tenants (see the identical note on {@code
+     * PlaidTransactionStagingRepository.findByPlaidTransactionIdAndClientId}).
+     * Replaces the old unscoped {@code findByAccountId}, which had no other
+     * caller.
+     */
+    Optional<PlaidAccount> findByAccountIdAndClientId(String accountId, String clientId);
 
     List<PlaidAccount> findByPlaidItemId(Integer plaidItemId);
 

@@ -11,22 +11,15 @@ import com.churchgeniuspro.repository.PublicScreenLinkRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
 import com.churchgeniuspro.service.EmailService;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,7 +39,9 @@ import java.util.*;
  * <h3>Authenticated routes (Accountant / SuperAdmin only)</h3>
  * <ul>
  *   <li>{@code GET /donation-review}   → serves donationReview.html</li>
- *   <li>{@code GET /api/donations}     → JSON list of donations for the org</li>
+ *   <li>{@code GET /api/donations}     → {@code {rows: [...], totals: [{currency,total,count}, ...]}}
+ *       for the org — {@code totals} is the server-computed, exact-BigDecimal figure
+ *       the review page's headline total reconciles against (financial audit M11)</li>
  * </ul>
  */
 @Controller
@@ -54,10 +49,26 @@ public class DonationController {
 
     private static final Logger log = LoggerFactory.getLogger(DonationController.class);
 
-    private static final String STRIPE_API_BASE = "https://api.stripe.com/v1";
+    /** In-app notification for staff with the right permissions. Optional: absent in unit tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.PublicSubmissionNotificationService submissionNotifications;
 
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
-            new ParameterizedTypeReference<>() {};
+    /** Test seam. */
+    public void setSubmissionNotifications(com.churchgeniuspro.service.PublicSubmissionNotificationService s) {
+        this.submissionNotifications = s;
+    }
+
+
+
+    /**
+     * Donor-facing message used when the church has not finished Stripe setup.
+     * Shown only when a donation is actually submitted — the donation page itself
+     * still renders normally so visitors see the church's real giving page.
+     */
+    static final String NOT_CONFIGURED_MSG =
+            "Online giving is not configured for this church account.";
+
+
 
     private final DonationRepository         donationRepo;
     private final StripeSettingsRepository   stripeRepo;
@@ -66,7 +77,23 @@ public class DonationController {
     private final ChurchLogoRepository       logoRepo;
     private final EmailService               emailService;
     private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
-    private final RestTemplate               restTemplate = new RestTemplate();
+    private final com.churchgeniuspro.service.DonationIncomePostingService donationIncomePoster;
+    private final PublicSendLimiter          sendLimiter;
+    /**
+     * Phase D: the Stripe REST calls below are the church-side integration, shared
+     * with the Member Portal's Give / Contribute. Optional so the constructor used
+     * by tests is unchanged; without Spring a default gateway is used.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ChurchStripeGateway stripeGateway;
+    public void setStripeGateway(com.churchgeniuspro.service.ChurchStripeGateway g) { this.stripeGateway = g; }
+    private com.churchgeniuspro.service.ChurchStripeGateway gateway() {
+        if (stripeGateway == null) stripeGateway = new com.churchgeniuspro.service.ChurchStripeGateway();
+        return stripeGateway;
+    }
+
+    /** A Stripe PaymentIntent id, and nothing that could steer the URL it is put into. */
+    static final java.util.regex.Pattern PAYMENT_INTENT_ID = java.util.regex.Pattern.compile("^pi_[A-Za-z0-9]{1,64}$");
 
     public DonationController(DonationRepository donationRepo,
                                StripeSettingsRepository stripeRepo,
@@ -74,14 +101,18 @@ public class DonationController {
                                ServiceClientRepository clientRepo,
                                ChurchLogoRepository logoRepo,
                                EmailService emailService,
-                               com.churchgeniuspro.service.SubscriptionService subscriptionService) {
+                               com.churchgeniuspro.service.SubscriptionService subscriptionService,
+                               com.churchgeniuspro.service.DonationIncomePostingService donationIncomePoster,
+                               PublicSendLimiter sendLimiter) {
+        this.sendLimiter  = sendLimiter;
         this.donationRepo = donationRepo;
         this.stripeRepo   = stripeRepo;
         this.linkRepo     = linkRepo;
         this.clientRepo   = clientRepo;
         this.logoRepo     = logoRepo;
         this.emailService = emailService;
-        this.subscriptionService = subscriptionService;
+        this.subscriptionService  = subscriptionService;
+        this.donationIncomePoster = donationIncomePoster;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -126,20 +157,24 @@ public class DonationController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired donation link."));
         }
         StripeSettings settings = stripeRepo.findByClientId(clientId).orElse(null);
-        if (settings == null || isBlank(settings.getPublishableKey())) {
-            // Distinguish the two real causes in the server log so this isn't opaque:
+        boolean configured = onlineGivingConfigured(settings);
+        if (!configured) {
+            // The link is valid, so the page still renders — the donor sees the normal
+            // giving page and is only told at submit time (see createIntent). Distinguish
+            // the real causes in the server log so this isn't opaque:
             //   • settingsPresent=false → no Stripe row for THIS org (configure Stripe,
             //     or this donate link belongs to a different org than the one you set up).
-            //   • settingsPresent=true, keyBlank=true → row exists but no publishable key.
-            log.warn("[Donate] config: online giving not configured. resolvedClientId={}, "
-                    + "stripeSettingsPresent={}, publishableKeyBlank={}, totalStripeSettingsRows={}. "
+            //   • settingsPresent=true → row exists but a key is missing.
+            log.warn("[Donate] config: online giving not configured — serving the page in "
+                    + "preview mode. resolvedClientId={}, stripeSettingsPresent={}, "
+                    + "publishableKeyBlank={}, secretKeyBlank={}, totalStripeSettingsRows={}. "
                     + "Set the Publishable + Secret keys at /stripeIntegration for this organization.",
                     clientId, settings != null,
-                    settings != null && isBlank(settings.getPublishableKey()), stripeRepo.count());
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Online giving is not configured for this organization."));
+                    settings == null || isBlank(settings.getPublishableKey()),
+                    settings == null || isBlank(settings.getSecretKey()), stripeRepo.count());
+        } else {
+            log.info("[Donate] config OK for clientId={}.", clientId);
         }
-        log.info("[Donate] config OK for clientId={}.", clientId);
         String churchName = clientRepo.findByClientId(clientId)
                 .map(ServiceClient::getChurchName)
                 .filter(n -> n != null && !n.isBlank())
@@ -150,7 +185,14 @@ public class DonationController {
                 .orElse(false);
 
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("publishableKey", settings.getPublishableKey());
+        out.put("onlineGivingEnabled", configured);
+        if (configured) {
+            out.put("publishableKey", settings.getPublishableKey());
+        } else {
+            // No key is sent when giving is unconfigured — the page renders a read-only
+            // placeholder where the card field would be and blocks on submit instead.
+            out.put("message", NOT_CONFIGURED_MSG);
+        }
         if (churchName != null) out.put("churchName", churchName);
         if (hasLogo) out.put("logoUrl", "/api/public/donate/logo?cid=" + token);
         return ResponseEntity.ok(out);
@@ -193,15 +235,27 @@ public class DonationController {
     @ResponseBody
     @PostMapping("/api/public/donate/intent")
     public ResponseEntity<?> createIntent(@RequestParam("cid") String token,
-                                           @RequestBody Map<String, Object> body) {
+                                           @RequestBody Map<String, Object> body,
+                                           HttpServletRequest request) {
         String clientId = resolveClientId(token);
         if (clientId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired donation link."));
         }
+        // Every call creates a PaymentIntent against the church's Stripe account — the
+        // classic card-testing surface. Bounded per network origin and per church per
+        // day before Stripe is touched (security audit P4).
+        String limited = sendLimiter.check(PublicSendLimiter.DONATION_INTENT, request, null, clientId);
+        if (limited != null) {
+            return ResponseEntity.status(429).body(Map.of("error", limited));
+        }
         StripeSettings settings = stripeRepo.findByClientId(clientId).orElse(null);
-        if (settings == null || isBlank(settings.getSecretKey())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Online giving is not configured for this organization."));
+        if (!onlineGivingConfigured(settings)) {
+            // Authoritative check. The page renders normally for unconfigured orgs, so
+            // this is the point where the restriction is actually enforced — posting
+            // here directly (or re-enabling the button in devtools) hits the same guard.
+            log.warn("[Donate] intent rejected — online giving not configured for clientId={}.",
+                    clientId);
+            return ResponseEntity.badRequest().body(Map.of("error", NOT_CONFIGURED_MSG));
         }
 
         // Subscription plan: Online Giving feature + monthly allowance. Both are
@@ -228,7 +282,16 @@ public class DonationController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid amount."));
         }
 
-        String currency = body.getOrDefault("currency", "usd").toString().toLowerCase().trim();
+        // Financial audit M2: `currency` used to be taken from the request body with no
+        // check. The donation page never lets a donor pick one — it always sends "usd" —
+        // so this only ever mattered for a request built outside the page, and every
+        // dollar amount downstream (this multiply, tax statements, reports) assumes
+        // two-decimal USD. Reject rather than accept and mismeasure the charge.
+        Object currencyRaw = body.get("currency");
+        String currency    = (currencyRaw != null ? currencyRaw.toString() : "usd").toLowerCase().trim();
+        if (!"usd".equals(currency)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only USD donations are supported."));
+        }
         long   cents    = amount.multiply(BigDecimal.valueOf(100)).longValue();
 
         try {
@@ -273,13 +336,25 @@ public class DonationController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired donation link."));
         }
         StripeSettings settings = stripeRepo.findByClientId(clientId).orElse(null);
-        if (settings == null || isBlank(settings.getSecretKey())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Stripe not configured."));
+        if (!onlineGivingConfigured(settings)) {
+            return ResponseEntity.badRequest().body(Map.of("error", NOT_CONFIGURED_MSG));
+        }
+        // Re-checked here and not only at the intent: the plan can change, or the
+        // church can be moved onto an evaluation account, while a donor has the
+        // payment sheet open. Recording a donation this church is no longer
+        // permitted to accept would put money in a ledger the product says is shut.
+        if (!subscriptionService.isFeatureEnabled(clientId, "onlineGiving")) {
+            return ResponseEntity.status(403).body(Map.of("error", NOT_CONFIGURED_MSG));
         }
 
         String piId = str(body.get("paymentIntentId"));
         if (piId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "paymentIntentId is required."));
+        }
+        // The id is placed in the URL of an authenticated call to Stripe: accept only
+        // the shape Stripe issues, never a path (security audit P4).
+        if (!PAYMENT_INTENT_ID.matcher(piId).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid paymentIntentId."));
         }
 
         // Idempotency — skip if already saved
@@ -307,9 +382,20 @@ public class DonationController {
         }
 
         // Amount and currency come from Stripe (authoritative)
+        String currency = str(pi.getOrDefault("currency", "usd"));
+        // Financial audit M2: the divide-by-100 below assumes a two-decimal currency —
+        // correct for USD, wrong for a zero-decimal currency like JPY or a three-decimal
+        // one like KWD. /intent now only ever creates USD PaymentIntents, so this should
+        // be unreachable — but the charge has already happened by this point, so a
+        // currency this app didn't intend to charge in is refused rather than mismeasured.
+        if (!"usd".equals(currency)) {
+            log.warn("[Donate] save rejected — PaymentIntent {} is in currency '{}', not usd. clientId={}",
+                    piId, currency, clientId);
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "This payment was not made in US dollars and could not be recorded. Please contact support."));
+        }
         BigDecimal amount = BigDecimal.valueOf(((Number) pi.getOrDefault("amount", 0)).longValue())
                 .divide(BigDecimal.valueOf(100));
-        String currency   = str(pi.getOrDefault("currency", "usd"));
 
         // Extract charge + payment method details
         String chargeId      = null;
@@ -338,13 +424,20 @@ public class DonationController {
 
         Donation donation = new Donation();
         donation.setClientId(clientId);
-        donation.setFirstName(str(body.get("firstName")));
-        donation.setLastName(str(body.get("lastName")));
-        donation.setEmail(str(body.get("email")));
-        donation.setPhone(str(body.get("phone")));
-        donation.setNote(str(body.get("note")));
+        donation.setFirstName(clip(str(body.get("firstName")), 100));
+        donation.setLastName(clip(str(body.get("lastName")), 100));
+        donation.setEmail(clip(str(body.get("email")), 200));
+        donation.setPhone(clip(str(body.get("phone")), 50));
+        donation.setNote(clip(str(body.get("note")), 1000));
         donation.setPaymentMethod(paymentMethod);
         donation.setAmount(amount);
+        // Financial audit M3: this donation page has no fee-cover option, so the
+        // whole charge is always the intended gift — set explicitly (rather than
+        // left null) so every new row, from either giving path, has this
+        // populated the same way; only a donation recorded before this existed
+        // relies on the getIntendedAmountOrCharge() fallback.
+        donation.setIntendedAmount(amount);
+        donation.setFeeCovered(BigDecimal.ZERO);
         donation.setCurrency(currency != null ? currency.toUpperCase() : "USD");
         donation.setStripePaymentIntentId(piId);
         donation.setStripeChargeId(chargeId);
@@ -352,9 +445,28 @@ public class DonationController {
 
         donationRepo.save(donation);
         subscriptionService.recordOnlineGiving(clientId);
+        // Financial audit H9: so this gift appears on the church's Year-End Tax
+        // Report, the donor's own giving statement, and every other income
+        // report — none of which reads the donation table. Best-effort and
+        // never throws; a posting failure never affects the donor's confirmation.
+        donationIncomePoster.postToIncome(donation);
         try { sendDonationThankyou(donation, clientId); } catch (Exception ignored) {}
+        if (submissionNotifications != null) {
+            String donor = ((donation.getFirstName() == null ? "" : donation.getFirstName()) + " "
+                          + (donation.getLastName()  == null ? "" : donation.getLastName())).trim();
+            String amt = "$" + String.format("%.2f", donation.getIntendedAmountOrCharge());
+            submissionNotifications.record(clientId,
+                    com.churchgeniuspro.service.PublicSubmissionNotificationService.Type.DONATION,
+                    "New online donation",
+                    amt + " from " + (donor.isEmpty() ? "an anonymous donor" : donor)
+                        + (status != null && !"succeeded".equalsIgnoreCase(status) ? " (status: " + status + ")" : "") + ".",
+                    donation.getId() == null ? null : donation.getId().longValue());
+        }
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    /** Phase D: the Member Portal sends the same thank-you for a member contribution. */
+    public void sendThankyou(Donation donation, String clientId) { sendDonationThankyou(donation, clientId); }
 
     private void sendDonationThankyou(Donation donation, String clientId) {
         if (donation.getEmail() == null || donation.getEmail().isBlank()) return;
@@ -365,7 +477,7 @@ public class DonationController {
         String churchPhone = sc != null && sc.getPhone()  != null ? sc.getPhone()  : "";
 
         String donorFirst = donation.getFirstName() != null ? donation.getFirstName() : "Friend";
-        String amountStr  = "$" + String.format("%.2f", donation.getAmount());
+        String amountStr  = "$" + String.format("%.2f", donation.getIntendedAmountOrCharge());
 
         String donationDate = "";
         if (donation.getDonatedAt() != null) {
@@ -498,23 +610,58 @@ public class DonationController {
     public String donationReviewPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "accounting.donation");
+        deny = RoleGuard.requirePagePermission(request, "accounting.donation");
         if (deny != null) return deny;
         return "forward:/donationReview.html";
     }
 
+    /** Phase D: resolves the purpose name for a member contribution row. Optional (unit tests). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.SubSourceRepository subSourceRepo;
+    public void setSubSourceRepo(com.churchgeniuspro.repository.SubSourceRepository r) { this.subSourceRepo = r; }
+
+    /**
+     * @param source Phase D: {@code member} lists Member Portal contributions; anything
+     *               else (the default) lists donations made through the donation page.
+     *               The two are kept apart so the Donation Review page can show them
+     *               on separate tabs; totals are over the listed rows only.
+     */
+    /** The donation page's list, as before. */
+    public ResponseEntity<?> getDonations(HttpServletRequest request) { return getDonations(null, request); }
+
     @ResponseBody
     @GetMapping("/api/donations")
-    public ResponseEntity<?> getDonations(HttpServletRequest request) {
+    public ResponseEntity<?> getDonations(@RequestParam(value = "source", required = false) String source,
+                                          HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return ResponseEntity.status(403).build();
 
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
 
-        List<Donation> donations = donationRepo.findByClientIdOrderByDonatedAtDesc(clientId);
+        boolean memberTab = "member".equalsIgnoreCase(source);
+        List<Donation> donations = donationRepo.findByClientIdOrderByDonatedAtDesc(clientId).stream()
+                .filter(d -> d.isMemberContribution() == memberTab)
+                .toList();
+        Map<Integer, String> purposeNames = new java.util.HashMap<>();
 
         List<Map<String, Object>> result = new ArrayList<>();
+        // Financial audit M11: totalsByCurrency/countByCurrency are accumulated from
+        // this exact same list, in the exact same loop, as the rows sent to the
+        // client — so the totals below can never drift from what the client is
+        // actually looking at. BigDecimal addition of two scale-2 values is exact
+        // (no double/float involved anywhere on this path), unlike the client's old
+        // `reduce((s,d)=>s+parseFloat(d.amount))`, which could accumulate visible
+        // cent-level error over a large list.
+        //
+        // Donation Review: `totals` covers PENDING donations only (review status not
+        // Completed); Completed ones are summed separately into `completedTotals` for
+        // the page's secondary line. Every row is still returned. Review status is a
+        // page-level bookkeeping flag only — nothing here touches Stripe or Income.
+        Map<String, BigDecimal> totalsByCurrency = new LinkedHashMap<>();
+        Map<String, Integer>    countByCurrency  = new LinkedHashMap<>();
+        Map<String, BigDecimal> completedByCurrency      = new LinkedHashMap<>();
+        Map<String, Integer>    completedCountByCurrency = new LinkedHashMap<>();
         for (Donation d : donations) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id",                    d.getId());
@@ -525,59 +672,73 @@ public class DonationController {
             m.put("note",                  d.getNote());
             m.put("paymentMethod",         d.getPaymentMethod());
             m.put("amount",                d.getAmount());
+            m.put("intendedAmount",        d.getIntendedAmountOrCharge());
+            m.put("feeCovered",            d.getFeeCovered() != null ? d.getFeeCovered() : BigDecimal.ZERO);
             m.put("currency",              d.getCurrency());
             m.put("status",                d.getStatus());
             m.put("donatedAt",             d.getDonatedAt() != null ? d.getDonatedAt().toString() : null);
             m.put("stripePaymentIntentId", d.getStripePaymentIntentId());
+            m.put("reviewStatus",          d.isReviewCompleted() ? Donation.REVIEW_COMPLETED : "PENDING");
+            if (memberTab) {
+                m.put("memberId", d.getMemberId());
+                m.put("purpose",  d.getSubSourceId() == null ? null : purposeNames.computeIfAbsent(d.getSubSourceId(), id ->
+                        subSourceRepo == null ? null : subSourceRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, clientId)
+                                .map(ss -> ss.getSourceName()).orElse(null)));
+            }
+            m.put("reviewCompletedAt",     d.getReviewCompletedAt() != null ? d.getReviewCompletedAt().toString() : null);
             result.add(m);
+
+            // Same "missing currency means USD" normalization the review page itself
+            // applies (see the M2 fix in donationReview.html) — kept identical here so
+            // a row can never end up counted under a different currency bucket than
+            // the one the client displays it under.
+            String cur = (d.getCurrency() == null || d.getCurrency().isBlank()) ? "USD" : d.getCurrency();
+            BigDecimal amt = d.getAmount() != null ? d.getAmount() : BigDecimal.ZERO;
+            if (d.isReviewCompleted()) {
+                completedByCurrency.merge(cur, amt, BigDecimal::add);
+                completedCountByCurrency.merge(cur, 1, Integer::sum);
+            } else {
+                totalsByCurrency.merge(cur, amt, BigDecimal::add);
+                countByCurrency.merge(cur, 1, Integer::sum);
+            }
         }
-        return ResponseEntity.ok(result);
+
+        List<Map<String, Object>> totals = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> e : totalsByCurrency.entrySet()) {
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("currency", e.getKey());
+            t.put("total",    e.getValue());
+            t.put("count",    countByCurrency.get(e.getKey()));
+            totals.add(t);
+        }
+
+        List<Map<String, Object>> completedTotals = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> e : completedByCurrency.entrySet()) {
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("currency", e.getKey());
+            t.put("total",    e.getValue());
+            t.put("count",    completedCountByCurrency.get(e.getKey()));
+            completedTotals.add(t);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("rows",   result);
+        out.put("totals", totals);
+        out.put("completedTotals", completedTotals);
+        return ResponseEntity.ok(out);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
     // Stripe REST helpers (no SDK — uses Spring RestTemplate)
     // ══════════════════════════════════════════════════════════════════════════
 
+    // Phase D: the calls themselves live in ChurchStripeGateway (unchanged in substance).
     private Map<String, Object> stripeCreateIntent(String secretKey, long cents, String currency) {
-        HttpHeaders headers = buildStripeHeaders(secretKey);
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("amount",   String.valueOf(cents));
-        params.add("currency", currency);
-        params.add("automatic_payment_methods[enabled]", "true");
-
-        try {
-            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
-                    STRIPE_API_BASE + "/payment_intents",
-                    HttpMethod.POST,
-                    new HttpEntity<>(params, headers),
-                    MAP_TYPE);
-            return resp.getBody() != null ? resp.getBody() : Map.of();
-        } catch (HttpClientErrorException ex) {
-            // Stripe returns 4xx with a JSON error body — parse it via a fresh exchange on the error response
-            return Map.of("error", Map.of("message", ex.getStatusText()));
-        }
+        return gateway().createIntent(secretKey, cents, currency);
     }
 
     private Map<String, Object> stripeRetrieveIntent(String secretKey, String piId) {
-        HttpHeaders headers = buildStripeHeaders(secretKey);
-        try {
-            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
-                    STRIPE_API_BASE + "/payment_intents/" + piId + "?expand[]=latest_charge",
-                    HttpMethod.GET,
-                    new HttpEntity<>(headers),
-                    MAP_TYPE);
-            return resp.getBody() != null ? resp.getBody() : Map.of();
-        } catch (HttpClientErrorException ex) {
-            return Map.of("error", Map.of("message", ex.getStatusText()));
-        }
-    }
-
-    private HttpHeaders buildStripeHeaders(String secretKey) {
-        HttpHeaders h = new HttpHeaders();
-        h.set("Authorization", "Bearer " + secretKey);
-        return h;
+        return gateway().retrieveIntent(secretKey, piId);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -588,12 +749,24 @@ public class DonationController {
      * Decrypts a public-link token, validates it via PublicScreenLink, and
      * returns the embedded clientId, or {@code null} if invalid/expired.
      */
+    /**
+     * True when the church can actually take a card payment. Both keys are required:
+     * the publishable key for Stripe.js in the browser and the secret key for the
+     * server-side PaymentIntent, so a half-finished setup counts as not configured.
+     */
+    private boolean onlineGivingConfigured(StripeSettings s) {
+        return s != null && !isBlank(s.getPublishableKey()) && !isBlank(s.getSecretKey());
+    }
+
     private String resolveClientId(String token) {
         if (token == null || token.isBlank()) return null;
         Optional<PublicScreenLink> opt = linkRepo.findByToken(token);
         if (opt.isEmpty() || opt.get().isRevoked()) return null;
         PublicScreenLink link = opt.get();
         if (link.getExpirationDate() != null && link.getExpirationDate().isBefore(LocalDate.now())) return null;
+        // Only a Donation link. Revoking the donation link must not be undone by the
+        // church's other public links (events board, membership form…) still being live.
+        if (link.getPageUrl() == null || !link.getPageUrl().startsWith("/donate")) return null;
         return link.getAppClientId();
     }
 
@@ -614,6 +787,11 @@ public class DonationController {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    /** Donor-typed text, cut to the column's worth of characters. */
+    private static String clip(String s, int max) {
+        return s == null || s.length() <= max ? s : s.substring(0, max);
     }
 
     /** First few characters of a token for safe correlation in logs (never the full token). */

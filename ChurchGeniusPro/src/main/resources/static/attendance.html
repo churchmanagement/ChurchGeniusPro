@@ -66,6 +66,20 @@
     .modal .inner { background:#fff; border-radius:12px; padding:18px 20px; width:360px; max-width:92vw; text-align:center; }
     .muted { color:#999; font-size:12px; }
     .hide { display:none; }
+    /* ── Email / SMS Volunteers modal ── */
+    .modal .inner.vn { width:560px; text-align:left; max-height:90vh; overflow:auto; }
+    .vn-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; font-size:13px; }
+    .vn-row label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+    .vn-list { border:1px solid #eee; border-radius:8px; max-height:220px; overflow:auto; margin-bottom:10px; }
+    .vn-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-bottom:1px solid #f3f0f2; font-size:13px; }
+    .vn-item:last-child { border-bottom:none; }
+    .vn-item .who { flex:1; } .vn-item .who .c { color:#999; font-size:11px; }
+    .vn-present { display:inline-block; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; background:#e6f4ea; color:#1e7e34; }
+    .vn-field { margin-bottom:10px; } .vn-field label { display:block; font-size:12px; font-weight:700; color:#666; margin-bottom:4px; }
+    .vn-field input, .vn-field textarea { width:100%; padding:8px 10px; border:1.5px solid #ddd; border-radius:8px; font-size:13.5px; font-family:inherit; box-sizing:border-box; }
+    .vn-field textarea { min-height:90px; resize:vertical; }
+    .vn-results { font-size:12.5px; max-height:160px; overflow:auto; border:1px solid #eee; border-radius:8px; padding:6px 10px; margin-top:10px; }
+    .vn-results .sent { color:#1e7e34; } .vn-results .skipped { color:#b26a00; } .vn-results .failed { color:#c0392b; }
   </style>
 </head>
 <body>
@@ -80,6 +94,8 @@
           <div class="page-title">Attendance</div>
           <div class="page-subtitle">Track check-ins, visitors, and attendance trends</div>
         </div>
+        <!-- Hidden when the "Email or SMS Volunteers" permission is unchecked (data-perm) -->
+        <button class="btn" type="button" id="volNotifyBtn" data-perm="general.attendance.emailsms" onclick="openVolNotify()">✉ Email / SMS Volunteers</button>
       </div>
 
       <div class="at-tabs">
@@ -210,6 +226,30 @@
   <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;">
     <button class="btn ghost" type="button" onclick="printCode()">🖨 Print</button>
     <button class="btn ghost" type="button" onclick="document.getElementById('codeModal').classList.remove('open')">Close</button>
+  </div>
+</div></div>
+
+<!-- Email / SMS Volunteers modal -->
+<div class="modal" id="volNotifyModal"><div class="inner vn">
+  <h3 style="margin-top:0;color:var(--brand);">✉ Email / SMS Volunteers</h3>
+  <div class="vn-row">
+    <label><input type="checkbox" id="vnAll" onchange="vnToggleAll(this.checked)"> Select all</label>
+    <label><input type="checkbox" id="vnPresentOnly" onchange="vnRenderList()"> Present this week only</label>
+    <span class="muted" id="vnCount" style="margin-left:auto;"></span>
+  </div>
+  <div class="vn-list" id="vnList"><div class="muted" style="padding:10px;">Loading volunteers…</div></div>
+  <div class="vn-row">
+    <strong style="font-size:12px;color:#666;">Send via</strong>
+    <label><input type="checkbox" id="vnEmail" checked onchange="vnChannelChanged()"> ✉️ Email</label>
+    <label><input type="checkbox" id="vnSms" onchange="vnChannelChanged()"> 💬 SMS</label>
+  </div>
+  <div class="vn-field" id="vnSubjectField"><label>Subject (email)</label><input id="vnSubject" type="text" placeholder="e.g. Thank you for serving this week"></div>
+  <div class="vn-field"><label>Message</label><textarea id="vnBody" placeholder="Type your message to the volunteers…"></textarea></div>
+  <div id="vnMsg" class="msg"></div>
+  <div id="vnResults" class="vn-results hide"></div>
+  <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+    <button class="btn ghost" type="button" onclick="document.getElementById('volNotifyModal').classList.remove('open')">Close</button>
+    <button class="btn" type="button" id="vnSendBtn" data-perm="general.attendance.emailsms" onclick="vnSend()">Send</button>
   </div>
 </div></div>
 
@@ -552,6 +592,56 @@
     el('repTo').value=iso(t); el('repFrom').value=iso(new Date(Date.now()-90*86400000)); })();
 
   loadDashboard();
+
+  /* ── Email / SMS Volunteers (general.attendance.emailsms) ──────────────── */
+  var VN_LIST = [], VN_SEL = {};
+  function openVolNotify(){
+    var m = el('volNotifyModal'); m.classList.add('open');
+    el('vnMsg').className = 'msg'; el('vnResults').className = 'vn-results hide'; el('vnResults').innerHTML = '';
+    el('vnList').innerHTML = '<div class="muted" style="padding:10px;">Loading volunteers…</div>';
+    VN_LIST = []; VN_SEL = {}; el('vnAll').checked = false;
+    fetch('/api/attendance/volunteers').then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(list){ VN_LIST = list || []; vnRenderList(); })
+      .catch(function(st){ el('vnList').innerHTML = '<div class="muted" style="padding:10px;">' + (st===403 ? 'You do not have permission to message volunteers.' : 'Could not load volunteers.') + '</div>'; });
+  }
+  function vnVisible(){ var po = el('vnPresentOnly').checked; return VN_LIST.filter(function(v){ return !po || v.presentThisWeek; }); }
+  function vnRenderList(){
+    var rows = vnVisible();
+    if (!VN_LIST.length) { el('vnList').innerHTML = '<div class="muted" style="padding:10px;">No volunteers yet — add volunteer profiles first.</div>'; el('vnCount').textContent=''; return; }
+    if (!rows.length) { el('vnList').innerHTML = '<div class="muted" style="padding:10px;">No volunteers were present this week.</div>'; }
+    else el('vnList').innerHTML = rows.map(function(v){
+      var contact = [v.email, v.phone].filter(Boolean).map(esc).join(' · ') || 'no email or phone on file';
+      return '<label class="vn-item"><input type="checkbox" ' + (VN_SEL[v.memberId] ? 'checked' : '') + ' onchange="vnToggle(' + v.memberId + ',this.checked)">' +
+             '<span class="who">' + esc(v.name) + (v.presentThisWeek ? ' <span class="vn-present">present this week</span>' : '') + '<div class="c">' + contact + '</div></span></label>';
+    }).join('');
+    vnUpdateCount();
+  }
+  function vnToggle(id, on){ if (on) VN_SEL[id] = true; else delete VN_SEL[id]; vnUpdateCount(); }
+  function vnToggleAll(on){ VN_SEL = {}; if (on) vnVisible().forEach(function(v){ VN_SEL[v.memberId] = true; }); vnRenderList(); }
+  function vnUpdateCount(){ var n = Object.keys(VN_SEL).length; el('vnCount').textContent = n ? n + ' selected' : ''; }
+  function vnChannelChanged(){ el('vnSubjectField').classList.toggle('hide', !el('vnEmail').checked); }
+  function vnMsg(t,k){ var m = el('vnMsg'); m.textContent = t; m.className = 'msg ' + k; }
+  function vnSend(){
+    var ids = Object.keys(VN_SEL).map(Number);
+    var viaEmail = el('vnEmail').checked, viaSms = el('vnSms').checked;
+    if (!ids.length) return vnMsg('Select at least one volunteer.', 'err');
+    if (!viaEmail && !viaSms) return vnMsg('Choose Email, SMS, or both.', 'err');
+    if (!el('vnBody').value.trim()) return vnMsg('Type a message first.', 'err');
+    var btn = el('vnSendBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+    post('/api/attendance/volunteers/notify', { memberIds: ids, email: viaEmail, sms: viaSms, subject: el('vnSubject').value, body: el('vnBody').value })
+      .then(function(res){
+        btn.disabled = false; btn.textContent = 'Send';
+        if (!res.ok) return vnMsg((res.j && res.j.message) || 'Could not send.', 'err');
+        var j = res.j || {};
+        if (j.testEmail) vnMsg('🧪 Trial/Demo test: ' + (j.testEmailsSent||0) + ' test email sent to ' + j.testEmail + ' — ' + (j.recipients||0) + ' volunteer' + (j.recipients===1?'':'s') + ' simulated, none emailed' + ((j.sentSms||0) ? '; ' + j.sentSms + ' SMS sent' : '') + '.', 'ok');
+        else vnMsg('Done — ' + (j.sentEmail||0) + ' email' + (j.sentEmail===1?'':'s') + ', ' + (j.sentSms||0) + ' SMS sent to ' + (j.recipients||0) + ' volunteer' + (j.recipients===1?'':'s') + '.', 'ok');
+        var out = el('vnResults'); out.className = 'vn-results';
+        out.innerHTML = (j.results||[]).map(function(r){
+          return '<div class="' + esc(r.status) + '">' + (r.channel==='sms' ? '💬' : '✉️') + ' ' + esc(r.name) + ' — ' + esc(r.status) + (r.reason ? ' (' + esc(r.reason) + ')' : '') + '</div>';
+        }).join('');
+      })
+      .catch(function(){ btn.disabled = false; btn.textContent = 'Send'; vnMsg('Network error.', 'err'); });
+  }
 </script>
 </body>
 </html>

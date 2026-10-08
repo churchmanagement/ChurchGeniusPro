@@ -678,11 +678,20 @@
 
         <!-- Files -->
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
             <span style="font-size:13px;font-weight:700;color:#555;">📎 Files</span>
-            <label class="ss-btn ss-btn-secondary ss-btn-sm" style="cursor:pointer;">
-              Upload <input type="file" id="fileInput" style="display:none;" onchange="uploadFile()"/>
-            </label>
+            <span style="display:flex;align-items:center;gap:10px;">
+              <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#777;cursor:pointer;"
+                     title="When ticked, students enrolled in this class can view, download and print the file from their profile.">
+                <input type="checkbox" id="fileShareStudents" checked style="width:auto;margin:0;" />
+                Visible to students
+              </label>
+              <label class="ss-btn ss-btn-secondary ss-btn-sm" style="cursor:pointer;">
+                Upload <input type="file" id="fileInput" style="display:none;"
+                              accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg"
+                              onchange="uploadFile()"/>
+              </label>
+            </span>
           </div>
           <div id="fileList"></div>
         </div>
@@ -4572,7 +4581,9 @@ function kmCmpSend() {
     if (!to.length || !subject || !body) { toast('Fill in all fields', true); btn.disabled=false; btn.textContent='Send'; return; }
     fetch('/api/kids-ministry/volunteers/send-email', { method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({ to: to, subject: subject, body: body })
-    }).then(function(){ kmCmpClose(); toast('Email sent!'); })
+    }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){
+      if (!r.ok) { toast(d.error || 'Send error', true); return; }
+      kmCmpClose(); toast(d.message ? '🧪 ' + d.message : 'Email sent!'); }); })
     .catch(function(){ toast('Send error', true); })
     ['finally'](function(){ btn.disabled=false; btn.textContent='Send'; });
   } else {
@@ -4636,7 +4647,7 @@ function cmpSend() {
       body: JSON.stringify({ to: targets.map(function(r){ return r.email; }), subject: subject, body: body })
     }).then(function(r){ return r.json(); }).then(function(d){
       sendBtn.disabled = false; sendBtn.textContent = 'Send';
-      if (d.success) { closeCmpModal(); toast('Email sent ✓'); }
+      if (d.success) { closeCmpModal(); toast(d.message ? '🧪 ' + d.message : 'Email sent ✓'); }
       else toast(d.error || 'Failed to send email', true);
     }).catch(function(){ sendBtn.disabled = false; sendBtn.textContent = 'Send'; toast('Network error', true); });
   } else {
@@ -5139,23 +5150,53 @@ async function loadFiles() {
   const files = res.ok ? await res.json() : [];
   const el = document.getElementById('fileList');
   if (!files.length) { el.innerHTML = '<p style="color:#aaa;font-size:12px;">No files uploaded.</p>'; return; }
-  el.innerHTML = files.map(f => `
+  el.innerHTML = files.map(f => {
+    const shared = !!f.sharedWithStudents;
+    const badge = shared
+      ? '<span title="Students in this class can see it" style="background:#e8f5e9;color:#2e7d32;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;">Shared</span>'
+      : '<span title="Only teachers and Kids Ministry staff can see it" style="background:#eceff1;color:#607d8b;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;">Staff only</span>';
+    const by = f.uploadedByName ? ' \u00b7 ' + ssEsc(f.uploadedByName) : '';
+    return `
     <div class="item-row">
-      <div class="item-name">📎 ${ssEsc(f.originalName)}</div>
-      <div class="item-sub">${fmtDate(f.uploadedAt)}</div>
+      <div class="item-name">📎 ${ssEsc(f.originalName)} ${badge}</div>
+      <div class="item-sub">${fmtDate(f.uploadedAt)}${by}</div>
+      <a href="/api/ss/files/${f.id}/view" target="_blank" rel="noopener" class="btn btn-secondary btn-xs">View</a>
       <a href="/api/ss/files/${f.id}/download" class="btn btn-secondary btn-xs">Download</a>
+      <button class="btn btn-secondary btn-xs" onclick="printSsFile(${f.id})">Print</button>
+      <button class="btn btn-secondary btn-xs" onclick="toggleFileShare(${f.id}, ${!shared})">${shared ? 'Unshare' : 'Share'}</button>
       <button class="btn btn-danger btn-xs" onclick="deleteFile(${f.id})">Delete</button>
-    </div>`).join('');
+    </div>`; }).join('');
+}
+
+/* Opens the document in its own tab and asks the browser to print it. Word is
+   converted to HTML server-side first, so it prints as a page rather than saving. */
+function printSsFile(id) {
+  const w = window.open('/api/ss/files/' + id + '/view', '_blank');
+  if (!w) { ssToast('Allow pop-ups to print this document.', true); return; }
+  w.addEventListener('load', function () { try { w.focus(); w.print(); } catch (e) {} });
+}
+
+async function toggleFileShare(id, shared) {
+  const res = await fetch('/api/ss/files/' + id + '/share?shared=' + shared, { method: 'POST' });
+  if (res.ok) { await loadFiles(); ssToast(shared ? 'Shared with students.' : 'Hidden from students.'); }
+  else ssToast('Could not change sharing.', true);
 }
 
 async function uploadFile() {
   if (!selectedClassId) { ssToast('Select a class first.', true); return; }
   const input = document.getElementById('fileInput');
   if (!input.files.length) return;
+  const shareBox = document.getElementById('fileShareStudents');
+  const share = shareBox ? shareBox.checked : true;
   const fd = new FormData(); fd.append('file', input.files[0]);
+  fd.append('shareWithStudents', share);
   const res = await fetch(`/api/ss/classes/${selectedClassId}/files`, { method:'POST', body: fd });
-  if (res.ok) { await loadFiles(); ssToast('File uploaded.'); }
-  else ssToast('Upload failed.', true);
+  if (res.ok) { await loadFiles(); ssToast(share ? 'Uploaded and shared with students.' : 'Uploaded (staff only).'); }
+  else {
+    let msg = 'Upload failed.';
+    try { const e = await res.json(); if (e && e.error) msg = e.error; } catch (ignored) {}
+    ssToast(msg, true);
+  }
   input.value = '';
 }
 

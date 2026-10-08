@@ -87,7 +87,7 @@ public class PlaidItemDeleteController {
                     + "<p>Entering this code will disconnect the bank and permanently remove its pending "
                     + "transactions from the review queue. Already-approved ledger entries are not affected.</p>"
                     + "<p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>";
-            emailService.sendOrgEmail(user.getEmail(), "Confirm deletion of a connected bank", html, clientId);
+            emailService.sendAccountEmail(user.getEmail(), "Confirm deletion of a connected bank", html, clientId);
             return ResponseEntity.ok(ok("message", "A confirmation code was sent to your email."));
         } catch (Exception e) {
             log.warn("delete send-code failed for item {}: {}", id, e.getMessage());

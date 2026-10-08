@@ -43,13 +43,19 @@ public class PublicEngagementController {
         return "forward:/public-prayer-admin.html";
     }
 
-    /** Admin page listing all Connect With Us submissions. */
+    /**
+     * Retired 2026-10-01: Connect With Us submissions are managed in Follow-Ups →
+     * Connect With Us tab (same {@code /api/connect-admin/*} endpoints). The old
+     * route stays as a redirect so bookmarks keep working; {@code /followups}
+     * applies its own role, permission ({@code more.followups}) and plan checks.
+     */
     @GetMapping("/connectAdmin")
-    public String connectAdminPage(HttpServletRequest request) {
-        String deny = RoleGuard.requireAdminOrUser(request);
-        if (deny != null) return deny;
-        return "forward:/connect-admin.html";
+    public String connectAdminPage() {
+        return "redirect:" + CONNECT_ADMIN_TARGET;
     }
+
+    /** Where {@code /connectAdmin} now sends people. */
+    public static final String CONNECT_ADMIN_TARGET = "/followups?tab=connect";
 
     // ── Public APIs (whitelisted via /api/public) ──
     @ResponseBody

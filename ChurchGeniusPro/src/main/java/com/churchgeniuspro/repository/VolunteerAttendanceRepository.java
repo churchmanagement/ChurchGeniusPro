@@ -11,6 +11,9 @@ public interface VolunteerAttendanceRepository extends JpaRepository<VolunteerAt
 
     Optional<VolunteerAttendance> findByAssignmentId(Long assignmentId);
 
+    /** Tenant-scoped variant used by the attendance upsert. */
+    Optional<VolunteerAttendance> findByAppClientIdAndAssignmentId(String appClientId, Long assignmentId);
+
     List<VolunteerAttendance> findByAppClientId(String appClientId);
 
     @Query("SELECT a FROM VolunteerAttendance a WHERE a.appClientId = :cid " +

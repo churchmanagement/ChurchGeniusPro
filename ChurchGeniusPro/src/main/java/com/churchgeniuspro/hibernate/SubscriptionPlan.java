@@ -60,6 +60,41 @@ public class SubscriptionPlan {
     @Column(name = "max_online_giving_per_month") private Integer maxOnlineGivingPerMonth;
     @Column(name = "max_member_portals")          private Integer maxMemberPortals;
     @Column(name = "max_kids_portals")            private Integer maxKidsPortals;
+    /**
+     * Staff users the church may add on /viewusers (non-deleted app_user rows).
+     * Null = unlimited, so every existing plan keeps its behaviour until one is set.
+     */
+    @Column(name = "max_staff_users")             private Integer maxStaffUsers;
+    /**
+     * Bank accounts the church may have connected through Bank Sync, counted as
+     * individual {@code plaid_account} rows (one Plaid connection can add several).
+     * Null = unlimited, 0 = none. Downgrading never disconnects anything: a church
+     * over the limit keeps its accounts and simply cannot add more.
+     */
+    @Column(name = "max_bank_accounts")           private Integer maxBankAccounts;
+
+    // ── Commercial ────────────────────────────────────────────────────────
+    /** Monthly price in USD; null is treated as $0/month everywhere it is shown. */
+    @Column(name = "monthly_price", precision = 10, scale = 2)
+    private java.math.BigDecimal monthlyPrice;
+
+    /**
+     * Yearly price in USD. Optional: null means the plan is not offered on yearly
+     * billing (it is never derived from the monthly price). A client's actual price
+     * is copied from here or from {@link #monthlyPrice} when the plan is assigned —
+     * see {@code SubscriptionLifecycleService} — so changing it later never alters
+     * what an existing client pays.
+     */
+    @Column(name = "yearly_price", precision = 10, scale = 2)
+    private java.math.BigDecimal yearlyPrice;
+
+    /**
+     * Length of a trial started on this plan, in days. Only meaningful on the TRIAL
+     * plan; {@code TrialPolicy} reads it and is the single source of truth for every
+     * trial-creating flow. Null falls back to {@code TrialPolicy.FALLBACK_DAYS}.
+     */
+    @Column(name = "trial_days")
+    private Integer trialDays;
 
     // ── Feature flags ─────────────────────────────────────────────────────
 

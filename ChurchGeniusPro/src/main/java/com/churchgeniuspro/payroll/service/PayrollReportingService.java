@@ -84,8 +84,32 @@ public class PayrollReportingService {
     }
 
     /**
-     * Tax-liability summary for one run: total of each withholding category
-     * across all paystubs (the employer's withholding liability for the period).
+     * Tax-liability summary for one run: every withholding/tax category across
+     * all paystubs.
+     *
+     * <p>Financial audit M12b: this used to total only what's withheld FROM the
+     * employee and call that "the employer's withholding liability" — but the
+     * employer separately owes its own matching Social Security and Medicare on
+     * top of (not instead of) what was withheld, which previously appeared
+     * nowhere and understated the actual 941 deposit by that matching amount.
+     * {@code employerSocialSecurity}/{@code employerMedicare} report that
+     * employer-side cost as its own keys rather than folding it into the
+     * employee-withheld ones, so a caller can total either figure on its own.
+     *
+     * <p>Current law sets the employer's Social Security and Medicare rates
+     * equal to the employee's (this held continuously since 2013; a 2011–2012
+     * law briefly cut only the employee rate), so the employer's match for a
+     * stub is exactly what was withheld from the employee for those same two
+     * categories — {@link Paystub#getSocialSecurity()} /
+     * {@link Paystub#getMedicare()}, already computed and persisted per stub —
+     * and this deliberately reuses those figures rather than redoing the
+     * wage-base/threshold math a second time. There is no employer match for the
+     * 0.9% Additional Medicare surtax (employee-only by statute), so
+     * {@code additionalMedicare} is never added into the employer figure. If a
+     * future year's employer rate ever needs to differ from the employee rate,
+     * this identity breaks and the employer share must be computed
+     * independently (from {@link com.churchgeniuspro.payroll.config.FicaConfig}
+     * with its own employer rate) instead of mirrored from the employee side.
      */
     public Map<String, BigDecimal> taxLiability(Long runId) {
         Map<String, BigDecimal> out = new LinkedHashMap<>();
@@ -95,6 +119,8 @@ public class PayrollReportingService {
         out.put("additionalMedicare", BigDecimal.ZERO);
         out.put("stateIncomeTax",   BigDecimal.ZERO);
         out.put("localTax",         BigDecimal.ZERO);
+        out.put("employerSocialSecurity", BigDecimal.ZERO);
+        out.put("employerMedicare",       BigDecimal.ZERO);
         for (Paystub s : paystubRepo.findByRunId(runId)) {
             if (s.isVoided()) continue;
             add(out, "federalIncomeTax", s.getFederalWithholding());
@@ -103,6 +129,8 @@ public class PayrollReportingService {
             add(out, "additionalMedicare", s.getAdditionalMedicare());
             add(out, "stateIncomeTax",   s.getStateWithholding());
             add(out, "localTax",         s.getLocalTax());
+            add(out, "employerSocialSecurity", s.getSocialSecurity());
+            add(out, "employerMedicare",       s.getMedicare());
         }
         return out;
     }

@@ -39,6 +39,8 @@
     .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
     .btn-danger { padding: 9px 18px; background: #e53935; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }
     .btn-danger:hover { background: #b71c1c; }
+    .pr-del-btn { padding: 8px 10px; color: #c62828; border-color: #f3c6cc; }
+    .pr-del-btn:hover { background: #ffebee; border-color: #e53935; color: #b71c1c; }
 
     /* ── Stat pills ── */
     .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -233,16 +235,16 @@
         <div class="filter-bar">
           <select id="connStatusFilter" onchange="renderConnect()">
             <option value="">All Statuses</option>
-            <option>New</option><option>Assigned</option><option>InProgress</option>
-            <option>Contacted</option><option>Closed</option>
+            <option value="New">New</option><option value="Assigned">Assigned</option><option value="InProgress">InProgress</option>
+            <option value="Contacted">Contacted</option><option value="Closed">Closed</option>
           </select>
           <input type="search" id="connSearch" placeholder="🔍 Search name, email, phone…" oninput="renderConnect()" />
         </div>
         <div class="table-card">
           <div style="overflow-x:auto;">
             <table class="data-table">
-              <thead><tr><th>Name</th><th>Contact</th><th>Submitted</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead>
-              <tbody id="connBody"><tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
+              <thead><tr><th>Name</th><th>Contact</th><th>Submitted</th><th>Status</th><th>Assigned To</th><th>Confirmation</th><th>Actions</th></tr></thead>
+              <tbody id="connBody"><tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -724,9 +726,32 @@
   document.getElementById('modalOverlay').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
   document.getElementById('deleteModal').addEventListener('click',  function(e){ if (e.target === this) closeDeleteModal(); });
 </script>
+<!-- ── Delete a Connect submission (confirmation) ── -->
+<div class="modal-overlay" id="connDeleteModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">Delete Connect Submission?</div>
+    <div style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;" id="connDeleteBody">The visitor record and follow-ups are kept.</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="connDeleteClose()">Cancel</button>
+      <button class="btn-danger" id="connDeleteBtn" onclick="connDeleteConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+<!-- ── Delete a prayer request (confirmation) ── -->
+<div class="modal-overlay" id="prayDeleteModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">Delete Prayer Request?</div>
+    <div style="font-size:14px;color:#555;margin-bottom:20px;line-height:1.5;" id="prayDeleteBody">This cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="prayDeleteClose()">Cancel</button>
+      <button class="btn-danger" id="prayDeleteBtn" onclick="prayDeleteConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Manage modal for Connect submissions & Prayer Requests ── -->
 <div class="modal-overlay" id="mgOverlay">
-  <div class="modal" style="max-width:560px;max-height:88vh;overflow-y:auto;">
+  <div class="modal-box" style="max-width:560px;max-height:88vh;overflow-y:auto;">
     <div class="modal-title" id="mgTitle">Manage</div>
     <div id="mgBody"></div>
     <div class="modal-actions"><button class="btn-secondary" onclick="mgClose()">Close</button></div>
@@ -763,9 +788,18 @@
   function loadConnect(){
     fetch('/api/connect-admin').then(function(r){return r.json();}).then(function(d){
       CONN = Array.isArray(d)?d:[]; CONN._loaded=true;
-      document.getElementById('fuCntConnect').textContent = CONN.length ? '('+CONN.length+')' : '';
+      connRefreshCounts();
       renderConnect();
-    }).catch(function(){ document.getElementById('connBody').innerHTML='<tr><td colspan="6" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+    }).catch(function(){ document.getElementById('connBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+  }
+  /* Tab badge + per-status counts in the filter (as the old Connect Submissions page showed). */
+  function connRefreshCounts(){
+    document.getElementById('fuCntConnect').textContent = CONN.length ? '('+CONN.length+')' : '';
+    var sel = document.getElementById('connStatusFilter');
+    Array.prototype.forEach.call(sel.options, function(o){
+      var n = o.value ? CONN.filter(function(x){ return x.status===o.value; }).length : CONN.length;
+      o.textContent = (o.value || 'All Statuses') + ' ('+n+')';
+    });
   }
   window.renderConnect = function(){
     var st=document.getElementById('connStatusFilter').value;
@@ -776,7 +810,7 @@
       return !q || hay.indexOf(q)>=0;
     });
     var tb=document.getElementById('connBody');
-    if(!rows.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:18px;">No submissions.</td></tr>'; return; }
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:18px;">No submissions.</td></tr>'; return; }
     tb.innerHTML=rows.map(function(s){
       var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'(no name)';
       return '<tr><td><b>'+E(name)+'</b></td>'
@@ -784,7 +818,9 @@
         +'<td style="white-space:nowrap;">'+E(fdt(s.createdAt))+'</td>'
         +'<td><span class="sub-pill sp-'+E(s.status)+'">'+E(s.status)+'</span></td>'
         +'<td>'+E(s.assignedTo||'—')+'</td>'
-        +'<td><button class="btn-secondary" onclick="mgOpen(\'connect\','+s.id+')">Manage</button></td></tr>';
+        +'<td style="font-size:11px;color:#888;">'+E(s.confirmationSent||'—')+'</td>'
+        +'<td style="white-space:nowrap;"><button class="btn-secondary" onclick="mgOpen(\'connect\','+s.id+')">Manage</button> '
+        +'<button class="btn-secondary pr-del-btn" title="Delete this submission" onclick="connDeleteAsk('+s.id+')">🗑</button></td></tr>';
     }).join('');
   };
 
@@ -815,8 +851,76 @@
         +'<td style="white-space:nowrap;">'+E(fdt(p.createdAt))+'</td>'
         +'<td><span class="sub-pill sp-'+E(p.status)+'">'+E(p.status)+'</span></td>'
         +'<td>'+E(p.assignedTo||'—')+'</td>'
-        +'<td><button class="btn-secondary" onclick="mgOpen(\'prayer\','+p.id+')">Manage</button></td></tr>';
+        +'<td style="white-space:nowrap;"><button class="btn-secondary" onclick="mgOpen(\'prayer\','+p.id+')">Manage</button> '
+        +'<button class="btn-secondary pr-del-btn" title="Delete this prayer request" onclick="prayDeleteAsk('+p.id+')">🗑</button></td></tr>';
     }).join('');
+  };
+
+  /* ── Delete a single Connect submission (soft delete; visitor record + follow-ups kept) ── */
+  var connDelId = null;
+  window.connDeleteAsk = function(id){
+    var s = CONN.find(function(x){ return x.id===id; });
+    if (!s) return;
+    connDelId = id;
+    var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'(no name)';
+    document.getElementById('connDeleteBody').innerHTML =
+      'Delete the Connect submission from <b>'+E(name)+'</b>? It is removed from this list; '
+      +'the visitor record and follow-ups are kept.';
+    document.getElementById('connDeleteModal').classList.add('open');
+  };
+  window.connDeleteClose = function(){ document.getElementById('connDeleteModal').classList.remove('open'); connDelId = null; };
+  window.connDeleteConfirm = function(){
+    if (connDelId == null) return;
+    var id = connDelId;
+    var btn = document.getElementById('connDeleteBtn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    fetch('/api/connect-admin/'+id, { method:'DELETE' })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return { ok:r.ok, j:j }; }); })
+      .then(function(res){
+        if (!res.ok) throw new Error((res.j && res.j.error) || 'HTTP error');
+        CONN = CONN.filter(function(x){ return x.id!==id; }); CONN._loaded = true;   // only the chosen row
+        connRefreshCounts();
+        renderConnect();
+        if (mgCur && mgKind==='connect' && mgCur.id===id) mgClose();
+        connDeleteClose();
+        note('Submission deleted.', true);
+      })
+      .catch(function(e){ note('Delete failed: '+e.message, false); })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Delete'; });
+  };
+
+  /* ── Delete a single prayer request (with confirmation) ── */
+  var prayDelId = null;
+  window.prayDeleteAsk = function(id){
+    var p = PRAY.find(function(x){ return x.id===id; });
+    if (!p) return;
+    prayDelId = id;
+    var name=((p.firstName||'')+' '+(p.lastName||'')).trim()||'(no name)';
+    var txt=(p.requestText||''); if(txt.length>80) txt=txt.slice(0,80)+'…';
+    document.getElementById('prayDeleteBody').innerHTML =
+      'Permanently delete the prayer request from <b>'+E(name)+'</b>'
+      +(txt?' — <i>“'+E(txt)+'”</i>':'')+'? Its notes and assignment go with it. This cannot be undone.';
+    document.getElementById('prayDeleteModal').classList.add('open');
+  };
+  window.prayDeleteClose = function(){ document.getElementById('prayDeleteModal').classList.remove('open'); prayDelId = null; };
+  window.prayDeleteConfirm = function(){
+    if (prayDelId == null) return;
+    var id = prayDelId;
+    var btn = document.getElementById('prayDeleteBtn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    fetch('/api/ppr/'+id, { method:'DELETE' })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return { ok:r.ok, j:j }; }); })
+      .then(function(res){
+        if (!res.ok) throw new Error((res.j && res.j.error) || 'HTTP error');
+        PRAY = PRAY.filter(function(x){ return x.id!==id; }); PRAY._loaded = true;   // only the chosen row
+        document.getElementById('fuCntPrayer').textContent = PRAY.length ? '('+PRAY.length+')' : '';
+        renderPrayer();
+        if (mgCur && mgKind==='prayer' && mgCur.id===id) mgClose();
+        prayDeleteClose();
+        note('Prayer request deleted.', true);
+      })
+      .catch(function(e){ note('Delete failed: '+e.message, false); })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Delete'; });
   };
 
   /* ── Manage modal (shared) ── */
@@ -828,7 +932,9 @@
     document.getElementById('mgTitle').textContent = (kind==='connect'?'🤝 ':'🙏 ')+name;
     var g = kind==='connect'
       ? [['Submitted',fdt(mgCur.createdAt)],['Status',mgCur.status],['Email',mgCur.email],['Phone',mgCur.phone],
-         ['Address',mgCur.address],['Contact Prefs',mgCur.contactPreferences],['How They Heard',mgCur.howHeard],['Assigned To',mgCur.assignedTo]]
+         ['Address',mgCur.address],['Gender',mgCur.gender],['Marital Status',mgCur.maritalStatus],['Birth Date',mgCur.birthDate],
+         ['Contact Prefs',mgCur.contactPreferences],['How They Heard',mgCur.howHeard],['Assigned To',mgCur.assignedTo],
+         ['Confirmation',mgCur.confirmationSent]]
       : [['Submitted',fdt(mgCur.createdAt)],['Status',mgCur.status],['Email',mgCur.email],['Phone',mgCur.phone],
          ['Source',mgCur.source],['Share w/ Team',mgCur.shareWithTeam?'Yes':'No'],['Request',mgCur.requestText],['Assigned To',mgCur.assignedTo]];
     var opts = kind==='connect'
@@ -841,7 +947,8 @@
       +'<div class="mg-sect">Assign Volunteer / Staff</div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       +'<select id="mgAssign" style="min-width:220px;"><option value="">— Select —</option>'+opts+'</select>'
-      +'<button class="btn-primary" onclick="mgAssign()">Assign</button></div>'
+      +'<button class="btn-primary" onclick="mgAssign()">Assign</button>'
+      +(kind==='connect'?' <button class="btn-secondary" onclick="mgUnassign()">Unassign</button>':'')+'</div>'
       +'<div class="mg-sect">Status</div>'
       +'<div style="display:flex;gap:8px;align-items:center;">'
       +'<select id="mgStatus">'+statuses.map(function(s){return '<option'+(mgCur.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'
@@ -850,7 +957,11 @@
       +'<div id="mgHist" style="max-height:200px;overflow-y:auto;"><span style="color:#999;font-size:12px;">Loading…</span></div>'
       +'<div style="margin-top:10px;display:grid;gap:6px;">'
       +'<input type="text" id="mgNoteTitle" placeholder="'+(mgKind==='connect'?'Follow-up title (e.g. Call to welcome)':'Note (e.g. Called and prayed together)')+'" />'
-      +(mgKind==='connect'?'<textarea id="mgNoteText" rows="2" placeholder="Notes…"></textarea>':'')
+      +(mgKind==='connect'?'<textarea id="mgNoteText" rows="2" placeholder="Notes…"></textarea>'
+        +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+        +'<label for="mgFuDue" style="font-size:12px;color:#666;">Due</label><input type="date" id="mgFuDue" />'
+        +'<select id="mgFuPriority" aria-label="Priority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>URGENT</option></select>'
+        +'</div>':'')
       +'<div><button class="btn-primary" onclick="mgAddNote()">'+(mgKind==='connect'?'+ Add Follow-Up':'+ Add Note')+'</button></div></div>';
     document.getElementById('mgOverlay').classList.add('open');
     mgLoadHist();
@@ -891,6 +1002,12 @@
       : post('/api/ppr/'+mgCur.id+'/assign', { volunteerId: sel.value });
     p.then(function(res){ if(res.ok){ note('Assigned.', true); mgClose(); mgKind==='connect'?loadConnect():loadPrayer(); } else note(res.j.error||'Failed.', false); });
   };
+  window.mgUnassign = function(){
+    if(!mgCur || mgKind!=='connect') return;
+    post('/api/connect-admin/'+mgCur.id+'/assign', {})
+      .then(function(res){ if(res.ok){ note('Unassigned.', true); mgClose(); loadConnect(); } else note(res.j.error||'Failed.', false); })
+      .catch(function(){ note('Network error.', false); });
+  };
   window.mgStatus = function(){
     if(!mgCur) return;
     var st=document.getElementById('mgStatus').value;
@@ -906,8 +1023,11 @@
     if (mgKind==='connect'){
       var name=((mgCur.firstName||'')+' '+(mgCur.lastName||'')).trim();
       post('/api/followups', { title:title, description:(document.getElementById('mgNoteText')||{value:''}).value.trim(),
-          priority:'MEDIUM', assignedTo:mgCur.assignedTo||null, linkedType:'CONNECT', linkedId:mgCur.id, linkedLabel:'Connect: '+name })
-        .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; if(document.getElementById('mgNoteText'))document.getElementById('mgNoteText').value=''; mgLoadHist(); note('Follow-up added.', true); } else note(res.j.error||'Failed.', false); });
+          dueDate:(document.getElementById('mgFuDue')||{value:''}).value||null,
+          priority:(document.getElementById('mgFuPriority')||{value:'MEDIUM'}).value||'MEDIUM',
+          assignedTo:mgCur.assignedTo||null, linkedType:'CONNECT', linkedId:mgCur.id, linkedLabel:'Connect: '+name })
+        .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; if(document.getElementById('mgNoteText'))document.getElementById('mgNoteText').value='';
+          if(document.getElementById('mgFuDue'))document.getElementById('mgFuDue').value=''; mgLoadHist(); note('Follow-up added.', true); } else note(res.j.error||'Failed.', false); });
     } else {
       post('/api/ppr/'+mgCur.id+'/note', { type:'NOTE', text:title })
         .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; mgLoadHist(); note('Note added.', true); } else note(res.j.error||'Failed.', false); });
@@ -915,6 +1035,7 @@
   };
 
   document.getElementById('mgOverlay').addEventListener('click', function(e){ if(e.target===this) mgClose(); });
+  document.getElementById('connDeleteModal').addEventListener('click', function(e){ if(e.target===this) connDeleteClose(); });
   loadAssignees();
 })();
 </script>
@@ -924,5 +1045,20 @@ window.CGP_PAGE = { activePage: 'more/followups', openSection: 'more', pageTitle
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script>
+  /* Deep link from a notification: /followups?tab=connect | tab=prayer opens that tab. */
+  (function () {
+    try {
+      var t = new URLSearchParams(window.location.search).get('tab');
+      if (t === 'connect' || t === 'prayer') {
+        var go = function () {
+          var btn = document.getElementById('fuTab_' + t);
+          if (btn && typeof fuShowTab === 'function') fuShowTab(t, btn);
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+      }
+    } catch (e) { /* ignore */ }
+  })();
+</script>
 </body>
 </html>

@@ -10,4 +10,8 @@ public interface MeetingReminderRepository extends JpaRepository<MeetingReminder
     List<MeetingReminder> findByAppClientIdOrderByCreatedDateDesc(String appClientId);
 
     List<MeetingReminder> findByMeetingIdAndDisabledFalse(Integer meetingId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<MeetingReminder> findByIdAndAppClientId(Integer id, String appClientId);
 }

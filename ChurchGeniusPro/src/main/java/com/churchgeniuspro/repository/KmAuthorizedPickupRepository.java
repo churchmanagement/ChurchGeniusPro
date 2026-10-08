@@ -10,4 +10,7 @@ public interface KmAuthorizedPickupRepository extends JpaRepository<KmAuthorized
             String clientId, Long childId);
 
     void deleteByChildId(Long childId);
+
+    /** Tenant-scoped variant: never clears another church's pickup list. */
+    void deleteByClientIdAndChildId(String clientId, Long childId);
 }

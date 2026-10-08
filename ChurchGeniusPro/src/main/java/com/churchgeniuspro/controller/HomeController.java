@@ -37,7 +37,7 @@ public class HomeController {
     public String incomeReport(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reports.income");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/income-report.html";
     }
@@ -46,7 +46,7 @@ public class HomeController {
     public String expenseReport(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reports.expense");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/expense-report.html";
     }
@@ -55,7 +55,7 @@ public class HomeController {
     public String transactionsReport(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reports.daterange");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/transactions-report.html";
     }
@@ -64,7 +64,7 @@ public class HomeController {
     public String taxReport(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reports.taxreport");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/tax-report.html";
     }
@@ -73,7 +73,7 @@ public class HomeController {
     public String financialReport(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "reports.financial");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/financial-report.html";
     }
@@ -82,7 +82,7 @@ public class HomeController {
     public String accountingReports(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "accounting.reports");
+        deny = RoleGuard.requirePagePermission(request, "accounting.reports");
         if (deny != null) return deny;
         return "forward:/accountingReports.html";
     }
@@ -93,7 +93,7 @@ public class HomeController {
     public String worshipPlanning(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.worshipplanning");
+        deny = RoleGuard.requirePagePermission(request, "general.ministry.worship");
         if (deny != null) return deny;
         deny = RoleGuard.requireMemberPermission(request, "member.worship");
         if (deny != null) return deny;
@@ -104,14 +104,15 @@ public class HomeController {
     // Originally hard-gated to role=Member. Spec change: anyone who can reach
     // /worshipPlanning should also be able to reach the Manage page, so the
     // access rule now mirrors that route's chain exactly — Admin/User/
-    // SuperAdmin/Member with the general.worshipplanning permission, or a
+    // SuperAdmin/Member with the general.ministry.worship permission (legacy
+    // general.worshipplanning honoured via PERMISSION_ALIASES), or a
     // Member-portal user with the member.worship permission.
 
     @GetMapping("/memberWorship")
     public String memberWorship(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.worshipplanning");
+        deny = RoleGuard.requirePagePermission(request, "general.ministry.worship");
         if (deny != null) return deny;
         deny = RoleGuard.requireMemberPermission(request, "member.worship");
         if (deny != null) return deny;
@@ -126,7 +127,7 @@ public class HomeController {
     public String sundaySchool(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.sundayschool");
+        deny = RoleGuard.requirePagePermission(request, "general.ministry.kids");
         if (deny != null) return deny;
         return "forward:/sundaySchool.html";
     }
@@ -137,10 +138,10 @@ public class HomeController {
     public String ministryHub(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        // Staff: check general.ministry permission; Members: check general.kidsministry
+        // Staff: check general.ministry permission; Members: check general.ministry.kids
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         boolean isMember = session != null && "Member".equals(session.getAttribute("role"));
-        deny = RoleGuard.requirePermission(request, isMember ? "general.kidsministry" : "general.ministry");
+        deny = RoleGuard.requirePagePermission(request, isMember ? "general.ministry.kids" : "general.ministry");
         if (deny != null) return deny;
         return "forward:/ministry.html";
     }
@@ -151,6 +152,8 @@ public class HomeController {
     public String kidsMinistryPageRedirect(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
+        deny = RoleGuard.requirePagePermission(request, "general.ministry.kids");
+        if (deny != null) return deny;
         return "redirect:/ministry";
     }
 
@@ -160,9 +163,9 @@ public class HomeController {
     public String kidsMinistry(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.kidsministry");
+        deny = RoleGuard.requirePagePermission(request, "general.ministry.kids");
         if (deny != null) return deny;
-        deny = RoleGuard.requireMemberPermission(request, "member.sundayschool");
+        deny = RoleGuard.requireMemberPagePermission(request, "member.classes");
         if (deny != null) return deny;
         return "forward:/kidsMinistry.html";
     }
@@ -173,7 +176,7 @@ public class HomeController {
     public String volunteers(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.volunteers");
+        deny = RoleGuard.requirePagePermission(request, "general.volunteers");
         if (deny != null) return deny;
         return "forward:/volunteers.html";
     }
@@ -184,7 +187,7 @@ public class HomeController {
     public String events(HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.events");
+        deny = RoleGuard.requirePagePermission(request, "general.events");
         if (deny != null) return deny;
         return "forward:/events.html";
     }

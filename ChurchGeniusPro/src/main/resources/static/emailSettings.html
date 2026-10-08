@@ -89,6 +89,23 @@
     .toast.error { background: #e53935; }
     .toast.show  { display: block; animation: fadeIn .2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    /* Trial/Demo test email */
+    .te-card { margin-top: 22px; border: 2px solid #f59e0b; }
+    .te-card h2 { color: #92400e; border-bottom-color: #fde68a; }
+    .te-note { font-size: 13px; color: #78350f; background: #fffbeb; border-radius: 8px; padding: 12px 14px; line-height: 1.55; margin-bottom: 18px; }
+    .te-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .te-row input[type="text"] { flex: 1; min-width: 220px; border: 1.5px solid #dde0ec; border-radius: 8px; padding: 10px 13px; font-size: 14px; font-family: inherit; outline: none; }
+    .te-row input[type="text"]:focus { border-color: #673147; }
+    .te-btn { padding: 10px 18px; border-radius: 8px; border: 0; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .te-btn.primary { background: #673147; color: #fff; }
+    .te-btn.primary:hover { background: #4f2538; }
+    .te-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .te-status { display: flex; align-items: center; gap: 10px; font-size: 14px; margin-bottom: 16px; }
+    .te-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .te-badge.ok { background: #e8f5e9; color: #2e7d32; }
+    .te-badge.none { background: #f3f4f6; color: #6b7280; }
+    .te-msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+    .te-msg.err { color: #c62828; } .te-msg.ok { color: #2e7d32; }
   </style>
 </head>
 <body>
@@ -138,9 +155,55 @@
             <small>Include a randomly selected Promise Verse in every email footer.</small>
           </div>
 
+          <!-- Where the verses themselves come from. Without any, the setting above
+               has nothing to append, which is the usual reason it appears to do nothing. -->
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+                      padding:14px 16px;margin-top:16px;border:1px solid #ecdfe6;
+                      border-radius:9px;background:#faf7f9;">
+            <span style="font-size:20px;line-height:1;">📖</span>
+            <div style="flex:1 1 240px;min-width:200px;">
+              <div style="font-size:14px;font-weight:600;color:#673147;">Daily Verse Setup</div>
+              <div style="font-size:13px;color:#8b8194;line-height:1.6;margin-top:2px;">
+                Load a full year of verses in one click, or edit them individually.
+                Only needs doing once — the list is reused every year.
+              </div>
+            </div>
+            <a href="/dailyVerseSetup"
+               style="padding:9px 18px;border:1px solid #c5a0b5;border-radius:8px;color:#673147;
+                      font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">
+              Open Daily Verse Setup →
+            </a>
+          </div>
+
           <div class="form-actions">
             <button class="btn-save" id="saveBtn" onclick="saveSettings()">Save Settings</button>
           </div>
+        </div>
+
+        <!-- Trial/Demo only: the verified address that receives test emails (shown when the server says so) -->
+        <div class="settings-card te-card" id="testEmailCard" style="display:none;">
+          <h2>🧪 Trial/Demo Test Email</h2>
+          <div class="te-note">
+            On a Trial/Demo account, emails are <strong>never sent to your members or other real recipients</strong>.
+            Verify one address here and every email action — a meeting notification, a birthday reminder,
+            a group email — sends <strong>one test copy</strong> to it, exactly as the real email would look.
+            Until an address is verified, those emails are not sent at all.
+          </div>
+          <div class="te-status">
+            <span id="teBadge" class="te-badge none">No verified address</span>
+            <span id="teVerified" style="color:#555;"></span>
+          </div>
+          <div class="te-row" id="teRequestRow">
+            <input type="text" id="teEmail" placeholder="test address, e.g. you@example.com" maxlength="320" autocomplete="off" />
+            <button type="button" class="te-btn primary" id="teSendBtn" onclick="teRequest()">Send verification code</button>
+          </div>
+          <div class="te-row" id="teVerifyRow" style="display:none;margin-top:12px;">
+            <span style="font-size:13px;color:#555;width:100%;">Enter the 6-digit code sent to <strong id="tePendingAddr"></strong> (valid for <span id="teMinutes">15</span> minutes):</span>
+            <input type="text" id="teCode" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="max-width:140px;letter-spacing:4px;" />
+            <button type="button" class="te-btn primary" id="teVerifyBtn" onclick="teVerify()">Verify</button>
+            <button type="button" class="te-btn" style="background:#f3f4f6;color:#555;" onclick="teCancelPending()">Use a different address</button>
+          </div>
+          <div class="te-msg" id="teMsg"></div>
         </div>
       </div>
     </main>
@@ -192,6 +255,75 @@ async function saveSettings() {
   }
 }
 
+/* ── Trial/Demo test email (card is shown only when the server reports the tenant is eligible) ── */
+async function teLoad() {
+  try {
+    const res = await fetch('/api/email-settings/test-email');
+    if (!res.ok) return;
+    teRender(await res.json());
+  } catch (e) { console.error(e); }
+}
+function teRender(s) {
+  const card = document.getElementById('testEmailCard');
+  if (!s || !s.eligible) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const badge = document.getElementById('teBadge');
+  const info  = document.getElementById('teVerified');
+  if (s.verifiedEmail) {
+    badge.className = 'te-badge ok'; badge.textContent = '✓ Verified';
+    info.textContent = s.verifiedEmail + (s.verifiedAt ? ' · since ' + new Date(s.verifiedAt).toLocaleDateString() : '');
+  } else {
+    badge.className = 'te-badge none'; badge.textContent = 'No verified address';
+    info.textContent = 'Test emails are not being sent yet.';
+  }
+  const pending = !!s.pendingEmail;
+  document.getElementById('teVerifyRow').style.display  = pending ? '' : 'none';
+  document.getElementById('teRequestRow').style.display = pending ? 'none' : '';
+  if (pending) {
+    document.getElementById('tePendingAddr').textContent = s.pendingEmail;
+    document.getElementById('teMinutes').textContent = s.codeMinutes || 15;
+  }
+}
+function teSay(msg, isErr) {
+  const el = document.getElementById('teMsg');
+  el.textContent = msg || ''; el.className = 'te-msg' + (isErr ? ' err' : msg ? ' ok' : '');
+}
+async function teRequest() {
+  const email = document.getElementById('teEmail').value.trim();
+  if (!email) { teSay('Enter the address to verify.', true); return; }
+  const btn = document.getElementById('teSendBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/email-settings/test-email/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { teSay(data.error || 'Could not send the verification code.', true); return; }
+    teRender(data); teSay('Verification code sent to ' + email + '.', false);
+    document.getElementById('teCode').value = '';
+  } catch (e) { teSay('Network error. Please try again.', true); }
+  finally { btn.disabled = false; btn.textContent = 'Send verification code'; }
+}
+async function teVerify() {
+  const code = document.getElementById('teCode').value.trim();
+  if (!/^\d{6}$/.test(code)) { teSay('Enter the 6-digit code.', true); return; }
+  const btn = document.getElementById('teVerifyBtn'); btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const res = await fetch('/api/email-settings/test-email/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { teSay(data.error || 'Could not verify the code.', true); return; }
+    teRender(data); teSay('Verified. Test emails will now be sent to ' + data.verifiedEmail + '.', false);
+  } catch (e) { teSay('Network error. Please try again.', true); }
+  finally { btn.disabled = false; btn.textContent = 'Verify'; }
+}
+function teCancelPending() {
+  // Only the view changes; the pending code simply expires unused.
+  document.getElementById('teVerifyRow').style.display = 'none';
+  document.getElementById('teRequestRow').style.display = '';
+  teSay('', false);
+}
+
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -200,6 +332,7 @@ function showToast(msg, isError) {
 }
 
 loadSettings();
+teLoad();
 </script>
 <script src="/session.js" defer></script>
 <script>

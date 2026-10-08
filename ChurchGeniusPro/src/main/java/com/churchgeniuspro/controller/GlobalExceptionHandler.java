@@ -1,8 +1,10 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ClientIpResolver;
 import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,19 +17,36 @@ import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Catches any unhandled exception thrown from a @Controller or @RestController,
  * logs the full stack trace, and returns a consistent JSON error response.
+ *
+ * <p>ERROR-level output from here lands in {@code error-YYYY-MM-DD.log} (see
+ * {@code logback-spring.xml}) with the full stack trace attached, alongside who was signed in,
+ * where they were, and which request failed — the context that turns "NullPointerException
+ * at 03:12" into something diagnosable.
+ *
+ * <p>Each 500 is stamped with a short reference that is both logged and returned to the
+ * caller, so a user reporting "it said error a1b2c3d4" points straight at one log entry.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * Shared with the login-protection layer so the IP recorded against an error matches
+     * the IP recorded against that user's sign-in. See LOGIN_SECURITY.md §8.
+     */
+    @Value("${security.login-protection.trust-forwarded-headers:true}")
+    private boolean trustForwardedHeaders;
 
     /**
      * Browser closed the connection before the server finished streaming a response.
@@ -116,13 +135,37 @@ public class GlobalExceptionHandler {
             log.debug("Client disconnected before the response finished (ignored): {}", ex.getMessage());
             return null;
         }
-        log.error("Unhandled exception in controller for {} {}: {}",
-                request.getMethod(), requestPath(request), ex.getMessage(), ex);
+        // Short reference shared between the log entry and the response, so a user who
+        // reports "it said error a1b2c3d4" leads straight to one line in error-*.log.
+        String ref = UUID.randomUUID().toString().substring(0, 8);
+
+        log.error("Unhandled exception [ref={}] for {} {} | user={} | church={} | role={} | ip={} : {}",
+                ref, request.getMethod(), requestPath(request),
+                sessionAttr(request, "username"), sessionAttr(request, "churchName"),
+                sessionAttr(request, "role"), ClientIpResolver.resolve(request, trustForwardedHeaders),
+                ex.getMessage(), ex);
+
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("error", "An unexpected error occurred: " + ex.getMessage());
+        // The message stays in the log (with the stack trace and the ref); the caller gets
+        // the ref only — exception text is SQL, class names and paths (security audit P8).
+        body.put("error", "An unexpected error occurred. Please try again or contact support quoting reference " + ref + ".");
+        body.put("ref", ref);
         return ResponseEntity.status(500)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
+    }
+
+    /**
+     * Session attribute for the error context, without ever creating a session — an
+     * anonymous request that fails must not be handed one as a side effect of logging.
+     * Only non-sensitive identity attributes are read; the session id itself is not logged.
+     */
+    private static String sessionAttr(HttpServletRequest request, String name) {
+        if (request == null) return "-";
+        HttpSession session = request.getSession(false);
+        if (session == null) return "-";
+        Object value = session.getAttribute(name);
+        return value == null ? "-" : String.valueOf(value);
     }
 
     /** Request path plus query string, for diagnostic logging. */

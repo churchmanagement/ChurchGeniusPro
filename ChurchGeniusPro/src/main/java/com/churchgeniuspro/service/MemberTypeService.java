@@ -50,9 +50,9 @@ public class MemberTypeService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public MemberType update(Integer id, String typeName) {
+    public MemberType update(Integer id, String typeName, String appClientId) {
         String name = typeName.trim();
-        MemberType mt = findOrThrow(id);
+        MemberType mt = findOrThrow(id, appClientId);
         // Use the existing record's appClientId so the check stays within the same org
         if (repository.existsByTypeNameAndClientIdAndIdNot(name, mt.getAppClientId(), id)) {
             throw new IllegalArgumentException(
@@ -65,8 +65,8 @@ public class MemberTypeService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        MemberType mt = findOrThrow(id);
+    public void delete(Integer id, String appClientId) {
+        MemberType mt = findOrThrow(id, appClientId);
         mt.setDeleteFlag(true);
         repository.save(mt);
     }
@@ -80,8 +80,10 @@ public class MemberTypeService {
         return m;
     }
 
-    private MemberType findOrThrow(Integer id) {
-        return repository.findById(id)
+    /** Tenant-scoped; an id owned by another tenant reads as "not found". */
+    private MemberType findOrThrow(Integer id, String appClientId) {
+        if (appClientId == null) throw new IllegalArgumentException("Member type not found: " + id);
+        return repository.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Member type not found: " + id));
     }

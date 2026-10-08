@@ -53,6 +53,8 @@ public class StripeSettingsController {
     public ResponseEntity<?> get(HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Owner-only, like the /stripeIntegration page: these are the church's payment credentials.
+        if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
 
         StripeSettings s = repo.findByClientId(clientId).orElse(new StripeSettings());
 
@@ -79,6 +81,8 @@ public class StripeSettingsController {
                                    HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Owner-only, like the /stripeIntegration page: these are the church's payment credentials.
+        if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
 
         String publishableKey = str(body.get("publishableKey"));
         String secretKey      = str(body.get("secretKey"));

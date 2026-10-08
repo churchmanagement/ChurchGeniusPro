@@ -42,9 +42,10 @@ public class EventEmailTemplateController {
     @PostMapping("/api/event-email-templates")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body,
                                                        HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             EventEmailTemplate saved = service.create(
                     str(body.get("name")), str(body.get("body")),
@@ -60,12 +61,13 @@ public class EventEmailTemplateController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                       @RequestBody Map<String, Object> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (id == null || id == EventEmailTemplateService.BUILT_IN_ID) {
             return bad("The built-in default template can't be edited. Save it as a new template instead.");
         }
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             service.update(id, str(body.get("name")), str(body.get("body")), appClientId);
             return ResponseEntity.ok(Map.of("id", id, "success", true));
@@ -77,13 +79,15 @@ public class EventEmailTemplateController {
     @ResponseBody
     @DeleteMapping("/api/event-email-templates/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (id == null || id == EventEmailTemplateService.BUILT_IN_ID) {
             return bad("The built-in default template can't be deleted.");
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            service.delete(id);
+            service.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -93,9 +97,10 @@ public class EventEmailTemplateController {
     @ResponseBody
     @PostMapping("/api/event-email-templates/{id}/default")
     public ResponseEntity<Map<String, Object>> setDefault(@PathVariable Integer id, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.events.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             service.setDefault(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
@@ -108,5 +113,16 @@ public class EventEmailTemplateController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorized() {
+        return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+    }
+
+    /** Same guard pair as the /event page: requireAdminOrUser, then general.events.edit. */
+    private static String writeGuard(HttpServletRequest request) {
+        String deny = RoleGuard.requireAdminOrUser(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, "general.events.edit");
     }
 }

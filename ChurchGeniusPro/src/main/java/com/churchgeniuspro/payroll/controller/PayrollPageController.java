@@ -20,34 +20,45 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PayrollPageController {
 
+    /**
+     * Role gate ({@link RoleGuard#requirePayroll}) followed by the {@code accounting.payroll}
+     * page permission. Page/menu only: {@code /api/payroll/**} keeps its existing
+     * {@code PayrollAuth} role checks unchanged.
+     */
+    private static String pageGuard(HttpServletRequest request) {
+        String deny = RoleGuard.requirePayroll(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePagePermission(request, "accounting.payroll");
+    }
+
     /** Payroll landing page — cards/links to the payroll sub-sections. */
     @GetMapping("/payroll")
     public String home(HttpServletRequest request) {
-        String deny = RoleGuard.requirePayroll(request);
+        String deny = pageGuard(request);
         return deny != null ? deny : "forward:/payroll-home.html";
     }
 
     @GetMapping("/payroll/employees")
     public String employees(HttpServletRequest request) {
-        String deny = RoleGuard.requirePayroll(request);
+        String deny = pageGuard(request);
         return deny != null ? deny : "forward:/payroll-employees.html";
     }
 
     @GetMapping("/payroll/runs")
     public String runs(HttpServletRequest request) {
-        String deny = RoleGuard.requirePayroll(request);
+        String deny = pageGuard(request);
         return deny != null ? deny : "forward:/payroll-run.html";
     }
 
     @GetMapping("/payroll/reports")
     public String reports(HttpServletRequest request) {
-        String deny = RoleGuard.requirePayroll(request);
+        String deny = pageGuard(request);
         return deny != null ? deny : "forward:/payroll-reports.html";
     }
 
     @GetMapping("/payroll/activity")
     public String activity(HttpServletRequest request) {
-        String deny = RoleGuard.requirePayroll(request);
+        String deny = pageGuard(request);
         return deny != null ? deny : "forward:/payroll-audit.html";
     }
 }

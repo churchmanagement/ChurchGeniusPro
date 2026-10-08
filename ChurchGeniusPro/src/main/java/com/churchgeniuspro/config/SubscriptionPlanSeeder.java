@@ -27,13 +27,19 @@ public class SubscriptionPlanSeeder {
     @Bean
     ApplicationRunner seedSubscriptionPlans(SubscriptionPlanRepository repo) {
         return args -> {
-            // Trial: every Pro feature for 30 days (end date auto-set at client
-            // registration; expiry blocks all logins like any other plan).
+            // Trial: every Pro feature for trial_days days (end date auto-set at client
+            // registration; expiry blocks all logins like any other plan). The
+            // "N-day free trial · " prefix is rendered from trial_days, not stored.
+            // No SMS or email figure here, deliberately: MessagingPolicy refuses BOTH
+            // outright on a Trial subscription, so quoting an allowance described
+            // something the product will not do.
             seed(repo, "TRIAL", "Trial Plan", 0,
-                    "30-day free trial · All Pro Plan features · Unlimited emails & portals · "
-                  + "100 SMS/month · Full AI integration · Advanced accounting",
+                    "Pro Plan features for evaluation · Unlimited portals · "
+                  + "Full AI integration · Advanced accounting · SMS and email sending are "
+                  + "disabled on a trial; Bank Sync uses test banks only",
                     1000, null, 100, 100, null, null,
                     "{}");
+            commercial(repo, "TRIAL", "0.00", null, 30);
 
             seed(repo, "FREE", "Free Plan", 1,
                     "Up to 50 people · 20 emails/month · 3 staff portals · "
@@ -46,14 +52,21 @@ public class SubscriptionPlanSeeder {
                   + "\"kidsPortal\":false,\"volunteers\":false,\"privatePages\":false,"
                   + "\"ntag\":false,\"aiSearch\":false,\"aiVoice\":false,"
                   + "\"aiConverse\":false,\"scanCheck\":false}");
+            commercial(repo, "FREE", "0.00", 0, null);
 
             seed(repo, "STANDARD", "Standard Plan", 2,
                     "Up to 100 people · 50 emails/month · 50 SMS/month · "
                   + "Staff, church & child portals · Standard accounting & online giving · "
                   + "Worship planning · Check-ins · Chat · Free migration · NTag login",
-                    100, 50, 50, 20, 3, null,
+                    // Kids portals capped at 3 on Standard (was unlimited/null).
+                    100, 50, 50, 20, 3, 3,
                     // AI is "Limited" on Standard: search on, voice/converse/scan off.
-                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false}");
+                    // No Payroll on Standard. Bank Sync is on, capped at 3 connected
+                    // accounts by max_bank_accounts (commercial() below).
+                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false,"
+                  + "\"payroll\":false}",
+                    10);   // up to 10 church-added users (viewusers)
+            commercial(repo, "STANDARD", "14.99", 3, null);
 
             seed(repo, "PRO", "Pro Plan", 3,
                     "Unlimited people & portals · Unlimited emails · Unlimited online giving · "
@@ -61,13 +74,39 @@ public class SubscriptionPlanSeeder {
                   + "Everything included in Standard Plan",
                     1000, null, 100, 100, null, null,
                     "{}");
+            commercial(repo, "PRO", "34.99", null, null);
         };
+    }
+
+    /**
+     * Price, Bank Sync account limit and (TRIAL only) trial length. Applied only
+     * where the value is still null, so a plan an admin has already configured is
+     * never overwritten on restart — the same rule Flyway V6 follows for databases
+     * created before these columns existed. Null limit = unlimited, 0 = none.
+     */
+    private void commercial(SubscriptionPlanRepository repo, String code, String monthlyPrice,
+                            Integer maxBankAccounts, Integer trialDays) {
+        repo.findByPlanCodeIgnoreCase(code).ifPresent(p -> {
+            boolean changed = false;
+            if (p.getMonthlyPrice() == null) { p.setMonthlyPrice(new java.math.BigDecimal(monthlyPrice)); changed = true; }
+            if (p.getMaxBankAccounts() == null && maxBankAccounts != null) { p.setMaxBankAccounts(maxBankAccounts); changed = true; }
+            if (p.getTrialDays() == null && trialDays != null) { p.setTrialDays(trialDays); changed = true; }
+            if (changed) repo.save(p);
+        });
     }
 
     private void seed(SubscriptionPlanRepository repo, String code, String name, int sortOrder,
                       String description, Integer maxPeople, Integer maxEmails, Integer maxSms,
                       Integer maxGiving, Integer maxMemberPortals, Integer maxKidsPortals,
                       String featuresJson) {
+        seed(repo, code, name, sortOrder, description, maxPeople, maxEmails, maxSms, maxGiving,
+             maxMemberPortals, maxKidsPortals, featuresJson, null);
+    }
+
+    private void seed(SubscriptionPlanRepository repo, String code, String name, int sortOrder,
+                      String description, Integer maxPeople, Integer maxEmails, Integer maxSms,
+                      Integer maxGiving, Integer maxMemberPortals, Integer maxKidsPortals,
+                      String featuresJson, Integer maxStaffUsers) {
         if (repo.existsByPlanCodeIgnoreCase(code)) return;
         SubscriptionPlan p = new SubscriptionPlan();
         p.setPlanCode(code);
@@ -81,6 +120,7 @@ public class SubscriptionPlanSeeder {
         p.setMaxMemberPortals(maxMemberPortals);
         p.setMaxKidsPortals(maxKidsPortals);
         p.setFeaturesJson(featuresJson);
+        p.setMaxStaffUsers(maxStaffUsers);
         p.setActive(true);
         repo.save(p);
         log.info("Seeded default subscription plan '{}'", code);

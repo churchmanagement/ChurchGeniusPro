@@ -28,7 +28,6 @@ public class DataSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         seedAutoReminderTypes();
         migrateRolesToHead();
-        seedServiceAdmin();
         syncSequences();
     }
 
@@ -119,22 +118,4 @@ public class DataSeeder implements ApplicationRunner {
     private void migrateRolesToHead() {
         normaliseRoles();
     }
-
-    /**
-     * Ensures a default service-admin login exists.
-     * Uses ON CONFLICT DO NOTHING so it is idempotent.
-     */
-    private void seedServiceAdmin() {
-        try {
-            jdbc.update(
-                "INSERT INTO signup (username, password, role, church, active, deleted, client_id) " +
-                "VALUES ('serviceadmin', '$2a$10$7QJ8Q1Q1Q1Q1Q1Q1Q1Q1QOeKdQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q', " +
-                "'ServiceAdmin', false, true, false, 'SERVICEADMIN') " +
-                "ON CONFLICT (username) DO NOTHING");
-        } catch (Exception e) {
-            log.warn("DataSeeder: could not seed service admin — {}", e.getMessage());
-        }
-    }
-
-
 }

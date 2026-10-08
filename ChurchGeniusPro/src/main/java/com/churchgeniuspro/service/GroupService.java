@@ -53,9 +53,9 @@ public class GroupService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public Group update(Integer id, String groupName) {
+    public Group update(Integer id, String groupName, String appClientId) {
         String name = groupName.trim();
-        Group g = findOrThrow(id);
+        Group g = findOrThrow(id, appClientId);
         if (repository.existsByGroupNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(
                 name, g.getAppClientId(), id)) {
             throw new IllegalArgumentException(
@@ -68,8 +68,8 @@ public class GroupService {
     // ── Soft-Delete (cascades to members) ─────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        Group g = findOrThrow(id);
+    public void delete(Integer id, String appClientId) {
+        Group g = findOrThrow(id, appClientId);
         memberRepository.softDeleteByGroup(g);   // cascade all members first
         g.setDeleteFlag(true);
         repository.save(g);
@@ -77,9 +77,13 @@ public class GroupService {
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    /** Returns the Group entity (used by GroupMemberService to validate parent). */
-    public Group findOrThrow(Integer id) {
-        return repository.findById(id)
+    /**
+     * Returns the Group entity, tenant-scoped (used by GroupMemberService to validate parent).
+     * An id owned by another tenant reads as "not found" — no existence oracle.
+     */
+    public Group findOrThrow(Integer id, String appClientId) {
+        if (appClientId == null) throw new IllegalArgumentException("Group not found: " + id);
+        return repository.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Group not found: " + id));
     }

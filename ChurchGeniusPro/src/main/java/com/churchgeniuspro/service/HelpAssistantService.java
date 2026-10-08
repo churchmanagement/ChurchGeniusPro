@@ -99,9 +99,9 @@ public class HelpAssistantService {
         List<HelpArticle> vis = visible(privs, role, church);
 
         Map<String, Object> result = (openAi.isEnabled())
-                ? answerWithAi(question, history, vis)
+                ? answerWithAi(question, history, vis, catalog.all())
                 : null;
-        if (result == null) result = answerWithKeywords(question, vis);
+        if (result == null) result = answerWithKeywords(question, vis, catalog.all());
 
         audit(clientId, actor, role, voice ? "VOICE" : "QUERY", question, null, null,
               String.valueOf(result.getOrDefault("answer", "")));
@@ -110,22 +110,33 @@ public class HelpAssistantService {
 
     // ── AI answer ─────────────────────────────────────────────────────────────
 
-    private Map<String, Object> answerWithAi(String question, String history, List<HelpArticle> vis) {
+    /**
+     * Grounds the model in the WHOLE catalogue, each article tagged accessible=true/false
+     * for this user, so a feature the user cannot open is still explained (and never
+     * called non-existent); links are only ever returned for accessible articles.
+     */
+    private Map<String, Object> answerWithAi(String question, String history, List<HelpArticle> vis, List<HelpArticle> all) {
+        Set<String> visIds = new HashSet<>();
+        for (HelpArticle a : vis) visIds.add(a.id);
         StringBuilder kb = new StringBuilder();
-        for (HelpArticle a : vis) kb.append(a.toKnowledge()).append('\n');
+        for (HelpArticle a : all) kb.append("[accessible=").append(visIds.contains(a.id)).append("] ").append(a.toKnowledge()).append('\n');
 
         String system =
             "You are the Help Assistant for ChurchGenius Pro, a church-management web app. "
-          + "Answer ONLY using the KNOWLEDGE articles provided below — these are the only features this "
-          + "user is permitted to access. If the user asks about a feature that is NOT in the knowledge, "
-          + "reply that they do not have access to it and to contact their administrator; do not describe it. "
+          + "Answer ONLY using the KNOWLEDGE articles provided below; they describe EVERY feature of the product. "
+          + "Each article is tagged accessible=true (this user can use it) or accessible=false (it exists, but this "
+          + "user's role, permissions or subscription plan do not include it). For an accessible=false feature, still "
+          + "explain what it does and where it lives, then add one sentence that it is not enabled for their account "
+          + "and an administrator can enable it (or the plan can be changed); never say such a feature does not exist, "
+          + "and never give step-by-step instructions for using it. Only if a feature appears in NO article, say you have "
+          + "no information about it. "
           + "Adapt to the request: 'briefly' = 1-2 sentences; 'in detail' = a fuller explanation; "
           + "'step by step' = numbered steps; 'what is it / why / how' = explain plainly; if the user describes a "
           + "problem, give troubleshooting steps. Be friendly and concise. "
           + "Reply ONLY as a JSON object: {answer (string), steps (array of strings, may be empty), "
           + "troubleshooting (array of strings, may be empty), articleIds (array of article ids you used, from the "
           + "knowledge only), category (short label), followUpQuestion (string or null), "
-          + "restricted (true only if the requested feature is not in the knowledge)}.\n\n"
+          + "restricted (true only if the feature asked about is tagged accessible=false)}.\n\n"
           + "KNOWLEDGE:\n" + kb;
 
         String user = "Question: " + question
@@ -142,9 +153,8 @@ public class HelpAssistantService {
         String fu = j.path("followUpQuestion").asText("");
         m.put("followUpQuestion", fu.isBlank() || "null".equalsIgnoreCase(fu) ? null : fu);
 
+        m.put("restricted", j.path("restricted").asBoolean(false));
         // Only surface article links the user is actually allowed to see.
-        Set<String> visIds = new HashSet<>();
-        for (HelpArticle a : vis) visIds.add(a.id);
         List<Map<String, Object>> arts = new ArrayList<>();
         if (j.get("articleIds") != null && j.get("articleIds").isArray()) {
             for (JsonNode n : j.get("articleIds")) {
@@ -163,11 +173,11 @@ public class HelpAssistantService {
 
     // ── Keyword fallback (works without OpenAI) ──────────────────────────────
 
-    private Map<String, Object> answerWithKeywords(String question, List<HelpArticle> vis) {
+    private Map<String, Object> answerWithKeywords(String question, List<HelpArticle> vis, List<HelpArticle> all) {
         String q = question == null ? "" : question.toLowerCase();
         HelpArticle best = null;
         int bestScore = 0;
-        for (HelpArticle a : vis) {
+        for (HelpArticle a : all) {
             int score = 0;
             for (String kw : a.keywords) if (!kw.isBlank() && q.contains(kw.toLowerCase())) score += 2;
             for (String w : a.title.toLowerCase().split("\\s+")) if (w.length() > 3 && q.contains(w)) score += 1;
@@ -175,11 +185,19 @@ public class HelpAssistantService {
         }
         Map<String, Object> m = new LinkedHashMap<>();
         if (best == null) {
-            m.put("answer", "I couldn't find help on that within the features you can access. "
-                + "Try rephrasing, or browse the articles below. If it's a restricted module, contact your administrator.");
+            m.put("answer", "I couldn't find help on that. Try rephrasing, or browse the articles below.");
             m.put("steps", List.of());
             m.put("troubleshooting", List.of());
             m.put("articles", List.of());
+        } else if (!vis.contains(best)) {
+            // The feature exists but this login cannot use it: explain it, offer no steps or link.
+            m.put("answer", best.summary + (best.detail == null || best.detail.isBlank() ? "" : " " + best.detail)
+                + " This feature is not enabled for your account (role, permissions or plan) — an administrator can enable it.");
+            m.put("steps", List.of());
+            m.put("troubleshooting", List.of());
+            m.put("articles", List.of());
+            m.put("category", best.category);
+            m.put("restricted", true);
         } else {
             m.put("answer", best.summary + (best.detail == null || best.detail.isBlank() ? "" : " " + best.detail));
             m.put("steps", best.steps);

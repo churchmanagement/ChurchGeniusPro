@@ -63,7 +63,7 @@ public class MeetingController {
         // requirePermission("general.meetings").
         String deny = RoleGuard.requireStaffOrMember(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "general.meetings");
+        deny = RoleGuard.requirePagePermission(request, "general.meetings");
         if (deny != null) return deny;
         return "forward:/meeting.html";
     }
@@ -106,9 +106,12 @@ public class MeetingController {
 
     @ResponseBody
     @GetMapping("/api/meetings/{id}")
-    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> getById(@PathVariable Integer id,
+                                                       HttpServletRequest request) {
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            return ResponseEntity.ok(meetingService.getById(id));
+            return ResponseEntity.ok(meetingService.getById(id, appClientId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
@@ -120,9 +123,10 @@ public class MeetingController {
     @PostMapping("/api/meetings")
     public ResponseEntity<Map<String, Object>> create(@RequestBody MeetingBO bo,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request, "general.meetings.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             Meeting m = meetingService.save(bo, appClientId);
             return ResponseEntity.ok(Map.of("id", m.getId(), "success", true));
@@ -138,10 +142,12 @@ public class MeetingController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                       @RequestBody MeetingBO bo,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request, "general.meetings.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            Meeting m = meetingService.update(id, bo);
+            Meeting m = meetingService.update(id, bo, appClientId);
             return ResponseEntity.ok(Map.of("id", m.getId(), "success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -154,10 +160,12 @@ public class MeetingController {
     @DeleteMapping("/api/meetings/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        String deny = writeGuard(request, "general.meetings.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            meetingService.delete(id);
+            meetingService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -176,9 +184,11 @@ public class MeetingController {
             @PathVariable Integer id,
             @RequestParam(name = "limit", defaultValue = "26") int limit,
             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings");
+        String deny = RoleGuard.requireStaffOrMember(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "general.meetings");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             return ResponseEntity.ok(occurrenceService.listOccurrences(id, appClientId, limit));
         } catch (IllegalArgumentException e) {
@@ -199,9 +209,10 @@ public class MeetingController {
             @PathVariable Integer id,
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        String deny = writeGuard(request, "general.meetings.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             List<java.time.LocalDate> dates = parseDates(body.get("dates"));
             int n = occurrenceService.deleteOccurrences(id, appClientId, dates);
@@ -218,9 +229,10 @@ public class MeetingController {
             @PathVariable Integer id,
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        String deny = writeGuard(request, "general.meetings.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             List<java.time.LocalDate> dates = parseDates(body.get("dates"));
             int n = occurrenceService.restoreOccurrences(id, appClientId, dates);
@@ -241,9 +253,10 @@ public class MeetingController {
             @PathVariable Integer id,
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.delete");
+        String deny = writeGuard(request, "general.meetings.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             Object raw = body.get("fromDate");
             java.time.LocalDate fromDate = raw instanceof String s && !s.isBlank()
@@ -291,7 +304,9 @@ public class MeetingController {
             return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
         if (ids == null || ids.isEmpty())
             return bad("No meeting IDs provided.");
-        int count = meetingService.deleteBulk(ids);
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
+        int count = meetingService.deleteBulk(ids, appClientId);
         return ResponseEntity.ok(Map.of("success", true, "deleted", count));
     }
 
@@ -327,9 +342,10 @@ public class MeetingController {
     public ResponseEntity<Map<String, Object>> notify(@PathVariable Integer id,
                                                       @RequestBody Map<String, Object> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.notify");
+        String deny = writeGuard(request, "general.meetings.notify");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
 
         @SuppressWarnings("unchecked")
         List<String> channels   = body.get("channels")   instanceof List ? (List<String>) body.get("channels")   : List.of();
@@ -364,15 +380,17 @@ public class MeetingController {
             HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-        if (RoleGuard.requirePermission(request, "general.meetings.edit") != null)
+        if (writeGuard(request, "general.meetings.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         if (file == null || file.isEmpty())
             return bad("No file selected.");
         String ct = file.getContentType();
         if (ct == null || !ct.startsWith("image/"))
             return bad("Only image files are allowed.");
         try {
-            meetingService.saveImage(id, file.getBytes(), ct);
+            meetingService.saveImage(id, file.getBytes(), ct, appClientId);
             return ResponseEntity.ok(Map.of("success", true, "imageUrl", "/api/meetings/" + id + "/image"));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -388,8 +406,11 @@ public class MeetingController {
      * Returns 404 if no image has been uploaded.
      */
     @GetMapping("/api/meetings/{id}/image")
-    public ResponseEntity<byte[]> getImage(@PathVariable Integer id) {
-        return meetingService.getImage(id);
+    public ResponseEntity<byte[]> getImage(@PathVariable Integer id, HttpServletRequest request) {
+        // Image bytes are tenant data: require a session and scope the lookup to it.
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        return meetingService.getImage(id, appClientId);
     }
 
     // ── Image Delete ──────────────────────────────────────────────────────
@@ -401,10 +422,12 @@ public class MeetingController {
             HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-        if (RoleGuard.requirePermission(request, "general.meetings.edit") != null)
+        if (writeGuard(request, "general.meetings.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            meetingService.deleteImage(id);
+            meetingService.deleteImage(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -417,5 +440,20 @@ public class MeetingController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorized() {
+        return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+    }
+
+    /**
+     * Guard for meeting write APIs — the same pair the {@code /meetings} page uses:
+     * any staff role or Member portal session, then the granular permission.
+     * {@code requirePermission} alone passes sessions with no stored privileges.
+     */
+    private static String writeGuard(HttpServletRequest request, String permKey) {
+        String deny = RoleGuard.requireStaffOrMember(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, permKey);
     }
 }

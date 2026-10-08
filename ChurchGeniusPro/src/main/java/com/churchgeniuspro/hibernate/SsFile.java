@@ -36,6 +36,22 @@ public class SsFile {
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
 
+    /** Display name of the teacher or staff member who uploaded it. */
+    @Column(name = "uploaded_by_name", length = 200)
+    private String uploadedByName;
+
+    /**
+     * Whether students enrolled in this class may see, download and print it.
+     *
+     * <p>Defaults to {@code false}, and the column default matters: rows that
+     * existed before this feature were uploaded when the Files section was
+     * staff-only, so they may be lesson plans or answer keys. They stay private
+     * until someone deliberately shares them. New uploads opt in at upload time.
+     */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(name = "shared_with_students", nullable = false)
+    private boolean sharedWithStudents = false;
+
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag = false;
 }

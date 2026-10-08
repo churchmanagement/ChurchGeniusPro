@@ -20,7 +20,7 @@ public class CertificatesController {
     public String certificates(HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "more.certificates");
+        deny = RoleGuard.requirePagePermission(request, "more.certificates");
         if (deny != null) return deny;
         return "forward:/certificates.html";
     }
@@ -69,7 +69,7 @@ public class CertificatesController {
     private String guarded(HttpServletRequest request, String page) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "more.certificates");
+        deny = RoleGuard.requirePagePermission(request, "more.certificates");
         if (deny != null) return deny;
         return "forward:" + page;
     }

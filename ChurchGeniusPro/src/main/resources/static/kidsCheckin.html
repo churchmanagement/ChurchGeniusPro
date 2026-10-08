@@ -181,6 +181,7 @@ if (!CID) { showToast('This link is invalid (missing org token).', true); }
 /* ── State ── */
 let _children = [];   // last search payload
 let _selected = {};   // { kids: {childId:bool}, guardians: {guardianId:bool} }
+let _phone    = '';   // the number the current results were found with — sent back on check-in
 
 function onPhoneInput() {
   // Allow Enter to trigger search for keyboard users.
@@ -196,7 +197,7 @@ document.addEventListener('keydown', (e) => {
 
 async function search() {
   const phone = (document.getElementById('phoneInput').value || '').replace(/\D+/g, '');
-  if (phone.length < 4) { showToast('Enter at least the last 4 digits.', true); return; }
+  if (phone.length < 10) { showToast('Enter the full phone number.', true); return; }
   if (!CID) return;
   const btn = document.getElementById('searchBtn');
   btn.disabled = true; btn.textContent = 'Searching…';
@@ -207,6 +208,7 @@ async function search() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { showToast(data.error || 'Search failed.', true); return; }
     _children = Array.isArray(data.children) ? data.children : [];
+    _phone    = phone;
     renderResults();
   } catch (e) {
     showToast('Network error. Please try again.', true);
@@ -262,7 +264,7 @@ function buildKidsSection(children) {
   const rows = children.map(function(c){
     const ageStr = (c.age != null) ? c.age + ' yr' : '';
     const meta   = [ageStr, c.grade].filter(Boolean).join(' · ');
-    const allergyChip = c.allergies
+    const allergyChip = c.hasAllergy
       ? '<span style="background:#fff3e0;color:#e65100;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:6px;">⚠ Allergy</span>'
       : '';
     return '<div class="check-row">'
@@ -282,7 +284,7 @@ function buildGuardiansSection(guardians) {
   if (!guardians.length) return '';
   const rows = guardians.map(function(g){
     const name = ((g.firstName||'') + ' ' + (g.lastName||'')).trim() || '(unnamed)';
-    const sub  = [g.role || '', g.phone || ''].filter(Boolean).join(' · ');
+    const sub  = g.role || '';
     return '<div class="check-row">'
       +   '<input type="checkbox" id="g_' + g.id + '" onchange="onGuardianToggle(' + g.id + ', this.checked)" />'
       +   '<label for="g_' + g.id + '"><strong>' + esc(name) + '</strong>'
@@ -307,17 +309,11 @@ function onGuardianToggle(guardianId, checked) {
   _selected.guardians[guardianId] = !!checked;
 }
 
-// Mirror of KidsMinistryController#generateSecurityCode so the FRONT END can
-// pre-mint a shared family code and pass it to every submission in this
-// session — that way kid+kid+parent all carry the SAME code on their printed
-// labels and group together in the family-checkin lookup.
-function kcGenerateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const letter = chars.charAt(Math.floor(Math.random() * chars.length));
-  const num    = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-  return letter + '-' + num;
-}
-
+// The SERVER mints the shared family code on the first row of a submission
+// (it is a random, server-issued code — the page never chooses one); every
+// later row in the same submission passes that code back so kid+kid+parent
+// all carry the SAME code on their printed labels and group together in the
+// family-checkin lookup.
 async function submit() {
   // Build one task per checked person. Because the guardian list is now
   // shared (not duplicated per child), kid rows and guardian rows are
@@ -337,9 +333,9 @@ async function submit() {
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = true; submitBtn.textContent = 'Checking in…';
 
-  // One shared code for this whole submission — sent as familyCheckinCode
-  // on every POST so the backend stamps the same value on every row.
-  const sessionCode = kcGenerateCode();
+  // One shared code for this whole submission: the server issues it on the first
+  // row and every later row passes it back, so the printed labels all match.
+  let sessionCode = null;
 
   let firstTime = '';
   const labels = [];
@@ -351,6 +347,7 @@ async function submit() {
         credentials: 'omit',
         body: JSON.stringify({
           cid: CID,
+          phone: _phone,
           childId: t.childId,
           guardianMemberId: t.guardianMemberId,
           familyCheckinCode: sessionCode
@@ -359,9 +356,8 @@ async function submit() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { showToast(data.error || 'Check-in failed.', true); continue; }
       if (!firstTime) firstTime = data.checkinTime || '';
-      // The server echoes back familyCheckinCode — fall through to the
-      // session code if for any reason that's missing.
       const code = data.familyCheckinCode || sessionCode;
+      if (!sessionCode) sessionCode = code;
       if (data.child)    labels.push({ name: data.child.name,    role: '',            code, kind: 'child' });
       if (data.guardian) labels.push({ name: data.guardian.name, role: data.guardian.role || '', code, kind: 'guardian' });
     } catch (e) {
@@ -370,7 +366,7 @@ async function submit() {
   }
   submitBtn.disabled = false; submitBtn.textContent = 'Check In';
   if (!labels.length) return;
-  showSuccess(labels, sessionCode, firstTime);
+  showSuccess(labels, sessionCode || '', firstTime);
 }
 
 function showSuccess(labels, code, isoTime) {

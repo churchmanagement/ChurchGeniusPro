@@ -14,17 +14,23 @@ import lombok.Data;
 import java.util.Date;
 
 /**
- * Monthly usage counters per church, used to enforce subscription plan
- * limits (emails, SMS, online giving). One row per clientId per calendar
- * month ({@code usageMonth} = "YYYY-MM"); counters reset naturally when a
- * new month starts because a fresh row is created.
+ * Usage counters per church for one 30-day usage period, used to enforce the
+ * plan's monthly allowances (emails, SMS, online giving).
+ *
+ * <p>One row per clientId per period ({@code periodStart}). Periods run every
+ * 30 days from the client's subscription start date (America/Chicago dates) —
+ * see {@code SubscriptionService.periodStartFor}. A new period simply gets a new
+ * row, so the allowance resets without deleting anything; old rows are history.
+ * Rows from before 30-day periods (V10) carry the first day of their calendar
+ * month as {@code periodStart}. {@code usageMonth} ("YYYY-MM" of the period start)
+ * is kept for history and reports only.
  */
 @Data
 @Entity
 @Table(name = "subscription_usage",
        uniqueConstraints = @UniqueConstraint(
-               name = "uq_subscription_usage",
-               columnNames = {"client_id", "usage_month"}))
+               name = "uq_subscription_usage_period",
+               columnNames = {"client_id", "period_start"}))
 public class SubscriptionUsage {
 
     @Id
@@ -39,9 +45,13 @@ public class SubscriptionUsage {
     @Column(name = "client_id", nullable = false, length = 100)
     private String clientId;
 
-    /** Calendar month, e.g. "2026-07". */
+    /** "YYYY-MM" of {@link #periodStart}; history only (was the key before V10). */
     @Column(name = "usage_month", nullable = false, length = 7)
     private String usageMonth;
+
+    /** First day of the 30-day usage period this row counts. */
+    @Column(name = "period_start", nullable = false)
+    private java.time.LocalDate periodStart;
 
     @Column(name = "emails_sent", nullable = false)
     private int emailsSent;

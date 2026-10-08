@@ -3,6 +3,7 @@ package com.churchgeniuspro.controller;
 import com.churchgeniuspro.hibernate.PublicPageVisit;
 import com.churchgeniuspro.repository.PublicPageVisitRepository;
 import com.churchgeniuspro.service.EmailService;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
@@ -63,10 +64,13 @@ public class PublicWebController {
 
     private final PublicPageVisitRepository visitRepo;
     private final EmailService              emailService;
+    private final PublicSendLimiter         sendLimiter;
 
-    public PublicWebController(PublicPageVisitRepository visitRepo, EmailService emailService) {
+    public PublicWebController(PublicPageVisitRepository visitRepo, EmailService emailService,
+                               PublicSendLimiter sendLimiter) {
         this.visitRepo    = visitRepo;
         this.emailService = emailService;
+        this.sendLimiter  = sendLimiter;
     }
 
     // ── Public pages ──────────────────────────────────────────────────────
@@ -118,6 +122,9 @@ public class PublicWebController {
     /** Never let tracking break a public page load. */
     private void trackVisit(String page, HttpServletRequest request) {
         try {
+            // One row per page view from anyone on the internet (security audit P7): past
+            // a sane per-origin rate the page still renders, the row is just not written.
+            if (sendLimiter.check(PublicSendLimiter.WEB_VISIT, request, null, null) != null) return;
             PublicPageVisit v = new PublicPageVisit();
             v.setPage(page);
             String ua = request.getHeader("User-Agent");
@@ -149,7 +156,8 @@ public class PublicWebController {
      */
     @ResponseBody
     @PostMapping("/api/web/contact")
-    public ResponseEntity<Map<String, Object>> contact(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> contact(@RequestBody Map<String, Object> body,
+                                                       HttpServletRequest request) {
         String name    = str(body.get("name"), 200);
         String phone   = str(body.get("phone"), 50);
         String email   = str(body.get("email"), 255);
@@ -162,6 +170,12 @@ public class PublicWebController {
         if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("status", "error", "message", "A valid email address is required."));
+        }
+        // Every submission is an e-mail to the inbox: bounded per network origin and per
+        // sender address (security audit P2) — the honeypot alone stops only naive bots.
+        String limited = sendLimiter.check(PublicSendLimiter.WEB_CONTACT, request, email, null);
+        if (limited != null) {
+            return ResponseEntity.status(429).body(Map.of("status", "error", "message", limited));
         }
 
         StringBuilder html = new StringBuilder();

@@ -75,6 +75,33 @@
     }
     .feedback.error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; display: block; }
     .feedback.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; display: block; }
+    /* Informational, not a success: the reminder is prefilled but not yet saved,
+       and colouring that green would tell the user it is already on. */
+    .feedback.info    { background: #e8f1fb; color: #1558b0; border: 1px solid #c3dafc; display: block; }
+
+    /* ── Delivery report ─────────────────────────────────────────────── */
+    .btn-report { background:#eef3fb; color:#1558b0; border:1px solid #c3dafc; border-radius:6px;
+                  padding:4px 10px; font-size:12px; font-weight:600; cursor:pointer; }
+    .btn-report:hover { background:#dce7f8; }
+    .dl-close { background:none; border:0; font-size:16px; color:#888; cursor:pointer; padding:2px 6px; }
+    .dl-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .dl-pill { font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; }
+    .dl-sent { background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; }
+    .dl-fail { background:#ffebee; color:#c62828; border:1px solid #ffcdd2; }
+    .dl-skip { background:#fff8e1; color:#a06800; border:1px solid #ffe4a0; }
+    .dl-scroll { overflow-x:auto; }
+    .dl-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .dl-table th { text-align:left; padding:7px 9px; background:#faf7f9; color:#673147;
+                   font-weight:700; border-bottom:1px solid #ecdfe5; white-space:nowrap; }
+    .dl-table td { padding:7px 9px; border-bottom:1px solid #f2eef0; color:#444; vertical-align:top; }
+    /* Timestamp and number stay on one line; only the reason column wraps. */
+    .dl-table td:nth-child(1), .dl-table td:nth-child(4) { white-space:nowrap; }
+    .dl-table td:nth-child(6) { min-width:220px; }
+    .dl-status { font-weight:700; font-size:11px; padding:2px 8px; border-radius:10px; }
+    .dl-ok   { background:#e8f5e9; color:#2e7d32; }
+    .dl-bad  { background:#ffebee; color:#c62828; }
+    .dl-warn { background:#fff8e1; color:#a06800; }
+    .dl-empty { font-size:13px; color:#888; padding:10px 2px; }
     .card {
       background: #fff; border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,.07);
@@ -414,6 +441,15 @@
         </div>
       </div>
 
+      <!-- Delivery report: what happened to the last reminder for one event. -->
+      <div class="card" id="deliveryPanel" hidden>
+        <div class="card-header">
+          <h3 id="deliveryTitle">Delivery report</h3>
+          <button type="button" class="dl-close" onclick="hideDelivery()" aria-label="Close delivery report">✕</button>
+        </div>
+        <div class="card-body" id="deliveryBody"></div>
+      </div>
+
     </main>
     <footer id="app-footer" class="app-footer"></footer>
   </div>
@@ -504,7 +540,67 @@
   (async function init() {
     tplInitPlaceholders();
     await Promise.all([loadEvents(), loadReminders()]);
+    applyPrefillFromUrl();
   })();
+
+  /* ── PREFILL FROM THE EVENT PAGE ──────────────────────────────────────
+     The Event page links here as /eventReminders?eventId=123 straight after an
+     event is created, so the person is not asked to find in a dropdown the
+     event they were looking at a second ago. Occurrences are pre-ticked with
+     the pattern most churches use — a heads-up three days out, a nudge on the
+     day, and a thank-you the day after — which are defaults, not decisions:
+     every one of them can be changed before saving.
+
+     Nothing is saved automatically. The reminder still has to be reviewed and
+     saved deliberately, because silently creating a rule that texts a
+     congregation is not something a page should do on its own. */
+  function applyPrefillFromUrl() {
+    const params  = new URLSearchParams(location.search);
+    const eventId = params.get('eventId');
+    if (!eventId) return;
+
+    const sel = document.getElementById('eventSelect');
+    if (!sel) return;
+
+    const match = Array.from(sel.options).some(o => o.value === String(eventId));
+    if (!match) {
+      // The event exists but this dropdown does not list it — deleted, or
+      // belonging to another organisation. Say so rather than silently
+      // leaving the field blank and letting someone save the wrong event.
+      showFeedback('That event could not be found in your list. Please choose the event manually.', 'error');
+      return;
+    }
+
+    sel.value = String(eventId);
+    const eventName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : '';
+
+    // An existing rule for this event wins: overwriting a reminder someone
+    // already configured would be worse than not prefilling at all.
+    const existing = (reminders || []).find(r => String(r.eventId) === String(eventId));
+    if (existing) {
+      showFeedback('This event already has a reminder. Opening it for editing rather than adding a second one.', 'info');
+      editReminder(existing.id);
+      return;
+    }
+
+    document.getElementById('sameDay').checked         = true;
+    document.getElementById('beforeDaysCheck').checked = true;
+    document.getElementById('afterDaysCheck').checked  = true;
+    toggleOccurrence('beforeDays', true);
+    toggleOccurrence('afterDays',  true);
+    document.getElementById('beforeDays').value = '3';
+    document.getElementById('afterDays').value  = '1';
+
+    const hint = document.getElementById('occurrenceHint');
+    if (hint) hint.textContent =
+      'Suggested schedule for a new event — 3 days before, on the day, and 1 day after. Change anything you like, then Save.';
+
+    showFeedback('Reminder set up for "' + (eventName || 'your new event')
+               + '". Review the schedule below and click Save to turn it on.', 'info');
+
+    const card = document.getElementById('formCardTitle');
+    if (card && card.scrollIntoView) card.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
 
   /* ── LOAD EVENTS ── */
   async function loadEvents() {
@@ -685,10 +781,92 @@
         <td>${escHtml(r.note) || '—'}</td>
         <td><div class="actions">
           <button class="btn-edit"   onclick="editReminder(${r.id})">Edit</button>
+          ${r.eventId ? `<button class="btn-report" onclick="showDelivery(${r.eventId}, '${escAttr(eventName)}')">Delivery</button>` : ''}
           <button class="btn-delete" onclick="deleteReminder(${r.id})">Delete</button>
         </div></td>
       </tr>`;
     }).join('');
+  }
+
+  /* ── DELIVERY REPORT ──────────────────────────────────────────────────
+     Who actually received the last reminder, and why anyone did not.
+
+     This exists because the answer was previously nowhere: a reminder that
+     reached two people out of forty produced exactly the same silence as one
+     that reached everybody. The scheduler now records every attempt with its
+     outcome, so the reasons a message did not arrive — a number that cannot be
+     dialled, a recipient the carrier has blocked because they replied STOP, an
+     unregistered A2P campaign, a used-up monthly allowance — are visible here
+     instead of only in a server log. */
+  async function showDelivery(eventId, eventName) {
+    const box = document.getElementById('deliveryPanel');
+    const body = document.getElementById('deliveryBody');
+    const title = document.getElementById('deliveryTitle');
+    if (!box || !body) return;
+    box.removeAttribute('hidden');
+    if (title) title.textContent = 'Delivery report — ' + (eventName || ('Event #' + eventId));
+    body.innerHTML = '<div class="dl-empty">Loading…</div>';
+    if (box.scrollIntoView) box.scrollIntoView({behavior: 'smooth', block: 'start'});
+
+    try {
+      const res = await fetch('/api/events/' + encodeURIComponent(eventId) + '/registration-reminder/logs');
+      if (!res.ok) {
+        body.innerHTML = '<div class="dl-empty">Could not load the delivery report.</div>';
+        return;
+      }
+      const rows = await res.json();
+      // Only the three event-reminder triggers; the same table also holds the
+      // separate registration-reminder feature's own attempts.
+      const mine = (rows || []).filter(r => ['SAME_DAY','BEFORE','AFTER'].indexOf(r.messageType) >= 0);
+      if (!mine.length) {
+        body.innerHTML = '<div class="dl-empty">No reminder has been sent for this event yet. '
+                       + 'Attempts appear here from the next scheduled send onwards.</div>';
+        return;
+      }
+
+      const sent    = mine.filter(r => r.status === 'SENT').length;
+      const failed  = mine.filter(r => r.status === 'FAILED').length;
+      const skipped = mine.filter(r => r.status === 'SKIPPED').length;
+
+      let h = `<div class="dl-summary">
+          <span class="dl-pill dl-sent">${sent} delivered</span>
+          <span class="dl-pill dl-fail">${failed} failed</span>
+          <span class="dl-pill dl-skip">${skipped} skipped</span>
+        </div>
+        <div class="dl-scroll"><table class="dl-table"><thead><tr>
+          <th>When</th><th>Trigger</th><th>Channel</th><th>Recipient</th><th>Result</th><th>Reason</th>
+        </tr></thead><tbody>`;
+      mine.forEach(r => {
+        const cls = r.status === 'SENT' ? 'dl-ok' : (r.status === 'FAILED' ? 'dl-bad' : 'dl-warn');
+        h += `<tr>
+          <td>${escHtml(fmtWhen(r.createdDate))}</td>
+          <td>${escHtml(r.messageType || '—')}</td>
+          <td>${escHtml(r.channel || '—')}</td>
+          <td>${escHtml(r.recipient || '—')}</td>
+          <td><span class="dl-status ${cls}">${escHtml(r.status)}</span></td>
+          <td>${escHtml(r.reason || '')}</td>
+        </tr>`;
+      });
+      h += '</tbody></table></div>';
+      body.innerHTML = h;
+    } catch (e) {
+      body.innerHTML = '<div class="dl-empty">Could not load the delivery report.</div>';
+    }
+  }
+
+  function hideDelivery() {
+    const box = document.getElementById('deliveryPanel');
+    if (box) box.setAttribute('hidden', '');
+  }
+
+  function fmtWhen(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+  }
+
+  function escAttr(s) {
+    return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   }
 
   function showFeedback(msg, type) {

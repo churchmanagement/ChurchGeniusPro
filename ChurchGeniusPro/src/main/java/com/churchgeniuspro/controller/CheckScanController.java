@@ -2,6 +2,7 @@ package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.hibernate.IncomeCheckImage;
 import com.churchgeniuspro.repository.IncomeCheckImageRepository;
+import com.churchgeniuspro.repository.IncomeRepository;
 import com.churchgeniuspro.service.CheckExtractor;
 import com.churchgeniuspro.service.IncomeService;
 import com.churchgeniuspro.service.VisionCheckService;
@@ -33,17 +34,20 @@ public class CheckScanController {
     private final CheckExtractor extractor;
     private final IncomeService incomeService;
     private final IncomeCheckImageRepository imageRepo;
+    private final IncomeRepository incomeRepo;
     private final VisionCheckService vision;
     private final VisionUploadService visionUpload;
 
     public CheckScanController(CheckExtractor extractor,
                                IncomeService incomeService,
                                IncomeCheckImageRepository imageRepo,
+                               IncomeRepository incomeRepo,
                                VisionCheckService vision,
                                VisionUploadService visionUpload) {
         this.extractor = extractor;
         this.incomeService = incomeService;
         this.imageRepo = imageRepo;
+        this.incomeRepo = incomeRepo;
         this.vision = vision;
         this.visionUpload = visionUpload;
     }
@@ -53,7 +57,8 @@ public class CheckScanController {
     @PostMapping(value = "/api/income/check-scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> scan(@RequestParam("file") MultipartFile file,
                                                      HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.income.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.income.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
@@ -101,7 +106,8 @@ public class CheckScanController {
     @ResponseBody
     @GetMapping("/api/income/vision-status")
     public ResponseEntity<Map<String, Object>> visionStatus(HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.income");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.income");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         return ResponseEntity.ok(vision.status());
     }
@@ -162,7 +168,8 @@ public class CheckScanController {
     @PostMapping(value = "/api/income/check-parse", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> parse(@RequestBody Map<String, Object> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.income.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.income.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
@@ -182,11 +189,16 @@ public class CheckScanController {
     public ResponseEntity<Map<String, Object>> storeImage(@PathVariable Integer incomeId,
                                                            @RequestParam("file") MultipartFile file,
                                                            HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.income.edit");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.income.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         if (file == null || file.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No file."));
+        // The image is attached to an income row: only accept an id that belongs to this church.
+        if (incomeRepo.findByIdAndAppClientIdAndDeleteFlagFalse(incomeId, clientId).isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "Income record not found: " + incomeId));
+        }
 
         try {
             IncomeCheckImage img = new IncomeCheckImage();
@@ -206,7 +218,8 @@ public class CheckScanController {
     /** Retrieve the most recent stored check image for an income record. */
     @GetMapping("/api/income/{incomeId}/check-image")
     public ResponseEntity<byte[]> getImage(@PathVariable Integer incomeId, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "accounting.income");
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.income");
         if (deny != null) return ResponseEntity.status(403).build();
         String clientId = SessionUtil.getAppClientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();

@@ -52,7 +52,9 @@ public class NotesController {
     @ResponseBody
     @GetMapping("/api/notes")
     public ResponseEntity<List<Map<String, Object>>> list(HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return ResponseEntity.status(401).build();
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
         Integer currentUserId = getCurrentUserId(request);
         List<Note> notes = noteRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(appClientId);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -68,7 +70,9 @@ public class NotesController {
     @PostMapping("/api/notes")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body,
                                                        HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return ResponseEntity.status(401).build();
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
         String title = (String) body.get("title");
         String noteBody = (String) body.get("body");
         if (title == null || title.isBlank()) return bad("Title is required.");
@@ -100,8 +104,12 @@ public class NotesController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                        @RequestBody Map<String, Object> body,
                                                        HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return ResponseEntity.status(401).build();
         Integer currentUserId = getCurrentUserId(request);
-        Optional<Note> opt = noteRepo.findByIdAndDeleteFlagFalse(id);
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        // Tenant scope first; the owner check below only applies within this org.
+        Optional<Note> opt = noteRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Note note = opt.get();
         if (!isOwner(note, currentUserId)) return forbidden();
@@ -120,8 +128,12 @@ public class NotesController {
     @PutMapping("/api/notes/{id}/star")
     public ResponseEntity<Map<String, Object>> toggleStar(@PathVariable Integer id,
                                                            HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return ResponseEntity.status(401).build();
         Integer currentUserId = getCurrentUserId(request);
-        Optional<Note> opt = noteRepo.findByIdAndDeleteFlagFalse(id);
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        // Tenant scope first; the owner check below only applies within this org.
+        Optional<Note> opt = noteRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Note note = opt.get();
         // Any authenticated user can star/unstar any note — no owner check here
@@ -137,8 +149,12 @@ public class NotesController {
     @DeleteMapping("/api/notes/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                        HttpServletRequest request) {
+        if (RoleGuard.requireAuth(request) != null) return ResponseEntity.status(401).build();
         Integer currentUserId = getCurrentUserId(request);
-        Optional<Note> opt = noteRepo.findByIdAndDeleteFlagFalse(id);
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
+        // Tenant scope first; the owner check below only applies within this org.
+        Optional<Note> opt = noteRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Note note = opt.get();
         if (!isOwner(note, currentUserId)) return forbidden();

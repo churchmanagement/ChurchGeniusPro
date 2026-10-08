@@ -50,7 +50,10 @@ public class TempAccessFilter implements Filter {
             return;
         }
 
-        String uri = req.getRequestURI();
+        // Canonical, decoded, normalised path (see RequestPaths) — never the raw
+        // getRequestURI(), so an encoded-traversal URL cannot slip past the always-allowed
+        // list and skip the liveness/revocation re-check for an expired or revoked pass.
+        String uri = RequestPaths.path(req);
         if (isAlwaysAllowed(uri)) { chain.doFilter(request, response); return; }
 
         String clientId = String.valueOf(session.getAttribute("clientId"));

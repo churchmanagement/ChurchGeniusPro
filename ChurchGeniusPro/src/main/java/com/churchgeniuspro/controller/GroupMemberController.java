@@ -45,11 +45,14 @@ public class GroupMemberController {
 
     private final GroupMemberService memberService;
     private final GroupEmailService  emailService;
+    private final com.churchgeniuspro.repository.GroupMemberRepository memberRepo;
 
     public GroupMemberController(GroupMemberService memberService,
-                                 GroupEmailService emailService) {
+                                 GroupEmailService emailService,
+                                 com.churchgeniuspro.repository.GroupMemberRepository memberRepo) {
         this.memberService = memberService;
         this.emailService  = emailService;
+        this.memberRepo    = memberRepo;
     }
 
     // ── List members ──────────────────────────────────────────────────────
@@ -59,7 +62,10 @@ public class GroupMemberController {
     public ResponseEntity<List<Map<String, Object>>> getMembers(
             @PathVariable Integer groupId,
             HttpServletRequest request) {
+        String deny = GroupController.groupsPageGuard(request, "admin.groups");
+        if (deny != null) return ResponseEntity.status(403).build();
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
         try {
             return ResponseEntity.ok(memberService.getMembers(groupId, appClientId));
         } catch (IllegalArgumentException ex) {
@@ -80,10 +86,13 @@ public class GroupMemberController {
         String lastName  = body.get("lastName");
         String email     = body.get("email");
 
+        String deny = GroupController.groupsPageGuard(request, "admin.groups.edit");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (isBlank(firstName)) return bad("First name is required.");
         if (isBlank(lastName))  return bad("Last name is required.");
 
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
             GroupMember saved = memberService.addMember(groupId, firstName, lastName, email, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -98,8 +107,11 @@ public class GroupMemberController {
     @PutMapping("/api/group-members/{id}")
     public ResponseEntity<Map<String, Object>> updateMember(
             @PathVariable Integer id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
 
+        String deny = GroupController.groupsPageGuard(request, "admin.groups.edit");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String firstName = body.get("firstName");
         String lastName  = body.get("lastName");
         String email     = body.get("email");
@@ -107,8 +119,10 @@ public class GroupMemberController {
         if (isBlank(firstName)) return bad("First name is required.");
         if (isBlank(lastName))  return bad("Last name is required.");
 
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            GroupMember saved = memberService.updateMember(id, firstName, lastName, email);
+            GroupMember saved = memberService.updateMember(id, firstName, lastName, email, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -119,9 +133,14 @@ public class GroupMemberController {
 
     @ResponseBody
     @DeleteMapping("/api/group-members/{id}")
-    public ResponseEntity<Map<String, Object>> removeMember(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> removeMember(@PathVariable Integer id,
+                                                            HttpServletRequest request) {
+        String deny = GroupController.groupsPageGuard(request, "admin.groups.delete");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            memberService.removeMember(id);
+            memberService.removeMember(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -136,20 +155,35 @@ public class GroupMemberController {
             @RequestParam("subject")    String subject,
             @RequestParam("body")       String body,
             @RequestParam("bccEmails")  String bccEmailsJson,
-            @RequestParam(value = "attachment", required = false) MultipartFile attachment) {
+            @RequestParam(value = "attachment", required = false) MultipartFile attachment,
+            HttpServletRequest request) {
 
+        String deny = GroupController.groupsPageGuard(request, "admin.groups");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated."));
         if (isBlank(subject))       return bad("Subject is required.");
         if (isBlank(body))          return bad("Message body is required.");
         if (isBlank(bccEmailsJson)) return bad("At least one recipient is required.");
 
         try {
-            List<String> bccEmails = parseJsonStringArray(bccEmailsJson);
+            // The page sends addresses, but the server decides who may receive: only
+            // this church's own group members. Anything else is dropped — this used to
+            // be an open relay from the platform's sender for any signed-in session.
+            java.util.Set<String> allowed = new java.util.HashSet<>(memberRepo.findActiveEmailsByAppClientId(appClientId));
+            List<String> bccEmails = parseJsonStringArray(bccEmailsJson).stream()
+                    .filter(e -> e != null && allowed.contains(e.trim().toLowerCase()))
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
 
-            if (bccEmails.isEmpty()) return bad("At least one recipient is required.");
+            if (bccEmails.isEmpty()) return bad("No recipients belong to your church's groups.");
 
-            emailService.sendBccEmail(subject, body, bccEmails, attachment);
+            emailService.sendBccEmail(subject, body, bccEmails, attachment, appClientId);
+            String test = emailService.lastTestAddress();
             return ResponseEntity.ok(Map.of("success", true,
-                    "message", "Email sent to " + bccEmails.size() + " recipient(s)."));
+                    "message", test != null
+                        ? "Trial/Demo test: 1 test email sent to " + test + " — " + bccEmails.size() + " recipient(s) simulated, none emailed."
+                        : "Email sent to " + bccEmails.size() + " recipient(s)."));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {

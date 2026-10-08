@@ -680,7 +680,8 @@
     <button class="tab-btn" id="tabSundaySchool" onclick="showTab('sundaySchool')">📖 Sunday School</button>
     <button class="tab-btn" id="tabVolunteer"    onclick="showTab('volunteer')">🙋 Volunteer</button>
     <button class="tab-btn" id="tabTeacherSS"    onclick="showTab('teacherSS')">📖 Classes</button>
-    <button class="tab-btn" id="tabGuessit"      onclick="showTab('guessit')">🎯 Guess It</button>
+    <button class="tab-btn" id="tabGuessit"      data-feature="activityCorner"
+            onclick="showTab('guessit')">🎯 Guess It</button>
   </div>
   <!-- Unread/upcoming badge spans (kept for JS references) -->
   <span id="upcomingBadge" style="display:none;"></span>
@@ -828,7 +829,23 @@ async function doLogout() {
   window.location.href = '/';
 }
 
+/**
+ * Shows one tab and RETURNS THE TAB IT ACTUALLY SHOWED.
+ *
+ * The return value matters: this function may redirect, and so may the wrappers
+ * layered over it further down (Guess It polling, child mode). A wrapper that
+ * acted on the tab it was ASKED for rather than the one that was shown is how a
+ * refused Guess It request was still being fired after the page had already
+ * fallen back to another tab. Every wrapper must pass the resolved tab on.
+ */
 function showTab(tab) {
+  // Guess It belongs to Activity Corner, which some subscription plans disable.
+  // Redirect rather than render: /memberHome?tab=guessit would otherwise open an
+  // empty tab whose data calls the server refuses anyway. The refusal on
+  // /api/guess-it is the actual enforcement; this only avoids a dead-end screen.
+  if (tab === 'guessit' && window.CGP_hasFeature && !window.CGP_hasFeature('activityCorner')) {
+    tab = 'upcoming';
+  }
   Object.keys(TAB_SECTIONS).forEach(function(t) {
     var sec = document.getElementById(TAB_SECTIONS[t]);
     var btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -844,6 +861,7 @@ function showTab(tab) {
   if (tab === 'worship'      && !worshipLoaded)   { worshipLoaded   = true;  if (typeof loadWorshipSchedule   === 'function') loadWorshipSchedule(); }
   if (tab === 'sundaySchool' && !ssLoaded)        { ssLoaded        = true;  if (typeof loadSsDashboard       === 'function') loadSsDashboard(); }
   if (tab === 'volunteer'    && !volunteerLoaded) { volunteerLoaded = true;  if (typeof loadVolunteerTab      === 'function') loadVolunteerTab(); }
+  return tab;
 }
 
 /* ── Section sub-tabs (UI reorganization only — all loaders unchanged) ── */
@@ -991,6 +1009,61 @@ window.showMemberTab = function(tabKey, btnEl) {
  *
  * @param {Object|null} privMap - member permission map (null = full member access)
  */
+/**
+ * Hides what a trial or demo account does not include, on top of the role filter.
+ *
+ * <p>Two separate rules, applied in this order because the second is narrower:
+ *
+ * <ol>
+ *   <li><b>Plan features</b> — any element carrying data-feature="key" goes when
+ *       the plan does not include that key. This is what finally hides Guess It:
+ *       Activity Corner is withheld from every evaluation account, and the server
+ *       refuses /api/guess-it for them, so the tab could only ever have opened on
+ *       an error.</li>
+ *   <li><b>Evaluation accounts</b> — the Activity Corner, Accounting and Admin
+ *       sections are removed from the Member Portal's sidebar entirely. A trial's
+ *       Member Portal exists to show what a CONGREGANT sees; the church's books and
+ *       its administration are not part of that, whatever permissions the sample
+ *       member happens to carry.</li>
+ * </ol>
+ *
+ * <p>Scoped deliberately: nothing here runs for a staff role, so the
+ * Staff/SuperAdmin portal is untouched, and nothing runs at all unless the tenant
+ * is a demo or trial account, so a real church's Member Portal is unchanged.
+ *
+ * <p>Safe to call repeatedly — it runs again after the permissions fetch resolves.
+ */
+function applyPlanRestrictions() {
+  // 1. Plan-level: anything tagged with a feature the plan does not include.
+  if (window.CGP_FEATURES) {
+    document.querySelectorAll('[data-feature]').forEach(function (el) {
+      var keys = (el.getAttribute('data-feature') || '').split(',');
+      var denied = keys.some(function (k) { return k && !window.CGP_hasFeature(k.trim()); });
+      if (denied) el.style.display = 'none';
+    });
+  }
+
+  if (!window.CGP_EVALUATION) return;
+
+  // 2. Evaluation accounts, Member and Kids portals only — never staff.
+  var staffRoles = ['SuperAdmin', 'Admin', 'Accountant', 'User', 'Limited'];
+  if (staffRoles.indexOf(window._cgpSessionRole || '') !== -1) return;
+
+  var HIDDEN_SECTIONS = ['activity', 'accounting', 'admin'];
+  var navEl = document.getElementById('sidebarNav');
+  if (navEl) {
+    Array.prototype.forEach.call(navEl.querySelectorAll(':scope > .nav-item'), function (item) {
+      var arrowEl = item.querySelector('[id^="arrow-"]');
+      var sectionId = arrowEl ? arrowEl.id.replace('arrow-', '') : null;
+      if (sectionId && HIDDEN_SECTIONS.indexOf(sectionId) !== -1) item.style.display = 'none';
+    });
+  }
+  // The section list is rebuilt by applyMemberNavFilter, so record the decision
+  // where that function can see it rather than relying on running last.
+  window.CGP_HIDDEN_SECTIONS = HIDDEN_SECTIONS;
+}
+window.CGP_applyPlanRestrictions = applyPlanRestrictions;
+
 window.applyMemberNavFilter = function(privMap) {
   var _sessionRole = window._cgpSessionRole || '';
   var _staffRoles  = ['SuperAdmin', 'Admin', 'Accountant', 'User', 'Limited'];
@@ -1122,6 +1195,8 @@ window.applyMemberNavFilter = function(privMap) {
     '/publicScreens':       'more.publicscreens',
     '/followups':           'more.followups',
     '/help':                'more.help',
+    '/tickets':             'more.ticketing',
+    '/ai-assistant':        'more.aiassistant',
     // Admin
     '/viewfamily':          'admin.family',
     '/groups':              'admin.groups',
@@ -1160,7 +1235,11 @@ window.applyMemberNavFilter = function(privMap) {
       // Leaf items (no arrow) are never member-facing — hide them.
       if (!sectionId) { item.style.display = 'none'; return; }
 
-      if (MEMBER_SECTIONS.indexOf(sectionId) === -1) {
+      // A section an evaluation account may not see stays hidden even when the
+      // member's permissions would otherwise bring it back.
+      var planHidden = (window.CGP_HIDDEN_SECTIONS || []).indexOf(sectionId) !== -1;
+
+      if (planHidden || MEMBER_SECTIONS.indexOf(sectionId) === -1) {
         item.style.display = 'none';
       } else {
         item.style.display = ''; // ensure previously-hidden sections can reappear
@@ -1182,6 +1261,20 @@ window.applyMemberNavFilter = function(privMap) {
     });
   });
 
+  // ── Step 2c: opt-in features — Ticketing / AI Assistant appear for a member only
+  // when the permission is explicitly true (never by default; the server enforces
+  // the same rule in RoleGuard.requireFeature).
+  var OPT_IN_HREFS = { '/tickets': 'more.ticketing', '/ai-assistant': 'more.aiassistant' };
+  allSubBtns.forEach(function(btn) {
+    var onclick = btn.getAttribute('onclick') || '';
+    Object.keys(OPT_IN_HREFS).forEach(function(href) {
+      if (onclick.indexOf("'" + href + "'") !== -1 || onclick.indexOf('"' + href + '"') !== -1) {
+        var p = (typeof privMap === 'string') ? (function(){ try { return JSON.parse(privMap); } catch(e) { return null; } })() : privMap;
+        if (!p || p[OPT_IN_HREFS[href]] !== true) btn.style.display = 'none';
+      }
+    });
+  });
+
   // ── Step 3: within allowed sections, hide sub-items denied by privMap ────
   if (!privMap) return; // null privMap = full access; stop here
 
@@ -1193,6 +1286,8 @@ window.applyMemberNavFilter = function(privMap) {
           onclick.indexOf('"' + href  + '"') !== -1) {
         if (!perm(MEMBER_NAV_PERM[href])) {
           btn.style.display = 'none';
+        } else if (OPT_IN_HREFS[href]) {
+          // opt-in item: step 2c decided (explicit true only) — never re-shown here
         } else {
           btn.style.display = ''; // re-show if previously hidden
         }
@@ -1347,6 +1442,30 @@ window.applyMemberNavFilter = function(privMap) {
           <span class="card-title">📖 My Sunday School Classes</span>
         </div>
         <div id="teacherClassList" style="color:#aaa;font-size:13px;">Loading...</div>
+      </div>
+
+      <!-- Class documents (teacher) — same store the Kids Ministry Files
+           section uses, scoped by the server to this teacher's own classes. -->
+      <div id="teacherDocSection" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+            <span class="card-title" id="teacherDocTitle">Documents</span>
+            <span style="display:flex;align-items:center;gap:10px;">
+              <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#777;cursor:pointer;"
+                     title="When ticked, students in this class can view, download and print it from their profile.">
+                <input type="checkbox" id="teacherDocShare" checked style="width:auto;margin:0;" />
+                Visible to students
+              </label>
+              <label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;">
+                Upload
+                <input type="file" id="teacherDocInput" style="display:none;"
+                       accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg"
+                       onchange="uploadTeacherDoc()" />
+              </label>
+            </span>
+          </div>
+          <div id="teacherDocList" style="color:#aaa;font-size:13px;">Select a class above.</div>
+        </div>
       </div>
 
       <!-- Exam management -->
@@ -2202,6 +2321,43 @@ window.applyMemberNavFilter = function(privMap) {
   <!-- ── Tab: Guess It ── -->
   <div id="sectionGuessit" style="display:none;">
     <!-- Current game display -->
+
+    <!-- Group play: join a set of games with a code and keep a running score.
+         Shown above the existing single-game card; when a group is joined the
+         card below is hidden, and leaving the group restores it untouched. -->
+    <div class="card" id="ggmJoinCard" style="margin-bottom:8px;">
+      <div style="font-weight:700;margin-bottom:4px;">🎯 Playing as a group?</div>
+      <div style="font-size:13px;color:#666;margin-bottom:8px;">
+        Enter the 6-character code from your host. We will use your first name automatically.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="ggmCode" maxlength="6" placeholder="A1768G" autocomplete="off"
+               spellcheck="false"
+               style="flex:1;min-width:130px;padding:9px 12px;border:1px solid #ccc;border-radius:8px;
+                      font-size:17px;letter-spacing:4px;text-transform:uppercase;text-align:center;font-weight:700;" />
+        <button id="ggmJoinBtn" onclick="ggmJoin()"
+                style="padding:9px 18px;border:0;border-radius:8px;background:#673147;color:#fff;
+                       font-weight:600;cursor:pointer;">Join</button>
+      </div>
+      <div id="ggmErr" style="color:#c0392b;font-size:13px;min-height:17px;margin-top:5px;"></div>
+    </div>
+
+    <div id="ggmPlayCard" style="display:none;">
+      <div class="card" style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span id="ggmWho" style="font-size:13px;color:#666;"></span>
+          <button onclick="ggmLeave()"
+                  style="background:none;border:0;color:#888;font-size:12px;
+                         text-decoration:underline;cursor:pointer;">Leave group</button>
+        </div>
+        <div id="ggmBody"></div>
+      </div>
+      <div class="card" id="ggmBoardCard" style="display:none;margin-bottom:8px;">
+        <div style="font-weight:700;margin-bottom:6px;" id="ggmBoardTitle">🏅 Leaderboard</div>
+        <div id="ggmBoard"></div>
+      </div>
+    </div>
+
     <div class="card" id="giGameCard" style="margin-bottom:8px;">
       <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
         <span class="card-title">🎯 Guess It</span>
@@ -2242,15 +2398,16 @@ window.applyMemberNavFilter = function(privMap) {
     <div class="card" style="margin-bottom:18px;">
       <div class="card-header"><span class="card-title">💝 Give / Contribute</span></div>
       <div class="card-body">
-        <p style="font-size:13px;color:#888;margin-bottom:18px;">Submit a contribution to the church. Your gift will be recorded against your member profile.</p>
+        <p style="font-size:13px;color:#888;margin-bottom:18px;">Give online by card. Your payment goes to the church's Stripe account and the gift is recorded against your member profile.</p>
+        <div id="giveUnavailable" style="display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;font-size:13px;color:#7c4a12;margin-bottom:14px;"></div>
         <div class="form-grid">
           <div class="field">
             <label>Your Name</label>
             <input type="text" id="giveName" readonly style="background:#f9f9f9;color:#555;" />
           </div>
           <div class="field">
-            <label>Date <span style="color:#e53935;">*</span></label>
-            <input type="date" id="giveDate" />
+            <label>Date</label>
+            <input type="date" id="giveDate" readonly style="background:#f9f9f9;color:#555;" title="The date of payment" />
             <span class="field-hint" id="giveDateHint"></span>
           </div>
           <div class="field">
@@ -2270,8 +2427,13 @@ window.applyMemberNavFilter = function(privMap) {
           <label>Note / Memo</label>
           <textarea id="giveNote" rows="3" placeholder="Optional note…" style="resize:vertical;"></textarea>
         </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Payment <span style="color:#e53935;">*</span></label>
+          <div id="givePaymentElement" style="min-height:48px;border:1.5px solid #e0e0e0;border-radius:8px;padding:10px;"></div>
+          <span class="field-hint" id="givePaymentHint"></span>
+        </div>
         <div class="action-row">
-          <button class="btn-primary" id="giveBtn" onclick="submitGive()">Submit</button>
+          <button class="btn-primary" id="giveBtn" onclick="submitGive()">Pay &amp; Give</button>
         </div>
         <div id="giveFeedback" role="status" aria-live="polite"
              style="display:none;margin-top:14px;padding:11px 14px;border-radius:8px;font-size:13px;font-weight:600;"></div>
@@ -2542,6 +2704,19 @@ function urlBase64ToUint8Array(base64String) {
       }
       // Store the session role globally so applyMemberNavFilter can detect staff visits.
       window._cgpSessionRole = (sd.role || '').trim();
+
+      // ── Plan state ────────────────────────────────────────────────────────
+      // session.js is not loaded on this page, so window.CGP_FEATURES was never
+      // populated and CGP_hasFeature never existed — every feature read as
+      // enabled, which is why a trial's Member Portal still offered Guess It.
+      // /api/session now carries the same map and the same evaluation flag the
+      // rest of the application uses, so nothing here re-derives either.
+      window.CGP_FEATURES = sd.features || null;
+      window.CGP_hasFeature = function (key) {
+        return !(window.CGP_FEATURES && window.CGP_FEATURES[key] === false);
+      };
+      window.CGP_EVALUATION = sd.evaluationAccount === true;
+      applyPlanRestrictions();
       // For staff roles, apply nav filter now using session privileges
       // (before the /api/member/my-permissions fetch which returns null for staff).
       var _staffRolesCheck = ['SuperAdmin','Admin','Accountant','User','Limited'];
@@ -2580,6 +2755,7 @@ function urlBase64ToUint8Array(base64String) {
   loadPurposes();
   const giveDateEl = document.getElementById('giveDate');
   if (giveDateEl) giveDateEl.value = new Date().toISOString().split('T')[0];
+  initGivePayment();   // Phase D: Stripe payment form for Give / Contribute
   // Start notification badge polling (updates every 60s)
   startNotifPolling();
   // Register for push notifications (background alerts when minimized)
@@ -2786,9 +2962,21 @@ function applyChildMode() {
     .catch(function(){ return []; })
     .then(function(data){
       var hasWorshipGroup = Array.isArray(data) && data.length > 0;
-      // Tabs allowed for Child members (worship only if assigned to a group)
-      var CHILD_TABS = new Set(['groups', 'sundaySchool', 'guessit']);
+      // Tabs allowed for Child members (worship only if assigned to a group).
+      //
+      // Guess It is deliberately NOT here. The Kids Portal is a child's own
+      // screen — Sunday School, their groups, and worship when they are rostered
+      // — and Guess It was never part of that. It also could not work: Guess It
+      // belongs to Activity Corner, which no evaluation account has, so on a
+      // trial the tab highlighted itself and then rendered the Upcoming screen
+      // behind it. Removing the tab is the fix; the guard below is what makes it
+      // stick for a bookmarked or hand-typed ?tab=.
+      //
+      // This changes the Kids Portal only. Guess It is untouched for every other
+      // role and portal, and for the public /guessIt page.
+      var CHILD_TABS = new Set(['groups', 'sundaySchool']);
       if (hasWorshipGroup) CHILD_TABS.add('worship');
+      var CHILD_HOME_TAB = 'sundaySchool';
 
       // Hide every tab button that isn't in the allowed set
       Object.keys(TAB_SECTIONS).forEach(function(t) {
@@ -2809,10 +2997,9 @@ function applyChildMode() {
       var NAV_LABELS = {
         sundaySchool: '📖 Sunday School',
         groups:       '👥 Groups',
-        guessit:      '🎯 Guess It',
         worship:      '🎵 Worship'
       };
-      var NAV_ORDER = ['sundaySchool', 'groups', 'guessit', 'worship'];
+      var NAV_ORDER = ['sundaySchool', 'groups', 'worship'];
       var navBar = document.getElementById('childNavBar');
       if (navBar) {
         navBar.innerHTML = '';
@@ -2833,19 +3020,28 @@ function applyChildMode() {
       // so the wrapper has closure access to the nav bar and allowed tabs.
       var _origShowTabChild = showTab;
       showTab = function(tab) {
-        _origShowTabChild(tab);
+        // A child can only ever be on a child tab. Anything else — a stale
+        // ?tab=guessit, a link to a section this portal does not have, a
+        // redirect from a disabled feature — lands on the Kids Portal's own home
+        // screen rather than opening a section built for an adult member.
+        if (!CHILD_TABS.has(tab)) tab = CHILD_HOME_TAB;
+        // Highlight what was actually shown, so a pill can never sit lit over
+        // the contents of a different tab.
+        tab = _origShowTabChild(tab) || tab;
         var bar = document.getElementById('childNavBar');
-        if (!bar) return;
-        bar.querySelectorAll('.child-nav-btn').forEach(function(b) {
-          b.classList.toggle('active', b.getAttribute('data-child-tab') === tab);
-        });
+        if (bar) {
+          bar.querySelectorAll('.child-nav-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-child-tab') === tab);
+          });
+        }
+        return tab;
       };
 
       // Load groups data and show the requested tab (from ?tab= param) if it is
       // allowed for children; otherwise default to sundaySchool.
       if (!groupsLoaded) { groupsLoaded = true; loadGroups(); }
       var _childRequestedTab = new URLSearchParams(window.location.search).get('tab') || '';
-      var _childStartTab = CHILD_TABS.has(_childRequestedTab) ? _childRequestedTab : 'sundaySchool';
+      var _childStartTab = CHILD_TABS.has(_childRequestedTab) ? _childRequestedTab : CHILD_HOME_TAB;
       showTab(_childStartTab);
     });
 }
@@ -2891,7 +3087,99 @@ async function selectTeacherClass(classId, className) {
   document.getElementById('teacherExamClassTitle').textContent = '📝 Exams — ' + className;
   document.getElementById('teacherExamSection').style.display = '';
   document.getElementById('teacherSubSection').style.display = 'none';
+  var docTitle = document.getElementById('teacherDocTitle');
+  if (docTitle) docTitle.textContent = '📎 Documents — ' + className;
+  var docSection = document.getElementById('teacherDocSection');
+  if (docSection) docSection.style.display = '';
+  await loadTeacherDocs();
   await loadTeacherExams();
+}
+
+/* ── Class documents (teacher) ─────────────────────────────────────────────
+   Reuses the Sunday School class-file endpoints. The server decides what this
+   teacher may touch, so a teacher who alters the class id in a request still
+   gets a 403 rather than another class's material. */
+async function loadTeacherDocs() {
+  var el = document.getElementById('teacherDocList');
+  if (!el || !teacherCurrentClassId) return;
+  el.innerHTML = '<p style="color:#aaa;font-size:13px;">Loading…</p>';
+  try {
+    var res = await fetch('/api/ss/classes/' + teacherCurrentClassId + '/files');
+    if (!res.ok) { el.innerHTML = '<p style="color:#c62828;font-size:13px;">Could not load documents.</p>'; return; }
+    var docs = await res.json();
+    el.innerHTML = docs.length ? docs.map(function (d) { return ssDocRow(d, true); }).join('')
+      : '<p style="color:#aaa;font-size:13px;">No documents yet. Upload one above to share it with your class.</p>';
+  } catch (e) {
+    el.innerHTML = '<p style="color:#c62828;font-size:13px;">Could not load documents.</p>';
+  }
+}
+
+async function uploadTeacherDoc() {
+  var input = document.getElementById('teacherDocInput');
+  if (!input || !input.files.length) return;
+  if (!teacherCurrentClassId) { alert('Select a class first.'); return; }
+  var shareBox = document.getElementById('teacherDocShare');
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fd.append('shareWithStudents', shareBox ? shareBox.checked : true);
+  var res = await fetch('/api/ss/classes/' + teacherCurrentClassId + '/files',
+                        { method: 'POST', body: fd });
+  if (res.ok) { await loadTeacherDocs(); }
+  else {
+    var msg = 'Upload failed.';
+    try { var e = await res.json(); if (e && e.error) msg = e.error; } catch (ignored) {}
+    alert(msg);
+  }
+  input.value = '';
+}
+
+async function deleteTeacherDoc(id) {
+  if (!confirm('Delete this document? Students will no longer see it.')) return;
+  var res = await fetch('/api/ss/files/' + id, { method: 'DELETE' });
+  if (res.ok) await loadTeacherDocs(); else alert('Could not delete the document.');
+}
+
+async function toggleTeacherDocShare(id, shared) {
+  var res = await fetch('/api/ss/files/' + id + '/share?shared=' + shared, { method: 'POST' });
+  if (res.ok) await loadTeacherDocs(); else alert('Could not change sharing.');
+}
+
+/* One row of the document list. `manage` adds the teacher-only controls. */
+function ssDocRow(d, manage) {
+  var name = escH(d.originalName || 'Document');
+  var when = d.uploadedAt ? String(d.uploadedAt).substring(0, 10) : '';
+  var by   = d.uploadedByName ? ' \u00b7 ' + escH(d.uploadedByName) : '';
+  var badge = manage
+    ? (d.sharedWithStudents
+        ? '<span style="background:#e8f5e9;color:#2e7d32;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;">Shared</span>'
+        : '<span style="background:#eceff1;color:#607d8b;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;">Staff only</span>')
+    : '';
+  // View/Print use /view, which renders Word as HTML instead of downloading it.
+  // Download keeps pointing at the original file.
+  var base = '/api/ss/files/' + d.id;
+  var html = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;'
+           + 'background:#f9f6f8;border-radius:8px;padding:10px 14px;margin-bottom:8px;">'
+           + '<div style="flex:1;min-width:160px;">'
+           + '<div style="font-weight:600;font-size:13.5px;">📎 ' + name + ' ' + badge + '</div>'
+           + '<div style="font-size:11.5px;color:#888;margin-top:2px;">' + when + by + '</div>'
+           + '</div>'
+           + '<a href="' + base + '/view" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">View</a>'
+           + '<a href="' + base + '/download" class="btn btn-secondary btn-sm">Download</a>'
+           + '<button class="btn btn-secondary btn-sm" onclick="printSsDoc(' + d.id + ')">Print</button>';
+  if (manage) {
+    html += '<button class="btn btn-secondary btn-sm" onclick="toggleTeacherDocShare(' + d.id + ',' + (!d.sharedWithStudents) + ')">'
+          + (d.sharedWithStudents ? 'Unshare' : 'Share') + '</button>'
+          + '<button class="btn btn-secondary btn-sm" style="color:#c62828;" onclick="deleteTeacherDoc(' + d.id + ')">Delete</button>';
+  }
+  return html + '</div>';
+}
+
+/* Opens the document in its own tab and asks the browser to print it. Word is
+   converted to HTML server-side first, so it prints as a page rather than saving. */
+function printSsDoc(id) {
+  var w = window.open('/api/ss/files/' + id + '/view', '_blank');
+  if (!w) { alert('Allow pop-ups to print this document.'); return; }
+  w.addEventListener('load', function () { try { w.focus(); w.print(); } catch (e) {} });
 }
 
 async function loadTeacherExams() {
@@ -4513,50 +4801,113 @@ async function loadPurposes() {
   } catch(e) {}
 }
 
+/* ── Give / Contribute = a real Stripe payment through the church's connected account
+   (the same integration as the public donation page). Nothing is recorded until
+   Stripe reports the payment succeeded; the save is idempotent on the PaymentIntent. ── */
+var giveStripe = null, giveElements = null, givePaymentElement = null, giveEnabled = false;
+function loadStripeJs() {
+  return new Promise(function (resolve, reject) {
+    if (window.Stripe) return resolve();
+    var s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/';
+    s.onload = resolve; s.onerror = function () { reject(new Error('Stripe.js failed to load')); };
+    document.head.appendChild(s);
+  });
+}
+async function initGivePayment() {
+  var box = document.getElementById('giveUnavailable'), btn = document.getElementById('giveBtn');
+  var dateEl = document.getElementById('giveDate');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+  try {
+    var res = await fetch('/api/member/give/config');
+    var cfg = res.ok ? await res.json() : {};
+    if (!cfg.onlineGivingEnabled) {
+      giveEnabled = false;
+      box.textContent = cfg.message || 'Online giving is not set up for your church yet. Please contact the church office.';
+      box.style.display = ''; if (btn) btn.disabled = true;
+      return;
+    }
+    await loadStripeJs();
+    giveStripe   = Stripe(cfg.publishableKey);
+    giveElements = giveStripe.elements({ mode: 'payment', amount: 100, currency: 'usd' });
+    givePaymentElement = giveElements.create('payment', { wallets: { applePay: 'never', googlePay: 'never' } });
+    givePaymentElement.mount('#givePaymentElement');
+    giveEnabled = true; box.style.display = 'none'; if (btn) btn.disabled = false;
+  } catch (e) {
+    giveEnabled = false;
+    box.textContent = 'The payment form could not be loaded. Please try again later.';
+    box.style.display = ''; if (btn) btn.disabled = true;
+  }
+}
 async function submitGive() {
   var btn = document.getElementById('giveBtn');
-  var dateEl    = document.getElementById('giveDate');
   var purposeEl = document.getElementById('givePurpose');
   var amountEl  = document.getElementById('giveAmount');
   var noteEl    = document.getElementById('giveNote');
-  document.getElementById('giveDateHint').textContent    = '';
   document.getElementById('givePurposeHint').textContent = '';
   document.getElementById('giveAmountHint').textContent  = '';
+  document.getElementById('givePaymentHint').textContent = '';
   var ok = true;
-  if (!dateEl.value)    { document.getElementById('giveDateHint').textContent    = 'Date is required.';    ok = false; }
   if (!purposeEl.value) { document.getElementById('givePurposeHint').textContent = 'Purpose is required.'; ok = false; }
-  if (!amountEl.value || isNaN(amountEl.value) || Number(amountEl.value) <= 0)
-                        { document.getElementById('giveAmountHint').textContent  = 'Enter a valid amount.'; ok = false; }
+  var amount = Number(amountEl.value);
+  if (!amountEl.value || isNaN(amount) || amount < 0.5) { document.getElementById('giveAmountHint').textContent = 'Enter an amount of at least $0.50.'; ok = false; }
+  if (!giveEnabled || !giveElements) { document.getElementById('givePaymentHint').textContent = 'Online giving is not available.'; ok = false; }
   if (!ok) return;
-  btn.disabled = true; btn.textContent = 'Submitting…';
+  amount = Math.round(amount * 100) / 100;
+  btn.disabled = true; btn.textContent = 'Processing…';
   try {
-    var res = await fetch('/api/member/give', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incomeDate: dateEl.value, subSourceId: parseInt(purposeEl.value), amount: amountEl.value, note: noteEl ? noteEl.value : '' })
+    // 1. Validate the card details, then create the PaymentIntent for exactly this amount.
+    giveElements.update({ amount: Math.round(amount * 100) });
+    var sub = await giveElements.submit();
+    if (sub.error) { document.getElementById('givePaymentHint').textContent = sub.error.message || 'Please check your payment details.'; return; }
+    var intentRes = await fetch('/api/member/give/intent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: amount, subSourceId: parseInt(purposeEl.value), note: noteEl ? noteEl.value : '' })
     });
-    var data = await res.json();
-    if (res.ok) {
-      showGiveFeedback('✅ Your contribution has been recorded successfully.', 'success');
-      // Remember the year of this gift so we can show it in the history table.
-      var giveYear = (dateEl.value || '').slice(0, 4);
-      amountEl.value = ''; if (noteEl) noteEl.value = '';
-      // Refresh the Contribution History (and, via loadContributions, My Pledges)
-      // immediately — no page reload needed. Switch the year filter to the year
-      // of the gift so the new row is visible.
-      var yearSel = document.getElementById('contribYear');
-      if (yearSel && giveYear) {
-        var hasYear = Array.prototype.some.call(yearSel.options, function(o){ return o.value === giveYear; });
-        if (hasYear) yearSel.value = giveYear;
-      }
-      contribLoaded = true;
-      loadContributions();
-    } else {
-      showGiveFeedback('❌ ' + (data.error || 'Unable to submit the contribution. Please try again.'), 'error');
-    }
-  } catch(e) { showGiveFeedback('❌ Unable to submit the contribution. Please try again.', 'error'); }
-  btn.disabled = false; btn.textContent = 'Submit';
+    var intent = await intentRes.json().catch(function () { return {}; });
+    if (!intentRes.ok) { showGiveFeedback('❌ ' + (intent.error || 'Could not start the payment.'), 'error'); return; }
+    // 2. Confirm with Stripe — the charge happens here, for the intent's amount.
+    var confirmed = await giveStripe.confirmPayment({
+      elements: giveElements, clientSecret: intent.clientSecret,
+      confirmParams: { return_url: window.location.href.split('#')[0] + '#give',
+                       payment_method_data: { billing_details: { name: document.getElementById('giveName').value || undefined } } },
+      redirect: 'if_required'
+    });
+    if (confirmed.error) { showGiveFeedback('❌ ' + (confirmed.error.message || 'Payment failed. You have not been charged.'), 'error'); return; }
+    // 3. Record it — the server verifies the payment with Stripe before saving.
+    var saved = await giveRecord(intent.paymentIntentId, noteEl ? noteEl.value : '');
+    if (!saved) return;
+    showGiveFeedback('✅ Thank you! Your $' + amount.toFixed(2) + ' contribution was paid and recorded.', 'success');
+    amountEl.value = ''; if (noteEl) noteEl.value = '';
+    var yearSel = document.getElementById('contribYear'), giveYear = String(new Date().getFullYear());
+    if (yearSel && Array.prototype.some.call(yearSel.options, function (o) { return o.value === giveYear; })) yearSel.value = giveYear;
+    contribLoaded = true; loadContributions();
+    try { givePaymentElement.unmount(); } catch (e) {}
+    initGivePayment();
+  } catch (e) {
+    showGiveFeedback('❌ Unable to complete the payment. Please try again.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Pay & Give';
+  }
 }
+async function giveRecord(paymentIntentId, note) {
+  var res = await fetch('/api/member/give/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paymentIntentId: paymentIntentId, note: note })
+  });
+  var data = await res.json().catch(function () { return {}; });
+  if (!res.ok) { showGiveFeedback('❌ Your payment went through but could not be recorded: ' + (data.error || 'please contact the church office.'), 'error'); return false; }
+  return true;
+}
+// Returning from a bank (3-D Secure) redirect: record the payment the URL names.
+(function () {
+  var q = new URLSearchParams(window.location.search);
+  var pi = q.get('payment_intent'), st = q.get('redirect_status');
+  if (pi && st === 'succeeded') {
+    window.addEventListener('load', function () { setTimeout(function () {
+      giveRecord(pi, '').then(function (ok) { if (ok) showGiveFeedback('✅ Thank you! Your contribution was paid and recorded.', 'success'); });
+    }, 800); });
+  }
+})();
 
 function showGiveFeedback(msg, type) {
   var el = document.getElementById('giveFeedback');
@@ -4761,6 +5112,16 @@ function renderTaxReport(data) {
     return M[parseInt(p[1],10)-1] + ' ' + parseInt(p[2],10) + ', ' + p[0];
   }
 
+  // The wording above and below the table is the church's own, edited on the staff
+  // Year-End Tax Report page and delivered with this report. Already sanitised and
+  // placeholder-filled server-side, so it goes in as HTML. The literals below are
+  // the original wording, kept only as a fallback for a server that sends neither.
+  var introHtml = data.introHtml
+    || '<p class="ltr-body">Thank you for your faithful giving and generous support to <strong>' + churchName + '</strong> during the <strong>' + year + '</strong> calendar year. This letter serves as your official charitable contribution statement for income tax purposes.</p>';
+  var closingHtml = data.closingHtml
+    || ('<div class="ltr-disclaimer"><strong>Important Tax Notice:</strong> No goods or services were provided to you in exchange for these contributions. This statement is provided in accordance with IRS requirements for charitable contributions. Please retain this letter for your tax records. We recommend consulting a qualified tax professional for guidance on deductibility.</div>'
+      + '<p class="ltr-closing">We are truly grateful for your partnership and continued support of our ministry. Your generosity makes a meaningful difference in our congregation and community. May God bless you abundantly for your faithfulness.</p>');
+
   var tRows = entries.length > 0
     ? entries.map(function(e) {
         return '<tr>'
@@ -4779,17 +5140,16 @@ function renderTaxReport(data) {
     + '<div class="ltr-heading">Year-End Giving Summary &mdash; Tax Year ' + year + '</div>'
     + '<div class="ltr-top"><div class="ltr-date">' + todayStr + '</div><div class="ltr-address">' + addrHtml + '</div></div>'
     + '<p class="ltr-salutation">Dear ' + firstName + ',</p>'
-    + '<p class="ltr-body">Thank you for your faithful giving and generous support to <strong>' + churchName + '</strong> during the <strong>' + year + '</strong> calendar year. This letter serves as your official charitable contribution statement for income tax purposes.</p>'
+    + introHtml
     + '<div class="ltr-tbl-wrap"><table class="ltr-tbl">'
     +   '<thead><tr><th style="width:18%">Date</th><th>Category</th><th class="ltr-tbl-amt" style="width:16%">Amount</th><th style="width:16%">Method</th></tr></thead>'
     +   '<tbody>' + tRows + '</tbody>'
     +   '<tfoot><tr><td colspan="2">Total Contributions &mdash; ' + year + '</td><td class="ltr-tbl-amt">' + fmtAmt(memberTotal) + '</td><td></td></tr></tfoot>'
     + '</table></div>'
-    + '<div class="ltr-disclaimer"><strong>Important Tax Notice:</strong> No goods or services were provided to you in exchange for these contributions. This statement is provided in accordance with IRS requirements for charitable contributions. Please retain this letter for your tax records. We recommend consulting a qualified tax professional for guidance on deductibility.</div>'
-    + '<p class="ltr-closing">We are truly grateful for your partnership and continued support of our ministry. Your generosity makes a meaningful difference in our congregation and community. May God bless you abundantly for your faithfulness.</p>'
+    + closingHtml
     + '<p class="ltr-closing">Sincerely,</p>'
-    + '<div class="ltr-sig-name">' + churchName + '</div>'
-    + '<div class="ltr-sig-title">Finance Department</div>'
+    + '<div class="ltr-sig-name">' + (data.signatureName || churchName) + '</div>'
+    + '<div class="ltr-sig-title">' + (data.signatureTitle || 'Finance Department') + '</div>'
     + '</div>';
 }
 
@@ -5130,7 +5490,7 @@ async function submitBulkEmail() {
     });
     var d = await res.json();
     if (res.ok) {
-      fb.textContent = '✅ ' + (d.sent ? 'Email sent to ' + d.sent + ' recipient(s).' : 'Email sent.');
+      fb.textContent = d.message ? '🧪 ' + d.message : (d.blockReason ? '⚠️ Not sent — ' + d.blockReason : '✅ ' + (d.sent ? 'Email sent to ' + d.sent + ' recipient(s).' : 'Email sent.'));
       fb.style.color = '#2e7d32';
       setTimeout(function() { closeModal('emailBulkModal'); }, 1500);
     } else { fb.textContent = '❌ ' + (d.error || 'Failed to send.'); fb.style.color = '#e53935'; }
@@ -5490,6 +5850,13 @@ async function loadSsDashboard() {
       });
       html += '</div>';
     }
+    // Documents shared with this class by the teacher or Kids Ministry staff.
+    if (d.documents && d.documents.length > 0) {
+      html += '<h4 style="margin:0 0 10px;font-size:14px;color:#673147;">Documents</h4>';
+      html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">';
+      d.documents.forEach(function (doc) { html += ssDocRow(doc, false); });
+      html += '</div>';
+    }
     // Exams section
     if (d.exams && d.exams.length > 0) {
       html += '<h4 style="margin:0 0 10px;font-size:14px;color:#673147;">Exams</h4>';
@@ -5521,7 +5888,7 @@ async function loadSsDashboard() {
       });
       html += '</div>';
     }
-    if (!html) html = '<div style="text-align:center;color:#aaa;font-size:14px;padding:30px;">No lessons or exams yet.</div>';
+    if (!html) html = '<div style="text-align:center;color:#aaa;font-size:14px;padding:30px;">No lessons, documents or exams yet.</div>';
     body.innerHTML = html;
     loadHohResults();
   } catch(e) {
@@ -6701,7 +7068,11 @@ async function giRefresh() {
   if (giPageHidden || !giTabVisible) return;
 
   try {
-    var res = await fetch('/api/guess-it/member/active', { cache: 'no-store' });
+    // A poll with its own error UI, and one that only runs while the Activity
+    // Corner tab is open — X-CGP-Quiet keeps a plan refusal from being announced
+    // over and over by session.js on top of that.
+    var res = await fetch('/api/guess-it/member/active',
+                          { cache: 'no-store', headers: { 'X-CGP-Quiet': '1' } });
     if (!res.ok) {
       if (!giSubmitting) giRenderNoGame(res.status === 401 ? 'Please log in to participate.' : 'Unable to load game.');
       giErrBackoff = Math.min(giErrBackoff + 1, 3);
@@ -7009,7 +7380,11 @@ async function giSubmit(gameId, option) {
 (function() {
   var _origShowTab = showTab;
   showTab = function(tab) {
-    _origShowTab(tab);
+    // The tab that was SHOWN, which is not always the tab that was asked for —
+    // a plan without Activity Corner sends 'guessit' elsewhere, and child mode
+    // has no Guess It at all. Loading Guess It for a tab that never opened is
+    // what fired a request the server refuses.
+    tab = _origShowTab(tab) || tab;
 
     var banner   = document.getElementById('welcomeBanner');
     var pageWrap = document.querySelector('.page-wrap');
@@ -7027,10 +7402,11 @@ async function giSubmit(gameId, option) {
       if (pageWrap) pageWrap.style.paddingTop = '';
       stopGuessitPolling();
     }
+    return tab;
   };
 })();
 
-/* guessit is already included in CHILD_TABS inside applyChildMode — no patch needed */
+/* The Kids Portal has no Guess It tab — see CHILD_TABS in applyChildMode(). */
 
 /* ═══════════════════════════════════════════════════════
    INLINE TAB DRAG-AND-DROP (mouse + touch)
@@ -7277,6 +7653,179 @@ function toggleTabEditMode() {
   // Initial state — run after layout is stable
   requestAnimationFrame(updateArrows);
 })();
+</script>
+
+<!-- == GUESS IT - group play. Keep this as its own top-level script block.
+     A literal closing script tag inside a JS template literal ends the
+     enclosing block and turns the rest of the page into plain text. == -->
+<script>
+/* =====================================================================
+   Guess It — group play inside the member portal.
+   Reuses the same endpoints as the public /guessIt page. A signed-in
+   member is recognised from their session, so they are never asked for
+   a name. All identifiers are ggm* so the existing gi* code is untouched.
+   ===================================================================== */
+var GGM_KEY='gi_group_token', ggmToken=null, ggmTimer=null, ggmLastV=null, ggmBusy=false;
+
+function ggmEsc(x){ return String(x==null?'':x)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ggmEl(id){ return document.getElementById(id); }
+function ggmPost(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},
+  credentials:'include',body:JSON.stringify(b||{})}).then(function(r){return r.json().catch(function(){return{};});}); }
+
+function ggmBoot(){
+  try{ ggmToken = localStorage.getItem(GGM_KEY)||null; }catch(e){ ggmToken=null; }
+  if (ggmToken) ggmEnterPlay(); else ggmShowJoin();
+}
+function ggmShowJoin(){
+  var j=ggmEl('ggmJoinCard'), p=ggmEl('ggmPlayCard'), c=ggmEl('giGameCard'), s=ggmEl('giScoreRow');
+  if(j)j.style.display=''; if(p)p.style.display='none';
+  if(c)c.style.display=''; if(s)s.style.display='';
+}
+function ggmEnterPlay(){
+  var j=ggmEl('ggmJoinCard'), p=ggmEl('ggmPlayCard'), c=ggmEl('giGameCard'), s=ggmEl('giScoreRow');
+  if(j)j.style.display='none'; if(p)p.style.display='';
+  // Hide the standalone card while in a group so there is only one game on screen.
+  if(c)c.style.display='none'; if(s)s.style.display='none';
+  ggmLastV=null; ggmSchedule(0);
+}
+function ggmLeave(){
+  try{ localStorage.removeItem(GGM_KEY); }catch(e){}
+  ggmToken=null; if(ggmTimer){clearTimeout(ggmTimer); ggmTimer=null;}
+  ggmShowJoin();
+}
+function ggmJoin(){
+  var el=ggmEl('ggmCode'); var code=((el&&el.value)||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var err=ggmEl('ggmErr'); if(err)err.textContent='';
+  if(code.length!==6){ if(err)err.textContent='Please enter all 6 characters.'; return; }
+  var btn=ggmEl('ggmJoinBtn'); if(btn)btn.disabled=true;
+  ggmPost('/api/guess-it/group/join',{code:code}).then(function(d){
+    if(btn)btn.disabled=false;
+    if(!d||d.error){ if(err)err.textContent=(d&&d.error)||'Could not join.'; return; }
+    ggmToken=d.token; try{ localStorage.setItem(GGM_KEY,ggmToken); }catch(e){}
+    ggmEnterPlay();
+  }).catch(function(){ if(btn)btn.disabled=false; if(err)err.textContent='Network problem. Please try again.'; });
+}
+function ggmSchedule(ms){ if(ggmTimer)clearTimeout(ggmTimer); ggmTimer=setTimeout(ggmPoll,ms); }
+function ggmPoll(){
+  if(!ggmToken) return;
+  var sec=ggmEl('sectionGuessit');
+  if(document.hidden || !sec || sec.style.display==='none'){ ggmSchedule(2500); return; }
+  fetch('/api/guess-it/group/state?token='+encodeURIComponent(ggmToken),
+        {cache:'no-store',credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.error){ ggmLeave(); var e=ggmEl('ggmErr'); if(e)e.textContent=d.error; return; }
+      if(d.v!==ggmLastV){ ggmLastV=d.v; ggmRender(d); }
+      ggmSchedule(d.hasGame&&d.status==='active'?1500:4000);
+    }).catch(function(){ ggmSchedule(4000); });
+}
+function ggmRender(d){
+  if(ggmBusy) return;
+  var who=ggmEl('ggmWho');
+  if(who) who.innerHTML=ggmEsc(d.me.name)+' · <strong>'+d.me.score+'</strong> pt'
+    +(d.me.score===1?'':'s')+' · code <strong>'+ggmEsc(d.group.code)+'</strong>';
+  var body=ggmEl('ggmBody'); if(!body) return;
+  var h='';
+  if(d.group.ended){
+    h+='<div style="background:#eef5ff;border:1px solid #b9d4f5;color:#24527a;border-radius:8px;'
+      +'padding:10px;font-size:14px;margin-bottom:8px;">This group has finished. Final results are below.</div>';
+  } else if(!d.hasGame){
+    h+='<div style="text-align:center;color:#777;padding:16px 8px;font-size:14px;">'
+      +'⏳ Waiting for your host to start the next game…</div>';
+  } else {
+    h+='<div style="font-weight:700;font-size:16px;margin-bottom:8px;">'+ggmEsc(d.title)+'</div>';
+    if(d.winner) h+='<div style="background:#e6f7ec;border:1px solid #a3ddba;color:#1d6b3a;border-radius:8px;padding:10px;font-size:14px;font-weight:600;margin-bottom:8px;">🎉 You got it right — 1 point!</div>';
+    else if(d.eliminated) h+='<div style="background:#fdecef;border:1px solid #f2b8c2;color:#96233a;border-radius:8px;padding:10px;font-size:14px;margin-bottom:8px;">You are out of this game — wait for the next one.</div>';
+    else if(d.hasSubmitted) h+='<div style="background:#fff6e0;border:1px solid #f0d79a;color:#87611a;border-radius:8px;padding:10px;font-size:14px;margin-bottom:8px;">Answer submitted — waiting for the result…</div>';
+    if(d.winners&&d.winners.length&&!d.winner)
+      h+='<div style="background:#eef5ff;border:1px solid #b9d4f5;color:#24527a;border-radius:8px;padding:10px;font-size:14px;margin-bottom:8px;">🏆 '+ggmEsc(d.winners[0].name)+' answered correctly first.</div>';
+    var clues=d.revealedClues||[];
+    if(!clues.length){
+      h+='<div style="color:#777;font-size:14px;padding:8px 0;">Waiting for the first clue…</div>';
+    } else {
+      for(var i=0;i<clues.length;i++){
+        var last=(i===clues.length-1);
+        h+= last
+          ? '<div style="background:linear-gradient(135deg,#673147,#8d4560);color:#fff;border-radius:8px;padding:12px;font-size:15px;font-weight:600;margin-bottom:6px;">'+ggmEsc(clues[i])+'</div>'
+          : '<div style="background:#f4f4f7;border-radius:8px;padding:9px 12px;font-size:14px;color:#555;margin-bottom:6px;"><span style="opacity:.6;">'+(i+1)+'. </span>'+ggmEsc(clues[i])+'</div>';
+      }
+    }
+    h+='<div style="font-size:12px;color:#888;margin:4px 0 8px;">Clue '+clues.length+' of '+d.totalClues+'</div>';
+    var gameWon=d.winners&&d.winners.length;
+    var canPlay=d.status==='active'&&!d.winner&&!d.eliminated&&!d.hasSubmitted&&!gameWon;
+    if(canPlay&&d.options&&d.options.length){
+      for(var j=0;j<d.options.length;j++){
+        var o=d.options[j];
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;'
+          +'border:1px solid #ddd;border-radius:8px;padding:8px 12px;margin-bottom:6px;">'
+          +'<span style="font-size:15px;">'+ggmEsc(o)+'</span>'
+          +'<button class="ggm-opt" data-opt="'+ggmEsc(o)+'"'+(d.timerExpired?' disabled':'')
+          +' style="background:#673147;border:0;border-radius:7px;color:#fff;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">Submit ✓</button></div>';
+      }
+      if(d.timerExpired) h+='<div style="background:#fff6e0;border:1px solid #f0d79a;color:#87611a;border-radius:8px;padding:9px;font-size:13px;">Time is up for this clue.</div>';
+    }
+  }
+  body.innerHTML=h;
+  var btns=body.querySelectorAll('.ggm-opt');
+  for(var k=0;k<btns.length;k++){
+    btns[k].addEventListener('click',function(){ ggmSubmit(d.gameId,this.getAttribute('data-opt')); });
+  }
+  ggmBoard(d);
+}
+function ggmBoard(d){
+  var card=ggmEl('ggmBoardCard'), box=ggmEl('ggmBoard'), t=ggmEl('ggmBoardTitle');
+  if(!card||!box) return;
+  var rows=d.leaderboard||[];
+  if(!rows.length){ card.style.display='none'; return; }
+  card.style.display='';
+  if(t) t.textContent=d.group.ended?'🏆 Final results':'🏅 Leaderboard';
+  var h='';
+  if(d.group.ended){
+    var champs=rows.filter(function(r){return r.isWinner;});
+    if(champs.length)
+      h+='<div style="background:#e6f7ec;border:1px solid #a3ddba;color:#1d6b3a;border-radius:8px;'
+        +'padding:10px;font-size:14px;font-weight:600;margin-bottom:8px;">Group winner'
+        +(champs.length>1?'s':'')+': '
+        +champs.map(function(c){return ggmEsc(c.name)+' — '+c.score+' point'+(c.score===1?'':'s');}).join(', ')
+        +'</div>';
+  }
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i], mine=(r.name===d.me.name);
+    h+='<div style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:7px;'
+      +'margin-bottom:5px;background:'+(r.isWinner?'#e6f7ec':'#f7f7fa')+';'
+      +(mine?'border:1px solid #673147;':'border:1px solid transparent;')+'">'
+      +'<span style="font-size:14px;">'+r.rank+'. '+ggmEsc(r.name)+(r.isWinner?' 🏆':'')
+      +(mine?' <span style="opacity:.6;">(you)</span>':'')+'</span>'
+      +'<span style="font-size:13px;font-weight:700;color:#555;">'+r.score+' pt'+(r.score===1?'':'s')+'</span></div>';
+  }
+  box.innerHTML=h;
+}
+function ggmSubmit(gameId,option){
+  if(ggmBusy) return; ggmBusy=true;
+  var all=document.querySelectorAll('.ggm-opt');
+  for(var i=0;i<all.length;i++) all[i].disabled=true;
+  ggmPost('/api/guess-it/group/action',{token:ggmToken,gameId:gameId,option:option})
+    .then(function(d){
+      ggmBusy=false;
+      if(d&&d.error){
+        var body=ggmEl('ggmBody');
+        if(body){ var n=document.createElement('div');
+          n.style.cssText='background:#fdecef;border:1px solid #f2b8c2;color:#96233a;border-radius:8px;padding:9px;font-size:13px;margin-bottom:8px;';
+          n.textContent=d.error; body.insertBefore(n,body.firstChild); }
+        if(!d.eliminated&&!d.alreadyWon&&!d.timerExpired)
+          for(var i=0;i<all.length;i++) all[i].disabled=false;
+        ggmLastV=null; ggmSchedule(1200); return;
+      }
+      ggmLastV=d.v; ggmRender(d); ggmSchedule(1200);
+    }).catch(function(){ ggmBusy=false;
+      for(var i=0;i<all.length;i++) all[i].disabled=false; });
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var el=ggmEl('ggmCode');
+  if(el) el.addEventListener('keydown',function(ev){ if(ev.key==='Enter') ggmJoin(); });
+  ggmBoot();
+});
 </script>
 
 <!-- ══ VOLUNTEER PROFILE MODAL ═════════════════════════════════════════ -->

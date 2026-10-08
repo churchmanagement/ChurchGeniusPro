@@ -24,6 +24,10 @@ public class EmailSettingsController {
     @GetMapping("/emailSettings")
     public String page(HttpServletRequest request) {
         String redirect = RoleGuard.requireAdmin(request);
+        if (redirect != null) return redirect;
+        // Page/menu permission only — the /api/email-settings endpoints keep their
+        // role check unchanged (permissions govern pages, menus and buttons).
+        redirect = RoleGuard.requirePagePermission(request, "general.emailsettings");
         return redirect != null ? redirect : "forward:/emailSettings.html";
     }
 
@@ -35,6 +39,8 @@ public class EmailSettingsController {
     public ResponseEntity<?> get(HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Mirrors the /emailSettings page guard.
+        if (RoleGuard.requireAdmin(request) != null) return ResponseEntity.status(403).build();
         return ResponseEntity.ok(
                 repo.findByClientId(clientId).orElse(new EmailSettings()));
     }
@@ -46,6 +52,8 @@ public class EmailSettingsController {
                                    HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        // Mirrors the /emailSettings page guard.
+        if (RoleGuard.requireAdmin(request) != null) return ResponseEntity.status(403).build();
 
         EmailSettings s = repo.findByClientId(clientId).orElse(new EmailSettings());
         s.setClientId(clientId);

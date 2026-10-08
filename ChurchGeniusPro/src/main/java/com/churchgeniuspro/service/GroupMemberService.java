@@ -35,7 +35,7 @@ public class GroupMemberService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getMembers(Integer groupId, String appClientId) {
-        groupService.findOrThrow(groupId);   // validate group exists
+        groupService.findOrThrow(groupId, appClientId);   // validate group exists in this tenant
         return repo.findByGroupActiveByAppUser(groupId, appClientId)
                 .stream()
                 .map(this::toMap)
@@ -47,7 +47,7 @@ public class GroupMemberService {
     @Transactional
     public GroupMember addMember(Integer groupId, String firstName, String lastName,
                                   String email, String appClientId) {
-        Group group = groupService.findOrThrow(groupId);
+        Group group = groupService.findOrThrow(groupId, appClientId);
         // Email is optional — normalise when provided but do NOT dedup by email,
         // because multiple family members may share the same email address.
         String em = (email != null && !email.isBlank()) ? email.trim().toLowerCase() : "";
@@ -63,8 +63,9 @@ public class GroupMemberService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public GroupMember updateMember(Integer id, String firstName, String lastName, String email) {
-        GroupMember m = findOrThrow(id);
+    public GroupMember updateMember(Integer id, String firstName, String lastName, String email,
+                                    String appClientId) {
+        GroupMember m = findOrThrow(id, appClientId);
         // Email is optional — normalise when provided but do NOT dedup by email,
         // because multiple family members may share the same email address.
         String em = (email != null && !email.isBlank()) ? email.trim().toLowerCase() : "";
@@ -77,8 +78,8 @@ public class GroupMemberService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void removeMember(Integer id) {
-        GroupMember m = findOrThrow(id);
+    public void removeMember(Integer id, String appClientId) {
+        GroupMember m = findOrThrow(id, appClientId);
         m.setDeleteFlag(true);
         repo.save(m);
     }
@@ -115,8 +116,10 @@ public class GroupMemberService {
         }
     }
 
-    public GroupMember findOrThrow(Integer id) {
-        return repo.findById(id)
+    /** Tenant-scoped; an id owned by another tenant reads as "not found". */
+    public GroupMember findOrThrow(Integer id, String appClientId) {
+        if (appClientId == null) throw new IllegalArgumentException("Group member not found: " + id);
+        return repo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Group member not found: " + id));
     }

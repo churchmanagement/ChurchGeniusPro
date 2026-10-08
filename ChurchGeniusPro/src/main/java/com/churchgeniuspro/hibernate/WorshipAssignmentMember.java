@@ -39,4 +39,10 @@ public class WorshipAssignmentMember {
     /** Display order within this instrument slot. */
     @Column(name = "sort_order")
     private Integer sortOrder;
+
+    /** Tenant column (H2): backfilled by W4 from the parent; set on create by the owning
+     *  service/controller. Nullable for now — flipped to NOT NULL once every create-path
+     *  is deployed (see db/window/W4_tenant_columns.sql). */
+    @Column(name = "client_id")
+    private String clientId;
 }

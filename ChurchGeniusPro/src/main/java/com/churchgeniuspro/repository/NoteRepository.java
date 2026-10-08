@@ -11,4 +11,7 @@ public interface NoteRepository extends JpaRepository<Note, Integer> {
     List<Note> findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(String appClientId);
 
     Optional<Note> findByIdAndDeleteFlagFalse(Integer id);
+
+    /** Tenant-scoped lookup (security audit, week 1). */
+    Optional<Note> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

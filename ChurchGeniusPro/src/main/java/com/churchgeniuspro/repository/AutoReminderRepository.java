@@ -56,4 +56,8 @@ public interface AutoReminderRepository extends JpaRepository<AutoReminder, Inte
               AND  sc.status        = 'Active'
             """, nativeQuery = true)
     List<String> findActiveClientIds();
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<AutoReminder> findByIdAndAppClientId(Integer id, String appClientId);
 }

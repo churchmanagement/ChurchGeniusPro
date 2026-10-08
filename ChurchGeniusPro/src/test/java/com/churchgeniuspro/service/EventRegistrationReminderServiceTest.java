@@ -82,12 +82,16 @@ class EventRegistrationReminderServiceTest {
         sentLogRepo      = mock(ReminderSentLogRepository.class);
         autoReminderRepo = mock(AutoReminderRepository.class);
         emailService     = mock(EmailService.class);
+        // Phase B: the service asks how the tenant's mail is delivered; these are paying churches.
+        when(emailService.delivery(any())).thenReturn(new EmailService.Delivery(EmailService.DeliveryMode.NORMAL, null, null));
         smsService       = mock(SmsService.class);
         whatsAppSender   = mock(WhatsAppSenderService.class);
 
         service = new EventRegistrationReminderService(
                 eventRepo, eventDayRepo, registrationRepo, contactRepo, logRepo,
-                sentLogRepo, autoReminderRepo, emailService, smsService, whatsAppSender);
+                sentLogRepo, autoReminderRepo, emailService, smsService, whatsAppSender,
+                mock(com.churchgeniuspro.repository.ChurchEventImageRepository.class),
+                new com.churchgeniuspro.service.EventPublicTokenService(eventRepo));
 
         // @Value field — set directly since there is no Spring context.
         Field baseUrl = EventRegistrationReminderService.class.getDeclaredField("baseUrl");

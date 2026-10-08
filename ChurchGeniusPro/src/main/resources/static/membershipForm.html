@@ -755,6 +755,8 @@ let editingIndex     = null; // index into familyMembers being edited
 let showDeclaration  = false;
 let declarationText  = '';
 let existingFamilyId = null;
+let updateToken      = null;   // one-time proof from verify-otp; required to update existingFamilyId
+let photoDataUrl     = null;   // was never declared: submitForm() threw on the verified-update path
 
 // OTP lookup state
 let otpFamilyId      = null;   // familyId returned from lookup (used for verify-otp)
@@ -828,6 +830,7 @@ function showPhase(phase) {
 
 function clearAll() {
   existingFamilyId = null;
+  updateToken = null;
   otpFamilyId = null;
   photoDataUrl = null;
   familyMembers = [];
@@ -847,6 +850,7 @@ function clearAll() {
 
 function showNewMemberPhase() {
   existingFamilyId = null;
+  updateToken = null;
   otpFamilyId = null;
   document.getElementById('existingNotice').style.display = 'none';
   clearPrimaryForm();
@@ -859,9 +863,10 @@ function showNewMemberPhase() {
   showPhase('form');
 }
 
-function backToLookup() { existingFamilyId = null; otpFamilyId = null; showPhase('lookup'); }
+function backToLookup() { existingFamilyId = null; updateToken = null; otpFamilyId = null; showPhase('lookup'); }
 function clearAndSearchAgain() {
   existingFamilyId = null;
+  updateToken = null;
   otpFamilyId = null;
   document.getElementById('lookupQuery').value = '';
   document.getElementById('lookupMsg').style.display = 'none';
@@ -964,6 +969,7 @@ async function verifyOtp() {
     const f   = data.family;
     const all = f.members || [];
     existingFamilyId = f.id;
+    updateToken      = data.updateToken || null;   // proves this family was verified; sent back on submit
 
     const headMember   = all.find(m => m.role === 'Head') || all[0] || {};
     const otherMembers = all.filter(m => m !== headMember);
@@ -1155,6 +1161,15 @@ function renderMembersTable() {
   renderRolesTable();
 }
 
+// Display helper for the members table (was called but never defined — adding a member threw a ReferenceError).
+function formatPhone(p) {
+  if (!p) return '\u2014';
+  var d = String(p).replace(/\D/g, '');
+  if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  if (d.length === 11 && d[0] === '1') return '+1 (' + d.slice(1,4) + ') ' + d.slice(4,7) + '-' + d.slice(7);
+  return esc(p);
+}
+
 function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function editMember(i) {
@@ -1171,6 +1186,7 @@ function editMember(i) {
   document.getElementById('mBirthMonth').value  = m.birthdayMonth || '';
   document.getElementById('mBirthDay').value    = m.birthdayDay   || '';
   document.getElementById('mBirthYear').value   = m.birthdayYear  || '';
+  document.getElementById('mNickName') && (document.getElementById('mNickName').value = m.otherName || '');
   const sameAddr = m.sameAsFamilyAddress !== false;
   document.getElementById('mSameAddr').checked = sameAddr;
   document.getElementById('mOwnAddrSection').style.display = sameAddr ? 'none' : '';
@@ -1221,6 +1237,11 @@ function saveMember() {
     birthdayMonth: document.getElementById('mBirthMonth').value || null,
     birthdayDay:   document.getElementById('mBirthDay').value   || null,
     birthdayYear:  document.getElementById('mBirthYear').value  || null,
+    otherName: document.getElementById('mNickName') ? document.getElementById('mNickName').value.trim() : '',
+    // The spouse anniversary lives in the Roles table — keep what was chosen when a member is edited.
+    anniversaryMonth: editingIndex !== null && familyMembers[editingIndex] ? (familyMembers[editingIndex].anniversaryMonth || null) : null,
+    anniversaryDay:   editingIndex !== null && familyMembers[editingIndex] ? (familyMembers[editingIndex].anniversaryDay   || null) : null,
+    anniversaryYear:  editingIndex !== null && familyMembers[editingIndex] ? (familyMembers[editingIndex].anniversaryYear  || null) : null,
     sameAsFamilyAddress: sameAddr,
     address1: sameAddr ? '' : (document.getElementById('mAddr1') ? document.getElementById('mAddr1').value.trim() : ''),
     address2: sameAddr ? '' : (document.getElementById('mAddr2') ? document.getElementById('mAddr2').value.trim() : ''),
@@ -1270,20 +1291,22 @@ function renderRolesTable() {
         '<option value="">-- Select --</option>' + roleOpts + '</select>';
 
     const showAnniv = !row.isPrimary && row.role === 'Spouse';
+    const fm = showAnniv ? (familyMembers[row.index] || {}) : {};
+    const selIf = function(v, cur) { return String(v) === String(cur || '') ? ' selected' : ''; };
     const annexHtml = showAnniv
       ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-          '<select id="annivMonth_' + row.index + '" style="min-width:80px;">' +
+          '<select id="annivMonth_' + row.index + '" style="min-width:80px;" onchange="onAnnivChange(' + row.index + ')" aria-label="Anniversary month">' +
             '<option value="">Month</option>' +
             ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-              .map(function(m,i){ return '<option value="'+(i+1)+'">' + m + '</option>'; }).join('') +
+              .map(function(m,i){ return '<option value="'+(i+1)+'"' + selIf(i+1, fm.anniversaryMonth) + '>' + m + '</option>'; }).join('') +
           '</select>' +
-          '<select id="annivDay_' + row.index + '" style="min-width:65px;">' +
+          '<select id="annivDay_' + row.index + '" style="min-width:65px;" onchange="onAnnivChange(' + row.index + ')" aria-label="Anniversary day">' +
             '<option value="">Day</option>' +
-            Array.from({length:31},function(_,i){ return '<option value="'+(i+1)+'">'+(i+1)+'</option>'; }).join('') +
+            Array.from({length:31},function(_,i){ return '<option value="'+(i+1)+'"' + selIf(i+1, fm.anniversaryDay) + '>'+(i+1)+'</option>'; }).join('') +
           '</select>' +
-          '<select id="annivYear_' + row.index + '" style="min-width:80px;">' +
+          '<select id="annivYear_' + row.index + '" style="min-width:80px;" onchange="onAnnivChange(' + row.index + ')" aria-label="Anniversary year">' +
             '<option value="">Year</option>' +
-            (function(){ var opts='',y=new Date().getFullYear(); for(var i=y;i>=y-80;i--) opts+='<option value="'+i+'">'+i+'</option>'; return opts; })() +
+            (function(){ var opts='',y=new Date().getFullYear(); for(var i=y;i>=y-80;i--) opts+='<option value="'+i+'"' + selIf(i, fm.anniversaryYear) + '>'+i+'</option>'; return opts; })() +
           '</select>' +
         '</div>'
       : '<span style="color:#ccc;font-size:12px;">N/A</span>';
@@ -1297,8 +1320,20 @@ function renderRolesTable() {
 function onRoleRowChange(sel, index) {
   if (index >= 0 && familyMembers[index]) {
     familyMembers[index].role = sel.value;
+    if (sel.value !== 'Spouse') {   // anniversary applies to the spouse only
+      familyMembers[index].anniversaryMonth = null; familyMembers[index].anniversaryDay = null; familyMembers[index].anniversaryYear = null;
+    }
   }
   renderRolesTable();
+}
+
+// The spouse's wedding anniversary — stored on the member as soon as it is chosen so it
+// survives re-renders of the Roles table and is submitted with the request.
+function onAnnivChange(index) {
+  const m = familyMembers[index];
+  if (!m) return;
+  const v = function(id) { const el = document.getElementById(id + '_' + index); return el && el.value ? parseInt(el.value, 10) : null; };
+  m.anniversaryMonth = v('annivMonth'); m.anniversaryDay = v('annivDay'); m.anniversaryYear = v('annivYear');
 }
 
 /* ══════════════════════════════════════
@@ -1380,6 +1415,8 @@ async function submitForm() {
     birthdayDay:   document.getElementById('pBirthDay').value   || null,
     birthdayYear:  document.getElementById('pBirthYear').value  || null,
     address1:      document.getElementById('pAddress1').value.trim(),
+    address2:      document.getElementById('pAddress2') ? document.getElementById('pAddress2').value.trim() : '',
+    otherName:     document.getElementById('pNickName') ? document.getElementById('pNickName').value.trim() : '',
     city:          document.getElementById('pCity').value.trim(),
     state:         document.getElementById('pState').value,
     country:       document.getElementById('pCountry').value || 'USA',
@@ -1397,6 +1434,7 @@ async function submitForm() {
   const payload = {
     cid:                 CID,
     existingFamilyId:    existingFamilyId || null,
+    updateToken:         existingFamilyId ? updateToken : null,
     members:             allMembers,
     declarationAccepted: (function() {
       var dc = document.getElementById('declarationChk');

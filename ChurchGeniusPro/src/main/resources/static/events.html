@@ -186,9 +186,6 @@
     .rr-feedback { font-size:13px; margin-top:10px; display:none; }
     .rr-feedback.error { display:block; color:#c62828; }
     .rr-feedback.success { display:block; color:#2e7d32; }
-    /* Midwest static card accent */
-    .event-card-accent.midwest { background: #1565c0; }
-    .event-type-badge.midwest { background: #e3f2fd; color: #1565c0; }
 
     /* ── Responsive ── */
     @media (max-width: 600px) {
@@ -384,7 +381,6 @@
 
 <script>
   var allEvents      = [];
-  var midwestConfig  = null;   // cached MidReg Meet config — null until loaded
   var deleteId       = null;
   var deleteName     = '';
 
@@ -424,13 +420,10 @@
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
-  // Both APIs are fetched in parallel so neither can race-clobber the other.
-  // midwestConfig is stored at module scope so filterCards() always re-adds it.
   (async function init() {
     try {
       var results = await Promise.allSettled([
-        fetch('/api/events').then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); }),
-        fetch('/api/mid-reg-meet/config').then(function(r) { return r.ok ? r.json() : null; })
+        fetch('/api/events').then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
       ]);
 
       // Events result
@@ -438,11 +431,6 @@
         allEvents = results[0].value || [];
       } else {
         showFeedback('Failed to load events. Please refresh.', 'error');
-      }
-
-      // Midwest config result — only store if it has an eventName
-      if (results[1].status === 'fulfilled' && results[1].value && results[1].value.eventName) {
-        midwestConfig = results[1].value;
       }
 
       renderStats();
@@ -455,7 +443,7 @@
     }
   })();
 
-  // Re-fetches only the regular events list (used after delete); midwest config is preserved.
+  // Re-fetches the events list (used after delete).
   async function loadEvents() {
     try {
       var res = await fetch('/api/events');
@@ -475,10 +463,8 @@
       return ev.eventDate && ev.eventDate >= today;
     }).length;
     var multi = allEvents.filter(function(ev) { return ev.eventType === 'Multiple Days'; }).length;
-    // +1 for midwest card when present
-    var midOffset = midwestConfig ? 1 : 0;
-    document.getElementById('statTotal').textContent    = allEvents.length + midOffset;
-    document.getElementById('statUpcoming').textContent = upcoming + midOffset;
+    document.getElementById('statTotal').textContent    = allEvents.length;
+    document.getElementById('statUpcoming').textContent = upcoming;
     document.getElementById('statMulti').textContent    = multi;
   }
 
@@ -531,26 +517,14 @@
     var grid  = document.getElementById('eventsGrid');
     var empty = document.getElementById('emptyState');
 
-    // Midwest card is prepended on the Upcoming view when config is available.
-    var midwestHtml = (midwestConfig && eventTimeView !== 'past') ? buildMidwestCard(midwestConfig) : '';
-
-    // Midwest search match: show it when no text filter, or query matches name/city
-    if (midwestConfig && q) {
-      var mName = (midwestConfig.eventName || '').toLowerCase();
-      var mCity = (midwestConfig.city || '').toLowerCase();
-      if (mName.indexOf(q) < 0 && mCity.indexOf(q) < 0) {
-        midwestHtml = ''; // hide if search query doesn't match
-      }
-    }
-
-    var hasCards = filtered.length > 0 || midwestHtml !== '';
+    var hasCards = filtered.length > 0;
     if (!hasCards) {
       grid.style.display  = 'none';
       empty.style.display = '';
     } else {
       empty.style.display = 'none';
       grid.style.display  = '';
-      grid.innerHTML = midwestHtml + filtered.map(buildCard).join('');
+      grid.innerHTML = filtered.map(buildCard).join('');
     }
   }
 
@@ -636,29 +610,6 @@
     '</div>';
   }
 
-  // Builds the Midwest Meet card as an HTML string from the cached config object.
-  // Called inside filterCards() on every render so the card is always present.
-  function buildMidwestCard(d) {
-    var dateHtml = d.eventDate
-      ? '<div class="event-meta-row"><span class="icon">📅</span>' + esc(d.eventDate) + '</div>'
-      : '';
-    var locParts = [d.venueName, d.city, d.state].filter(Boolean);
-    var locHtml  = locParts.length
-      ? '<div class="event-meta-row"><span class="icon">📍</span>' + esc(locParts.join(', ')) + '</div>'
-      : '';
-    var feeHtml  = d.registrationFee
-      ? '<div class="event-meta-row"><span class="icon">💰</span>' + esc(d.registrationFee) + '</div>'
-      : '';
-    return '<div class="event-card" onclick="window.location.href=\'/midRegMeet\'">' +
-      '<div class="event-card-accent midwest"></div>' +
-      '<div class="event-card-body">' +
-        '<div class="event-card-name">' + esc(d.eventName) + '</div>' +
-        '<span class="event-type-badge midwest">Midwest Meet</span>' +
-        '<div class="event-card-meta">' + dateHtml + locHtml + feeHtml + '</div>' +
-      '</div>' +
-    '</div>';
-  }
-
   function formatCardDate(dateStr) {
     if (!dateStr) return '';
     // dateStr is "YYYY-MM-DD"; parse without timezone shift
@@ -708,17 +659,22 @@
   }
   async function confirmDelete() {
     if (!deleteId) return;
+    // Capture before closeDeleteModal() — it nulls deleteId, and the filter
+    // below would then compare every row against null and remove nothing,
+    // leaving the deleted card on screen until a page refresh.
+    var id   = deleteId;
+    var name = deleteName;
     var btn = document.getElementById('confirmDeleteBtn');
     btn.disabled   = true;
     btn.textContent = 'Deleting…';
     try {
-      var res = await fetch('/api/events/' + deleteId, { method: 'DELETE' });
+      var res = await fetch('/api/events/' + id, { method: 'DELETE' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       closeDeleteModal();
-      allEvents = allEvents.filter(function(ev) { return ev.id !== deleteId; });
+      allEvents = allEvents.filter(function(ev) { return String(ev.id) !== String(id); });
       renderStats();
       filterCards();
-      showFeedback('Event "' + deleteName + '" deleted.', 'success');
+      showFeedback('Event "' + name + '" deleted.', 'success');
     } catch (e) {
       showFeedback('Failed to delete event. Please try again.', 'error');
     } finally {
@@ -994,7 +950,11 @@
       var res = await fetch('/api/events/' + rrEventId + '/registration-reminder/invite', { method: 'POST' });
       var data = await res.json().catch(function() { return {}; });
       if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      if (data.processed) {
+      if (data.processed && data.testEmail) {
+        rrShowFeedback('🧪 Trial/Demo test: ' + (data.testEmailsSent || 0) + ' test email sent to ' + data.testEmail +
+                       ' — contacts simulated, none emailed (' + (data.skipped || 0) + ' skipped' +
+                       (data.smsSent ? ', ' + data.smsSent + ' SMS sent' : '') + ').', 'success');
+      } else if (data.processed) {
         rrShowFeedback('Invitations: ' + (data.emailsSent || 0) + ' email(s) and ' + (data.smsSent || 0) +
                        ' SMS sent, ' + (data.skipped || 0) + ' skipped' +
                        (data.failed ? ', ' + data.failed + ' failed' : '') + '.', 'success');
@@ -1021,7 +981,11 @@
       var res = await fetch('/api/events/' + rrEventId + '/registration-reminder/run?force=true', { method: 'POST' });
       var data = await res.json().catch(function() { return {}; });
       if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      if (data.processed) {
+      if (data.processed && data.testEmail) {
+        rrShowFeedback('🧪 Trial/Demo test: ' + (data.testEmailsSent || 0) + ' test email sent to ' + data.testEmail +
+                       ' — contacts simulated, none emailed (' + (data.skipped || 0) + ' skipped' +
+                       (data.smsSent ? ', ' + data.smsSent + ' SMS sent' : '') + ').', 'success');
+      } else if (data.processed) {
         rrShowFeedback('Done: ' + (data.emailsSent || 0) + ' email(s) and ' + (data.smsSent || 0) +
                        ' SMS sent, ' + (data.skipped || 0) + ' skipped' +
                        (data.failed ? ', ' + data.failed + ' failed' : '') + '.', 'success');

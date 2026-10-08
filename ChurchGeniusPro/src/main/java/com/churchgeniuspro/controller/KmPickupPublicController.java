@@ -9,7 +9,6 @@ import com.churchgeniuspro.repository.KmChildRepository;
 import com.churchgeniuspro.repository.KmChildSetupRepository;
 import com.churchgeniuspro.repository.KmClassroomRepository;
 import com.churchgeniuspro.service.KmPickupAlertService;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.KmPickupUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -53,21 +52,12 @@ public class KmPickupPublicController {
         return "forward:/kidsPickup.html";
     }
 
-    /** Decrypted token → [clientId, checkinId] or null. */
+    /** Pickup-link token → [clientId, checkin] for an OPEN check-in, or null. */
     private Object[] resolve(String t) {
         if (t == null || t.isBlank()) return null;
-        try {
-            String plain = EncryptionUtil.decrypt(t.trim());
-            if (plain == null || !plain.contains("|")) return null;
-            String[] parts = plain.split("\\|", 2);
-            String clientId = parts[0];
-            Long checkinId = Long.parseLong(parts[1].trim());
-            KmCheckin ci = checkinRepo.findById(checkinId).orElse(null);
-            if (ci == null || !clientId.equals(ci.getClientId())) return null;
-            return new Object[]{ clientId, ci };
-        } catch (Exception e) {
-            return null;
-        }
+        KmCheckin ci = checkinRepo.findByPickupTokenAndCheckoutTimeIsNull(t.trim()).orElse(null);
+        if (ci == null || ci.getClientId() == null) return null;
+        return new Object[]{ ci.getClientId(), ci };
     }
 
     @ResponseBody

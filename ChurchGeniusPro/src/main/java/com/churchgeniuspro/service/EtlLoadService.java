@@ -15,6 +15,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -59,6 +61,14 @@ public class EtlLoadService {
     private final EtlReferenceResolver     refResolver;
     private final ImportRunService         runService;
     private final TransactionTemplate      tx;
+
+    /**
+     * Plan people limit. Optional so hand-built tests are unchanged; without it no
+     * limit is applied, as before.
+     */
+    private SubscriptionService subscriptionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSubscriptionService(SubscriptionService s) { this.subscriptionService = s; }
 
     /** Rows committed per transaction during a load (bounds tx size on big imports). */
     @Value("${etl.load.chunk-size:500}")
@@ -254,6 +264,7 @@ public class EtlLoadService {
     private int[] loadFamilyChunked(Long batchId, String tenant, String actor) {
         List<StagingFamily> rows = sFamilyRepo.findByBatchId(batchId).stream()
             .filter(r -> "APPROVED".equals(r.getRowStatus())).toList();
+        requireRoomForNewPeople(rows, tenant);
         LinkedHashMap<String, List<Long>> groups = new LinkedHashMap<>();
         for (StagingFamily r : rows) {
             String key = r.getFamilyKey() == null ? ("row:" + r.getId()) : r.getFamilyKey();
@@ -338,13 +349,26 @@ public class EtlLoadService {
             String action = effectiveAction(r.getDedupeAction(), r.getDedupeMatchId());
             try {
                 if ("SKIP".equals(action)) { r.setRowStatus("SKIPPED"); skipped++; }
-                else {
+                else if ("UPDATE".equals(action)) {
+                    // Financial audit M9: only SKIP was ever honoured here — choosing
+                    // UPDATE for a duplicate fell through to this same INSERT branch and
+                    // created a second row, with the "updated" counter permanently stuck
+                    // at 0. Tenant-filtered lookup by dedupeMatchId, mirroring the family
+                    // table's own (already-correct) UPDATE branch below.
+                    Income e = incomeRepo.findById(r.getDedupeMatchId().intValue())
+                        .filter(x -> tenant.equals(x.getAppClientId()))
+                        .orElse(null);
+                    if (e == null) { r.setRowStatus("FAILED"); failed++; }
+                    else {
+                        r.setBeforeImage(snapshotIncome(e));
+                        copyIncomeFields(r, e, ref, memberIndex);
+                        e.setUpdatedBy(actor); e.setUpdatedDate(new Date());
+                        incomeRepo.save(e);
+                        r.setTargetId(e.getId().longValue()); r.setRowStatus("LOADED"); updated++;
+                    }
+                } else { // INSERT
                     Income e = new Income();
-                    e.setAmount(r.getAmount()); e.setIncomeDate(r.getIncomeDate());
-                    e.setRefNo(r.getReferenceNo()); e.setNote(r.getNotes());
-                    e.setSubSource(ref.subSource(r.getSourceName(), r.getSubSourceName()));
-                    Integer mid = resolveMember(r.getFamilyLink(), memberIndex);
-                    if (mid != null) { e.setMember(memberRepo.findById(mid).orElse(null)); r.setResolvedMemberId(mid.longValue()); }
+                    copyIncomeFields(r, e, ref, memberIndex);
                     e.setAppClientId(tenant); e.setDeleteFlag(false); e.setQuickAdd(false);
                     e.setCreatedDate(new Date()); e.setCreatedBy(actor);
                     e = incomeRepo.save(e);
@@ -357,6 +381,69 @@ public class EtlLoadService {
             sIncomeRepo.save(r);
         }
         return new int[]{inserted, updated, skipped, failed};
+    }
+
+    /**
+     * Applies the staging row's content onto a live Income — shared by INSERT
+     * (a fresh row, so every field starts blank) and UPDATE (an existing row,
+     * financial audit M9). refNo/note only overwrite when the staging row
+     * actually supplied one, so a sparse import row can never blank out data
+     * the existing row already had; amount/date/fund are always applied,
+     * since a loadable (VALID/WARN) row is expected to carry them.
+     */
+    private void copyIncomeFields(StagingIncome r, Income e, EtlReferenceResolver.Session ref,
+                                  Map<String, Integer> memberIndex) {
+        e.setAmount(r.getAmount());
+        e.setIncomeDate(r.getIncomeDate());
+        e.setSubSource(ref.subSource(r.getSourceName(), r.getSubSourceName()));
+        if (r.getReferenceNo() != null) e.setRefNo(r.getReferenceNo());
+        if (r.getNotes() != null) e.setNote(r.getNotes());
+        Integer mid = resolveMember(r.getFamilyLink(), memberIndex);
+        if (mid != null) {
+            e.setMember(memberRepo.findById(mid).orElse(null));
+            r.setResolvedMemberId(mid.longValue());
+        }
+    }
+
+    /**
+     * Financial audit M9: before-image for an Income UPDATE, so rollback can
+     * restore it (mirrors {@link #snapshot(FamilyMember)} for family). FK
+     * fields are captured by id, never the entity itself — an entity
+     * reference would either drag in a lazy-loaded object graph outside a
+     * live session or (worse) get silently dropped by Jackson — and the
+     * amount is captured as a decimal STRING, never a raw JSON number, so a
+     * round-trip through Jackson can never quietly lose precision on money,
+     * the same discipline this codebase applies to money everywhere else.
+     */
+    private String snapshotIncome(Income e) {
+        Map<String, Object> snap = new LinkedHashMap<>();
+        snap.put("amount", e.getAmount() == null ? null : e.getAmount().toPlainString());
+        snap.put("incomeDate", e.getIncomeDate() == null ? null : e.getIncomeDate().toString());
+        snap.put("subSourceId", e.getSubSource() == null ? null : e.getSubSource().getId());
+        snap.put("memberId", e.getMember() == null ? null : e.getMember().getId());
+        snap.put("refNo", e.getRefNo());
+        snap.put("note", e.getNote());
+        try { return MAPPER.writeValueAsString(snap); } catch (Exception ex) { return null; }
+    }
+
+    private void restoreIncome(Income e, String beforeImage, String tenant) {
+        try {
+            Map<String, Object> snap = MAPPER.readValue(beforeImage, new TypeReference<LinkedHashMap<String, Object>>() {});
+            Object amt = snap.get("amount");
+            e.setAmount(amt == null ? null : new BigDecimal((String) amt));
+            Object dt = snap.get("incomeDate");
+            e.setIncomeDate(dt == null ? null : LocalDate.parse((String) dt));
+            Integer subId = asInt(snap.get("subSourceId"));
+            e.setSubSource(subId == null ? null : refResolver.subSourceById(subId, tenant).orElse(null));
+            Integer memId = asInt(snap.get("memberId"));
+            e.setMember(memId == null ? null : memberRepo.findById(memId)
+                .filter(m -> m.getFamily() != null && tenant.equals(m.getFamily().getAppClientId()))
+                .orElse(null));
+            e.setRefNo((String) snap.get("refNo"));
+            e.setNote((String) snap.get("note"));
+        } catch (Exception ex) {
+            log.warn("ETL restore failed for income {}: {}", e.getId(), ex.getMessage());
+        }
     }
 
     // —— expense ——
@@ -379,12 +466,22 @@ public class EtlLoadService {
             String action = effectiveAction(r.getDedupeAction(), r.getDedupeMatchId());
             try {
                 if ("SKIP".equals(action)) { r.setRowStatus("SKIPPED"); skipped++; }
-                else {
+                else if ("UPDATE".equals(action)) {
+                    // Financial audit M9 — see the identical note in loadIncomeChunk.
+                    Expense e = expenseRepo.findById(r.getDedupeMatchId().intValue())
+                        .filter(x -> tenant.equals(x.getAppClientId()))
+                        .orElse(null);
+                    if (e == null) { r.setRowStatus("FAILED"); failed++; }
+                    else {
+                        r.setBeforeImage(snapshotExpense(e));
+                        copyExpenseFields(r, e, ref);
+                        e.setUpdatedBy(actor); e.setUpdatedDate(new Date());
+                        expenseRepo.save(e);
+                        r.setTargetId(e.getId().longValue()); r.setRowStatus("LOADED"); updated++;
+                    }
+                } else { // INSERT
                     Expense e = new Expense();
-                    e.setAmount(r.getAmount()); e.setExpenseDate(r.getExpenseDate());
-                    e.setRefNo(r.getReferenceNo()); e.setNote(r.getNotes());
-                    e.setPurpose(ref.purpose(r.getPurposeName() != null ? r.getPurposeName() : r.getCategory()));
-                    e.setMainSource(ref.mainSource(r.getCategory() != null ? r.getCategory() : r.getPurposeName()));
+                    copyExpenseFields(r, e, ref);
                     e.setAppClientId(tenant); e.setDeleteFlag(false); e.setQuickAdd(false);
                     e.setCreatedDate(new Date()); e.setCreatedBy(actor);
                     e = expenseRepo.save(e);
@@ -397,6 +494,52 @@ public class EtlLoadService {
             sExpenseRepo.save(r);
         }
         return new int[]{inserted, updated, skipped, failed};
+    }
+
+    /** Expense twin of {@link #copyIncomeFields} — same sparse-overwrite rule for refNo/note. */
+    private void copyExpenseFields(StagingExpense r, Expense e, EtlReferenceResolver.Session ref) {
+        e.setAmount(r.getAmount());
+        e.setExpenseDate(r.getExpenseDate());
+        e.setPurpose(ref.purpose(r.getPurposeName() != null ? r.getPurposeName() : r.getCategory()));
+        e.setMainSource(ref.mainSource(r.getCategory() != null ? r.getCategory() : r.getPurposeName()));
+        if (r.getReferenceNo() != null) e.setRefNo(r.getReferenceNo());
+        if (r.getNotes() != null) e.setNote(r.getNotes());
+    }
+
+    /** Expense twin of {@link #snapshotIncome} (financial audit M9). */
+    private String snapshotExpense(Expense e) {
+        Map<String, Object> snap = new LinkedHashMap<>();
+        snap.put("amount", e.getAmount() == null ? null : e.getAmount().toPlainString());
+        snap.put("expenseDate", e.getExpenseDate() == null ? null : e.getExpenseDate().toString());
+        snap.put("purposeId", e.getPurpose() == null ? null : e.getPurpose().getId());
+        snap.put("mainSourceId", e.getMainSource() == null ? null : e.getMainSource().getId());
+        snap.put("refNo", e.getRefNo());
+        snap.put("note", e.getNote());
+        try { return MAPPER.writeValueAsString(snap); } catch (Exception ex) { return null; }
+    }
+
+    private void restoreExpense(Expense e, String beforeImage, String tenant) {
+        try {
+            Map<String, Object> snap = MAPPER.readValue(beforeImage, new TypeReference<LinkedHashMap<String, Object>>() {});
+            Object amt = snap.get("amount");
+            e.setAmount(amt == null ? null : new BigDecimal((String) amt));
+            Object dt = snap.get("expenseDate");
+            e.setExpenseDate(dt == null ? null : LocalDate.parse((String) dt));
+            Integer purposeId = asInt(snap.get("purposeId"));
+            e.setPurpose(purposeId == null ? null : refResolver.purposeById(purposeId, tenant).orElse(null));
+            Integer mainId = asInt(snap.get("mainSourceId"));
+            e.setMainSource(mainId == null ? null : refResolver.mainSourceById(mainId, tenant).orElse(null));
+            e.setRefNo((String) snap.get("refNo"));
+            e.setNote((String) snap.get("note"));
+        } catch (Exception ex) {
+            log.warn("ETL restore failed for expense {}: {}", e.getId(), ex.getMessage());
+        }
+    }
+
+    private static Integer asInt(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.intValue();
+        return Integer.valueOf(o.toString());
     }
 
     // ───────────────────────── rollback ─────────────────────────
@@ -463,7 +606,14 @@ public class EtlLoadService {
                 if (!"LOADED".equals(r.getRowStatus()) || r.getTargetId() == null) continue;
                 incomeRepo.findById(r.getTargetId().intValue())
                     .filter(x -> tenant.equals(x.getAppClientId()))
-                    .ifPresent(x -> { x.setDeleteFlag(true); incomeRepo.save(x); });
+                    .ifPresent(x -> {
+                        // Financial audit M9: a LOADED row that was an UPDATE (carries a
+                        // before-image) must be restored to what it was, never
+                        // soft-deleted — the live row pre-dates this import and has
+                        // nothing to do with it except having been overwritten.
+                        if (r.getBeforeImage() != null) { restoreIncome(x, r.getBeforeImage(), tenant); incomeRepo.save(x); }
+                        else { x.setDeleteFlag(true); incomeRepo.save(x); }
+                    });
                 r.setRowStatus("ROLLED_BACK"); sIncomeRepo.save(r); n++;
             }
         } else {
@@ -471,7 +621,10 @@ public class EtlLoadService {
                 if (!"LOADED".equals(r.getRowStatus()) || r.getTargetId() == null) continue;
                 expenseRepo.findById(r.getTargetId().intValue())
                     .filter(x -> tenant.equals(x.getAppClientId()))
-                    .ifPresent(x -> { x.setDeleteFlag(true); expenseRepo.save(x); });
+                    .ifPresent(x -> {
+                        if (r.getBeforeImage() != null) { restoreExpense(x, r.getBeforeImage(), tenant); expenseRepo.save(x); }
+                        else { x.setDeleteFlag(true); expenseRepo.save(x); }
+                    });
                 r.setRowStatus("ROLLED_BACK"); sExpenseRepo.save(r); n++;
             }
         }
@@ -481,6 +634,33 @@ public class EtlLoadService {
     // ───────────────────────── helpers ─────────────────────────
 
     /** Resolve the action actually taken: an unflagged row inserts; a dup defaults SKIP. */
+    /**
+     * The plan's people limit applies to an import exactly as to the Family form:
+     * only NEW people count (updates and skips do not), and if the batch would take
+     * the church past its limit nothing is loaded — no partial import. Existing
+     * people are never touched by this check. Fails open on a lookup error, as the
+     * Family form does.
+     */
+    private void requireRoomForNewPeople(List<StagingFamily> rows, String tenant) {
+        if (subscriptionService == null) return;
+        int adding = (int) rows.stream()
+            .filter(r -> "INSERT".equals(effectiveAction(r.getDedupeAction(), r.getDedupeMatchId())))
+            .count();
+        if (adding == 0) return;
+        String limitMsg;
+        try {
+            Long current = memberRepo.countActiveMembers(tenant);
+            limitMsg = subscriptionService.checkPeopleLimit(tenant, current == null ? 0 : current, adding);
+        } catch (Exception e) {
+            log.warn("ETL people-limit check failed for {} — allowing. {}", tenant, e.getMessage());
+            return;
+        }
+        if (limitMsg != null) {
+            throw new LoadException(limitMsg + " This import would add " + adding
+                + " new " + (adding == 1 ? "person" : "people") + ", so nothing was loaded.");
+        }
+    }
+
     private String effectiveAction(String dedupeAction, Long matchId) {
         if ("SKIP".equals(dedupeAction)) return "SKIP";
         if ("UPDATE".equals(dedupeAction) && matchId != null) return "UPDATE";

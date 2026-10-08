@@ -44,7 +44,10 @@ public class NtagAccessFilter implements Filter {
             return;
         }
 
-        String uri = req.getRequestURI();
+        // Canonical, decoded, normalised path (see RequestPaths) — never the raw
+        // getRequestURI(), so an encoded-traversal URL off a permitted route (e.g.
+        // "/kidsCheckin/%2e%2e/giving") cannot reach a page outside the allowed set.
+        String uri = RequestPaths.path(req);
         if (isAlwaysAllowed(uri)) { chain.doFilter(request, response); return; }
 
         @SuppressWarnings("unchecked")

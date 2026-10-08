@@ -31,6 +31,7 @@ public class ServiceAdminPlaidService {
     private final PlaidItemRepository itemRepo;
     private final PlaidAccountRepository accountRepo;
     private final PlaidClient client;
+    private final PlaidEnvironmentService plaidEnv;
     private final PlaidTokenCipher cipher;
     private final PlaidAuditService audit;
 
@@ -38,12 +39,14 @@ public class ServiceAdminPlaidService {
                                     PlaidItemRepository itemRepo,
                                     PlaidAccountRepository accountRepo,
                                     PlaidClient client,
+                                    PlaidEnvironmentService plaidEnv,
                                     PlaidTokenCipher cipher,
                                     PlaidAuditService audit) {
         this.settingRepo = settingRepo;
         this.itemRepo = itemRepo;
         this.accountRepo = accountRepo;
         this.client = client;
+        this.plaidEnv = plaidEnv;
         this.cipher = cipher;
         this.audit = audit;
     }
@@ -114,7 +117,7 @@ public class ServiceAdminPlaidService {
         PlaidItem item = itemRepo.findByIdAndClientId(itemPk, clientId).orElse(null);
         if (item == null) throw new IllegalArgumentException("Bank connection not found.");
         try {
-            client.itemRemove(cipher.decrypt(item.getAccessTokenEnc()));
+            client.itemRemove(plaidEnv.envForItem(item), cipher.decrypt(item.getAccessTokenEnc()));
         } catch (Exception e) {
             log.warn("Plaid item/remove failed for {} (continuing with local disconnect): {}",
                     item.getItemId(), e.getMessage());

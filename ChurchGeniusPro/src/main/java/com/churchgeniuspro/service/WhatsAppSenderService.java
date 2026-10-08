@@ -6,6 +6,7 @@ import com.churchgeniuspro.hibernate.WhatsAppSettings;
 import com.churchgeniuspro.repository.EmailSettingsRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.WhatsAppSettingsRepository;
+import com.churchgeniuspro.util.PhoneNumbers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -69,17 +70,45 @@ public class WhatsAppSenderService {
      * Returns {@code true} when the message was handed to Twilio.
      */
     private boolean smsWithQuota(String toPhone, String body, String clientId) {
-        if (clientId != null && !clientId.isBlank()
-                && !subscriptionService.canSendSms(clientId)) {
-            log.warn("SMS to {} skipped — monthly SMS limit reached for subscription plan (clientId={})",
-                    toPhone, clientId);
-            return false;
+        // The allowance now lives in SmsService.doSend — the one place that talks to
+        // Twilio — so every sender is metered, not only the ones that come through
+        // here. Checking and recording again in this method would charge these sends
+        // twice.
+        return smsService.sendForClient(clientId, toPhone, body).sent();
+    }
+
+    /**
+     * Sends one SMS through the quota choke-point and reports what happened.
+     *
+     * <p>The void {@link #sendToPhoneMultiChannel} discards three different
+     * outcomes — an unusable number, an exhausted plan allowance, and a provider
+     * rejection — leaving the caller unable to tell an administrator why a
+     * message did not arrive. Callers that record or display results should use
+     * this instead.
+     *
+     * @return an outcome whose {@code reason} is safe to store and show
+     */
+    public SmsService.SendOutcome sendSmsWithOutcome(String toPhone, String body, String clientId) {
+        String normalized = normalizePhone(toPhone);
+        if (normalized == null) {
+            // Previously this returned silently with no log at any level, which is
+            // the quietest way a recipient can vanish from a send.
+            log.warn("SMS skipped — '{}' is not a usable phone number (clientId={})", toPhone, clientId);
+            return SmsService.SendOutcome.fail("Not a usable phone number: " + toPhone);
         }
-        boolean sent = smsService.send(toPhone, body);
-        if (sent && clientId != null && !clientId.isBlank()) {
-            subscriptionService.recordSmsSent(clientId);
+        if (!smsService.isConfigured()) {
+            log.warn("SMS to {} skipped — SmsService not configured", normalized);
+            return SmsService.SendOutcome.fail("SMS provider not configured");
         }
-        return sent;
+        // The allowance is enforced and recorded inside SmsService (see smsWithQuota);
+        // an exhausted plan comes back as a failed outcome carrying
+        // SmsService.ALLOWANCE_SPENT_MSG, which callers already store and display.
+        return smsService.sendForClient(clientId, normalized, body);
+    }
+
+    /** True while this client still has SMS allowance left on its plan. */
+    public boolean hasSmsAllowance(String clientId) {
+        return clientId == null || clientId.isBlank() || subscriptionService.canSendSms(clientId);
     }
 
     // ── Public helpers ─────────────────────────────────────────────────────────
@@ -177,7 +206,7 @@ public class WhatsAppSenderService {
             if (doSms && smsService.isConfigured()) {
                 String body = resolveMessageNoSettings(message, clientId);
                 for (String phone : phones) {
-                    smsService.send(phone, body);
+                    smsService.sendForClient(clientId, phone, body);
                 }
             } else {
                 log.debug("WhatsApp/SMS skipped for clientId={} — no credentials configured", clientId);
@@ -228,7 +257,7 @@ public class WhatsAppSenderService {
             }
         } else {
             if (doSms && smsService.isConfigured()) {
-                smsService.send(normalized, resolveMessageNoSettings(message, clientId));
+                smsService.sendForClient(clientId, normalized, resolveMessageNoSettings(message, clientId));
             } else {
                 log.debug("WhatsApp/SMS to {} skipped — no credentials configured", normalized);
             }
@@ -614,12 +643,17 @@ public class WhatsAppSenderService {
      *   <li>Anything else (null, blank, wrong length) → {@code null} (skip).</li>
      * </ul>
      */
+    /**
+     * Delegates to {@link PhoneNumbers#toE164}, which is the single definition shared with
+     * the opt-in records and the send boundary.
+     *
+     * <p>The local version this replaced accepted only {@code +…} or exactly ten bare
+     * digits, so it rejected both {@code 19135550100} (a country code without the plus —
+     * the most common way people type their number) and {@code (913) 555-0100}, and every
+     * such recipient was skipped with nothing but a debug line to show for it.
+     */
     private String normalizePhone(String phone) {
-        if (phone == null || phone.isBlank()) return null;
-        String trimmed = phone.trim();
-        if (trimmed.startsWith("+")) return trimmed;                 // already E.164
-        if (trimmed.matches("\\d{10}")) return "+1" + trimmed;       // US 10-digit
-        return null;                                                 // unrecognised format
+        return PhoneNumbers.toE164(phone);
     }
 
     private boolean credentialsValid(WhatsAppSettings s) {

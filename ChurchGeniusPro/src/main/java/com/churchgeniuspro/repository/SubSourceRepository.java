@@ -49,4 +49,16 @@ public interface SubSourceRepository extends JpaRepository<SubSource, Integer> {
     /** Duplicate-check on update (excluding the record being updated). */
     boolean existsBySourceNameIgnoreCaseAndDeleteFlagFalseAndMainSource_IdAndIdNot(
             String sourceName, Integer mainSourceId, Integer id);
+
+    /**
+     * Finds an active sub-source by exact name (case-insensitive), scoped to
+     * a church. Used to find-or-create the default "Online Donations"
+     * sub-source a posted donation is filed under. Financial audit H9.
+     */
+    java.util.Optional<SubSource> findFirstBySourceNameIgnoreCaseAndAppClientIdAndDeleteFlagFalse(
+            String sourceName, String appClientId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<SubSource> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

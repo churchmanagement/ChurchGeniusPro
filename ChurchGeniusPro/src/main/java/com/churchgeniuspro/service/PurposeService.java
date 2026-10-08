@@ -52,7 +52,7 @@ public class PurposeService {
     @Transactional
     public Purpose update(Integer id, String purposeName, String appClientId) {
         String name = purposeName.trim();
-        Purpose p = findOrThrow(id);
+        Purpose p = findOrThrow(id, appClientId);
         // Duplicate check scoped to this church only
         if (repo.existsByPurposeNameIgnoreCaseAndDeleteFlagFalseAndAppClientIdAndIdNot(
                 name, appClientId, id)) {
@@ -65,8 +65,8 @@ public class PurposeService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        Purpose p = findOrThrow(id);
+    public void delete(Integer id, String appClientId) {
+        Purpose p = findOrThrow(id, appClientId);
         p.setDeleteFlag(true);
         repo.save(p);
     }
@@ -80,8 +80,9 @@ public class PurposeService {
         return m;
     }
 
-    private Purpose findOrThrow(Integer id) {
-        return repo.findById(id)
+    /** Tenant-scoped: another church's id is reported exactly like an unknown id. */
+    private Purpose findOrThrow(Integer id, String appClientId) {
+        return repo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Purpose not found: " + id));
     }
 }

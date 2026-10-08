@@ -58,7 +58,7 @@ public class GroupController {
         }
         String deny = RoleGuard.requireAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "admin.groups");
+        deny = RoleGuard.requirePagePermission(request, "admin.groups");
         if (deny != null) return deny;
         return "forward:/group.html";
     }
@@ -78,13 +78,14 @@ public class GroupController {
     @PostMapping("/api/groups")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.groups.edit");
+        String deny = groupsPageGuard(request, "admin.groups.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String groupName = body.get("groupName");
         if (groupName == null || groupName.isBlank()) {
             return bad("Group name is required.");
         }
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
             Group saved = groupService.create(groupName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -100,14 +101,16 @@ public class GroupController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                       @RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.groups.edit");
+        String deny = groupsPageGuard(request, "admin.groups.edit");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String groupName = body.get("groupName");
         if (groupName == null || groupName.isBlank()) {
             return bad("Group name is required.");
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            Group saved = groupService.update(id, groupName);
+            Group saved = groupService.update(id, groupName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -120,10 +123,12 @@ public class GroupController {
     @DeleteMapping("/api/groups/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.groups.delete");
+        String deny = groupsPageGuard(request, "admin.groups.delete");
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            groupService.delete(id);
+            groupService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -134,5 +139,21 @@ public class GroupController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    /**
+     * Same role gate as the {@code /groups} page route: member-portal sessions need
+     * the {@code admin.groups} member permission; staff must be Admin / SuperAdmin
+     * with {@code permKey} enabled. Package-private so GroupMemberController shares it.
+     */
+    static String groupsPageGuard(HttpServletRequest request, String permKey) {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        boolean isMember = session != null
+                && "Member".equals(session.getAttribute("role"))
+                && session.getAttribute("memberId") != null;
+        if (isMember) return RoleGuard.requireMemberPermission(request, "admin.groups");
+        String deny = RoleGuard.requireAdmin(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, permKey);
     }
 }

@@ -48,6 +48,10 @@
   td { padding:9px 10px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
   .dir { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; }
   .dir-INCOME{background:#e8f5e9;color:#2e7d32;} .dir-EXPENSE{background:#fdecea;color:#c62828;}
+  .dir-REFUND{background:#ede7f6;color:#5e35b1;}
+  .err { font-size:11px; color:#c62828; font-weight:600; }
+  .needs-attn { display:inline-block; margin-left:10px; font-size:12px; font-weight:600; color:#c62828;
+    background:#fdecea; padding:4px 10px; border-radius:14px; cursor:pointer; border:1px solid #f8c4c0; }
   .map select { display:block; margin-bottom:5px; width:100%; max-width:190px; }
   .bulkbar { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--border); padding:10px 18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   /* ── Per-bank transaction groups ── */
@@ -75,21 +79,40 @@
           <h1>&#127974; Bank Sync — Review Transactions</h1>
           <button class="btn btn-primary" id="connectBtn" onclick="connectBank()">+ Connect a bank</button>
         </div>
+        <!-- Shown only for Trial tenants, which the server confines to the Plaid
+             sandbox. Display only: the binding is server-side. -->
+        <div id="sandboxBanner" hidden
+             style="margin:0 0 16px;padding:12px 14px;border-radius:8px;background:#fff7ed;
+                    border:1px solid #fed7aa;color:#7c2d12;font-size:14px;line-height:1.5;">
+          <strong>Test mode (Plaid Sandbox).</strong>
+          Trial and demo accounts connect to Plaid&#39;s test banks only &mdash; real bank
+          accounts cannot be linked. Use any sandbox institution with username
+          <code>user_good</code> and password <code>pass_good</code>.
+          Upgrade to connect a real bank.
+        </div>
   <!-- Connected banks -->
   <div class="card">
     <div class="card-head"><span class="card-title">Connected Banks</span>
+      <span id="acctLimit" class="muted" style="margin-left:auto;margin-right:12px;font-size:13px;"></span>
       <button class="btn btn-secondary btn-sm" onclick="loadItems()">Refresh</button></div>
+    <!-- Plan limit on connected accounts. Existing connections are never removed by a
+         downgrade: a church over its limit keeps every account and is told how to get
+         back within it. Display only; the server enforces it on link-token and exchange. -->
+    <div id="acctLimitNote" hidden
+         style="margin:0 16px;padding:10px 14px;border-radius:8px;background:#fff7ed;
+                border:1px solid #fed7aa;color:#7c2d12;font-size:13px;line-height:1.5;"></div>
     <div class="card-body"><div class="banks" id="banks"><span class="muted">Loading…</span></div></div>
   </div>
 
   <!-- Review queue -->
   <div class="card">
     <div class="card-head">
-      <span class="card-title">Review Queue</span>
+      <span class="card-title">Review Queue</span><span id="needsAttn" class="needs-attn" hidden onclick="showAttention()"></span>
       <div class="filters">
         <label class="muted">Status
           <select id="fStatus" onchange="loadTxns(true)">
             <option value="PENDING" selected>Pending</option>
+            <option value="ERROR">Needs attention</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
             <option value="">All</option>
@@ -99,14 +122,15 @@
             <option value="">All</option>
             <option value="INCOME">Income</option>
             <option value="EXPENSE">Expense</option>
+            <option value="REFUND">Refund</option>
           </select></label>
       </div>
     </div>
     <div id="txnGroups"><div class="muted" style="padding:16px 18px;">Loading…</div></div>
     <div class="bulkbar">
       <span class="muted" id="selCount">0 selected</span>
-      <button class="btn btn-approve btn-sm" onclick="bulk('approve')">Approve selected</button>
-      <button class="btn btn-reject btn-sm" onclick="bulk('reject')">Reject selected</button>
+      <button class="btn btn-approve btn-sm" id="bulkApproveBtn" onclick="bulk('approve')">Approve selected</button>
+      <button class="btn btn-reject btn-sm" id="bulkRejectBtn" onclick="bulk('reject')">Reject selected</button>
     </div>
   </div>
       </div><!-- .wrap -->
@@ -172,11 +196,48 @@ async function connectBank(){
   handler.open();
 }
 
+// ── Plan limit on connected accounts ─────────────────────────────────────
+// "3 of 3 connected" next to the heading; a note under it when the church is at or
+// over the limit (e.g. downgraded from Pro with 10 accounts to Standard's 3 — the 10
+// stay, nothing new can be added until it is back within 3). Connect is disabled
+// at/over the limit so nobody opens Plaid Link only to be refused at the end.
+function renderAccountLimit(connected, limit){
+  var tag = document.getElementById('acctLimit'), note = document.getElementById('acctLimitNote'),
+      btn = document.getElementById('connectBtn');
+  connected = connected || 0;
+  if (limit == null) {                       // unlimited
+    tag.textContent = connected + ' account' + (connected === 1 ? '' : 's') + ' connected';
+    note.hidden = true; if (btn) { btn.disabled = false; btn.title = ''; }
+    return;
+  }
+  tag.textContent = connected + ' of ' + limit + ' bank account' + (limit === 1 ? '' : 's') + ' connected';
+  var atLimit = connected >= limit;
+  if (limit === 0) {
+    note.innerHTML = '<strong>Bank Sync is not included in your plan.</strong> Upgrade your subscription to connect a bank account.';
+  } else if (connected > limit) {
+    note.innerHTML = '<strong>Over your plan limit.</strong> Your plan allows up to ' + limit + ' connected bank account' + (limit === 1 ? '' : 's')
+      + ' and you have ' + connected + '. Nothing has been disconnected, but no new accounts can be added until you disconnect '
+      + (connected - limit) + ' or upgrade your plan.';
+  } else if (atLimit) {
+    note.innerHTML = '<strong>Plan limit reached.</strong> Your plan allows up to ' + limit + ' connected bank account' + (limit === 1 ? '' : 's')
+      + '. Disconnect one or upgrade your plan to connect another.';
+  } else {
+    note.innerHTML = 'Your plan allows up to ' + limit + ' connected bank account' + (limit === 1 ? '' : 's')
+      + ' — ' + (limit - connected) + ' more can be added. Each account you select in the bank login counts.';
+  }
+  note.hidden = false;
+  if (btn) { btn.disabled = atLimit; btn.title = atLimit ? 'Plan limit reached' : ''; }
+}
+
 // ── Connected banks ──────────────────────────────────────────────────────
 async function loadItems(){
   var res = await api('/api/plaid/items');
   var el = document.getElementById('banks');
   if(!res.ok){ el.innerHTML='<span class="muted">'+esc(res.d.message||'Unable to load.')+'</span>'; return; }
+  // Trial and demo tenants are sandbox-confined server-side; reflect that in the page.
+  var banner = document.getElementById('sandboxBanner');
+  if (banner) banner.hidden = !res.d.sandbox;
+  renderAccountLimit(res.d.connectedAccounts, res.d.accountLimit);
   var items = res.d.items||[];
   if(!items.length){ el.innerHTML='<span class="muted">No banks connected yet.</span>'; return; }
   ACCT_MAP = {};
@@ -191,6 +252,9 @@ async function loadItems(){
     return '<div class="bank"><strong>'+esc(it.institutionName||it.institutionId||'Bank')+'</strong>'
       +'<div class="muted">'+esc(accts||'—')+'</div>'
       +'<span class="st st-'+esc(it.status)+'">'+esc(it.status||'')+'</span> '
+      +(it.plaidEnv === 'sandbox'
+          ? '<span class="st" style="background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa;">SANDBOX</span> '
+          : '')
       +'<button class="btn btn-secondary btn-sm" onclick="syncNow('+it.id+')">Sync now</button> '
       +'<button class="btn btn-danger btn-sm" onclick="deleteBank('+it.id+', \''+esc(it.institutionName||it.institutionId||'this bank').replace(/'/g,'')+'\')">Delete</button></div>';
   }).join('');
@@ -226,12 +290,30 @@ async function deleteBank(id, name){
 async function loadLookups(){ var res=await api('/api/plaid/review/lookups'); if(res.ok){ LOOKUPS=res.d; } }
 // resetPaging=true (filter change / first load) collapses every bank back to the
 // first 10 rows; otherwise the per-bank "Load More" state is preserved.
+// Rows synced from the bank with an amount Plaid didn't send us anything
+// readable for (financial audit M8) land in ERROR, not PENDING — so they
+// would otherwise be invisible under the default "Pending" filter. This
+// keeps a standing, always-visible count regardless of which filter is
+// currently selected, so one never goes unnoticed.
+async function checkAttention(){
+  var badge=document.getElementById('needsAttn');
+  var res=await api('/api/plaid/review?status=ERROR&direction=');
+  if(!res.ok) return;
+  var n=(res.d.transactions||[]).length;
+  if(n>0){ badge.hidden=false; badge.textContent='⚠ '+n+' need'+(n===1?'s':'')+' attention'; }
+  else { badge.hidden=true; }
+}
+function showAttention(){
+  document.getElementById('fStatus').value='ERROR';
+  loadTxns(true);
+}
 async function loadTxns(resetPaging){
   var status=document.getElementById('fStatus').value, dir=document.getElementById('fDir').value;
   var res=await api('/api/plaid/review?status='+encodeURIComponent(status)+'&direction='+encodeURIComponent(dir));
   var box=document.getElementById('txnGroups');
   if(!res.ok){ box.innerHTML='<div class="muted" style="padding:16px 18px;">'+esc(res.d.message||'Unable to load.')+'</div>'; return; }
   TXNS=res.d.transactions||[];
+  checkAttention();
 
   // Group by connected bank account, preserving the API's newest-first order.
   var byKey={}; GROUPS=[];
@@ -308,36 +390,44 @@ function opts(list, sel, idKey, nameKey){
   }).join('');
 }
 function mappingCell(t){
-  var isPending = (t.status==='PENDING');
-  if(!isPending) return '<span class="muted">—</span>';
+  var isActionable = (t.status==='PENDING' || t.status==='ERROR');
+  if(!isActionable) return '<span class="muted">—</span>';
   if(t.direction==='EXPENSE'){
     return '<div class="map">'
       +'<select onchange="save('+t.id+',{mappedPurposeId:this.value})">'+opts(LOOKUPS.expensePurposes||[],t.mappedPurposeId,'id','purposeName')+'</select>'
       +'<select onchange="save('+t.id+',{mappedMainSourceId:this.value})">'+opts(LOOKUPS.expenseFunds||[],t.mappedMainSourceId,'id','sourceName')+'</select>'
       +'<select onchange="save('+t.id+',{mappedTransactionTypeId:this.value})">'+opts(LOOKUPS.methods||[],t.mappedTransactionTypeId,'id','name')+'</select></div>';
   }
+  if(t.direction==='REFUND'){
+    return '<span class="muted">No mapping needed — a refund is not posted to your ledger.</span>';
+  }
   return '<div class="map">'
     +'<select onchange="save('+t.id+',{mappedSubSourceId:this.value})">'+opts(LOOKUPS.incomeFunds||[],t.mappedSubSourceId,'id','sourceName')+'</select>'
     +'<select onchange="save('+t.id+',{mappedTransactionTypeId:this.value})">'+opts(LOOKUPS.methods||[],t.mappedTransactionTypeId,'id','name')+'</select></div>';
 }
 function renderRow(t){
-  var isPending=(t.status==='PENDING');
-  var actions = isPending
-    ? '<button class="btn btn-approve btn-sm" onclick="approve('+t.id+')" '+(t.pending?'disabled title="Still pending at bank"':'')+'>Approve</button> '
-      +'<button class="btn btn-reject btn-sm" onclick="reject('+t.id+')">Reject</button>'
+  var isActionable=(t.status==='PENDING' || t.status==='ERROR');
+  var actions = isActionable
+    ? '<button class="btn btn-approve btn-sm" id="appr-'+t.id+'" onclick="approve('+t.id+')" '+(t.pending?'disabled title="Still pending at bank"':'')+'>Approve</button> '
+      +'<button class="btn btn-reject btn-sm" id="rej-'+t.id+'" onclick="reject('+t.id+')">Reject</button>'
     : '<span class="dir dir-'+(t.status==='APPROVED'?'INCOME':'EXPENSE')+'">'+esc(t.status)+'</span>';
-  var desc = isPending
+  var desc = isActionable
     ? '<input type="text" value="'+esc(t.description||t.name||'')+'" style="width:170px" onchange="save('+t.id+',{description:this.value})">'
     : esc(t.description||t.name||'');
-  var dir = isPending
-    ? '<select onchange="save('+t.id+',{direction:this.value},true)"><option value="INCOME"'+(t.direction==='INCOME'?' selected':'')+'>Income</option><option value="EXPENSE"'+(t.direction==='EXPENSE'?' selected':'')+'>Expense</option></select>'
+  var dir = isActionable
+    ? '<select onchange="save('+t.id+',{direction:this.value},true)">'
+      +'<option value="">— select —</option>'
+      +'<option value="INCOME"'+(t.direction==='INCOME'?' selected':'')+'>Income</option>'
+      +'<option value="EXPENSE"'+(t.direction==='EXPENSE'?' selected':'')+'>Expense</option>'
+      +'<option value="REFUND"'+(t.direction==='REFUND'?' selected':'')+'>Refund (not posted to ledger)</option></select>'
     : '<span class="dir dir-'+esc(t.direction)+'">'+esc(t.direction)+'</span>';
-  var amt = isPending
-    ? '<input type="number" step="0.01" min="0" value="'+esc(t.amount)+'" style="width:90px" onchange="save('+t.id+',{amount:this.value})">'
+  var amt = isActionable
+    ? '<input type="number" step="0.01" min="0.01" value="'+esc(t.amount)+'" style="width:90px" onchange="save('+t.id+',{amount:this.value})">'
     : money(t.amount);
+  var flag = t.status==='ERROR' ? '<div class="err">⚠ couldn\'t read amount — enter it below</div>' : (t.pending?'<div class="pend">pending</div>':'');
   return '<tr id="row-'+t.id+'">'
-    +'<td>'+(isPending?'<input type="checkbox" class="rowchk" value="'+t.id+'" onchange="updateCount()">':'')+'</td>'
-    +'<td style="white-space:nowrap">'+esc(fmtDate(t.txnDate))+(t.pending?'<div class="pend">pending</div>':'')+'</td>'
+    +'<td>'+(isActionable?'<input type="checkbox" class="rowchk" value="'+t.id+'" onchange="updateCount()">':'')+'</td>'
+    +'<td style="white-space:nowrap">'+esc(fmtDate(t.txnDate))+flag+'</td>'
     +'<td>'+desc+'<div class="muted">'+esc(t.merchantName||'')+(t.plaidCategory?' · '+esc(t.plaidCategory):'')+'</div></td>'
     +'<td>'+dir+'</td><td>'+amt+'</td><td>'+mappingCell(t)+'</td><td style="white-space:nowrap">'+actions+'</td></tr>';
 }
@@ -348,13 +438,48 @@ async function save(id, patch, rerender){
   var t=TXNS.find(function(x){return x.id===id;}); if(t&&res.d.transaction) Object.assign(t,res.d.transaction);
   if(rerender){ var tr=document.getElementById('row-'+id); if(tr&&t) tr.outerHTML=renderRow(t); }
 }
+// Financial audit M6: the button itself has no in-flight guard, so a
+// double-click (or two reviewers clicking the same row moments apart) can
+// fire two requests before either response comes back. The server-side
+// atomic claim (PlaidReviewService) is what actually keeps that safe — this
+// is just so the second click doesn't fire at all, or land on a row whose
+// buttons have already been replaced by a status badge.
+function setRowBusy(id, busy){
+  var a=document.getElementById('appr-'+id), r=document.getElementById('rej-'+id);
+  if(a) a.disabled=busy;
+  if(r) r.disabled=busy;
+}
 async function approve(id){
-  var res=await api('/api/plaid/review/'+id+'/approve', {method:'POST'});
-  if(res.ok){ toast('Approved.', true); loadTxns(); } else { toast(res.d.message||'Could not approve.'); }
+  setRowBusy(id, true);
+  try {
+    var res=await api('/api/plaid/review/'+id+'/approve', {method:'POST'});
+    if(res.ok){ toast('Approved.', true); loadTxns(); return; }
+    // Financial audit H8: the ledger already has an active row for this date and
+    // amount (posted manually or through the other import channel). Let the
+    // reviewer confirm it's a genuinely separate transaction before overriding.
+    if(res.d && res.d.duplicate && !res.d.duplicate.hard){
+      var d=res.d.duplicate;
+      var msg='A possible duplicate already exists — '+d.type+' on '+d.date
+            +' for $'+Math.abs(Number(d.amount)).toFixed(2)+'. Approve anyway?';
+      if(confirm(msg)){
+        var res2=await api('/api/plaid/review/'+id+'/approve', {method:'POST', body:JSON.stringify({force:true})});
+        if(res2.ok){ toast('Approved.', true); loadTxns(); return; } else { toast(res2.d.message||'Could not approve.'); }
+      }
+      return;
+    }
+    toast(res.d.message||'Could not approve.');
+  } finally {
+    setRowBusy(id, false);
+  }
 }
 async function reject(id){
-  var res=await api('/api/plaid/review/'+id+'/reject', {method:'POST'});
-  if(res.ok){ toast('Rejected.', true); loadTxns(); } else { toast(res.d.message||'Could not reject.'); }
+  setRowBusy(id, true);
+  try {
+    var res=await api('/api/plaid/review/'+id+'/reject', {method:'POST'});
+    if(res.ok){ toast('Rejected.', true); loadTxns(); } else { toast(res.d.message||'Could not reject.'); }
+  } finally {
+    setRowBusy(id, false);
+  }
 }
 function checkedIds(){ return Array.prototype.slice.call(document.querySelectorAll('.rowchk:checked')).map(function(c){return Number(c.value);}); }
 function toggleGroup(cb, key){
@@ -366,12 +491,18 @@ function updateCount(){ document.getElementById('selCount').textContent=checkedI
 async function bulk(action){
   var ids=checkedIds();
   if(!ids.length){ toast('Select at least one transaction.'); return; }
-  var res=await api('/api/plaid/review/bulk', {method:'POST', body:JSON.stringify({ids:ids, action:action})});
-  if(res.ok){
-    var msg=res.d.processed+' '+action+(action==='approve'?'d':'ed');
-    if(res.d.skipped && res.d.skipped.length) msg+=', '+res.d.skipped.length+' skipped (missing category)';
-    toast(msg+'.', true); loadTxns();
-  } else { toast(res.d.message||'Bulk action failed.'); }
+  var ab=document.getElementById('bulkApproveBtn'), rb=document.getElementById('bulkRejectBtn');
+  if(ab) ab.disabled=true; if(rb) rb.disabled=true;
+  try {
+    var res=await api('/api/plaid/review/bulk', {method:'POST', body:JSON.stringify({ids:ids, action:action})});
+    if(res.ok){
+      var msg=res.d.processed+' '+action+(action==='approve'?'d':'ed');
+      if(res.d.skipped && res.d.skipped.length) msg+=', '+res.d.skipped.length+' skipped (missing category)';
+      toast(msg+'.', true); loadTxns();
+    } else { toast(res.d.message||'Bulk action failed.'); }
+  } finally {
+    if(ab) ab.disabled=false; if(rb) rb.disabled=false;
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────

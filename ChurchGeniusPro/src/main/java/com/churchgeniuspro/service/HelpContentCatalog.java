@@ -256,6 +256,141 @@ public class HelpContentCatalog {
             list("Open Certificates.", "Choose a template and recipient.", "Generate and print."),
             null, "1.0", list("v1.0 — Initial release."), list("certificate","baptism","award","print certificate")));
 
+        // ── Added 2026-10-07: every feature in the product has an article, so the assistant
+        //    can explain a feature even when this user cannot open it. ──
+        add(new HelpArticle("ticketing", "Support", "Ticketing — Support Tickets", "more.ticketing", false,
+            "Raise a support ticket with the ChurchGeniusPro team from inside the app and follow it by email.",
+            "Ticketing (More → Ticketing) lets staff send a support request to ChurchGeniusPro: a subject, description, urgency and your contact details. You receive a reference number and email updates; the support team sees your church, plan and logged-in user so they can help faster. Administrators can switch it on or off per login under Users → permissions (member logins need it switched on). On a Trial account support may be limited during the trial.",
+            list("Open More → Ticketing.", "Click New Ticket, choose the urgency and describe the problem.", "Submit — you get a reference number and a confirmation email.", "Reply to the email or open the ticket again to add details."),
+            list("Problem: Ticketing is missing from the menu — Fix: an administrator must tick More → Ticketing for your login in Users → permissions."),
+            "1.0", list("v1.0 — Initial release."), list("ticket","ticketing","support ticket","support","raise a ticket","contact support")));
+
+        add(new HelpArticle("ai_assistant", "Support", "AI Assistant & AI Search", "more.aiassistant", false,
+            "Ask questions about your church data, find pages, get how-to help — by typing, voice or conversation.",
+            "The ✨ AI Search bar on every page and the AI Assistant chat page (More → AI Assistant) answer questions from your own records (only what your role may see), navigate to pages (\"Go to the Income page\"), explain features and give how-to steps. Three modes: Type, Voice (🎤) and Converse (🗣, back-and-forth). On Income, Expense and Meeting screens the AI can also fill in the form from a spoken or typed sentence. AI features need the church's AI service to be configured and the login's AI Assistant permission.",
+            list("Type a question in the ✨ bar, or open More → AI Assistant for a chat window.", "Say or type \"Go to …\" to open a page.", "Ask data questions such as \"What was the income for March?\" or \"Whose birthday is this week?\"."),
+            list("Problem: the assistant says a feature is not enabled — Fix: that page is outside your role, permissions or plan; an administrator can change it."),
+            "1.1", list("v1.1 — Chat-style AI Assistant page; feature questions answered for every feature.", "v1.0 — AI Search bar with Type / Voice / Converse."),
+            list("ai","assistant","ai search","voice","converse","ask")));
+
+        add(new HelpArticle("donation_give", "Accounting", "Donation / Give — Online Giving", "accounting.donation", false,
+            "Online donations from the public donation page and member contributions from the Member Portal, paid through the church's Stripe account.",
+            "Connect the church's Stripe account under Admin → Stripe Integration. Public Screens then gives you a donation page link; members can also pay a contribution in the Member Portal (Give). Accounting → Donation/Give lists both — a Donations tab and a Member Contributions tab — with Stripe fees, the amount remaining, and a Pending / Completed review mark. Each payment is also posted to Income automatically.",
+            list("Admin → Stripe Integration: enter the church's Stripe keys and test the connection.", "Share the donation page link from Public Screens.", "Review payments under Accounting → Donation/Give; use Mark Completed when reconciled."),
+            list("Problem: Online giving is not set up — Fix: add the Stripe keys under Stripe Integration (SuperAdmin/Admin)."),
+            "1.1", list("v1.1 — Member Contributions tab; Pending/Completed review.", "v1.0 — Donation review."),
+            list("donation","donations","give","giving","online giving","stripe","member contributions","donation review")));
+
+        add(new HelpArticle("member_portal", "Members", "Member Portal", null, false,
+            "What members see when they sign in: family, giving, groups, classes, volunteering, directory, song book and messages.",
+            "Members sign in to the Member Portal (public Member Signup link, approved by the church). It has My Family (own details), Give / Contributions (online giving and statements), Groups, Classes (Sunday School), Volunteer, Directory (respecting privacy settings), Song Book and messages. Administrators approve new logins from Membership Requests or Users. There are also a Church Portal (church-level account), a Staff Portal and a Kids Portal.",
+            list("Share the Member Signup link from Public Screens.", "Approve the login from Membership Requests (login account) or Users.", "Members open /memberHome and use the tabs."),
+            null, "1.0", list("v1.0 — Initial release."), list("member portal","portal","member login","member signup","kids portal","church portal","staff portal")));
+
+        add(new HelpArticle("membership_requests", "Members", "Membership Requests", "admin.membership", false,
+            "Collect membership applications online and review every submitted detail before adding or renewing a family.",
+            "Share the public Membership Form link (Public Screens). Each application lists the family address, phone and email, and for every member the name, nickname, gender, date of birth, wedding anniversary, contact details with privacy choices, own address and photo. Review it under Admin → Membership Requests and click Add as Member (new) or Approve (renewal of an existing family). A login account requested on the form can be approved there too.",
+            list("Open Admin → Membership Requests.", "Click an application to see every submitted field.", "Click Add as Member, or Approve for an existing family."),
+            null, "1.1", list("v1.1 — Full review screen with every submitted field.", "v1.0 — Initial release."), list("membership request","membership form","application","apply","renewal")));
+
+        add(new HelpArticle("pledges", "Accounting", "Pledges", "accounting.pledges", false,
+            "Run pledge campaigns and track each member's pledge against what they have given.",
+            "Create a campaign with a goal and dates, record each member's pledge, and follow progress as contributions come in. Members can see their pledges in the Member Portal.",
+            list("Open Accounting → Pledges.", "Create a campaign.", "Add member pledges and watch the progress."),
+            null, "1.0", list("v1.0 — Initial release."), list("pledge","pledges","campaign")));
+
+        add(new HelpArticle("bank_sync", "Accounting", "Bank Sync (Connect a Bank Account)", "accounting.bankimport", false,
+            "Connect bank accounts and pull in new transactions to review and add as income or expense.",
+            "Bank Sync (Accounting → Bank Sync) connects one or more bank accounts through Plaid and brings in new transactions, which you review and add with their details. Trial accounts connect a sandbox (test) bank; the Standard plan allows up to 3 connected accounts. Bank Import (statement file) is the alternative when you prefer not to connect an account.",
+            list("Open Accounting → Bank Sync.", "Click Connect and follow the bank's sign-in.", "Review the imported transactions and add the ones you want."),
+            list("Problem: the bank is not listed — Fix: on a trial only the sandbox bank is available; convert the account to a paid plan."),
+            "1.0", list("v1.0 — Initial release."), list("bank sync","connect bank","plaid","bank account","sync")));
+
+        add(new HelpArticle("worship_planning", "Ministry", "Worship Planning", "general.ministry", false,
+            "Worship groups, instruments, songs and automatically generated assignments.",
+            "Set up worship groups and instruments, add songs, then generate assignments for a date range. Skip specific dates and the order numbers keep counting correctly for the remaining dates. Members see their assignments in the Member Portal.",
+            list("Open General → Worship Planning.", "Create groups and add members and instruments.", "Generate assignments for the season; mark any dates to skip."),
+            null, "1.0", list("v1.0 — Initial release."), list("worship","worship planning","assignments","worship team")));
+
+        add(new HelpArticle("song_book", "Ministry", "Song Book & Song Book Access", "general.ministry", false,
+            "Upload and organise songs and publish a public Song Book page.",
+            "Upload songs (More → Song Book), finalise the list, and share the public Song Book link. Song Book Access controls which logins may edit it.",
+            list("Open More → Song Book and upload songs.", "Finalise the list.", "Share the public Song Book page; manage editors under Song Book Access."),
+            null, "1.0", list("v1.0 — Initial release."), list("song book","songbook","songs","hymns")));
+
+        add(new HelpArticle("sunday_school", "Ministry", "Sunday School", "general.ministry", false,
+            "Classes, teachers, lessons, exams and student progress.",
+            "Under General → Ministry, set up Sunday School classes, assign teachers, publish lessons and exams. Students and parents see classes and results in the Member Portal (Classes tab); teachers manage their classes from the portal too.",
+            list("Open General → Ministry → Sunday School.", "Create a class and assign a teacher.", "Add students; publish lessons and exams."),
+            null, "1.0", list("v1.0 — Initial release."), list("sunday school","class","teacher","lesson","exam")));
+
+        add(new HelpArticle("stripe_integration", "Admin", "Stripe Integration", null, true,
+            "Connect the church's own Stripe account for online giving.",
+            "Admin → Stripe Integration stores the church's Stripe publishable and secret keys (separate from ChurchGeniusPro's own billing) and enables the public donation page and Member Portal giving. Use Test connection to confirm the keys. Payments are reviewed under Donation/Give.",
+            list("Create a Stripe account for the church.", "Enter the keys under Admin → Stripe Integration and test the connection.", "Share the donation page from Public Screens."),
+            null, "1.0", list("v1.0 — Initial release."), list("stripe","stripe keys","online giving setup","payment setup")));
+
+        add(new HelpArticle("whatsapp_integration", "Admin", "WhatsApp Integration", null, true,
+            "Connect a WhatsApp sender for member messaging.",
+            "Admin → WhatsApp Integration links a WhatsApp sender so messages to members can go out on WhatsApp as well as email/SMS.",
+            list("Open Admin → WhatsApp Integration.", "Enter the sender details and save."),
+            null, "1.0", list("v1.0 — Initial release."), list("whatsapp")));
+
+        add(new HelpArticle("email_settings", "Communications", "Email Settings & Trial Test Email", "general.emailsettings", false,
+            "Sender settings for church email; on Trial/Demo accounts the verified test address that receives all outgoing mail.",
+            "Email Settings holds the church's email sender details. Trial and Demo accounts never email real recipients: verify one test email address under Email Settings and every email action (bulk email, reminders, alerts) sends ONE test copy there, marked as a test email; the rest are counted as simulated. Unsubscribed people are listed under Admin → Unsubscribed List.",
+            list("Open Email Settings.", "On a trial: enter your test address, receive the code, verify it.", "Send a bulk email or reminder — one test copy arrives at the verified address."),
+            null, "1.1", list("v1.1 — Trial/Demo verified test email.", "v1.0 — Initial release."), list("email settings","test email","verified email","sender","unsubscribed")));
+
+        add(new HelpArticle("files_notes", "Admin", "Files & Notes", null, true,
+            "Upload files and keep notes for the church office.",
+            "Admin → Files & Notes stores documents and notes for the office team.",
+            list("Open Admin → Files & Notes.", "Upload a file or add a note."),
+            null, "1.0", list("v1.0 — Initial release."), list("files","notes","upload","documents")));
+
+        add(new HelpArticle("private_page_access", "Admin", "Private Page Access", null, true,
+            "Restrict Kids Ministry, Event Check-in and Temporary Login to the church's own network.",
+            "Admin → Private Page Access limits sensitive pages so they only work from the church's own Wi-Fi/network. Useful for check-in stations and temporary logins.",
+            list("Open Admin → Private Page Access.", "Choose the pages to restrict and the allowed network."),
+            null, "1.0", list("v1.0 — Initial release."), list("private page","private access","network restriction","ip restriction")));
+
+        add(new HelpArticle("temporary_access", "Admin", "Temporary Access & Badges", null, true,
+            "Time-limited logins for helpers with printable barcode badges.",
+            "Admin → Temporary Access creates a login that works for a set period, with a barcode badge you can print; NTAG (NFC) login is the tap-to-sign-in alternative.",
+            list("Open Admin → Temporary Access.", "Create the access with its validity period.", "Print the badge."),
+            null, "1.0", list("v1.0 — Initial release."), list("temporary access","temporary login","badge","access card","barcode")));
+
+        add(new HelpArticle("users_permissions", "Admin", "Users, Roles & Permissions", null, true,
+            "Staff logins, their roles, and the permission checkboxes that decide which pages each login sees.",
+            "Admin → Users manages staff logins. Roles: SuperAdmin (everything), Admin (administration and general), Accountant (accounting), User (general). The permission checkboxes control pages, menus and buttons for a login; data access follows the role. Opt-in features such as Ticketing and AI Assistant are ticked per login. You can link several church accounts and switch between them without signing out.",
+            list("Open Admin → Users.", "Add a user with a role, or edit permissions for an existing login.", "Use Link Accounts to join multiple church accounts."),
+            null, "1.0", list("v1.0 — Initial release."), list("users","permissions","roles","superadmin","admin","accountant","link accounts","switch account")));
+
+        add(new HelpArticle("favorites", "Help", "Favorites", null, false,
+            "Pin the pages you use most for one-click access.",
+            "Click the ⭐ next to a page in the left menu or on a listing page to add it to Favorites at the top of the menu.",
+            list("Find the page in the left menu.", "Click its ⭐."),
+            null, "1.0", list("v1.0 — Initial release."), list("favorites","favourite","star","pin page")));
+
+        add(new HelpArticle("install_app", "Help", "Install the App (Android & iPhone)", null, false,
+            "Add ChurchGeniusPro to your phone's home screen like an app.",
+            "ChurchGeniusPro works as an installable web app. Android (Chrome): menu ⋮ → Add to Home screen / Install app. iPhone (Safari): Share → Add to Home Screen. It then opens full-screen with its own icon.",
+            list("Android: open the site in Chrome, tap ⋮, then Install app / Add to Home screen.", "iPhone: open the site in Safari, tap Share, then Add to Home Screen."),
+            null, "1.0", list("v1.0 — Initial release."), list("install","app","home screen","android","iphone","pwa")));
+
+        add(new HelpArticle("plans_trial", "Account", "Subscription Plans & Trial Accounts", null, false,
+            "Trial, Free, Standard and Pro plans; what a trial includes and how to subscribe.",
+            "Plans: Trial (full access for the trial period), Free, Standard and Pro — each with monthly allowances for emails, SMS and online giving that reset every 30 days from the subscription start date, a maximum number of people and staff logins, and plan-specific features (for example Bank Sync is sandbox-only on a trial and capped at 3 accounts on Standard). Access closes on the subscription end date; reminders are emailed before. Trial accounts: a sample-data trial comes pre-filled and cannot be converted; an empty-account trial keeps its data when it converts to a paid plan. Use Request a subscription (from the trial notice or /subscriptionReq) to subscribe or change plan; the ChurchGeniusPro team confirms it and sends an invoice you can pay online.",
+            list("See your plan and usage under the account/subscription area.", "Request a subscription or plan change.", "Pay the invoice from the emailed link."),
+            list("Problem: a feature says it is not in your plan — Fix: request a plan change; the team can convert the account."),
+            "1.0", list("v1.0 — Initial release."), list("plan","plans","trial","subscription","free","standard","pro","pricing","allowance","limit","upgrade")));
+
+        add(new HelpArticle("guess_it", "Activity", "Guess It (Activity Corner)", null, false,
+            "A live quiz game members join from their phones.",
+            "Activity Corner → Guess It runs a group quiz: the host starts a session and members join from their phones and answer in real time.",
+            list("Open Activity Corner → Guess It.", "Start a session and let members join from their phones."),
+            null, "1.0", list("v1.0 — Initial release."), list("guess it","quiz","game","activity corner")));
+
         // ── Help & Assistant (everyone) ──
         add(new HelpArticle("help_assistant", "Help", "Using the AI Help Assistant", null, false,
             "Ask questions by text or voice and get answers, steps, and troubleshooting — within your permissions.",

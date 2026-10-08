@@ -12,8 +12,13 @@ import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.PasswordResetTokenRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.service.EmailService;
+import com.churchgeniuspro.service.LoginProtectionService;
 import com.churchgeniuspro.service.PasswordResetService;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.util.PasswordUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -52,6 +57,8 @@ import java.util.Map;
 @Controller
 public class ForgotPasswordController {
 
+    private static final Logger log = LoggerFactory.getLogger(ForgotPasswordController.class);
+
     private final LoginRepository              loginRepo;
     private final AppUserRepository            appUserRepo;
     private final ChurchRegistrationRepository churchRepo;
@@ -60,6 +67,7 @@ public class ForgotPasswordController {
     private final PasswordResetTokenRepository tokenRepo;
     private final EmailService                 emailService;
     private final PasswordResetService         passwordResetService;
+    private final LoginProtectionService       loginProtection;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -71,7 +79,9 @@ public class ForgotPasswordController {
                                     ServiceClientRepository serviceClientRepo,
                                     PasswordResetTokenRepository tokenRepo,
                                     EmailService emailService,
-                                    PasswordResetService passwordResetService) {
+                                    PasswordResetService passwordResetService,
+                                    LoginProtectionService loginProtection) {
+        this.loginProtection      = loginProtection;
         this.loginRepo            = loginRepo;
         this.appUserRepo          = appUserRepo;
         this.churchRepo           = churchRepo;
@@ -100,12 +110,29 @@ public class ForgotPasswordController {
      * Step 1: Validate username + email, generate token, send reset email.
      * Always returns HTTP 200 with a generic message to prevent
      * username / email enumeration attacks.
+     *
+     * <p>Two abuse controls apply here, neither of which can lock a real user out:
+     * a host already serving an IP-scope login block cannot pivot to the reset flow,
+     * and a per-account cooldown in {@link PasswordResetService} suppresses repeat
+     * emails (the previously sent link stays valid).
      */
     @ResponseBody
     @PostMapping("/api/forgot-password")
-    public ResponseEntity<Map<String, String>> requestReset(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> requestReset(@RequestBody Map<String, String> body,
+                                                            HttpServletRequest request) {
         String username = trim(body.get("username"));
         String email    = trim(body.get("email"));
+
+        // Refuse the reset flow to a host that is already blocked for login abuse.
+        // Keyed on IP only — never on the username, because blocking by username here
+        // would hand an attacker a way to deny the real owner their recovery path.
+        LoginProtectionService.GuardResult guard = loginProtection.check(request, null);
+        if (guard.blocked()) {
+            loginProtection.recordBlockedAttempt(request, username, "/api/forgot-password");
+            return ResponseEntity.status(429)
+                    .header("Retry-After", String.valueOf(guard.retryAfterSeconds()))
+                    .body(Map.of("error", LoginProtectionService.BLOCKED_MESSAGE));
+        }
 
         if (username == null || email == null) {
             return bad("Username and email are required.");
@@ -114,13 +141,11 @@ public class ForgotPasswordController {
         try {
             // findActiveByUsername handles rows where deleted IS NULL (not just false)
             SignUp user = loginRepo.findActiveByUsername(username).orElse(null);
-            System.out.println("[ForgotPassword] username='" + username + "' found=" + (user != null));
+            log.debug("[ForgotPassword] lookup found={}", user != null);
 
             if (user != null && Boolean.TRUE.equals(user.getActive())) {
-                System.out.println("[ForgotPassword] clientId='" + user.getClientId()
-                        + "' church=" + user.getChurch()
-                        + " active=" + user.getActive()
-                        + " deleted=" + user.getDeleted());
+                log.debug("[ForgotPassword] clientId={} church={} active={} deleted={}",
+                        user.getClientId(), user.getChurch(), user.getActive(), user.getDeleted());
 
                 // For Child members the "expected" email is the HoH email, and
                 // the reset link is sent to that HoH address (not the child's own).
@@ -128,37 +153,39 @@ public class ForgotPasswordController {
                 String sendToEmail     = resolveSendToEmail(user, actualEmail);
                 String serviceClientId = resolveServiceClientId(user);
 
-                System.out.println("[ForgotPassword] resolvedEmail='" + actualEmail
-                        + "' sendToEmail='" + sendToEmail
-                        + "' providedEmail='" + email
-                        + "' serviceClientId='" + serviceClientId + "'");
+                log.debug("[ForgotPassword] resolvedEmail={} sendTo={} provided={} serviceClientId={}",
+                        EmailMask.mask(actualEmail), EmailMask.mask(sendToEmail), EmailMask.mask(email), serviceClientId);
 
                 boolean emailMatches = actualEmail != null && actualEmail.equalsIgnoreCase(email);
                 boolean subscriptionOk = serviceClientId != null
                         && serviceClientRepo.isActiveSubscription(serviceClientId, LocalDate.now());
 
-                System.out.println("[ForgotPassword] emailMatches=" + emailMatches
-                        + " subscriptionOk=" + subscriptionOk);
+                log.debug("[ForgotPassword] emailMatches={} subscriptionOk={}", emailMatches, subscriptionOk);
 
                 if (emailMatches && subscriptionOk) {
-                    // Delegate to service so @Transactional is applied via Spring proxy
-                    String token     = passwordResetService.createToken(username, sendToEmail);
-                    String resetLink = baseUrl + "/resetPassword?token=" + token;
-                    String churchName = resolveChurchName(user);
-                    System.out.println("[ForgotPassword] Sending reset email to '" + sendToEmail + "'");
-                    // Email is sent AFTER the transaction commits (token is already in DB)
-                    emailService.sendGenericEmail(
-                            sendToEmail,
-                            "Password Reset — " + churchName,
-                            buildResetEmail(username, resetLink, churchName));
-                    System.out.println("[ForgotPassword] Email sent successfully.");
+                    // Delegate to service so @Transactional is applied via Spring proxy.
+                    // Returns null when a link was already emailed inside the cooldown —
+                    // that earlier link is still valid, so we simply send nothing.
+                    String token = passwordResetService.createToken(username, sendToEmail);
+                    if (token != null) {
+                        String resetLink = baseUrl + "/resetPassword?token=" + token;
+                        String churchName = resolveChurchName(user);
+                        log.info("[ForgotPassword] sending reset email to {}", EmailMask.mask(sendToEmail));
+                        // Email is sent AFTER the transaction commits (token is already in DB)
+                        // Account recovery: delivered whatever the tenant's plan says.
+                        emailService.sendAccountEmail(
+                                sendToEmail,
+                                "Password Reset — " + churchName,
+                                buildResetEmail(username, resetLink, churchName));
+                        log.info("[ForgotPassword] reset email sent");
+                    } else {
+                        log.info("[ForgotPassword] suppressed duplicate reset email (cooldown active)");
+                    }
                 }
             }
         } catch (Exception ex) {
             // Log but do not expose — always return the same generic message
-            System.err.println("[ForgotPassword] Error processing reset for user '"
-                    + username + "': " + ex.getMessage());
-            ex.printStackTrace();
+            log.error("[ForgotPassword] error processing reset request", ex);
         }
 
         // Generic response regardless of whether the username/email matched
@@ -205,6 +232,13 @@ public class ForgotPasswordController {
         prt.setUsed(true);
         tokenRepo.save(prt);
 
+        // Completing a reset proves control of the account's mailbox, so it clears this
+        // account's failure counters and releases any temporary block attached to the
+        // username. This is what keeps every block genuinely self-recoverable: a user
+        // caught behind one is never waiting on an administrator. Deliberately does not
+        // touch IP-scope blocks — those belong to the host, not to the account.
+        loginProtection.clearAccountCounters(prt.getUsername(), user.getClientId(), "PASSWORD_RESET");
+
         return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
     }
 
@@ -220,7 +254,8 @@ public class ForgotPasswordController {
             return ResponseEntity.ok(Map.of("valid", false,
                     "message", "This reset link is invalid or has expired."));
         }
-        return ResponseEntity.ok(Map.of("valid", true, "username", prt.getUsername()));
+        // The reset form does not need the login name; a token holder learning it is a free lookup.
+        return ResponseEntity.ok(Map.of("valid", true));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

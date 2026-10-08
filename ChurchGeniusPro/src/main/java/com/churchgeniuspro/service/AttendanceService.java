@@ -37,19 +37,22 @@ public class AttendanceService {
     private final MemberAttendanceCodeRepository  codeRepo;
     private final FamilyMemberRepository          memberRepo;
     private final VolunteerProfileRepository      volunteerRepo;
+    private final FamilyRepository                familyRepo;
 
     public AttendanceService(AttendanceRecordRepository recordRepo,
                              AttendanceVisitorRepository visitorRepo,
                              AttendanceServiceTypeRepository typeRepo,
                              MemberAttendanceCodeRepository codeRepo,
                              FamilyMemberRepository memberRepo,
-                             VolunteerProfileRepository volunteerRepo) {
+                             VolunteerProfileRepository volunteerRepo,
+                             FamilyRepository familyRepo) {
         this.recordRepo    = recordRepo;
         this.visitorRepo   = visitorRepo;
         this.typeRepo      = typeRepo;
         this.codeRepo      = codeRepo;
         this.memberRepo    = memberRepo;
         this.volunteerRepo = volunteerRepo;
+        this.familyRepo    = familyRepo;
     }
 
     private static final DateTimeFormatter D  = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -86,6 +89,9 @@ public class AttendanceService {
 
     // ── Member scan code (QR / barcode value) ───────────────────────────────────
     public String memberCode(String clientId, Integer memberId) {
+        // Never mint a code for a member of another church.
+        memberRepo.findByIdAndTenant(memberId, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found: " + memberId));
         return codeRepo.findByClientIdAndFamilyMemberId(clientId, memberId)
                 .map(MemberAttendanceCode::getCode)
                 .orElseGet(() -> {
@@ -147,15 +153,32 @@ public class AttendanceService {
         return mp;
     }
 
-    public List<Map<String, Object>> familyMembers(Integer familyId) {
-        return memberRepo.findActiveMembersByFamilyId(familyId).stream()
+    public List<Map<String, Object>> familyMembers(String clientId, Integer familyId) {
+        return activeFamilyMembers(clientId, familyId).stream()
                 .map(this::personMap).collect(Collectors.toList());
+    }
+
+    /** Members of a family that belongs to {@code clientId}; throws for an unknown or foreign family. */
+    private List<FamilyMember> activeFamilyMembers(String clientId, Integer familyId) {
+        if (clientId == null || familyId == null
+                || familyRepo.findByIdAndAppClientIdAndDeleteFlagFalse(familyId, clientId).isEmpty()) {
+            throw new IllegalArgumentException("Family not found: " + familyId);
+        }
+        return memberRepo.findActiveMembersByFamilyId(familyId);
+    }
+
+    /** Filter variant: a foreign/unknown family simply matches nothing. */
+    private List<FamilyMember> safeFamilyMembers(String clientId, Integer familyId) {
+        try { return activeFamilyMembers(clientId, familyId); }
+        catch (IllegalArgumentException ex) { return List.of(); }
     }
 
     // ── Check-in ────────────────────────────────────────────────────────────────
     /** Member check-in (idempotent per member+date+service). */
     public AttendanceRecord checkInMember(String clientId, String createdBy, Integer memberId, String name,
                                           String service, String ministry, String campus, String status, String method) {
+        memberRepo.findByIdAndTenant(memberId, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found: " + memberId));
         AttendanceRecord a = recordRepo.findDuplicate(clientId, LocalDate.now(), service, "MEMBER", memberId, null)
                 .orElseGet(AttendanceRecord::new);
         a.setClientId(clientId);
@@ -177,7 +200,7 @@ public class AttendanceService {
     public List<AttendanceRecord> familyCheckIn(String clientId, String createdBy, Integer familyId,
                                                 String service, String ministry, String campus, String status, List<Integer> memberIds) {
         List<AttendanceRecord> out = new ArrayList<>();
-        for (FamilyMember m : memberRepo.findActiveMembersByFamilyId(familyId)) {
+        for (FamilyMember m : activeFamilyMembers(clientId, familyId)) {
             if (memberIds != null && !memberIds.isEmpty() && !memberIds.contains(m.getId())) continue;
             out.add(checkInMember(clientId, createdBy, m.getId(), fullName(m), service, ministry, campus, status, "family"));
         }
@@ -431,7 +454,7 @@ public class AttendanceService {
         LocalDate f = from != null ? from : LocalDate.now().minusMonths(3);
         LocalDate t = to != null ? to : LocalDate.now();
         Set<Integer> familyMemberIds = familyId == null ? null :
-                memberRepo.findActiveMembersByFamilyId(familyId).stream().map(FamilyMember::getId).collect(Collectors.toSet());
+                safeFamilyMembers(clientId, familyId).stream().map(FamilyMember::getId).collect(Collectors.toSet());
         return recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(clientId, f, t).stream()
                 .filter(a -> memberId == null || memberId.equals(a.getFamilyMemberId()))
                 .filter(a -> familyMemberIds == null || (a.getFamilyMemberId() != null && familyMemberIds.contains(a.getFamilyMemberId())))

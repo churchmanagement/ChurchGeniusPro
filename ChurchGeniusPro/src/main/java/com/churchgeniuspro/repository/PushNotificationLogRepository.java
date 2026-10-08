@@ -50,8 +50,8 @@ public interface PushNotificationLogRepository extends JpaRepository<PushNotific
      */
     @Transactional
     @Modifying
-    @Query("UPDATE PushNotificationLog p SET p.readAt = :now WHERE p.id = :id AND p.readAt IS NULL")
-    int markReadById(@Param("id") Long id, @Param("now") Instant now);
+    @Query("UPDATE PushNotificationLog p SET p.readAt = :now WHERE p.id = :id AND p.userKey = :userKey AND p.readAt IS NULL")
+    int markReadById(@Param("id") Long id, @Param("userKey") String userKey, @Param("now") Instant now);
 
     /**
      * Check whether a duplicate push was already sent to this user with the same tag

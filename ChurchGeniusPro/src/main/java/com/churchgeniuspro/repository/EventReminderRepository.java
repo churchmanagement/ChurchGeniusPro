@@ -11,4 +11,8 @@ public interface EventReminderRepository extends JpaRepository<EventReminder, In
 
     /** All enabled event reminders, across all organizations. Used by the scheduler. */
     List<EventReminder> findByDisabledFalse();
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<EventReminder> findByIdAndAppClientId(Integer id, String appClientId);
 }

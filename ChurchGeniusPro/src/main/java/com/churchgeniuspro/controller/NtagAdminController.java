@@ -127,7 +127,8 @@ public class NtagAdminController {
     public ResponseEntity<?> credentialHistory(@PathVariable Long id, @RequestParam(defaultValue = "100") int limit, HttpServletRequest request) {
         String deny = guard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
-        return ResponseEntity.ok(svc.historyForCredential(id, limit));
+        try { return ResponseEntity.ok(svc.historyForCredential(id, SessionUtil.getAppClientId(request), limit)); }
+        catch (IllegalArgumentException e) { return ResponseEntity.status(404).body(Map.of("error", e.getMessage())); }
     }
 
     // ── helpers ──

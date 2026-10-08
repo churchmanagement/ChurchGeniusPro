@@ -138,6 +138,14 @@
 
   function setActive(on) { if (micBtn) micBtn.classList.toggle('active', !!on); }
 
+  // Server refusal text: only the quota gate is a "limit"; other 403s carry their own reason.
+  function voiceRefusalMessage(st, why){
+    var reason = (why && why.reason) || '';
+    if (reason === 'LIMIT' || (!reason && st && st.voiceAvailable === false && st.voiceEnabled !== false)) return 'Voice limit reached. Please contact your administrator.';
+    if (reason === 'VOICE_OFF' || (st && st.voiceEnabled === false)) return 'Voice is disabled by your administrator.';
+    if (why && why.error) return why.error;
+    return 'Voice is not available for this login. Please contact your administrator.';
+  }
   function disableMic(msg) {
     if (micBtn) { micBtn.disabled = true; micBtn.title = msg || 'Voice unavailable'; }
     if (msg) toast(msg, 'warn');
@@ -155,9 +163,7 @@
       onState:    setActive,
       onStatus:   function (m, k) { toast(m, k === 'error' ? 'error' : (k === 'listening' ? 'ok' : 'info')); },
       onCommand:  function (cmd) { if (!navigating) processCommand(cmd); },
-      onDisabled: function (st) { disableMic(st && st.voiceEnabled === false
-                    ? 'Voice is disabled by your administrator.'
-                    : 'Voice limit reached. Please contact your administrator.'); }
+      onDisabled: function (st, why) { disableMic(voiceRefusalMessage(st, why)); }
     }) : null;
 
     micBtn = document.createElement('button');

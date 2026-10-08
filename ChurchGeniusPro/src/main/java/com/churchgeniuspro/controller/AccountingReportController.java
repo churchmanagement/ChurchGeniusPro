@@ -4,8 +4,10 @@ import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.repository.ExpenseRepository;
 import com.churchgeniuspro.repository.IncomeRepository;
 import com.churchgeniuspro.repository.PurposeRepository;
+import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,6 +32,20 @@ public class AccountingReportController {
     private final ExpenseRepository             expenseRepo;
     private final PurposeRepository             purposeRepo;
     private final ChurchRegistrationRepository  churchRepo;
+
+    /**
+     * The editable wording around the contribution table. Field-injected and
+     * null-checked so this controller's existing construction sites (and their
+     * tests) are unchanged; when it is absent the letter falls back to the
+     * built-in wording, which is what every church saw before it was editable.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.FinancialReportLetterService letterService;
+
+    /** Test seam — supply the letter text without a Spring context. */
+    public void setLetterService(com.churchgeniuspro.service.FinancialReportLetterService s) {
+        this.letterService = s;
+    }
 
     public AccountingReportController(IncomeRepository             incomeRepo,
                                       ExpenseRepository            expenseRepo,
@@ -65,21 +81,36 @@ public class AccountingReportController {
         return obj != null ? obj.toString() : "";
     }
 
+    /**
+     * Role + session gate shared by every report endpoint — mirrors the report
+     * page routes (requireAccountantOrAdmin). Returns null when the caller may proceed.
+     */
+    private static ResponseEntity<Map<String, Object>> gate(HttpServletRequest request) {
+        if (RoleGuard.requireAccountantOrAdmin(request) != null)
+            return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (SessionUtil.getAppClientId(request) == null)
+            return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
+        return null;
+    }
+
     // ── Lookup: Purposes list ──────────────────────────────────────────────
     /**
      * Returns all active purposes for the Expense Report filter dropdown.
      * Response: [{id, name}, ...]
      */
     @GetMapping("/purposes")
-    public List<Map<String, Object>> getPurposes() {
-        return purposeRepo.findByDeleteFlagFalseOrderByPurposeNameAsc().stream()
+    public ResponseEntity<?> getPurposes(HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
+        String appClientId = SessionUtil.getAppClientId(request);
+        return ResponseEntity.ok(purposeRepo.findActiveByAppUser(appClientId).stream()
                 .map(p -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id",   p.getId());
                     m.put("name", p.getPurposeName());
                     return m;
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     // ── 1. Income Report ───────────────────────────────────────────────────
@@ -96,12 +127,14 @@ public class AccountingReportController {
      * Each transaction: { date, contributor (only when all-members), fund, method, refNo, note, amount }
      */
     @GetMapping("/income")
-    public Map<String, Object> incomeReport(
+    public ResponseEntity<?> incomeReport(
             @RequestParam String startDate,
             @RequestParam String endDate,
             @RequestParam(required = false) Integer memberId,
             @RequestParam(required = false) Integer subSourceId,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         Date sd = Date.valueOf(LocalDate.parse(startDate));
         Date ed = Date.valueOf(LocalDate.parse(endDate));
@@ -148,7 +181,7 @@ public class AccountingReportController {
         res.put("memberSelected", memberId != null);
         res.put("transactions",   transactions);
         res.put("grandTotal",     grandTotal);
-        return res;
+        return ResponseEntity.ok(res);
     }
 
     // ── 2. Expense Report ──────────────────────────────────────────────────
@@ -159,11 +192,13 @@ public class AccountingReportController {
      * Query params: startDate, endDate (required); purposeId (optional).
      */
     @GetMapping("/expense")
-    public Map<String, Object> expenseReport(
+    public ResponseEntity<?> expenseReport(
             @RequestParam String startDate,
             @RequestParam String endDate,
             @RequestParam(required = false) Integer purposeId,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         Date sd = Date.valueOf(LocalDate.parse(startDate));
         Date ed = Date.valueOf(LocalDate.parse(endDate));
@@ -215,7 +250,7 @@ public class AccountingReportController {
         res.put("endDate",    endDate);
         res.put("categories", new ArrayList<>(mainMap.values()));
         res.put("grandTotal", grandTotal);
-        return res;
+        return ResponseEntity.ok(res);
     }
 
     // ── 3. Date Range Transactions ─────────────────────────────────────────
@@ -225,10 +260,12 @@ public class AccountingReportController {
      * Scoped to the logged-in org via session appClientId.
      */
     @GetMapping("/transactions")
-    public Map<String, Object> transactionsReport(
+    public ResponseEntity<?> transactionsReport(
             @RequestParam String startDate,
             @RequestParam String endDate,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         Date sd = Date.valueOf(LocalDate.parse(startDate));
         Date ed = Date.valueOf(LocalDate.parse(endDate));
@@ -292,7 +329,7 @@ public class AccountingReportController {
         res.put("totalIncome",  totalIncome);
         res.put("totalExpense", totalExpense);
         res.put("netBalance",   totalIncome.subtract(totalExpense));
-        return res;
+        return ResponseEntity.ok(res);
     }
 
     // ── 4. Year-End Tax Report ─────────────────────────────────────────────
@@ -301,27 +338,26 @@ public class AccountingReportController {
      * Includes both a grouped summary (contributions) and individual entries (entries)
      * needed for letter-format PDFs.
      * The church name is resolved from the {@code church_registration} table via
-     * {@code clientId} so the PDF letter always shows the correct registered name.
+     * the session tenant so the PDF letter always shows the correct registered name.
      * Optional: memberId filters to a single member.
-     * Query params: year (required); clientId, memberId (optional).
+     * Query params: year (required); memberId, guestName (optional). A client-supplied
+     * {@code clientId} is ignored — the tenant always comes from the session.
      */
     @GetMapping("/tax")
-    public Map<String, Object> taxReport(
+    public ResponseEntity<?> taxReport(
             @RequestParam int year,
-            @RequestParam(required = false) String  clientId,
             @RequestParam(required = false) Integer memberId,
             @RequestParam(required = false) String  guestName,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         String appClientId = SessionUtil.getAppClientId(request);
 
-        // Resolve church name from DB via clientId param (or fall back to session appClientId)
-        String lookupId = (clientId != null && !clientId.isBlank()) ? clientId : appClientId;
-        String churchName = (lookupId != null && !lookupId.isBlank())
-                ? churchRepo.findByClientIdAndDeleteFlagFalse(lookupId)
+        // Resolve church name from DB via the session tenant only
+        String churchName = churchRepo.findByClientIdAndDeleteFlagFalse(appClientId)
                             .map(cr -> cr.getChurchName() != null ? cr.getChurchName() : "")
-                            .orElse("")
-                : "";
+                            .orElse("");
 
         // Normalise: blank string → null so SQL CAST(:x IS NULL) short-circuits correctly
         String guestNameFilter = (guestName != null && !guestName.isBlank()) ? guestName.trim() : null;
@@ -335,6 +371,14 @@ public class AccountingReportController {
         // Key: memberId (for members) or "guest::<guestName>" (for guest rows)
         Map<String, Map<String, Object>> memberMap = new LinkedHashMap<>();
 
+        // Financial audit M5: income with neither a matched member nor a guest
+        // name (an unattributed lump sum — e.g. an uncounted plate-offering
+        // total) has no one a contribution statement could be addressed to.
+        // Tallied here and reported separately instead of being folded into a
+        // "guest::" bucket keyed by an empty name.
+        BigDecimal unattributedTotal = BigDecimal.ZERO;
+        int        unattributedCount = 0;
+
         for (Object[] r : summaryRows) {
             boolean isGuest   = r[0] == null;
             String  firstName = str(r[1]);
@@ -343,6 +387,12 @@ public class AccountingReportController {
             String  subName   = str(r[4]);
             String  mainName  = str(r[5]);
             BigDecimal total  = toBD(r[6]);
+
+            if (isGuest && gName.isBlank()) {
+                unattributedTotal = unattributedTotal.add(total);
+                unattributedCount++;
+                continue;
+            }
 
             String mapKey;
             if (!isGuest) {
@@ -363,6 +413,13 @@ public class AccountingReportController {
                     m.put("name",      gName);
                     m.put("firstName", gName);
                     m.put("lastName",  "");
+                    // Financial audit M5: a guest is matched by name text alone —
+                    // the only identity signal a walk-in/anonymous gift carries,
+                    // so two different people who happen to share a name are
+                    // combined into one statement. This flag lets a reviewer (or
+                    // a future UI) know to double-check before mailing rather
+                    // than hiding that the match is unverified.
+                    m.put("nameOnly",  true);
                 }
                 m.put("contributions", new ArrayList<Map<String, Object>>());
                 m.put("entries",       new ArrayList<Map<String, Object>>());
@@ -395,6 +452,9 @@ public class AccountingReportController {
         for (Object[] r : entryRows) {
             boolean isGuest = r[0] == null;
             String  gName   = str(r[3]);
+            // Financial audit M5: same exclusion as the summary loop above —
+            // an unattributed entry never got a memberMap bucket to land in.
+            if (isGuest && gName.isBlank()) continue;
             String  mapKey  = isGuest ? "guest::" + gName
                                       : "member::" + ((Number) r[0]).intValue();
 
@@ -431,7 +491,77 @@ public class AccountingReportController {
         res.put("churchName",  churchName);
         res.put("members",     new ArrayList<>(memberMap.values()));
         res.put("grandTotal",  grandTotal);
-        return res;
+        // Financial audit M5: income excluded from the statements above because
+        // it has neither a matched member nor a guest name — surfaced here so
+        // it stays visible to staff instead of silently vanishing from the
+        // report, or worse, becoming a letter addressed to nobody.
+        res.put("unattributedTotal", unattributedTotal);
+        res.put("unattributedCount", unattributedCount);
+        // The letter wording around the contribution table, this church's own if it
+        // has edited it. Carried in the report payload rather than fetched
+        // separately so the letters cannot render before their text arrives.
+        res.putAll(letterText(appClientId, churchName, year));
+        return ResponseEntity.ok(res);
+    }
+
+    // ── 4a. The editable wording around the contribution table ─────────────
+
+    /**
+     * This church's letter text, as authored, for the editor on the report page.
+     *
+     * <p>Same gate as the report itself: whoever may generate the statements may
+     * word them. The tenant comes from the session, so this can only ever return
+     * the caller's own church's text.
+     */
+    @GetMapping("/letter-content")
+    public ResponseEntity<?> getLetterContent(HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
+        if (letterService == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Letter text is unavailable."));
+        }
+        return ResponseEntity.ok(letterService.forEditing(SessionUtil.getAppClientId(request)));
+    }
+
+    /** Saves this church's wording. Sanitised in the service — see RichTextSanitizer. */
+    @PostMapping("/letter-content")
+    public ResponseEntity<?> saveLetterContent(@RequestBody Map<String, String> body,
+                                               HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
+        if (letterService == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Letter text is unavailable."));
+        }
+        try {
+            letterService.save(SessionUtil.getAppClientId(request),
+                               body.get("introHtml"),
+                               body.get("closingHtml"),
+                               body.get("signatureName"),
+                               body.get("signatureTitle"),
+                               SessionUtil.getUsername(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+        return ResponseEntity.ok(letterService.forEditing(SessionUtil.getAppClientId(request)));
+    }
+
+    /** Drops this church's wording so the original letter text is used again. */
+    @PostMapping("/letter-content/reset")
+    public ResponseEntity<?> resetLetterContent(HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
+        if (letterService == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Letter text is unavailable."));
+        }
+        letterService.resetToDefault(SessionUtil.getAppClientId(request));
+        return ResponseEntity.ok(letterService.forEditing(SessionUtil.getAppClientId(request)));
+    }
+
+    /** Letter wording for a report payload; the built-in default when unavailable. */
+    private Map<String, String> letterText(String appClientId, String churchName, Object year) {
+        return letterService == null
+                ? com.churchgeniuspro.service.FinancialReportLetterService.defaults(churchName, year)
+                : letterService.rendered(appClientId, churchName, year);
     }
 
     /**
@@ -440,9 +570,11 @@ public class AccountingReportController {
      * Response: [{type:"member", id, name}, {type:"guest", guestName, name}, ...]
      */
     @GetMapping("/contributors")
-    public List<Map<String, Object>> getContributors(
+    public ResponseEntity<?> getContributors(
             @RequestParam(required = false) Integer year,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         String appClientId = SessionUtil.getAppClientId(request);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -459,7 +591,7 @@ public class AccountingReportController {
             m.put("name",      gn);
             result.add(m);
         }
-        return result;
+        return ResponseEntity.ok(result);
     }
 
     // ── 5. Financial Report ────────────────────────────────────────────────
@@ -469,9 +601,11 @@ public class AccountingReportController {
      * Scoped to the logged-in org via session appClientId.
      */
     @GetMapping("/financial")
-    public Map<String, Object> financialReport(
+    public ResponseEntity<?> financialReport(
             @RequestParam int year,
             HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
 
         String appClientId = SessionUtil.getAppClientId(request);
 
@@ -540,6 +674,6 @@ public class AccountingReportController {
         res.put("expenseCategories",  expList);
         res.put("totalExpense",       totalExpense);
         res.put("netBalance",         totalIncome.subtract(totalExpense));
-        return res;
+        return ResponseEntity.ok(res);
     }
 }

@@ -26,7 +26,22 @@ public final class SubscriptionFeatureCatalog {
     /** Paths that must never be gated even though they share a gated prefix. */
     public static final List<String> EXCLUDED_PREFIXES = List.of(
             "/api/plaid/webhook",     // Plaid webhook (signature-verified, no session)
-            "/api/prayer/public"      // public prayer wall endpoints
+            "/api/prayer/public",     // public prayer wall endpoints
+            // Guess It's two public entry points: the big-screen display (identified
+            // by a public-link token) and participants joining with a 6-character
+            // group code. Both are token-governed and reachable without a session, so
+            // they follow the rule above. They are NOT ungoverned: each checks the
+            // church's Activity Corner feature itself — the display through
+            // PublicLinkResolver, the group endpoints in GuessItGroupController —
+            // because "a group can only exist if an admin created it while the
+            // feature was on" stops being true the moment a church changes plan.
+            "/api/guess-it/public",
+            "/api/guess-it/group",
+            // The donate page and its endpoints: reachable with a link token and no
+            // session, and governed by that token plus the controller's own
+            // Online Giving checks, which produce a message a donor can act on
+            // rather than this filter's generic refusal.
+            "/api/public/donate"
     );
 
     public static final List<Feature> FEATURES = List.of(
@@ -50,11 +65,17 @@ public final class SubscriptionFeatureCatalog {
         // validity, but new giving pages can't be published and payment intents
         // are refused (both checked in their controllers), so no new donations
         // can be accepted. Historical donations are always preserved.
-        new Feature("onlineGiving",   "Online Giving",          "Accounting", List.of()),
+        // Online giving: the public /donate/{token} page stays reachable for link
+        // validity (its endpoints are excluded above), but the church's own Stripe
+        // configuration screen is gated, so a plan without the feature cannot put
+        // keys in place, publish a giving page, or accept a payment.
+        new Feature("onlineGiving",   "Online Giving",          "Accounting", List.of(
+                "/stripeIntegration", "/api/stripe-settings")),
 
         new Feature("eventCheckin",   "Event Check-ins",        "Check-ins",  List.of(
                 "/event-checkin-admin", "/api/event-checkin")),
-        new Feature("kidsCheckin",    "Kids Check-ins",         "Check-ins",  List.of()),
+        new Feature("kidsCheckin",    "Kids Check-ins",         "Check-ins",  List.of(
+                "/pickup-dashboard", "/api/kids-ministry/checkins", "/api/kids-ministry/checkin-cid")),
 
         new Feature("volunteers",     "Volunteer Scheduling",   "Ministry",   List.of(
                 "/event-volunteers", "/volunteers")),
@@ -67,7 +88,7 @@ public final class SubscriptionFeatureCatalog {
         new Feature("groups",         "Groups",                 "Ministry",   List.of(
                 "/groups", "/api/groups")),
         new Feature("kidsMinistry",   "Kids Ministry",          "Ministry",   List.of(
-                "/ministry", "/kidsMinistry", "/kidsMinistryPage", "/pickup-dashboard", "/api/kids-ministry")),
+                "/ministry", "/kidsMinistry", "/kidsMinistryPage", "/api/kids-ministry")),
         new Feature("prayer",         "Prayer Ministry",        "Ministry",   List.of(
                 "/prayerRequest", "/viewPrayerRequest", "/api/prayer")),
 
@@ -85,6 +106,12 @@ public final class SubscriptionFeatureCatalog {
                 "/followups", "/api/followups")),
         new Feature("songbook",       "Song Book Access",       "More",       List.of(
                 "/songbook", "/admin/songbook-access", "/api/songbook")),
+        // Activity Corner — Guess It. The /guessIt page is listed even though it is
+        // also used as a public big-screen display: SubscriptionFeatureFilter passes
+        // anonymous requests through, so the display keeps working while a signed-in
+        // user on a plan without the feature is refused.
+        new Feature("activityCorner", "Activity Corner",        "More",       List.of(
+                "/guessIt", "/api/guess-it")),
         new Feature("ntag",           "Customize NTag",         "Admin",      List.of(
                 "/ntagAccess", "/api/ntag", "/api/ntag-landing")),
 

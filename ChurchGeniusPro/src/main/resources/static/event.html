@@ -106,6 +106,37 @@
     .field-hint { font-size: 11px; color: #e53935; min-height: 14px; }
 
     /* ── Input with button ── */
+    /* ── Optional-field help ──────────────────────────────────────────────
+       The "?" is a real button so it is reachable by keyboard and announced by
+       a screen reader; the explanation is plain text below the field rather
+       than a hover tooltip, because a hover tooltip is unreachable on the
+       phones a lot of this is filled in on. */
+    .opt-tag { font-size: 10px; font-weight: 600; color: #777; background: #f0eef1;
+               border: 1px solid #e2dde5; border-radius: 10px; padding: 1px 7px;
+               margin-left: 6px; text-transform: uppercase; letter-spacing: .3px; vertical-align: middle; }
+    .help-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #b9a4ae;
+                background: #fff; color: #673147; font-size: 11px; font-weight: 700;
+                line-height: 1; cursor: pointer; margin-left: 5px; padding: 0; vertical-align: middle; }
+    .help-dot:hover, .help-dot[aria-expanded="true"] { background: #673147; color: #fff; border-color: #673147; }
+    .help-note { margin-top: 6px; padding: 9px 11px; background: #faf6f8; border: 1px solid #ecdfe5;
+                 border-left: 3px solid #673147; border-radius: 6px;
+                 font-size: 12px; line-height: 1.5; color: #5a4a52; }
+    .help-note strong { color: #673147; }
+    .help-note[hidden] { display: none; }
+
+    /* ── Post-save reminder prompt ─────────────────────────────────────── */
+    .after-save { margin: 14px 0 0; padding: 14px 16px; border-radius: 10px;
+                  background: #f1f8f3; border: 1px solid #cfe8d6; border-left: 4px solid #2e7d32; }
+    .after-save[hidden] { display: none; }
+    .after-save .as-title { font-size: 14px; font-weight: 700; color: #1e5e28; margin-bottom: 3px; }
+    .after-save .as-text  { font-size: 13px; color: #40634a; margin-bottom: 10px; line-height: 1.5; }
+    .after-save .as-row   { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .as-btn { display: inline-block; padding: 8px 16px; border-radius: 7px; font-size: 13px;
+              font-weight: 600; background: #2e7d32; color: #fff; border: 0; cursor: pointer; text-decoration: none; }
+    .as-btn:hover { opacity: .9; }
+    .as-dismiss { background: none; border: 0; color: #5f7a66; font-size: 12px;
+                  text-decoration: underline; cursor: pointer; padding: 8px 4px; }
+
     .input-btn-wrap { display: flex; gap: 8px; }
     .input-btn-wrap input { flex: 1; }
     .btn-inline { padding: 8px 14px; font-size: 13px; border-radius: 7px; border: 1px solid #673147; color: #673147; background: none; cursor: pointer; white-space: nowrap; }
@@ -433,11 +464,26 @@
                 <span class="field-hint" id="eventNameHint"></span>
               </div>
               <div class="field">
-                <label for="eventCode">Event ID / Code</label>
+                <label for="eventCode">
+                  Event ID / Code
+                  <span class="opt-tag">optional</span>
+                  <button type="button" class="help-dot" aria-label="What is the Event ID / Code?"
+                          aria-expanded="false" onclick="toggleHelp('eventCodeHelp', this)">?</button>
+                </label>
                 <div class="input-btn-wrap">
-                  <input type="text" id="eventCode" placeholder="e.g. EVT-A3B7C2" />
-                  <button class="btn-inline" type="button" onclick="generateCode()" title="Generate unique code">Generate</button>
+                  <input type="text" id="eventCode" placeholder="e.g. EVT-A3B7C2" maxlength="60"
+                         title="Optional. Enter your own unique code or click Generate. Used to search for this event."
+                         oninput="onEventCodeInput()" />
+                  <button class="btn-inline" type="button" onclick="generateCode()" title="Generate a unique code">Generate</button>
                 </div>
+                <div class="help-note" id="eventCodeHelp" hidden>
+                  <strong>Event ID / Code is optional</strong> — you can leave it blank.
+                  Enter your own code or click <em>Generate</em> to create one automatically.
+                  Generated codes are always unique. A code you type yourself must also be
+                  unique; if it is already used by another event, you will be told when you save.
+                  Either way, the code can be used to search for this event.
+                </div>
+                <span class="field-hint" id="eventCodeHint"></span>
               </div>
               <div class="field span-3">
                 <label>Event Type <span class="required-star">*</span></label>
@@ -459,7 +505,7 @@
           <div class="sub-section" id="oneDaySection">
             <div class="sub-section-title">Schedule</div>
             <div class="form-grid">
-              <div class="field"><label for="eventDate">Date</label><input type="date" id="eventDate" /></div>
+              <div class="field"><label for="eventDate">Date <span class="required-star">*</span></label><input type="date" id="eventDate" required /></div>
               <div class="field"><label for="startTime">Start Time</label><input type="time" id="startTime" /></div>
               <div class="field"><label for="endTime">End Time</label><input type="time" id="endTime" /></div>
             </div>
@@ -628,6 +674,20 @@
         <div class="action-bar">
           <button class="btn-clear" type="button" onclick="resetForm()">Cancel</button>
           <button class="btn-save" id="saveBtn" type="button" onclick="saveEvent()">Save Event</button>
+        </div>
+
+        <!-- Shown after an event is created. Reminders are a separate, deliberate
+             step: creating an event should never quietly start texting people,
+             so this offers the next step rather than taking it. -->
+        <div class="after-save" id="reminderPrompt" hidden>
+          <div class="as-title">✅ Event saved</div>
+          <div class="as-text" id="reminderPromptText">
+            Please set the reminder if you would like to set a reminder for this event.
+          </div>
+          <div class="as-row">
+            <a class="as-btn" id="reminderPromptLink" href="/eventReminders">🔔 Set Event Reminder</a>
+            <button type="button" class="as-dismiss" onclick="dismissReminderPrompt()">Not now</button>
+          </div>
         </div>
       </div>
 
@@ -1355,11 +1415,72 @@
   }
 
   /* EVENT CODE */
+  /* ── Event ID / Code ──────────────────────────────────────────────────
+     Optional throughout. The alphabet omits I, O, 0 and 1 so a code stays
+     unambiguous when it is read aloud or copied off a printed sheet. */
   function generateCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = 'EVT-';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    document.getElementById('eventCode').value = code;
+    const el = document.getElementById('eventCode');
+    el.value = code;
+    el.classList.remove('invalid');
+    setCodeHint('');
+  }
+
+  function toggleHelp(id, btn) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    const showing = box.hasAttribute('hidden');
+    if (showing) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+    if (btn) btn.setAttribute('aria-expanded', showing ? 'true' : 'false');
+  }
+
+  function setCodeHint(msg) {
+    const hint = document.getElementById('eventCodeHint');
+    if (hint) hint.textContent = msg || '';
+  }
+
+  /* Clear a stale "already in use" warning as soon as the code is edited, so the
+     message always refers to what is currently in the box. */
+  function onEventCodeInput() {
+    const el = document.getElementById('eventCode');
+    if (el) el.classList.remove('invalid');
+    setCodeHint('');
+  }
+
+  /** Marks the code field as rejected and explains why. */
+  function flagDuplicateCode(message) {
+    const el = document.getElementById('eventCode');
+    if (el) { el.classList.add('invalid'); el.focus(); el.select(); }
+    setCodeHint(message || 'That code is already used by another event. Choose another or click Generate.');
+    const help = document.getElementById('eventCodeHelp');
+    if (help) help.removeAttribute('hidden');
+  }
+
+  /* ── After-save reminder prompt ───────────────────────────────────── */
+  function showReminderPrompt(eventId, eventName) {
+    const box  = document.getElementById('reminderPrompt');
+    const link = document.getElementById('reminderPromptLink');
+    const text = document.getElementById('reminderPromptText');
+    if (!box || !link) return;
+    // The id is what the reminders page uses to preselect the event, so a
+    // saved event with no id is not offered the link at all rather than
+    // sending someone to a page that cannot honour it.
+    if (!eventId) return;
+    link.href = '/eventReminders?eventId=' + encodeURIComponent(eventId);
+    if (text) {
+      text.textContent = eventName
+        ? ('Please set the reminder if you would like to set a reminder for "' + eventName + '".')
+        : 'Please set the reminder if you would like to set a reminder for this event.';
+    }
+    box.removeAttribute('hidden');
+    if (box.scrollIntoView) box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+
+  function dismissReminderPrompt() {
+    const box = document.getElementById('reminderPrompt');
+    if (box) box.setAttribute('hidden', '');
   }
 
   /* DAY ROWS */
@@ -1453,7 +1574,9 @@
     reader.onload = e => {
       pendingImageData = e.target.result;
       const p = document.getElementById('imgPreview');
-      if (p) { p.src = pendingImageData; p.style.display = ''; }
+      // '' only clears the INLINE style; .img-preview sets display:none in CSS,
+      // so the preview stayed hidden for every user. Set it explicitly.
+      if (p) { p.src = pendingImageData; p.style.display = 'block'; }
     };
     reader.readAsDataURL(file);
   }
@@ -1652,6 +1775,8 @@
 
   function resetForm() {
     editingId = null;
+    dismissReminderPrompt();
+    onEventCodeInput();          // clear any stale duplicate-code warning
     evVolunteers  = [];
     evOrgRoles    = [];
     evRoleNames   = [];
@@ -1684,6 +1809,7 @@
 
   async function saveEvent() {
     if (!validate()) return;
+    dismissReminderPrompt();
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
     const data = readForm();
@@ -1705,8 +1831,18 @@
         const vs = document.getElementById('volSection');
         if (vs) vs.style.display = '';
         evToast('✅ Event saved successfully!', '#2e7d32');
+        // Offered on creation only. On an edit the reminder, if wanted, already
+        // exists, and re-offering it every save would train people to ignore it.
+        if (isNew) showReminderPrompt(d.id, d.eventName || data.eventName);
       } else {
-        showFeedback(d.error || 'Failed to save event.', 'error');
+        // A duplicate Event ID / Code is a correctable mistake in one field, so
+        // it is shown against that field rather than as a generic save failure.
+        if (d.errorField === 'eventCode') {
+          flagDuplicateCode(d.error);
+          showFeedback(d.error || 'That Event ID / Code is already in use.', 'error');
+        } else {
+          showFeedback(d.error || 'Failed to save event.', 'error');
+        }
       }
     } catch (e) {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }

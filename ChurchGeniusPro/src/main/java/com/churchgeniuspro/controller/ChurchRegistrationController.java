@@ -13,6 +13,7 @@ import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.VerificationStore;
 import com.churchgeniuspro.util.PasswordUtil;
 import com.churchgeniuspro.util.PolicyVersions;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -38,25 +39,30 @@ import java.util.Optional;
 @Controller
 public class ChurchRegistrationController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChurchRegistrationController.class);
+
     private final ChurchRegistrationService churchRegistrationService;
     private final LoginRepository           loginRepository;
     private final VerificationStore         verificationStore;
     private final EmailService              emailService;
     private final ServiceClientRepository   serviceClientRepository;
     private final PolicyAcceptanceRepository policyAcceptanceRepository;
+    private final PublicSendLimiter         sendLimiter;
 
     public ChurchRegistrationController(ChurchRegistrationService churchRegistrationService,
                                         LoginRepository           loginRepository,
                                         VerificationStore         verificationStore,
                                         EmailService              emailService,
                                         ServiceClientRepository   serviceClientRepository,
-                                        PolicyAcceptanceRepository policyAcceptanceRepository) {
+                                        PolicyAcceptanceRepository policyAcceptanceRepository,
+                                        PublicSendLimiter         sendLimiter) {
         this.churchRegistrationService = churchRegistrationService;
         this.loginRepository           = loginRepository;
         this.verificationStore         = verificationStore;
         this.emailService              = emailService;
         this.serviceClientRepository   = serviceClientRepository;
         this.policyAcceptanceRepository = policyAcceptanceRepository;
+        this.sendLimiter               = sendLimiter;
     }
 
     // ── Step 0 · Already-registered check ────────────────────────────────────
@@ -68,8 +74,11 @@ public class ChurchRegistrationController {
      */
     @ResponseBody
     @GetMapping({"/api/churchregistration/status", "/public/churchregistration/status"})
-    public ResponseEntity<Map<String, Object>> status(@RequestParam String clientId) {
+    public ResponseEntity<Map<String, Object>> status(@RequestParam("clientId") String token) {
         Map<String, Object> res = new HashMap<>();
+        ServiceClient sc = registrant(token);
+        if (sc == null) { res.put("registered", false); res.put("error", "invalid link"); return ResponseEntity.status(403).body(res); }
+        String clientId = sc.getClientId();
         Optional<SignUp> existing = loginRepository.findByClientId(clientId);
         // Only treat as registered if the signup exists, is a church account,
         // AND has NOT been invalidated by a reapprove (deleted=false, active=true)
@@ -89,12 +98,12 @@ public class ChurchRegistrationController {
      */
     @ResponseBody
     @GetMapping({"/api/churchregistration/prefill", "/public/churchregistration/prefill"})
-    public ResponseEntity<Map<String, Object>> prefill(@RequestParam String clientId) {
+    public ResponseEntity<Map<String, Object>> prefill(@RequestParam("clientId") String token) {
         Map<String, Object> res = new HashMap<>();
-        ServiceClient sc = serviceClientRepository.findByClientId(clientId).orElse(null);
+        ServiceClient sc = registrant(token);   // token, never a guessable id — this returns the pastor's contact details
         if (sc == null) {
             res.put("found", false);
-            return ResponseEntity.ok(res);
+            return ResponseEntity.status(403).body(res);
         }
 
         // Split name into firstName / lastName (split on first space)
@@ -137,10 +146,16 @@ public class ChurchRegistrationController {
      */
     @ResponseBody
     @PostMapping("/api/churchregistration/initiate")
-    public ResponseEntity<Map<String, Object>> initiate(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> initiate(@RequestBody Map<String, Object> body,
+                                                        HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
-        String clientId      = str(body, "clientId");
+        ServiceClient registrant = registrant(str(body, "clientId"));
+        if (registrant == null) {
+            res.put("status", "error"); res.put("message", "This registration link is invalid or has expired.");
+            return ResponseEntity.status(403).body(res);
+        }
+        String clientId      = registrant.getClientId();
         String firstName     = str(body, "firstName");
         String lastName      = str(body, "lastName");
         String email         = str(body, "email");
@@ -194,14 +209,28 @@ public class ChurchRegistrationController {
             return ResponseEntity.status(409).body(res);
         }
 
+        // Each call re-issues the code and e-mails the approved address again: bounded
+        // per network origin and per church (security audit P2).
+        String limited = sendLimiter.check(PublicSendLimiter.CHURCH_REGISTRATION_OTP, request, clientId, null);
+        if (limited != null) {
+            res.put("status",  "error");
+            res.put("message", limited);
+            return ResponseEntity.status(429).body(res);
+        }
+
         // Generate and email OTP
         try {
+            // The code goes to the address the service admin approved — never to an
+            // address supplied by the form. The form's email is stored with the account
+            // only after this proves the approved mailbox is in the registrant's hands.
+            String approvedEmail = registrant.getEmail() != null && !registrant.getEmail().isBlank()
+                    ? registrant.getEmail().trim() : email.trim();
             String code = verificationStore.generateAndStore(clientId, "church", email.trim());
-            ServiceClient sc = serviceClientRepository.findByClientId(clientId).orElse(null);
+            ServiceClient sc = registrant;
             String churchName = (sc != null && sc.getChurchName() != null && !sc.getChurchName().isBlank())
                     ? sc.getChurchName() : "Church Genius Pro";
             emailService.sendGenericEmail(
-                    email.trim(),
+                    approvedEmail,
                     "Your " + churchName + " Verification Code",
                     buildOtpEmailHtml(code, churchName));
         } catch (Exception e) {
@@ -211,7 +240,8 @@ public class ChurchRegistrationController {
         }
 
         res.put("status",      "success");
-        res.put("maskedEmail", maskEmail(email.trim()));
+        res.put("maskedEmail", maskEmail(registrant.getEmail() != null && !registrant.getEmail().isBlank()
+                ? registrant.getEmail().trim() : email.trim()));
         return ResponseEntity.ok(res);
     }
 
@@ -229,7 +259,12 @@ public class ChurchRegistrationController {
                                                       HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
-        String clientId  = str(body, "clientId");
+        ServiceClient registrant = registrant(str(body, "clientId"));
+        if (registrant == null) {
+            res.put("status", "error"); res.put("message", "This registration link is invalid or has expired.");
+            return ResponseEntity.status(403).body(res);
+        }
+        String clientId  = registrant.getClientId();
         String username  = str(body, "username");
         String password  = str(body, "password");
         String code      = str(body, "code");
@@ -345,34 +380,20 @@ public class ChurchRegistrationController {
             return ResponseEntity.ok(res);
 
         } catch (Exception e) {
+            log.error("Church registration failed for clientId={}: {}", clientId, e.getMessage(), e);
             res.put("status",  "error");
-            res.put("message", "Failed to complete registration: " + e.getMessage());
+            res.put("message", "Failed to complete registration. Please try again or contact support.");
             return ResponseEntity.status(500).body(res);
         }
     }
 
     // ── Legacy save endpoint (kept for backward compatibility) ────────────────
 
-    /**
-     * Legacy endpoint — kept in case any existing integrations depend on it.
-     * The primary path is now the {@code initiate} → {@code verify} flow.
-     */
-    @ResponseBody
-    @PostMapping("/api/churchregistration")
-    public ResponseEntity<Map<String, Object>> save(@RequestBody ChurchRegistrationBO bo) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            ChurchRegistration saved = churchRegistrationService.save(bo);
-            response.put("status",  "success");
-            response.put("message", "Church registration saved successfully.");
-            response.put("data",    saved);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("status",  "error");
-            response.put("message", "Failed to save registration: " + e.getMessage());
-            return ResponseEntity.status(500).body(response);
-        }
-    }
+    // The former legacy `POST /api/churchregistration` was removed: it inserted a
+    // registration row for any caller-supplied clientId with no token, OTP or
+    // approval check. A duplicate row made every owner/staff login for that church
+    // fail (Optional lookup), and an approved-but-unregistered tenant could be
+    // claimed by a stranger. The supported flow is /initiate → /verify.
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
@@ -463,5 +484,13 @@ public class ChurchRegistrationController {
              + "<p style='font-size:12px;color:#999;margin:0;'>&copy; " + safeChurch + "</p>"
              + "</td></tr>"
              + "</table></td></tr></table>";
+    }
+
+    /** The approved, active service client behind a registration token, or null. */
+    private ServiceClient registrant(String token) {
+        if (token == null || token.isBlank()) return null;
+        return serviceClientRepository
+                .findByRegistrationTokenAndStatusAndDeleteFlagFalse(token.trim(), "Active")
+                .orElse(null);
     }
 }

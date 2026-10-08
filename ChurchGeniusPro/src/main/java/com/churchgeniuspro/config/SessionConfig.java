@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.session.config.SessionRepositoryCustomizer;
+import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
 import org.springframework.session.web.http.CookieHttpSessionIdResolver;
 import org.springframework.session.web.http.DefaultCookieSerializer;
@@ -63,6 +65,14 @@ public class SessionConfig {
     private boolean cookieSecure;
 
     /**
+     * SameSite for the session cookie. Read from the standard property so what the
+     * profiles declare is what the browser gets — this used to be a hard-coded "Lax"
+     * that silently overrode {@code application-prod.properties}.
+     */
+    @Value("${server.servlet.session.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
+    /**
      * Configures the JSESSIONID cookie with a persistent Max-Age so it
      * survives PWA restarts and server redeployments.
      *
@@ -81,7 +91,7 @@ public class SessionConfig {
         serializer.setCookieMaxAge(SESSION_COOKIE_MAX_AGE);
         serializer.setUseHttpOnlyCookie(true);
         serializer.setUseSecureCookie(cookieSecure);
-        serializer.setSameSite("Lax");
+        serializer.setSameSite(normaliseSameSite(cookieSameSite));
         serializer.setCookiePath("/");
         return serializer;
     }
@@ -136,6 +146,39 @@ public class SessionConfig {
     }
 
     /**
+     * Makes storing a NEW session attribute safe when requests race.
+     *
+     * <p>Spring Session decides INSERT-vs-UPDATE from the snapshot the request
+     * loaded. A page opens with a burst of parallel API calls, all of which load
+     * the session before any of them commits; if something then puts an attribute
+     * on the session — a filter classifying the session, a controller recording a
+     * flag — every one of those requests believes it is CREATING that attribute and
+     * issues its own INSERT. The first wins and the rest violate
+     * {@code spring_session_attributes_pk}, surfacing as a
+     * {@code DuplicateKeyException} that fails whole requests at commit time,
+     * outside any code that could catch it.
+     *
+     * <p>Making the insert an UPSERT closes it: whichever request commits second
+     * overwrites with its own (identical) value instead of failing. This is not
+     * specific to any one attribute — it protects every current and future session
+     * attribute, which is why it lives here rather than in the filter that happened
+     * to expose it.
+     *
+     * <p>PostgreSQL syntax, consistent with the PostgreSQL schema script this class
+     * already installs below. Tests run with {@code spring.session.store-type=none}
+     * and never reach this.
+     */
+    @Bean
+    public SessionRepositoryCustomizer<JdbcIndexedSessionRepository> sessionAttributeUpsertCustomizer() {
+        return repository -> repository.setCreateSessionAttributeQuery(
+                  "INSERT INTO %TABLE_NAME%_ATTRIBUTES "
+                + "(SESSION_PRIMARY_ID, ATTRIBUTE_NAME, ATTRIBUTE_BYTES)\n"
+                + "VALUES (?, ?, ?)\n"
+                + "ON CONFLICT (SESSION_PRIMARY_ID, ATTRIBUTE_NAME)\n"
+                + "DO UPDATE SET ATTRIBUTE_BYTES = EXCLUDED.ATTRIBUTE_BYTES\n");
+    }
+
+    /**
      * Creates the SPRING_SESSION / SPRING_SESSION_ATTRIBUTES tables on startup
      * using the PostgreSQL schema script shipped with spring-session-jdbc.
      * Safe to run repeatedly — the script uses CREATE TABLE IF NOT EXISTS.
@@ -153,4 +196,14 @@ public class SessionConfig {
         return initializer;
     }
 
+
+    /** "lax" / "strict" / "none" in any case → the header token; anything else → Lax. */
+    public static String normaliseSameSite(String v) {
+        if (v == null) return "Lax";
+        switch (v.trim().toLowerCase()) {
+            case "strict": return "Strict";
+            case "none":   return "None";
+            default:       return "Lax";
+        }
+    }
 }

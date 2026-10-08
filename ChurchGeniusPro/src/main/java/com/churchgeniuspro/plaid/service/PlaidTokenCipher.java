@@ -21,6 +21,15 @@ import java.util.Base64;
  *
  * <p>Fails closed: if no valid key is configured, encrypt/decrypt throw rather
  * than silently storing tokens in a weakly-protected form.
+ *
+ * <h2>Key rotation</h2>
+ * Encryption always uses the current key. Decryption tries the current key and
+ * then, if configured, {@code PLAID_TOKEN_ENC_KEY_PREVIOUS} — so the moment a new
+ * key is deployed alongside the old one, every stored token still opens and the
+ * application keeps running. {@link PlaidTokenRotationService} then re-encrypts
+ * the stored rows onto the current key, after which the previous key can be
+ * removed. Without that overlap, changing the key would orphan every stored bank
+ * token and force every church to reconnect.
  */
 @Component
 public class PlaidTokenCipher {
@@ -65,25 +74,86 @@ public class PlaidTokenCipher {
         }
     }
 
+    /**
+     * Decrypts with the current key, falling back to the previous key during a
+     * rotation. GCM is authenticated, so a wrong key fails rather than returning
+     * plausible rubbish — trying one and then the other is safe.
+     */
     public String decrypt(String stored) {
         if (stored == null) return null;
-        SecretKeySpec key = keySpec();
         try {
-            byte[] all = Base64.getDecoder().decode(stored);
-            byte[] iv = new byte[IV_LENGTH];
-            System.arraycopy(all, 0, iv, 0, IV_LENGTH);
-            byte[] ct = new byte[all.length - IV_LENGTH];
-            System.arraycopy(all, IV_LENGTH, ct, 0, ct.length);
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, iv));
-            return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new IllegalStateException("Plaid token decryption failed", e);
+            return decryptWith(keySpec(), stored);
+        } catch (Exception primaryFailure) {
+            SecretKeySpec previous = previousKeySpec();
+            if (previous == null) {
+                throw new IllegalStateException("Plaid token decryption failed", primaryFailure);
+            }
+            try {
+                return decryptWith(previous, stored);
+            } catch (Exception e) {
+                // Neither key opens it. Report the CURRENT key's failure: during a
+                // rotation the previous key failing too means the value predates
+                // both, which is the more useful thing to chase.
+                throw new IllegalStateException("Plaid token decryption failed", primaryFailure);
+            }
         }
+    }
+
+    /**
+     * Whether this stored value still needs re-encrypting onto the current key.
+     *
+     * <p>Never throws: an unreadable value answers {@code false}, because it is not
+     * something a rotation pass can fix and must not stop it. Blank values (the
+     * stub a soft-deleted item carries) answer {@code false} too.
+     */
+    public boolean needsRotation(String stored) {
+        if (stored == null || stored.isBlank()) return false;
+        try {
+            decryptWith(keySpec(), stored);
+            return false;                       // already on the current key
+        } catch (Exception currentFailed) {
+            SecretKeySpec previous = previousKeySpec();
+            if (previous == null) return false; // no rotation in progress
+            try {
+                decryptWith(previous, stored);
+                return true;                    // opens with the old key: rewrite it
+            } catch (Exception e) {
+                return false;                   // opens with neither; not ours to fix
+            }
+        }
+    }
+
+    /** True when a previous key is configured, i.e. a rotation is in progress. */
+    public boolean rotationInProgress() {
+        return previousKeySpec() != null;
+    }
+
+    private String decryptWith(SecretKeySpec key, String stored) throws Exception {
+        byte[] all = Base64.getDecoder().decode(stored);
+        byte[] iv = new byte[IV_LENGTH];
+        System.arraycopy(all, 0, iv, 0, IV_LENGTH);
+        byte[] ct = new byte[all.length - IV_LENGTH];
+        System.arraycopy(all, IV_LENGTH, ct, 0, ct.length);
+        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+        cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+        return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
     }
 
     private SecretKeySpec keySpec() {
         return new SecretKeySpec(keyBytes(), "AES");
+    }
+
+    /** The previous key, or null when none is configured or it is unusable. */
+    private SecretKeySpec previousKeySpec() {
+        String k = props.getTokenEncKeyPrevious();
+        if (k == null || k.isBlank()) return null;
+        try {
+            byte[] bytes = Base64.getDecoder().decode(k.trim());
+            if (bytes.length != 16 && bytes.length != 24 && bytes.length != 32) return null;
+            return new SecretKeySpec(bytes, "AES");
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

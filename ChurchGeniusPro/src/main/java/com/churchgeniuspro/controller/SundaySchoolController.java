@@ -82,6 +82,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> getClasses(HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         return ResponseEntity.ok(classRepo.findByClientIdAndDeleteFlagFalse(cid));
     }
 
@@ -89,6 +90,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> createClass(@RequestBody Map<String,String> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsClass c = new SsClass();
         c.setClientId(cid);
         c.setClassName(str(body.get("className")));
@@ -100,6 +102,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> updateClass(@PathVariable Long id, @RequestBody Map<String,String> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsClass c = classRepo.findById(id).orElse(null);
         if (c == null || !c.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         c.setClassName(str(body.get("className")));
@@ -111,6 +114,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteClass(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsClass c = classRepo.findById(id).orElse(null);
         if (c == null || !c.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         c.setDeleteFlag(true);
@@ -126,6 +130,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getTeachers(@PathVariable Long classId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(teacherRepo.findByClassIdAndDeleteFlagFalse(classId));
     }
 
@@ -133,6 +139,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> addTeacher(@PathVariable Long classId, @RequestBody Map<String,String> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         SsTeacher t = new SsTeacher();
         t.setClientId(cid);
         t.setClassId(classId);
@@ -146,6 +154,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteTeacher(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsTeacher t = teacherRepo.findById(id).orElse(null);
         if (t == null || !t.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         t.setDeleteFlag(true);
@@ -161,6 +170,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> getChildMembers(HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         List<FamilyMember> all = familyMemberRepo.findAllWithFamilyByAppUser(cid);
         List<Map<String,Object>> children = all.stream()
             .filter(m -> "Child".equalsIgnoreCase(m.getRole())
@@ -198,6 +208,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getStudents(@PathVariable Long classId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(studentRepo.findByClassIdAndDeleteFlagFalse(classId));
     }
 
@@ -205,16 +217,26 @@ public class SundaySchoolController {
     public ResponseEntity<?> addStudent(@PathVariable Long classId, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
+        // Body foreign keys must belong to this tenant before they are stored.
+        Long teacherId = Long.parseLong(str(body.get("teacherId")));
+        if (teacherRepo.findByIdAndClientIdAndDeleteFlagFalse(teacherId, cid).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Unknown teacher."));
+        Integer familyMemberId = null;
+        if (body.get("familyMemberId") != null) {
+            try { familyMemberId = Integer.parseInt(str(body.get("familyMemberId"))); } catch (Exception ignored) {}
+            if (familyMemberId != null && familyMemberRepo.findByIdAndTenant(familyMemberId, cid).isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "Unknown family member."));
+        }
         SsStudent s = new SsStudent();
         s.setClientId(cid);
         s.setClassId(classId);
-        s.setTeacherId(Long.parseLong(str(body.get("teacherId"))));
+        s.setTeacherId(teacherId);
         s.setStudentName(str(body.get("studentName")));
         s.setContactEmail(str(body.get("contactEmail")));
         s.setMemberRef(str(body.get("memberRef")));
-        if (body.get("familyMemberId") != null) {
-            try { s.setFamilyMemberId(Integer.parseInt(str(body.get("familyMemberId")))); } catch (Exception ignored) {}
-        }
+        s.setFamilyMemberId(familyMemberId);
         return ResponseEntity.ok(studentRepo.save(s));
     }
 
@@ -222,6 +244,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteStudent(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsStudent s = studentRepo.findById(id).orElse(null);
         if (s == null || !s.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         s.setDeleteFlag(true);
@@ -241,12 +264,17 @@ public class SundaySchoolController {
             HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsStudent s = studentRepo.findById(id).orElse(null);
         if (s == null || !s.getClientId().equals(cid)) return ResponseEntity.status(404).build();
 
         if (body.containsKey("familyMemberId") && body.get("familyMemberId") != null) {
-            try { s.setFamilyMemberId(Integer.parseInt(str(body.get("familyMemberId")))); }
+            Integer fmId = null;
+            try { fmId = Integer.parseInt(str(body.get("familyMemberId"))); }
             catch (NumberFormatException ignored) {}
+            if (fmId != null && familyMemberRepo.findByIdAndTenant(fmId, cid).isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "Unknown family member."));
+            if (fmId != null) s.setFamilyMemberId(fmId);
         } else {
             s.setFamilyMemberId(null);
         }
@@ -269,6 +297,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getLessons(@PathVariable Long studentId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (studentRepo.findByIdAndClientIdAndDeleteFlagFalse(studentId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(lessonRepo.findByStudentIdAndDeleteFlagFalseOrderBySortOrderAsc(studentId));
     }
 
@@ -276,7 +306,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> addLesson(@PathVariable Long studentId, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        SsStudent stu = studentRepo.findById(studentId).orElse(null);
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsStudent stu = studentRepo.findByIdAndClientIdAndDeleteFlagFalse(studentId, cid).orElse(null);
         if (stu == null) return ResponseEntity.status(404).build();
         SsLesson l = new SsLesson();
         l.setClientId(cid);
@@ -294,6 +325,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> updateLesson(@PathVariable Long id, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsLesson l = lessonRepo.findById(id).orElse(null);
         if (l == null || !l.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         if (body.containsKey("status"))      l.setStatus(str(body.get("status")));
@@ -306,6 +338,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteLesson(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsLesson l = lessonRepo.findById(id).orElse(null);
         if (l == null || !l.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         l.setDeleteFlag(true);
@@ -321,6 +354,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getNotes(@PathVariable Long classId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(noteRepo.findByClassIdAndDeleteFlagFalseOrderByCreatedAtDesc(classId));
     }
 
@@ -328,6 +363,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> addNote(@PathVariable Long classId, @RequestBody Map<String,String> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         SsNote n = new SsNote();
         n.setClientId(cid);
         n.setClassId(classId);
@@ -340,6 +377,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteNote(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsNote n = noteRepo.findById(id).orElse(null);
         if (n == null || !n.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         n.setDeleteFlag(true);
@@ -351,29 +389,114 @@ public class SundaySchoolController {
     // ADMIN: FILES
     // =========================================================================
 
+    /* ══════════════════════════════════════════════════════════════════════
+       CLASS DOCUMENTS
+
+       Three audiences share one store (ss_file):
+         • Kids Ministry staff — every class in their church, as before.
+         • The class's own teacher — from their Member Profile, their classes only.
+         • Students enrolled in the class — read-only, and only documents that
+           were explicitly shared with students.
+
+       Before this feature the Files section was staff-facing and the endpoints
+       authorised on clientId alone, which any member session also resolves — so
+       any signed-in member could list, upload to, download from and delete any
+       class in their church. Each endpoint below now proves the caller's
+       relationship to the class it names.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Turns Word documents into HTML so View can show them. Field-injected so the
+     * controller's existing construction sites stay unchanged; null-checked at use,
+     * in which case View simply falls back to serving the original file.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.DocumentHtmlRenderer docRenderer;
+
+    /** Test seam — supply the renderer without a Spring context. */
+    public void setDocRendererForTest(com.churchgeniuspro.service.DocumentHtmlRenderer r) { this.docRenderer = r; }
+
+    /** Extensions a class document may use. Enforced server-side, not just in the picker. */
+    private static final Set<String> ALLOWED_DOC_EXTENSIONS = Set.of(
+            "pdf", "doc", "docx", "txt", "rtf", "odt",          // documents
+            "ppt", "pptx", "xls", "xlsx",                       // slides + sheets
+            "png", "jpg", "jpeg");                              // scanned worksheets
+
+    private static final String ALLOWED_DOC_MESSAGE =
+            "Allowed file types: PDF, Word, text, RTF, ODT, PowerPoint, Excel, PNG and JPG.";
+
+    private static String extensionOf(String fileName) {
+        if (fileName == null) return "";
+        int dot = fileName.lastIndexOf('.');
+        return dot < 0 ? "" : fileName.substring(dot + 1).trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** True when the caller may manage (list, upload, share, delete) this class's documents. */
+    private boolean canManageClassFiles(HttpServletRequest req, Long classId) {
+        HttpSession session = req.getSession(false);
+        if (session == null || classId == null) return false;
+        if (isStaffSession(session)) {                     // Kids Ministry staff — any class of their own church
+            String cid = RoleGuard.clientId(req);
+            return cid != null && classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isPresent();
+        }
+        return isTeacherOfClass(req, classId);             // teacher — their own classes only
+    }
+
+    /** True when the logged-in student is enrolled in this class. */
+    private boolean isStudentOfClass(HttpServletRequest req, Long classId) {
+        HttpSession session = req.getSession(false);
+        if (session == null || classId == null) return false;
+        SsStudent student = resolveStudent(session);
+        return student != null && classId.equals(student.getClassId());
+    }
+
+    private Map<String,Object> fileMeta(SsFile f) {
+        Map<String,Object> r = new LinkedHashMap<>();
+        r.put("id", f.getId());
+        r.put("originalName", f.getOriginalName());
+        r.put("contentType", f.getContentType());
+        r.put("uploadedAt", f.getUploadedAt());
+        r.put("uploadedByName", f.getUploadedByName());
+        r.put("sharedWithStudents", f.isSharedWithStudents());
+        return r;
+    }
+
     @GetMapping("/api/ss/classes/{classId}/files")
     public ResponseEntity<?> getFiles(@PathVariable Long classId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        List<SsFile> files = fileRepo.findByClassIdAndDeleteFlagFalseOrderByUploadedAtDesc(classId);
+        if (!canManageClassFiles(req, classId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not manage this class."));
+        }
+        List<SsFile> files = fileRepo.findByClassIdAndDeleteFlagFalseOrderByUploadedAtDesc(classId)
+                .stream().filter(f -> cid.equals(f.getClientId())).collect(Collectors.toList());
         // Return without fileData for listing
-        List<Map<String,Object>> result = files.stream().map(f -> {
-            Map<String,Object> r = new LinkedHashMap<>();
-            r.put("id", f.getId());
-            r.put("originalName", f.getOriginalName());
-            r.put("contentType", f.getContentType());
-            r.put("uploadedAt", f.getUploadedAt());
-            return r;
-        }).collect(Collectors.toList());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(files.stream().map(this::fileMeta).collect(Collectors.toList()));
     }
 
+    /**
+     * @param shareWithStudents whether students enrolled in the class may see it.
+     *        Defaults to true, because a document uploaded from this screen is
+     *        normally meant for the class; pass false for teacher-only material.
+     */
     @PostMapping("/api/ss/classes/{classId}/files")
     public ResponseEntity<?> uploadFile(@PathVariable Long classId,
                                         @RequestParam("file") MultipartFile file,
+                                        @RequestParam(value = "shareWithStudents", required = false,
+                                                      defaultValue = "true") boolean shareWithStudents,
                                         HttpServletRequest req) throws IOException {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        if (!canManageClassFiles(req, classId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not manage this class."));
+        }
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Choose a file to upload."));
+        }
+        String ext = extensionOf(file.getOriginalFilename());
+        if (!ALLOWED_DOC_EXTENSIONS.contains(ext)) {
+            return ResponseEntity.badRequest().body(Map.of("error", ALLOWED_DOC_MESSAGE));
+        }
         SsFile f = new SsFile();
         f.setClientId(cid);
         f.setClassId(classId);
@@ -381,21 +504,122 @@ public class SundaySchoolController {
         f.setContentType(file.getContentType());
         f.setFileData(Base64.getEncoder().encodeToString(file.getBytes()));
         f.setUploadedAt(LocalDateTime.now());
-        fileRepo.save(f);
-        return ResponseEntity.ok(Map.of("status", "uploaded", "id", f.getId(), "name", f.getOriginalName()));
+        f.setUploadedByName(uploaderName(req));
+        f.setSharedWithStudents(shareWithStudents);
+        SsFile saved = fileRepo.save(f);
+        // LinkedHashMap rather than Map.of: the id is assigned on save, and Map.of
+        // throws on a null value rather than simply reporting one.
+        Map<String,Object> body = new LinkedHashMap<>();
+        body.put("status", "uploaded");
+        body.put("id", saved != null ? saved.getId() : f.getId());
+        body.put("name", f.getOriginalName());
+        body.put("sharedWithStudents", f.isSharedWithStudents());
+        return ResponseEntity.ok(body);
     }
 
-    @GetMapping("/api/ss/files/{id}/download")
-    public ResponseEntity<?> downloadFile(@PathVariable Long id, HttpServletRequest req) {
+    /** Turns sharing with students on or off for one document. */
+    @PostMapping("/api/ss/files/{id}/share")
+    public ResponseEntity<?> setFileShared(@PathVariable Long id,
+                                           @RequestParam("shared") boolean shared,
+                                           HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
         SsFile f = fileRepo.findById(id).orElse(null);
-        if (f == null || !f.getClientId().equals(cid)) return ResponseEntity.status(404).build();
+        if (f == null || f.isDeleteFlag() || !cid.equals(f.getClientId())) return ResponseEntity.status(404).build();
+        if (!canManageClassFiles(req, f.getClassId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not manage this class."));
+        }
+        f.setSharedWithStudents(shared);
+        fileRepo.save(f);
+        return ResponseEntity.ok(Map.of("status", "ok", "sharedWithStudents", shared));
+    }
+
+    /**
+     * Serves one document.
+     *
+     * @param inline when true the browser renders it in place instead of saving it,
+     *        which is what makes View and Print work for PDFs, text and images.
+     *        Formats a browser cannot render (Word, for instance) still download.
+     */
+    @GetMapping("/api/ss/files/{id}/download")
+    public ResponseEntity<?> downloadFile(@PathVariable Long id,
+                                          @RequestParam(value = "inline", required = false,
+                                                        defaultValue = "false") boolean inline,
+                                          HttpServletRequest req) {
+        String cid = RoleGuard.clientId(req);
+        if (cid == null) return ResponseEntity.status(401).build();
+        SsFile f = fileRepo.findById(id).orElse(null);
+        if (f == null || f.isDeleteFlag() || !f.getClientId().equals(cid)) return ResponseEntity.status(404).build();
+
+        if (!mayReadFile(req, f)) {
+            return ResponseEntity.status(403).body(Map.of("error", "This document is not available to you."));
+        }
+
         byte[] data = Base64.getDecoder().decode(f.getFileData());
+        String safeName = f.getOriginalName() == null ? "document"
+                : f.getOriginalName().replace("\"", "").replace("\r", "").replace("\n", "");
         return org.springframework.http.ResponseEntity.ok()
-            .header("Content-Disposition", "attachment; filename=\"" + f.getOriginalName() + "\"")
+            .header("Content-Disposition", (inline ? "inline" : "attachment")
+                    + "; filename=\"" + safeName + "\"")
             .header("Content-Type", f.getContentType() != null ? f.getContentType() : "application/octet-stream")
             .body(data);
+    }
+
+    /**
+     * May this caller read this document? Staff and the class's teacher always may;
+     * a student only within their own class and only once it has been shared.
+     * Shared by download and view so the two can never disagree about who may see what.
+     */
+    private boolean mayReadFile(HttpServletRequest req, SsFile f) {
+        if (canManageClassFiles(req, f.getClassId())) return true;
+        return f.isSharedWithStudents() && isStudentOfClass(req, f.getClassId());
+    }
+
+    /**
+     * Opens a document for reading in the browser.
+     *
+     * <p>Browsers render PDF, text and images themselves, so those are streamed
+     * inline unchanged. Word is the exception: it has no browser renderer, and
+     * serving it inline just saves it to disk — the behaviour this endpoint exists
+     * to fix. A {@code .doc} or {@code .docx} is therefore converted to HTML on the
+     * server and returned as a page. If that conversion cannot be done, the original
+     * file is served instead, so View degrades to the old behaviour rather than
+     * failing.
+     *
+     * <p>Download is deliberately untouched and still returns the original file.
+     */
+    @GetMapping("/api/ss/files/{id}/view")
+    public ResponseEntity<?> viewFile(@PathVariable Long id, HttpServletRequest req) {
+        String cid = RoleGuard.clientId(req);
+        if (cid == null) return ResponseEntity.status(401).build();
+        SsFile f = fileRepo.findById(id).orElse(null);
+        if (f == null || f.isDeleteFlag() || !cid.equals(f.getClientId())) return ResponseEntity.status(404).build();
+        if (!mayReadFile(req, f)) {
+            return ResponseEntity.status(403).body(Map.of("error", "This document is not available to you."));
+        }
+
+        byte[] data = Base64.getDecoder().decode(f.getFileData());
+        String name = f.getOriginalName();
+
+        if (docRenderer != null
+                && com.churchgeniuspro.service.DocumentHtmlRenderer.isWord(name)) {
+            String html = docRenderer.toHtml(data, name);
+            if (html != null) {
+                return org.springframework.http.ResponseEntity.ok()
+                        .header("Content-Type", "text/html; charset=UTF-8")
+                        .header("Content-Disposition", "inline")
+                        .header("X-Content-Type-Options", "nosniff")
+                        .body(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            // Unreadable as Word — fall through and let the browser do what it can.
+        }
+
+        String safeName = name == null ? "document"
+                : name.replace("\"", "").replace("\r", "").replace("\n", "");
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"" + safeName + "\"")
+                .header("Content-Type", f.getContentType() != null ? f.getContentType() : "application/octet-stream")
+                .body(data);
     }
 
     @DeleteMapping("/api/ss/files/{id}")
@@ -404,9 +628,23 @@ public class SundaySchoolController {
         if (cid == null) return ResponseEntity.status(401).build();
         SsFile f = fileRepo.findById(id).orElse(null);
         if (f == null || !f.getClientId().equals(cid)) return ResponseEntity.status(404).build();
+        if (!canManageClassFiles(req, f.getClassId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not manage this class."));
+        }
         f.setDeleteFlag(true);
         fileRepo.save(f);
         return ResponseEntity.ok(Map.of("status", "deleted"));
+    }
+
+    /** Best-effort display name for whoever uploaded, for the "uploaded by" line. */
+    private String uploaderName(HttpServletRequest req) {
+        HttpSession session = req.getSession(false);
+        if (session == null) return null;
+        for (String key : new String[]{"memberName", "fullName", "name", "username"}) {
+            Object v = session.getAttribute(key);
+            if (v instanceof String str && !str.isBlank()) return str;
+        }
+        return null;
     }
 
     // =========================================================================
@@ -417,6 +655,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getExams(@PathVariable Long classId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(examRepo.findByClassIdAndDeleteFlagFalseOrderByIdDesc(classId));
     }
 
@@ -424,6 +664,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> createExam(@PathVariable Long classId, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (classRepo.findByIdAndClientIdAndDeleteFlagFalse(classId, cid).isEmpty()) return ResponseEntity.status(404).build();
         SsExam e = new SsExam();
         e.setClientId(cid);
         e.setClassId(classId);
@@ -439,6 +681,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> updateExam(@PathVariable Long id, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsExam e = examRepo.findById(id).orElse(null);
         if (e == null || !e.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         if (body.containsKey("examTitle"))       e.setExamTitle(str(body.get("examTitle")));
@@ -458,6 +701,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteExam(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsExam e = examRepo.findById(id).orElse(null);
         if (e == null || !e.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         e.setDeleteFlag(true);
@@ -474,6 +718,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> republishExam(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsExam e = examRepo.findById(id).orElse(null);
         if (e == null || !e.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         // Soft-delete all submissions (and their answers) so students get a clean slate
@@ -497,6 +742,9 @@ public class SundaySchoolController {
     public ResponseEntity<?> getQuestions(@PathVariable Long examId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        // Answer key is included — the exam must be this tenant's.
+        if (examRepo.findByIdAndClientIdAndDeleteFlagFalse(examId, cid).isEmpty()) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(questionRepo.findByExamIdAndDeleteFlagFalseOrderBySortOrderAsc(examId));
     }
 
@@ -504,6 +752,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> addQuestion(@PathVariable Long examId, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        if (examRepo.findByIdAndClientIdAndDeleteFlagFalse(examId, cid).isEmpty()) return ResponseEntity.status(404).build();
         SsQuestion q = new SsQuestion();
         q.setClientId(cid);
         q.setExamId(examId);
@@ -521,6 +771,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> updateQuestion(@PathVariable Long id, @RequestBody Map<String,Object> body, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsQuestion q = questionRepo.findById(id).orElse(null);
         if (q == null || !q.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         if (body.containsKey("questionText"))  q.setQuestionText(str(body.get("questionText")));
@@ -536,6 +787,7 @@ public class SundaySchoolController {
     public ResponseEntity<?> deleteQuestion(@PathVariable Long id, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsQuestion q = questionRepo.findById(id).orElse(null);
         if (q == null || !q.getClientId().equals(cid)) return ResponseEntity.status(404).build();
         q.setDeleteFlag(true);
@@ -553,6 +805,7 @@ public class SundaySchoolController {
                                                   HttpServletRequest req) throws IOException {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
         SsExam exam = examRepo.findById(examId).orElse(null);
         if (exam == null || !exam.getClientId().equals(cid)) return ResponseEntity.status(404).build();
 
@@ -590,8 +843,10 @@ public class SundaySchoolController {
     public ResponseEntity<?> getSubmissions(@PathVariable Long examId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsExam exam = examRepo.findByIdAndClientIdAndDeleteFlagFalse(examId, cid).orElse(null);
+        if (exam == null) return ResponseEntity.status(404).build();
         List<SsSubmission> subs = submissionRepo.findByExamIdAndDeleteFlagFalse(examId);
-        SsExam exam = examRepo.findById(examId).orElse(null);
         List<Map<String,Object>> result = subs.stream().map(s -> {
             Map<String,Object> r = new LinkedHashMap<>();
             r.put("id", s.getId());
@@ -618,7 +873,8 @@ public class SundaySchoolController {
     public ResponseEntity<?> getAnswers(@PathVariable Long submissionId, HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsSubmission sub = submissionRepo.findByIdAndClientIdAndDeleteFlagFalse(submissionId, cid).orElse(null);
         if (sub == null) return ResponseEntity.status(404).build();
         List<SsQuestion> questions = questionRepo.findByExamIdAndDeleteFlagFalseOrderBySortOrderAsc(sub.getExamId());
         List<SsAnswer> answers = answerRepo.findBySubmissionId(submissionId);
@@ -658,7 +914,8 @@ public class SundaySchoolController {
                                              HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        SsAnswer a = answerRepo.findById(answerId).orElse(null);
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsAnswer a = answerRepo.findByIdAndClientId(answerId, cid).orElse(null);
         if (a == null) return ResponseEntity.status(404).build();
         int marks = Integer.parseInt(str(body.get("manualMarks")));
         a.setManualMarks(marks);
@@ -675,7 +932,8 @@ public class SundaySchoolController {
                                                       HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsSubmission sub = submissionRepo.findByIdAndClientIdAndDeleteFlagFalse(submissionId, cid).orElse(null);
         if (sub == null) return ResponseEntity.status(404).build();
         int total = Integer.parseInt(str(body.get("totalMarks")));
         sub.setTotalMarks(total);
@@ -690,7 +948,8 @@ public class SundaySchoolController {
                                               HttpServletRequest req) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
-        SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
+        SsSubmission sub = submissionRepo.findByIdAndClientIdAndDeleteFlagFalse(submissionId, cid).orElse(null);
         if (sub == null) return ResponseEntity.status(404).build();
         if (!"InProgress".equals(sub.getStatus()))
             return ResponseEntity.badRequest().body(Map.of("error", "Exam is not in progress."));
@@ -718,10 +977,12 @@ public class SundaySchoolController {
     public ResponseEntity<?> adminSendResult(@PathVariable Long submissionId,
                                               @RequestBody(required = false) Map<String,Object> body,
                                               HttpServletRequest req) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("ss-admin-send-result")) {
         String cid = RoleGuard.clientId(req);
         if (cid == null) return ResponseEntity.status(401).build();
+        ResponseEntity<?> denied = staffDeny(req); if (denied != null) return denied;
 
-        SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
+        SsSubmission sub = submissionRepo.findByIdAndClientIdAndDeleteFlagFalse(submissionId, cid).orElse(null);
         if (sub == null) return ResponseEntity.status(404).build();
 
         SsExam exam = examRepo.findById(sub.getExamId()).orElse(null);
@@ -778,6 +1039,7 @@ public class SundaySchoolController {
         resp.put("emailsSent", sent);
         if (!errors.isEmpty()) resp.put("errors", errors);
         return ResponseEntity.ok(resp);
+            }
     }
 
     // =========================================================================
@@ -806,6 +1068,7 @@ public class SundaySchoolController {
         if (examIdStr != null) {
             try { exam = examRepo.findById(Long.parseLong(examIdStr)).orElse(null); }
             catch (NumberFormatException ignored) {}
+            if (exam != null && !sameTenant(clientId, exam.getClientId())) return ResponseEntity.status(404).build();
         }
 
         // Find the student to get teacher (resilient — falls back to familyMemberId lookup)
@@ -833,126 +1096,6 @@ public class SundaySchoolController {
     // =========================================================================
     // MEMBER (STUDENT) ENDPOINTS
     // =========================================================================
-
-    /**
-     * TEMPORARY DEBUG — remove after diagnosis.
-     * GET /api/member/ss/debug while logged in as Christina to see live DB state.
-     */
-    @GetMapping("/api/member/ss/debug")
-    public ResponseEntity<?> debugSsLookup(HttpServletRequest req) {
-        HttpSession session = req.getSession(false);
-        if (session == null) return ResponseEntity.status(401).body("No session");
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("session_role",       session.getAttribute("role"));
-        out.put("session_clientId",   session.getAttribute("clientId"));
-        out.put("session_appClientId",session.getAttribute("appClientId"));
-        out.put("session_memberId",   session.getAttribute("memberId"));
-        out.put("session_memberRef",  session.getAttribute("memberRef"));
-        String[] ssId = resolveSsIdentity(session);
-        out.put("resolveSsIdentity",  ssId != null ? java.util.Arrays.asList(ssId) : null);
-        if (ssId == null) { out.put("note", "not a member session"); return ResponseEntity.ok(out); }
-        String memberRef = ssId[0];
-        String clientId  = ssId[1];
-        Object midObj = session.getAttribute("memberId");
-        FamilyMember fm = null;
-        if (midObj instanceof Number) fm = familyMemberRepo.findById(((Number) midObj).intValue()).orElse(null);
-        if (fm == null) fm = familyMemberRepo.findByMemberRef(memberRef).orElse(null);
-        if (fm != null) {
-            Map<String,Object> fmMap = new LinkedHashMap<>();
-            fmMap.put("id", fm.getId()); fmMap.put("firstName", fm.getFirstName());
-            fmMap.put("lastName", fm.getLastName()); fmMap.put("email", fm.getEmail());
-            fmMap.put("memberRef", fm.getMemberRef()); fmMap.put("appClientId", fm.getAppClientId());
-            out.put("familyMember", fmMap);
-        } else { out.put("familyMember", "NOT FOUND"); }
-        // Strategy results
-        out.put("s1_memberRef", memberRef); out.put("s1_clientId", clientId);
-        SsStudent s1 = studentRepo.findByMemberRefAndClientIdAndDeleteFlagFalse(memberRef, clientId).orElse(null);
-        out.put("s1_result", s1 != null ? debugStudentSummary(s1) : "NO MATCH");
-        if (midObj instanceof Number) {
-            Integer fmid = ((Number) midObj).intValue();
-            out.put("s2_familyMemberId", fmid);
-            SsStudent s2 = studentRepo.findByFamilyMemberIdAndClientIdAndDeleteFlagFalse(fmid, clientId).orElse(null);
-            out.put("s2_result", s2 != null ? debugStudentSummary(s2) : "NO MATCH");
-            List<SsStudent> s2b = studentRepo.findByFamilyMemberIdAndDeleteFlagFalse(fmid);
-            out.put("s2b_result", s2b.isEmpty() ? "NO MATCH" : s2b.stream().map(this::debugStudentSummary).collect(Collectors.toList()));
-        }
-        List<SsStudent> s3 = studentRepo.findByMemberRefAndDeleteFlagFalse(memberRef);
-        out.put("s3_result", s3.isEmpty() ? "NO MATCH" : s3.stream().map(this::debugStudentSummary).collect(Collectors.toList()));
-        FamilyMember fm4 = familyMemberRepo.findByMemberRef(memberRef).orElse(null);
-        if (fm4 != null) {
-            List<SsStudent> s4 = studentRepo.findByFamilyMemberIdAndDeleteFlagFalse(fm4.getId());
-            out.put("s4_fm_id", fm4.getId());
-            out.put("s4_result", s4.isEmpty() ? "NO MATCH" : s4.stream().map(this::debugStudentSummary).collect(Collectors.toList()));
-        } else { out.put("s4_result", "NO FM ROW BY memberRef"); }
-        // All org students
-        if (clientId != null && !clientId.toUpperCase().startsWith("MBR")) {
-            List<SsStudent> all = studentRepo.findByClientIdAndDeleteFlagFalse(clientId);
-            out.put("all_org_students", all.stream().map(this::debugStudentSummary).collect(Collectors.toList()));
-        }
-        return ResponseEntity.ok(out);
-    }
-
-    private Map<String, Object> debugStudentSummary(SsStudent s) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", s.getId()); m.put("studentName", s.getStudentName());
-        m.put("memberRef", s.getMemberRef()); m.put("familyMemberId", s.getFamilyMemberId());
-        m.put("contactEmail", s.getContactEmail()); m.put("clientId", s.getClientId());
-        m.put("classId", s.getClassId()); m.put("deleteFlag", s.isDeleteFlag());
-        return m;
-    }
-
-    /**
-     * ONE-TIME DATA FIX — remove after use.
-     * POST /api/admin/ss/fix-enroll-christina
-     * Inserts Christina Thomas's missing ss_student row for CGP-00001.
-     * Idempotent: if a row already exists it does nothing.
-     */
-    @PostMapping("/api/admin/ss/fix-enroll-christina")
-    @Transactional
-    public ResponseEntity<?> fixEnrollChristina(HttpServletRequest req) {
-        final String CLIENT_ID  = "CGP-00001";
-        final String MEMBER_REF = "MBRdf511aa2-11c3-4623-9ab9-b298c8d941d3";
-        final Integer FM_ID     = 147;
-        final String EMAIL      = "meetchriz@gmail.com";
-        final String NAME       = "Christina Thomas";
-
-        // Idempotency check
-        boolean exists = studentRepo.findByMemberRefAndClientIdAndDeleteFlagFalse(MEMBER_REF, CLIENT_ID).isPresent()
-                || studentRepo.findByFamilyMemberIdAndClientIdAndDeleteFlagFalse(FM_ID, CLIENT_ID).isPresent();
-        if (exists) return ResponseEntity.ok(Map.of("status", "already_enrolled"));
-
-        // Find a class for this org
-        List<SsClass> classes = classRepo.findByClientIdAndDeleteFlagFalse(CLIENT_ID);
-        if (classes.isEmpty()) return ResponseEntity.status(400).body(Map.of("error", "No classes found for " + CLIENT_ID));
-        classes.sort(Comparator.comparingLong(SsClass::getId));
-        SsClass cls = classes.get(0); // use first available class (lowest id)
-
-        // Find a teacher for this org
-        List<SsTeacher> teachers = teacherRepo.findByClientIdAndDeleteFlagFalse(CLIENT_ID);
-        if (teachers.isEmpty()) return ResponseEntity.status(400).body(Map.of("error", "No teachers found for " + CLIENT_ID));
-        teachers.sort(Comparator.comparingLong(SsTeacher::getId));
-        SsTeacher teacher = teachers.get(0);
-
-        SsStudent student = new SsStudent();
-        student.setClientId(CLIENT_ID);
-        student.setMemberRef(MEMBER_REF);
-        student.setFamilyMemberId(FM_ID);
-        student.setStudentName(NAME);
-        student.setContactEmail(EMAIL);
-        student.setClassId(cls.getId());
-        student.setTeacherId(teacher.getId());
-        student.setDeleteFlag(false);
-        studentRepo.save(student);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "enrolled");
-        result.put("studentId", student.getId());
-        result.put("classId", cls.getId());
-        result.put("className", cls.getClassName());
-        result.put("teacherId", teacher.getId());
-        result.put("teacherName", teacher.getTeacherName());
-        return ResponseEntity.ok(result);
-    }
 
     /** Returns the student's classes, exams, and submissions. */
     @GetMapping("/api/member/ss/dashboard")
@@ -997,6 +1140,11 @@ public class SundaySchoolController {
         result.put("className", cls != null ? cls.getClassName() : "");
         result.put("exams", examList);
         result.put("lessons", lessons);
+        // Documents the teacher or Kids Ministry staff shared with this class. Only
+        // shared ones, and only for the class this student is actually enrolled in.
+        result.put("documents",
+                fileRepo.findSharedForClass(student.getClassId()).stream()
+                        .map(this::fileMeta).collect(Collectors.toList()));
         return ResponseEntity.ok(result);
     }
 
@@ -1013,8 +1161,11 @@ public class SundaySchoolController {
         SsStudent student = resolveStudent(session);
         if (student == null) return ResponseEntity.status(404).body(Map.of("error", "Not enrolled"));
 
+        // Only an exam of this tenant, and of the class this student is enrolled in.
         SsExam exam = examRepo.findById(examId).orElse(null);
-        if (exam == null || !"Published".equals(exam.getStatus()))
+        if (exam == null || !"Published".equals(exam.getStatus())
+                || !sameTenant(clientId, exam.getClientId())
+                || exam.getClassId() == null || !exam.getClassId().equals(student.getClassId()))
             return ResponseEntity.status(404).body(Map.of("error", "Exam not available"));
 
         SsSubmission sub = submissionRepo.findByExamIdAndStudentIdAndDeleteFlagFalse(examId, student.getId()).orElse(null);
@@ -1075,10 +1226,16 @@ public class SundaySchoolController {
                                         HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
-        if (resolveSsIdentity(session) == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        String[] ssId = resolveSsIdentity(session);
+        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
 
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
-        if (sub == null || "Submitted".equals(sub.getStatus()))
+        if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
+        // The submission must be this student's own (same check as getStudentResults).
+        SsStudent student = resolveStudent(session);
+        if (student == null || !student.getId().equals(sub.getStudentId()))
+            return ResponseEntity.status(403).build();
+        if ("Submitted".equals(sub.getStatus()))
             return ResponseEntity.status(400).body(Map.of("error", "Cannot modify"));
 
         Long questionId = Long.parseLong(str(body.get("questionId")));
@@ -1098,9 +1255,10 @@ public class SundaySchoolController {
     public ResponseEntity<?> pollExtraTime(@PathVariable Long submissionId, HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
-        if (resolveSsIdentity(session) == null) return ResponseEntity.ok(Map.of("extraTimeMinutes", 0));
+        String[] ssId = resolveSsIdentity(session);
+        if (ssId == null) return ResponseEntity.ok(Map.of("extraTimeMinutes", 0));
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
-        if (sub == null) return ResponseEntity.status(404).build();
+        if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(Map.of("extraTimeMinutes", sub.getExtraTimeMinutes()));
     }
 
@@ -1108,12 +1266,18 @@ public class SundaySchoolController {
     @PostMapping("/api/member/ss/submissions/{submissionId}/submit")
     @Transactional
     public ResponseEntity<?> submitExam(@PathVariable Long submissionId, HttpServletRequest req) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("ss-submit-exam")) {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
-        if (resolveSsIdentity(session) == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        String[] ssId = resolveSsIdentity(session);
+        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
 
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
-        if (sub == null) return ResponseEntity.status(404).build();
+        if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
+        // The submission must be this student's own (same check as getStudentResults).
+        SsStudent submitter = resolveStudent(session);
+        if (submitter == null || !submitter.getId().equals(sub.getStudentId()))
+            return ResponseEntity.status(403).build();
         if ("Submitted".equals(sub.getStatus()))
             return ResponseEntity.status(400).body(Map.of("error", "Already submitted"));
 
@@ -1212,6 +1376,7 @@ public class SundaySchoolController {
         }
 
         return ResponseEntity.ok(Map.of("status", "submitted", "autoMarks", autoMarks, "requiredQuestions", requiredQ));
+            }
     }
 
     /**
@@ -1345,12 +1510,13 @@ public class SundaySchoolController {
         try { memberId = Integer.parseInt(String.valueOf(memberIdObj)); }
         catch (NumberFormatException ex) { return ResponseEntity.ok(List.of()); }
 
+        // Tenant comes from the session's appClientId only; without it there is nothing to scope to.
         String clientId = (String) session.getAttribute("appClientId");
-        if (clientId == null) clientId = (String) session.getAttribute("clientId");
+        if (clientId == null || clientId.isBlank()) return ResponseEntity.status(401).build();
 
         // Find all active students in the same family whose familyMemberId is in this family
         // Step 1: get the caller's family ID from the family_member row
-        FamilyMember self = familyMemberRepo.findById(memberId).orElse(null);
+        FamilyMember self = familyMemberRepo.findByIdAndTenant(memberId, clientId).orElse(null);
         if (self == null || self.getFamily() == null) return ResponseEntity.ok(List.of());
         Integer familyId = self.getFamily().getId();
 
@@ -1360,14 +1526,9 @@ public class SundaySchoolController {
                 .map(FamilyMember::getId).collect(java.util.stream.Collectors.toList());
         if (familyMemberIds.isEmpty()) return ResponseEntity.ok(List.of());
 
-        // Step 3: find ss_student rows whose familyMemberId is in that set
-        final String cid = clientId;
-        List<SsStudent> children = studentRepo.findAll().stream()
-                .filter(s -> !s.isDeleteFlag()
-                        && s.getFamilyMemberId() != null
-                        && familyMemberIds.contains(s.getFamilyMemberId())
-                        && (cid == null || cid.equals(s.getClientId())))
-                .collect(java.util.stream.Collectors.toList());
+        // Step 3: find ss_student rows whose familyMemberId is in that set (this tenant only)
+        List<SsStudent> children =
+                studentRepo.findByFamilyMemberIdInAndClientIdAndDeleteFlagFalse(familyMemberIds, clientId);
 
         if (children.isEmpty()) return ResponseEntity.ok(List.of());
 
@@ -1428,20 +1589,17 @@ public class SundaySchoolController {
         try { memberId = Integer.parseInt(String.valueOf(memberIdObj)); }
         catch (NumberFormatException ex) { return ResponseEntity.ok(List.of()); }
 
+        // Tenant comes from the session's appClientId only; without it there is nothing to scope to.
         String clientId = (String) session.getAttribute("appClientId");
-        if (clientId == null) clientId = (String) session.getAttribute("clientId");
+        if (clientId == null || clientId.isBlank()) return ResponseEntity.status(401).build();
 
-        FamilyMember self = familyMemberRepo.findById(memberId).orElse(null);
+        FamilyMember self = familyMemberRepo.findByIdAndTenant(memberId, clientId).orElse(null);
         if (self == null) return ResponseEntity.ok(List.of());
 
         // Primary: students whose familyMemberId points directly to THIS logged-in member.
         // This is only true for children that the logged-in member specifically enrolled.
-        final String cid = clientId;
-        List<SsStudent> children = studentRepo.findAll().stream()
-                .filter(s -> !s.isDeleteFlag()
-                        && memberId.equals(s.getFamilyMemberId())
-                        && (cid == null || cid.toUpperCase().startsWith("MBR") || cid.equals(s.getClientId())))
-                .collect(java.util.stream.Collectors.toList());
+        List<SsStudent> children =
+                studentRepo.findByFamilyMemberIdInAndClientIdAndDeleteFlagFalse(List.of(memberId), clientId);
 
         // Fallback: contactEmail match, but ONLY for students with no familyMemberId set
         // (pre-signup/manual enrollments where admin typed the parent's email).
@@ -1451,13 +1609,9 @@ public class SundaySchoolController {
         if (children.isEmpty()) {
             String selfEmail = self.getEmail();
             if (selfEmail != null && !selfEmail.isBlank()) {
-                final String emailLc = selfEmail.trim().toLowerCase();
-                children = studentRepo.findAll().stream()
-                        .filter(s -> !s.isDeleteFlag()
-                                && s.getFamilyMemberId() == null          // unlinked rows only
-                                && s.getContactEmail() != null
-                                && s.getContactEmail().trim().toLowerCase().equals(emailLc)
-                                && (cid == null || cid.toUpperCase().startsWith("MBR") || cid.equals(s.getClientId())))
+                children = studentRepo.findByContactEmailIgnoreCaseAndClientIdAndDeleteFlagFalse(selfEmail.trim(), clientId)
+                        .stream()
+                        .filter(s -> s.getFamilyMemberId() == null)      // unlinked rows only
                         .collect(java.util.stream.Collectors.toList());
             }
         }
@@ -1946,16 +2100,16 @@ public class SundaySchoolController {
                 }
             }
         }
-        // Fallback: appClientId may not be in session (family lookup failed at login).
-        // Try matching by memberRef alone, ignoring clientId scope.
+        // Fallback by memberRef alone — still within this session's tenant, so a
+        // memberRef reused in another church can never resolve to its teachers.
         if (teachers.isEmpty() && memberRef != null && !memberRef.isBlank()) {
-            teachers = teacherRepo.findByMemberRefAndDeleteFlagFalse(memberRef);
+            teachers = teacherRepo.findByMemberRefAndClientIdAndDeleteFlagFalse(memberRef, clientId);
         }
         // Final fallback: teacher was added by name only (no memberRef) — match by login email/username
         if (teachers.isEmpty()) {
             String username = session != null ? (String) session.getAttribute("username") : null;
             if (username != null && !username.isBlank()) {
-                List<SsTeacher> byEmail = teacherRepo.findByEmailAndDeleteFlagFalse(username);
+                List<SsTeacher> byEmail = teacherRepo.findByEmailAndClientIdAndDeleteFlagFalse(username, clientId);
                 if (!byEmail.isEmpty()) {
                     // Self-heal: stamp memberRef so future lookups skip the email fallback
                     if (memberRef != null && !memberRef.isBlank()) {
@@ -2227,7 +2381,10 @@ public class SundaySchoolController {
         for (Map<String,Object> am : answerMarks) {
             Long answerId = Long.parseLong(str(am.get("answerId")));
             int marks = Integer.parseInt(str(am.getOrDefault("manualMarks", "0")));
-            answerRepo.findById(answerId).ifPresent(a -> {
+            // Only answers of this submission — an answerId from another submission is ignored.
+            answerRepo.findById(answerId)
+                    .filter(a -> submissionId.equals(a.getSubmissionId()))
+                    .ifPresent(a -> {
                 a.setManualMarks(marks);
                 answerRepo.save(a);
             });
@@ -2269,6 +2426,7 @@ public class SundaySchoolController {
     @Transactional
     public ResponseEntity<?> teacherSendResult(@PathVariable Long submissionId,
                                                 HttpServletRequest req) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("ss-teacher-send-result")) {
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
         if (sub == null) return ResponseEntity.status(404).build();
         SsExam exam = examRepo.findById(sub.getExamId()).orElse(null);
@@ -2329,6 +2487,7 @@ public class SundaySchoolController {
         resp.put("emailsSent", sent);
         if (!errors.isEmpty()) resp.put("errors", errors);
         return ResponseEntity.ok(resp);
+            }
     }
 
     /** Teacher: add/edit a question directly in their exam. */
@@ -2376,7 +2535,7 @@ public class SundaySchoolController {
     private ResponseEntity<?> uploadQuestionPaperInternal(Long examId, MultipartFile file, String clientId)
             throws java.io.IOException {
         if (clientId == null) return ResponseEntity.status(401).build();
-        SsExam exam = examRepo.findById(examId).orElse(null);
+        SsExam exam = examRepo.findById(examId).filter(x -> clientId.equals(x.getClientId())).orElse(null);
         if (exam == null) return ResponseEntity.status(404).build();
 
         String text = extractText(file);
@@ -2405,6 +2564,26 @@ public class SundaySchoolController {
         return ResponseEntity.ok(Map.of("status", "parsed", "count", saved.size(), "questions", saved));
     }
 
+    /**
+     * Staff-side /api/ss/* guard, mirroring the /sundaySchool page route in
+     * HomeController (requireAdminOrUser + general.sundayschool). A clientId alone
+     * is not a role check — every member session resolves one too.
+     * Returns null when allowed, otherwise the response to send.
+     */
+    private static ResponseEntity<?> staffDeny(HttpServletRequest req) {
+        String deny = RoleGuard.requireAdminOrUser(req);
+        if (deny == null) deny = RoleGuard.requirePermission(req, "general.sundayschool");
+        if (deny == null) return null;
+        return RoleGuard.REDIRECT_LOGIN.equals(deny)
+                ? ResponseEntity.status(401).body(Map.of("error", "Please sign in."))
+                : ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+    }
+
+    /** True only when both tenant ids are present and equal — a missing id never matches. */
+    private static boolean sameTenant(String sessionTenant, String rowTenant) {
+        return sessionTenant != null && sessionTenant.equals(rowTenant);
+    }
+
     /** Null-safe Object → String helper. */
     private static String str(Object o) {
         return o == null ? null : o.toString().trim();
@@ -2426,12 +2605,12 @@ public class SundaySchoolController {
             }
         }
         if (teachers.isEmpty() && memberRef != null && !memberRef.isBlank()) {
-            teachers = teacherRepo.findByMemberRefAndDeleteFlagFalse(memberRef);
+            teachers = teacherRepo.findByMemberRefAndClientIdAndDeleteFlagFalse(memberRef, clientId);
         }
         if (teachers.isEmpty()) {
             String username = (String) session.getAttribute("username");
             if (username != null && !username.isBlank()) {
-                List<SsTeacher> byEmail = teacherRepo.findByEmailAndDeleteFlagFalse(username);
+                List<SsTeacher> byEmail = teacherRepo.findByEmailAndClientIdAndDeleteFlagFalse(username, clientId);
                 if (!byEmail.isEmpty()) {
                     if (memberRef != null && !memberRef.isBlank()) {
                         for (SsTeacher t : byEmail) {
@@ -2724,6 +2903,9 @@ public class SundaySchoolController {
         if (session == null) return false;
         Object username = session.getAttribute("username");
         if (username == null) return false;
+        // Member portal logins also carry a username; the role tells them apart.
+        Object role = session.getAttribute("role");
+        if ("Member".equals(role) || "Child".equals(role)) return false;
         Object church = session.getAttribute("church");
         return !Boolean.TRUE.equals(church) && !"true".equalsIgnoreCase(String.valueOf(church));
     }

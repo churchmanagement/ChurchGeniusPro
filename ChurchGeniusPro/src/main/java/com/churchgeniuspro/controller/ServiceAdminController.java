@@ -11,7 +11,6 @@ import com.churchgeniuspro.service.BackupService;
 import com.churchgeniuspro.service.ChurchVoiceSettingService;
 import com.churchgeniuspro.service.OpenAiUsageService;
 import com.churchgeniuspro.service.ServiceClientService;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.PasswordUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -122,7 +121,11 @@ public class ServiceAdminController {
             }
         }
 
-        // Set server-side session
+        // Set server-side session. Rotate it first (as /login does): a service-admin
+        // identity must never be layered onto a tenant session that already exists,
+        // and a pre-authentication session id must not survive authentication.
+        HttpSession existing = request.getSession(false);
+        if (existing != null) existing.invalidate();
         HttpSession session = request.getSession(true);
         session.setAttribute("serviceAdminId",       admin.get().getId());
         session.setAttribute("serviceAdminUsername", admin.get().getUsername());
@@ -204,11 +207,9 @@ public class ServiceAdminController {
             @RequestParam("clientId") String encryptedClientId) {
         Map<String, Object> resp = new HashMap<>();
         try {
-            // Decrypt directly here (no @Transactional service call) so a DB
-            // connection-pool delay cannot cause this public endpoint to hang.
-            String decrypted = EncryptionUtil.decrypt(encryptedClientId);
-            ServiceClient client = serviceClientRepository
-                    .findByClientIdAndStatusAndDeleteFlagFalse(decrypted, "Active")
+            // The parameter is the registration token (random, minted at approval).
+            ServiceClient client = encryptedClientId == null ? null : serviceClientRepository
+                    .findByRegistrationTokenAndStatusAndDeleteFlagFalse(encryptedClientId.trim(), "Active")
                     .orElse(null);
             if (client == null) {
                 resp.put("status",  "invalid");
@@ -216,7 +217,9 @@ public class ServiceAdminController {
                 return ResponseEntity.status(403).body(resp);
             }
             resp.put("status",   "valid");
-            resp.put("clientId", client.getClientId());
+            // The page carries this value into status/prefill/initiate/verify. It is the
+            // registration token, not the tenant id — the server resolves it each time.
+            resp.put("clientId", client.getRegistrationToken());
             resp.put("name",       client.getName());
             resp.put("churchName", client.getChurchName());
             resp.put("email",      client.getEmail());
@@ -251,10 +254,11 @@ public class ServiceAdminController {
 
     @ResponseBody
     @PostMapping("/api/serviceadmin/clients")
-    public ResponseEntity<Map<String, Object>> createClient(@RequestBody ServiceClientBO bo) {
+    public ResponseEntity<Map<String, Object>> createClient(@RequestBody ServiceClientBO bo,
+                                                            jakarta.servlet.http.HttpServletRequest req) {
         Map<String, Object> response = new HashMap<>();
         try {
-            ServiceClient saved = serviceClientService.save(bo);
+            ServiceClient saved = serviceClientService.save(bo, ServiceAdminPlatformSettingsController.actor(req));
             response.put("status",  "success");
             response.put("message", "Client registered successfully.");
             response.put("data",    saved);
@@ -271,19 +275,104 @@ public class ServiceAdminController {
     @ResponseBody
     @PutMapping("/api/serviceadmin/clients/{id}")
     public ResponseEntity<Map<String, Object>> updateClient(@PathVariable Integer id,
-                                                             @RequestBody ServiceClientBO bo) {
+                                                             @RequestBody ServiceClientBO bo,
+                                                             jakarta.servlet.http.HttpServletRequest req) {
         Map<String, Object> response = new HashMap<>();
         try {
-            ServiceClient updated = serviceClientService.update(id, bo);
+            ServiceClient updated = serviceClientService.update(id, bo, ServiceAdminPlatformSettingsController.actor(req));
             response.put("status",  "success");
             response.put("message", "Client updated successfully.");
             response.put("data",    updated);
             return ResponseEntity.ok(response);
+        } catch (ServiceClientService.StartDateConfirmationRequired e) {
+            // Not an error: the page shows this and resends with confirmStartDateChange=true.
+            response.put("status",  "confirm");
+            response.put("code",    "START_DATE_CONFIRMATION_REQUIRED");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(409).body(response);
+        } catch (IllegalArgumentException e) {
+            response.put("status",  "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             response.put("status",  "error");
             response.put("message", e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
+    }
+
+    // ── Extend trial ──────────────────────────────────────────────────────────
+
+    @ResponseBody
+    @PostMapping("/api/serviceadmin/clients/{id}/extend-trial")
+    public ResponseEntity<Map<String, Object>> extendTrial(@PathVariable Integer id,
+                                                           @RequestBody Map<String, Object> body,
+                                                           jakarta.servlet.http.HttpServletRequest req) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Object v = body == null ? null : body.get("endDate");
+            java.time.LocalDate end;
+            try {
+                end = (v == null || String.valueOf(v).isBlank()) ? null : java.time.LocalDate.parse(String.valueOf(v).trim());
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new IllegalArgumentException("Enter the new end date as YYYY-MM-DD.");
+            }
+            ServiceClient saved = serviceClientService.extendTrial(id, end, ServiceAdminPlatformSettingsController.actor(req));
+            response.put("status",  "success");
+            response.put("message", "Trial extended. The new end date is " + saved.getEndDate()
+                                  + "; access closes at the start of that day.");
+            response.put("data",    saved);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            response.put("status",  "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            response.put("status",  "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // ── Convert a Trial-plan client to a paid plan ───────────────────────────
+
+    @ResponseBody
+    @PostMapping("/api/serviceadmin/clients/{id}/convert")
+    public ResponseEntity<Map<String, Object>> convertClient(@PathVariable Integer id,
+                                                             @RequestBody Map<String, Object> body,
+                                                             jakarta.servlet.http.HttpServletRequest req) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Object rid = body.get("requestId");
+            ServiceClientService.ConvertCommand cmd = new ServiceClientService.ConvertCommand(
+                    str(body.get("planCode")), str(body.get("billingFrequency")), str(body.get("customPrice")),
+                    str(body.get("startDate")), str(body.get("endDate")), str(body.get("paymentStatus")),
+                    Boolean.TRUE.equals(body.get("sendConfirmation")) || "true".equals(String.valueOf(body.get("sendConfirmation"))),
+                    rid == null || String.valueOf(rid).isBlank() ? null : Long.valueOf(String.valueOf(rid)));
+            ServiceClientService.ConvertResult r = serviceClientService.convert(id, cmd,
+                    ServiceAdminPlatformSettingsController.actor(req));
+            response.put("status",  "success");
+            response.put("message", "Converted to the " + r.planName() + " plan. The church keeps its account, logins and data."
+                    + (r.emailSent() ? " A confirmation email was sent to " + r.client().getEmail() + "." : "")
+                    + (r.emailError() != null ? " " + r.emailError() : ""));
+            response.put("emailSent", r.emailSent());
+            response.put("data",    r.client());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            response.put("status",  "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            response.put("status",  "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    private static String str(Object o) {
+        if (o == null) return null;
+        String s = String.valueOf(o).trim();
+        return s.isEmpty() ? null : s;
     }
 
     // ── Soft Delete ───────────────────────────────────────────────────────────
@@ -479,6 +568,7 @@ public class ServiceAdminController {
         resp.put("status",         "success");
         resp.put("intervalMonths", cfg.getIntervalMonths());
         resp.put("tableScope",     cfg.getTableScope());
+        resp.put("retentionMonths", cfg.getRetentionMonths());
         resp.put("notifyEmails",   cfg.getNotifyEmails() != null ? cfg.getNotifyEmails() : "");
         resp.put("nextRunDate",    cfg.getNextRunDate() != null ? cfg.getNextRunDate().toString() : null);
         resp.put("lastRunDate",    cfg.getLastRunDate() != null ? cfg.getLastRunDate().toString() : null);
@@ -495,10 +585,14 @@ public class ServiceAdminController {
             int    intervalMonths = Integer.parseInt(String.valueOf(body.getOrDefault("intervalMonths", 0)));
             String tableScope     = String.valueOf(body.getOrDefault("tableScope", "ALL"));
             String notifyEmails   = String.valueOf(body.getOrDefault("notifyEmails", ""));
-            BackupConfig saved    = backupService.saveConfig(intervalMonths, tableScope, notifyEmails);
-            resp.put("status",         "success");
-            resp.put("message",        "Backup configuration saved.");
-            resp.put("nextRunDate",    saved.getNextRunDate() != null ? saved.getNextRunDate().toString() : null);
+            // Absent -> 12 (one year). Never defaults to 0: a payload missing this field must
+            // not be read as "keep backups for ever" or as "delete everything".
+            int retentionMonths   = Integer.parseInt(String.valueOf(body.getOrDefault("retentionMonths", 12)));
+            BackupConfig saved    = backupService.saveConfig(intervalMonths, tableScope, notifyEmails, retentionMonths);
+            resp.put("status",          "success");
+            resp.put("message",         "Backup configuration saved.");
+            resp.put("nextRunDate",     saved.getNextRunDate() != null ? saved.getNextRunDate().toString() : null);
+            resp.put("retentionMonths", saved.getRetentionMonths());
         } catch (Exception e) {
             resp.put("status",  "error");
             resp.put("message", e.getMessage());

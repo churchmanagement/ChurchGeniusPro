@@ -29,9 +29,4 @@ public interface WorshipAssignmentMemberRepository extends JpaRepository<Worship
     @Query("DELETE FROM WorshipAssignmentMember m WHERE m.assignmentId = :assignmentId")
     void deleteByAssignmentId(@Param("assignmentId") Long assignmentId);
 
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM WorshipAssignmentMember m WHERE m.assignmentId = :assignmentId AND m.instrumentId = :instrumentId")
-    void deleteByAssignmentIdAndInstrumentId(@Param("assignmentId") Long assignmentId,
-                                             @Param("instrumentId") Long instrumentId);
 }

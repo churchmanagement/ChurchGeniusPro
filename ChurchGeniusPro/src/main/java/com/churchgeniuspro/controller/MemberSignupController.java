@@ -10,8 +10,8 @@ import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.PublicScreenLinkRepository;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.VerificationStore;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.PasswordUtil;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +19,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles the public Member Signup flow — allows existing family members to
@@ -50,6 +52,23 @@ public class MemberSignupController {
     /** OTP type key used in VerificationStore. */
     private static final String OTP_TYPE = "member-signup";
 
+    /** How long a lookup handle (step 2 → steps 3/4) stays valid. */
+    private static final long HANDLE_TTL_MS = 30 * 60_000L;
+
+    /**
+     * Opaque one-time handle issued by {@link #lookup} in place of the member's
+     * {@code memberRef}. The page (memberSignup.html) simply carries the value it
+     * received back under the {@code memberRef} key, so the wire format is unchanged
+     * while the real MBR reference — which is also the SignUp {@code client_id} —
+     * never leaves the server. In-memory (single-instance deployment, same as
+     * PublicFormGuard); a restart just makes the applicant start over.
+     */
+    private record LookupHandle(String memberRef, String appClientId, long issuedAt) {
+        boolean expired() { return System.currentTimeMillis() - issuedAt > HANDLE_TTL_MS; }
+    }
+    private final ConcurrentHashMap<String, LookupHandle> handles = new ConcurrentHashMap<>();
+    private final SecureRandom handleRandom = new SecureRandom();
+
     private final PublicScreenLinkRepository  linkRepo;
     private final FamilyMemberRepository      familyMemberRepository;
     private final LoginRepository             loginRepository;
@@ -57,6 +76,7 @@ public class MemberSignupController {
     private final VerificationStore           verificationStore;
     private final EmailService                emailService;
     private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
+    private final PublicSendLimiter           sendLimiter;
 
     public MemberSignupController(PublicScreenLinkRepository  linkRepo,
                                   FamilyMemberRepository      familyMemberRepository,
@@ -64,7 +84,8 @@ public class MemberSignupController {
                                   ChurchRegistrationRepository churchRegistrationRepository,
                                   VerificationStore           verificationStore,
                                   EmailService                emailService,
-                                  com.churchgeniuspro.service.SubscriptionService subscriptionService) {
+                                  com.churchgeniuspro.service.SubscriptionService subscriptionService,
+                                  PublicSendLimiter           sendLimiter) {
         this.linkRepo                   = linkRepo;
         this.familyMemberRepository     = familyMemberRepository;
         this.loginRepository            = loginRepository;
@@ -72,6 +93,7 @@ public class MemberSignupController {
         this.verificationStore          = verificationStore;
         this.emailService               = emailService;
         this.subscriptionService        = subscriptionService;
+        this.sendLimiter                = sendLimiter;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -84,10 +106,12 @@ public class MemberSignupController {
     // ── Step 1 · Validate public token ────────────────────────────────────
 
     /**
-     * Decrypts the public-screen token to extract the {@code appClientId} and
-     * returns the church name for display on the signup page.
+     * Checks the public-screen token is a live Member Signup link and returns the
+     * church name for display on the signup page. The {@code appClientId} field of
+     * the response carries the link token itself (the page echoes it on every later
+     * step); the tenant id is resolved server-side from that token each time.
      *
-     * <p>Response (success): {@code { status:"valid", appClientId, churchName }}
+     * <p>Response (success): {@code { status:"valid", appClientId (=token), churchName }}
      * <p>Response (failure): {@code { status:"invalid", message }}
      */
     @ResponseBody
@@ -109,10 +133,14 @@ public class MemberSignupController {
                 return ResponseEntity.status(400).body(res);
             }
 
-            // Decrypt to get appClientId
-            String payload     = EncryptionUtil.decrypt(token);
-            String[] parts     = payload.split("\\|", 2);
-            String appClientId = parts.length > 0 ? parts[0] : "";
+            // The token must have been minted for the Member Signup page; a Membership
+            // Form / Donation / SMS token for the same church must not open this flow.
+            if (!PublicScreensController.MEMBER_SIGNUP_URL.equals(link.getPageUrl())) {
+                res.put("status",  "invalid");
+                res.put("message", "This signup link is invalid or has been revoked.");
+                return ResponseEntity.status(400).body(res);
+            }
+            String appClientId = link.getAppClientId();
 
             // Resolve church name for display
             String churchName = "";
@@ -124,7 +152,10 @@ public class MemberSignupController {
             }
 
             res.put("status",      "valid");
-            res.put("appClientId", appClientId);
+            // The page stores this under "appClientId" and echoes it on every later
+            // step. It is the link token, not the tenant id: each step re-validates
+            // it server-side, so the plaintext tenant id is neither exposed nor trusted.
+            res.put("appClientId", token);
             res.put("churchName",  churchName);
             return ResponseEntity.ok(res);
 
@@ -158,19 +189,27 @@ public class MemberSignupController {
      */
     @ResponseBody
     @PostMapping("/api/member-signup/lookup")
-    public ResponseEntity<Map<String, Object>> lookup(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> lookup(@RequestBody Map<String, String> body,
+                                                      HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
-        String appClientId = trim(body.get("appClientId"));
+        String linkToken   = trim(body.get("appClientId"));   // link token issued by validate()
         String firstName   = trim(body.get("firstName"));
         String lastName    = trim(body.get("lastName"));
         String contact     = trim(body.get("contact"));   // email or phone
 
-        if (appClientId.isEmpty() || firstName.isEmpty() || lastName.isEmpty() || contact.isEmpty()) {
+        if (linkToken.isEmpty() || firstName.isEmpty() || lastName.isEmpty() || contact.isEmpty()) {
             res.put("status",  "error");
             res.put("message", "All fields are required.");
             return ResponseEntity.status(400).body(res);
         }
+        String appClientId = tenantFromLinkToken(linkToken);
+        if (appClientId == null) return invalidLink(res);
+
+        // A name + contact probe against the church's roster: bounded per network
+        // origin so it cannot be used to confirm membership in bulk (security audit P2/P5).
+        String limited = sendLimiter.check(PublicSendLimiter.MEMBER_SIGNUP_LOOKUP, request, null, appClientId);
+        if (limited != null) return tooMany(res, limited);
 
         // Strategy 1: direct match — firstName + lastName + (own email or own phone)
         List<FamilyMember> matches = familyMemberRepository
@@ -226,7 +265,8 @@ public class MemberSignupController {
 
         res.put("status",      "found");
         res.put("maskedEmail", maskEmail(email));
-        res.put("memberRef",   matched.getMemberRef());
+        // Opaque handle in place of the MBR reference (see LookupHandle).
+        res.put("memberRef",   issueHandle(matched.getMemberRef(), appClientId));
         return ResponseEntity.ok(res);
     }
 
@@ -240,19 +280,24 @@ public class MemberSignupController {
      */
     @ResponseBody
     @PostMapping("/api/member-signup/send-code")
-    public ResponseEntity<Map<String, Object>> sendCode(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> sendCode(@RequestBody Map<String, String> body,
+                                                        HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
-        String appClientId = trim(body.get("appClientId"));
-        String memberRef   = trim(body.get("memberRef"));
+        String linkToken   = trim(body.get("appClientId"));   // link token issued by validate()
+        String handleKey   = trim(body.get("memberRef"));     // handle issued by lookup()
         String username    = trim(body.get("username"));
         String password    = trim(body.get("password"));
 
-        if (appClientId.isEmpty() || memberRef.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        if (linkToken.isEmpty() || handleKey.isEmpty() || username.isEmpty() || password.isEmpty()) {
             res.put("status",  "error");
             res.put("message", "All fields are required.");
             return ResponseEntity.status(400).body(res);
         }
+        String appClientId = tenantFromLinkToken(linkToken);
+        if (appClientId == null) return invalidLink(res);
+        String memberRef = resolveHandle(handleKey, appClientId);
+        if (memberRef == null) return startOver(res);
 
         String policyError = com.churchgeniuspro.util.PasswordPolicy.validate(password);
         if (policyError != null) {
@@ -268,13 +313,10 @@ public class MemberSignupController {
             return ResponseEntity.status(409).body(res);
         }
 
-        // Find the member
-        FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef).orElse(null);
-        if (fm == null) {
-            res.put("status",  "error");
-            res.put("message", "Member not found. Please start over.");
-            return ResponseEntity.status(404).body(res);
-        }
+        // Find the member — must belong to the link's church
+        FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef)
+                .filter(m -> belongsTo(m, appClientId)).orElse(null);
+        if (fm == null) return startOver(res);
 
         // Resolve email
         String email = resolved(fm, appClientId);
@@ -284,12 +326,18 @@ public class MemberSignupController {
             return ResponseEntity.status(400).body(res);
         }
 
+        // Each call re-issues the code and e-mails the member again: bounded per network
+        // origin, per member and per church (security audit P2).
+        String limited = sendLimiter.check(PublicSendLimiter.MEMBER_SIGNUP_OTP, request, memberRef, appClientId);
+        if (limited != null) return tooMany(res, limited);
+
         // Generate and send OTP
         String code = verificationStore.generateAndStore(memberRef, OTP_TYPE, email);
         try {
             String churchName = emailService.getChurchName(appClientId);
             String html = buildOtpEmail(fm.getFirstName(), code, churchName);
-            emailService.sendOrgEmail(email,
+            // Registration mail: reaches the member signing up even on a Trial plan.
+            emailService.sendAccountEmail(email,
                     "Your " + churchName + " Verification Code",
                     html,
                     appClientId);
@@ -320,18 +368,22 @@ public class MemberSignupController {
     public ResponseEntity<Map<String, Object>> verify(@RequestBody Map<String, String> body) {
         Map<String, Object> res = new HashMap<>();
 
-        String appClientId = trim(body.get("appClientId"));
-        String memberRef   = trim(body.get("memberRef"));
+        String linkToken   = trim(body.get("appClientId"));   // link token issued by validate()
+        String handleKey   = trim(body.get("memberRef"));     // handle issued by lookup()
         String username    = trim(body.get("username"));
         String password    = trim(body.get("password"));
         String code        = trim(body.get("code"));
 
-        if (appClientId.isEmpty() || memberRef.isEmpty() || username.isEmpty()
+        if (linkToken.isEmpty() || handleKey.isEmpty() || username.isEmpty()
                 || password.isEmpty() || code.isEmpty()) {
             res.put("status",  "error");
             res.put("message", "Missing required fields.");
             return ResponseEntity.status(400).body(res);
         }
+        String appClientId = tenantFromLinkToken(linkToken);
+        if (appClientId == null) return invalidLink(res);
+        String memberRef = resolveHandle(handleKey, appClientId);
+        if (memberRef == null) return startOver(res);
 
         // Verify OTP
         if (!verificationStore.validate(memberRef, OTP_TYPE, code)) {
@@ -355,12 +407,19 @@ public class MemberSignupController {
             return ResponseEntity.status(400).body(res);
         }
 
-        // Resolve the member
-        FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef).orElse(null);
-        if (fm == null) {
-            res.put("status",  "error");
-            res.put("message", "Member not found. Please start over.");
-            return ResponseEntity.status(404).body(res);
+        // Resolve the member — must belong to the link's church
+        FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef)
+                .filter(m -> belongsTo(m, appClientId)).orElse(null);
+        if (fm == null) return startOver(res);
+
+        // A handle that already produced an account must not produce a second one.
+        Optional<SignUp> existing = loginRepository.findByClientId(memberRef);
+        if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getActive())
+                && !Boolean.TRUE.equals(existing.get().getDeleted())) {
+            handles.remove(handleKey);
+            res.put("status",  "already_registered");
+            res.put("message", "This member already has an account. Please login or use 'Forgot Password'.");
+            return ResponseEntity.status(409).body(res);
         }
 
         // Resolve church_id from Head of Household's existing signup (if any)
@@ -415,6 +474,7 @@ public class MemberSignupController {
         // The signup is already linked via fm.memberRef == saved.clientId — no extra save needed
 
         verificationStore.remove(memberRef, OTP_TYPE);
+        handles.remove(handleKey);   // one-time: the handle is spent
 
         log.info("MemberSignup complete: username={} memberRef={} signupId={}", username, memberRef, saved.getId());
 
@@ -424,7 +484,8 @@ public class MemberSignupController {
             if (email != null && !email.isBlank()) {
                 String churchName = emailService.getChurchName(appClientId);
                 String html = buildWelcomeEmail(fm.getFirstName(), username, churchName);
-                emailService.sendOrgEmail(email,
+                // Registration mail: reaches the member signing up even on a Trial plan.
+                emailService.sendAccountEmail(email,
                         "Welcome to " + churchName + " – Account Created",
                         html,
                         appClientId);
@@ -440,6 +501,67 @@ public class MemberSignupController {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Resolves the tenant behind the value the page carries as {@code appClientId}:
+     * it must be a live {@link PublicScreenLink} token minted for the Member Signup
+     * page. Returns {@code null} when the value is not such a token (including a
+     * plaintext client id — that shape is no longer accepted).
+     */
+    private String tenantFromLinkToken(String token) {
+        if (token == null || token.isBlank()) return null;
+        PublicScreenLink link = linkRepo.findByToken(token).orElse(null);
+        if (link == null || link.isRevoked()) return null;
+        if (link.getExpirationDate() != null && link.getExpirationDate().isBefore(LocalDate.now())) return null;
+        if (!PublicScreensController.MEMBER_SIGNUP_URL.equals(link.getPageUrl())) return null;
+        String cid = link.getAppClientId();
+        return cid == null || cid.isBlank() ? null : cid;
+    }
+
+    private String issueHandle(String memberRef, String appClientId) {
+        byte[] b = new byte[24];
+        handleRandom.nextBytes(b);
+        String key = Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+        if (handles.size() > 10_000) handles.clear();   // safety valve
+        handles.entrySet().removeIf(e -> e.getValue().expired());
+        handles.put(key, new LookupHandle(memberRef, appClientId, System.currentTimeMillis()));
+        return key;
+    }
+
+    /** The member ref behind a handle, only when it was issued for this tenant and is unexpired. */
+    private String resolveHandle(String key, String appClientId) {
+        LookupHandle h = handles.get(key);
+        if (h == null) return null;
+        if (h.expired()) { handles.remove(key); return null; }
+        if (!h.appClientId().equals(appClientId)) return null;
+        return h.memberRef();
+    }
+
+    /** Tenant via the family (authoritative), falling back to the member's own column. */
+    private static boolean belongsTo(FamilyMember fm, String appClientId) {
+        String t = fm.getFamily() != null && fm.getFamily().getAppClientId() != null
+                ? fm.getFamily().getAppClientId() : fm.getAppClientId();
+        return appClientId.equals(t);
+    }
+
+    /** 429 in this controller's {@code status}/{@code message} shape. */
+    private static ResponseEntity<Map<String, Object>> tooMany(Map<String, Object> res, String message) {
+        res.put("status",  "error");
+        res.put("message", message);
+        return ResponseEntity.status(429).body(res);
+    }
+
+    private static ResponseEntity<Map<String, Object>> invalidLink(Map<String, Object> res) {
+        res.put("status",  "invalid");
+        res.put("message", "This signup link is invalid or has expired. Please reload the page.");
+        return ResponseEntity.status(400).body(res);
+    }
+
+    private static ResponseEntity<Map<String, Object>> startOver(Map<String, Object> res) {
+        res.put("status",  "error");
+        res.put("message", "Member not found. Please start over.");
+        return ResponseEntity.status(404).body(res);
+    }
 
     /**
      * Resolves the email address to use for OTP delivery.

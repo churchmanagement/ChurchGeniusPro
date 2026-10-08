@@ -72,4 +72,8 @@ public interface KmCheckinRepository extends JpaRepository<KmCheckin, Long> {
     List<KmCheckin> findByClientIdAndAnyCode(
             @Param("clientId") String clientId,
             @Param("code") String code);
+
+    /** The open check-in behind a pickup-link token (checkout clears the token). */
+    java.util.Optional<KmCheckin> findByPickupTokenAndCheckoutTimeIsNull(String pickupToken);
+    java.util.Optional<KmCheckin> findByIdAndClientId(Long id, String clientId);
 }

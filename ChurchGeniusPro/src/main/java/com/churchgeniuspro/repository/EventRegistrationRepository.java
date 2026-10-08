@@ -62,4 +62,8 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     /** Count of all registrations for an event. */
     long countByEventId(Integer eventId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<EventRegistration> findByIdAndClientId(Integer id, String clientId);
 }

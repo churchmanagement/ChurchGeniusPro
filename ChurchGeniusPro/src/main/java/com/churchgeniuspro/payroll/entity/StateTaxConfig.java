@@ -29,10 +29,12 @@ public class StateTaxConfig {
     private boolean hasIncomeTax;
 
     /** Used when there are no bracket rows: a single flat rate (e.g., 0.0307). */
+    @Column(precision = 9, scale = 6)   // explicit: numeric(38,2) would store 0.0307 as 0.03 (audit C1)
     private BigDecimal flatRate;
 
     private BigDecimal annualStandardDeduction = BigDecimal.ZERO;
 
     /** Optional flat local/city income-tax rate applied to period state wages. */
+    @Column(precision = 9, scale = 6)
     private BigDecimal localTaxRate = BigDecimal.ZERO;
 }

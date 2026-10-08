@@ -59,4 +59,24 @@ public class SongBookPublish {
 
     @Column(name = "published_by", length = 100)
     private String publishedBy;
+
+    /* ── "Now Singing" / "Next Song" live selections (per book, per tenant) ──
+     * These live on the publish row, which is uniquely keyed by the book-scoped
+     * client_id, so they are automatically tenant- and book-safe. Both reference
+     * a {@link Song} id that must exist in the current published {@link #snapshot}.
+     * All three columns are nullable (added by ddl-auto=update on existing rows). */
+
+    /** The song currently being sung, or null when none is set. */
+    @Column(name = "current_song_id")
+    private Long currentSongId;
+
+    /** The song coming up next, or null when none is set. */
+    @Column(name = "next_song_id")
+    private Long nextSongId;
+
+    /** Monotonic counter bumped on every change to {@link #currentSongId}
+     *  (set / change / unset). The public viewer uses it to re-show a dismissed
+     *  banner only when the Current Song setting actually changes. null == 0. */
+    @Column(name = "current_song_version")
+    private Long currentSongVersion;
 }

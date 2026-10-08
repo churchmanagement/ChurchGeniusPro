@@ -6,7 +6,6 @@ import com.churchgeniuspro.hibernate.GuessItParticipant;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.GuessItGameRepository;
 import com.churchgeniuspro.repository.GuessItParticipantRepository;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.RoleGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,9 +38,13 @@ public class GuessItController {
     private final FamilyMemberRepository       familyMemberRepo;
     private final ObjectMapper                 mapper = new ObjectMapper();
 
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+
     public GuessItController(GuessItGameRepository gameRepo,
                              GuessItParticipantRepository participantRepo,
-                             FamilyMemberRepository familyMemberRepo) {
+                             FamilyMemberRepository familyMemberRepo,
+            com.churchgeniuspro.service.PublicLinkResolver links) {
+        this.links = links;
         this.gameRepo        = gameRepo;
         this.participantRepo = participantRepo;
         this.familyMemberRepo = familyMemberRepo;
@@ -146,6 +149,10 @@ public class GuessItController {
      * PUT /api/guess-it/admin/games/{id}/timer — set the per-clue timer duration.
      * Body: { "timerSecs": 30 }  (0 = disabled)
      * Can be changed at any time (even mid-game); takes effect on the next clue.
+     *
+     * <p>Capped at {@link GuessItGroupController#MAX_TIMER_SECS} (three minutes),
+     * the same ceiling the group-level control uses — the two share one limit so
+     * a game cannot end up outside the range the dropdowns can express.
      */
     @PutMapping("/admin/games/{id}/timer")
     public ResponseEntity<?> setTimer(@PathVariable Long id,
@@ -157,7 +164,9 @@ public class GuessItController {
         if (g == null || !g.getClientId().equals(clientId)) return ResponseEntity.notFound().build();
         Integer secs = intVal(body.get("timerSecs"));
         if (secs == null || secs < 0) return err("timerSecs must be a non-negative integer.");
-        g.setTimerSecs(secs);
+        // Clamp rather than reject: a page left open before the ceiling existed
+        // should still be able to set a timer, just not a longer one.
+        g.setTimerSecs(Math.min(secs, GuessItGroupController.MAX_TIMER_SECS));
         gameRepo.save(g);
         return ResponseEntity.ok(gameAdminMap(g));
     }
@@ -171,13 +180,19 @@ public class GuessItController {
         if (g == null || !g.getClientId().equals(clientId)) return ResponseEntity.notFound().build();
         if (!"pending".equals(g.getStatus())) return err("Game is not in pending state.");
 
-        // Mark any previously active game completed
-        gameRepo.findFirstByClientIdAndStatusAndDeleteFlagFalse(clientId, "active")
-                .ifPresent(prev -> {
-                    prev.setStatus("completed");
-                    prev.setCompletedAt(Instant.now());
-                    gameRepo.save(prev);
-                });
+        // Mark any previously active game in the SAME lane completed.
+        // A game's lane is its group; standalone games share the ungrouped lane.
+        // Scoping this way lets two groups run side by side without one ending
+        // the other's live game. For games created before groups existed the
+        // group is null, so this resolves to exactly the same row as before.
+        Optional<GuessItGame> previous = (g.getGroupId() == null)
+                ? gameRepo.findFirstByClientIdAndGroupIdIsNullAndStatusAndDeleteFlagFalse(clientId, "active")
+                : gameRepo.findFirstByGroupIdAndStatusAndDeleteFlagFalse(g.getGroupId(), "active");
+        previous.ifPresent(prev -> {
+            prev.setStatus("completed");
+            prev.setCompletedAt(Instant.now());
+            gameRepo.save(prev);
+        });
 
         Instant now = Instant.now();
         g.setStatus("active");
@@ -261,8 +276,18 @@ public class GuessItController {
         if (current == null || !current.getClientId().equals(clientId)) return ResponseEntity.notFound().build();
         if (!"active".equals(current.getStatus())) return err("Current game is not active.");
 
-        // Find the next pending game strictly after the current game's sequence position
-        List<GuessItGame> all = gameRepo.findAllByClientIdOrderBySequenceOrder(clientId);
+        // Find the next pending game strictly after the current game's sequence
+        // position, staying inside the current game's lane. Inside a group only
+        // published games are eligible, so an unreleased round is never started
+        // by accident; standalone games only ever advance to other standalone
+        // games, which is how this behaved before groups existed.
+        List<GuessItGame> all = (current.getGroupId() == null)
+                ? gameRepo.findAllByClientIdOrderBySequenceOrder(clientId).stream()
+                          .filter(x -> x.getGroupId() == null)
+                          .collect(Collectors.toList())
+                : gameRepo.findAllByGroupIdOrderBySequenceOrder(current.getGroupId()).stream()
+                          .filter(GuessItGame::isPublished)
+                          .collect(Collectors.toList());
         GuessItGame next = all.stream()
                 .filter(g -> "pending".equals(g.getStatus()) && !g.isDeleteFlag()
                         && g.getSequenceOrder() > current.getSequenceOrder())
@@ -316,13 +341,13 @@ public class GuessItController {
     public ResponseEntity<?> publicLink(HttpServletRequest request) {
         String clientId = requireAdmin(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        try {
-            String encrypted = EncryptionUtil.encrypt(clientId);
-            String url = "/guessIt?cid=" + java.net.URLEncoder.encode(encrypted, "UTF-8");
-            return ResponseEntity.ok(Map.of("url", url, "cid", encrypted));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Encryption failed."));
-        }
+        // The big-screen URL carries the church's live Guess It link (created on first
+        // use, subject to the plan/trial rule). Revoke it on Public Screens to end it.
+        return links.ensureLink(clientId, com.churchgeniuspro.service.PublicPagePolicy.GUESS_IT_URL, "Guess It")
+                .<ResponseEntity<?>>map(l -> ResponseEntity.ok(Map.of(
+                        "url", "/guessIt?cid=" + java.net.URLEncoder.encode(l.getToken(), java.nio.charset.StandardCharsets.UTF_8),
+                        "cid", l.getToken())))
+                .orElseGet(() -> ResponseEntity.status(403).body(Map.of("error", "Guess It is not available for this account.")));
     }
 
     // ======================================================================
@@ -376,8 +401,12 @@ public class GuessItController {
         if (clientId == null) clientId = clientIdFromMemberSession(session);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "No org"));
 
+        // Standalone games only. Grouped games are played through the group
+        // endpoints, which register the participant and keep their running
+        // score; surfacing one here would let a member answer without having
+        // joined the group and score nothing for it.
         Optional<GuessItGame> activeOpt =
-                gameRepo.findFirstByClientIdAndStatusAndDeleteFlagFalse(clientId, "active");
+                gameRepo.findFirstByClientIdAndGroupIdIsNullAndStatusAndDeleteFlagFalse(clientId, "active");
         if (activeOpt.isEmpty()) return ResponseEntity.ok(Map.of("hasGame", false, "v", 0));
 
         GuessItGame g = activeOpt.get();
@@ -429,6 +458,11 @@ public class GuessItController {
         GuessItGame g = gameRepo.findById(gameId).orElse(null);
         if (g == null || !g.getClientId().equals(clientId))
             return ResponseEntity.notFound().build();
+        // Grouped games belong to the group endpoints, which know who the
+        // participant is and credit the win to their cumulative score.
+        if (g.getGroupId() != null)
+            return ResponseEntity.ok(Map.of("success", false,
+                    "error", "This game is part of a group. Join the group to play it."));
         if (!"active".equals(g.getStatus()))
             return ResponseEntity.ok(Map.of("success", false, "error", "Game is not active.", "gameEnded", true));
 
@@ -463,6 +497,7 @@ public class GuessItController {
                                     : session.getAttribute("role"))
                             : "Member";
                     GuessItParticipant np = new GuessItParticipant();
+                    np.setClientId(finalClientId);
                     np.setGameId(gameId);
                     np.setMemberId(memberId);
                     np.setMemberName(name);
@@ -734,10 +769,8 @@ public class GuessItController {
         catch (Exception e) { return "{}"; }
     }
 
-    private String decryptCid(String encryptedCid) {
-        if (encryptedCid == null || encryptedCid.isBlank()) return null;
-        try { return EncryptionUtil.decrypt(encryptedCid); }
-        catch (Exception e) { return null; }
+    private String decryptCid(String cid) {
+        return links.resolveClientId(cid, com.churchgeniuspro.service.PublicPagePolicy.GUESS_IT_URL);   // live link token only
     }
     // Misc helpers
 

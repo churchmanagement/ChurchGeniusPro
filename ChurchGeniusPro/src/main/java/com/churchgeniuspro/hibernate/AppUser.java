@@ -52,6 +52,14 @@ public class AppUser {
     @Column(name = "user_id", nullable = false, unique = true, updatable = false)
     private String userId;
 
+    /**
+     * Random token in the staff invitation link ({@code /signup?clientId=…}).
+     * Minted each time the invite is (re)sent and cleared when the signup completes,
+     * so a link is single-use and a re-sent invite invalidates the earlier one.
+     */
+    @Column(name = "invite_token", unique = true, length = 64)
+    private String inviteToken;
+
     // ── Organization link ─────────────────────────────────────────────────
 
     /**

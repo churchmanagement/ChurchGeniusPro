@@ -45,4 +45,8 @@ public interface MemberTypeRepository extends JpaRepository<MemberType, Integer>
     boolean existsByTypeNameAndClientIdAndIdNot(@Param("typeName") String typeName,
                                                 @Param("appClientId") String appClientId,
                                                 @Param("id") Integer id);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<MemberType> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

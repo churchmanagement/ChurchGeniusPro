@@ -779,7 +779,7 @@
       if (slideBarV) slideBarV.style.display = 'none';
     }
     const urlEmail = params.get('email');
-    if (urlEmail) { prefillForUpdate(urlEmail); goToStep2(); }
+    if (urlEmail) { await prefillForUpdate(urlEmail); goToStep2(); }
   })();
 
   /* ─────────── EVENT DETAIL ─────────── */
@@ -1053,8 +1053,14 @@
 
   /* ─────────── PRE-FILL FOR UPDATE ─────────── */
 
-  function prefillForUpdate(email) {
-    const reg = regsData.find(r => r.email && r.email.toLowerCase() === email.toLowerCase());
+  async function prefillForUpdate(email) {
+    // Resolve the caller's own RSVP for this event server-side. The public roster no
+    // longer carries emails (it is display-only), so it cannot be used for this.
+    let reg = null;
+    try {
+      const res = await fetch(`/api/event-register/${eventId}/lookup?email=${encodeURIComponent(email)}`);
+      if (res.ok) { const d = await res.json(); if (d && d.found && d.registeredForThisEvent) reg = d; }
+    } catch {}
     if (!reg) {
       showFeedback('ℹ️ No existing RSVP found for ' + email + '. You can submit a new one below.', 'error');
       return;
@@ -1099,7 +1105,11 @@
     const btn = document.getElementById('submitBtn');
     const emailVal = document.getElementById('email').value.trim();
     if (emailVal && !updateEmail) {
-      const dup = regsData.some(r => r.email && r.email.toLowerCase() === emailVal.toLowerCase());
+      let dup = false;
+      try {
+        const chk = await fetch(`/api/event-register/${eventId}/lookup?email=${encodeURIComponent(emailVal)}`);
+        if (chk.ok) { const d = await chk.json(); dup = !!(d && d.found && d.registeredForThisEvent); }
+      } catch {}
       if (dup) {
         showFeedback('❌ This email address has already submitted an RSVP for this event.', 'error');
         return;
@@ -1129,7 +1139,9 @@
       firstName: document.getElementById('firstName').value.trim(),
       lastName:  document.getElementById('lastName').value.trim(),
       email:     emailVal,
-      phone:     document.getElementById('phone').value.trim(),
+      // Send the E.164 form so what is stored is what the provider needs. validate() has
+      // already run, so this only falls back to the raw value for a blank field.
+      phone:     toE164(document.getElementById('phone').value) || document.getElementById('phone').value.trim(),
       adults:    parseInt(document.getElementById('adults').value) || 0,
       kids:      parseInt(document.getElementById('kids').value)   || 0,
       attending: attendingRaw === 'true' ? true : attendingRaw === 'false' ? false : null,
@@ -1233,6 +1245,44 @@
     if (btn) btn.innerHTML = '<span>🎉</span> RSVP';
   }
 
+  /* ─────────── PHONE ─────────── */
+
+  /* Mirrors PhoneNumbers.toE164 on the server. Returns the E.164 form, or null when the
+     number cannot be resolved. Deliberately a mirror and not the only check: the server
+     normalises again on the way to the provider, because a public form's JavaScript is
+     advisory and anything can POST to the endpoint directly. */
+  function toE164(raw) {
+    if (!raw) return null;
+    const trimmed = String(raw).trim();
+    if (!trimmed) return null;
+    const explicit = trimmed.charAt(0) === '+';
+    let digits = trimmed.replace(/\D/g, '');
+    if (!digits) return null;
+    if (explicit) {
+      if (digits.length < 8 || digits.length > 15) return null;
+      if (digits.charAt(0) === '1') {
+        return digits.length === 11 && isValidNanp(digits.slice(1)) ? '+' + digits : null;
+      }
+      return '+' + digits;
+    }
+    if (digits.length === 11 && digits.charAt(0) === '1') digits = digits.slice(1);
+    return isValidNanp(digits) ? '+1' + digits : null;
+  }
+
+  /* NANP area code and exchange both start 2-9. */
+  function isValidNanp(d) {
+    return d.length === 10 && d.charAt(0) >= '2' && d.charAt(3) >= '2';
+  }
+
+  /* Pretty display for a US number: (913) 555-0100. Anything else is shown as typed. */
+  function prettyPhone(e164) {
+    if (e164 && e164.length === 12 && e164.slice(0, 2) === '+1') {
+      const d = e164.slice(2);
+      return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+    }
+    return e164 || '';
+  }
+
   /* ─────────── VALIDATION ─────────── */
 
   function validate() {
@@ -1247,6 +1297,17 @@
     if (!email) { markInvalid('email','emailHint','Email address is required.'); ok=false; }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { markInvalid('email','emailHint','Please enter a valid email.'); ok=false; }
     else markValid('email','emailHint');
+    // Phone is optional — but if one is given it has to be a number we can actually text,
+    // otherwise the registration succeeds and the confirmation SMS silently never arrives.
+    const phone = document.getElementById('phone').value.trim();
+    if (!phone) {
+      markValid('phone','phoneHint');
+    } else if (!toE164(phone)) {
+      markInvalid('phone','phoneHint','Enter a 10-digit US number, or include the country code (e.g. +44…).');
+      ok = false;
+    } else {
+      markValid('phone','phoneHint');
+    }
     const adults = parseInt(document.getElementById('adults').value);
     if (isNaN(adults) || adults < 0) { markInvalid('adults','adultsHint','Enter a valid number (0 or more).'); ok=false; }
     else markValid('adults','adultsHint');
@@ -1391,6 +1452,21 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('blur', autoFillFromLookup);
   });
+
+  /* Reformat the phone on blur so the visitor SEES the number that will be stored.
+     Runs after the auto-fill listener above (registration order), so it also tidies a
+     value that lookup filled in. Silent when the number cannot be parsed — validate()
+     reports that on submit; nagging while someone is still mid-typing is worse. */
+  (function () {
+    const el = document.getElementById('phone');
+    if (!el) return;
+    el.addEventListener('blur', function () {
+      const raw = el.value.trim();
+      if (!raw) return;
+      const e164 = toE164(raw);
+      if (e164) el.value = prettyPhone(e164);
+    });
+  })();
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>

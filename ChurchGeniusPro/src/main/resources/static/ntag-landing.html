@@ -35,7 +35,8 @@
     .social-foot a:active { transform:scale(.9); }
     /* Brand-icon links (Facebook, YouTube, …) show the mark itself — no grey chip. */
     .social-foot a.brand { background:transparent; border:none; box-shadow:none; }
-    .social-foot a.brand svg { display:block; width:46px; height:46px; }
+    .social-foot a.brand svg,
+    .social-foot a.brand img { display:block; width:46px; height:46px; }
     .foot { text-align:center; font-size:11px; color:#b3b3b3; padding:14px; }
     .state { text-align:center; padding:60px 24px; color:#888; }
     .spinner { width:34px; height:34px; border:3px solid #e6dde2; border-top-color:var(--brand); border-radius:50%;
@@ -54,7 +55,7 @@
       /* Preserve the line breaks entered in the Welcome Message editor. */
       function nl2br(s){ return esc(s).replace(/\r?\n/g,'<br/>'); }
 
-      // Official-style brand SVG for known social keys (same 48px footprint as the
+      // Official brand mark for known social keys (same 48px footprint as the
       // emoji icons). Returns '' for keys we don't have a brand mark for.
       function brandIcon(key){
         switch ((key||'').toLowerCase()) {
@@ -68,6 +69,10 @@
               + '<path fill="#FF0000" d="M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51A3.02 3.02 0 0 0 23.5 17.8 31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8z"/>'
               + '<path fill="#fff" d="M9.6 15.6l6.27-3.6L9.6 8.4z"/>'
               + '</svg>';
+          case 'instagram':
+            /* The Instagram glyph is a bitmap asset (Meta brand resources), not an
+               inline path: /img/instagram.png is rendered from img/instagram.svg. */
+            return '<img src="/img/instagram.png" alt="" aria-hidden="true" />';
         }
         return '';
       }

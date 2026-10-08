@@ -197,14 +197,39 @@ public class BankStatementExtractor {
         int scale;
     }
 
-    private static final Pattern MONEY = Pattern.compile("\\(?-?\\$?\\s?\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})\\)?-?(?:\\s?(?:CR|DR))?", Pattern.CASE_INSENSITIVE);
+    /**
+     * The dollars part of an amount: comma-grouped ({@code 1,234}) or a plain digit
+     * run ({@code 12345}), the grouped form first and requiring at least one group so
+     * it can never claim the leading digits of a plain run.
+     *
+     * <p>Financial audit H6. This used to be {@code \d{1,3}(?:,\d{3})*} — one to
+     * three digits then OPTIONAL comma groups — inside an unanchored pattern. On a
+     * statement printed without thousands separators it matched wherever it could:
+     * {@code ACH DEPOSIT 12345.67} yielded the token {@code 345.67}, the leading
+     * {@code 12} stayed behind in the description, and every such row was posted
+     * understated by orders of magnitude. The digit look-around below is what makes a
+     * token whole: an amount is not a substring of a longer digit run.
+     */
+    private static final String DOLLARS = "(?:\\d{1,3}(?:,\\d{3})+|\\d+)";
+
+    /**
+     * A money token anywhere on a line. Cents are {@code .d} or {@code .dd}: statements
+     * print two, but a CSV export can strip a trailing zero ({@code 12.5}), and that row
+     * used to be dropped silently rather than read as 12.50. The decimal point itself
+     * stays mandatory — it is what keeps check and reference numbers from being read as
+     * amounts.
+     */
+    private static final Pattern MONEY = Pattern.compile(
+            "(?<![0-9])\\(?-?\\$?\\s?" + DOLLARS + "\\.\\d{1,2}(?![0-9])\\)?-?(?:\\s?(?:CR|DR))?",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern DATE_NUM  = Pattern.compile("\\b(0?[1-9]|1[0-2])[/\\-](0?[1-9]|[12]\\d|3[01])(?:[/\\-](\\d{2,4}))?\\b");
     private static final Pattern DATE_WORD = Pattern.compile("\\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?\\s+(\\d{1,2})(?:,?\\s+(\\d{4}))?\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern CHECK = Pattern.compile("\\b(?:check|cheque|chk|ck)\\s*#?\\s*(\\d{3,8})\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern REF   = Pattern.compile("\\b(?:ref(?:erence)?|conf(?:irmation)?|trace|txn|trans|id)\\s*#?:?\\s*([A-Za-z0-9]{4,})\\b", Pattern.CASE_INSENSITIVE);
     // A line that is just an amount (optional +/- sign, $, trailing CR/DR) — used by the
     // "stacked" statement layout where the amount sits on its own line above the date row.
-    private static final Pattern AMOUNT_ONLY = Pattern.compile("^([+\\-])?\\s*\\$?\\s*([0-9]{1,3}(?:,[0-9]{3})*\\.[0-9]{2})\\s*(CR|DR)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern AMOUNT_ONLY = Pattern.compile(
+            "^([+\\-])?\\s*\\$?\\s*(" + DOLLARS + "\\.[0-9]{1,2})\\s*(CR|DR)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PAGE_HEADER_TS = Pattern.compile("^\\d{1,2}/\\d{1,2}/\\d{2},\\s*\\d.*");
 
     /**
@@ -215,7 +240,7 @@ public class BankStatementExtractor {
      */
     private List<Txn> parseText(String text, int scale) {
         List<Txn> out = new ArrayList<>();
-        Double pendingVal = null;     // amount seen on a preceding amount-only line
+        BigDecimal pendingVal = null; // amount seen on a preceding amount-only line
         boolean pendingPlus = false;  // a "+" / "CR" on that line means a credit (money in)
         for (String raw : text.replace("\r", "").split("\n")) {
             String s = raw.trim();
@@ -228,7 +253,7 @@ public class BankStatementExtractor {
             // amount-only line → remember it for the following date row
             Matcher am = AMOUNT_ONLY.matcher(s);
             if (am.matches()) {
-                pendingVal = Double.parseDouble(am.group(2).replace(",", ""));
+                pendingVal = new BigDecimal(am.group(2).replace(",", "")).setScale(2, java.math.RoundingMode.HALF_UP);
                 pendingPlus = "+".equals(am.group(1)) || "CR".equalsIgnoreCase(am.group(3));
                 continue;
             }
@@ -247,7 +272,7 @@ public class BankStatementExtractor {
                     String desc = (s.substring(0, dm.start()) + " " + s.substring(Math.min(dm.end(), s.length())))
                             .replaceAll("\\s+", " ").replaceAll("^[\\-–:|*]+", "").replaceAll("[\\-–:|*]+$", "").trim();
                     if (desc.isEmpty()) desc = "Transaction";
-                    BigDecimal amt = BigDecimal.valueOf(pendingPlus ? pendingVal : -pendingVal).setScale(2, java.math.RoundingMode.HALF_UP);
+                    BigDecimal amt = pendingPlus ? pendingVal : pendingVal.negate();
                     Txn t = new Txn();
                     t.date = iso; t.description = desc; t.payee = desc; t.amount = amt;
                     t.parseConf = 88; t.scale = scale;
@@ -357,7 +382,7 @@ public class BankStatementExtractor {
         String v = tok.replaceAll("[^0-9.]", "");
         if (v.isEmpty() || !v.contains(".")) return null;
         try {
-            BigDecimal d = new BigDecimal(v);
+            BigDecimal d = new BigDecimal(v).setScale(2, java.math.RoundingMode.HALF_UP);
             if (d.signum() <= 0 || d.compareTo(new BigDecimal("100000000")) > 0) return null;
             return d;
         } catch (NumberFormatException e) { return null; }

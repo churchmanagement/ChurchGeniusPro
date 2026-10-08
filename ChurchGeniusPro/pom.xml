@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.0.6</version>
+    <version>4.0.8</version>
     <relativePath/>
   </parent>
   <groupId>com.churchgeniuspro</groupId>
@@ -46,6 +46,20 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
+    </dependency>
+    <!-- Versioned schema migrations (database audit H1). Versions managed by the Spring Boot BOM.
+         spring-boot-starter-flyway pulls in flyway-core AND the Spring Boot 4 Flyway
+         auto-configuration module (spring-boot-flyway); flyway-database-postgresql adds
+         Flyway 11's PostgreSQL support. Flyway runs before Hibernate at startup; ddl-auto=update
+         is kept as a safety net, so every migration is idempotent and no-ops on a database where
+         the object it changes does not exist yet (a fresh environment Hibernate then creates). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -128,6 +142,17 @@
       <artifactId>spring-security-crypto</artifactId>
     </dependency>
 
+    <!-- ── IP geolocation for the security audit trail (LOGGING.md) ──
+         Reads the MaxMind GeoLite2 City database from local disk: no outbound call on
+         the login path, no member IP sent to a third party, no per-lookup rate limit.
+         The .mmdb data file is NOT bundled (MaxMind's licence forbids redistribution) —
+         install it with scripts/update-geoip.sh. The app runs fine without it. -->
+    <dependency>
+      <groupId>com.maxmind.geoip2</groupId>
+      <artifactId>geoip2</artifactId>
+      <version>4.4.0</version>
+    </dependency>
+
     <!-- ── Performance monitoring (Actuator + Micrometer/Prometheus) ── -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -179,6 +204,22 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+
+      <!-- Developer-only profile files stay in target/classes (so spring-boot:run /
+           IDE runs with -Dspring-boot.run.profiles=local|trial still work) but are
+           left out of the packaged JAR that goes to Azure (production-readiness
+           audit 2026-10-07, Phase 4.8). spring-boot:repackage wraps this jar, so the
+           exclusion carries into BOOT-INF/classes. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>application-local.properties</exclude>
+            <exclude>application-trial.properties</exclude>
+          </excludes>
+        </configuration>
       </plugin>
 
       <!-- Integration tests (*IT, *ITCase) run on `verify`, separate from unit tests. -->

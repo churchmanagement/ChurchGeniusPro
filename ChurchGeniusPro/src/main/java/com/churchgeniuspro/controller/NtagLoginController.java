@@ -72,6 +72,10 @@ public class NtagLoginController {
     public ResponseEntity<?> finalize(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         try {
             NtagService.SessionInfo s = svc.finalizeLogin(str(body, "token"), clientIp(request), device(request));
+            // Rotate: a pre-authentication session id must not survive login, and this
+            // identity must never be layered onto a session that already holds another.
+            HttpSession existing = request.getSession(false);
+            if (existing != null) existing.invalidate();
             HttpSession session = request.getSession(true);
             session.setAttribute("clientId",    s.clientId);
             session.setAttribute("appClientId", s.clientId);

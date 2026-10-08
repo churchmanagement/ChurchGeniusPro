@@ -87,8 +87,7 @@ public class MeetingMessageTemplateService {
     @Transactional
     public MeetingMessageTemplate update(Integer id, String name, String body, String dateFormat,
                                          String timeFormat, String appClientId) {
-        MeetingMessageTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+        MeetingMessageTemplate t = findOrThrow(id, appClientId);
         String nm = name == null ? "" : name.trim();
         if (nm.isEmpty()) throw new IllegalArgumentException("Template name is required.");
         if (repo.existsByNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(nm, appClientId, id)) {
@@ -102,9 +101,8 @@ public class MeetingMessageTemplateService {
     }
 
     @Transactional
-    public void delete(Integer id) {
-        MeetingMessageTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+    public void delete(Integer id, String appClientId) {
+        MeetingMessageTemplate t = findOrThrow(id, appClientId);
         t.setDeleteFlag(true);
         repo.save(t);
     }
@@ -121,13 +119,18 @@ public class MeetingMessageTemplateService {
             repo.save(t);
         }
         if (id == null || id == BUILT_IN_ID) return;   // built-in default selected
-        MeetingMessageTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+        MeetingMessageTemplate t = findOrThrow(id, appClientId);
         t.setDefault(true);
         repo.save(t);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /** Tenant-scoped, non-deleted lookup; unknown and foreign ids fail identically. */
+    private MeetingMessageTemplate findOrThrow(Integer id, String appClientId) {
+        return repo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+    }
 
     private Map<String, Object> builtInMap(boolean isDefault) {
         Map<String, Object> m = new LinkedHashMap<>();

@@ -169,6 +169,10 @@ public class EventRegistrationReminderController {
         body.put("smsSent",    r.smsSent);
         body.put("skipped",    r.skipped);
         body.put("failed",     r.failed);
+        if (r.testEmail != null) {                 // Phase B: Trial/Demo test copies
+            body.put("testEmailsSent", r.testEmailsSent);
+            body.put("testEmail",      r.testEmail);
+        }
         return ResponseEntity.ok(body);
     }
 
@@ -197,6 +201,10 @@ public class EventRegistrationReminderController {
         body.put("smsSent",    r.smsSent);
         body.put("skipped",    r.skipped);
         body.put("failed",     r.failed);
+        if (r.testEmail != null) {                 // Phase B: Trial/Demo test copies
+            body.put("testEmailsSent", r.testEmailsSent);
+            body.put("testEmail",      r.testEmail);
+        }
         return ResponseEntity.ok(body);
     }
 

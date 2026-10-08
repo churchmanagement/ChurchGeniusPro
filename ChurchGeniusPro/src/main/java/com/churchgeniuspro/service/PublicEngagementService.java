@@ -2,7 +2,6 @@ package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
-import com.churchgeniuspro.util.EncryptionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,6 +24,15 @@ public class PublicEngagementService {
 
     private static final Logger LOG = LoggerFactory.getLogger(PublicEngagementService.class);
 
+    /** In-app notification for staff with the right permissions. Optional: absent in unit tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.PublicSubmissionNotificationService submissionNotifications;
+
+    /** Test seam. */
+    public void setSubmissionNotifications(com.churchgeniuspro.service.PublicSubmissionNotificationService s) {
+        this.submissionNotifications = s;
+    }
+
     private final FamilyMemberRepository memberRepo;
     private final FamilyRepository familyRepo;
     private final FollowUpRepository followUpRepo;
@@ -36,6 +44,11 @@ public class PublicEngagementService {
     private final ConnectSubmissionRepository connectRepo;
     private final EmailService emailService;
     private final WhatsAppSenderService smsSender;
+    private final PublicLinkResolver linkResolver;
+
+    /** Public Screens page keys these forms are published under. */
+    private static final String CONNECT_PAGE = "/connect";
+    private static final String PRAYER_PAGE  = "/publicPrayer";
 
     public PublicEngagementService(FamilyMemberRepository memberRepo,
                                    FamilyRepository familyRepo,
@@ -47,7 +60,8 @@ public class PublicEngagementService {
                                    ChurchLogoRepository logoRepo,
                                    ConnectSubmissionRepository connectRepo,
                                    EmailService emailService,
-                                   WhatsAppSenderService smsSender) {
+                                   WhatsAppSenderService smsSender,
+                                   PublicLinkResolver linkResolver) {
         this.memberRepo = memberRepo;
         this.familyRepo = familyRepo;
         this.followUpRepo = followUpRepo;
@@ -59,7 +73,13 @@ public class PublicEngagementService {
         this.connectRepo = connectRepo;
         this.emailService = emailService;
         this.smsSender = smsSender;
+        this.linkResolver = linkResolver;
     }
+
+    /** Message shown when a link has been revoked or has expired. */
+    private static final String INACTIVE_LINK_MSG =
+            "This link is no longer active. Please contact the church for a current link.";
+
 
     /** The confirmation message shown/sent after a successful submission. */
     public static final String CONFIRMATION_MSG =
@@ -69,9 +89,12 @@ public class PublicEngagementService {
     // ── Branding for the public pages ───────────────────────────────────────────
 
     public Map<String, Object> churchInfo(String cid) {
-        String clientId = decrypt(cid);
+        // Either public form may be the caller here, so accept the parameter if it
+        // unlocks either page; the submit endpoints below still check their own.
+        String clientId = linkResolver.resolveClientId(cid, CONNECT_PAGE);
+        if (clientId == null) clientId = linkResolver.resolveClientId(cid, PRAYER_PAGE);
         Map<String, Object> m = new LinkedHashMap<>();
-        if (clientId == null) return m;
+        if (clientId == null) { m.put("inactive", true); return m; }
         ChurchRegistration cr = churchRepo.findByClientIdAndDeleteFlagFalse(clientId).orElse(null);
         m.put("churchName", cr != null ? cr.getChurchName() : "Church");
         m.put("websiteUrl",   cr != null ? cr.getWebsiteUrl()   : null);
@@ -86,8 +109,10 @@ public class PublicEngagementService {
 
     @Transactional
     public void connect(String cid, Map<String, Object> b) {
-        String clientId = decrypt(cid);
-        if (clientId == null) throw new IllegalArgumentException("Invalid link.");
+        // Revoking or expiring the Connect With Us link on the Public Screens page
+        // must actually stop submissions, not merely hide the URL.
+        String clientId = linkResolver.resolveClientId(cid, CONNECT_PAGE);
+        if (clientId == null) throw new IllegalArgumentException(INACTIVE_LINK_MSG);
         String first = str(b, "firstName"), last = str(b, "lastName");
         if (blank(first) && blank(last)) throw new IllegalArgumentException("Please enter your name.");
 
@@ -148,6 +173,14 @@ public class PublicEngagementService {
         // Automatic confirmation (best effort — never blocks the submission)
         sub.setConfirmationSent(sendConfirmation(clientId, v.getEmail(), v.getPhone(), prefs));
         connectRepo.save(sub);
+
+        if (submissionNotifications != null) {
+            submissionNotifications.record(clientId,
+                    com.churchgeniuspro.service.PublicSubmissionNotificationService.Type.CONNECT,
+                    "New Connect With Us submission",
+                    (name.isEmpty() ? "A visitor" : name) + " submitted the Connect With Us form.",
+                    sub.getId());
+        }
     }
 
     /**
@@ -189,8 +222,8 @@ public class PublicEngagementService {
 
     @Transactional
     public Long prayer(String cid, Map<String, Object> b, String source) {
-        String clientId = decrypt(cid);
-        if (clientId == null) throw new IllegalArgumentException("Invalid link.");
+        String clientId = linkResolver.resolveClientId(cid, PRAYER_PAGE);
+        if (clientId == null) throw new IllegalArgumentException(INACTIVE_LINK_MSG);
         String first = str(b, "firstName"), last = str(b, "lastName"), email = str(b, "email");
         if (blank(first) || blank(last)) throw new IllegalArgumentException("First and last name are required.");
         if (blank(email)) throw new IllegalArgumentException("Email is required.");
@@ -218,6 +251,14 @@ public class PublicEngagementService {
                 "PRAYER", saved.getId(), "Prayer: " + name, "public");
         saved.setFollowUpId(fuId);
         prayerRepo.save(saved);
+
+        if (submissionNotifications != null) {
+            submissionNotifications.record(clientId,
+                    com.churchgeniuspro.service.PublicSubmissionNotificationService.Type.PRAYER,
+                    "New prayer request",
+                    (name.isEmpty() ? "Someone" : name) + " submitted a prayer request.",
+                    saved.getId());
+        }
 
         // Confirmation email (best effort)
         try {
@@ -469,7 +510,6 @@ public class PublicEngagementService {
         return "data:" + ct + ";base64," + Base64.getEncoder().encodeToString(logo.getLogoData());
     }
 
-    private static String decrypt(String cid) { if (cid == null || cid.isBlank()) return null; try { return EncryptionUtil.decrypt(cid.trim()); } catch (Exception e) { return null; } }
     private static String str(Map<String, Object> b, String k) { Object v = b.get(k); return v == null ? null : v.toString().trim(); }
     private static boolean blank(String s) { return s == null || s.isBlank(); }
     private static String nz(String s) { return s == null ? "" : s; }

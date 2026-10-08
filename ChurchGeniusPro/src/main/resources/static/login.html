@@ -470,6 +470,14 @@
 
           if (response.ok && data.status === 'success') {
             applyLoginData(data);
+          } else if (response.status === 429) {
+            /* Temporarily throttled by the server-side brute-force protection.
+               Show the server's generic message rather than the biometric one —
+               retrying the fingerprint will not help until the block expires. */
+            errorMsg.textContent = data.message ||
+              'Too many unsuccessful login attempts. Please wait and try again later or reset your password.';
+            biometricBtn.disabled    = false;
+            biometricBtn.innerHTML   = biometricBtnHTML();
           } else {
             errorMsg.textContent = 'Biometric login failed. Please enter your password.';
             biometricBtn.disabled    = false;

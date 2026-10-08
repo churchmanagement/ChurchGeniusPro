@@ -45,6 +45,21 @@ public class KidsMinistryController {
     private final SmsService                         smsService;
     private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
+    private final com.churchgeniuspro.service.PublicLinkResolver links;
+
+    /**
+     * The demo/trial messaging gate, consulted BEFORE a volunteer broadcast so the
+     * admin gets the refusal as the response rather than a "sent" count for mail
+     * that EmailService quietly dropped. Optional (field-injected, null-checked)
+     * so the constructor used by the tenant-isolation tests is unchanged; the
+     * send services enforce the same rule regardless.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.MessagingPolicy messagingPolicy;
+
+    /** Test seam — supply the policy without a Spring context. */
+    public void setMessagingPolicy(com.churchgeniuspro.service.MessagingPolicy p) { this.messagingPolicy = p; }
+
     public KidsMinistryController(KmChildRepository childRepo,
                                   KmClassroomRepository classroomRepo,
                                   KmAuthorizedPickupRepository pickupRepo,
@@ -56,7 +71,9 @@ public class KidsMinistryController {
                                   KmChildSetupRepository setupRepo,
                                   EmailService emailService,
                                   SmsService smsService,
-                                  com.churchgeniuspro.service.SubscriptionService subscriptionService) {
+                                  com.churchgeniuspro.service.SubscriptionService subscriptionService,
+            com.churchgeniuspro.service.PublicLinkResolver links) {
+        this.links = links;
         this.childRepo           = childRepo;
         this.classroomRepo       = classroomRepo;
         this.pickupRepo          = pickupRepo;
@@ -172,12 +189,10 @@ public class KidsMinistryController {
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         if (cid == null) return ResponseEntity.status(401).body(Map.of("error", "Not logged in"));
-        try {
-            String token = com.churchgeniuspro.util.EncryptionUtil.encrypt(cid);
-            return ResponseEntity.ok(Map.of("cid", token));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Could not build check-in link"));
-        }
+        // The check-in QR carries the church's live Kids Check-In link token.
+        return links.ensureLink(cid, com.churchgeniuspro.service.PublicPagePolicy.KIDS_CHECKIN_URL, "Kids Check-In")
+                .<ResponseEntity<?>>map(l -> ResponseEntity.ok(Map.of("cid", l.getToken())))
+                .orElseGet(() -> ResponseEntity.status(403).body(Map.of("error", "Kids Check-In is not available for this account.")));
     }
 
     /**
@@ -238,7 +253,13 @@ public class KidsMinistryController {
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = body.get("id") != null ? toLong(body.get("id")) : null;
-        KmClassroom room = (id != null) ? classroomRepo.findById(id).orElse(new KmClassroom()) : new KmClassroom();
+        KmClassroom room;
+        if (id != null) {
+            room = classroomRepo.findByIdAndClientId(id, cid).orElse(null);
+            if (room == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        } else {
+            room = new KmClassroom();
+        }
         room.setClientId(cid);
         room.setClassName(str(body, "className"));
         room.setMinAge(toInt(body.get("minAge")));
@@ -334,7 +355,20 @@ public class KidsMinistryController {
             String limitMsg = kidsPortalLimitMessage(cid);
             if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
         }
-        KmChild child = (id != null) ? childRepo.findById(id).orElse(new KmChild()) : new KmChild();
+        KmChild child;
+        if (id != null) {
+            child = childRepo.findByIdAndClientId(id, cid).orElse(null);
+            if (child == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        } else {
+            child = new KmChild();
+        }
+        // Foreign keys from the body must belong to this church.
+        Long classroomId = toLong(body.get("classroomId"));
+        if (classroomId != null && classroomRepo.findByIdAndClientId(classroomId, cid).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Classroom not found"));
+        Integer fmId = toInt(body.get("familyMemberId"));
+        if (fmId != null && familyMemberRepo.findByIdAndTenant(fmId, cid).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Family member not found"));
         child.setClientId(cid);
         child.setFirstName(str(body, "firstName"));
         child.setLastName(str(body, "lastName"));
@@ -367,7 +401,7 @@ public class KidsMinistryController {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> pickups = (List<Map<String, Object>>) body.get("authorizedPickups");
         if (pickups != null) {
-            pickupRepo.deleteByChildId(child.getId());
+            pickupRepo.deleteByClientIdAndChildId(cid, child.getId());
             for (Map<String, Object> p : pickups) {
                 KmAuthorizedPickup ap = new KmAuthorizedPickup();
                 ap.setClientId(cid);
@@ -418,6 +452,14 @@ public class KidsMinistryController {
         String parentPhone = str(body, "parentPhone");
         String parentEmail = str(body, "parentEmail");
         Integer familyMemberId = body.get("familyMemberId") != null ? toInt(body.get("familyMemberId")) : null;
+        if (familyMemberId != null && familyMemberRepo.findByIdAndTenant(familyMemberId, cid).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Family member not found"));
+        // Validate classroom ids up front so nothing is persisted before a rejection.
+        for (Map<String, Object> k : kids) {
+            Long classroomId = toLong(k.get("classroomId"));
+            if (classroomId != null && classroomRepo.findByIdAndClientId(classroomId, cid).isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "Classroom not found"));
+        }
         String emName = str(body, "emergencyContactName");
         String emPhone = str(body, "emergencyContactPhone");
         String formImage = str(body, "formImageData");
@@ -1141,7 +1183,16 @@ public class KidsMinistryController {
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         Long id = body.get("id") != null ? toLong(body.get("id")) : null;
-        KmVolunteer v = (id != null) ? volunteerRepo.findById(id).orElse(new KmVolunteer()) : new KmVolunteer();
+        KmVolunteer v;
+        if (id != null) {
+            v = volunteerRepo.findByIdAndClientId(id, cid).orElse(null);
+            if (v == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        } else {
+            v = new KmVolunteer();
+        }
+        Integer fmId = body.get("familyMemberId") != null ? ((Number) body.get("familyMemberId")).intValue() : null;
+        if (fmId != null && familyMemberRepo.findByIdAndTenant(fmId, cid).isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("error", "Family member not found"));
         v.setClientId(cid);
         String firstName = str(body, "firstName");
         String lastName = str(body, "lastName");
@@ -1154,7 +1205,7 @@ public class KidsMinistryController {
         v.setStatus(str(body, "status") != null ? str(body, "status") : "pending");
         v.setManual(Boolean.TRUE.equals(body.get("isManual")));
         v.setNotes(str(body, "notes"));
-        if (body.get("familyMemberId") != null) v.setFamilyMemberId(((Number) body.get("familyMemberId")).intValue());
+        if (fmId != null) v.setFamilyMemberId(fmId);
         volunteerRepo.save(v);
         // Sync roles
         Object rawRoles = body.get("roles");
@@ -1279,6 +1330,7 @@ public class KidsMinistryController {
 
     @PostMapping("/volunteers/send-email")
     public ResponseEntity<?> sendEmail(@RequestBody Map<String, Object> body, HttpServletRequest req) {
+        try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("kids-ministry-email")) {
         String deny = RoleGuard.requireAdmin(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         try {
@@ -1286,11 +1338,33 @@ public class KidsMinistryController {
             List<String> to = (List<String>) body.get("to");
             String subject = str(body, "subject");
             String msgBody = str(body, "body");
-            for (String addr : to) emailService.sendGenericEmail(addr, subject, "<p>" + msgBody.replace("\n", "<br>") + "</p>");
-            return ResponseEntity.ok(Map.of("success", true));
+            // Only this church's own volunteers may be addressed — never an arbitrary list.
+            List<String> allowed = tenantVolunteerContacts(RoleGuard.clientId(req), true);
+            List<String> targets = to == null ? List.of() : to.stream()
+                    .filter(a -> a != null && allowed.contains(a.trim().toLowerCase())).distinct().toList();
+            if (targets.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No recipients are volunteers of your church."));
+            String safeBody = org.springframework.web.util.HtmlUtils.htmlEscape(msgBody == null ? "" : msgBody).replace("\n", "<br>");
+            // Sent AS the church, not as the platform: sendOrgEmail carries the tenant,
+            // so the Trial/Demo block, the recipient's unsubscribe choice and the
+            // plan's monthly allowance all apply — exactly as they do to the SMS
+            // sibling below. The tenant-less sendGenericEmail overload skipped all
+            // three, which let a trial or demo account mail real volunteers.
+            String emailTenant = com.churchgeniuspro.util.SessionUtil.getAppClientId(req);
+            EmailService.Delivery d = emailService.delivery(emailTenant);
+            if (d.blocked()) return ResponseEntity.status(403).body(Map.of("error", d.reason()));
+            for (String addr : targets) emailService.sendOrgEmail(addr, subject, "<p>" + safeBody + "</p>", emailTenant);
+            if (d.test()) {
+                // Phase B: one test copy to the verified address; the volunteers were simulated.
+                return ResponseEntity.ok(Map.of("success", true, "sent", 0,
+                        "testEmailsSent", __scope.testEmailsSent(), "simulated", __scope.simulated(), "testEmail", d.testEmail(),
+                        "message", "Trial/Demo test: " + __scope.testEmailsSent() + " test email sent to " + d.testEmail()
+                                 + " — " + __scope.simulated() + " recipient(s) simulated, none emailed."));
+            }
+            return ResponseEntity.ok(Map.of("success", true, "sent", targets.size()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
+            }
     }
 
     @PostMapping("/volunteers/send-sms")
@@ -1301,8 +1375,18 @@ public class KidsMinistryController {
             @SuppressWarnings("unchecked")
             List<String> to = (List<String>) body.get("to");
             String msgBody = str(body, "body");
-            for (String phone : to) smsService.send(phone, msgBody);
-            return ResponseEntity.ok(Map.of("success", true));
+            String smsTenant = com.churchgeniuspro.util.SessionUtil.getAppClientId(req);
+            List<String> allowed = tenantVolunteerContacts(RoleGuard.clientId(req), false);
+            List<String> targets = to == null ? List.of() : to.stream()
+                    .map(com.churchgeniuspro.util.PhoneNumbers::toE164)
+                    .filter(p -> p != null && allowed.contains(p)).distinct().toList();
+            if (targets.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No recipients are volunteers of your church."));
+            if (messagingPolicy != null) {
+                String why = messagingPolicy.smsBlockReason(smsTenant);
+                if (why != null) return ResponseEntity.status(403).body(Map.of("error", why));
+            }
+            for (String phone : targets) smsService.sendForClient(smsTenant, phone, msgBody);
+            return ResponseEntity.ok(Map.of("success", true, "sent", targets.size()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
@@ -1492,10 +1576,11 @@ public class KidsMinistryController {
         }).toList();
     }
 
+    /** A letter, a dash, four digits. I and O are left out — on a label they read as 1 and 0. */
     private String generateSecurityCode() {
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        String letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
         Random rnd = new Random();
-        return String.valueOf(chars.charAt(rnd.nextInt(chars.length()))) + "-" +
+        return String.valueOf(letters.charAt(rnd.nextInt(letters.length()))) + "-" +
                String.format("%04d", rnd.nextInt(10000));
     }
 
@@ -1514,5 +1599,19 @@ public class KidsMinistryController {
     private Integer toInt(Object v) {
         if (v == null) return null;
         try { return Integer.parseInt(v.toString()); } catch (Exception e) { return null; }
+    }
+
+    /**
+     * Contact addresses (lower-cased emails, or E.164 phones) of this church's active
+     * volunteers. The messaging endpoints intersect the caller's list with this so the
+     * church's mail and SMS identities cannot be used as a relay to strangers.
+     */
+    private List<String> tenantVolunteerContacts(String cid, boolean emails) {
+        if (cid == null) return List.of();
+        return volunteerRepo.findByClientIdAndDeleteFlagFalseOrderByNameAsc(cid).stream()
+                .map(v -> emails ? v.getEmail() : com.churchgeniuspro.util.PhoneNumbers.toE164(v.getPhone()))
+                .filter(x -> x != null && !x.isBlank())
+                .map(x -> emails ? x.trim().toLowerCase() : x)
+                .toList();
     }
 }

@@ -24,4 +24,10 @@ public interface GuessItParticipantRepository extends JpaRepository<GuessItParti
 
     /** Active (not eliminated, not winner) participants for a given game. */
     List<GuessItParticipant> findByGameIdAndEliminatedFalseAndWinnerFalse(Long gameId);
+
+    /** A grouped game's play row for one group participant. */
+    Optional<GuessItParticipant> findByGameIdAndGroupParticipantId(Long gameId, Long groupParticipantId);
+
+    /** Every play row belonging to a group participant, across all its games. */
+    List<GuessItParticipant> findByGroupParticipantId(Long groupParticipantId);
 }

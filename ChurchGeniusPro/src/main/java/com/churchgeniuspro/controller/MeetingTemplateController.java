@@ -42,9 +42,10 @@ public class MeetingTemplateController {
     @PostMapping("/api/meeting-templates")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, Object> body,
                                                        HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             MeetingMessageTemplate saved = service.create(
                     str(body.get("name")), str(body.get("body")),
@@ -61,12 +62,13 @@ public class MeetingTemplateController {
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
                                                       @RequestBody Map<String, Object> body,
                                                       HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (id == null || id == MeetingMessageTemplateService.BUILT_IN_ID) {
             return bad("The built-in default template can't be edited. Save it as a new template instead.");
         }
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             service.update(id, str(body.get("name")), str(body.get("body")),
                     str(body.get("dateFormat")), str(body.get("timeFormat")), appClientId);
@@ -79,13 +81,15 @@ public class MeetingTemplateController {
     @ResponseBody
     @DeleteMapping("/api/meeting-templates/{id}")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (id == null || id == MeetingMessageTemplateService.BUILT_IN_ID) {
             return bad("The built-in default template can't be deleted.");
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            service.delete(id);
+            service.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
@@ -95,9 +99,10 @@ public class MeetingTemplateController {
     @ResponseBody
     @PostMapping("/api/meeting-templates/{id}/default")
     public ResponseEntity<Map<String, Object>> setDefault(@PathVariable Integer id, HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "general.meetings.edit");
+        String deny = writeGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             service.setDefault(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
@@ -110,5 +115,16 @@ public class MeetingTemplateController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorized() {
+        return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+    }
+
+    /** Same guard pair as the /meetings page: role check, then the granular permission. */
+    private static String writeGuard(HttpServletRequest request) {
+        String deny = RoleGuard.requireStaffOrMember(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, "general.meetings.edit");
     }
 }

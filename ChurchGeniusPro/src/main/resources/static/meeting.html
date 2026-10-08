@@ -184,6 +184,8 @@
     /* ── Meetings table ── */
     .meetings-table-wrap { overflow-x: auto; }
     .meetings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    /* Briefly highlights the row of a meeting just saved (see showSavedMeeting). */
+    .meetings-table tr.row-flash td { background: #fff4c2; transition: background .6s; }
     .meetings-table th {
       background: #f5f6fa; font-size: 11px; font-weight: 700; text-transform: uppercase;
       letter-spacing: .5px; color: #888; padding: 10px 14px; text-align: left;
@@ -350,6 +352,19 @@
     }
     .toggle-checkbox:checked::after { left: 21px; }
     .toggle-label { font-size: 13px; color: #555; user-select: none; }
+
+    /* Click-to-reveal help, identical to the "Event ID / Code" pattern on /event.
+       Hidden by default, so a long explanation never adds height to the form. */
+    .help-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #b9a4ae;
+                background: #fff; color: #673147; font-size: 11px; font-weight: 700;
+                line-height: 1; cursor: pointer; margin-left: 5px; padding: 0;
+                vertical-align: middle; flex: 0 0 auto; }
+    .help-dot:hover, .help-dot[aria-expanded="true"] { background: #673147; color: #fff; border-color: #673147; }
+    .help-note { margin-top: 6px; padding: 9px 11px; background: #faf6f8; border: 1px solid #ecdfe5;
+                 border-left: 3px solid #673147; border-radius: 6px;
+                 font-size: 12px; line-height: 1.5; color: #5a4a52; }
+    .help-note strong { color: #673147; }
+    .help-note[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -406,7 +421,11 @@
 
               <!-- Location (searchable) -->
               <div class="field">
-                <label for="locationSearch">Location</label>
+                <label for="locationSearch">
+                  Location
+                  <button type="button" class="help-dot" aria-label="How is the Location address filled in?"
+                          aria-expanded="false" onclick="toggleHelp('locationHelp', this)">?</button>
+                </label>
                 <div class="picker-wrap">
                   <input type="text" id="locationSearch" placeholder="Search member…" autocomplete="off"
                          oninput="onLocationSearch(this.value)" onfocus="showLocationDropdown()" />
@@ -415,6 +434,12 @@
                 </div>
                 <div class="addr-source-note" id="addrSourceNote" style="display:none;">
                   📍 Address auto-filled from selected member
+                </div>
+                <div class="help-note" id="locationHelp" hidden>
+                  Search for and select a member here, and the meeting address — Address 1 and 2,
+                  City, State, Country and Zip — is filled in automatically from that member's
+                  address. Only members who have their own address on file appear in the list, and
+                  you can still edit any address field afterwards.
                 </div>
               </div>
             </div>
@@ -652,10 +677,20 @@
               <textarea id="note" placeholder="Additional notes or agenda…" style="min-height:110px;"></textarea>
             </div>
             <div class="field" style="margin-top:8px;">
-              <label class="toggle-row" title="Don't auto-delete (exempt from 90-day purge)">
-                <input type="checkbox" class="toggle-checkbox" id="doNotAutoDelete" />
-                <span class="toggle-label">Don't auto-delete (exempt from 90-day purge)</span>
-              </label>
+              <div style="display:flex;align-items:center;flex-wrap:wrap;">
+                <label class="toggle-row" title="Don't auto-delete (exempt from 90-day purge)">
+                  <input type="checkbox" class="toggle-checkbox" id="doNotAutoDelete" />
+                  <span class="toggle-label">Don't auto-delete (exempt from 90-day purge)</span>
+                </label>
+                <button type="button" class="help-dot" aria-label="What does Don't auto-delete do?"
+                        aria-expanded="false" onclick="toggleHelp('autoDeleteHelp', this)">?</button>
+              </div>
+              <div class="help-note" id="autoDeleteHelp" hidden>
+                Meeting history is deleted automatically once a meeting is more than
+                <strong>90 days</strong> old. Tick <strong>Don't auto-delete</strong> to exempt this
+                meeting from that purge and keep it indefinitely. Left unticked, the meeting is
+                removed automatically 90 days after its date.
+              </div>
             </div>
           </div>
 
@@ -911,6 +946,19 @@
 </div>
 
 <script>
+  /* ════════════════════════════════════
+     CLICK-TO-REVEAL HELP
+     Same implementation as the "Event ID / Code" ? on /event: the note lives in
+     the markup with [hidden], so it costs no layout until it is opened.
+  ════════════════════════════════════ */
+  function toggleHelp(id, btn) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    const showing = box.hasAttribute('hidden');
+    if (showing) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+    if (btn) btn.setAttribute('aria-expanded', showing ? 'true' : 'false');
+  }
+
   /* ════════════════════════════════════
      MENU — mirrors other pages
   ════════════════════════════════════ */
@@ -1518,6 +1566,7 @@
 
     const url    = editingId ? `/api/meetings/${editingId}` : '/api/meetings';
     const method = editingId ? 'PUT' : 'POST';
+    const wasEditing = editingId;          // resetForm() clears editingId below
 
     try {
       const res  = await fetch(url, {
@@ -1531,6 +1580,7 @@
         showFeedback(`✅ Meeting ${editingId ? 'updated' : 'saved'} successfully.`, 'success');
         resetForm();
         await loadMeetings();
+        showSavedMeeting(data.id || wasEditing, !!wasEditing);
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save meeting.'}`, 'error');
       }
@@ -1542,13 +1592,54 @@
     }
   }
 
+  /**
+   * After a save, make sure the meeting is visible. Which list it belongs to
+   * (Scheduled vs Meeting History) is decided by its SAVED date via
+   * isMeetingExpired(), so a date moved from past to future (or back) puts it in
+   * the other list — switch to that list, say so, and highlight the row, rather
+   * than leaving it to silently vanish from the list being viewed.
+   */
+  function showSavedMeeting(id, wasEdit) {
+    const m = allMeetings.find(x => x.id === id);
+    if (!m) return;
+    const belongsInHistory = isMeetingExpired(m);
+    if (belongsInHistory !== showHistory) {
+      toggleHistory();
+      showFeedback(`✅ Meeting ${wasEdit ? 'updated' : 'saved'} — moved to ${belongsInHistory
+        ? 'Meeting History (its date is now in the past)'
+        : 'Scheduled Meetings (its date is now today or later)'}.`, 'success');
+    }
+    const chk = document.querySelector(`#meetingsTableBody .row-chk[data-id="${id}"]`);
+    const row = chk && chk.closest('tr');
+    if (row) {
+      // On narrow screens the table scrolls sideways; show the row from its start
+      // (name and date) rather than wherever the Edit button left it.
+      const wrap = row.closest('.meetings-table-wrap');
+      if (wrap) wrap.scrollLeft = 0;
+      row.classList.add('row-flash');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => row.classList.remove('row-flash'), 2600);
+    }
+  }
+
   /* ════════════════════════════════════
      EDIT
   ════════════════════════════════════ */
   async function editMeeting(id) {
     try {
       const res  = await fetch(`/api/meetings/${id}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      // A meeting can disappear after the table was drawn — most often the 90-day
+      // auto-purge, which runs shortly after the page loads. Without this check the
+      // 404 body was treated as the meeting and every field was filled with blanks.
+      if (!res.ok) {
+        showFeedback('❌ This meeting is no longer available' +
+          (res.status === 404 ? ' — it may have been auto-deleted (one-time meetings are removed 90 days after their date unless "Don\'t auto-delete" is ticked).' : '.') +
+          ' The list has been refreshed.', 'error');
+        if (editingId === id) resetForm();
+        await loadMeetings();
+        return;
+      }
 
       editingId = id;
       document.getElementById('formTitle').textContent = 'Edit Meeting';
@@ -1827,6 +1918,11 @@
         const data = await res.json();
         if (data.purged > 0) {
           showFeedback(`Auto-deleted ${data.purged} meeting(s) older than 90 days.`, 'success');
+          // Redraw so purged meetings stop showing (the table was drawn before the purge ran),
+          // and leave edit mode if the meeting being edited was one of them.
+          const editedId = editingId;
+          await loadMeetings();
+          if (editedId != null && !allMeetings.some(m => m.id === editedId)) resetForm();
         }
       }
     } catch { /* silent — auto-purge failure should not disrupt the page */ }
@@ -2224,8 +2320,23 @@
         const parts = [];
         if (data.emailsSent > 0) parts.push(`${data.emailsSent} email${data.emailsSent !== 1 ? 's' : ''}`);
         if (data.smsSent    > 0) parts.push(`${data.smsSent} SMS`);
+        if (data.testEmail) {
+          // Trial/Demo: one test copy went to the verified address; real recipients were not emailed.
+          showNotifyFeedback('🧪 Trial/Demo test: ' + (data.testEmailsSent || 0) + ' test email sent to ' + data.testEmail
+                             + ' — ' + (data.simulated || 0) + ' recipient(s) simulated, none emailed.'
+                             + (data.smsSent > 0 ? ' ' + data.smsSent + ' SMS.' : ''), 'success');
+          setTimeout(closeNotifyModal, 3500);
+          return;
+        }
+        if (data.emailsBlocked > 0 && !parts.length) {
+          // Nothing left the server: the tenant's plan/demo settings block congregation email.
+          showNotifyFeedback('⚠️ ' + data.emailsBlocked + ' email' + (data.emailsBlocked !== 1 ? 's' : '') + ' not sent — '
+                             + (data.blockReason || 'email sending is blocked for this account.'), 'error');
+          return;
+        }
         const sent = parts.length ? parts.join(' & ') + ' sent.' : 'Notifications sent (recipients may have no contact info on file).';
-        showNotifyFeedback('✅ ' + sent, 'success');
+        const blocked = data.emailsBlocked > 0 ? ' ' + data.emailsBlocked + ' email(s) not sent — ' + (data.blockReason || 'blocked.') : '';
+        showNotifyFeedback('✅ ' + sent + blocked, 'success');
         setTimeout(closeNotifyModal, 2200);
       } else {
         showNotifyFeedback('❌ ' + (data.error || 'Failed to send notifications.'), 'error');

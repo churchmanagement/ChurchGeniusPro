@@ -187,13 +187,34 @@ public class CheckExtractor {
 
     // ── field finders ──
 
-    private static final Pattern AMOUNT = Pattern.compile("\\$\\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\\.[0-9]{2})?|[0-9]+(?:\\.[0-9]{2})?)");
+    /**
+     * The dollars part of an amount: either comma-grouped ({@code 1,234}) or a
+     * plain digit run ({@code 12345}). The comma-grouped form comes first and
+     * requires at least one group, so it can never claim the leading digits of a
+     * plain run.
+     *
+     * <p>This used to be {@code [0-9]{1,3}(?:,[0-9]{3})*}, which matches one to
+     * three digits and then OPTIONAL comma groups — so on a courtesy box written
+     * without a thousands comma it matched the first three digits and stopped:
+     * {@code $12345.67} was read as {@code 123}, and the alternative meant to
+     * catch the plain form was never reached. A five-figure check pre-filled the
+     * income form with a plausible three-figure amount.
+     */
+    private static final String DOLLARS = "(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)";
+
+    /**
+     * {@code $}-prefixed amount, optional cents. The trailing {@code (?![0-9])} is
+     * what makes the token whole: an amount that is a prefix of a longer digit run
+     * is not an amount.
+     */
+    private static final Pattern AMOUNT = Pattern.compile("\\$\\s*(" + DOLLARS + "(?:\\.[0-9]{2})?)(?![0-9])");
     // Courtesy box where the cents are separated by a dash/dot, e.g. "$ 100-00", "S 100.00".
     // OCR often reads "$" as "S" or "5", so accept those prefixes too.
-    private static final Pattern AMOUNT_DASH = Pattern.compile("[\\$S§]\\s*([0-9]{1,3}(?:,[0-9]{3})*)\\s*[\\-.]\\s*([0-9]{2})\\b");
+    private static final Pattern AMOUNT_DASH = Pattern.compile("[\\$S§]\\s*(" + DOLLARS + ")\\s*[\\-.]\\s*([0-9]{2})\\b");
     // Last-resort: a currency-ish prefix then dollars and 2-digit cents separated by dash/dot/space.
-    private static final Pattern AMOUNT_LOOSE = Pattern.compile("[\\$S§]\\s*([0-9]{1,3}(?:,[0-9]{3})*)\\s*[\\-.\\s]\\s*([0-9]{2})\\b");
-    private static final Pattern DECIMAL = Pattern.compile("\\b([0-9]{1,3}(?:,[0-9]{3})*\\.[0-9]{2})\\b");
+    private static final Pattern AMOUNT_LOOSE = Pattern.compile("[\\$S§]\\s*(" + DOLLARS + ")\\s*[\\-.\\s]\\s*([0-9]{2})\\b");
+    // Any decimal money token, with or without thousands commas.
+    private static final Pattern DECIMAL = Pattern.compile("\\b(" + DOLLARS + "\\.[0-9]{2})\\b");
 
     /** @return [value or null, confidenceBonus] */
     private String[] findAmount(String text) {
@@ -403,16 +424,23 @@ public class CheckExtractor {
         }
     }
 
-    /** Strip commas, validate as a positive money value. */
+    private static final java.math.BigDecimal MAX_AMOUNT = new java.math.BigDecimal("10000000");
+
+    /**
+     * Strip commas, validate as a positive money value, normalise to two places.
+     *
+     * <p>BigDecimal rather than the double round-trip it replaced: the value is
+     * money on its way into the ledger, and {@code String.format("%.2f")} without a
+     * locale writes {@code 1234,56} on a comma-decimal JVM, which the page then
+     * cannot parse.
+     */
     private static String clean(String v) {
         if (v == null) return null;
         v = v.replace(",", "").trim();
         if (!v.matches("\\d+(?:\\.\\d{1,2})?")) return null;
-        try {
-            double d = Double.parseDouble(v);
-            if (d <= 0 || d > 10_000_000) return null;
-            return String.format("%.2f", d);
-        } catch (NumberFormatException e) { return null; }
+        java.math.BigDecimal d = new java.math.BigDecimal(v).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (d.signum() <= 0 || d.compareTo(MAX_AMOUNT) > 0) return null;
+        return d.toPlainString();
     }
 
     private static int clamp(int v) { return Math.max(1, Math.min(99, v)); }

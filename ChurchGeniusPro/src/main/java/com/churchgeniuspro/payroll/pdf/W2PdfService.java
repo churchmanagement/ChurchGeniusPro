@@ -26,7 +26,6 @@ import java.text.DecimalFormat;
 @Service
 public class W2PdfService {
 
-    private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
     private static final float LEFT = 50f, RIGHT = 562f, TOP = 742f;
 
     private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
@@ -124,7 +123,10 @@ public class W2PdfService {
     }
     private static String money(BigDecimal v) {
         BigDecimal x = v == null ? BigDecimal.ZERO : v;
-        return (x.signum() < 0 ? "-$" : "$") + MONEY.format(x.abs());
+        // Financial audit M12d: see the identical fix (and its rationale) in
+        // PaystubPdfService#money — a shared static DecimalFormat is not
+        // thread-safe across concurrent W-2 downloads.
+        return (x.signum() < 0 ? "-$" : "$") + new DecimalFormat("#,##0.00").format(x.abs());
     }
     private static String safe(String s) {
         if (s == null) return "";

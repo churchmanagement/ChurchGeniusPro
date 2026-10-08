@@ -67,11 +67,14 @@ public class MeetingTypeController {
     @PostMapping("/api/meeting-types")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
+        String deny = writeGuard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Meeting type name is required.");
         }
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
             MeetingType saved = meetingTypeService.create(typeName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -85,13 +88,18 @@ public class MeetingTypeController {
     @ResponseBody
     @PutMapping("/api/meeting-types/{id}")
     public ResponseEntity<Map<String, Object>> update(@PathVariable Integer id,
-                                                      @RequestBody Map<String, String> body) {
+                                                      @RequestBody Map<String, String> body,
+                                                      HttpServletRequest request) {
+        String deny = writeGuard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Meeting type name is required.");
         }
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            MeetingType saved = meetingTypeService.update(id, typeName);
+            MeetingType saved = meetingTypeService.update(id, typeName, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -102,9 +110,14 @@ public class MeetingTypeController {
 
     @ResponseBody
     @DeleteMapping("/api/meeting-types/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
+                                                      HttpServletRequest request) {
+        String deny = writeGuard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return unauthorized();
         try {
-            meetingTypeService.delete(id);
+            meetingTypeService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -115,5 +128,20 @@ public class MeetingTypeController {
 
     private ResponseEntity<Map<String, Object>> bad(String msg) {
         return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorized() {
+        return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+    }
+
+    /**
+     * Meeting types are edited from two pages: /meetingtype (Admin) and the
+     * Categories panel on /meetings (any staff/member with general.meetings.category).
+     * Mirror the broader of the two so neither page breaks.
+     */
+    private static String writeGuard(HttpServletRequest request) {
+        String deny = RoleGuard.requireStaffOrMember(request);
+        if (deny != null) return deny;
+        return RoleGuard.requirePermission(request, "general.meetings.category");
     }
 }

@@ -42,6 +42,7 @@ public class PlaidWebhookService {
     private static final long MAX_AGE_SECONDS = 300; // reject tokens older than 5 min
 
     private final PlaidClient client;
+    private final PlaidEnvironmentService plaidEnv;
     private final PlaidItemRepository itemRepo;
     private final PlaidWebhookEventRepository eventRepo;
     private final PlaidSyncService syncService;
@@ -59,6 +60,7 @@ public class PlaidWebhookService {
     });
 
     public PlaidWebhookService(PlaidClient client,
+                               PlaidEnvironmentService plaidEnv,
                                PlaidItemRepository itemRepo,
                                PlaidWebhookEventRepository eventRepo,
                                PlaidSyncService syncService,
@@ -67,6 +69,7 @@ public class PlaidWebhookService {
         this.client = client;
         this.itemRepo = itemRepo;
         this.eventRepo = eventRepo;
+        this.plaidEnv = plaidEnv;
         this.syncService = syncService;
         this.guard = guard;
         this.audit = audit;
@@ -92,7 +95,14 @@ public class PlaidWebhookService {
             log.warn("Plaid webhook: unparseable body");
         }
 
-        boolean valid = verify(verificationJwt, rawBody);
+        // Resolved before verification, not after: Plaid signs sandbox and
+        // production webhooks with different keys, and the key is fetched with that
+        // environment's credentials. An unknown item falls back to this
+        // deployment's configured environment.
+        PlaidItem item = itemId != null ? itemRepo.findByItemId(itemId).orElse(null) : null;
+        String env = item != null ? plaidEnv.envForItem(item) : plaidEnv.defaultEnv();
+
+        boolean valid = verify(env, verificationJwt, rawBody);
 
         // Record every receipt (audit + idempotency), signature result included.
         PlaidWebhookEvent event = new PlaidWebhookEvent();
@@ -104,7 +114,6 @@ public class PlaidWebhookService {
         event.setProcessed(false);
 
         String clientIdForAudit = null;
-        PlaidItem item = itemId != null ? itemRepo.findByItemId(itemId).orElse(null) : null;
         if (item != null) clientIdForAudit = item.getClientId();
 
         if (!valid) {
@@ -176,7 +185,7 @@ public class PlaidWebhookService {
 
     // ── Verification ─────────────────────────────────────────────────────────
 
-    private boolean verify(String token, String rawBody) {
+    private boolean verify(String env, String token, String rawBody) {
         if (token == null || token.isBlank() || rawBody == null) return false;
         try {
             JsonWebSignature jws = new JsonWebSignature();
@@ -187,8 +196,8 @@ public class PlaidWebhookService {
             String kid = jws.getKeyIdHeaderValue();
             if (kid == null) return false;
 
-            boolean sigOk = verifyWithKey(jws, kid, false);
-            if (!sigOk) sigOk = verifyWithKey(jws, kid, true); // refresh key once and retry
+            boolean sigOk = verifyWithKey(env, jws, kid, false);
+            if (!sigOk) sigOk = verifyWithKey(env, jws, kid, true); // refresh key once and retry
             if (!sigOk) return false;
 
             // Body integrity + freshness from the signed claims.
@@ -208,9 +217,9 @@ public class PlaidWebhookService {
         }
     }
 
-    private boolean verifyWithKey(JsonWebSignature jws, String kid, boolean forceRefresh) {
+    private boolean verifyWithKey(String env, JsonWebSignature jws, String kid, boolean forceRefresh) {
         try {
-            JsonWebKey jwk = resolveKey(kid, forceRefresh);
+            JsonWebKey jwk = resolveKey(env, kid, forceRefresh);
             if (jwk == null) return false;
             jws.setKey(jwk.getKey());
             jws.setAlgorithmConstraints(new AlgorithmConstraints(
@@ -223,10 +232,17 @@ public class PlaidWebhookService {
     }
 
     @SuppressWarnings("unchecked")
-    private JsonWebKey resolveKey(String kid, boolean forceRefresh) throws Exception {
+    /**
+     * The signing key for one key id.
+     *
+     * <p>Cached by key id alone, which stays correct across environments: Plaid
+     * issues distinct key ids per environment, so a sandbox kid and a production
+     * kid never collide in this map.
+     */
+    private JsonWebKey resolveKey(String env, String kid, boolean forceRefresh) throws Exception {
         if (!forceRefresh && keyCache.containsKey(kid)) return keyCache.get(kid);
         keyCache.remove(kid);
-        Map<String, Object> resp = client.webhookVerificationKeyGet(kid);
+        Map<String, Object> resp = client.webhookVerificationKeyGet(env, kid);
         Object keyObj = resp.get("key");
         if (!(keyObj instanceof Map)) return null;
         JsonWebKey jwk = JsonWebKey.Factory.newJwk((Map<String, Object>) keyObj);

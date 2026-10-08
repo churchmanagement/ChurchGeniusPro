@@ -20,12 +20,20 @@ import java.time.Instant;
 @Data
 @Entity
 @Table(name = "guess_it_participant",
-       uniqueConstraints = @UniqueConstraint(
+       uniqueConstraints = {
+           @UniqueConstraint(
                name = "uq_guess_it_participant_game_member",
                columnNames = {"game_id", "member_id"}),
+           // One play row per person per grouped game.
+           @UniqueConstraint(
+               name = "uq_guess_it_participant_game_group_participant",
+               columnNames = {"game_id", "group_participant_id"})
+       },
        indexes = {
            @Index(name = "idx_guess_it_participant_game",
-                  columnList = "game_id")
+                  columnList = "game_id"),
+           @Index(name = "idx_guess_it_participant_group_participant",
+                  columnList = "group_participant_id")
        })
 public class GuessItParticipant {
 
@@ -40,11 +48,28 @@ public class GuessItParticipant {
     private Long gameId;
 
     /**
-     * The family_member.id of the participant.
-     * Stored as Integer to match FamilyMember's Integer PK.
+     * The family_member.id of the participant, when a logged-in member is
+     * playing. Stored as Integer to match FamilyMember's Integer PK.
+     *
+     * <p>{@code null} for public participants, who have no member record — they
+     * are identified by {@link #groupParticipantId} instead. PostgreSQL treats
+     * NULLs as distinct in the (game_id, member_id) unique constraint, so any
+     * number of public participants can share a game without colliding.
      */
-    @Column(name = "member_id", nullable = false)
+    @Column(name = "member_id")
     private Integer memberId;
+
+    /**
+     * The {@link GuessItGroupParticipant} row this play belongs to, when the
+     * game is part of a group. {@code null} for standalone games, which
+     * continue to identify participants by {@link #memberId} alone.
+     *
+     * <p>This is what links a single game's play back to the person's
+     * cumulative group score, and it is how public (not-logged-in) participants
+     * are identified at all — for them {@link #memberId} is {@code null}.
+     */
+    @Column(name = "group_participant_id")
+    private Long groupParticipantId;
 
     /** Display name at the time of joining (firstName + lastName). */
     @Column(name = "member_name", nullable = false, length = 300)
@@ -82,4 +107,10 @@ public class GuessItParticipant {
     /** When this participant record was first created (joined the game). */
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt = Instant.now();
+
+    /** Tenant column (H2): backfilled by W4 from the parent; set on create by the owning
+     *  service/controller. Nullable for now — flipped to NOT NULL once every create-path
+     *  is deployed (see db/window/W4_tenant_columns.sql). */
+    @Column(name = "client_id")
+    private String clientId;
 }

@@ -19,4 +19,11 @@ public interface PublicScreenLinkRepository extends JpaRepository<PublicScreenLi
     /** Active links for a church to a specific page (e.g. /membershipForm), newest first. */
     List<PublicScreenLink> findByAppClientIdAndPageUrlAndRevokedFalseOrderByCreatedDateDesc(
             String appClientId, String pageUrl);
+
+    /**
+     * Whether this church has ever published the given page — revoked rows included,
+     * since revoking sets the flag rather than deleting the row. Used to tell
+     * "revoked" apart from "never configured through Public Screens".
+     */
+    boolean existsByAppClientIdAndPageUrl(String appClientId, String pageUrl);
 }

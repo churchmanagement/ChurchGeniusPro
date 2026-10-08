@@ -49,7 +49,7 @@ public class PurposeController {
     public String purposePage(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "accounting.settings");
+        deny = RoleGuard.requirePagePermission(request, "accounting.settings");
         if (deny != null) return deny;
         return "forward:/purpose.html";
     }
@@ -59,7 +59,9 @@ public class PurposeController {
     @ResponseBody
     @GetMapping("/api/purposes")
     public ResponseEntity<List<Map<String, Object>>> getAll(HttpServletRequest request) {
+        if (RoleGuard.requireAccountantOrAdmin(request) != null) return ResponseEntity.status(403).build();
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(purposeService.getAll(appClientId));
     }
 
@@ -67,11 +69,14 @@ public class PurposeController {
     @PostMapping("/api/purposes")
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         String name = body.get("purposeName");
         if (name == null || name.isBlank()) {
             return bad("Purpose name is required.");
         }
-        String appClientId = SessionUtil.getAppClientId(request);
         try {
             Purpose saved = purposeService.create(name, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -86,11 +91,14 @@ public class PurposeController {
             @PathVariable Integer id,
             @RequestBody Map<String, String> body,
             HttpServletRequest request) {
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         String name = body.get("purposeName");
         if (name == null || name.isBlank()) {
             return bad("Purpose name is required.");
         }
-        String appClientId = SessionUtil.getAppClientId(request);
         try {
             Purpose saved = purposeService.update(id, name, appClientId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
@@ -101,9 +109,14 @@ public class PurposeController {
 
     @ResponseBody
     @DeleteMapping("/api/purposes/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
+                                                      HttpServletRequest request) {
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
-            purposeService.delete(id);
+            purposeService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());

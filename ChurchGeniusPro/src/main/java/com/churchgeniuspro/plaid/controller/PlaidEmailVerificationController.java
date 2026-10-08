@@ -75,7 +75,7 @@ public class PlaidEmailVerificationController {
             String html = "<p>Your ChurchGeniusPro verification code for connecting a bank account is:</p>"
                     + "<p style=\"font-size:22px;font-weight:700;letter-spacing:3px;\">" + code + "</p>"
                     + "<p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p>";
-            emailService.sendOrgEmail(user.getEmail(), "Your bank-connect verification code", html, clientId);
+            emailService.sendAccountEmail(user.getEmail(), "Your bank-connect verification code", html, clientId);
             return ResponseEntity.ok(resp("success", "A verification code was sent to your email.", false));
         } catch (Exception e) {
             log.warn("Plaid email verification send failed: {}", e.getMessage());

@@ -49,9 +49,9 @@ public class TransactionTypeService {
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public TransactionType update(Integer id, String typeName) {
+    public TransactionType update(Integer id, String typeName, String appClientId) {
         String name = typeName.trim();
-        TransactionType tt = findOrThrow(id);
+        TransactionType tt = findOrThrow(id, appClientId);
         // Scope duplicate-check to the same client as the record being updated
         if (repo.existsByTypeNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(name, tt.getAppClientId(), id)) {
             throw new IllegalArgumentException("A transaction type \"" + name + "\" already exists.");
@@ -63,8 +63,8 @@ public class TransactionTypeService {
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        TransactionType tt = findOrThrow(id);
+    public void delete(Integer id, String appClientId) {
+        TransactionType tt = findOrThrow(id, appClientId);
         tt.setDeleteFlag(true);
         repo.save(tt);
     }
@@ -78,8 +78,9 @@ public class TransactionTypeService {
         return m;
     }
 
-    private TransactionType findOrThrow(Integer id) {
-        return repo.findById(id)
+    /** Tenant-scoped: another church's id is reported exactly like an unknown id. */
+    private TransactionType findOrThrow(Integer id, String appClientId) {
+        return repo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction type not found: " + id));
     }
 }

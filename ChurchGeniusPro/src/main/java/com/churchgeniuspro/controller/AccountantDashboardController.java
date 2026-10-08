@@ -10,10 +10,14 @@ import com.churchgeniuspro.repository.IncomeRepository;
 import com.churchgeniuspro.repository.MainSourceRepository;
 import com.churchgeniuspro.service.ExpenseService;
 import com.churchgeniuspro.service.IncomeService;
+import com.churchgeniuspro.service.LedgerSummaryService;
+import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,7 +28,12 @@ import java.util.stream.Collectors;
 
 /**
  * Aggregated financial statistics for the Accountant home dashboard.
- * GET /api/accountant/dashboard?clientId={clientId}
+ * GET /api/accountant/dashboard[?year=YYYY] — tenant is taken from the session;
+ * a client-supplied {@code clientId} query param is ignored.
+ *
+ * <p>Every total, per-fund and per-month figure comes from {@code ledger_month_summary}
+ * via {@link LedgerSummaryService} (ledger scalability, part B); only the activity
+ * feed and the Quick Add panels still read individual ledger rows, with a LIMIT.
  */
 @RestController
 public class AccountantDashboardController {
@@ -35,43 +44,45 @@ public class AccountantDashboardController {
     private final MainSourceRepository         mainSourceRepo;
     private final IncomeService                incomeService;
     private final ExpenseService               expenseService;
+    private final LedgerSummaryService         summary;
 
     public AccountantDashboardController(ChurchRegistrationRepository churchRepo,
                                          IncomeRepository incomeRepo,
                                          ExpenseRepository expenseRepo,
                                          MainSourceRepository mainSourceRepo,
                                          IncomeService incomeService,
-                                         ExpenseService expenseService) {
+                                         ExpenseService expenseService,
+                                         LedgerSummaryService summary) {
         this.churchRepo     = churchRepo;
         this.incomeRepo     = incomeRepo;
         this.expenseRepo    = expenseRepo;
         this.mainSourceRepo = mainSourceRepo;
         this.incomeService  = incomeService;
         this.expenseService = expenseService;
+        this.summary        = summary;
     }
 
     @GetMapping("/api/accountant/dashboard")
     public ResponseEntity<Map<String, Object>> dashboard(
-            @RequestParam(required = false, defaultValue = "") String clientId,
             @RequestParam(required = false, defaultValue = "0") int year,
             HttpServletRequest request) {
 
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         Map<String, Object> res = new LinkedHashMap<>();
 
-        // ── Church name ───────────────────────────────────────────────────
-        String churchName = "";
-        if (!clientId.isBlank()) {
-            churchName = churchRepo.findByClientIdAndDeleteFlagFalse(clientId)
-                    .map(ChurchRegistration::getChurchName)
-                    .orElse("");
-        }
+        // ── Church name — resolved from the session tenant only ───────────
+        String churchName = churchRepo.findByClientIdAndDeleteFlagFalse(appClientId)
+                .map(ChurchRegistration::getChurchName)
+                .orElse("");
         res.put("churchName", churchName);
 
         int currentYear = (year > 0) ? year : LocalDate.now().getYear();
 
-        // ── Total Income — simple SUM, no joins, always reliable ──────────
-        BigDecimal totalIncome = incomeRepo.sumTotalAmountByAppUser(appClientId);
+        // ── Total Income — from the monthly summary (kept by DB triggers) ──
+        BigDecimal totalIncome = summary.totalIncome(appClientId);
         if (totalIncome == null) totalIncome = BigDecimal.ZERO;
         res.put("totalIncome", totalIncome);
 
@@ -84,7 +95,10 @@ public class AccountantDashboardController {
         // Build: mainId (Integer) → [ mainName, runningTotal, List<subEntry> ]
         Map<Integer, Object[]> mainAgg = new LinkedHashMap<>();
 
-        for (Object[] row : incomeRepo.sumAmountBySubCategoryNativeByAppUser(appClientId)) {
+        // Fetched once and reused for the sub-category pie below.
+        List<Object[]> subCategoryRows = summary.incomeBySubCategory(appClientId);
+
+        for (Object[] row : subCategoryRows) {
             Integer    mainId   = ((Number) row[2]).intValue();
             String     mainName = (String)  row[3];
             String     subName  = (String)  row[1];
@@ -133,9 +147,9 @@ public class AccountantDashboardController {
         res.put("incomeByCategory", incomeCatList);
 
         // ── Income by sub-category (for the Income Statistics pie chart) ───
-        // Row from sumAmountBySubCategoryNativeByAppUser: [sub_id, sub_name, main_id, main_name, total]
+        // Row from LedgerSummaryService.incomeBySubCategory: [sub_id, sub_name, main_id, main_name, total]
         List<Map<String, Object>> incomeSubCatList = new ArrayList<>();
-        for (Object[] row : incomeRepo.sumAmountBySubCategoryNativeByAppUser(appClientId)) {
+        for (Object[] row : subCategoryRows) {
             String     subName = (String) row[1];
             BigDecimal subTot  = row[4] != null
                                  ? new BigDecimal(row[4].toString())
@@ -149,10 +163,10 @@ public class AccountantDashboardController {
         }
         res.put("incomeBySubCategory", incomeSubCatList);
 
-        // ── Expense by main category — native SQL aggregate (delete_flag=false) ──
+        // ── Expense by main category — from the summary ────────────────────
         // Row: [main_id, main_name, total]
         Map<Integer, Object[]> expenseMainAgg = new LinkedHashMap<>();
-        for (Object[] row : expenseRepo.sumAmountByMainSourceNativeByAppUser(appClientId)) {
+        for (Object[] row : summary.expenseByMainSource(appClientId)) {
             Integer    mainId   = ((Number) row[0]).intValue();
             String     mainName = (String)  row[1];
             BigDecimal total    = row[2] != null
@@ -179,9 +193,9 @@ public class AccountantDashboardController {
         res.put("expenseByCategory", expenseCatList);
 
         // ── Expense by purpose (for the Expense Statistics pie chart) ──────
-        // Row from sumAmountByPurposeNativeByAppUser: [purpose_id, purpose_name, total]
+        // Row from LedgerSummaryService.expenseByPurpose: [purpose_id, purpose_name, total]
         List<Map<String, Object>> expensePurposeList = new ArrayList<>();
-        for (Object[] row : expenseRepo.sumAmountByPurposeNativeByAppUser(appClientId)) {
+        for (Object[] row : summary.expenseByPurpose(appClientId)) {
             String     purposeName = (String) row[1];
             BigDecimal purpTot     = row[2] != null
                                      ? new BigDecimal(row[2].toString())
@@ -197,7 +211,7 @@ public class AccountantDashboardController {
 
         // ── Expense by purpose — current year only (for the pie chart YTD) ─
         List<Map<String, Object>> expensePurposeYTD = new ArrayList<>();
-        for (Object[] row : expenseRepo.sumAmountByPurposeForYearByAppUser(currentYear, appClientId)) {
+        for (Object[] row : summary.expenseByPurposeForYear(currentYear, appClientId)) {
             String     purposeName = (String) row[1];
             BigDecimal purpTot     = row[2] != null
                                      ? new BigDecimal(row[2].toString())
@@ -210,9 +224,6 @@ public class AccountantDashboardController {
             }
         }
         res.put("expenseByPurposeYTD", expensePurposeYTD);
-
-        // Activity feed still needs individual expense records
-        List<Expense> expenses = expenseRepo.findAllActiveByAppUser(appClientId);
 
         // ── Net Balance by Main Category (income − expense per fund) ───────
         List<Map<String, Object>> netBalanceCatList = allMainSources.stream()
@@ -240,7 +251,7 @@ public class AccountantDashboardController {
         Arrays.fill(incomeByMonth,  BigDecimal.ZERO);
         Arrays.fill(expenseByMonth, BigDecimal.ZERO);
 
-        for (Object[] row : incomeRepo.sumAmountByMonthForYearByAppUser(currentYear, appClientId)) {
+        for (Object[] row : summary.incomeByMonthForYear(currentYear, appClientId)) {
             int        idx   = ((Number) row[0]).intValue() - 1;  // 1-based → 0-based
             BigDecimal total = row[1] != null
                                ? new BigDecimal(row[1].toString())
@@ -248,16 +259,17 @@ public class AccountantDashboardController {
             if (idx >= 0 && idx < 12) incomeByMonth[idx] = total;
         }
 
-        expenses.forEach(exp -> {
-            if (exp.getExpenseDate() != null) {
-                LocalDate d = exp.getExpenseDate();
-                if (d.getYear() == currentYear) {
-                    int idx = d.getMonthValue() - 1;
-                    expenseByMonth[idx] = expenseByMonth[idx].add(
-                            exp.getAmount() != null ? exp.getAmount() : BigDecimal.ZERO);
-                }
-            }
-        });
+        // Expense per month is the fund-by-month aggregate (also used for the Expense
+        // Statistics chart below) summed across funds.
+        // Row: [month, main_id, main_name, total]
+        List<Object[]> expenseMainMonthRows = summary.expenseByMainSourceAndMonthForYear(currentYear, appClientId);
+        for (Object[] row : expenseMainMonthRows) {
+            int        idx   = ((Number) row[0]).intValue() - 1;
+            BigDecimal total = row[3] != null
+                               ? new BigDecimal(row[3].toString())
+                               : BigDecimal.ZERO;
+            if (idx >= 0 && idx < 12) expenseByMonth[idx] = expenseByMonth[idx].add(total);
+        }
 
         res.put("incomeByMonth",  incomeByMonth);
         res.put("expenseByMonth", expenseByMonth);
@@ -265,7 +277,7 @@ public class AccountantDashboardController {
         // ── Income Statistics: per sub-source per month (current year) ─────
         // Row: [month, sub_id, sub_name, total]
         Map<String, BigDecimal[]> incSubMap = new LinkedHashMap<>();
-        for (Object[] row : incomeRepo.sumAmountBySubCategoryAndMonthForYearByAppUser(currentYear, appClientId)) {
+        for (Object[] row : summary.incomeBySubCategoryAndMonthForYear(currentYear, appClientId)) {
             int        m       = ((Number) row[0]).intValue() - 1;  // 0-based
             String     subName = (String) row[2];
             BigDecimal total   = row[3] != null
@@ -288,7 +300,7 @@ public class AccountantDashboardController {
         // ── Expense Statistics: per main source per month (current year) ───
         // Row: [month, main_id, main_name, total]
         Map<String, BigDecimal[]> expMonthMap = new LinkedHashMap<>();
-        for (Object[] row : expenseRepo.sumAmountByMainSourceAndMonthForYearByAppUser(currentYear, appClientId)) {
+        for (Object[] row : expenseMainMonthRows) {
             int        m        = ((Number) row[0]).intValue() - 1;  // 0-based
             String     mainName = (String) row[2];
             BigDecimal total    = row[3] != null
@@ -311,7 +323,7 @@ public class AccountantDashboardController {
         // ── Expense Statistics: per purpose per month (current year) ──────
         // Row: [month, purpose_id, purpose_name, total]
         Map<String, BigDecimal[]> expPurpMonthMap = new LinkedHashMap<>();
-        for (Object[] row : expenseRepo.sumAmountByPurposeAndMonthForYearByAppUser(currentYear, appClientId)) {
+        for (Object[] row : summary.expenseByPurposeAndMonthForYear(currentYear, appClientId)) {
             int        m           = ((Number) row[0]).intValue() - 1;  // 0-based
             String     purposeName = (String) row[2];
             BigDecimal total       = row[3] != null
@@ -331,12 +343,17 @@ public class AccountantDashboardController {
         });
         res.put("expenseStatsByPurpose", expPurpSeriesList);
 
-        // ── Recent activity (income + expense combined, latest 15) ────────
+        // ── Recent activity (income + expense combined, latest 10) ────────
+        // Each side is fetched with LIMIT 10 (the feed shows 10 in total, so no more
+        // than 10 of either kind can appear); it used to load every row of both
+        // tables and discard all but 30. Ledger scalability, part A.
+        final int recentLimit = 10;
         List<Map<String, Object>> activity = new ArrayList<>();
 
         try {
-            List<Income> recentIncomes = incomeRepo.findRecentForDashboardByAppUser(appClientId);
-            recentIncomes.stream().limit(30).forEach(inc -> {
+            List<Income> recentIncomes =
+                    incomeRepo.findRecentForDashboardByAppUser(appClientId, PageRequest.of(0, recentLimit));
+            recentIncomes.forEach(inc -> {
                 Map<String, Object> a = new LinkedHashMap<>();
                 a.put("id",     inc.getId());
                 a.put("type",   "income");
@@ -355,7 +372,9 @@ public class AccountantDashboardController {
             // Recent income feed is non-critical; skip if unavailable
         }
 
-        expenses.stream().limit(30).forEach(exp -> {
+        List<Expense> recentExpenses =
+                expenseRepo.findActivePageByAppUser(appClientId, PageRequest.of(0, recentLimit));
+        recentExpenses.forEach(exp -> {
             Map<String, Object> a = new LinkedHashMap<>();
             a.put("id",     exp.getId());
             a.put("type",   "expense");
@@ -370,12 +389,30 @@ public class AccountantDashboardController {
         });
 
         activity.sort((a, b) -> String.valueOf(b.get("date")).compareTo(String.valueOf(a.get("date"))));
-        res.put("recentActivity", activity.stream().limit(10).collect(Collectors.toList()));
+        res.put("recentActivity", activity.stream().limit(recentLimit).collect(Collectors.toList()));
 
         // ── Quick Add panels (latest 10 templates each) ───────────────────
         res.put("quickAddIncome",  incomeService.getQuickAddIncomes(appClientId));
         res.put("quickAddExpense", expenseService.getQuickAddExpenses(appClientId));
 
         return ResponseEntity.ok(res);
+    }
+
+    /**
+     * POST /api/accountant/ledger-summary/rebuild — regenerates this church's
+     * {@code ledger_month_summary} rows from its income/expense rows (ledger
+     * scalability, part B). The summary is kept exact by database triggers and
+     * checked nightly, so this is for operators: after a database restore, or when a
+     * dashboard figure is in doubt. Always safe — it only ever rewrites the derived
+     * table, never the ledger. Scoped to the session's church.
+     */
+    @PostMapping("/api/accountant/ledger-summary/rebuild")
+    public ResponseEntity<Map<String, Object>> rebuildLedgerSummary(HttpServletRequest request) {
+        String deny = RoleGuard.requireAccountantOrAdmin(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
+        int rows = summary.rebuild(appClientId);
+        return ResponseEntity.ok(Map.of("status", "ok", "rows", rows));
     }
 }

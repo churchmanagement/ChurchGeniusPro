@@ -83,6 +83,17 @@ public class Income {
     @Column(name = "quick_add", nullable = false)
     private boolean quickAdd;
 
+    /**
+     * Fingerprint of the source transaction for an imported row — a bank
+     * statement line (Bank Import) or a Plaid transaction id — null for every
+     * manually-entered row. Unique per church among active rows (see the
+     * partial index in {@code DatabaseIndexInitializer}); used to recognize the
+     * same transaction across re-imports and across the two import channels.
+     * Financial audit H8.
+     */
+    @Column(name = "import_ref", length = 160)
+    private String importRef;
+
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     /** Optional org identifier from the app_user who created this record. Null for church-level accounts. */

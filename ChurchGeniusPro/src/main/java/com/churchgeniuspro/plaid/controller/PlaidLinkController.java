@@ -37,17 +37,20 @@ public class PlaidLinkController {
     private final PlaidSyncService syncService;
     private final PlaidItemRepository itemRepo;
     private final PlaidAccountRepository accountRepo;
+    private final com.churchgeniuspro.plaid.service.PlaidEnvironmentService plaidEnv;
 
     public PlaidLinkController(PlaidGuard guard,
                               PlaidLinkService linkService,
                               PlaidSyncService syncService,
                               PlaidItemRepository itemRepo,
-                              PlaidAccountRepository accountRepo) {
+                              PlaidAccountRepository accountRepo,
+                              com.churchgeniuspro.plaid.service.PlaidEnvironmentService plaidEnv) {
         this.guard = guard;
         this.linkService = linkService;
         this.syncService = syncService;
         this.itemRepo = itemRepo;
         this.accountRepo = accountRepo;
+        this.plaidEnv = plaidEnv;
     }
 
     /** Create a Plaid Link token for the current user to open Plaid Link in the browser. */
@@ -59,6 +62,8 @@ public class PlaidLinkController {
         try {
             String linkToken = linkService.createLinkToken(clientId, clientUserId(req), SessionUtil.getUsername(req));
             return ResponseEntity.ok(ok("linkToken", linkToken));
+        } catch (PlaidLinkService.AccountLimitExceeded e) {
+            return error(e.getMessage());     // the plan limit, in the user's words
         } catch (Exception e) {
             log.warn("createLinkToken failed: {}", e.getMessage());
             return error("Could not start bank connection. Please try again.");
@@ -83,6 +88,8 @@ public class PlaidLinkController {
             Map<String, Object> resp = new LinkedHashMap<>(result);
             resp.put("status", "success");
             return ResponseEntity.ok(resp);
+        } catch (PlaidLinkService.AccountLimitExceeded e) {
+            return error(e.getMessage());     // nothing was stored; see PlaidLinkService
         } catch (Exception e) {
             log.warn("exchange failed: {}", e.getMessage());
             return error("Could not complete bank connection.");
@@ -104,6 +111,7 @@ public class PlaidLinkController {
             m.put("institutionName", it.getInstitutionName());
             m.put("status", it.getStatus());
             m.put("errorCode", it.getErrorCode());
+            m.put("plaidEnv", plaidEnv.stampedEnv(it));   // display only; calls go through envForItem
             m.put("lastSyncedDate", it.getLastSyncedDate());
             List<Map<String, Object>> accts = new ArrayList<>();
             for (PlaidAccount a : accountRepo.findByPlaidItemId(it.getId())) {
@@ -119,7 +127,18 @@ public class PlaidLinkController {
             m.put("accounts", accts);
             items.add(m);
         }
-        return ResponseEntity.ok(ok("items", items));
+        Map<String, Object> body = ok("items", items);
+        // Connected accounts vs. the plan's cap, so the page can say "3 of 3 connected"
+        // and explain what to do; null limit = unlimited.
+        body.put("connectedAccounts", linkService.connectedAccountCount(clientId));
+        body.put("accountLimit",      linkService.accountLimit(clientId));
+        // Lets the page label itself as test mode. Display only — the binding that
+        // matters is server-side, in the environment the Link token is issued for.
+        body.put("sandbox", plaidEnv.isSandboxTenant(clientId));
+        body.put("plaidEnv", plaidEnv.isSandboxTenant(clientId)
+                ? com.churchgeniuspro.plaid.config.PlaidProperties.SANDBOX
+                : plaidEnv.defaultEnv());
+        return ResponseEntity.ok(body);
     }
 
     /** Manually trigger a sync for one connected item ("sync now"). */

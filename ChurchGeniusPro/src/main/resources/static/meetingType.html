@@ -283,7 +283,7 @@
                    placeholder="e.g. Sunday Service, Bible Study, Prayer Meeting…"
                    onkeydown="if(event.key==='Enter') addMeetingType()" />
           </div>
-          <button class="btn-add-type" id="addBtn" onclick="addMeetingType()">＋ Add</button>
+          <button class="btn-add-type" id="addBtn" data-perm="general.meetings.category" onclick="addMeetingType()">＋ Add</button>
         </div>
         <span class="field-hint" id="newTypeNameHint"></span>
       </div>
@@ -385,8 +385,8 @@
         <td><span class="type-name">${escHtml(t.typeName)}</span></td>
         <td>
           <div class="actions">
-            <button class="btn-action btn-edit"   onclick="openEditModal(${t.id})" title="Edit">📝</button>
-            <button class="btn-action btn-delete" onclick="deleteType(${t.id})" title="Delete">🗑</button>
+            <button class="btn-action btn-edit"   data-perm="general.meetings.category" onclick="openEditModal(${t.id})" title="Edit">📝</button>
+            <button class="btn-action btn-delete" data-perm="general.meetings.category" onclick="deleteType(${t.id})" title="Delete">🗑</button>
           </div>
         </td>
       </tr>`).join('');

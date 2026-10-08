@@ -16,13 +16,16 @@ import java.util.Date;
 
 /**
  * A bank account exposed by a connected {@link PlaidItem}. Balances are latest
- * display snapshots only — they are not used as ledger figures.
+ * display snapshots only — they are not used as ledger figures. Uniqueness on
+ * ({@code client_id}, {@code account_id}) is scoped per tenant, not globally,
+ * since a Plaid {@code account_id} is not guaranteed unique across tenants
+ * (financial audit M7 — see {@link PlaidTransactionStaging}).
  */
 @Data
 @Entity
 @Table(name = "plaid_account",
-        uniqueConstraints = @UniqueConstraint(name = "uq_plaid_account_account_id",
-                columnNames = {"account_id"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_plaid_account_client_account",
+                columnNames = {"client_id", "account_id"}))
 public class PlaidAccount {
 
     @Id

@@ -13,6 +13,35 @@
     <appender-ref ref="CONSOLE"/>
   </root>
 
+  <!--
+    Silence the security audit channel by default.
+
+    LoginProtectionServiceTest simulates brute-force attacks, so it legitimately produces
+    a few hundred AUTH_FAILURE lines per run. Left on, that buries anything genuinely
+    worth reading in a build log and trains people to skim past WARN.
+
+    SecurityAuditServiceTest, which asserts on these events, re-enables the logger
+    explicitly and attaches its own appender — so turning it off here costs no coverage.
+  -->
+  <logger name="com.churchgeniuspro.security.audit" level="OFF"/>
+
+  <!--
+    Silence the reminder scheduler during tests.
+
+    EventReminderDeliveryTest proves that one failing sub-job cannot cancel the
+    rest of a tick, so it deliberately makes the rule lookup throw. runIsolated
+    then catches that and logs it WITH the throwable — a full ERROR plus a
+    ninety-line stack trace, on a run where every test passes. That is precisely
+    the "buries anything worth reading and trains people to skim past" problem
+    described above, and it has been reported twice as a suspected failure.
+
+    Nothing asserts on this logger (only SecurityAuditServiceTest attaches an
+    appender, and that is for the audit channel), so turning it off costs no
+    coverage. Production logging is untouched: this file is test-classpath only,
+    and logback-spring.xml still governs the running application.
+  -->
+  <logger name="com.churchgeniuspro.service.ReminderSchedulerService" level="OFF"/>
+
   <!-- Quiet the Docker-detection noise produced during skipped integration tests. -->
   <logger name="org.testcontainers.dockerclient.DockerClientProviderStrategy" level="OFF"/>
   <logger name="org.testcontainers.dockerclient" level="WARN"/>

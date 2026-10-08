@@ -17,6 +17,9 @@ public interface MeetingMessageTemplateRepository extends JpaRepository<MeetingM
 
     Optional<MeetingMessageTemplate> findByIdAndDeleteFlagFalse(Integer id);
 
+    /** Tenant-scoped single lookup (security audit, week 1). */
+    Optional<MeetingMessageTemplate> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
     // Explicit JPQL avoids any "is"-prefixed boolean ambiguity in derived queries.
     @Query("SELECT t FROM MeetingMessageTemplate t WHERE t.appClientId = :appClientId AND t.isDefault = true AND t.deleteFlag = false")
     List<MeetingMessageTemplate> findDefaults(@Param("appClientId") String appClientId);

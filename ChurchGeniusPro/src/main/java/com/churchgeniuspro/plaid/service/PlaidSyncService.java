@@ -36,14 +36,17 @@ public class PlaidSyncService {
     private final PlaidAccountRepository accountRepo;
     private final PlaidTransactionStagingRepository stagingRepo;
     private final PlaidAuditService audit;
+    private final PlaidEnvironmentService plaidEnv;
 
     public PlaidSyncService(PlaidClient client,
+                            PlaidEnvironmentService plaidEnv,
                             PlaidTokenCipher cipher,
                             PlaidItemRepository itemRepo,
                             PlaidAccountRepository accountRepo,
                             PlaidTransactionStagingRepository stagingRepo,
                             PlaidAuditService audit) {
         this.client = client;
+        this.plaidEnv = plaidEnv;
         this.cipher = cipher;
         this.itemRepo = itemRepo;
         this.accountRepo = accountRepo;
@@ -58,12 +61,18 @@ public class PlaidSyncService {
     public int sync(PlaidItem item, String actor) {
         if (item == null || item.isDeleteFlag()) return 0;
         String token = cipher.decrypt(item.getAccessTokenEnc());
+        // The item's own stamp, never the tenant's current plan: an access token is
+        // only valid in the environment that issued it. This also keeps the
+        // scheduled sync running when the subscription cannot be read, and stops a
+        // Trial tenant's sandbox items from being pointed at production if they
+        // later upgrade.
+        String env = plaidEnv.envForItem(item);
         String cursor = item.getSyncCursor();
         int changed = 0;
         try {
             boolean hasMore = true;
             while (hasMore) {
-                Map<String, Object> resp = client.transactionsSync(token, cursor);
+                Map<String, Object> resp = client.transactionsSync(env, token, cursor);
 
                 upsertAccounts(item, asMapList(resp.get("accounts")));
 
@@ -74,7 +83,7 @@ public class PlaidSyncService {
                     if (upsertTransaction(item, txn, false)) changed++;
                 }
                 for (Map<String, Object> removed : asMapList(resp.get("removed"))) {
-                    markRemoved(asString(removed.get("transaction_id")));
+                    markRemoved(item.getClientId(), asString(removed.get("transaction_id")));
                 }
 
                 cursor = asString(resp.get("next_cursor"));
@@ -113,9 +122,11 @@ public class PlaidSyncService {
         String txnId = asString(txn.get("transaction_id"));
         if (txnId == null) return false;
 
-        PlaidTransactionStaging row = stagingRepo.findByPlaidTransactionId(txnId).orElse(null);
-        // Never overwrite a row a human has already actioned.
-        if (row != null && !"PENDING".equals(row.getStatus())) {
+        PlaidTransactionStaging row = stagingRepo.findByPlaidTransactionIdAndClientId(txnId, item.getClientId()).orElse(null);
+        // Never overwrite a row a human has already actioned. ERROR is not a
+        // human decision (financial audit M8) — it's PENDING's
+        // unreadable-amount twin, so a later sync may still repair it.
+        if (row != null && !"PENDING".equals(row.getStatus()) && !"ERROR".equals(row.getStatus())) {
             return false;
         }
         boolean isNew = (row == null);
@@ -128,14 +139,26 @@ public class PlaidSyncService {
         }
 
         // Plaid convention: positive amount = money out (expense), negative = money in (income).
+        // Financial audit M8: an amount Plaid sends that we can't parse must
+        // never be silently treated as a real $0 transaction — that used to
+        // produce an ordinary, approvable row that posted a $0 ledger entry
+        // if a reviewer clicked through it. Staged as ERROR instead, with no
+        // amount and no guessed direction, until a human supplies the real
+        // figure (by editing the row) or a later sync resends it parseably.
         BigDecimal signed = asBigDecimal(txn.get("amount"));
-        BigDecimal abs = signed == null ? BigDecimal.ZERO : signed.abs();
-        row.setAmount(abs);
-        row.setDirection(signed != null && signed.signum() > 0 ? "EXPENSE" : "INCOME");
+        if (signed == null) {
+            row.setAmount(null);
+            row.setDirection(null);
+            row.setStatus("ERROR");
+        } else {
+            row.setAmount(signed.abs());
+            row.setDirection(signed.signum() > 0 ? "EXPENSE" : "INCOME");
+            if ("ERROR".equals(row.getStatus())) row.setStatus("PENDING");
+        }
 
         String acctId = asString(txn.get("account_id"));
         if (acctId != null) {
-            PlaidAccount acct = accountRepo.findByAccountId(acctId).orElse(null);
+            PlaidAccount acct = accountRepo.findByAccountIdAndClientId(acctId, item.getClientId()).orElse(null);
             if (acct != null) row.setPlaidAccountId(acct.getId());
         }
         row.setTxnDate(parseDate(asString(txn.getOrDefault("date", txn.get("authorized_date")))));
@@ -152,9 +175,9 @@ public class PlaidSyncService {
         return true;
     }
 
-    private void markRemoved(String txnId) {
+    private void markRemoved(String clientId, String txnId) {
         if (txnId == null) return;
-        stagingRepo.findByPlaidTransactionId(txnId).ifPresent(row -> {
+        stagingRepo.findByPlaidTransactionIdAndClientId(txnId, clientId).ifPresent(row -> {
             row.setRemoved(true);
             row.setUpdatedDate(new Date());
             stagingRepo.save(row);
@@ -167,7 +190,7 @@ public class PlaidSyncService {
         for (Map<String, Object> a : accounts) {
             String acctId = asString(a.get("account_id"));
             if (acctId == null) continue;
-            PlaidAccount acc = accountRepo.findByAccountId(acctId).orElseGet(PlaidAccount::new);
+            PlaidAccount acc = accountRepo.findByAccountIdAndClientId(acctId, item.getClientId()).orElseGet(PlaidAccount::new);
             boolean isNew = acc.getId() == null;
             if (isNew) {
                 acc.setClientId(item.getClientId());

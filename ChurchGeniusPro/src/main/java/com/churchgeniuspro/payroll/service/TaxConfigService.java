@@ -25,6 +25,9 @@ import java.util.Optional;
  * effective year) and the engine picks it up — no recompilation. If a year has
  * not been seeded into the DB yet, federal/FICA loads fall back to the in-code
  * {@link Federal2026TaxData} for 2026 so the system is usable out of the box.
+ * The one exception is the 2026 FICA row itself: its values are statutory and
+ * this build seeds them, so a stored row that disagrees with them is refused
+ * (see {@link #loadFica}) rather than trusted — database audit C1.
  */
 @Service
 public class TaxConfigService {
@@ -127,7 +130,20 @@ public class TaxConfigService {
         return new FederalWithholdingConfig(year, addBack, stdSched, step2Sched);
     }
 
-    /** FICA config for a year, from DB; falls back to seeded 2026 data. */
+    /**
+     * FICA config for a year, from DB; falls back to seeded 2026 data.
+     *
+     * <p>For 2026 — the year whose statutory values this build carries in
+     * {@link Federal2026TaxData} and seeds from — a stored row that differs from them is
+     * refused rather than used. Database audit C1: the rate columns were created as
+     * {@code numeric(38,2)}, so the seed came back as {@code 0.06 / 0.01 / 0.01} and every
+     * paystub withheld at those rates while the application looked healthy. The startup
+     * repair in {@code SchemaFixService} corrects that exact damage; anything it could not
+     * correct must stop payroll, loudly, instead of reaching another paystub.
+     *
+     * @throws IllegalStateException when no rates exist for a year other than 2026, or when
+     *         the stored 2026 row does not match the statutory 2026 values
+     */
     public FicaConfig loadFica(int year) {
         Optional<FicaRate> row = ficaRepo.findByEffectiveYear(year);
         if (row.isEmpty()) {
@@ -135,8 +151,36 @@ public class TaxConfigService {
             throw new IllegalStateException("No FICA rates configured for year " + year);
         }
         FicaRate r = row.get();
-        return new FicaConfig(year, r.getSocialSecurityRate(), r.getSocialSecurityWageBase(),
+        FicaConfig stored = new FicaConfig(year, r.getSocialSecurityRate(), r.getSocialSecurityWageBase(),
                 r.getMedicareRate(), r.getAdditionalMedicareRate(), r.getAdditionalMedicareThreshold());
+        if (year == Federal2026TaxData.YEAR) {
+            requireStatutory(stored, Federal2026TaxData.fica());
+        }
+        return stored;
+    }
+
+    /** Refuses a stored FICA row whose values differ from the statutory ones for that year. */
+    static void requireStatutory(FicaConfig stored, FicaConfig statutory) {
+        List<String> wrong = new ArrayList<>();
+        compare(wrong, "Social Security rate", stored.getSocialSecurityRate(), statutory.getSocialSecurityRate());
+        compare(wrong, "Medicare rate", stored.getMedicareRate(), statutory.getMedicareRate());
+        compare(wrong, "Additional Medicare rate", stored.getAdditionalMedicareRate(), statutory.getAdditionalMedicareRate());
+        compare(wrong, "Social Security wage base", stored.getSocialSecurityWageBase(), statutory.getSocialSecurityWageBase());
+        compare(wrong, "Additional Medicare threshold", stored.getAdditionalMedicareThreshold(), statutory.getAdditionalMedicareThreshold());
+        if (!wrong.isEmpty()) {
+            throw new IllegalStateException("The FICA rates stored for " + statutory.getEffectiveYear()
+                    + " differ from the statutory values (" + String.join("; ", wrong)
+                    + "). Payroll cannot run until payroll_fica_rate is corrected — the application repairs "
+                    + "the two-decimal rounding at startup; otherwise see migrate_production.sql, "
+                    + "'Database audit C1'.");
+        }
+    }
+
+    private static void compare(List<String> wrong, String label, BigDecimal stored, BigDecimal statutory) {
+        if (stored == null || stored.compareTo(statutory) != 0) {
+            wrong.add(label + " is " + (stored == null ? "missing" : stored.stripTrailingZeros().toPlainString())
+                    + " instead of " + statutory.toPlainString());
+        }
     }
 
     /**

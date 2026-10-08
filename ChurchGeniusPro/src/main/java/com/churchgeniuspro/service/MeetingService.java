@@ -118,9 +118,8 @@ public class MeetingService {
     // ── Get by ID ─────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getById(Integer id) {
-        Meeting m = meetingRepository.findActiveById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + id));
+    public Map<String, Object> getById(Integer id, String appClientId) {
+        Meeting m = findOrThrow(id, appClientId);
         return toMap(m);
     }
 
@@ -130,35 +129,34 @@ public class MeetingService {
     public Meeting save(MeetingBO bo, String appClientId) {
         Meeting m = new Meeting();
         m.setAppClientId(appClientId);
-        applyBO(bo, m);
+        applyBO(bo, m, appClientId);
         return meetingRepository.save(m);
     }
 
     // ── Update ────────────────────────────────────────────────────────────
 
     @Transactional
-    public Meeting update(Integer id, MeetingBO bo) {
-        Meeting m = meetingRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + id));
-        applyBO(bo, m);
+    public Meeting update(Integer id, MeetingBO bo, String appClientId) {
+        Meeting m = findOrThrow(id, appClientId);
+        applyBO(bo, m, appClientId);
         return meetingRepository.save(m);
     }
 
     // ── Soft-Delete ───────────────────────────────────────────────────────
 
     @Transactional
-    public void delete(Integer id) {
-        Meeting m = meetingRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + id));
+    public void delete(Integer id, String appClientId) {
+        Meeting m = findOrThrow(id, appClientId);
         m.setDeleteFlag(true);
         meetingRepository.save(m);
     }
 
     // ── Bulk Soft-Delete ──────────────────────────────────────────────────
 
+    /** Soft-deletes the given ids that belong to {@code appClientId}; foreign ids are silently skipped. */
     @Transactional
-    public int deleteBulk(List<Integer> ids) {
-        List<Meeting> toDelete = meetingRepository.findAllById(ids);
+    public int deleteBulk(List<Integer> ids, String appClientId) {
+        List<Meeting> toDelete = meetingRepository.findByIdInAndAppClientIdAndDeleteFlagFalse(ids, appClientId);
         toDelete.forEach(m -> m.setDeleteFlag(true));
         meetingRepository.saveAll(toDelete);
         return toDelete.size();
@@ -167,17 +165,16 @@ public class MeetingService {
     // ── Image ─────────────────────────────────────────────────────────────
 
     @Transactional
-    public void saveImage(Integer meetingId, byte[] data, String contentType) {
-        Meeting m = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + meetingId));
+    public void saveImage(Integer meetingId, byte[] data, String contentType, String appClientId) {
+        Meeting m = findOrThrow(meetingId, appClientId);
         m.setImageData(data);
         m.setImageContentType(contentType);
         meetingRepository.save(m);
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> getImage(Integer meetingId) {
-        return meetingRepository.findById(meetingId)
+    public ResponseEntity<byte[]> getImage(Integer meetingId, String appClientId) {
+        return meetingRepository.findByIdAndAppClientIdAndDeleteFlagFalse(meetingId, appClientId)
                 .filter(m -> m.getImageData() != null && m.getImageData().length > 0)
                 .map(m -> ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(
@@ -187,9 +184,8 @@ public class MeetingService {
     }
 
     @Transactional
-    public void deleteImage(Integer meetingId) {
-        Meeting m = meetingRepository.findById(meetingId)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + meetingId));
+    public void deleteImage(Integer meetingId, String appClientId) {
+        Meeting m = findOrThrow(meetingId, appClientId);
         m.setImageData(null);
         m.setImageContentType(null);
         meetingRepository.save(m);
@@ -218,28 +214,39 @@ public class MeetingService {
      * @param appClientId organization client id from session
      * @return map with counts: { emailsSent, smsSent }
      */
-    @Transactional(readOnly = true)
-    public Map<String, Object> sendManualNotification(Integer meetingId,
-                                                      List<String> channels,
-                                                      List<String> recipients,
-                                                      String appClientId) {
-        Meeting meeting = meetingRepository.findActiveById(meetingId)
-                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + meetingId));
+    /**
+     * Resolved inside a read-only transaction; delivered outside it. The meeting's
+     * type is lazy and open-in-view is off, so the lookup needs a transaction — but
+     * sending must not run in it: the first email of a month makes
+     * {@code SubscriptionService} INSERT the month's usage row, PostgreSQL refuses a
+     * write in a read-only transaction, and every later statement in that
+     * transaction then fails with "current transaction is aborted".
+     */
+    private record Prepared(String subject, String htmlBody, Set<String> emails,
+                            String smsBody, String recipientsToken, Set<String> phones) {}
+
+    /** Test seam / Spring wiring: the transaction manager (null in unit tests → no transaction). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setTransactionManager(org.springframework.transaction.PlatformTransactionManager tm) {
+        this.txTemplate = tm == null ? null : new org.springframework.transaction.support.TransactionTemplate(tm);
+        if (this.txTemplate != null) this.txTemplate.setReadOnly(true);
+    }
+    private org.springframework.transaction.support.TransactionTemplate txTemplate;
+
+    private Prepared prepareManualNotification(Integer meetingId, List<String> channels,
+                                               List<String> recipients, String appClientId) {
+        // Tenant check first: a meeting from another church must not be resolved,
+        // let alone have its details mailed/texted to this church's members.
+        Meeting meeting = findOrThrow(meetingId, appClientId);
 
         String typeName = meeting.getMeetingType() != null
                 ? meeting.getMeetingType().getTypeName() : "Meeting";
         String subject  = "📋 Meeting Reminder: " + typeName;
 
-        boolean doEmail = channels.contains("Email");
-        boolean doSms   = channels.contains("SMS");
-
-        int emailsSent = 0;
-        int smsSent    = 0;
-
-        // ── Email ──────────────────────────────────────────────────────────────
-        if (doEmail) {
-            String htmlBody = buildManualNotificationEmailBody(meeting, typeName);
-            Set<String> emails = new LinkedHashSet<>();
+        String htmlBody = null;
+        Set<String> emails = new LinkedHashSet<>();
+        if (channels.contains("Email")) {
+            htmlBody = buildManualNotificationEmailBody(meeting, typeName);
             if (recipients.contains("Members")) {
                 familyMemberRepository.findByMemberTypeWithEmailByAppUser("Member", appClientId)
                         .stream()
@@ -252,20 +259,13 @@ public class MeetingService {
                         .filter(m -> m.getEmail() != null && !m.getEmail().isBlank())
                         .forEach(m -> emails.add(m.getEmail().trim().toLowerCase()));
             }
-            for (String email : emails) {
-                emailService.sendOrgEmail(email, subject, htmlBody, appClientId);
-                emailsSent++;
-            }
         }
 
-        // ── SMS ────────────────────────────────────────────────────────────────
-        if (doSms) {
-            String smsMsg = buildManualNotificationSmsBody(meeting, typeName);
-            String recipientsToken = String.join(",", recipients);
-            whatsAppSender.sendToRecipientsMultiChannel(recipientsToken, smsMsg,
-                    appClientId, false, true);
+        String smsBody = null;
+        Set<String> phones = new LinkedHashSet<>();
+        if (channels.contains("SMS")) {
+            smsBody = buildManualNotificationSmsBody(meeting, typeName);
             // Count approximate sends (resolve same way as sendToRecipientsMultiChannel)
-            Set<String> phones = new LinkedHashSet<>();
             if (recipients.contains("Members")) {
                 familyMemberRepository.findByMemberTypeWithPhoneByAppUser("Member", appClientId)
                         .stream()
@@ -280,25 +280,107 @@ public class MeetingService {
                         .filter(p -> p != null && !p.isBlank())
                         .forEach(phones::add);
             }
-            smsSent = phones.size();
+        }
+        return new Prepared(subject, htmlBody, emails, smsBody, String.join(",", recipients), phones);
+    }
+
+    /**
+     * Sends an on-demand Email and/or SMS for a single meeting to the requested
+     * recipient groups ("Members", "Guests").
+     *
+     * <p>Not transactional: see {@link Prepared}. Email is delivered one recipient at
+     * a time; when the tenant's plan or demo settings block congregation mail, nothing
+     * is attempted and the count comes back as {@code emailsBlocked} with the reason,
+     * so the screen never reports a dropped message as sent.
+     *
+     * @param meetingId  DB id of the meeting
+     * @param channels   list containing "Email" and/or "SMS"
+     * @param recipients list containing "Members" and/or "Guests"
+     * @param appClientId organization client id from session
+     * @return map with counts: { emailsSent, emailsBlocked, blockReason?, smsSent }
+     */
+    public Map<String, Object> sendManualNotification(Integer meetingId,
+                                                      List<String> channels,
+                                                      List<String> recipients,
+                                                      String appClientId) {
+        Prepared p = txTemplate != null
+                ? txTemplate.execute(status -> prepareManualNotification(meetingId, channels, recipients, appClientId))
+                : prepareManualNotification(meetingId, channels, recipients, appClientId);
+
+        int emailsSent = 0, emailsBlocked = 0, testEmailsSent = 0, simulated = 0;
+        String blockReason = null, testEmail = null;
+        if (p.htmlBody() != null) {
+            EmailService.Delivery d = emailService.delivery(appClientId);
+            if (d.blocked()) {
+                blockReason = d.reason();
+                emailsBlocked = p.emails().size();
+            } else if (d.test()) {
+                // Phase B: one action → one test email; the rest are simulated.
+                testEmail = d.testEmail();
+                try (com.churchgeniuspro.util.EmailActionScope scope =
+                             com.churchgeniuspro.util.EmailActionScope.begin("meeting-notify:" + meetingId)) {
+                    for (String email : p.emails()) {
+                        emailService.sendOrgEmail(email, p.subject(), p.htmlBody(), appClientId);
+                    }
+                    testEmailsSent = scope.testEmailsSent();
+                    simulated      = scope.simulated();
+                }
+            } else {
+                for (String email : p.emails()) {
+                    emailService.sendOrgEmail(email, p.subject(), p.htmlBody(), appClientId);
+                    emailsSent++;
+                }
+            }
+        }
+
+        int smsSent = 0;
+        if (p.smsBody() != null) {
+            whatsAppSender.sendToRecipientsMultiChannel(p.recipientsToken(), p.smsBody(),
+                    appClientId, false, true);
+            smsSent = p.phones().size();
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("emailsSent", emailsSent);
-        result.put("smsSent",    smsSent);
+        result.put("emailsSent",    emailsSent);
+        result.put("emailsBlocked", emailsBlocked);
+        if (blockReason != null) result.put("blockReason", blockReason);
+        if (testEmail != null) {
+            result.put("testEmailsSent", testEmailsSent);
+            result.put("simulated",      simulated);
+            result.put("testEmail",      testEmail);
+        }
+        result.put("smsSent",       smsSent);
         return result;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private void applyBO(MeetingBO bo, Meeting m) {
+    /** Tenant-scoped, non-deleted lookup; unknown and foreign ids fail identically. */
+    private Meeting findOrThrow(Integer id, String appClientId) {
+        return meetingRepository.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Meeting not found: " + id));
+    }
+
+    private void applyBO(MeetingBO bo, Meeting m, String appClientId) {
         if (bo.getMeetingTypeId() != null) {
-            MeetingType mt = meetingTypeRepository.findById(bo.getMeetingTypeId())
+            MeetingType mt = meetingTypeRepository
+                    .findByIdAndAppClientIdAndDeleteFlagFalse(bo.getMeetingTypeId(), appClientId)
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Meeting type not found: " + bo.getMeetingTypeId()));
             m.setMeetingType(mt);
         } else {
             m.setMeetingType(null);
+        }
+        // Location foreign keys must belong to this church before they are stored.
+        if (bo.getLocationMemberId() != null) {
+            familyMemberRepository.findByIdAndTenant(bo.getLocationMemberId(), appClientId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Location member not found: " + bo.getLocationMemberId()));
+        }
+        if (bo.getLocationFamilyId() != null) {
+            familyRepository.findByIdAndAppClientIdAndDeleteFlagFalse(bo.getLocationFamilyId(), appClientId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Location family not found: " + bo.getLocationFamilyId()));
         }
         m.setLocationMemberId(bo.getLocationMemberId());
         m.setLocationFamilyId(bo.getLocationFamilyId());

@@ -51,6 +51,14 @@ public class SubscriptionExpiryNotifier {
     private final ReminderSentLogRepository sentLogRepo;
     private final EmailService              emailService;
 
+    /**
+     * Issues the church's "Request a subscription" link for TRIAL-plan reminders.
+     * Optional: without it trial reminders are sent exactly as before.
+     */
+    private SubscriptionRequestService subscriptionRequests;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setSubscriptionRequests(SubscriptionRequestService s) { this.subscriptionRequests = s; }
+
     public SubscriptionExpiryNotifier(ServiceClientRepository clientRepo,
                                       ReminderSentLogRepository sentLogRepo,
                                       EmailService emailService) {
@@ -61,7 +69,11 @@ public class SubscriptionExpiryNotifier {
 
     @Scheduled(cron = "${scheduler.job.subscription-expiry:0 0 7 * * *}", zone = "America/Chicago")
     public void run() {
-        LocalDate today = LocalDate.now();
+        run2(LocalDate.now());
+    }
+
+    /** Date-parameterised sweep, for tests. */
+    public void run2(LocalDate today) {
         int sent = 0;
         for (int days : WARNING_DAYS) {
             sent += notifyFor(today, today.plusDays(days), days);
@@ -82,16 +94,44 @@ public class SubscriptionExpiryNotifier {
                         sc.getClientId(), SENT_LOG_TYPE, refKey, today)) continue;
                 if (!markSent(sc.getClientId(), refKey, today)) continue;
 
-                emailService.sendGenericEmail(sc.getEmail(), subject(sc, daysLeft), body(sc, daysLeft));
+                // Trial-plan clients get trial wording and the "Request a subscription"
+                // link (spec section 7); every other plan's notice is unchanged.
+                String link = trialRequestLink(sc);
+                String subject = link != null ? trialSubject(sc, daysLeft) : subject(sc, daysLeft);
+                String body    = link != null ? trialBody(sc, daysLeft, link) : body(sc, daysLeft);
+                emailService.sendGenericEmail(sc.getEmail(), subject, body);
                 sent++;
                 log.info("Subscription expiry notice ({} day(s)) sent to {} for clientId={}",
                         daysLeft, sc.getEmail(), sc.getClientId());
+                sendTrialTestCopy(sc, subject, body, daysLeft);
             } catch (Exception e) {
                 log.error("Subscription expiry notice failed for clientId={} — {}",
                         sc.getClientId(), e.getMessage());
             }
         }
         return sent;
+    }
+
+    /**
+     * Trial/Demo tenants with a verified test address receive the same notice there
+     * as well — in addition to, never instead of, the address registered with the
+     * subscription. It goes through the Trial/Demo test-email mechanism (one test
+     * email for this action; the tenant block means it can reach nobody else), so a
+     * paying church, or a tenant with no verified address, sees no change.
+     */
+    private void sendTrialTestCopy(ServiceClient sc, String subject, String body, int daysLeft) {
+        try {
+            EmailService.Delivery d = emailService.delivery(sc.getClientId());
+            if (d == null || !d.test()) return;
+            try (com.churchgeniuspro.util.EmailActionScope scope = com.churchgeniuspro.util.EmailActionScope.begin(
+                    "subscription-expiry:" + sc.getClientId() + ":" + daysLeft)) {
+                emailService.sendOrgEmail(sc.getEmail(), subject, body, sc.getClientId());
+                log.info("Subscription expiry notice ({} day(s)) test copy for clientId={} → {} test email(s)",
+                        daysLeft, sc.getClientId(), scope.testEmailsSent());
+            }
+        } catch (Exception e) {
+            log.warn("Subscription expiry test copy failed for clientId={} — {}", sc.getClientId(), e.getMessage());
+        }
     }
 
     private String subject(ServiceClient sc, int daysLeft) {
@@ -136,6 +176,69 @@ public class SubscriptionExpiryNotifier {
              + "<p style='margin:0;font-size:13.5px;color:#555;line-height:1.7;'>To renew, extend, or choose a "
              + "different plan, please contact us at "
              + "<a href='mailto:info@churchgeniuspro.com' style='color:#673147;font-weight:600;'>info@churchgeniuspro.com</a>.</p>"
+             + "</td></tr></table></td></tr></table></body></html>";
+    }
+
+    /** The request link for a TRIAL-plan client, or null (paid plans, or link unavailable). */
+    private String trialRequestLink(ServiceClient sc) {
+        if (subscriptionRequests == null) return null;
+        if (!TrialPolicy.TRIAL_PLAN_CODE.equalsIgnoreCase(SubscriptionService.toPlanCode(sc.getSubscriptionType()))) return null;
+        try {
+            return subscriptionRequests.linkFor(sc);
+        } catch (Exception e) {
+            log.warn("Subscription request link not issued for {} — sending the standard notice. {}",
+                    sc.getClientId(), e.getMessage());
+            return null;
+        }
+    }
+
+    private String trialSubject(ServiceClient sc, int daysLeft) {
+        String church = sc.getChurchName() != null ? sc.getChurchName() : "Your church";
+        if (daysLeft == 0) return "⛔ " + church + " — Your ChurchGeniusPro trial has ended";
+        return "⏰ " + church + " — Your ChurchGeniusPro trial ends in "
+                + daysLeft + (daysLeft == 1 ? " day" : " days");
+    }
+
+    /**
+     * Trial reminder. An empty-account trial is told it can continue on a paid plan
+     * with everything it entered; a sample-data trial ({@code TRIAL-}) is told it
+     * cannot be converted, so its request is handled as a new registration.
+     */
+    private String trialBody(ServiceClient sc, int daysLeft, String link) {
+        String church  = esc(sc.getChurchName() != null ? sc.getChurchName() : "your church");
+        String endDate = sc.getEndDate() != null ? sc.getEndDate().format(DATE_FMT) : "—";
+        boolean sample = sc.getClientId() != null && sc.getClientId().startsWith(TestDataService.TRIAL_CLIENT_PREFIX);
+        String headline = daysLeft == 0
+                ? "Your free trial ended on <strong>" + endDate + "</strong>."
+                : "Your free trial ends in <strong>" + daysLeft + (daysLeft == 1 ? " day" : " days")
+                  + "</strong>, on <strong>" + endDate + "</strong>.";
+        String consequence = daysLeft == 0
+                ? "Sign-in for " + church + " is now closed. Nothing has been deleted."
+                : "When the trial ends, sign-in for " + church + " closes until a subscription is in place. "
+                  + "No data will be deleted.";
+        String next = sample
+                ? "This trial was created with sample data, so it cannot be turned into a paid account. "
+                  + "Request the plan you would like and we will set up a new account for your church."
+                : "Request the plan you would like and we will set it up — you keep this account, your "
+                  + "username and password, and everything you have entered.";
+        String safeLink = esc(link).replace("\"", "&quot;");
+        return "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f5f6fa;"
+             + "font-family:-apple-system,Segoe UI,Roboto,sans-serif;'>"
+             + "<table width='100%' cellpadding='0' cellspacing='0' style='padding:36px 16px;'><tr><td align='center'>"
+             + "<table width='100%' cellpadding='0' cellspacing='0' style='max-width:520px;background:#fff;"
+             + "border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);'>"
+             + "<tr><td style='background:#673147;padding:24px 36px;text-align:center;'>"
+             + "<p style='margin:0;font-size:19px;font-weight:700;color:#fff;'>ChurchGeniusPro</p>"
+             + "<p style='margin:6px 0 0;font-size:12px;color:rgba(255,255,255,.75);'>Trial Notice</p></td></tr>"
+             + "<tr><td style='padding:30px 36px;'>"
+             + "<p style='margin:0 0 14px;font-size:15px;color:#1a1a2e;font-weight:600;'>Hello " + church + ",</p>"
+             + "<p style='margin:0 0 14px;font-size:14px;color:#555;line-height:1.7;'>" + headline + "</p>"
+             + "<p style='margin:0 0 14px;font-size:13.5px;color:#555;line-height:1.7;'>" + consequence + "</p>"
+             + "<p style='margin:0 0 20px;font-size:13.5px;color:#555;line-height:1.7;'>" + next + "</p>"
+             + "<p style='margin:0 0 20px;text-align:center;'><a href='" + safeLink + "' style='background:#673147;"
+             + "color:#fff;padding:12px 26px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;'>"
+             + "Request a subscription</a></p>"
+             + "<p style='margin:0;font-size:12px;color:#888;line-height:1.6;'>Or copy this link: " + esc(link) + "</p>"
              + "</td></tr></table></td></tr></table></body></html>";
     }
 

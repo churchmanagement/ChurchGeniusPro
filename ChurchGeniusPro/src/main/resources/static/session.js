@@ -354,6 +354,57 @@
      * concurrently).  Both sources contain identical data after localStorage
      * sync, so the fallback is always consistent.
      */
+    /* ── Trial notice (Trial-plan accounts registered as regular clients) ──────
+       Sample-data trials and demo tenants get the blocking Trial Account
+       agreement (demo-trial.js), which shows the same facts; this covers every
+       other account on the Trial plan. Shown once per browser session as a card,
+       and again on each page in the last 10 days as a slim reminder. */
+    function showTrialNotice(trial) {
+        try {
+            if (!trial || trial.managedTenant || !trial.endDate) return;
+            if (document.getElementById('cgpTrialNotice')) return;
+            var KEY = 'cgpTrialNoticeShown';
+            var seen = false;
+            try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) { }
+            var remaining = Number(trial.daysRemaining);
+            if (seen && !(remaining <= 10)) return;
+            try { sessionStorage.setItem(KEY, '1'); } catch (_) { }
+
+            function pretty(iso) {
+                var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+                if (!m) return String(iso || '');
+                var months = ['January','February','March','April','May','June','July',
+                              'August','September','October','November','December'];
+                return months[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+            }
+            function esc(v) {
+                return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+            var box = document.createElement('div');
+            box.id = 'cgpTrialNotice';
+            box.setAttribute('role', 'status');
+            box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;max-width:360px;' +
+                'background:#fff;border:1px solid #fed7aa;border-left:4px solid #f39c12;border-radius:10px;' +
+                'box-shadow:0 10px 30px rgba(0,0,0,.18);padding:14px 16px 14px 16px;font:14px/1.6 system-ui,' +
+                '-apple-system,"Segoe UI",Roboto,sans-serif;color:#1f2937;';
+            var lines = seen
+                ? '<strong>Your trial ends ' + esc(pretty(trial.endDate)) + '</strong> — ' +
+                  esc(remaining) + ' day' + (remaining === 1 ? '' : 's') + ' remaining.'
+                : (trial.days != null ? '<strong>Your Trial Account is active for ' + esc(trial.days) + ' days.</strong><br>' : '') +
+                  (trial.startDate ? 'Trial Start Date: ' + esc(pretty(trial.startDate)) + '<br>' : '') +
+                  'Trial End Date: ' + esc(pretty(trial.endDate)) + '<br>' +
+                  'Days remaining: ' + esc(remaining);
+            box.innerHTML = '<button type="button" aria-label="Dismiss" style="float:right;border:0;background:none;' +
+                'font-size:18px;line-height:1;cursor:pointer;color:#9ca3af;margin:-4px -6px 0 8px;">&times;</button>' + lines +
+                '<div style="margin-top:8px;"><a href="/subscriptionReq.html" style="color:#673147;font-weight:600;">' +
+                'Request a subscription &rarr;</a></div>';
+            box.querySelector('button').addEventListener('click', function () { box.remove(); });
+            (document.body || document.documentElement).appendChild(box);
+        } catch (_) { /* a notice must never break the page */ }
+    }
+
     function updateSidebarUser(sd) {
         // Use the live session value as the authoritative source.
         // Only fall back to localStorage when the session gives no church field.
@@ -561,7 +612,10 @@
             var isUsers    = onclick.indexOf('/viewusers') !== -1;
             var isStripe   = onclick.indexOf('/stripeIntegration')   !== -1;
             var isWhatsapp = onclick.indexOf('/whatsappIntegration') !== -1;
-            var show = isUsers || isStripe || isWhatsapp;
+            // Ticketing and the AI Assistant are available to the Church role (2026-10-01).
+            var isTickets  = onclick.indexOf('/tickets') !== -1;
+            var isAi       = onclick.indexOf('/ai-assistant') !== -1;
+            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi;
             btn.style.display = show ? '' : 'none';
         });
     }
@@ -717,10 +771,132 @@
                         url.indexOf('/api/logout')  === -1) {
                     logout();
                 }
+                // The server can also end access mid-session: a subscription that
+                // lapses, or a demo login a Service Admin blocks. Without this the
+                // page just stops filling in, which reads as a broken application
+                // rather than an account that has ended.
+                if (response.status === 403 && url.indexOf('/api/') !== -1
+                        && !isQuiet(init)) {
+                    response.clone().json().then(function (body) {
+                        if (!body) return;
+                        if (body.code === 'SUBSCRIPTION_EXPIRED'
+                                || body.code === 'DEMO_ACCESS_ENDED') {
+                            showAccessEnded(body.error, body.code);
+                        } else if (body.code === 'SUBSCRIPTION_FEATURE_DISABLED') {
+                            showFeatureUnavailable(body.error, body.feature);
+                        }
+                    }).catch(function () { /* not JSON — nothing to say */ });
+                }
                 return response;
             });
         };
     })();
+
+    /**
+     * True when the caller asked not to be told about a plan refusal.
+     *
+     * <p>Some pages PROBE an endpoint to decide whether to draw something — the
+     * events page asks for the Midwest Meet configuration to know whether to add
+     * its card. A refusal there is the expected answer, not news, and announcing it
+     * on every visit would be noise. Such a call sends {@code X-CGP-Quiet: 1}.
+     */
+    function isQuiet(init) {
+        try {
+            var h = init && init.headers;
+            if (!h) return false;
+            if (typeof h.get === 'function') return !!h.get('X-CGP-Quiet');
+            return !!(h['X-CGP-Quiet'] || h['x-cgp-quiet']);
+        } catch (e) { return false; }
+    }
+
+    /**
+     * Explains a plan refusal, once per feature, without taking over the page.
+     *
+     * <p>The server answers 403 with {@code SUBSCRIPTION_FEATURE_DISABLED} for a
+     * feature the church's plan does not include. Nothing read that code, so the
+     * dozens of pages behind gated APIs showed an empty table or a generic "failed
+     * to load" — the same thing a broken application looks like. Handled here, in
+     * the one interceptor every page already loads, rather than in each of them.
+     */
+    function showFeatureUnavailable(message, feature) {
+        var id = 'cgpFeatureNotice';
+        var bar = document.getElementById(id);
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = id;
+            bar.setAttribute('role', 'status');
+            bar.dataset.features = '';
+            bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99998;'
+                + 'background:#fff7ed;border-bottom:1px solid #fed7aa;color:#7c2d12;'
+                + 'padding:12px 46px 12px 16px;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;'
+                + 'box-shadow:0 2px 10px rgba(0,0,0,.06);';
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.setAttribute('aria-label', 'Dismiss');
+            close.textContent = '\u00D7';
+            close.style.cssText = 'position:absolute;right:10px;top:6px;border:0;background:none;'
+                + 'font-size:22px;line-height:1;color:#7c2d12;cursor:pointer;';
+            close.addEventListener('click', function () { bar.remove(); });
+            bar.appendChild(document.createElement('span'));
+            bar.appendChild(close);
+            document.body.appendChild(bar);
+        }
+        // One line per feature, however many of its endpoints the page called.
+        var seen = (bar.dataset.features || '').split('|');
+        var key  = feature || 'plan';
+        if (seen.indexOf(key) !== -1) return;
+        bar.dataset.features = (bar.dataset.features ? bar.dataset.features + '|' : '') + key;
+        var span = bar.firstChild;
+        span.textContent = (span.textContent ? span.textContent + '  ' : '')
+            + (message || 'This feature is not included in your church\u2019s subscription plan.');
+    }
+
+    /**
+     * Explains, once, why the application stopped answering.
+     *
+     * <p>Deliberately not a redirect to the login page: signing in again would be
+     * refused for the same reason, and the person would learn nothing from it.
+     */
+    function showAccessEnded(message, code) {
+        if (document.getElementById('cgpAccessEnded')) return;      // already shown
+        var wrap = document.createElement('div');
+        wrap.id = 'cgpAccessEnded';
+        wrap.setAttribute('role', 'alertdialog');
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(17,17,17,.55);'
+            + 'display:flex;align-items:center;justify-content:center;padding:20px;'
+            + 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;';
+        var card = document.createElement('div');
+        card.style.cssText = 'background:#fff;border-radius:14px;padding:32px;max-width:460px;'
+            + 'width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.25);';
+        var icon = document.createElement('div');
+        icon.textContent = code === 'DEMO_ACCESS_ENDED' ? '\u23F3' : '\uD83D\uDD12';
+        icon.style.cssText = 'font-size:40px;margin-bottom:10px;';
+        var title = document.createElement('h2');
+        title.textContent = code === 'DEMO_ACCESS_ENDED' ? 'Your access has ended'
+                                                         : 'This subscription has ended';
+        title.style.cssText = 'color:#673147;margin:0 0 10px;font-size:20px;';
+        var text = document.createElement('p');
+        text.textContent = message || 'Please contact your administrator.';
+        text.style.cssText = 'color:#555;font-size:14px;line-height:1.7;margin:0 0 20px;';
+        var out = document.createElement('button');
+        out.type = 'button';
+        out.textContent = 'Sign out';
+        out.style.cssText = 'background:#673147;color:#fff;border:0;padding:10px 26px;'
+            + 'border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;';
+        out.addEventListener('click', function () { logout(); });
+        card.appendChild(icon); card.appendChild(title); card.appendChild(text); card.appendChild(out);
+        if (code !== 'DEMO_ACCESS_ENDED') {
+            // An ended trial or subscription can still ask for a plan (the page checks
+            // that this sign-in is the church's owner or an admin).
+            var req = document.createElement('a');
+            req.href = '/subscriptionReq.html';
+            req.textContent = 'Request a subscription';
+            req.style.cssText = 'display:block;margin-top:14px;color:#673147;font-weight:600;font-size:14px;';
+            card.appendChild(req);
+        }
+        wrap.appendChild(card);
+        document.body.appendChild(wrap);
+    }
 
     // ── Topbar dropdown buttons ───────────────────────────────────────────────
 
@@ -1158,14 +1334,15 @@
         '/transactions-report': 'accounting', '/tax-report': 'accounting', '/financial-report': 'accounting',
         '/bank-import': 'bankImport', '/bankSync': 'bankSync', '/pledges': 'pledges', '/payroll': 'payroll',
         '/attendance': 'attendance', '/event': 'eventRegistration', '/events': 'eventRegistration',
-        '/ministry': 'kidsMinistry', '/kidsMinistry': 'kidsMinistry',
+        '/kidsMinistry': 'kidsMinistry',
         '/notifyEmail': 'composeEmail',
         '/reminders': 'reminders', '/eventReminders': 'reminders',
         '/autoReminders': 'reminders', '/oneReminders': 'reminders',
         '/groups': 'groups', '/certificates': 'certificates', '/publicScreens': 'publicScreens',
         '/followups': 'followUps', '/songbook': 'songbook', '/admin/songbook-access': 'songbook',
         '/private-access-settings': 'privatePages', '/ntagAccess': 'ntag',
-        '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers'
+        '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers',
+        '/guessIt': 'activityCorner', '/memberHome?tab=guessit': 'activityCorner'
     };
 
     /**
@@ -1194,6 +1371,33 @@
             document.querySelectorAll('.nav-item-btn').forEach(function (btn) {
                 var oc = btn.getAttribute('onclick') || '';
                 if (oc.indexOf("'accounting'") !== -1) btn.style.display = 'none';
+            });
+        }
+
+        // The Ministry hub holds Kids, Worship and Prayer, so it goes only when all
+        // of them are off — hiding it with Kids Ministry alone took the other two
+        // with it. The cards inside carry their own data-feature.
+        if (!window.CGP_hasFeature('kidsMinistry') && !window.CGP_hasFeature('worship')
+                && !window.CGP_hasFeature('prayer')) {
+            document.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                if (oc.indexOf("'/ministry'") !== -1 || oc.indexOf('"/ministry"') !== -1) {
+                    btn.style.display = 'none';
+                }
+            });
+        }
+
+        // Whole Activity Corner section when its feature is off. The entire
+        // .nav-item is hidden rather than just the header button, so the submenu
+        // goes with it — and so any Activity Corner item added later is covered
+        // without having to be listed in FEATURE_NAV.
+        if (!window.CGP_hasFeature('activityCorner')) {
+            document.querySelectorAll('.nav-item-btn').forEach(function (btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                if (oc.indexOf("'activity'") !== -1) {
+                    var section = btn.closest('.nav-item');
+                    (section || btn).style.display = 'none';
+                }
             });
         }
 
@@ -1250,6 +1454,7 @@
                 var featData = await featRes.json();
                 window.CGP_SUBSCRIPTION = featData;
                 window.CGP_FEATURES     = featData.features || {};
+                showTrialNotice(featData.trial);
             }
         } catch (_) { /* fail-open: features stay enabled */ }
 
@@ -1372,6 +1577,7 @@
         if (!isChurch) {
             injectNotificationBell();
             startNotificationPolling();
+            startPermissionPolling(sessionData, role, isChurch);
         }
 
         // ── Permission enforcement ────────────────────────────────────────────
@@ -1549,10 +1755,39 @@
      * hides anything. A key missing from the saved map → treated as allowed.
      * This pass never force-SHOWS elements (only hides), so it can't override a
      * page hiding a button for other reasons. */
+    /* Legacy key names earlier versions of the Permissions screen saved, per current
+       key. Mirrors RoleGuard.PERMISSION_ALIASES: an explicit false stored under an
+       old name still hides the menu item / button, so nav and page guard agree. */
+    window.CGP_PERM_ALIASES = {
+        'accounting.reports':      ['reports.income','reports.expense','reports.daterange','reports.taxreport','reports.financial',
+                                    'accountingReports','accountingReports.income','accountingReports.expense',
+                                    'accountingReports.dateRange','accountingReports.taxReport','accountingReports.financial'],
+        'general.reminders':       ['reminders','reminders.event','reminders.auto','reminders.onetime',
+                                    'reminders.eventReminders','reminders.autoReminders','reminders.oneTimeReminders'],
+        'general.ministry.kids':   ['general.kidsministry','general.sundayschool'],
+        'general.ministry.worship':['general.worshipplanning'],
+        'general.ministry.prayer': ['general.prayer','general.prayerRequests'],
+        'general.emailsettings':   ['general.email.settings'],
+        'general.events':          ['general.event'],
+        'admin.membership':        ['admin.membershipRequests'],
+        'admin.unsubscribed':      ['admin.unsubscribedList'],
+        'admin.email':             ['admin.email.delete','admin.groups.email'],
+        'accounting.donation':     ['accounting.donationReview'],
+        'accounting.settings':     ['accountSettings'],
+        'more.certificates':       ['general.certificates'],
+        'more.publicscreens':      ['general.publicScreens'],
+        'member.classes':          ['member.sundayschool']
+    };
+    /* true unless the key — or one of its legacy names — is explicitly false. */
+    window.CGP_permAllowed = function (p, key) {
+        if (!p || !key) return true;
+        if (p[key] === false) return false;
+        var legacy = window.CGP_PERM_ALIASES[key];
+        if (legacy) for (var i = 0; i < legacy.length; i++) { if (p[legacy[i]] === false) return false; }
+        return true;
+    };
     window.CGP_can = function (key) {
-        var p = window.CGP_PERMS;
-        if (!p || !key) return true;               // null perms = full access
-        return p[key] !== false;                   // missing key = allowed
+        return window.CGP_permAllowed(window.CGP_PERMS, key);   // null perms = full access; missing key = allowed
     };
     window.CGP_gateActions = function (root) {
         if (!window.CGP_PERMS) return;             // full access → nothing to hide
@@ -1597,6 +1832,14 @@
      * @param {string}      role            e.g. 'Admin', 'Accountant', 'SuperAdmin'
      * @param {boolean}     isChurch        true for church accounts
      */
+    // viewUsers.html calls this after saving the signed-in user's own permissions so
+    // the nav updates at once (the hook was referenced there but never defined).
+    window._cgpApplyPermissions = function (privilegesJson, role, isChurch) {
+        applyPermissions(privilegesJson, role, isChurch);
+        if (typeof applySubscriptionNav === 'function') applySubscriptionNav();
+        if (window.CGP_syncFavUI) window.CGP_syncFavUI();
+    };
+
     function applyPermissions(privilegesJson, role, isChurch) {
         // Church accounts bypass granular checks (they have a separate filter —
         // applyChurchNavFilter — which already gates their nav).
@@ -1625,6 +1868,7 @@
             // Pass role so staff users without any saved perms defer to the
             // role-based filter rather than unconditionally showing MY PROFILE.
             applyMemberNavSections(null, role);
+            hideOptInItemsForMember(role, null);
             return;
         }
 
@@ -1633,18 +1877,33 @@
         // Accounting (Income/Expense/Bank Import/Pledges/Reports/Donation/Payroll) is
         // ROLE-gated, not key-gated — only Accountant/Admin/SuperAdmin (or church) may
         // see it. Members/Users have no accounting.* keys, so opt-in denial would leave
-        // those items "allowed"; the Payroll exception (hasVisiblePayroll) would then
-        // re-show the whole section. Force-hide accounting for non-eligible roles.
+        // those items "allowed". Force-hide accounting for non-eligible roles.
         var acctEligible = isChurch || ['SuperAdmin', 'Admin', 'Accountant'].indexOf(role) !== -1;
 
-        // Helper: is a permission key enabled?
+        // Helper: is a permission key enabled? (missing key → true; legacy alias false → false)
         function perm(key) {
-            return perms[key] !== false;   // missing key → treated as true (opt-in denial)
+            return window.CGP_permAllowed(perms, key);
         }
 
         // Favorites feature flag — drives the Favorites side-nav section, the hover
         // "add to favorites" stars, and the toggle action (see shell.js).
         window.CGP_FAV_ENABLED = perm('favorites');
+
+        // Opt-in features (2026-10-01): for a member-portal session these nav items
+        // appear only when the saved permission is explicitly true; staff keep the
+        // usual "missing = allowed" rule through NAV_PERM below.
+        var OPT_IN_NAV = { '/tickets': 'more.ticketing', '/ai-assistant': 'more.aiassistant' };
+        function hideOptInItemsForMember(role, perms) {
+            if (role !== 'Member') return;
+            document.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
+                var onclick = btn.getAttribute('onclick') || '';
+                Object.keys(OPT_IN_NAV).forEach(function (href) {
+                    if (onclick.indexOf("'" + href + "'") !== -1 || onclick.indexOf('"' + href + '"') !== -1) {
+                        if (!perms || perms[OPT_IN_NAV[href]] !== true) btn.style.display = 'none';
+                    }
+                });
+            });
+        }
 
         // ── Sidebar sub-item visibility ───────────────────────────────────────
         // Maps nav href patterns → permission key that controls them.
@@ -1664,11 +1923,13 @@
             '/donation-review':     'accounting.donation',
             '/accountingReports':   'accounting.reports',
             '/payroll':             'accounting.payroll',
-            '/income-report':       'reports.income',
-            '/expense-report':      'reports.expense',
-            '/transactions-report': 'reports.daterange',
-            '/tax-report':          'reports.taxreport',
-            '/financial-report':    'reports.financial',
+            // Report sub-pages are governed by the single 'Report' checkbox
+            // (accounting.reports); legacy reports.* keys are honoured via CGP_PERM_ALIASES.
+            '/income-report':       'accounting.reports',
+            '/expense-report':      'accounting.reports',
+            '/transactions-report': 'accounting.reports',
+            '/tax-report':          'accounting.reports',
+            '/financial-report':    'accounting.reports',
             '/fund':                'accounting.settings',
             '/purpose':             'accounting.settings',
             '/transactiontype':     'accounting.settings',
@@ -1685,10 +1946,13 @@
             '/publicScreens':       'more.publicscreens',
             '/followups':           'more.followups',
             '/helpCenter':          'more.helpcenter',
-            // Reminders
-            '/eventReminders':      'reminders.event',
-            '/autoReminders':       'reminders.auto',
-            '/oneReminders':        'reminders.onetime',
+            '/tickets':             'more.ticketing',
+            '/ai-assistant':        'more.aiassistant',
+            // Reminders — all three sub-pages sit behind the single 'Reminders'
+            // checkbox (general.reminders); legacy reminders.* keys via CGP_PERM_ALIASES.
+            '/eventReminders':      'general.reminders',
+            '/autoReminders':       'general.reminders',
+            '/oneReminders':        'general.reminders',
         };
 
         // Top-level section keys: if all children of a section are hidden, hide the section header too.
@@ -1704,8 +1968,9 @@
             // 'general.meetings' moved here from admin per product change.
             'general':    ['general.meetings','general.attendance','general.events','general.ministry',
                            'general.email','general.emailsettings','general.reminders'],
-            'more':       ['more.certificates','more.publicscreens','more.followups','more.helpcenter'],
-            'reminders':  ['reminders.event','reminders.auto','reminders.onetime']
+            'more':       ['more.certificates','more.publicscreens','more.followups','more.helpcenter',
+                           'more.ticketing','more.aiassistant'],
+            'reminders':  ['general.reminders']
         };
 
         // Maps top-level section id → the section-level key saved by the permissions modal.
@@ -1720,6 +1985,10 @@
             'reminders':  'reminders',
             'activity':   'activity'
         };
+
+        // Ticketing / AI Assistant are opt-in for member-portal users: shown only when
+        // the key is explicitly true (the server applies the same rule, RoleGuard.requireFeature).
+        hideOptInItemsForMember(role, perms);
 
         // Hide individual sub-nav items
         document.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
@@ -1774,14 +2043,10 @@
                 return;
             }
 
-            // A still-visible Payroll sub-item keeps its parent section alive:
-            // Payroll access is role/controller-gated (RoleGuard.requirePayroll),
-            // not governed by Accounting permissions, so it must survive a section
-            // hide triggered by denied accounting perms.
-            function hasVisiblePayroll() {
-                var sub = navItem.querySelector('.nav-sub-btn[onclick*="/payroll"]');
-                return !!sub && sub.style.display !== 'none';
-            }
+            // Payroll is now governed by the accounting.payroll checkbox like every
+            // other Accounting item (the /payroll page routes check the same key), so
+            // the former "keep the section alive for Payroll" exception is gone: when
+            // accounting.payroll is allowed the section is not all-denied and stays.
 
             if (sectionKey && perms[sectionKey] === true) {
                 // Explicitly granted — show regardless of role-based filter.
@@ -1790,17 +2055,17 @@
                 return;
             }
 
-            // (a) Section-level key explicitly false → hide (unless Payroll lives here)
+            // (a) Section-level key explicitly false → hide
             if (sectionKey && perms[sectionKey] === false) {
-                navItem.style.display = hasVisiblePayroll() ? '' : 'none';
+                navItem.style.display = 'none';
                 return;
             }
 
-            // (b) All PERM_TREE children explicitly denied → hide (unless Payroll lives here)
+            // (b) All PERM_TREE children explicitly denied → hide
             var children = SECTION_CHILDREN[sectionId];
             if (!children) return;
             var allDenied = children.every(function (k) { return !perm(k); });
-            if (allDenied) navItem.style.display = hasVisiblePayroll() ? '' : 'none';
+            if (allDenied) navItem.style.display = 'none';
         });
 
         // ── Account Settings topbar button ────────────────────────────────────
@@ -1881,6 +2146,14 @@
                     '.cgp-notif-unread-dot{width:7px;height:7px;border-radius:50%;',
                     '  background:#e53935;flex-shrink:0;margin-top:5px;}',
                     '.cgp-notif-empty{padding:20px 14px;font-size:13px;color:#aaa;text-align:center;}',
+                    '.cgp-notif-hdr{display:flex;align-items:center;justify-content:space-between;}',
+                    '.cgp-notif-clear{font-size:11px;font-weight:600;color:#888;cursor:pointer;background:none;',
+                    '  border:none;padding:0;display:none;}',
+                    '.cgp-notif-clear:hover{color:#673147;text-decoration:underline;}',
+                    '.cgp-ni-dismiss{background:none;border:none;color:#bbb;font-size:15px;line-height:1;',
+                    '  cursor:pointer;padding:0 2px;flex-shrink:0;}',
+                    '.cgp-ni-dismiss:hover{color:#e53935;}',
+                    '.cgp-ni-open{font-size:11px;font-weight:600;color:#673147;margin-top:3px;}',
                 ].join('');
                 document.head.appendChild(style);
             }
@@ -1907,12 +2180,24 @@
             var panel = document.createElement('div');
             panel.className = 'cgp-notif-panel';
             panel.id        = 'cgpNotifPanel';
-            panel.innerHTML = '<div class="cgp-notif-hdr">Notifications</div>' +
+            panel.innerHTML = '<div class="cgp-notif-hdr"><span>Notifications</span>' +
+                              '<button type="button" class="cgp-notif-clear" id="cgpNotifClearAll" ' +
+                              'title="Clear submission notifications">Clear all</button></div>' +
                               '<div class="cgp-notif-list" id="cgpNotifBody">' +
                               '<div class="cgp-notif-empty">Loading…</div></div>';
 
             wrap.appendChild(bell);
             wrap.appendChild(panel);
+
+            // ✕ / Clear all stop their own click from reaching the document, so the
+            // panel stays open for them; every other click behaves as before.
+            var clearAll = panel.querySelector('#cgpNotifClearAll');
+            if (clearAll) clearAll.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fetch('/api/push/dismiss-all', { method: 'POST' })
+                    .then(function () { refreshNotifications(); })
+                    .catch(function () { /* non-critical */ });
+            });
 
             // Toggle on click — mark all as read when opening
             bell.addEventListener('click', function (e) {
@@ -1956,6 +2241,41 @@
      * Polls /api/push/notifications every 60 seconds and updates
      * the bell badge count + panel content.  Runs immediately on first call.
      */
+    /**
+     * Every 15 s, re-reads the session's permission map and re-applies the nav and
+     * button gates if it changed. The server refreshes the session copy from the
+     * database on the same cadence (PermissionRefresher), so a permission removed
+     * in viewUsers disappears from this user's menu within about 15 s without a
+     * page reload or a new sign-in. Church sessions are exempt from permissions and
+     * are not polled.
+     */
+    function startPermissionPolling(sessionData, role, isChurch) {
+        if (isChurch) return;
+        var lastPerms = (role === 'Member' ? sessionData.memberPrivileges : sessionData.privileges) || null;
+        setInterval(function () {
+            fetch(SESSION_URL, { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (sd) {
+                    if (!sd || sd.authenticated === false) return;
+                    var now = (role === 'Member' ? sd.memberPrivileges : sd.privileges) || null;
+                    if (now === lastPerms) return;
+                    lastPerms = now;
+                    applyPermissions(now, role, isChurch);
+                    if (typeof applySubscriptionNav === 'function') applySubscriptionNav();
+                    if (window.CGP_syncFavUI) window.CGP_syncFavUI();
+                })
+                .catch(function () { /* non-critical */ });
+        }, 15 * 1000);
+    }
+
+    /** Re-fetches the panel now (used after a dismiss). */
+    function refreshNotifications() {
+        fetch('/api/push/notifications')
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) { if (data) updateNotificationUI(data); })
+            .catch(function () { /* silent */ });
+    }
+
     function startNotificationPolling() {
         function poll() {
             fetch('/api/push/notifications')
@@ -1997,6 +2317,11 @@
             }
         }
 
+        var clearAllBtn = document.getElementById('cgpNotifClearAll');
+        if (clearAllBtn) {
+            clearAllBtn.style.display = items.some(function (n) { return n.dismissible; }) ? 'inline' : 'none';
+        }
+
         if (items.length === 0) {
             body.innerHTML = '<div class="cgp-notif-empty">You\'re all caught up! ✅</div>';
             return;
@@ -2007,6 +2332,18 @@
             html += buildNotifRow(items[i]);
         }
         body.innerHTML = html;
+
+        // ✕ clears one submission notification (server checks it is the user's own).
+        body.querySelectorAll('.cgp-ni-dismiss[data-id]').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var id  = btn.getAttribute('data-id');
+                var row = btn.closest('.cgp-notif-row');
+                fetch('/api/push/dismiss/' + encodeURIComponent(id), { method: 'POST' })
+                    .then(function () { if (row) row.remove(); refreshNotifications(); })
+                    .catch(function () { /* non-critical */ });
+            });
+        });
 
         // Attach click handlers to navigate to notification URL
         var rows = body.querySelectorAll('.cgp-notif-row[data-url]');
@@ -2021,6 +2358,12 @@
         });
     }
 
+    function cgpEscHtml(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
     function buildNotifRow(n) {
         var unreadClass = n.read ? '' : ' unread';
         var dot = n.read ? '' : '<span class="cgp-notif-unread-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e74c3c;margin-right:6px;flex-shrink:0;"></span>';
@@ -2031,18 +2374,25 @@
             else if (n.tag.indexOf('birthday') !== -1) icon = '🎂';
             else if (n.tag.indexOf('reminder') !== -1) icon = '⏰';
         }
+        if (n.icon) icon = n.icon;
         var timeStr = '';
         if (n.sentAt) {
             try { var d = new Date(n.sentAt); timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { }
         }
-        var dataUrl = n.url ? ' data-url="' + n.url.replace(/"/g, '&quot;') + '"' : '';
+        // Only same-site relative links are followed.
+        var safeUrl = (n.url && n.url.charAt(0) === '/' && n.url.charAt(1) !== '/') ? n.url : '';
+        var dataUrl = safeUrl ? ' data-url="' + cgpEscHtml(safeUrl) + '"' : '';
+        var dismiss = n.dismissible
+            ? '<button type="button" class="cgp-ni-dismiss" data-id="' + cgpEscHtml(n.id) + '" title="Clear" aria-label="Clear notification">✕</button>'
+            : '';
         return '<div class="cgp-notif-row' + unreadClass + '"' + dataUrl + '>' + dot +
                '<span class="cgp-ni-icon">' + icon + '</span>' +
                '<div class="cgp-ni-content">' +
-               '<div class="cgp-ni-title">' + (n.title || '') + '</div>' +
-               (n.body ? '<div class="cgp-ni-body">' + n.body + '</div>' : '') +
+               '<div class="cgp-ni-title">' + cgpEscHtml(n.title) + '</div>' +
+               (n.body ? '<div class="cgp-ni-body">' + cgpEscHtml(n.body) + '</div>' : '') +
                (timeStr ? '<div class="cgp-ni-time">' + timeStr + '</div>' : '') +
-               '</div></div>';
+               (n.dismissible && safeUrl ? '<div class="cgp-ni-open">Open →</div>' : '') +
+               '</div>' + dismiss + '</div>';
     }
 
     init();

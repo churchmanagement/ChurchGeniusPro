@@ -48,6 +48,15 @@ public class ChurchEvent {
     @Column(name = "event_code", unique = true)
     private String eventCode;
 
+    /**
+     * Random, unguessable token that identifies this event in public URLs
+     * ({@code /event-register/{token}}). Assigned on create and lazily for older
+     * rows by {@code EventPublicTokenService}. Replaces the former AES-encrypted
+     * numeric id, which anyone with the key could mint for any event.
+     */
+    @Column(name = "public_token", unique = true, length = 64)
+    private String publicToken;
+
     /** "One Day" or "Multiple Days" */
     @Column(name = "event_type", length = 20)
     private String eventType;
@@ -186,9 +195,14 @@ public class ChurchEvent {
     @Column(name = "accommodation_comments", columnDefinition = "TEXT")
     private String accommodationComments;
 
-    /** Base64-encoded image data (data URI), nullable. */
-    @Column(name = "image_data", columnDefinition = "TEXT")
-    private String imageData;
+    /**
+     * Whether this event has a flyer image. Database audit P7: the image itself
+     * ({@code data:image/…;base64,…}, ~2.7 MB) moved to {@link ChurchEventImage} so it is
+     * no longer loaded by every event query; this cheap flag lets a list say an image
+     * exists without fetching it. Loaded and stored through {@code ChurchEventImageRepository}.
+     */
+    @Column(name = "image_present", nullable = false)
+    private boolean imagePresent = false;
 
     // ── Org scoping ───────────────────────────────────────────────────────
 

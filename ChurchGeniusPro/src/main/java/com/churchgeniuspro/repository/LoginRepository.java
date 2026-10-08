@@ -43,6 +43,18 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
     /** Find a signup record by the organization client-ID. */
     java.util.Optional<SignUp> findByClientId(String clientId);
 
+    /**
+     * Every signup row sharing a client-ID, including deleted ones.
+     *
+     * <p>The {@code Optional} finder above assumes at most one row per client-ID.
+     * Callers that need to TEST that assumption before creating another row must
+     * use this one, or the check itself would throw the exception it is meant to
+     * prevent. Written as explicit JPQL rather than a derived name so a parsing
+     * mistake fails the build instead of the application context at startup.
+     */
+    @Query("SELECT s FROM SignUp s WHERE s.clientId = :clientId")
+    java.util.List<SignUp> findAllByClientId(@Param("clientId") String clientId);
+
     /** Look up a signup record by its remember-me token (stored in {@code signup.remember}). */
     @Query("SELECT s FROM SignUp s WHERE s.remember = :token AND (s.deleted = false OR s.deleted IS NULL)")
     java.util.Optional<SignUp> findByRememberToken(@Param("token") String token);
@@ -86,10 +98,19 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
               AND sign.active      = true
               AND LOWER(sign.username) = LOWER(:username)
               AND sc.delete_flag   = false
-              AND sc.end_date      > current_date
+              AND sc.end_date      > :today
               AND sc.status        = 'Active'
             """, nativeQuery = true)
-    int countValidChurchLogin(@Param("username") String username);
+    int countValidChurchLoginOn(@Param("username") String username, @Param("today") java.time.LocalDate today);
+
+    /**
+     * {@link #countValidChurchLoginOn} for today's America/Chicago date. Passing the
+     * date (rather than the database's {@code current_date}) keeps sign-in in step with
+     * the trial dates and the per-request status check whatever zone the DB runs in.
+     */
+    default int countValidChurchLogin(String username) {
+        return countValidChurchLoginOn(username, com.churchgeniuspro.util.AppClock.today());
+    }
 
     /** Find all active, non-deleted signups sharing the given link_group. */
     @Query("SELECT s FROM SignUp s WHERE s.linkGroup = :linkGroup AND (s.deleted = false OR s.deleted IS NULL)")
@@ -123,8 +144,13 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
               AND usr.enabled      = true
               AND cr.delete_flag   = false
               AND sc.delete_flag   = false
-              AND sc.end_date      > current_date
+              AND sc.end_date      > :today
               AND sc.status        = 'Active'
             """, nativeQuery = true)
-    int countValidNonChurchLogin(@Param("username") String username);
+    int countValidNonChurchLoginOn(@Param("username") String username, @Param("today") java.time.LocalDate today);
+
+    /** {@link #countValidNonChurchLoginOn} for today's America/Chicago date. */
+    default int countValidNonChurchLogin(String username) {
+        return countValidNonChurchLoginOn(username, com.churchgeniuspro.util.AppClock.today());
+    }
 }

@@ -13,11 +13,8 @@ import java.util.Optional;
 public interface SsAnswerRepository extends JpaRepository<SsAnswer, Long> {
     List<SsAnswer> findBySubmissionId(Long submissionId);
     Optional<SsAnswer> findBySubmissionIdAndQuestionId(Long submissionId, Long questionId);
-
-    /** Immediately deletes all answers for a submission — bypasses Hibernate action queue. */
-    @Modifying
-    @Query("DELETE FROM SsAnswer a WHERE a.submissionId = :submissionId")
-    void deleteBySubmissionId(@Param("submissionId") Long submissionId);
+    /** SsAnswer has no deleteFlag, so this is the tenant-scoped id lookup. */
+    Optional<SsAnswer> findByIdAndClientId(Long id, String clientId);
 
     /** Deletes all answers whose submission belongs to the given (examId, studentId) pair.
      *  Covers both active and soft-deleted submissions. Used during republish cleanup. */

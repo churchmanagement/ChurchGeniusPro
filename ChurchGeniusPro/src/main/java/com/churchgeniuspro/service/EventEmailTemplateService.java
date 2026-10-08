@@ -81,8 +81,7 @@ public class EventEmailTemplateService {
 
     @Transactional
     public EventEmailTemplate update(Integer id, String name, String body, String appClientId) {
-        EventEmailTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+        EventEmailTemplate t = findOrThrow(id, appClientId);
         String nm = name == null ? "" : name.trim();
         if (nm.isEmpty()) throw new IllegalArgumentException("Template name is required.");
         if (repo.existsByNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(nm, appClientId, id)) {
@@ -94,9 +93,8 @@ public class EventEmailTemplateService {
     }
 
     @Transactional
-    public void delete(Integer id) {
-        EventEmailTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+    public void delete(Integer id, String appClientId) {
+        EventEmailTemplate t = findOrThrow(id, appClientId);
         t.setDeleteFlag(true);
         repo.save(t);
     }
@@ -108,10 +106,15 @@ public class EventEmailTemplateService {
             repo.save(t);
         }
         if (id == null || id == BUILT_IN_ID) return;   // built-in default selected
-        EventEmailTemplate t = repo.findByIdAndDeleteFlagFalse(id)
-                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+        EventEmailTemplate t = findOrThrow(id, appClientId);
         t.setDefault(true);
         repo.save(t);
+    }
+
+    /** Tenant-scoped, non-deleted lookup; unknown and foreign ids fail identically. */
+    private EventEmailTemplate findOrThrow(Integer id, String appClientId) {
+        return repo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId)
+                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
     }
 
     private Map<String, Object> builtInMap(boolean isDefault) {

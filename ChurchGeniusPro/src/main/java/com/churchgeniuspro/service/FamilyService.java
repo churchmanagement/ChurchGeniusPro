@@ -96,8 +96,8 @@ public class FamilyService {
      * </ul>
      */
     @Transactional
-    public Family update(Integer id, FamilyBO bo) {
-        Family family = findOrThrow(id);
+    public Family update(Integer id, FamilyBO bo, String appClientId) {
+        Family family = findOrThrow(id, appClientId);
         family.setInactive(bo.isInactive());
 
         if (bo.getMembers() != null) {
@@ -333,8 +333,8 @@ public class FamilyService {
      * The {@code familyName} key in the result is derived from the primary member.
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> getById(Integer id) {
-        Family f = familyRepository.findByIdWithMembers(id)
+    public Map<String, Object> getById(Integer id, String appClientId) {
+        Family f = familyRepository.findByIdAndAppClientIdWithMembers(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Family not found: " + id));
 
         // Derive display name from primary member
@@ -500,15 +500,15 @@ public class FamilyService {
     // ── Soft-Delete / Restore ─────────────────────────────────────────────
 
     @Transactional
-    public void softDelete(Integer id) {
-        Family family = findOrThrow(id);
+    public void softDelete(Integer id, String appClientId) {
+        Family family = findOrThrow(id, appClientId);
         family.setDeleteFlag(true);
         familyRepository.save(family);
     }
 
     @Transactional
-    public void restore(Integer id) {
-        Family family = findOrThrow(id);
+    public void restore(Integer id, String appClientId) {
+        Family family = findOrThrow(id, appClientId);
         family.setDeleteFlag(false);
         familyRepository.save(family);
     }
@@ -516,8 +516,8 @@ public class FamilyService {
     // ── Inactive ──────────────────────────────────────────────────────────
 
     @Transactional
-    public void setInactive(Integer id, boolean inactive) {
-        Family family = findOrThrow(id);
+    public void setInactive(Integer id, boolean inactive, String appClientId) {
+        Family family = findOrThrow(id, appClientId);
         family.setInactive(inactive);
         familyRepository.save(family);
     }
@@ -525,18 +525,20 @@ public class FamilyService {
     // ── Bulk Operations ───────────────────────────────────────────────────
 
     @Transactional
-    public int bulkAction(List<Integer> ids, String action) {
+    public int bulkAction(List<Integer> ids, String action, String appClientId) {
         for (Integer id : ids) {
-            if ("delete".equalsIgnoreCase(action))        softDelete(id);
-            else if ("inactive".equalsIgnoreCase(action)) setInactive(id, true);
+            if ("delete".equalsIgnoreCase(action))        softDelete(id, appClientId);
+            else if ("inactive".equalsIgnoreCase(action)) setInactive(id, true, appClientId);
         }
         return ids.size();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private Family findOrThrow(Integer id) {
-        return familyRepository.findById(id)
+    /** Tenant-scoped; an id owned by another tenant reads as "not found" (no existence oracle). */
+    private Family findOrThrow(Integer id, String appClientId) {
+        if (appClientId == null) throw new IllegalArgumentException("Family not found: " + id);
+        return familyRepository.findByIdAndAppClientId(id, appClientId)
                 .orElseThrow(() -> new IllegalArgumentException("Family not found: " + id));
     }
 
@@ -546,8 +548,8 @@ public class FamilyService {
      * the entire family is also soft-deleted automatically.
      */
     @Transactional
-    public void softDeleteMember(Integer familyId, Integer memberId) {
-        Family family = findOrThrow(familyId);
+    public void softDeleteMember(Integer familyId, Integer memberId, String appClientId) {
+        Family family = findOrThrow(familyId, appClientId);
         family.getMembers().stream()
                 .filter(m -> m.getId().equals(memberId))
                 .findFirst()

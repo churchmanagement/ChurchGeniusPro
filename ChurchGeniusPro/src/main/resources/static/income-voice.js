@@ -521,10 +521,17 @@
     onTranscript: function(t){ if(t) logEvent('transcript', t); },
     onStatusData: function(s){ if(s) logEvent('usage', 'voice used '+(s.voiceUsedSeconds||0)+'s of '+((s.voiceLimitMinutes||0)*60)+'s'); },
     onResult:     function(payload){ if(ending) return; if(convo.active){ convoTurn(payload); } else { applyPayload(payload); } },
-    onDisabled:   function(st){ disableVoice(st && st.voiceEnabled === false
-                    ? 'Voice is disabled by your administrator.'
-                    : 'Voice limit reached. Please contact your administrator.'); }
+    onDisabled:   function(st, why){ disableVoice(voiceRefusalMessage(st, why)); }
   }) : null;
+  // The text shown when the server refuses voice (403): the server's reason, never
+  // a generic "limit reached" unless the quota gate said so.
+  function voiceRefusalMessage(st, why){
+    var reason = (why && why.reason) || '';
+    if (reason === 'LIMIT' || (!reason && st && st.voiceAvailable === false && st.voiceEnabled !== false)) return 'Voice limit reached. Please contact your administrator.';
+    if (reason === 'VOICE_OFF' || (st && st.voiceEnabled === false)) return 'Voice is disabled by your administrator.';
+    if (why && why.error) return why.error;
+    return 'Voice is not available for this login. Please contact your administrator.';
+  }
   function disableVoice(msg){
     var b=$('voiceMicBtn'); if(b){ b.disabled=true; b.title=msg||'Voice unavailable'; }
     var c=$('voiceConverseBtn'); if(c){ c.disabled=true; c.title=msg||'Voice unavailable'; }

@@ -32,11 +32,19 @@ public class BankSyncGateController {
 
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> status(HttpServletRequest req) {
-        return ResponseEntity.ok(map("verified", gate.isVerified(req)));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("status",   "success");
+        m.put("verified", gate.isVerified(req));
+        // Lets the verify page tell "already verified" apart from "exempt", so it
+        // can send an exempt user straight on instead of offering a Resend button
+        // for a code that will never arrive.
+        m.put("verificationRequired", gate.verificationRequired(req));
+        return ResponseEntity.ok(m);
     }
 
     @PostMapping("/send")
     public ResponseEntity<Map<String, Object>> send(HttpServletRequest req) {
+        if (!gate.verificationRequired(req)) return ResponseEntity.ok(notRequired());
         boolean ok = gate.sendCode(req, false);
         return ok ? ResponseEntity.ok(msg("success", "A verification code was sent to your email."))
                   : ResponseEntity.status(400).body(msg("error", "Could not send a verification code. Check that your account has an email on file."));
@@ -44,6 +52,7 @@ public class BankSyncGateController {
 
     @PostMapping("/resend")
     public ResponseEntity<Map<String, Object>> resend(HttpServletRequest req) {
+        if (!gate.verificationRequired(req)) return ResponseEntity.ok(notRequired());
         boolean ok = gate.sendCode(req, true);
         return ok ? ResponseEntity.ok(msg("success", "A new verification code was sent."))
                   : ResponseEntity.status(400).body(msg("error", "Could not resend the code."));
@@ -98,6 +107,16 @@ public class BankSyncGateController {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("status", "success");
         m.put(k, v);
+        return m;
+    }
+
+    /** Trial tenants skip the gate: report it as passed, not as a failed send. */
+    private Map<String, Object> notRequired() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("status",   "success");
+        m.put("verified", true);
+        m.put("verificationRequired", false);
+        m.put("message",  "Verification is not required for Trial subscriptions.");
         return m;
     }
 

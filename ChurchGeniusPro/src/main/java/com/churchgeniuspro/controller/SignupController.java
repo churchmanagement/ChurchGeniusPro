@@ -11,9 +11,11 @@ import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.SignupService;
+import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.service.VerificationStore;
-import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.PasswordUtil;
+import com.churchgeniuspro.util.PublicSendLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -48,6 +50,7 @@ public class SignupController {
     private final ServiceClientRepository       serviceClientRepository;
     private final VerificationStore             verificationStore;
     private final EmailService                  emailService;
+    private final PublicSendLimiter             sendLimiter;
 
     public SignupController(SignupService                signupService,
                             LoginRepository               loginRepository,
@@ -55,7 +58,9 @@ public class SignupController {
                             ChurchRegistrationRepository  churchRegistrationRepository,
                             ServiceClientRepository       serviceClientRepository,
                             VerificationStore             verificationStore,
-                            EmailService                  emailService) {
+                            EmailService                  emailService,
+                            PublicSendLimiter             sendLimiter) {
+        this.sendLimiter                 = sendLimiter;
         this.signupService               = signupService;
         this.loginRepository             = loginRepository;
         this.appUserRepository           = appUserRepository;
@@ -63,6 +68,19 @@ public class SignupController {
         this.serviceClientRepository     = serviceClientRepository;
         this.verificationStore           = verificationStore;
         this.emailService                = emailService;
+    }
+
+    /**
+     * Demo Role Access rows mark the logins that tenant provisioning created with a
+     * generated username and password (every demo/trial staff login has one). Optional
+     * so the controller still constructs without a Spring context.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.DemoRoleAccessRepository demoRoleAccessRepository;
+
+    /** Test seam. */
+    public void setDemoRoleAccessRepository(com.churchgeniuspro.repository.DemoRoleAccessRepository r) {
+        this.demoRoleAccessRepository = r;
     }
 
     // ── Page Route ────────────────────────────────────────────────────────────
@@ -94,23 +112,19 @@ public class SignupController {
 
         Map<String, Object> res = new HashMap<>();
         try {
-            // If no type param, decrypt the token and infer type from its prefix:
-            //   "CG..." → church,  "US..." (USR...) → user
-            String effectiveType = type;
-            if (isBlank(effectiveType) && !isBlank(clientId)) {
-                String decrypted = EncryptionUtil.decrypt(clientId);
-                effectiveType = detectType(decrypted);
-            }
-
-            if ("church".equalsIgnoreCase(effectiveType)) {
-                return validateChurchLink(clientId, res);
-            } else if ("user".equalsIgnoreCase(effectiveType)) {
-                // User invitations carry the encrypted userId in the clientId= parameter
-                return validateUserLink(clientId, res);
-            } else {
+            // The parameter is an opaque invitation handle: a staff invite token or a
+            // church registration token. Its type comes from which table it is found
+            // in — nothing is decrypted or inferred from a prefix.
+            Invite inv = resolveInvite(clientId);
+            if (inv == null) {
                 res.put("status",  "invalid");
-                res.put("message", "Unknown signup type. Cannot determine account type from this link.");
+                res.put("message", "This invitation link is invalid, has been used, or has expired.");
                 return ResponseEntity.status(400).body(res);
+            }
+            if ("church".equals(inv.type)) {
+                return validateChurchLink(inv, res);
+            } else {
+                return validateUserLink(inv, res);
             }
         } catch (Exception e) {
             res.put("status",  "invalid");
@@ -131,19 +145,21 @@ public class SignupController {
      */
     @ResponseBody
     @PostMapping("/api/signup/send-code")
-    public ResponseEntity<Map<String, Object>> sendCode(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> sendCode(@RequestBody Map<String, String> body,
+                                                        HttpServletRequest request) {
         Map<String, Object> res = new HashMap<>();
 
-        String clientId = body.get("clientId");
-        String type     = body.get("type");
+        Invite inv      = resolveInvite(body.get("clientId"));   // the handle validate() handed back
+        String clientId = inv != null ? inv.clientId : null;
+        String type     = inv != null ? inv.type : null;
         String username = body.get("username");
         String password = body.get("password");
 
-        // Derive type from clientId prefix if not supplied by the caller
-        if (isBlank(type) && !isBlank(clientId)) {
-            type = detectType(clientId);
+        if (inv == null) {
+            res.put("status",  "error");
+            res.put("message", "This invitation link is invalid, has been used, or has expired.");
+            return ResponseEntity.status(400).body(res);
         }
-
         if (isBlank(clientId) || isBlank(type) || isBlank(username) || isBlank(password)) {
             res.put("status",  "error");
             res.put("message", "Missing required fields.");
@@ -165,8 +181,8 @@ public class SignupController {
             return ResponseEntity.status(400).body(res);
         }
 
-        // Resolve the email address to send the OTP to
-        String email = resolveEmail(clientId, type);
+        // The OTP goes to the address on record for the invitation — never one the caller supplies.
+        String email = inv.email;
         if (email == null) {
             res.put("status",  "error");
             res.put("message", "Could not find the email address for this invitation.");
@@ -174,6 +190,15 @@ public class SignupController {
         }
 
         // Generate, store and send OTP
+        // Each call re-issues the code and e-mails the invitee again: bounded per
+        // network origin and per invitation (security audit P2).
+        String limited = sendLimiter.check(PublicSendLimiter.SIGNUP_OTP, request, inv.handle(), null);
+        if (limited != null) {
+            res.put("status",  "error");
+            res.put("message", limited);
+            return ResponseEntity.status(429).body(res);
+        }
+
         String code = verificationStore.generateAndStore(clientId, type, email);
         String churchName = resolveChurchName(clientId, type);
         emailService.sendGenericEmail(
@@ -199,17 +224,18 @@ public class SignupController {
     public ResponseEntity<Map<String, Object>> verifyAndSignup(@RequestBody Map<String, String> body) {
         Map<String, Object> res = new HashMap<>();
 
-        String clientId = body.get("clientId");
-        String type     = body.get("type");
+        Invite inv      = resolveInvite(body.get("clientId"));
+        String clientId = inv != null ? inv.clientId : null;
+        String type     = inv != null ? inv.type : null;
         String username = body.get("username");
         String password = body.get("password");
         String code     = body.get("code");
 
-        // Derive type from clientId prefix if not supplied by the caller
-        if (isBlank(type) && !isBlank(clientId)) {
-            type = detectType(clientId);
+        if (inv == null) {
+            res.put("status",  "error");
+            res.put("message", "This invitation link is invalid, has been used, or has expired.");
+            return ResponseEntity.status(400).body(res);
         }
-
         if (isBlank(clientId) || isBlank(type) || isBlank(username)
                 || isBlank(password) || isBlank(code)) {
             res.put("status",  "error");
@@ -224,8 +250,37 @@ public class SignupController {
             return ResponseEntity.status(400).body(res);
         }
 
-        // Race-condition guard: re-check username uniqueness
-        if (loginRepository.existsByUsername(username.trim())) {
+        // One login per invitation: a second signup row for the same id used to break
+        // role-switching (Optional lookups) and, for a church, minted a second owner.
+        //
+        // Trial registration is the one flow that invites a user who ALREADY has a
+        // login: provisioning creates the SuperAdmin together with a generated
+        // username/password (tracked in demo_role_access), then emails this invitation
+        // so the registrant can choose their own. That login is claimed here — its
+        // credentials replaced, no second row — rather than refused. Only a login
+        // provisioning created qualifies; anything else keeps the refusal below, and a
+        // spent invitation never reaches this point (its token is cleared on use).
+        SignUp provisioned = null;
+        if ("user".equals(type)) {
+            SignUp existing = loginRepository.findActiveSignupByUserId(clientId).orElse(null);
+            if (existing != null && existing.getId() != null && demoRoleAccessRepository != null
+                    && demoRoleAccessRepository.findBySignupId(existing.getId()).isPresent()) {
+                provisioned = existing;
+            }
+        }
+        if ((provisioned == null && loginRepository.findActiveSignupByUserId(clientId).isPresent())
+                || ("church".equals(type) && loginRepository.findByClientId(clientId)
+                        .filter(su -> Boolean.TRUE.equals(su.getChurch()) && Boolean.TRUE.equals(su.getActive())
+                                   && !Boolean.TRUE.equals(su.getDeleted())).isPresent())) {
+            res.put("status",  "error");
+            res.put("message", "An account has already been created from this invitation.");
+            return ResponseEntity.status(409).body(res);
+        }
+
+        // Race-condition guard: re-check username uniqueness (the login being claimed
+        // may keep its own generated username)
+        boolean keepsOwnUsername = provisioned != null && username.trim().equals(provisioned.getUsername());
+        if (!keepsOwnUsername && loginRepository.existsByUsername(username.trim())) {
             res.put("status",  "error");
             res.put("message", "Username '" + username.trim() + "' is already taken.");
             return ResponseEntity.status(409).body(res);
@@ -237,6 +292,28 @@ public class SignupController {
             res.put("status",  "error");
             res.put("message", pwPolicyError);
             return ResponseEntity.status(400).body(res);
+        }
+
+        if (provisioned != null) {
+            // Claim the provisioned login: the registrant's own username and password
+            // replace the generated ones, and the generated password is no longer shown.
+            provisioned.setUsername(username.trim());
+            provisioned.setPassword(PasswordUtil.encode(password));
+            provisioned.setDemoPassword(null);
+            provisioned.setActive(true);
+            provisioned.setLocked(false);
+            provisioned.setUpdated(new Date());
+            loginRepository.save(provisioned);
+            demoRoleAccessRepository.findBySignupId(provisioned.getId()).ifPresent(dra -> {
+                dra.setUsername(username.trim());
+                demoRoleAccessRepository.save(dra);
+            });
+            verificationStore.remove(clientId, type);
+            inv.appUser.setInviteToken(null);        // the invite link is now spent
+            appUserRepository.save(inv.appUser);
+            res.put("status",  "success");
+            res.put("message", "Account created successfully.");
+            return ResponseEntity.ok(res);
         }
 
         // Persist the SignUp record
@@ -261,44 +338,28 @@ public class SignupController {
 
         loginRepository.save(signUp);
         verificationStore.remove(clientId, type);   // clean up used code
+        if (inv.appUser != null) {                  // the invite link is now spent
+            inv.appUser.setInviteToken(null);
+            appUserRepository.save(inv.appUser);
+        }
 
         res.put("status",  "success");
         res.put("message", "Account created successfully.");
         return ResponseEntity.ok(res);
     }
 
-    // ── Legacy Endpoint ───────────────────────────────────────────────────────
-
-    /** Kept for backward compatibility with any existing integrations. */
-    @ResponseBody
-    @PostMapping("/api/signup")
-    public ResponseEntity<Map<String, Object>> signup(@RequestBody SignupBO bo) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            SignUp saved = signupService.save(bo);
-            response.put("status",  "success");
-            response.put("message", "Account created successfully.");
-            response.put("id",      saved.getId());
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException ex) {
-            response.put("status",  "error");
-            response.put("message", ex.getMessage());
-            return ResponseEntity.status(409).body(response);
-        }
-    }
+    // The former legacy `POST /api/signup` ("kept for backward compatibility") was
+    // removed: it created an ACTIVE login for any caller-supplied clientId with no
+    // invitation token and no OTP, which — combined with the member-lookup on login —
+    // let an anonymous caller obtain a member-portal session as any member of any
+    // church. The supported flow is /validate → /send-code → /verify.
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private ResponseEntity<Map<String, Object>> validateChurchLink(
-            String encryptedClientId, Map<String, Object> res) throws Exception {
+            Invite inv, Map<String, Object> res) throws Exception {
 
-        if (isBlank(encryptedClientId)) {
-            res.put("status",  "invalid");
-            res.put("message", "Missing clientId parameter.");
-            return ResponseEntity.status(400).body(res);
-        }
-
-        String decrypted = EncryptionUtil.decrypt(encryptedClientId);
+        String decrypted = inv.clientId;
 
         // Check church_registration
         ChurchRegistration cr = churchRegistrationRepository
@@ -320,7 +381,7 @@ public class SignupController {
 
         res.put("status",            "valid");
         res.put("type",              "church");
-        res.put("decryptedClientId", decrypted);
+        res.put("decryptedClientId", inv.handle);   // the page carries the handle, not the id
         res.put("maskedEmail",       maskEmail(cr.getEmail()));
         res.put("name",              trim(cr.getFirstName()) + " " + trim(cr.getLastName()));
         res.put("churchName",        cr.getChurchName() != null ? cr.getChurchName() : "");
@@ -328,25 +389,10 @@ public class SignupController {
     }
 
     private ResponseEntity<Map<String, Object>> validateUserLink(
-            String encryptedUserId, Map<String, Object> res) throws Exception {
+            Invite inv, Map<String, Object> res) throws Exception {
 
-        if (isBlank(encryptedUserId)) {
-            res.put("status",  "invalid");
-            res.put("message", "Missing clientId parameter.");
-            return ResponseEntity.status(400).body(res);
-        }
-
-        String decrypted = EncryptionUtil.decrypt(encryptedUserId);
-
-        // Check app_user — the encrypted value is the app_user.user_id (UUID)
-        AppUser user = appUserRepository
-                .findByUserIdAndDeleteFlagFalse(decrypted)
-                .orElse(null);
-        if (user == null) {
-            res.put("status",  "invalid");
-            res.put("message", "No user account found for this invitation link.");
-            return ResponseEntity.status(400).body(res);
-        }
+        String decrypted = inv.clientId;
+        AppUser user = inv.appUser;
 
         // Check service_client using the organization ID (CGP-XXXXX) stored on the
         // app_user record — NOT the UUID userId which was decrypted from the URL.
@@ -359,7 +405,7 @@ public class SignupController {
 
         res.put("status",            "valid");
         res.put("type",              "user");
-        res.put("decryptedClientId", decrypted);
+        res.put("decryptedClientId", inv.handle);   // the page carries the handle, not the id
         res.put("maskedEmail",       maskEmail(user.getEmail()));
         res.put("name",              trim(user.getFirstName()) + " " + trim(user.getLastName()));
         return ResponseEntity.ok(res);
@@ -376,7 +422,8 @@ public class SignupController {
         if (sc == null) {
             return "This invitation link is inactive or has been revoked.";
         }
-        if (sc.getEndDate() != null && sc.getEndDate().isBefore(LocalDate.now())) {
+        // Same rule as sign-in: access (and so an invitation) closes ON the end date.
+        if (SubscriptionService.isExpired(sc.getEndDate(), com.churchgeniuspro.util.AppClock.today())) {
             return "This invitation link has expired. Please contact your administrator.";
         }
         return null;
@@ -406,32 +453,27 @@ public class SignupController {
         return "Church Genius Pro";
     }
 
-    private static String detectType(String decrypted) {
-        if (decrypted == null) return null;
-        if (decrypted.startsWith("CHR")) return "church";
-        if (decrypted.startsWith("USR")) return "user";   // USR prefix
-        return null;
-    }
+    /** A resolved invitation handle: what it is for, and the record behind it. */
+    private record Invite(String handle, String type, String clientId, String email, AppUser appUser) {}
 
     /**
-     * Resolves the email address to send the OTP to for the given clientId and type.
+     * Resolves the opaque handle in the invitation URL. Staff invites are
+     * {@code app_user.invite_token}; church-owner invites are
+     * {@code service_client.registration_token}. Unknown, spent and foreign values
+     * all come back null — the handle is looked up, never decoded.
      */
-    private String resolveEmail(String clientId, String type) {
-        try {
-            if ("church".equalsIgnoreCase(type)) {
-                return churchRegistrationRepository
-                        .findByClientIdAndDeleteFlagFalse(clientId)
-                        .map(ChurchRegistration::getEmail)
-                        .orElse(null);
-            } else if ("user".equalsIgnoreCase(type)) {
-                // clientId here is the decrypted app_user.user_id (UUID)
-                return appUserRepository
-                        .findByUserIdAndDeleteFlagFalse(clientId)
-                        .map(AppUser::getEmail)
-                        .orElse(null);
-            }
-        } catch (Exception ignored) { /* fall through */ }
-        return null;
+    private Invite resolveInvite(String handle) {
+        if (isBlank(handle)) return null;
+        String h = handle.trim();
+        AppUser user = appUserRepository.findByInviteTokenAndDeleteFlagFalse(h).orElse(null);
+        if (user != null) {
+            return new Invite(h, "user", user.getUserId(), user.getEmail(), user);
+        }
+        return serviceClientRepository.findByRegistrationTokenAndStatusAndDeleteFlagFalse(h, "Active")
+                .map(sc -> churchRegistrationRepository.findByClientIdAndDeleteFlagFalse(sc.getClientId())
+                        .map(cr -> new Invite(h, "church", sc.getClientId(), cr.getEmail(), null))
+                        .orElse(null))
+                .orElse(null);
     }
 
     // ── Static utilities ──────────────────────────────────────────────────────

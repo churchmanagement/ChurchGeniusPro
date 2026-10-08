@@ -11,4 +11,7 @@ public interface UploadedFileRepository extends JpaRepository<UploadedFile, Inte
     List<UploadedFile> findByAppClientIdAndDeleteFlagFalseOrderByUploadDateDesc(String appClientId);
 
     Optional<UploadedFile> findByIdAndDeleteFlagFalse(Integer id);
+
+    /** Tenant-scoped lookup (security audit, week 1). */
+    Optional<UploadedFile> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

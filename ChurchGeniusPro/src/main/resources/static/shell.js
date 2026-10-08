@@ -130,12 +130,18 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'admin/family',              label: 'Families',            icon: '&#x1F46A;', href: '/viewfamily'           },
         { id: 'admin/groups',              label: 'Groups',              icon: '&#x1F465;', href: '/groups'               },
         { id: 'admin/membership-requests', label: 'Membership Requests', icon: '&#x1F4E8;', href: '/membershipRequests'   },
-        { id: 'admin/connect-submissions', label: 'Connect Submissions', icon: '&#x1F91D;', href: '/connectAdmin'         },
+        // Connect Submissions moved to More → Follow-Ups → "Connect With Us" tab (2026-10-01);
+        // /connectAdmin now redirects there.
         { id: 'admin/unsubscribed-list',   label: 'Unsubscribed List',   icon: '&#x1F6AB;', href: '/unsubscribed-list'    },
         // { id: 'admin/files',            label: 'Files & Notes',       icon: '&#x1F4C1;', href: '/filesUpload'          }, // HIDDEN — feature temporarily disabled; do not remove
         { id: 'admin/stripe-integration',  label: 'Stripe Integration',  icon: '&#x1F4B3;', href: '/stripeIntegration'    },
         { id: 'admin/whatsapp-integration',label: 'WhatsApp Integration',icon: '&#x1F4AC;', href: '/whatsappIntegration'  },
         { id: 'admin/private-access',      label: 'Private Page Access', icon: '&#x1F512;', href: '/private-access-settings' },
+        // Church logins see only the Admin section, so Ticketing and the AI Assistant
+        // are listed here for them (churchOnly: not rendered for any other role; staff
+        // reach the same pages under More).
+        { id: 'admin/ticketing',           label: 'Ticketing',           icon: '&#x1F3AB;', href: '/tickets',      churchOnly: true },
+        { id: 'admin/ai-assistant',        label: 'AI Assistant',        icon: '&#x2728;',  href: '/ai-assistant', churchOnly: true },
         { id: 'admin/ntag-access',         label: 'NTAG Login',          icon: '&#x1F511;', href: '/ntagAccess'          }
     ]},
     { id: 'accounting', label: 'Accounting', icon: '&#x1F4B0;', children: [
@@ -145,7 +151,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'accounting/bank-sync',       label: 'Bank Sync',   icon: '&#x1F3E6;', href: '/bankSync'         },
         { id: 'accounting/pledges',         label: 'Pledges',  icon: '&#x1F91D;', href: '/pledges'          },
         { id: 'accounting/reports',         label: 'Report',   icon: '&#x1F4CA;', href: '/accountingReports'},
-        { id: 'accounting/donation-review', label: 'Donation', icon: '&#x1F381;', href: '/donation-review'  },
+        { id: 'accounting/donation-review', label: 'Donation/Give', icon: '&#x1F381;', href: '/donation-review'  },
         // Payroll is now a sub-section of Accounting; links to the Payroll landing page.
         { id: 'accounting/payroll',         label: 'Payroll',  icon: '&#x1F4B5;', href: '/payroll'          }
     ]},
@@ -160,13 +166,19 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'general/reminders',    label: 'Reminders',    icon: '&#x23F0;',  href: '/reminders'   }
     ]},
     { id: 'activity', label: 'Activity Corner', icon: '&#x1F3AE;', children: [
-        { id: 'activity/guessit', label: 'Guess It', icon: '&#x1F3AF;', href: '#mbr-guessit' }
+        { id: 'activity/guessit', label: 'Guess It', icon: '&#x1F3AF;', href: '#mbr-guessit' },
+        // Public join page: anyone with the 6-character group code can play here,
+        // signed in or not. Opens in a new tab so the portal session is kept.
+        { id: 'activity/guessit-public', label: 'Guess It — Public Page',
+          icon: '&#x1F310;', href: '/guessIt', target: '_blank' }
     ]},
     { id: 'more', label: 'More', icon: '&#x2022;&#x2022;&#x2022;', children: [
         { id: 'more/certificates',   label: 'Certificates',   icon: '&#x1F3C6;', href: '/certificates'  },
         { id: 'more/public-screens', label: 'Public Screens', icon: '&#x1F4FA;', href: '/publicScreens' },
         { id: 'more/follow-ups',     label: 'Follow-Ups',     icon: '&#x1F4CC;', href: '/followups'     },
         { id: 'more/help-center',    label: 'Help Center',    icon: '&#x1F4DA;', href: '/helpCenter'    },
+        { id: 'more/ticketing',      label: 'Ticketing',      icon: '&#x1F3AB;', href: '/tickets'       },
+        { id: 'more/ai-assistant',   label: 'AI Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
         { id: 'more/songbook-access',label: 'Song Book Access',icon: '&#x1F3B5;', href: '/admin/songbook-access' }
     ]},
     // REMINDERS section kept for backward-compat active-page detection only.
@@ -279,12 +291,16 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         '<div class="nav-submenu' + (isOpen ? ' open' : '') + '" id="sub-' + item.id + '">';
 
       (item.children || []).forEach(function (child) {
+        if (child.churchOnly && localStorage.getItem('church') !== 'true') return;
         var childActive = activePage === child.id ? ' active' : '';
         var clickAction;
         if (child.href && child.href.indexOf('#mbr-') === 0) {
           // Member portal tab — call showMemberTab if available (memberHome), else navigate to memberHome with tab param
           var tabKey = child.href.substring(5); // strip '#mbr-'
           clickAction = 'if(window.showMemberTab){window.showMemberTab(\'' + tabKey + '\',this);}else{window.location.href=\'/memberHome?tab=' + tabKey + '\';}';
+        } else if (child.target === '_blank') {
+          // Opens elsewhere (e.g. the public Guess It page) without losing the portal session.
+          clickAction = 'window.open(\'' + child.href + '\',\'_blank\',\'noopener\')';
         } else {
           clickAction = 'window.location.href=\'' + child.href + '\'';
         }
@@ -712,7 +728,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
     var footer = document.getElementById('app-footer');
     if (!footer || footer.innerHTML.trim() !== '') return;
     var year = new Date().getFullYear();
-    footer.innerHTML = '<span>&#169; ' + year + ' Church Genius Pro. All rights reserved.</span>';
+    footer.innerHTML = '<span>&#169; ' + year + ' Church Genius LLC. All rights reserved.</span>';
   }
 
   /* ── Bootstrap on DOMContentLoaded ──────────────────────────────── */
@@ -796,6 +812,9 @@ window.CGP_memberNameHtml = function (first, last, nick) {
     add('/ai-assistant.js', 'aa-script');  // the assistant itself
     add('/temp-session.js', 'temp-session-script');  // temporary-access countdown banner (self-activates only for temp sessions)
     add('/ntag-session.js', 'ntag-session-script');  // NTAG restricted-access sidebar (self-activates only for NTAG sessions)
+    add('/demo-trial.js', 'demo-trial-script');      // trial-account agreement popup (self-activates only for unaccepted demo logins)
+    add('/product-tour.js', 'product-tour-script');  // first-login product tour (self-activates only for trial/demo STAFF logins that have not seen it)
+    add('/trial-tips.js', 'trial-tips-script');      // feature-discovery tips (self-activates only for Trial staff logins; one small card at a time)
   }
 
   /* -- Export globals */

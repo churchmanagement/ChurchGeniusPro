@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Tenant-scoped get-or-create for the income/expense reference rows the live
@@ -40,6 +41,32 @@ public class EtlReferenceResolver {
 
     public Session session(String tenant) {
         return new Session(tenant);
+    }
+
+    /**
+     * Financial audit M9: the ETL loader also needs to look a reference row
+     * back up BY ID — restoring an income/expense row's fund/purpose from its
+     * before-image on rollback. Unlike the name-based get-or-create methods on
+     * {@link Session}, an id here was already written by this same tenant (it
+     * came off a live row this loader itself saved), so there is nothing to
+     * create and nothing worth caching per-load — but the lookup is still
+     * filtered by {@code tenant}, the same defense-in-depth every other
+     * id-based lookup in the ETL loader uses, rather than only trusting that
+     * the id came from an already-checked row.
+     */
+    public Optional<SubSource> subSourceById(Integer id, String tenant) {
+        if (id == null) return Optional.empty();
+        return subSourceRepo.findById(id).filter(s -> tenant.equals(s.getAppClientId()));
+    }
+
+    public Optional<Purpose> purposeById(Integer id, String tenant) {
+        if (id == null) return Optional.empty();
+        return purposeRepo.findById(id).filter(p -> tenant.equals(p.getAppClientId()));
+    }
+
+    public Optional<MainSource> mainSourceById(Integer id, String tenant) {
+        if (id == null) return Optional.empty();
+        return mainSourceRepo.findById(id).filter(m -> tenant.equals(m.getAppClientId()));
     }
 
     private static String key(String s) {

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -64,8 +65,13 @@ public class PledgeController {
     /**
      * Amount collected against a single pledge, computed from actual income rows
      * rather than the denormalized {@code amount_collected} counter. Summing the
-     * member's giving to the campaign's current fund keeps the figure correct when
-     * the campaign's fund is edited or when contributions predate the pledge.
+     * member's giving to the campaign's current fund — bounded to the campaign's
+     * own window — keeps the figure correct when the campaign's fund is edited or
+     * when contributions predate the pledge, while stopping two campaigns that
+     * share a fund from each claiming the same gifts (financial audit M4): a
+     * completed 2024 campaign and a new 2026 campaign on the same fund now sum
+     * only the income dated inside each one's own window, instead of the
+     * member's entire lifetime giving to the fund.
      *
      * <p>Falls back to the stored counter for guest pledges (no linked member) or
      * campaigns without a backing fund, where an income-based sum isn't possible.
@@ -77,8 +83,23 @@ public class PledgeController {
             return stored;
         }
         BigDecimal sum = incomeRepo.sumMemberSubSourceTotal(
-                p.getFamilyMemberId(), c.getSubSourceId(), c.getClientId());
+                p.getFamilyMemberId(), c.getSubSourceId(), c.getClientId(),
+                campaignStart(c), c.getEndDate());
         return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    /**
+     * A campaign's window starts when it was created — there is no separate,
+     * admin-editable start date (financial audit M4). This means income given
+     * before staff created the campaign row (but after the drive was announced
+     * to the congregation) will not count toward it; churches should create a
+     * new campaign as soon as a drive begins, even before the first pledge card
+     * is entered. Falls back to {@link LocalDate#MIN} for the rare legacy row
+     * with no createdDate at all, so it behaves like the old, unbounded query
+     * rather than excluding everything.
+     */
+    private static LocalDate campaignStart(PledgeCampaign c) {
+        return c.getCreatedDate() != null ? c.getCreatedDate().toLocalDate() : LocalDate.MIN;
     }
 
     // ── Page route ────────────────────────────────────────────────────────
@@ -87,7 +108,7 @@ public class PledgeController {
     public String pledgesPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "accounting.pledges");
+        deny = RoleGuard.requirePagePermission(request, "accounting.pledges");
         if (deny != null) return deny;
         return "forward:/pledges.html";
     }
@@ -196,7 +217,8 @@ public class PledgeController {
         PledgeMember p = new PledgeMember();
         p.setClientId(cid);
         p.setCampaignId(id);
-        applyPledgeBody(p, body);
+        String bad = applyPledgeBody(p, body, cid);
+        if (bad != null) return ResponseEntity.status(404).body(Map.of("error", bad));
         if (p.getFamilyMemberId() == null && (p.getGuestName() == null || p.getGuestName().isBlank())) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Pick a member or enter a name"));
@@ -217,7 +239,8 @@ public class PledgeController {
         String cid = SessionUtil.getAppClientId(req);
         PledgeMember p = pledgeRepo.findByIdAndClientId(id, cid).orElse(null);
         if (p == null) return ResponseEntity.status(404).body(Map.of("error", "Pledge not found"));
-        applyPledgeBody(p, body);
+        String bad = applyPledgeBody(p, body, cid);
+        if (bad != null) return ResponseEntity.status(404).body(Map.of("error", bad));
         return ResponseEntity.ok(toPledgeMap(pledgeRepo.save(p)));
     }
 
@@ -245,50 +268,91 @@ public class PledgeController {
      * which keeps the existing Income flow side-effect-free for org
      * accounts that don't use pledges.
      *
+     * <p>When more than one active campaign shares the fund, the income is
+     * credited to at most one of them — the one whose window contains the
+     * income's own date — rather than every campaign on the fund (financial
+     * audit M4; this stored counter is currently read only as a fallback for
+     * guest pledges and fundless campaigns, see {@link #collectedForPledge},
+     * but is kept correct on principle since it is persisted, named data).
+     *
      * @param clientId      tenant id
      * @param subSourceId   fund the income was tagged with
      * @param familyMemberId  contributor
      * @param amount        contribution amount (positive)
+     * @param incomeDate    date of the income transaction
      */
     @Transactional
     public void applyIncomeToPledge(String clientId, Integer subSourceId,
-                                    Integer familyMemberId, BigDecimal amount) {
+                                    Integer familyMemberId, BigDecimal amount,
+                                    LocalDate incomeDate) {
         if (clientId == null || subSourceId == null || familyMemberId == null
                 || amount == null || amount.signum() <= 0) return;
-        List<PledgeCampaign> matches = campaignRepo
-                .findActiveByClientIdAndSubSource(clientId, subSourceId);
-        for (PledgeCampaign c : matches) {
-            PledgeMember p = pledgeRepo
-                    .findByCampaignAndMember(clientId, c.getId(), familyMemberId)
-                    .orElse(null);
-            if (p == null) continue;
-            BigDecimal cur = p.getAmountCollected() != null ? p.getAmountCollected() : BigDecimal.ZERO;
-            p.setAmountCollected(cur.add(amount));
-            pledgeRepo.save(p);
-        }
+        PledgeCampaign c = campaignForIncomeDate(clientId, subSourceId, incomeDate);
+        if (c == null) return;
+        PledgeMember p = pledgeRepo
+                .findByCampaignAndMember(clientId, c.getId(), familyMemberId)
+                .orElse(null);
+        if (p == null) return;
+        BigDecimal cur = p.getAmountCollected() != null ? p.getAmountCollected() : BigDecimal.ZERO;
+        p.setAmountCollected(cur.add(amount));
+        pledgeRepo.save(p);
     }
 
     /**
      * Reverses {@link #applyIncomeToPledge} when an income row is deleted
      * or its amount is reduced on edit. Caller passes the *delta* (positive
-     * to credit back, negative to charge more).
+     * to credit back, negative to charge more) and the income's own date, so
+     * the reversal targets the same single campaign the original credit did
+     * — including after the income row's date has since been changed, when
+     * the caller passes the date as it was *before* that edit.
      */
     @Transactional
     public void adjustPledgeByDelta(String clientId, Integer subSourceId,
-                                    Integer familyMemberId, BigDecimal delta) {
+                                    Integer familyMemberId, BigDecimal delta,
+                                    LocalDate incomeDate) {
         if (clientId == null || subSourceId == null || familyMemberId == null
                 || delta == null || delta.signum() == 0) return;
+        PledgeCampaign c = campaignForIncomeDate(clientId, subSourceId, incomeDate);
+        if (c == null) return;
+        PledgeMember p = pledgeRepo
+                .findByCampaignAndMember(clientId, c.getId(), familyMemberId)
+                .orElse(null);
+        if (p == null) return;
+        BigDecimal cur = p.getAmountCollected() != null ? p.getAmountCollected() : BigDecimal.ZERO;
+        BigDecimal next = cur.add(delta);
+        if (next.signum() < 0) next = BigDecimal.ZERO;
+        p.setAmountCollected(next);
+        pledgeRepo.save(p);
+    }
+
+    /**
+     * The single active campaign on this fund whose window contains the
+     * income's date — never more than one, so a gift is never double-credited
+     * across campaigns that share a fund (financial audit M4). When more than
+     * one candidate's window contains the date (overlapping campaigns on the
+     * same fund), the most recently created wins, matching {@link
+     * PledgeCampaignRepository#findByClientId}'s existing "newest first"
+     * convention. Returns {@code null} when no campaign's window covers the
+     * date — this stored counter is fallback/display data (see {@link
+     * #collectedForPledge}), so it's fine to leave it uncredited rather than
+     * guess which campaign a gift outside every window belongs to.
+     */
+    private PledgeCampaign campaignForIncomeDate(String clientId, Integer subSourceId, LocalDate incomeDate) {
+        LocalDate effectiveDate = incomeDate != null ? incomeDate : LocalDate.now();
+        PledgeCampaign best = null;
         for (PledgeCampaign c : campaignRepo.findActiveByClientIdAndSubSource(clientId, subSourceId)) {
-            PledgeMember p = pledgeRepo
-                    .findByCampaignAndMember(clientId, c.getId(), familyMemberId)
-                    .orElse(null);
-            if (p == null) continue;
-            BigDecimal cur = p.getAmountCollected() != null ? p.getAmountCollected() : BigDecimal.ZERO;
-            BigDecimal next = cur.add(delta);
-            if (next.signum() < 0) next = BigDecimal.ZERO;
-            p.setAmountCollected(next);
-            pledgeRepo.save(p);
+            if (effectiveDate.isBefore(campaignStart(c))) continue;
+            if (c.getEndDate() != null && effectiveDate.isAfter(c.getEndDate())) continue;
+            if (best == null || isNewer(c, best)) best = c;
         }
+        return best;
+    }
+
+    private static boolean isNewer(PledgeCampaign a, PledgeCampaign b) {
+        LocalDateTime ac = a.getCreatedDate(), bc = b.getCreatedDate();
+        if (ac == null) return false;
+        if (bc == null) return true;
+        return ac.isAfter(bc);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -306,14 +370,26 @@ public class PledgeController {
         }
     }
 
-    private void applyPledgeBody(PledgeMember p, Map<String, Object> body) {
-        if (body.containsKey("familyMemberId")) p.setFamilyMemberId(toInt(body.get("familyMemberId")));
+    /**
+     * Copies the editable fields from the request body. The member reference is
+     * validated against the session tenant BEFORE it is stored; returns an error
+     * message (caller responds 404) when it names a member of another church.
+     */
+    private String applyPledgeBody(PledgeMember p, Map<String, Object> body, String cid) {
+        if (body.containsKey("familyMemberId")) {
+            Integer fmId = toInt(body.get("familyMemberId"));
+            if (fmId != null && familyMemberRepo.findByIdAndTenant(fmId, cid).isEmpty()) {
+                return "Member not found";
+            }
+            p.setFamilyMemberId(fmId);
+        }
         if (body.containsKey("familyId"))       p.setFamilyId(toInt(body.get("familyId")));
         if (body.containsKey("guestName"))      p.setGuestName(str(body.get("guestName")));
         if (body.containsKey("pledgeAmount"))   p.setPledgeAmount(toBd(body.get("pledgeAmount")));
         if (body.containsKey("monthlyAmount"))  p.setMonthlyAmount(toBd(body.get("monthlyAmount")));
         if (body.containsKey("gifts"))          p.setGifts(str(body.get("gifts")));
         if (body.containsKey("notes"))          p.setNotes(str(body.get("notes")));
+        return null;
     }
 
     /** Aggregated totals across all pledges for a campaign. */
@@ -386,7 +462,7 @@ public class PledgeController {
         m.put("pending", pending);
         // Resolve display name when linked to a FamilyMember.
         if (p.getFamilyMemberId() != null) {
-            FamilyMember fm = familyMemberRepo.findById(p.getFamilyMemberId()).orElse(null);
+            FamilyMember fm = familyMemberRepo.findByIdAndTenant(p.getFamilyMemberId(), p.getClientId()).orElse(null);
             if (fm != null) {
                 String name = ((fm.getFirstName() != null ? fm.getFirstName() : "") + " "
                              + (fm.getLastName()  != null ? fm.getLastName()  : "")).trim();

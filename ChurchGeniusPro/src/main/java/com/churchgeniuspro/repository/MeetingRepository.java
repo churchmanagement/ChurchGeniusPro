@@ -33,25 +33,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
     Optional<Meeting> findActiveById(@Param("id") Integer id);
 
     /**
-     * Returns non-deleted meetings for the given meeting type, ordered most-recent
-     * first.  Used to auto-fill Start Time / End Time when a type is selected.
-     */
-    @Query("SELECT m FROM Meeting m " +
-           "WHERE m.meetingType.id = :meetingTypeId " +
-           "AND m.deleteFlag = false " +
-           "ORDER BY m.meetingDate DESC, m.startTime ASC")
-    List<Meeting> findByMeetingTypeIdOrderByDateDesc(@Param("meetingTypeId") Integer meetingTypeId);
-
-    /**
-     * Upcoming meetings from a given date onwards, ordered soonest first.
-     * Used by the Admin dashboard to populate the Upcoming Events panel.
-     */
-    @Query("SELECT m FROM Meeting m JOIN FETCH m.meetingType " +
-           "WHERE m.deleteFlag = false AND m.meetingDate >= :today " +
-           "ORDER BY m.meetingDate ASC, m.startTime ASC")
-    List<Meeting> findUpcomingFromDate(@Param("today") LocalDate today);
-
-    /**
      * All non-deleted meetings filtered by appClientId, ordered newest first.
      * Used by auto-fill and legacy callers that need most-recent first.
      */
@@ -95,15 +76,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
             @Param("appClientId") String appClientId);
 
     /**
-     * All non-deleted meetings on a specific date with meeting type eager-fetched.
-     * Used by the scheduler to find meetings happening today.
-     */
-    @Query("SELECT m FROM Meeting m JOIN FETCH m.meetingType " +
-           "WHERE m.deleteFlag = false AND m.meetingDate = :date " +
-           "ORDER BY m.startTime ASC")
-    List<Meeting> findByMeetingDateAndDeleteFlagFalse(@Param("date") LocalDate date);
-
-    /**
      * All non-deleted meetings for a specific organization client, with meeting type
      * eager-fetched.  Used by the weekly meeting reminder scheduler to find all
      * recurring and one-time meetings and filter them in Java.
@@ -122,4 +94,9 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
            "AND m.meetingDate < :cutoff AND m.appClientId = :appClientId")
     List<Meeting> findAutoPurgeCandidates(@Param("cutoff") LocalDate cutoff,
                                           @Param("appClientId") String appClientId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<Meeting> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+    java.util.List<Meeting> findByIdInAndAppClientIdAndDeleteFlagFalse(java.util.Collection<Integer> ids, String appClientId);
 }

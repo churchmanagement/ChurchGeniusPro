@@ -3,6 +3,7 @@ package com.churchgeniuspro.controller;
 import com.churchgeniuspro.hibernate.PolicyAcceptance;
 import com.churchgeniuspro.repository.PolicyAcceptanceRepository;
 import com.churchgeniuspro.util.PolicyVersions;
+import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -34,9 +35,11 @@ import java.util.Map;
 public class PolicyController {
 
     private final PolicyAcceptanceRepository acceptanceRepository;
+    private final PublicSendLimiter sendLimiter;
 
-    public PolicyController(PolicyAcceptanceRepository acceptanceRepository) {
+    public PolicyController(PolicyAcceptanceRepository acceptanceRepository, PublicSendLimiter sendLimiter) {
         this.acceptanceRepository = acceptanceRepository;
+        this.sendLimiter = sendLimiter;
     }
 
     // ── Public policy pages (clean URLs → static HTML) ───────────────────────
@@ -76,13 +79,30 @@ public class PolicyController {
             return ResponseEntity.badRequest().body(res);
         }
         policyType = policyType.trim().toLowerCase();
+        // Anonymous, unbounded inserts with caller-chosen strings (security audit P7):
+        // only a policy this application actually has, a short source label, and a
+        // per-origin ceiling.
+        if (!PolicyVersions.isKnown(policyType)) {
+            res.put("status", "error");
+            res.put("message", "Unknown policy.");
+            return ResponseEntity.badRequest().body(res);
+        }
+        String limited = sendLimiter.check(PublicSendLimiter.POLICY_ACCEPTANCE, request, null, null);
+        if (limited != null) {
+            res.put("status", "error");
+            res.put("message", limited);
+            return ResponseEntity.status(429).body(res);
+        }
 
         String sessionClient = SessionUtil.getAppClientId(request);
         String sessionUser   = SessionUtil.getUsername(request);
 
         PolicyAcceptance row = new PolicyAcceptance();
-        row.setClientId(sessionClient != null ? sessionClient : str(body, "clientId"));
-        row.setUsername(sessionUser != null ? sessionUser : str(body, "username"));
+        // Identity comes from the session or not at all. A pre-login acceptance (cookie
+        // banner) is recorded anonymously; the body used to be allowed to name any
+        // tenant/user, which polluted churches' acceptance audits.
+        row.setClientId(sessionClient);
+        row.setUsername(sessionUser);
         row.setPolicyType(policyType);
         row.setPolicyVersion(PolicyVersions.versionFor(policyType));
         row.setAccepted(Boolean.TRUE);
@@ -90,6 +110,7 @@ public class PolicyController {
         row.setIpAddress(clientIp(request));
         row.setUserAgent(request.getHeader("User-Agent"));
         String source = str(body, "source");
+        if (source != null && source.length() > 32) source = source.substring(0, 32);
         row.setSource(source != null ? source : "web");
 
         try {

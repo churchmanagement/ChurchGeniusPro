@@ -18,4 +18,8 @@ public interface SsStudentRepository extends JpaRepository<SsStudent, Long> {
     // Strategy 5: match by contact email within the same org
     List<SsStudent> findByContactEmailAndClientIdAndDeleteFlagFalse(String contactEmail, String clientId);
     List<SsStudent> findByContactEmailAndDeleteFlagFalse(String contactEmail);
+    // Tenant-scoped lookups (security audit, week 1)
+    Optional<SsStudent> findByIdAndClientIdAndDeleteFlagFalse(Long id, String clientId);
+    List<SsStudent> findByFamilyMemberIdInAndClientIdAndDeleteFlagFalse(java.util.Collection<Integer> familyMemberIds, String clientId);
+    List<SsStudent> findByContactEmailIgnoreCaseAndClientIdAndDeleteFlagFalse(String contactEmail, String clientId);
 }

@@ -29,6 +29,7 @@ public class EmployeeDeduction {
     private Long definitionId;
 
     /** Flat per-period amount, or a rate (e.g., 0.06) when the definition is percentage-based. */
+    @Column(precision = 15, scale = 6)   // wide enough for an amount, precise enough for a rate (audit C1)
     private BigDecimal amountOrRate;
 
     /** Optional annual cap (e.g., 401(k) elective-deferral limit). */

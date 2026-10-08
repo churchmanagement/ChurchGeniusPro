@@ -28,4 +28,17 @@ public interface TransactionTypeRepository extends JpaRepository<TransactionType
 
     /** Duplicate-check on update (excluding the record being updated) — scoped to the same client. */
     boolean existsByTypeNameIgnoreCaseAndAppClientIdAndDeleteFlagFalseAndIdNot(String typeName, String appClientId, Integer id);
+
+    /**
+     * Finds an active transaction type by exact name (case-insensitive),
+     * scoped to a church. Used to find-or-create a payment-method type (e.g.
+     * "Card", "Bank Transfer") for a posted online donation. Financial
+     * audit H9.
+     */
+    java.util.Optional<TransactionType> findFirstByTypeNameIgnoreCaseAndAppClientIdAndDeleteFlagFalse(
+            String typeName, String appClientId);
+
+    // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
+
+    java.util.Optional<TransactionType> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
 }

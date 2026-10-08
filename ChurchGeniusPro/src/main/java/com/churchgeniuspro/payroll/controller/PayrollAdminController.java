@@ -276,6 +276,7 @@ public class PayrollAdminController {
         m.put("grossEarnings", s.getGrossEarnings());
         m.put("totalTaxes", s.getTotalTaxes());
         m.put("netPay", s.getNetPay());
+        m.put("arrearsAmount", s.getArrearsAmount());
         m.put("pdfUrl", "/api/payroll/paystubs/" + s.getId() + "/pdf");
         return m;
     }

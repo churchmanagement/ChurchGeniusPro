@@ -123,7 +123,11 @@ public class AiSearchService {
         "not","no","yes","can","could","would","should","will","may","might","must",
         "last","next","current","please","much","many","some","when","what",
         "who","where","how","which","that","and","or","but","if","than","then",
-        "so","because","as","about","just","only","also","too","very","more","most"
+        "so","because","as","about","just","only","also","too","very","more","most",
+        // verbs and group words that sit where a contributor's name would — "who all
+        // are GIVEN tithe", "who GAVE" — and must never be searched as a name
+        "given","gave","paid","donated","contributed","whom","everyone","anyone",
+        "someone","people","members","contributors","contributor","family","families"
     );
 
     /**
@@ -184,7 +188,7 @@ public class AiSearchService {
         boolean dataCtx = has(q, "this month","current month","last month","this year",
                                   "last year","did","check","find","list","show","add",
                                   "record","how much","when is","when are","who has",
-                                  "was","were") || topicBday || topicAnniv;
+                                  "was","were") || topicBday || topicAnniv || asksWho(q);
 
         boolean wantsData = dataCtx && (topicIncome || topicExpense || topicBday || topicAnniv);
 
@@ -197,6 +201,9 @@ public class AiSearchService {
         // ── Route to handler ─────────────────────────────────────────────
         if (wantsData && topicIncome) {
             if (!canAccessFinancials(role)) return denied();
+            // "Who gave tithe this month?" — a contributor-list question, not a
+            // search for a contributor called "Who"/"Given".
+            if (name == null && asksWho(q)) return handleContributors(category, month, year, appClientId);
             return handleIncome(name, category, month, year, appClientId);
         }
         if (wantsData && topicExpense) {
@@ -252,6 +259,40 @@ public class AiSearchService {
             : "Found " + rows.size() + " income record(s)" + catDesc + nameDesc +
               " in " + monthLabel + " — total $" + fmt(total) + ".";
 
+        return mkResult("income", ans, fmtIncome(rows), null);
+    }
+
+    /** "who gave / who paid / who all are given / who contributed / show me who …" */
+    static boolean asksWho(String q) {
+        return q != null && Pattern.compile("\\bwho\\b").matcher(q).find();
+    }
+
+    /**
+     * Lists the people who gave in a category and month: one line per contributor
+     * (first appearance order, newest gift first) with that person's total, backed
+     * by the same tenant-scoped query and role check as {@link #handleIncome}.
+     */
+    private Map<String, Object> handleContributors(String category, int month, int year, String appClientId) {
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end   = YearMonth.of(year, month).atEndOfMonth();
+        List<Object[]> rows = incomeRepo.searchIncome(appClientId, null, category, Date.valueOf(start), Date.valueOf(end));
+
+        String monthLabel = capitalize(MONTH_FULL[month - 1]) + " " + year;
+        String catDesc    = category != null ? capitalize(category) : "income";
+        if (rows.isEmpty()) {
+            return mkResult("income", "No one gave " + catDesc + " in " + monthLabel + ".", List.of(), null);
+        }
+        Map<String, BigDecimal> byPerson = new LinkedHashMap<>();
+        for (Object[] r : rows) {
+            String who = (trim2(r[2]) + " " + trim2(r[3])).trim();
+            BigDecimal amt = r[6] != null ? new BigDecimal(r[6].toString()) : BigDecimal.ZERO;
+            byPerson.merge(who.isEmpty() ? "(unnamed)" : who, amt, BigDecimal::add);
+        }
+        String names = byPerson.entrySet().stream()
+                .map(e -> e.getKey() + " ($" + fmt(e.getValue()) + ")")
+                .collect(Collectors.joining(", "));
+        String ans = byPerson.size() + (byPerson.size() == 1 ? " person" : " people") + " gave " + catDesc
+                + " in " + monthLabel + ": " + names + ".";
         return mkResult("income", ans, fmtIncome(rows), null);
     }
 

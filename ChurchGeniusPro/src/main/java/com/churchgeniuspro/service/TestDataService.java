@@ -18,6 +18,7 @@ import com.churchgeniuspro.hibernate.PledgeMember;
 import com.churchgeniuspro.hibernate.Purpose;
 import com.churchgeniuspro.hibernate.Expense;
 import com.churchgeniuspro.hibernate.ServiceClient;
+import com.churchgeniuspro.hibernate.SubscriptionPlan;
 import com.churchgeniuspro.hibernate.SignUp;
 import com.churchgeniuspro.hibernate.SsClass;
 import com.churchgeniuspro.hibernate.SsExam;
@@ -46,6 +47,7 @@ import com.churchgeniuspro.repository.PledgeCampaignRepository;
 import com.churchgeniuspro.repository.PledgeMemberRepository;
 import com.churchgeniuspro.repository.PurposeRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
+import com.churchgeniuspro.repository.SubscriptionPlanRepository;
 import com.churchgeniuspro.repository.SsClassRepository;
 import com.churchgeniuspro.repository.SsExamRepository;
 import com.churchgeniuspro.repository.SsQuestionRepository;
@@ -63,6 +65,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -90,10 +94,89 @@ import java.util.Random;
 @Service
 public class TestDataService {
 
+    /** Optional: drops cached send permissions when a tenant's plan changes. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MessagingPolicy messagingPolicy;
+
+    /** Client price, billing frequency and subscription history (optional for hand-built tests). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SubscriptionLifecycleService lifecycle;
+
+    /** M7: builds and runs the catalogue-ordered, tenant-scoped purge. */
+    @org.springframework.beans.factory.annotation.Autowired
+    private TenantPurgePlanner tenantPurgePlanner;
+
+    /** Optional: carries a subscription extension through to the per-login windows. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DemoAccessService demoAccess;
+
+    /** Test seam — supply the demo access service without a Spring context. */
+    public void setDemoAccess(DemoAccessService d) { this.demoAccess = d; }
+
+    /**
+     * Sample data for the screens the core seeding leaves empty (Donations,
+     * Membership Requests, Attendance, Connect, Prayer, Unsubscribed). Optional so
+     * a context without it still provisions; present in the running application.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private TrialDemoDataSeeder demoExtras;
+
+    /** Test seam — supply the extra-areas seeder without a Spring context. */
+    public void setDemoExtras(TrialDemoDataSeeder s) { this.demoExtras = s; }
+
+    /**
+     * The business time zone, as used by the schedulers. Demo dates ("next Sunday",
+     * "the six Sundays before") are counted from the creation date in this zone, so
+     * a tenant created on a Saturday evening in Kansas is not given Monday's dates
+     * by a UTC server.
+     */
+    static final java.time.ZoneId BUSINESS_ZONE = java.time.ZoneId.of("America/Chicago");
+
     private static final Logger log = LoggerFactory.getLogger(TestDataService.class);
 
     /** Marker prefix for every demo clientId. Used by {@link #listDemoClients()}. */
     public static final String DEMO_CLIENT_PREFIX = "DEMO-";
+
+    /**
+     * Client-id prefix for self-service trial tenants (the TrialRegistration page).
+     *
+     * <p>Separate from {@link #DEMO_CLIENT_PREFIX} on purpose. A trial tenant is a
+     * real prospective customer who filled in a form; a demo tenant is internal
+     * test data. They share the provisioning and the Demo Role Access screen, but
+     * they must never be confused in the admin UI, and {@code clearDemoClient}
+     * — which deletes a tenant outright — stays DEMO-only so no real prospect can
+     * be wiped by demo housekeeping.
+     */
+    public static final String TRIAL_CLIENT_PREFIX = "TRIAL-";
+
+    /** True for a tenant this service provisioned: demo or trial. */
+    public static boolean isManagedTenant(String clientId) {
+        return clientId != null
+                && (clientId.startsWith(DEMO_CLIENT_PREFIX) || clientId.startsWith(TRIAL_CLIENT_PREFIX));
+    }
+
+    /** True for a demo tenant loaded from the Service Admin screen. */
+    public static boolean isDemoTenant(String clientId) {
+        return clientId != null && clientId.startsWith(DEMO_CLIENT_PREFIX);
+    }
+
+    /** True for a self-service trial tenant. */
+    public static boolean isTrialTenant(String clientId) {
+        return clientId != null && clientId.startsWith(TRIAL_CLIENT_PREFIX);
+    }
+
+    /**
+     * The short, unique tail of a managed client id, used to keep generated
+     * usernames short while still unique. Prefix-agnostic so DEMO- and TRIAL-
+     * tenants produce the same shape of username.
+     */
+    public static String prettySuffix(String clientId) {
+        String id = clientId == null ? "" : clientId;
+        for (String prefix : new String[] { DEMO_CLIENT_PREFIX, TRIAL_CLIENT_PREFIX }) {
+            if (id.startsWith(prefix)) { id = id.substring(prefix.length()); break; }
+        }
+        return id.length() > 6 ? id.substring(id.length() - 6) : id;
+    }
 
     /** Generates the per-account demo password. The raw value is persisted in
      *  {@code signup.demo_password} (for display in the Service Admin credentials
@@ -132,6 +215,11 @@ public class TestDataService {
     private final SsSubmissionRepository       ssSubmissionRepo;
     private final JdbcTemplate                 jdbc;
 
+    /** Source of truth for which plans exist — never a hardcoded list. */
+    private final SubscriptionPlanRepository   planRepo;
+    /** Needed to drop the 5-minute plan cache when a demo tenant's plan changes. */
+    private final SubscriptionService          subscriptionService;
+
     public TestDataService(ChurchRegistrationRepository churchRegRepo,
                            ServiceClientRepository      serviceClientRepo,
                            AppUserRepository            appUserRepo,
@@ -159,7 +247,9 @@ public class TestDataService {
                            SsExamRepository             ssExamRepo,
                            SsQuestionRepository         ssQuestionRepo,
                            SsSubmissionRepository       ssSubmissionRepo,
-                           JdbcTemplate                 jdbc) {
+                           JdbcTemplate                 jdbc,
+                           SubscriptionPlanRepository   planRepo,
+                           SubscriptionService          subscriptionService) {
         this.churchRegRepo       = churchRegRepo;
         this.serviceClientRepo   = serviceClientRepo;
         this.appUserRepo         = appUserRepo;
@@ -188,6 +278,8 @@ public class TestDataService {
         this.ssQuestionRepo      = ssQuestionRepo;
         this.ssSubmissionRepo    = ssSubmissionRepo;
         this.jdbc                = jdbc;
+        this.planRepo            = planRepo;
+        this.subscriptionService = subscriptionService;
     }
 
     // ── Public API ────────────────────────────────────────────────────────
@@ -201,8 +293,109 @@ public class TestDataService {
      */
     @Transactional
     public Map<String, Object> loadSmallDemo() {
+        return loadSmallDemo(null, null);
+    }
+
+    /**
+     * Loads a demo tenant on a chosen subscription plan with a chosen expiry.
+     *
+     * <p>Both are recorded on this tenant's own {@code service_client} row, so every demo
+     * load carries its own plan and expiry and loading a second one cannot disturb the
+     * first — they are different rows.
+     *
+     * @param planCode  a code from Subscription Plans; blank uses the first active plan
+     * @param expiresOn last day these accounts may sign in; {@code null} means one year
+     */
+    @Transactional
+    public Map<String, Object> loadSmallDemo(String planCode, LocalDate expiresOn) {
         String clientId = DEMO_CLIENT_PREFIX + System.currentTimeMillis();
-        String churchName = "Demo Church " + clientId.substring(DEMO_CLIENT_PREFIX.length());
+        return provisionTenant(TenantSpec.demo(clientId), planCode, expiresOn);
+    }
+
+    /**
+     * What a provisioned tenant should look like: who it belongs to, and which
+     * logins it gets.
+     *
+     * <p>Exists so the self-service trial flow can reuse the demo seeding wholesale
+     * instead of copying it. A demo tenant and a trial tenant differ only in these
+     * fields; everything downstream — the families, contributions, events, groups,
+     * kids ministry, Sunday school and pledges — is identical, which is exactly what
+     * "the same dummy data as a Demo tenant" means.
+     *
+     * @param staffRoles which staff logins to create, from {@link #DEMO_ROLES}
+     * @param portalLogins how many member-portal and child-portal logins to create
+     *                     (one of each per unit; 0 for none). A trial takes one of
+     *                     each so its credentials panel and welcome email name a
+     *                     single Member Portal and a single Kids Portal; the demo
+     *                     tenant keeps the pair it has always had.
+     */
+    public record TenantSpec(String clientId,
+                             String churchName,
+                             List<String> staffRoles,
+                             int portalLogins,
+                             Contact contact) {
+
+        /** True when this tenant gets portal logins at all. */
+        public boolean hasPortalLogins() { return portalLogins > 0; }
+
+        /**
+         * Who the tenant belongs to.
+         *
+         * <p>The address is plain text because that is what {@code service_client}
+         * stores and what a registration form collects. {@code ChurchRegistration}
+         * keeps its address on a separate {@code Address} entity whose state and
+         * country are lookup ids, so only its scalar fields are populated here —
+         * the same subset the demo seeding has always set.
+         */
+        public record Contact(String firstName, String lastName, String email, String phone,
+                              String addressLine1, String addressLine2, String city,
+                              String state, String country, String pinCode, String note) {
+
+            public static Contact of(String firstName, String lastName, String email, String phone) {
+                return new Contact(firstName, lastName, email, phone,
+                                   null, null, null, null, null, null, null);
+            }
+
+            public String fullName() {
+                return ((firstName == null ? "" : firstName) + " "
+                      + (lastName  == null ? "" : lastName)).trim();
+            }
+        }
+
+        /** The classic internal demo tenant: every role, portals included. */
+        public static TenantSpec demo(String clientId) {
+            return new TenantSpec(
+                    clientId,
+                    "Demo Church " + clientId.substring(DEMO_CLIENT_PREFIX.length()),
+                    List.of("SuperAdmin", "Admin", "Accountant", "User"),
+                    2,
+                    Contact.of("Demo", "Admin",
+                               "admin@" + clientId.toLowerCase() + ".test", "555-0100"));
+        }
+    }
+
+    /**
+     * Creates a tenant and its sample data.
+     *
+     * <p>The single provisioning path. {@link #loadSmallDemo} and the self-service
+     * trial registration both go through here, so a change to what a new tenant
+     * contains cannot apply to one and miss the other.
+     *
+     * @param spec      who the tenant is and which logins it gets
+     * @param planCode  a code from Subscription Plans; blank uses the first active plan
+     * @param expiresOn last day these accounts may sign in; {@code null} means one year
+     */
+    @Transactional
+    public Map<String, Object> provisionTenant(TenantSpec spec, String planCode, LocalDate expiresOn) {
+        String resolvedPlan = resolvePlanCode(planCode);
+        LocalDate expiry    = expiresOn != null ? expiresOn : com.churchgeniuspro.util.AppClock.today().plusYears(1);
+        if (SubscriptionService.isExpired(expiry, com.churchgeniuspro.util.AppClock.today())) {
+            throw new IllegalArgumentException(
+                    "Expiration date must be in the future — " + expiry + " would create a "
+                  + "tenant that nobody can log into.");
+        }
+        String clientId = spec.clientId();
+        String churchName = spec.churchName();
         Random rng = new Random(clientId.hashCode()); // deterministic-per-tenant
 
         // Idempotent housekeeping: convert any legacy null signup.church values
@@ -213,20 +406,20 @@ public class TestDataService {
 
         // 1. ChurchRegistration (the org header). Captured because its id
         //    becomes signup.church_id for the Church-level login row.
-        ChurchRegistration church = seedChurchRegistration(clientId, churchName);
+        ChurchRegistration church = seedChurchRegistration(clientId, spec);
         counts.put("church", 1);
 
         // 1b. service_client — REQUIRED for login. countValidChurchLogin /
         //     countValidNonChurchLogin both INNER JOIN this table, so without
         //     a matching active row every demo account would get a 403 at
         //     /login. status=Active, delete_flag=false, end_date > today.
-        seedServiceClient(clientId, churchName);
+        ServiceClient demoSubscription = seedServiceClient(clientId, spec, resolvedPlan, expiry);
 
         // 2. Staff accounts — every role gets its own member profile linked via
         //    link_group so role-switching and Member Portal work out of the box.
         //    The returned list is mutable; portal/child logins appended below.
         List<Map<String, Object>> credentials = new ArrayList<>();
-        seedAllStaffLinked(clientId, church.getId(), credentials, rng);
+        seedAllStaffLinked(clientId, church.getId(), credentials, rng, spec.staffRoles());
 
         // 3. Accounting taxonomy: MainSource → SubSource → TransactionType
         List<SubSource> funds = seedAccountingTaxonomy(clientId);
@@ -241,7 +434,8 @@ public class TestDataService {
 
         // 4b. Member-portal sign-ups (church=false, client_id=MBR<token>) for
         //     two existing adult members so they can log into /memberHome.
-        int portalLogins = seedMemberPortalLogins(clientId, members, credentials, 2);
+        int portalLogins = spec.hasPortalLogins()
+                ? seedMemberPortalLogins(clientId, members, credentials, spec.portalLogins()) : 0;
         counts.put("memberPortalLogins", portalLogins);
 
         // 5. Income / Contributions (~30 spread over current calendar year)
@@ -266,8 +460,10 @@ public class TestDataService {
         int expenseCount = seedExpenses(clientId, purposes, funds, txnTypes, rng);
         counts.put("expenses", expenseCount);
 
-        // 10. Meetings (2)
-        int meetingCount = seedMeetings(clientId, 2, rng);
+        // 10. Meetings — a weekly/monthly schedule plus one-time meetings, all in the
+        //     future relative to the creation date.
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        int meetingCount = seedMeetings(clientId, today);
         counts.put("meetings", meetingCount);
 
         // 11. Kids Ministry — 4 children. Returns the created KmChild ids +
@@ -277,7 +473,8 @@ public class TestDataService {
 
         // 11b. Child-portal sign-ups (church=false, client_id=MBR<token>) for
         //      two children so they can log into the Kids Portal.
-        int childLogins = seedChildPortalLogins(clientId, childMembers, credentials, 2);
+        int childLogins = spec.hasPortalLogins()
+                ? seedChildPortalLogins(clientId, childMembers, credentials, spec.portalLogins()) : 0;
         counts.put("childPortalLogins", childLogins);
 
         // 12. Sunday school — class + teacher + students (children) + exam +
@@ -288,21 +485,28 @@ public class TestDataService {
         counts.put("ssExams",       schoolStats[2]);
         counts.put("ssSubmissions", schoolStats[3]);
 
-        // 13. Pledge campaigns (1) + member pledges (5 across that campaign)
-        int[] pledges = seedPledges(clientId, members, funds, 1, 5, rng);
+        // 13. Pledge campaigns (2) + member pledges (5 per campaign), with a few
+        //     payments so progress shows.
+        int[] pledges = seedPledges(clientId, members, funds, txnTypes, 2, 5, rng, today);
         counts.put("pledgeCampaigns", pledges[0]);
         counts.put("pledges",         pledges[1]);
+        counts.put("pledgePayments",  pledges[2]);
+
+        // 14. Donations, Membership Requests, Attendance, Connect With Us, Prayer
+        //     Requests, Unsubscribed List — see TrialDemoDataSeeder.
+        if (demoExtras != null) counts.putAll(demoExtras.seed(clientId, members, today));
 
         // users count reflects EVERY login row created (staff + portal + child).
         counts.put("users", credentials.size());
 
-        log.info("TestDataService: created demo tenant {} with counts {}", clientId, counts);
+        log.info("TestDataService: created tenant {} with counts {}", clientId, counts);
 
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("clientId",    clientId);
-        out.put("churchName",  churchName);
-        out.put("counts",      counts);
-        out.put("credentials", credentials);
+        out.put("clientId",     clientId);
+        out.put("churchName",   churchName);
+        out.put("counts",       counts);
+        out.put("credentials",  credentials);
+        out.put("subscription", describeSubscription(demoSubscription));
         return out;
     }
 
@@ -357,6 +561,97 @@ public class TestDataService {
      * Hibernate cascading surprises.
      */
     @Transactional
+    // ── One-off: demo data for trial accounts created before it existed ────
+
+    /**
+     * Existing trial tenants ({@code TRIAL-}, not deleted), newest first, with the
+     * church name. Read-only.
+     */
+    public List<Map<String, Object>> listTrialTenants() {
+        return jdbc.queryForList(
+                "SELECT client_id AS \"clientId\", church_name AS \"churchName\", end_date AS \"endDate\", status " +
+                "FROM service_client WHERE client_id LIKE ? AND COALESCE(delete_flag, false) = false " +
+                "ORDER BY client_id DESC", TRIAL_CLIENT_PREFIX + "%");
+    }
+
+    /**
+     * Dry run: for each existing trial tenant, which areas a backfill WOULD fill.
+     * An area is filled only when the tenant has no data of that kind; everything
+     * else is left exactly as it is. Writes nothing.
+     */
+    public List<Map<String, Object>> previewTrialBackfill() {
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> t : listTrialTenants()) {
+            String clientId = String.valueOf(t.get("clientId"));
+            Map<String, Object> row = new LinkedHashMap<>(t);
+            Map<String, Boolean> areas = new LinkedHashMap<>();
+            areas.put("meetings", !hasUpcomingMeeting(clientId, today));
+            boolean canPledge = !demoAdults(clientId).isEmpty()
+                    && !subSourceRepo.findAllActiveByAppUser(clientId).isEmpty()
+                    && !transactionTypeRepo.findActiveByAppUser(clientId).isEmpty();
+            areas.put("pledges", canPledge && pledgeCampaignRepo.findByClientId(clientId).isEmpty());
+            if (demoExtras != null) areas.putAll(demoExtras.wouldFill(clientId, today));
+            row.put("wouldFill", areas);
+            row.put("demoMembers", demoMembers(clientId).size());
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * Fills the empty demo areas of ONE existing trial tenant, in its own transaction
+     * (a failure rolls back only this tenant). Never updates or deletes existing rows:
+     * every area is skipped when the tenant already has data of that kind, and demo
+     * attendance/donations/assignments reference only the demo members this service
+     * seeded when the trial was created (identified by their {@code @<tenant>.test}
+     * address), never people the church added itself.
+     */
+    @Transactional
+    public Map<String, Integer> backfillTrialDemoData(String clientId) {
+        if (!isTrialTenant(clientId)) {
+            throw new IllegalArgumentException("Only trial accounts (" + TRIAL_CLIENT_PREFIX + "…) can be filled: " + clientId);
+        }
+        if (serviceClientRepo.findByClientId(clientId).isEmpty()) {
+            throw new IllegalArgumentException("Trial account not found: " + clientId);
+        }
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        counts.put("meetings", seedMeetings(clientId, today));
+
+        List<FamilyMember> demo = demoMembers(clientId);
+        List<SubSource> funds = subSourceRepo.findAllActiveByAppUser(clientId);
+        List<TransactionType> txnTypes = transactionTypeRepo.findActiveByAppUser(clientId);
+        if (!demoAdults(clientId).isEmpty() && !funds.isEmpty() && !txnTypes.isEmpty()) {
+            int[] p = seedPledges(clientId, demo, funds, txnTypes, 2, 5, new Random(clientId.hashCode()), today);
+            counts.put("pledgeCampaigns", p[0]);
+            counts.put("pledges",         p[1]);
+            counts.put("pledgePayments",  p[2]);
+        } else {
+            counts.put("pledgeCampaigns", 0);
+        }
+        if (demoExtras != null) counts.putAll(demoExtras.seed(clientId, demo, today));
+        log.info("TestDataService: backfilled trial demo data for {} → {}", clientId, counts);
+        return counts;
+    }
+
+    /** The demo people seeded into this tenant at creation (their address is on its .test domain). */
+    List<FamilyMember> demoMembers(String clientId) {
+        String suffix = "@" + clientId.toLowerCase() + ".test";
+        List<FamilyMember> out = new ArrayList<>();
+        for (FamilyMember m : familyMemberRepo.findAllWithFamilyByAppUser(clientId)) {
+            if (m.getEmail() != null && m.getEmail().toLowerCase().endsWith(suffix)
+                    && !"Visitor".equalsIgnoreCase(m.getMemberType())) out.add(m);
+        }
+        return out;
+    }
+
+    private List<FamilyMember> demoAdults(String clientId) {
+        List<FamilyMember> out = new ArrayList<>();
+        for (FamilyMember m : demoMembers(clientId)) if (m.isIncludeContributions()) out.add(m);
+        return out;
+    }
+
     public Map<String, Object> clearDemoClient(String clientId) {
         return clearDemoClient(clientId, null);
     }
@@ -371,6 +666,28 @@ public class TestDataService {
             throw new IllegalArgumentException(
                 "Refusing to clear non-demo clientId: " + clientId);
         }
+        return clearManagedTenant(clientId, performedBy);
+    }
+
+    /**
+     * The same cascade for a tenant this deployment provisioned — demo OR trial.
+     *
+     * <p>{@link #clearDemoClient} keeps its {@code DEMO-} guard, because demo
+     * housekeeping must never be able to wipe a real prospect by accident. Trial
+     * deletion is a separate, deliberate act with its own confirmation, and it
+     * calls this directly.
+     *
+     * <p>Every statement is scoped by this one {@code clientId} — either directly,
+     * or through a sub-select that is itself scoped by it. There is no unqualified
+     * DELETE anywhere in the sequence, which is what keeps one tenant's deletion
+     * from touching another's rows.
+     */
+    @Transactional
+    public Map<String, Object> clearManagedTenant(String clientId, String performedBy) {
+        if (!isManagedTenant(clientId)) {
+            throw new IllegalArgumentException(
+                "Refusing to clear a tenant that is neither demo nor trial: " + clientId);
+        }
         // Resolve the tenant name BEFORE deletion so it can be recorded in the audit log.
         String churchName = null;
         try {
@@ -380,87 +697,14 @@ public class TestDataService {
         } catch (org.springframework.dao.EmptyResultDataAccessException ignore) {
             // No church_registration row (already partially cleared) — leave name null.
         }
-        Map<String, Integer> deleted = new LinkedHashMap<>();
-
-        // Children that reference parents in this tenant — delete first.
-        // event_registration has no client column, so scope by event_id.
-        deleted.put("event_registration",
-            jdbc.update("DELETE FROM event_registration WHERE event_id IN " +
-                        "(SELECT id FROM church_event WHERE app_client_id=?)", clientId));
-        deleted.put("church_event_day",
-            jdbc.update("DELETE FROM church_event_day WHERE event_id IN " +
-                        "(SELECT id FROM church_event WHERE app_client_id=?)", clientId));
-        deleted.put("group_member",
-            jdbc.update("DELETE FROM group_member WHERE app_client_id=?", clientId));
-        deleted.put("km_checkin",
-            jdbc.update("DELETE FROM km_checkin WHERE client_id=?", clientId));
-        deleted.put("km_child",
-            jdbc.update("DELETE FROM km_child WHERE client_id=?", clientId));
-        deleted.put("pledge_member",
-            jdbc.update("DELETE FROM pledge_member WHERE client_id=?", clientId));
-        deleted.put("pledge_campaign",
-            jdbc.update("DELETE FROM pledge_campaign WHERE client_id=?", clientId));
-        // Sunday school (child + exam data). Delete grandchildren first.
-        deleted.put("ss_submission",
-            jdbc.update("DELETE FROM ss_submission WHERE client_id=?", clientId));
-        deleted.put("ss_question",
-            jdbc.update("DELETE FROM ss_question WHERE client_id=?", clientId));
-        deleted.put("ss_exam",
-            jdbc.update("DELETE FROM ss_exam WHERE client_id=?", clientId));
-        deleted.put("ss_student",
-            jdbc.update("DELETE FROM ss_student WHERE client_id=?", clientId));
-        deleted.put("ss_teacher",
-            jdbc.update("DELETE FROM ss_teacher WHERE client_id=?", clientId));
-        deleted.put("ss_class",
-            jdbc.update("DELETE FROM ss_class WHERE client_id=?", clientId));
-        deleted.put("member_message",
-            jdbc.update("DELETE FROM member_message WHERE app_client_id=?", clientId));
-        deleted.put("expense",
-            jdbc.update("DELETE FROM expense WHERE app_client_id=?", clientId));
-        deleted.put("purpose",
-            jdbc.update("DELETE FROM purpose WHERE app_client_id=?", clientId));
-        deleted.put("income",
-            jdbc.update("DELETE FROM income WHERE app_client_id=?", clientId));
-        deleted.put("meeting",
-            jdbc.update("DELETE FROM meeting WHERE app_client_id=?", clientId));
-        deleted.put("meeting_type",
-            jdbc.update("DELETE FROM meeting_type WHERE app_client_id=?", clientId));
-        deleted.put("church_event",
-            jdbc.update("DELETE FROM church_event WHERE app_client_id=?", clientId));
-        deleted.put("app_group",
-            jdbc.update("DELETE FROM app_group WHERE app_client_id=?", clientId));
-        deleted.put("transaction_type",
-            jdbc.update("DELETE FROM transaction_type WHERE app_client_id=?", clientId));
-        deleted.put("sub_source",
-            jdbc.update("DELETE FROM sub_source WHERE app_client_id=?", clientId));
-        deleted.put("main_source",
-            jdbc.update("DELETE FROM main_source WHERE app_client_id=?", clientId));
-        // signup rows for this tenant are keyed three different ways:
-        //   • church login        → client_id = DEMO clientId
-        //   • staff logins        → client_id = app_user.user_id
-        //   • member/child portal → client_id = family_member.member_ref
-        // Delete all three BEFORE removing app_user / family_member so the
-        // sub-selects can still resolve the token columns.
-        int sigByClient = jdbc.update("DELETE FROM signup WHERE client_id=?", clientId);
-        int sigByUser = jdbc.update(
-            "DELETE FROM signup WHERE client_id IN " +
-            "(SELECT user_id FROM app_user WHERE client_id=?)", clientId);
-        int sigByMember = jdbc.update(
-            "DELETE FROM signup WHERE client_id IN " +
-            "(SELECT member_ref FROM family_member WHERE app_client_id=? AND member_ref IS NOT NULL)",
-            clientId);
-        deleted.put("signup", sigByClient + sigByUser + sigByMember);
-
-        deleted.put("family_member",
-            jdbc.update("DELETE FROM family_member WHERE app_client_id=?", clientId));
-        deleted.put("family",
-            jdbc.update("DELETE FROM family WHERE app_client_id=?", clientId));
-        deleted.put("app_user",
-            jdbc.update("DELETE FROM app_user WHERE client_id=?", clientId));
-        deleted.put("church_registration",
-            jdbc.update("DELETE FROM church_registration WHERE client_id=?", clientId));
-        deleted.put("service_client",
-            jdbc.update("DELETE FROM service_client WHERE client_id=?", clientId));
+        // M7 — delete every tenant-owned table for this client, children before
+        // parents, each statement strictly scoped to this clientId. The ordered,
+        // fully-scoped plan is derived from the live catalog (see TenantPurgePlanner)
+        // rather than a hand-maintained list, so it covers all tenant tables (164 at
+        // the September audit) and stays correct as the schema evolves. The old
+        // 31-table sequence lived here; every table it deleted is still deleted, in
+        // an order that also satisfies the W3 RESTRICT foreign keys.
+        Map<String, Integer> deleted = tenantPurgePlanner.purge(jdbc, clientId);
 
         int total = deleted.values().stream().mapToInt(Integer::intValue).sum();
 
@@ -582,7 +826,332 @@ public class TestDataService {
             row.put("church",   rs.getObject("church_flag") != null && rs.getBoolean("church_flag"));
             creds.add(row);
         });
+
+        // Each demo tenant's own plan and expiry, read from its own service_client row.
+        // Done as one lookup per tenant after the credential query rather than joined into
+        // it, because that query is a three-way UNION and adding the join to each branch
+        // would obscure what it is actually for.
+        for (Map.Entry<String, Map<String, Object>> entry : byTenant.entrySet()) {
+            ServiceClient sc = serviceClientRepo.findByClientId(entry.getKey()).orElse(null);
+            entry.getValue().put("subscription",
+                    sc != null ? describeSubscription(sc) : Map.of("status", "Unknown"));
+        }
         return new ArrayList<>(byTenant.values());
+    }
+
+    /* ── Adding a role to an existing demo tenant ────────────────────────── */
+
+    private static final String[][] EXTRA_NAMES = {
+        { "Grace",  "Bennett" }, { "Paul",   "Rivera"  }, { "Hannah", "Osei"    },
+        { "Daniel", "Kim"     }, { "Miriam", "Lopez"   }, { "Caleb",  "Owens"   },
+        { "Naomi",  "Fischer" }, { "Isaac",  "Mensah"  }, { "Rachel", "Dunn"    },
+    };
+
+    /* ── Demo role names ────────────────────────────────────────────────────
+       The roles a Service Admin can add to a demo tenant. Church and the two
+       portal roles are NOT app_user roles — they are separate login shapes — so
+       they are named as constants and dispatched on, rather than being written
+       into app_user.role where they would be meaningless. */
+    public static final String ROLE_CHURCH         = "Church";
+    public static final String ROLE_MEMBER_PORTAL  = "Member Portal";
+    public static final String ROLE_CHILD_PORTAL   = "Child Portal";
+
+    /** Roles offered on the Service Admin screen, in display order. */
+    public static final List<String> DEMO_ROLES = List.of(
+            ROLE_CHURCH, "SuperAdmin", "Admin", "Accountant", "User",
+            ROLE_MEMBER_PORTAL, ROLE_CHILD_PORTAL);
+
+    /**
+     * Maps a caller-supplied role to its canonical spelling.
+     *
+     * <p>Case- and spacing-insensitive so a direct API call with {@code superadmin}
+     * or {@code member portal} lands on the same branch as the dropdown does.
+     * Anything unrecognised is passed through unchanged, which keeps older
+     * free-text roles such as {@code Staff} working exactly as before.
+     */
+    public static String canonicalDemoRole(String roleName) {
+        if (roleName == null || roleName.isBlank()) return "User";
+        String want = roleName.trim().replaceAll("\\s+", " ");
+        for (String known : DEMO_ROLES) {
+            if (known.equalsIgnoreCase(want)) return known;
+            // tolerate "superadmin"/"memberportal" written without the separator
+            if (known.replace(" ", "").equalsIgnoreCase(want.replace(" ", ""))) return known;
+        }
+        return want;
+    }
+
+    /**
+     * Adds a second Church-level login to a demo tenant.
+     *
+     * <p>A Church login has no {@code app_user} and no member profile: it is keyed
+     * directly by the tenant's Client ID with {@code church = true}, exactly as
+     * {@code seedAllStaffLinked} creates it at load time.
+     *
+     * <p>Only one is allowed per tenant. {@code LoginRepository.findByClientId}
+     * returns an {@code Optional}, so a second row sharing the tenant's Client ID
+     * would make the church-registration endpoints throw instead of answering —
+     * refusing here is what keeps that contract true.
+     */
+    private Map<String, Object> addChurchLogin(ChurchRegistration reg, String clientId, String pretty) {
+        for (SignUp existing : loginRepo.findAllByClientId(clientId)) {
+            if (Boolean.TRUE.equals(existing.getChurch())
+                    && !Boolean.TRUE.equals(existing.getDeleted())) {
+                throw new IllegalArgumentException(
+                        "This demo tenant already has a Church login (" + existing.getUsername()
+                      + "). A tenant can only have one. Use Reset on its row to reissue the "
+                      + "username and password.");
+            }
+        }
+
+        String username = null;
+        for (int attempt = 0; attempt < 40 && username == null; attempt++) {
+            String candidate = attempt == 0 ? "church_" + pretty
+                                            : "church" + (attempt + 1) + "_" + pretty;
+            if (loginRepo.findActiveByUsername(candidate).isEmpty()) username = candidate;
+        }
+        if (username == null) throw new IllegalStateException("Could not generate a free username");
+
+        String password = randomPassword();
+        SignUp su = new SignUp();
+        su.setClientId(clientId);            // church logins key on the tenant itself
+        su.setUsername(username);
+        su.setPassword(PasswordUtil.encode(password));
+        su.setDemoPassword(password);
+        su.setActive(true);
+        su.setDeleted(false);
+        su.setLocked(false);
+        su.setChurch(true);
+        su.setChurchId(reg.getId());
+        su.setCreated(new Date());
+        SignUp saved = loginRepo.save(su);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username",   username);
+        out.put("password",   password);
+        out.put("role",       ROLE_CHURCH);
+        out.put("memberName", "Church Administrator");
+        out.put("clientId",   clientId);
+        out.put("churchName", reg.getChurchName());
+        out.put("signupId",   saved.getId());
+        return out;
+    }
+
+    /**
+     * Adds a Member-portal or Child-portal login to a demo tenant.
+     *
+     * <p>Portal logins have no {@code app_user} either: the signup is keyed by
+     * {@code family_member.member_ref}, so the member profile must exist first and
+     * be saved before the ref is generated. The Demo Role Access list derives the
+     * label from {@code family_member.role}, which is why a child gets role
+     * {@code "Child"} and an adult {@code "Head"} — set them wrong and the row
+     * shows up under the other portal type.
+     *
+     * <p>A child is given a parent in the same family so the household is not a
+     * lone minor, matching what the loader produces.
+     */
+    private Map<String, Object> addPortalLogin(ChurchRegistration reg, String clientId, boolean child) {
+        Random rng = new Random();
+        String[] n = EXTRA_NAMES[rng.nextInt(EXTRA_NAMES.length)];
+
+        Family fam = new Family();
+        fam.setAppClientId(clientId);
+        fam.setInactive(false);
+        fam.setDeleteFlag(false);
+        familyRepo.save(fam);
+
+        FamilyMember draft = newMember(clientId, fam, "Head", n[0], n[1], "Member",
+                rng.nextBoolean() ? "Male" : "Female", 32 + rng.nextInt(20));
+        draft.setIncludeContributions(true);
+        // The member_ref this login is keyed by is assigned during persist, so read
+        // it off what save() returns rather than off the instance handed to it.
+        FamilyMember login = familyMemberRepo.save(draft);
+
+        if (child) {
+            String[] kids = { "Lily", "Owen", "Ava", "Ethan", "Mia", "Liam" };
+            FamilyMember kidDraft = newMember(clientId, fam, "Child",
+                    kids[rng.nextInt(kids.length)], n[1], "Member",
+                    rng.nextBoolean() ? "Male" : "Female", 6 + rng.nextInt(8));
+            login = familyMemberRepo.save(kidDraft);   // the child holds the login
+        }
+        if (login.getMemberRef() == null) {
+            throw new IllegalStateException("Member profile has no member_ref — cannot key a portal login");
+        }
+
+        String base = (child ? "child_" : "member_") + safeLower(login.getFirstName());
+        String username = null;
+        for (int attempt = 0; attempt < 40 && username == null; attempt++) {
+            String candidate = (base + "_" + Math.abs(login.getId())
+                             + (attempt == 0 ? "" : String.valueOf(attempt)))
+                             .replaceAll("[^a-z0-9_]", "");
+            if (loginRepo.findActiveByUsername(candidate).isEmpty()) username = candidate;
+        }
+        if (username == null) throw new IllegalStateException("Could not generate a free username");
+
+        String password = randomPassword();
+        SignUp su = new SignUp();
+        su.setClientId(login.getMemberRef());   // MBR<token> = the portal login key
+        su.setUsername(username);
+        su.setPassword(PasswordUtil.encode(password));
+        su.setDemoPassword(password);
+        su.setActive(true);
+        su.setDeleted(false);
+        su.setLocked(false);
+        su.setChurch(false);
+        su.setCreated(new Date());
+        SignUp saved = loginRepo.save(su);
+
+        String memberName = ((login.getFirstName() == null ? "" : login.getFirstName()) + " "
+                          +  (login.getLastName()  == null ? "" : login.getLastName())).trim();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username",   username);
+        out.put("password",   password);
+        out.put("role",       child ? ROLE_CHILD_PORTAL : ROLE_MEMBER_PORTAL);
+        out.put("memberName", memberName);
+        out.put("memberId",   login.getId());
+        out.put("clientId",   clientId);
+        out.put("churchName", reg.getChurchName());
+        out.put("signupId",   saved.getId());
+        return out;
+    }
+
+    /**
+     * Adds ONE staff-style login to an existing demo tenant, without touching any
+     * of that tenant's data.
+     *
+     * <p>Mirrors the creation path {@code seedAllStaffLinked} uses for its staff
+     * accounts — family, member profile, {@code app_user}, then a {@code signup}
+     * keyed by {@code app_user.user_id} — so an added role is indistinguishable
+     * from one created at load time. The tenant's own Client ID is reused: the
+     * new role joins the existing tenant and shares its demo data.
+     *
+     * @param clientId the demo tenant to add to
+     * @param roleName app_user role, e.g. Admin / Accountant / User
+     * @return username, password, role, memberName, clientId, signupId
+     */
+    @Transactional
+    public Map<String, Object> addDemoRole(String clientId, String roleName) {
+        // Trial tenants are managed on the same screen, so they accept roles too.
+        if (!isManagedTenant(clientId)) {
+            throw new IllegalArgumentException("Not a demo or trial tenant: " + clientId);
+        }
+        ChurchRegistration reg = churchRegRepo.findByClientIdAndDeleteFlagFalse(clientId).orElseThrow(
+                () -> new IllegalArgumentException("No such tenant: " + clientId));
+
+        String pretty = prettySuffix(clientId);
+        String role   = canonicalDemoRole(roleName);
+
+        // Three login shapes exist per tenant and they are not interchangeable —
+        // signup.client_id means something different in each. Dispatch first so the
+        // staff path below stays exactly as it was.
+        if (ROLE_CHURCH.equals(role))        return addChurchLogin(reg, clientId, pretty);
+        if (ROLE_MEMBER_PORTAL.equals(role)) return addPortalLogin(reg, clientId, false);
+        if (ROLE_CHILD_PORTAL.equals(role))  return addPortalLogin(reg, clientId, true);
+
+        // A name and username that do not collide with what the tenant already has
+        Random rng = new Random();
+        String first = null, last = null, username = null;
+        for (int attempt = 0; attempt < 40 && username == null; attempt++) {
+            String[] n = EXTRA_NAMES[rng.nextInt(EXTRA_NAMES.length)];
+            String candidate = (n[0] + "." + n[1]).toLowerCase() + "_" + pretty;
+            if (attempt > 8) candidate = candidate + (1 + rng.nextInt(99));   // widen the net
+            if (loginRepo.findActiveByUsername(candidate).isEmpty()) {
+                first = n[0]; last = n[1]; username = candidate;
+            }
+        }
+        if (username == null) throw new IllegalStateException("Could not generate a free username");
+
+        String password  = randomPassword();
+        String linkGroup = java.util.UUID.randomUUID().toString();
+
+        Family fam = new Family();
+        fam.setAppClientId(clientId);
+        fam.setInactive(false);
+        fam.setDeleteFlag(false);
+        familyRepo.save(fam);
+
+        FamilyMember fm = newMember(clientId, fam, "Head", first, last, "Member",
+                rng.nextBoolean() ? "Male" : "Female", 30 + rng.nextInt(25));
+        fm.setIncludeContributions(true);
+        familyMemberRepo.save(fm);
+
+        // Email must match the member's, or the staff→member lookup cannot find the household
+        String email = (first + "." + last).toLowerCase() + "@" + clientId.toLowerCase() + ".test";
+        AppUser u = new AppUser();
+        u.setClientId(clientId);
+        u.setFirstName(first);
+        u.setLastName(last);
+        u.setEmail(email);
+        u.setRole(role);
+        u.setEnabled(true);
+        u.setDeleteFlag(false);
+        u.setLinkGroup(linkGroup);
+        AppUser savedUser = appUserRepo.save(u);
+
+        SignUp su = new SignUp();
+        su.setClientId(savedUser.getUserId());      // non-church logins key on app_user.user_id
+        su.setUsername(username);
+        su.setPassword(PasswordUtil.encode(password));
+        su.setDemoPassword(password);
+        su.setActive(true);
+        su.setDeleted(false);
+        su.setLocked(false);
+        su.setChurch(false);
+        su.setLinkGroup(linkGroup);
+        su.setCreated(new Date());
+        SignUp savedSignup = loginRepo.save(su);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username",   username);
+        out.put("password",   password);
+        out.put("role",       role);
+        out.put("memberName", first + " " + last);
+        out.put("clientId",   clientId);
+        out.put("churchName", reg.getChurchName());
+        out.put("signupId",   savedSignup.getId());
+        return out;
+    }
+
+    /**
+     * Reissues one demo login: new username, new password, everything else kept.
+     *
+     * <p>Role, member name and Client ID are deliberately untouched, and no demo
+     * DATA is altered — demo data is tenant-scoped and shared between roles, so
+     * wiping it here would silently take the tenant's other roles with it.
+     *
+     * @return the new username and password, plus the signup id
+     */
+    @Transactional
+    public Map<String, Object> reissueDemoLogin(String username) {
+        SignUp su = loginRepo.findActiveByUsername(username).orElseThrow(
+                () -> new IllegalArgumentException("No active demo login named " + username));
+
+        String base = username.contains("_")
+                ? username.substring(0, username.lastIndexOf('_'))
+                : username;
+        String pretty = username.contains("_")
+                ? username.substring(username.lastIndexOf('_') + 1)
+                : "";
+        Random rng = new Random();
+        String newUsername = null;
+        for (int i = 0; i < 40 && newUsername == null; i++) {
+            String candidate = base + (pretty.isEmpty() ? "" : "_" + pretty) + (1 + rng.nextInt(999));
+            if (loginRepo.findActiveByUsername(candidate).isEmpty()) newUsername = candidate;
+        }
+        if (newUsername == null) throw new IllegalStateException("Could not generate a free username");
+
+        String newPwd = randomPassword();
+        su.setUsername(newUsername);
+        su.setPassword(PasswordUtil.encode(newPwd));
+        su.setDemoPassword(newPwd);
+        su.setLocked(false);
+        su.setActive(true);
+        loginRepo.save(su);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username", newUsername);
+        out.put("password", newPwd);
+        out.put("signupId", su.getId());
+        return out;
     }
 
     /**
@@ -600,7 +1169,7 @@ public class TestDataService {
      * <p>Strictly guarded: refuses to touch any login that does not belong to a
      * {@code DEMO-} tenant, so a real customer password can never be reset here.
      */
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public Map<String, Object> resetDemoPassword(String username) {
         if (username == null || username.isBlank())
             throw new IllegalArgumentException("Username is required.");
@@ -659,7 +1228,9 @@ public class TestDataService {
             out.put("signupFound", true);
             out.put("signupId",     row.get("id"));
             out.put("storedUsername", row.get("username"));
-            out.put("storedPassword", row.get("password"));
+            // Never return the credential itself — only whether it is a BCrypt hash or a legacy plaintext row.
+            String pw = String.valueOf(row.get("password"));
+            out.put("passwordStorage", pw.startsWith("$2") ? "bcrypt" : "legacy-plaintext");
             out.put("active",       row.get("active"));
             out.put("deleted",      row.get("deleted"));
             out.put("locked",       row.get("locked"));
@@ -705,14 +1276,15 @@ public class TestDataService {
 
     // ── Seeders ───────────────────────────────────────────────────────────
 
-    private ChurchRegistration seedChurchRegistration(String clientId, String churchName) {
+    private ChurchRegistration seedChurchRegistration(String clientId, TenantSpec spec) {
         ChurchRegistration cr = new ChurchRegistration();
         cr.setClientId(clientId);
-        cr.setFirstName("Demo");
-        cr.setLastName("Admin");
-        cr.setChurchName(churchName);
-        cr.setEmail("admin@" + clientId.toLowerCase() + ".test");
-        cr.setPhone("555-0100");
+        cr.setFirstName(spec.contact().firstName());
+        cr.setLastName(spec.contact().lastName());
+        cr.setChurchName(spec.churchName());
+        cr.setEmail(spec.contact().email());
+        cr.setPhone(spec.contact().phone());
+        cr.setNote(spec.contact().note());
         cr.setNonProfit(true);
         return churchRegRepo.save(cr);
     }
@@ -725,22 +1297,200 @@ public class TestDataService {
      * <p>Active for one year so demo credentials remain usable long enough
      * to be useful for testing.
      */
-    private ServiceClient seedServiceClient(String clientId, String churchName) {
+    /**
+     * Creates the {@code service_client} row for a demo tenant.
+     *
+     * <p>This row <em>is</em> the demo tenant's subscription — there is deliberately no
+     * separate mechanism for demo data. It carries the plan
+     * ({@code subscription_type} → {@code subscription_plan.plan_code}) and the expiry
+     * ({@code end_date}), which is exactly what {@code SubscriptionService} reads for
+     * feature limits and what {@code countValidChurchLogin} / {@code countValidNonChurchLogin}
+     * read to allow or refuse a login. A demo tenant therefore behaves under the same plan
+     * limits and the same expiry rules as a paying customer, because it is the same code path.
+     *
+     * <p>Plan and expiry were previously hardcoded to {@code FULL} and one year.
+     *
+     * @param planCode  a {@code subscription_plan.plan_code}, already validated
+     * @param expiresOn last day the tenant may sign in
+     */
+    private ServiceClient seedServiceClient(String clientId, TenantSpec spec,
+                                            String planCode, LocalDate expiresOn) {
+        LocalDate startDate = com.churchgeniuspro.util.AppClock.today();   // trial/demo dates are Chicago dates
         ServiceClient sc = new ServiceClient();
         sc.setClientId(clientId);
-        sc.setChurchName(churchName);
-        sc.setName("Demo Admin");
-        sc.setEmail("admin@" + clientId.toLowerCase() + ".test");
-        sc.setStartDate(LocalDate.now());
-        sc.setEndDate(LocalDate.now().plusYears(1));
-        sc.setActivePeriod(12);
-        sc.setActivePeriodUnit("MONTHS");
+        sc.setChurchName(spec.churchName());
+        sc.setName(spec.contact().fullName());
+        sc.setEmail(spec.contact().email());
+        sc.setPhone(spec.contact().phone());
+        sc.setAddressLine1(spec.contact().addressLine1());
+        sc.setAddressLine2(spec.contact().addressLine2());
+        sc.setCity(spec.contact().city());
+        sc.setState(spec.contact().state());
+        if (spec.contact().country() != null && !spec.contact().country().isBlank()) {
+            sc.setCountry(spec.contact().country());
+        }
+        sc.setPinCode(spec.contact().pinCode());
+        sc.setNote(spec.contact().note());
+        sc.setStartDate(startDate);
+        sc.setEndDate(expiresOn);
+        // Kept consistent with the dates so the record reads correctly in the admin UI.
+        sc.setActivePeriod((int) Math.max(1, ChronoUnit.DAYS.between(startDate, expiresOn)));
+        sc.setActivePeriodUnit("DAYS");
         sc.setStatus("Active");        // login validator checks for this exact value
         sc.setPaymentStatus("PAID");
-        sc.setSubscriptionType("FULL");
+        sc.setSubscriptionType(planCode);
         sc.setApproved(true);
         sc.setDeleteFlag(false);
-        return serviceClientRepo.save(sc);
+        if (lifecycle != null) lifecycle.applyPricing(sc, null, SubscriptionLifecycleService.MONTHLY, null, false, false);
+        ServiceClient savedSc = serviceClientRepo.save(sc);
+        if (lifecycle != null) lifecycle.recordAndRefresh(null, savedSc, null, "CREATED");
+        if (messagingPolicy != null) messagingPolicy.invalidate(savedSc.getClientId());
+        return savedSc;
+    }
+
+    // ── Demo subscription: plan + expiry ─────────────────────────────────────
+
+    /**
+     * Validates a requested plan code against the plans actually configured under
+     * Subscription Plans.
+     *
+     * <p>Nothing here knows the name of a single plan. The list comes from
+     * {@code subscription_plan}, so adding, renaming or deactivating a plan in the admin UI
+     * changes what demo data can be created with, immediately and without a code change.
+     *
+     * @param requested a plan code; blank selects the first active plan by sort order
+     * @return the canonical {@code plan_code} as stored in the database
+     * @throws IllegalArgumentException if the code matches no active plan — the message
+     *         lists what is available, so a bad request is self-diagnosing
+     */
+    public String resolvePlanCode(String requested) {
+        List<SubscriptionPlan> active = planRepo.findAllByOrderBySortOrderAscIdAsc()
+                .stream().filter(SubscriptionPlan::isActive).toList();
+
+        if (active.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No active subscription plans are configured. Add one under Subscription Plans first.");
+        }
+        if (requested == null || requested.isBlank()) {
+            String fallback = active.get(0).getPlanCode();
+            log.info("TestDataService: no plan requested, defaulting to first active plan '{}'", fallback);
+            return fallback;
+        }
+        String wanted = requested.trim();
+        for (SubscriptionPlan plan : active) {
+            if (plan.getPlanCode().equalsIgnoreCase(wanted)) {
+                return plan.getPlanCode();   // canonical casing from the database
+            }
+        }
+        throw new IllegalArgumentException("Unknown subscription plan '" + requested + "'. Available: "
+                + active.stream().map(SubscriptionPlan::getPlanCode).collect(Collectors.joining(", ")));
+    }
+
+    /**
+     * Views, edits or extends one demo tenant's subscription.
+     *
+     * <p>Updates the existing {@code service_client} row in place. There is one such row per
+     * demo tenant, keyed by {@code client_id}, so extending an expiry cannot create a
+     * duplicate subscription record — there is nowhere for a duplicate to go.
+     *
+     * <p>Extending past today also flips {@code status} back to {@code Active}, so a tenant
+     * that had expired can sign in again straight away rather than needing a second edit.
+     *
+     * <p>Guarded to demo tenants only: the {@code DEMO-} prefix check means this can never
+     * alter a paying customer's subscription, which matters because it is reachable from an
+     * admin screen whose other buttons are all demo-scoped.
+     *
+     * @param planCode  new plan, or {@code null}/blank to leave the plan unchanged
+     * @param expiresOn new expiry, or {@code null} to leave the expiry unchanged
+     */
+    @Transactional
+    public Map<String, Object> updateDemoSubscription(String clientId, String planCode, LocalDate expiresOn) {
+        // Widened to trial tenants: upgrading a trial off the Trial plan is the
+        // point of the trial. clearDemoClient is deliberately NOT widened — it
+        // deletes a tenant, and a trial tenant is a real prospect.
+        if (!isManagedTenant(clientId)) {
+            throw new IllegalArgumentException(
+                    "Refusing to change the subscription of '" + clientId
+                  + "' — not a demo or trial tenant.");
+        }
+        ServiceClient sc = serviceClientRepo.findByClientId(clientId)
+                .orElseThrow(() -> new IllegalArgumentException("No subscription found for " + clientId));
+
+        String previousPlan   = sc.getSubscriptionType();
+        LocalDate previousEnd = sc.getEndDate();
+        SubscriptionLifecycleService.Snapshot before = SubscriptionLifecycleService.snapshot(sc);
+
+        if (planCode != null && !planCode.isBlank()) {
+            String resolved = resolvePlanCode(planCode);
+            // Sample-data trials stay on TRIAL (extensions only); DEMO- tenants are unaffected.
+            SubscriptionLifecycleService.checkConversionAllowed(clientId, resolved);
+            sc.setSubscriptionType(resolved);
+            // The send-permission answer is cached per client; a plan change must drop it.
+            if (messagingPolicy != null) messagingPolicy.invalidate(clientId);
+        }
+        if (expiresOn != null) {
+            sc.setEndDate(expiresOn);
+            if (expiresOn.isAfter(com.churchgeniuspro.util.AppClock.today())) {
+                // Reactivate: an expired tenant should be usable again immediately.
+                sc.setStatus("Active");
+            }
+            // ...and carry the new date to the per-login windows, which are checked
+            // at sign-in independently of the subscription. Without this the tenant
+            // was extended and every one of its logins still refused.
+            if (demoAccess != null) {
+                try { demoAccess.extendWindows(clientId, expiresOn); }
+                catch (Exception e) {
+                    log.warn("Could not extend demo access windows for {} — {}", clientId, e.getMessage());
+                }
+            }
+            if (sc.getStartDate() != null) {
+                sc.setActivePeriod((int) Math.max(1, ChronoUnit.DAYS.between(sc.getStartDate(), expiresOn)));
+                sc.setActivePeriodUnit("DAYS");
+            }
+        }
+        // A new plan re-copies its list price unless this client has a negotiated price.
+        if (lifecycle != null) lifecycle.applyPricing(sc, before, null, null, null, false);
+        serviceClientRepo.save(sc);
+        if (lifecycle != null) lifecycle.recordAndRefresh(before, sc, null, "DEMO_SUBSCRIPTION");
+
+        // SubscriptionService caches the resolved plan for five minutes. Without this the
+        // admin would change the plan and see the old limits still applied.
+        subscriptionService.clearCache();
+
+        log.info("TestDataService: demo subscription updated for {} — plan {} -> {}, expiry {} -> {}",
+                clientId, previousPlan, sc.getSubscriptionType(), previousEnd, sc.getEndDate());
+
+        return describeSubscription(sc);
+    }
+
+    /**
+     * The subscription facts the admin screen shows for a demo tenant.
+     *
+     * <p>{@code status} is derived from the date rather than read from
+     * {@code service_client.status}, and matches the login queries exactly: those use
+     * {@code end_date > current_date}, so a tenant whose expiry is today can no longer sign
+     * in and is reported as Expired. Deriving it keeps the badge and the actual login
+     * behaviour from disagreeing.
+     */
+    Map<String, Object> describeSubscription(ServiceClient sc) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        LocalDate today = com.churchgeniuspro.util.AppClock.today();
+        LocalDate end   = sc.getEndDate();
+
+        boolean statusActive = "Active".equalsIgnoreCase(sc.getStatus());
+        boolean active       = statusActive && !SubscriptionService.isExpired(end, today);
+
+        String planCode = SubscriptionService.toPlanCode(sc.getSubscriptionType());
+        String planName = planCode == null ? null : planRepo.findByPlanCodeIgnoreCase(planCode)
+                .map(SubscriptionPlan::getPlanName).orElse(planCode);
+
+        m.put("planCode",      planCode);
+        m.put("planName",      planName);
+        m.put("startDate",     sc.getStartDate() != null ? sc.getStartDate().toString() : null);
+        m.put("expiresOn",     end != null ? end.toString() : null);
+        m.put("status",        active ? "Active" : "Expired");
+        m.put("daysRemaining", end != null ? ChronoUnit.DAYS.between(today, end) : null);
+        return m;
     }
 
     /**
@@ -766,11 +1516,17 @@ public class TestDataService {
      * re-running Load on the same DB never hits the unique constraint on
      * {@code signup.username}.
      */
+    /**
+     * @param staffRoles which of the four staff logins to create. The Church login
+     *        is always created — a tenant without one has no org account — but the
+     *        staff roles are selectable, so a trial tenant can be provisioned with
+     *        SuperAdmin alone.
+     */
     private void seedAllStaffLinked(String clientId, Integer churchRegId,
-                                    List<Map<String, Object>> creds, Random rng) {
-        String suffix = clientId.substring(DEMO_CLIENT_PREFIX.length());
-        // Last 6 chars keep usernames short while guaranteeing uniqueness
-        String pretty = suffix.length() > 6 ? suffix.substring(suffix.length() - 6) : suffix;
+                                    List<Map<String, Object>> creds, Random rng,
+                                    List<String> staffRoles) {
+        // Prefix-agnostic: DEMO- and TRIAL- tenants produce the same username shape.
+        String pretty = prettySuffix(clientId);
 
         // ── (A) Church-level login ──────────────────────────────────────────
         // signup.client_id = tenant clientId, church = true.
@@ -803,6 +1559,7 @@ public class TestDataService {
         };
 
         for (String[] s : specs) {
+            if (staffRoles != null && !staffRoles.contains(s[2])) continue;   // not wanted for this tenant
             String linkGroup = java.util.UUID.randomUUID().toString();
             String username  = s[3] + "_" + pretty;
             String password  = randomPassword();
@@ -1014,30 +1771,85 @@ public class TestDataService {
     // (seedMinistries was replaced by the richer seedGroups, which creates one
     //  group per type with members + a sample message.)
 
-    private int seedMeetings(String clientId, int count, Random rng) {
-        // Create one MeetingType then hang Meeting rows off it.
-        MeetingType mt = new MeetingType();
-        mt.setTypeName("Sunday Service");
-        mt.setAppClientId(clientId);
-        mt.setDeleteFlag(false);
-        MeetingType savedType = meetingTypeRepo.save(mt);
-
-        int created = 0;
-        LocalDate base = LocalDate.now();
-        for (int i = 0; i < count; i++) {
-            Meeting m = new Meeting();
-            m.setMeetingType(savedType);
-            m.setMeetingDate(base.plusDays(7L + (long) rng.nextInt(30)));
-            m.setStartTime("10:00");
-            m.setEndTime("11:30");
-            m.setOccurrence("One-time");
-            m.setNote("Demo meeting #" + (i + 1));
-            m.setAppClientId(clientId);
-            m.setDeleteFlag(false);
-            meetingRepo.save(m);
-            created++;
+    /**
+     * Future meetings counted from the creation date {@code today}: two weekly
+     * series (Sunday Service, Wednesday Bible Study) and a monthly Prayer Meeting
+     * that start after today, plus two one-time meetings in the coming weeks.
+     * Skipped when the tenant already has any upcoming meeting, so it never
+     * duplicates or crowds a schedule someone has set up. Categories that already
+     * exist (same name, any case) are reused rather than created a second time.
+     */
+    private int seedMeetings(String clientId, LocalDate today) {
+        if (hasUpcomingMeeting(clientId, today)) return 0;
+        java.util.Map<String, MeetingType> existing = new java.util.HashMap<>();
+        for (MeetingType t : meetingTypeRepo.findActiveByAppUser(clientId)) {
+            if (t.getTypeName() != null) existing.putIfAbsent(t.getTypeName().trim().toLowerCase(), t);
         }
-        return created;
+        java.util.Map<String, MeetingType> types = new java.util.LinkedHashMap<>();
+        for (String name : List.of("Sunday Service", "Bible Study", "Prayer Meeting", "Leadership Team", "Youth Night")) {
+            MeetingType mt = existing.get(name.toLowerCase());
+            if (mt == null) {
+                mt = new MeetingType();
+                mt.setTypeName(name);
+                mt.setAppClientId(clientId);
+                mt.setDeleteFlag(false);
+                mt = meetingTypeRepo.save(mt);
+            }
+            types.put(name, mt);
+        }
+        LocalDate nextSunday = today.with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SUNDAY));
+        LocalDate nextWed    = today.with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.WEDNESDAY));
+        LocalDate youthFri   = today.plusDays(3).with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.FRIDAY));
+
+        List<Meeting> list = new ArrayList<>();
+        list.add(meeting(clientId, types.get("Sunday Service"), nextSunday, "10:00", "11:30", "Weekly", "0",
+                "Weekly worship service with communion on the first Sunday of the month."));
+        list.add(meeting(clientId, types.get("Bible Study"), nextWed, "19:00", "20:30", "Weekly", "3",
+                "Midweek Bible study in the fellowship hall — currently reading the Gospel of John."));
+        Meeting prayer = meeting(clientId, types.get("Prayer Meeting"), today.plusDays(1), "08:00", "09:00", "Monthly", null,
+                "Monthly prayer breakfast on the first Saturday.");
+        prayer.setMonthWeekOrdinal(1);   // first …
+        prayer.setMonthWeekDay(6);       // … Saturday (0=Sun…6=Sat)
+        list.add(prayer);
+        list.add(meeting(clientId, types.get("Leadership Team"), today.plusDays(10), "18:30", "20:00", "One-time", null,
+                "Quarterly planning: budget review and fall outreach calendar."));
+        list.add(meeting(clientId, types.get("Youth Night"), youthFri, "18:00", "20:00", "One-time", null,
+                "Games, worship and pizza for grades 6–12."));
+        list.forEach(meetingRepo::save);
+        return list.size();
+    }
+
+    /**
+     * True when the tenant has a meeting still to come: a one-time meeting dated today
+     * or later, or a recurring series with no end date or one not yet passed.
+     */
+    boolean hasUpcomingMeeting(String clientId, LocalDate today) {
+        for (Meeting m : meetingRepo.findAllActiveByAppUserOrderByDateAsc(clientId)) {
+            String occ = m.getOccurrence() == null ? "" : m.getOccurrence().trim();
+            boolean recurring = occ.equalsIgnoreCase("Daily") || occ.equalsIgnoreCase("Weekly")
+                             || occ.equalsIgnoreCase("Monthly");
+            if (recurring ? (m.getEndDate() == null || !m.getEndDate().isBefore(today))
+                          : (m.getMeetingDate() != null && !m.getMeetingDate().isBefore(today))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Meeting meeting(String clientId, MeetingType type, LocalDate date, String start, String end,
+                                   String occurrence, String weekDays, String note) {
+        Meeting m = new Meeting();
+        m.setMeetingType(type);
+        m.setMeetingDate(date);          // the date for a one-time meeting; the series start otherwise
+        m.setStartTime(start);
+        m.setEndTime(end);
+        m.setOccurrence(occurrence);
+        m.setWeekDays(weekDays);
+        m.setCountry("USA");
+        m.setNote(note);
+        m.setAppClientId(clientId);
+        m.setDeleteFlag(false);
+        return m;
     }
 
     /**
@@ -1096,46 +1908,89 @@ public class TestDataService {
         return childMembers;
     }
 
+    /**
+     * Pledge campaigns with member pledges and a couple of payments each.
+     *
+     * <p>A campaign's progress is computed from income given to its fund between the
+     * campaign's creation and its end date (PledgeController.collectedForPledge), so a
+     * campaign created "now" with no gifts would show $0 collected. Each demo campaign
+     * is therefore dated as having started a few weeks before {@code today}, and each
+     * pledger has made one or two monthly payments inside that window.
+     *
+     * @return {campaigns, pledges, payments}
+     */
     private int[] seedPledges(String clientId, List<FamilyMember> members,
-                              List<SubSource> funds, int campaignCount, int pledgesPerCampaign,
-                              Random rng) {
-        int campaigns = 0, pledges = 0;
-        for (int i = 0; i < campaignCount; i++) {
+                              List<SubSource> funds, List<TransactionType> txnTypes,
+                              int campaignCount, int pledgesPerCampaign,
+                              Random rng, LocalDate today) {
+        if (!pledgeCampaignRepo.findByClientId(clientId).isEmpty()) {
+            return new int[] { 0, 0, 0 };
+        }
+        String[][] campaigns = {
+                { "Building Fund " + today.getYear(), "Roof replacement and sanctuary renovation.", "25000", "75", "6" },
+                { "Missions Trip " + (today.getYear() + 1), "Sending a team to support a partner church's community clinic.", "8000", "40", "4" },
+        };
+        List<FamilyMember> pledgers = new ArrayList<>();
+        for (FamilyMember m : members) if (m.isIncludeContributions()) pledgers.add(m);
+
+        int created = 0, pledges = 0, payments = 0;
+        for (int i = 0; i < Math.min(campaignCount, campaigns.length); i++) {
+            String[] def = campaigns[i];
             SubSource fund = funds.get(i % funds.size());
+            LocalDate started = today.minusDays(Long.parseLong(def[3]));
             PledgeCampaign c = new PledgeCampaign();
             c.setClientId(clientId);
-            c.setName("Building Fund " + LocalDate.now().getYear());
+            c.setName(def[0]);
             c.setSubSourceId(fund.getId());
-            c.setDescription("Auto-allocates contributions made to " + fund.getSourceName());
-            c.setTargetAmount(BigDecimal.valueOf(25000));
-            c.setEndDate(LocalDate.now().plusMonths(6));
+            c.setDescription(def[1] + " Auto-allocates contributions made to " + fund.getSourceName() + ".");
+            c.setTargetAmount(new BigDecimal(def[2]));
+            c.setEndDate(today.plusMonths(Long.parseLong(def[4])));
             c.setStatus("Active");
+            c.setCreatedDate(started.atTime(9, 0));       // see method note: the progress window starts here
             c.setDeleteFlag(false);
             pledgeCampaignRepo.save(c);
-            campaigns++;
+            created++;
 
-            // Take up to N adult members as pledgers.
-            int issued = 0;
-            for (FamilyMember m : members) {
-                if (issued >= pledgesPerCampaign) break;
-                if (!m.isIncludeContributions()) continue;
+            // Pledgers: a different slice of the adults for each campaign.
+            for (int k = 0; k < Math.min(pledgesPerCampaign, pledgers.size()); k++) {
+                FamilyMember m = pledgers.get((k + i * 2) % pledgers.size());
                 PledgeMember p = new PledgeMember();
                 p.setClientId(clientId);
                 p.setCampaignId(c.getId());
                 p.setFamilyMemberId(m.getId());
                 if (m.getFamily() != null) p.setFamilyId(m.getFamily().getId());
-                BigDecimal pledged = BigDecimal.valueOf(500 + rng.nextInt(2001)); // $500–$2,500
+                int base = i == 0 ? 500 + rng.nextInt(2001) : 150 + rng.nextInt(451);   // $500–$2,500 / $150–$600
+                BigDecimal pledged = BigDecimal.valueOf(base);
+                BigDecimal monthly = pledged.divide(BigDecimal.valueOf(12), 2, java.math.RoundingMode.HALF_UP);
                 p.setPledgeAmount(pledged);
-                p.setMonthlyAmount(pledged.divide(BigDecimal.valueOf(12), 2,
-                        java.math.RoundingMode.HALF_UP));
-                p.setAmountCollected(BigDecimal.ZERO);
+                p.setMonthlyAmount(monthly);
+                p.setAmountCollected(BigDecimal.ZERO);           // computed from income for member pledges
                 p.setDeleteFlag(false);
                 pledgeMemberRepo.save(p);
                 pledges++;
-                issued++;
+
+                // One or two payments since the campaign started (never on/after today).
+                int paid = k % 3 == 2 ? 0 : 1 + (k % 2);
+                for (int n = 0; n < paid; n++) {
+                    LocalDate when = started.plusDays(7L + n * 30L + k);
+                    if (!when.isBefore(today)) break;
+                    Income inc = new Income();
+                    inc.setMember(m);
+                    inc.setSubSource(fund);
+                    inc.setTransactionType(txnTypes.get((k + n) % txnTypes.size()));
+                    inc.setIncomeDate(when);
+                    inc.setAmount(monthly);
+                    inc.setNote("Pledge payment — " + def[0]);
+                    inc.setAppClientId(clientId);
+                    inc.setDeleteFlag(false);
+                    inc.setQuickAdd(false);
+                    inc.setCreatedBy("system");
+                    incomeRepo.save(inc);
+                    payments++;
+                }
             }
         }
-        return new int[] { campaigns, pledges };
+        return new int[] { created, pledges, payments };
     }
 
     // ── Small entity builders ─────────────────────────────────────────────
@@ -1225,7 +2080,7 @@ public class TestDataService {
             su.setCreated(new Date());
             loginRepo.save(su);
 
-            Map<String, Object> row = credRow("Member (portal)", username, password, false,
+            Map<String, Object> row = credRow(ROLE_MEMBER_PORTAL, username, password, false,
                     m.getMemberRef());
             row.put("memberId", m.getId());
             row.put("memberName", ((m.getFirstName() != null ? m.getFirstName() : "") + " "
@@ -1264,7 +2119,7 @@ public class TestDataService {
             su.setCreated(new Date());
             loginRepo.save(su);
 
-            Map<String, Object> row = credRow("Child (portal)", username, password, false,
+            Map<String, Object> row = credRow(ROLE_CHILD_PORTAL, username, password, false,
                     c.getMemberRef());
             row.put("memberId", c.getId());
             row.put("memberName", ((c.getFirstName() != null ? c.getFirstName() : "") + " "

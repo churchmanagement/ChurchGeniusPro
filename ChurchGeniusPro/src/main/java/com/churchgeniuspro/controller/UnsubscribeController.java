@@ -51,9 +51,14 @@ public class UnsubscribeController {
         String clientId  = str(body.get("clientId"));
         String firstName = str(body.get("firstName"));
         String lastName  = str(body.get("lastName"));
+        String sig       = str(body.get("sig"));
         if (email == null || clientId == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Email and organization ID are required."));
+        }
+        // Only the link we mailed can unsubscribe this address from this church.
+        if (!com.churchgeniuspro.util.EncryptionUtil.verify(email.trim().toLowerCase() + "|" + clientId, sig)) {
+            return ResponseEntity.status(403).body(Map.of("error", "This unsubscribe link is not valid."));
         }
         boolean saved = unsubscribeService.unsubscribe(email, clientId, firstName, lastName);
         String msg = saved
@@ -77,7 +82,7 @@ public class UnsubscribeController {
         }
         String deny = RoleGuard.requireAdmin(request);
         if (deny != null) return deny;
-        deny = RoleGuard.requirePermission(request, "admin.unsubscribed");
+        deny = RoleGuard.requirePagePermission(request, "admin.unsubscribed");
         if (deny != null) return deny;
         return "forward:/unsubscribedList.html";
     }
@@ -111,8 +116,11 @@ public class UnsubscribeController {
             String deny = RoleGuard.requireAdmin(request);
             if (deny != null) return ResponseEntity.status(403).build();
         }
+        // Same tenant resolution as the list endpoint above.
+        String clientId = _isMbr ? RoleGuard.clientId(request) : SessionUtil.getAppClientId(request);
+        if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         try {
-            unsubscribeService.resubscribe(id);
+            unsubscribeService.resubscribe(id, clientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));

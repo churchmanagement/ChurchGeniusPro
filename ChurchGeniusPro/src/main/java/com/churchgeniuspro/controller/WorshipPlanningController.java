@@ -64,6 +64,8 @@ public class WorshipPlanningController {
     @PostMapping("/groups")
     public ResponseEntity<?> createGroup(@RequestBody Map<String, Object> body,
                                          HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         String name = str(body.get("groupName"));
@@ -80,6 +82,8 @@ public class WorshipPlanningController {
     public ResponseEntity<?> updateGroup(@PathVariable Long id,
                                          @RequestBody Map<String, Object> body,
                                          HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Optional<WorshipGroup> opt = groupRepo.findById(id);
@@ -96,6 +100,8 @@ public class WorshipPlanningController {
 
     @DeleteMapping("/groups/{id}")
     public ResponseEntity<?> deleteGroup(@PathVariable Long id, HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Optional<WorshipGroup> opt = groupRepo.findById(id);
@@ -114,6 +120,8 @@ public class WorshipPlanningController {
     @PostMapping("/instruments")
     public ResponseEntity<?> createInstrument(@RequestBody Map<String, Object> body,
                                                HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long groupId = longVal(body.get("groupId"));
@@ -124,6 +132,7 @@ public class WorshipPlanningController {
         if (grp.isEmpty() || !grp.get().getClientId().equals(clientId))
             return ResponseEntity.status(403).build();
         WorshipInstrument inst = new WorshipInstrument();
+        inst.setClientId(clientId);
         inst.setGroupId(groupId);
         inst.setInstrumentName(name);
         instrumentRepo.save(inst);
@@ -134,9 +143,11 @@ public class WorshipPlanningController {
     public ResponseEntity<?> updateInstrument(@PathVariable Long id,
                                                @RequestBody Map<String, Object> body,
                                                HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        Optional<WorshipInstrument> opt = instrumentRepo.findById(id);
+        Optional<WorshipInstrument> opt = instrumentForTenant(id, clientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         String name = str(body.get("instrumentName"));
         if (name == null || name.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Instrument name required."));
@@ -148,9 +159,11 @@ public class WorshipPlanningController {
 
     @DeleteMapping("/instruments/{id}")
     public ResponseEntity<?> deleteInstrument(@PathVariable Long id, HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        Optional<WorshipInstrument> opt = instrumentRepo.findById(id);
+        Optional<WorshipInstrument> opt = instrumentForTenant(id, clientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         WorshipInstrument inst = opt.get();
         inst.setDeleteFlag(true);
@@ -165,6 +178,8 @@ public class WorshipPlanningController {
     @PostMapping("/members")
     public ResponseEntity<?> createMember(@RequestBody Map<String, Object> body,
                                           HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long   instrumentId   = longVal(body.get("instrumentId"));
@@ -172,7 +187,10 @@ public class WorshipPlanningController {
         Integer rotationOrder = intVal(body.get("rotationOrder"));
         if (instrumentId == null) return ResponseEntity.badRequest().body(Map.of("error", "instrumentId required."));
         if (memberName == null || memberName.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Member name required."));
+        if (instrumentForTenant(instrumentId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
         WorshipGroupMember m = new WorshipGroupMember();
+        m.setClientId(clientId);
         m.setInstrumentId(instrumentId);
         m.setMemberName(memberName);
         m.setRotationOrder(rotationOrder);
@@ -184,9 +202,11 @@ public class WorshipPlanningController {
     public ResponseEntity<?> updateMember(@PathVariable Long id,
                                           @RequestBody Map<String, Object> body,
                                           HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        Optional<WorshipGroupMember> opt = groupMemberRepo.findById(id);
+        Optional<WorshipGroupMember> opt = groupMemberForTenant(id, clientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         WorshipGroupMember m = opt.get();
         if (body.containsKey("memberName")) m.setMemberName(str(body.get("memberName")));
@@ -197,9 +217,11 @@ public class WorshipPlanningController {
 
     @DeleteMapping("/members/{id}")
     public ResponseEntity<?> deleteMember(@PathVariable Long id, HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        Optional<WorshipGroupMember> opt = groupMemberRepo.findById(id);
+        Optional<WorshipGroupMember> opt = groupMemberForTenant(id, clientId);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         WorshipGroupMember m = opt.get();
         m.setDeleteFlag(true);
@@ -235,6 +257,8 @@ public class WorshipPlanningController {
     @Transactional
     public ResponseEntity<?> saveAssignment(@RequestBody Map<String, Object> body,
                                              HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long      groupId  = longVal(body.get("groupId"));
@@ -242,6 +266,19 @@ public class WorshipPlanningController {
         String    type     = str(body.get("assignmentType"));
         if (groupId == null || dateStr == null)
             return ResponseEntity.badRequest().body(Map.of("error", "groupId and assignmentDate required."));
+        if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> members = (List<Map<String, Object>>) body.get("members");
+        // Validate every instrument before anything is written (the method is transactional
+        // but returns, not throws, on a bad id).
+        if (members != null) {
+            for (Map<String, Object> mMap : members) {
+                Long instId = longVal(mMap.get("instrumentId"));
+                if (instId != null && instrumentForTenant(instId, clientId).isEmpty())
+                    return ResponseEntity.notFound().build();
+            }
+        }
         LocalDate date = LocalDate.parse(dateStr);
         WorshipAssignment assignment = assignmentRepo
                 .findFirstByClientIdAndGroupIdAndAssignmentDateAndDeleteFlagFalse(clientId, groupId, date)
@@ -253,13 +290,12 @@ public class WorshipPlanningController {
         assignment.setDeleteFlag(false);
         assignmentRepo.save(assignment);
         assignmentMemberRepo.deleteByAssignmentId(assignment.getId());
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> members = (List<Map<String, Object>>) body.get("members");
         if (members != null) {
             for (Map<String, Object> mMap : members) {
                 String mName = str(mMap.get("memberName"));
                 if (mName == null || mName.isBlank()) continue; // skip empty/null entries
                 WorshipAssignmentMember am = new WorshipAssignmentMember();
+                am.setClientId(clientId);
                 am.setAssignmentId(assignment.getId());
                 am.setInstrumentId(longVal(mMap.get("instrumentId")));
                 am.setMemberName(mName);
@@ -272,6 +308,8 @@ public class WorshipPlanningController {
 
     @DeleteMapping("/assignments/{id}")
     public ResponseEntity<?> deleteAssignment(@PathVariable Long id, HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Optional<WorshipAssignment> opt = assignmentRepo.findById(id);
@@ -290,6 +328,8 @@ public class WorshipPlanningController {
     @PostMapping("/auto-assign")
     public ResponseEntity<?> autoAssign(@RequestBody Map<String, Object> body,
                                          HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long    groupId  = longVal(body.get("groupId"));
@@ -433,6 +473,8 @@ public class WorshipPlanningController {
     @PostMapping("/songs")
     public ResponseEntity<?> createSong(@RequestBody Map<String, Object> body,
                                         HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long   groupId = longVal(body.get("groupId"));
@@ -440,6 +482,8 @@ public class WorshipPlanningController {
         String title   = str(body.get("songTitle"));
         if (groupId == null || title == null || title.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "groupId, songTitle required."));
+        if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
         WorshipSong s = new WorshipSong();
         s.setClientId(clientId);
         s.setGroupId(groupId);
@@ -455,6 +499,8 @@ public class WorshipPlanningController {
     public ResponseEntity<?> updateSong(@PathVariable Long id,
                                         @RequestBody Map<String, Object> body,
                                         HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Optional<WorshipSong> opt = songRepo.findById(id);
@@ -472,6 +518,8 @@ public class WorshipPlanningController {
     @Transactional
     public ResponseEntity<?> reorderSongs(@RequestBody List<Map<String, Object>> items,
                                           HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         for (Map<String, Object> item : items) {
@@ -489,6 +537,8 @@ public class WorshipPlanningController {
 
     @DeleteMapping("/songs/{id}")
     public ResponseEntity<?> deleteSong(@PathVariable Long id, HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Optional<WorshipSong> opt = songRepo.findById(id);
@@ -504,12 +554,16 @@ public class WorshipPlanningController {
     @Transactional
     public ResponseEntity<?> bulkSaveSongs(@RequestBody Map<String, Object> body,
                                            HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         Long   groupId = longVal(body.get("groupId"));
         String dateStr = str(body.get("serviceDate"));
         if (groupId == null || dateStr == null)
             return ResponseEntity.badRequest().body(Map.of("error", "groupId, serviceDate required."));
+        if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
         LocalDate date = LocalDate.parse(dateStr);
         songRepo.deleteByClientIdAndGroupIdAndServiceDate(clientId, groupId, date);
         @SuppressWarnings("unchecked")
@@ -539,8 +593,12 @@ public class WorshipPlanningController {
                                            @RequestParam(required = false) String date,
                                            @RequestParam("file") MultipartFile file,
                                            HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
+        if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
         List<String> lines = new ArrayList<>();
         try {
@@ -613,6 +671,37 @@ public class WorshipPlanningController {
     // ======================================================================
     // HELPERS
     // ======================================================================
+
+    /**
+     * Same guard chain as the {@code /worshipPlanning} page route, applied to
+     * every write handler. Returns {@code null} when allowed.
+     */
+    private static ResponseEntity<?> writeDeny(HttpServletRequest request) {
+        String deny = RoleGuard.requireAdminOrUser(request);
+        if (deny == null) deny = RoleGuard.requirePermission(request, "general.worshipplanning");
+        if (deny == null) deny = RoleGuard.requireMemberPermission(request, "member.worship");
+        if (deny == null) return null;
+        int status = RoleGuard.REDIRECT_LOGIN.equals(deny) ? 401 : 403;
+        return ResponseEntity.status(status).body(Map.of("error", "Access denied"));
+    }
+
+    /**
+     * WorshipInstrument carries no clientId — its tenant is its group's.
+     * Empty for an unknown id and for another church's instrument alike.
+     */
+    private Optional<WorshipInstrument> instrumentForTenant(Long instrumentId, String clientId) {
+        if (instrumentId == null) return Optional.empty();
+        return instrumentRepo.findById(instrumentId)
+                .filter(i -> i.getGroupId() != null
+                        && groupRepo.findByIdAndClientId(i.getGroupId(), clientId).isPresent());
+    }
+
+    /** WorshipGroupMember → instrument → group → clientId. */
+    private Optional<WorshipGroupMember> groupMemberForTenant(Long memberId, String clientId) {
+        if (memberId == null) return Optional.empty();
+        return groupMemberRepo.findById(memberId)
+                .filter(m -> instrumentForTenant(m.getInstrumentId(), clientId).isPresent());
+    }
 
     /**
      * Build group trees for a list of groups using bulk queries — O(3) queries

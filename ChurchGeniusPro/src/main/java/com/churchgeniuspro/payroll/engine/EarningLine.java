@@ -4,6 +4,7 @@ import com.churchgeniuspro.payroll.model.EarningType;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * A single gross-earnings line for one pay period. For hourly earnings, supply
@@ -27,7 +28,7 @@ public class EarningLine {
         EarningLine e = new EarningLine();
         e.type = type;
         e.description = description;
-        e.amount = amount == null ? BigDecimal.ZERO : amount;
+        e.amount = money(amount);
         return e;
     }
 
@@ -42,11 +43,28 @@ public class EarningLine {
         e.multiplier = multiplier == null ? BigDecimal.ONE : multiplier;
         BigDecimal h = hours == null ? BigDecimal.ZERO : hours;
         BigDecimal r = rate == null ? BigDecimal.ZERO : rate;
-        e.amount = h.multiply(r).multiply(e.multiplier);
+        e.amount = money(h.multiply(r).multiply(e.multiplier));
         return e;
     }
 
     public BigDecimal amountOrZero() {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    /**
+     * Financial audit M12c: an earning line's dollar amount is rounded to 2
+     * decimal places the moment it is established here — whether derived from
+     * hours × rate × multiplier (which can carry far more than 2 decimal places,
+     * e.g. 10.333 hrs × 15.375 rate) or supplied directly as a fixed amount (a
+     * caller-supplied value, such as a raw request-body figure, that was never
+     * itself validated to 2 decimals) — so {@code amount} is always the same
+     * real money value every consumer (gross, the paystub line item, YTD) sums
+     * and displays. {@link com.churchgeniuspro.payroll.engine.PayrollCalculator}
+     * also re-rounds defensively before summing into gross, so the two stay
+     * correct together even for an EarningLine built by hand (a bare
+     * constructor + setter) rather than through one of these factories.
+     */
+    private static BigDecimal money(BigDecimal v) {
+        return (v == null ? BigDecimal.ZERO : v).setScale(2, RoundingMode.HALF_UP);
     }
 }

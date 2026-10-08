@@ -51,7 +51,10 @@ public class SubscriptionFeatureFilter implements Filter {
         HttpServletRequest  request  = (HttpServletRequest)  req;
         HttpServletResponse response = (HttpServletResponse) res;
         try {
-            String featureKey = SubscriptionFeatureCatalog.keyForPath(request.getRequestURI());
+            // Decoded + normalised, so "/api/guess%2Dit/…" is gated exactly like
+            // "/api/guess-it/…" — which is what the dispatcher will serve it as.
+            String path = RequestPaths.path(request);
+            String featureKey = SubscriptionFeatureCatalog.keyForPath(path);
             if (featureKey == null) { chain.doFilter(req, res); return; }
 
             HttpSession session = request.getSession(false);
@@ -68,8 +71,8 @@ public class SubscriptionFeatureFilter implements Filter {
             }
 
             log.info("Subscription block: clientId={} feature={} path={}",
-                    clientId, featureKey, request.getRequestURI());
-            writeBlocked(request, response, featureKey);
+                    clientId, featureKey, path);
+            writeBlocked(path, response, featureKey);
         } catch (Exception e) {
             log.warn("SubscriptionFeatureFilter failed open — {}", e.getMessage());
             chain.doFilter(req, res);
@@ -85,10 +88,10 @@ public class SubscriptionFeatureFilter implements Filter {
         return null;
     }
 
-    private void writeBlocked(HttpServletRequest request, HttpServletResponse response,
+    private void writeBlocked(String path, HttpServletResponse response,
                               String featureKey) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        if (request.getRequestURI().startsWith("/api/")) {
+        if (path.startsWith("/api/")) {
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"This feature is not included in your church's "
                     + "subscription plan. Please contact your administrator about upgrading.\","
