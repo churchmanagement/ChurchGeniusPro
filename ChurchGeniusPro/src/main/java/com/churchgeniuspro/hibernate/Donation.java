@@ -146,6 +146,55 @@ public class Donation {
         return REVIEW_COMPLETED.equals(reviewStatus);
     }
 
+    // ── Stripe fee (V14) ──────────────────────────────────────────────────────
+    /** The stored fee is Stripe's own figure from the charge's balance transaction. */
+    public static final String FEE_SOURCE_STRIPE    = "STRIPE";
+    /** The stored fee was computed from the church's configured rate (Stripe's not yet available). */
+    public static final String FEE_SOURCE_ESTIMATED = "ESTIMATED";
+
+    /** Processor fee Stripe kept, in dollars (exact from cents). Null until known. */
+    @Column(name = "stripe_fee", precision = 12, scale = 2)
+    private BigDecimal stripeFee;
+
+    /** What the church receives for this charge, in dollars. Null until known. */
+    @Column(name = "stripe_net", precision = 12, scale = 2)
+    private BigDecimal stripeNet;
+
+    @Column(name = "stripe_balance_transaction_id", length = 500)
+    private String stripeBalanceTransactionId;
+
+    /** {@link #FEE_SOURCE_STRIPE}, {@link #FEE_SOURCE_ESTIMATED}, or null while unknown. */
+    @Column(name = "fee_source", length = 16)
+    private String feeSource;
+
+    public boolean hasActualFee() { return FEE_SOURCE_STRIPE.equals(feeSource) && stripeFee != null; }
+
+    // ── Review: contributor (V14) ─────────────────────────────────────────────
+    /** Member / Guest / Visitor — the Family page's category values, chosen or defaulted at review. */
+    @Column(name = "contributor_category", length = 20)
+    private String contributorCategory;
+
+    /** The family_member this donation posts to, when matched unambiguously or chosen by the reviewer.
+     *  Distinct from {@link #memberId}, which is the signed-in Member Portal giver. */
+    @Column(name = "matched_member_id")
+    private Integer matchedMemberId;
+
+    // ── Accounting posting (V14) — separate from review_status ───────────────
+    @Column(name = "posted_income_id")
+    private Integer postedIncomeId;
+
+    @Column(name = "posted_expense_id")
+    private Integer postedExpenseId;
+
+    @Column(name = "posted_at")
+    private LocalDateTime postedAt;
+
+    @Column(name = "posted_by", length = 320)
+    private String postedBy;
+
+    /** True once Income (and, in the gross-with-fee mode, Expense) rows exist for this donation. */
+    public boolean isPosted() { return postedIncomeId != null; }
+
     @PrePersist
     public void prePersist() {
         if (donatedAt == null) donatedAt = LocalDateTime.now();

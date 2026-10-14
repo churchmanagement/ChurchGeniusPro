@@ -98,6 +98,71 @@
     .btn-complete:hover:not(:disabled){background:#246428;}
     .btn-pending{background:#fff;color:#b45309;border-color:#f3c98b;}
     .btn-pending:hover:not(:disabled){background:#fff8ee;}
+    /* ── Donation Review accounting (V14) ── */
+    .btn-post{background:#673147;color:#fff;}
+    .btn-post:hover:not(:disabled){background:#4e2436;}
+    .gear-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid #e0d3da;border-radius:6px;background:#fff;color:#673147;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;}
+    .gear-btn:hover{background:#faf5f8;}
+    .gear-btn.warn{border-color:#f3c98b;color:#b45309;background:#fff8ee;}
+    .settings-banner{display:none;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;background:#fff8ee;color:#8a4b06;border:1px solid #f3c98b;}
+    .settings-banner.on{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+    .settings-banner button{margin-left:auto;}
+    .acct-cell{white-space:normal;min-width:150px;}
+    .acct-links{display:block;margin-top:3px;white-space:nowrap;}
+    .acct-badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .acct-posted{background:#e3f2fd;color:#1565c0;}
+    .acct-hist{background:#ede7f3;color:#5e35b1;}
+    .acct-link{font-size:11.5px;color:#1565c0;text-decoration:none;margin-left:4px;}
+    .acct-link:hover{text-decoration:underline;}
+    .fee-src{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;}
+    .fee-src.actual{background:#e8f5e9;color:#2e7d32;}
+    .fee-src.est{background:#fff3e0;color:#b45309;}
+    .fee-src.unk{background:#f3f3f3;color:#777;}
+    .row-btn{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;margin-right:4px;}
+    .row-btn:disabled{opacity:.45;cursor:not-allowed;}
+    .row-btn.primary{background:#673147;color:#fff;}
+    .row-btn.primary:hover:not(:disabled){background:#4e2436;}
+    .row-btn.ghost{background:#fff;color:#673147;border-color:#d9c6d0;}
+    .row-btn.ghost:hover:not(:disabled){background:#faf5f8;}
+    /* modal + drawer */
+    .dr-overlay{display:none;position:fixed;inset:0;background:rgba(30,20,26,.45);z-index:900;}
+    .dr-overlay.open{display:block;}
+    .dr-panel{position:fixed;top:0;right:0;height:100%;width:min(640px,100%);background:#fff;z-index:901;box-shadow:-8px 0 30px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;}
+    .dr-panel.open{transform:none;}
+    .dr-head{padding:16px 22px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .dr-head h3{margin:0;font-size:17px;color:#673147;}
+    .dr-close{background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;}
+    .dr-body{padding:18px 22px;overflow:auto;flex:1;font-size:13.5px;}
+    .dr-foot{padding:14px 22px;border-top:1px solid #f0f0f0;display:flex;gap:10px;justify-content:flex-end;align-items:center;background:#fafbfd;}
+    .dr-foot .dr-note{margin-right:auto;color:#666;font-size:12.5px;}
+    .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+    .fgrid .full{grid-column:1 / -1;}
+    .fld label{display:block;font-size:11.5px;font-weight:700;color:#666;margin-bottom:4px;letter-spacing:.2px;}
+    .fld label .req{color:#c62828;}
+    .fld input,.fld select,.fld textarea{width:100%;padding:8px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:13px;font-family:inherit;color:#333;background:#fff;box-sizing:border-box;}
+    .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:#673147;}
+    .fld textarea{min-height:58px;resize:vertical;}
+    .fld .hint{font-size:11.5px;color:#888;margin-top:3px;}
+    .sect{margin:16px 0 8px;font-size:12px;font-weight:800;color:#673147;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #f0e6eb;padding-bottom:4px;}
+    .amt-table{width:100%;border-collapse:collapse;margin:6px 0 10px;}
+    .amt-table td{padding:6px 4px;border-bottom:1px solid #f4f4f4;}
+    .amt-table td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+    .amt-table tr.net td{border-top:2px solid #e8e8e8;color:#2e7d32;}
+    .warn-list{margin:10px 0;padding:10px 12px;background:#fff8ee;border:1px solid #f3c98b;border-radius:8px;color:#8a4b06;font-size:12.5px;}
+    .warn-list.block{background:#ffebee;border-color:#ef9a9a;color:#c62828;}
+    .warn-list ul{margin:4px 0 0 18px;padding:0;}
+    .ms-wrap{position:relative;}
+    .ms-list{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #e0e0e0;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.12);max-height:220px;overflow:auto;z-index:5;display:none;}
+    .ms-list.open{display:block;}
+    .ms-item{padding:7px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid #f4f4f4;}
+    .ms-item:hover{background:#faf5f8;}
+    .ms-item small{color:#888;margin-left:6px;}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:700;}
+    .chip button{background:none;border:none;cursor:pointer;color:#2e7d32;font-size:14px;line-height:1;padding:0;}
+    .batch-res{margin-top:10px;font-size:12.5px;}
+    .batch-res li{padding:3px 0;}
+    .batch-res .ok{color:#2e7d32;} .batch-res .skip{color:#5e35b1;} .batch-res .fail{color:#c62828;}
+    @media (max-width:700px){.fgrid{grid-template-columns:1fr;}}
     .stat-sub{font-size:12px;color:#2e7d32;font-weight:600;margin-top:6px;}
     /* ── Donations / Member Contributions tabs ── */
     .src-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid #e8eaf0;}
@@ -156,6 +221,11 @@
       </div>
 
       <div class="feedback" id="feedbackMsg"></div>
+      <!-- Donation Review accounting (V14): posting is blocked until the mandatory settings exist. -->
+      <div class="settings-banner" id="settingsBanner" role="status">
+        <span>&#9881;</span><span id="settingsBannerText">Please configure the mandatory fields in Donation Settings before saving donations.</span>
+        <button type="button" class="gear-btn warn" onclick="openSettings()">Open Donation Settings</button>
+      </div>
 
       <!-- Summary stats -->
       <div class="stats-row">
@@ -190,6 +260,7 @@
               <span class="fee-in"><span>$</span><input type="number" id="feeFixed" value="0.30" min="0" step="0.01" inputmode="decimal" aria-label="Stripe fixed fee" /></span>
             </label>
           </div>
+          <button type="button" class="gear-btn" id="btnSettings" onclick="openSettings()" title="How online donations and Stripe fees are posted to accounting">&#9881; Donation Settings</button>
           <div class="filter-bar">
             <input type="date" id="filterFrom" title="From date" />
             <input type="date" id="filterTo"   title="To date" />
@@ -203,7 +274,9 @@
           <span class="sel-count" id="selCount">Select donations to mark them Completed or Pending.</span>
           <button type="button" class="btn-review btn-complete" id="btnMarkCompleted" onclick="setReviewStatus('COMPLETED')" disabled>&#10003; Mark Completed</button>
           <button type="button" class="btn-review btn-pending"  id="btnMarkPending"   onclick="setReviewStatus('PENDING')"   disabled>&#8634; Mark Pending</button>
+          <button type="button" class="btn-review btn-post"     id="btnPostSelected" onclick="postSelected()" disabled title="Post the selected pending donations to Income and Expense using the configured Donation Settings">&#8599; Save selected to accounting</button>
         </div>
+        <div class="batch-res" id="batchResults" style="display:none;padding:8px 20px;border-bottom:1px solid #f0f0f0;"></div>
         <div class="table-wrap">
           <table class="don-tbl">
             <thead>
@@ -219,11 +292,12 @@
                 <th>Date</th>
                 <th title="Stripe payment status">Status</th>
                 <th title="Donation Review status — Pending or Completed">Review</th>
+                <th title="Whether Income and Expense entries exist for this donation, and from which workflow">Accounting</th>
                 <th>Note</th>
               </tr>
             </thead>
             <tbody id="donTableBody">
-              <tr><td class="empty-row" colspan="12">Loading&#8230;</td></tr>
+              <tr><td class="empty-row" colspan="13">Loading&#8230;</td></tr>
             </tbody>
           </table>
         </div>
@@ -231,6 +305,50 @@
 
     </main>
     <footer id="app-footer" class="app-footer"></footer>
+
+    <!-- ═══ Donation Settings (V14) ═══ -->
+    <div class="dr-overlay" id="stOverlay" onclick="closeSettings()"></div>
+    <div class="dr-panel" id="stPanel" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+      <div class="dr-head"><h3 id="stTitle">&#9881; Donation Settings</h3><button type="button" class="dr-close" onclick="closeSettings()" aria-label="Close">&times;</button></div>
+      <div class="dr-body">
+        <div class="feedback" id="stMsg"></div>
+        <div class="sect">Accounting entry mode</div>
+        <div class="fld full">
+          <label><input type="radio" name="stMode" value="GROSS_WITH_FEE_EXPENSE" checked /> Record the full donation as Income and the Stripe fee as a separate Expense</label>
+          <div class="hint">$100.00 donation, $3.20 Stripe fee &rarr; Income $100.00, Expense $3.20, net to the bank $96.80. The donor's statement shows the full $100.00.</div>
+        </div>
+        <div class="sect">Income entry</div>
+        <div class="fgrid">
+          <div class="fld"><label>Income fund <span class="req">*</span></label><select id="stIncomeFund"></select><div class="hint">From the Income page's funds.</div></div>
+          <div class="fld"><label>Income method <span class="req">*</span></label><select id="stIncomeMethod"></select><div class="hint">A configured method such as Bank Transfer &mdash; never the card number.</div></div>
+          <div class="fld full"><label>Income notes (default, editable per donation)</label><textarea id="stIncomeNote"></textarea><div class="hint">Placeholders: {card} {donorNote} {gross} {fee} {net} {date} {donor} {pi}</div></div>
+        </div>
+        <div class="sect">Stripe fee expense entry</div>
+        <div class="fgrid">
+          <div class="fld"><label>Expense type <span class="req">*</span></label><select id="stExpenseType"></select></div>
+          <div class="fld"><label>Expense fund <span class="req">*</span></label><select id="stExpenseFund"></select></div>
+          <div class="fld"><label>Expense method <span class="req">*</span></label><select id="stExpenseMethod"></select></div>
+          <div class="fld"><label>Transaction date <span class="req">*</span></label>
+            <select id="stDateMode"><option value="DONATION_DATE">The original donation date</option><option value="TODAY">Today's date</option></select></div>
+          <div class="fld full"><label>Expense notes (default, editable per donation)</label><textarea id="stExpenseNote"></textarea></div>
+        </div>
+        <div class="sect">Stripe fee &mdash; used only when Stripe has not reported the actual fee</div>
+        <div class="fgrid">
+          <div class="fld"><label>Percentage fee</label><input type="number" id="stFeePct" min="0" step="0.001" placeholder="2.9" inputmode="decimal" /><div class="hint">%, e.g. 2.9</div></div>
+          <div class="fld"><label>Fixed fee</label><input type="number" id="stFeeFixed" min="0" step="0.01" placeholder="0.30" inputmode="decimal" /><div class="hint">$, e.g. 0.30. Leave both blank to never estimate.</div></div>
+          <div class="fld full"><div class="hint">The actual per-transaction fee from Stripe is always preferred. When it is unavailable (an ACH payment that has not settled) and these are set, the fee is estimated as amount &times; % + fixed, rounded to the cent, and the Expense note says so. With neither, such a donation cannot be posted until the fee arrives.</div></div>
+        </div>
+      </div>
+      <div class="dr-foot"><span class="dr-note" id="stUpdated"></span><button type="button" class="btn-review btn-pending" onclick="closeSettings()">Cancel</button><button type="button" class="btn-review btn-post" id="stSave" onclick="saveSettings()">Save settings</button></div>
+    </div>
+
+    <!-- ═══ Review & Save (V14) ═══ -->
+    <div class="dr-overlay" id="rvOverlay" onclick="closeReview()"></div>
+    <div class="dr-panel" id="rvPanel" role="dialog" aria-modal="true" aria-labelledby="rvTitle">
+      <div class="dr-head"><h3 id="rvTitle">Review &amp; Save</h3><button type="button" class="dr-close" onclick="closeReview()" aria-label="Close">&times;</button></div>
+      <div class="dr-body" id="rvBody"></div>
+      <div class="dr-foot"><span class="dr-note" id="rvNote"></span><button type="button" class="btn-review btn-pending" onclick="closeReview()">Cancel</button><button type="button" class="btn-review btn-post" id="rvSave" onclick="postFromReview()">Save to accounting</button></div>
+    </div>
   </div>
 </div>
 
@@ -304,7 +422,7 @@ document.addEventListener('click', function () {
 
 /* ════ INIT ════ */
 (async function init() {
-  await loadDonations();
+  await Promise.all([loadDonations(), loadSettings()]);
 })();
 
 async function loadDonations() {
@@ -408,7 +526,7 @@ function renderTable(rows) {
   const tbody = document.getElementById('donTableBody');
   if (!tbody) return;
   if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td class="empty-row" colspan="12">No donations found.</td></tr>';
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="13">No donations found.</td></tr>';
     updateSelectionUi();
     return;
   }
@@ -449,13 +567,14 @@ function renderTable(rows) {
         '<td>' + fmtDate(d.donatedAt) + '</td>' +
         '<td><span class="badge ' + statusClass(d.status) + '">' + (d.status ? esc(d.status) : '') + '</span></td>' +
         '<td class="rv-cell">' + review + '</td>' +
+        '<td class="acct-cell">' + accountingCell(d) + '</td>' +
         '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(d.note || '') + '">' + (d.note ? esc(d.note) : '') + '</td>' +
         '</tr>';
     }).join('');
     updateSelectionUi();
   } catch(e) {
     console.error('renderTable error:', e);
-    tbody.innerHTML = '<tr><td class="empty-row" colspan="12">Error rendering donations — see console.</td></tr>';
+    tbody.innerHTML = '<tr><td class="empty-row" colspan="13">Error rendering donations — see console.</td></tr>';
   }
 }
 
@@ -487,6 +606,9 @@ function updateSelectionUi() {
   const bp = document.getElementById('btnMarkPending');
   if (bc) bc.disabled = reviewBusy || !anyPending;
   if (bp) bp.disabled = reviewBusy || !anyCompleted;
+  const anyPostable = picked.some(function(d) { return !d.posted && !d.historicalIncomeId; });
+  const bs = document.getElementById('btnPostSelected');
+  if (bs) bs.disabled = reviewBusy || postBusy || !anyPostable || !settingsComplete;
   const all = document.getElementById('selAll');
   if (all) {
     all.checked = currentRows.length > 0 && n === currentRows.length;
@@ -516,6 +638,349 @@ async function setReviewStatus(status) {
   }
 }
 
+/* ════ ACCOUNTING — Donation Settings, Review & Save, Save, Save selected (V14) ════
+ * The server computes every amount; this page only shows the proposal and sends
+ * the reviewer's edits (date, notes, fund/method ids, category, person). */
+let settingsInfo = null;        // GET /api/donation-settings
+let settingsComplete = false;
+let postBusy = false;
+let taxonomies = null;          // income funds, methods, expense types, expense funds
+let reviewState = null;         // { id, proposal, overrides }
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/donation-settings');
+    if (!res.ok) { settingsInfo = null; settingsComplete = false; applySettingsUi(); return; }
+    settingsInfo = await res.json();
+    settingsComplete = !!settingsInfo.complete;
+    // Seed the on-page fee estimator from the saved rate, so "Pending After Stripe
+    // Fees" reflects the church's configuration rather than only the 2.9/0.30 defaults.
+    if (settingsInfo.feePercent != null && settingsInfo.feeFixed != null) {
+      const pctEl = document.getElementById('feePct'), fixEl = document.getElementById('feeFixed');
+      if (pctEl) pctEl.value = settingsInfo.feePercent;
+      if (fixEl) fixEl.value = settingsInfo.feeFixed;
+      onFeeChange();
+    }
+  } catch { settingsInfo = null; settingsComplete = false; }
+  applySettingsUi();
+}
+function applySettingsUi() {
+  const banner = document.getElementById('settingsBanner');
+  if (banner) banner.classList.toggle('on', !settingsComplete);
+  const gear = document.getElementById('btnSettings');
+  if (gear) gear.classList.toggle('warn', !settingsComplete);
+  updateSelectionUi();
+  renderTable(currentRows);
+}
+
+async function loadTaxonomies() {
+  if (taxonomies) return taxonomies;
+  const [funds, methods, purposes, expFunds] = await Promise.all([
+    fetch('/api/income/sub-sources').then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/transaction-types').then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/expense/purposes').then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/expense/funds').then(r => r.ok ? r.json() : []).catch(() => [])
+  ]);
+  taxonomies = { funds: funds || [], methods: methods || [], purposes: purposes || [], expFunds: expFunds || [] };
+  return taxonomies;
+}
+function optionList(items, nameKeys, selected) {
+  let html = '<option value="">— Select —</option>';
+  (items || []).forEach(function(it) {
+    const id = it.id;
+    let name = '';
+    for (const k of nameKeys) { if (it[k]) { name = it[k]; break; } }
+    html += '<option value="' + id + '"' + (String(id) === String(selected) ? ' selected' : '') + '>' + esc(name) + '</option>';
+  });
+  return html;
+}
+
+/* ── Donation Settings drawer ── */
+async function openSettings() {
+  hideFeedback();
+  const t = await loadTaxonomies();
+  const si = settingsInfo || {};
+  document.getElementById('stIncomeFund').innerHTML    = optionList(t.funds,    ['sourceName','name','subSourceName'], si.incomeSubSourceId);
+  document.getElementById('stIncomeMethod').innerHTML  = optionList(t.methods,  ['typeName','name'],                  si.incomeTransactionTypeId);
+  document.getElementById('stExpenseType').innerHTML   = optionList(t.purposes, ['purposeName','name'],               si.expensePurposeId);
+  document.getElementById('stExpenseFund').innerHTML   = optionList(t.expFunds, ['sourceName','name','mainSourceName'], si.expenseMainSourceId);
+  document.getElementById('stExpenseMethod').innerHTML = optionList(t.methods,  ['typeName','name'],                  si.expenseTransactionTypeId);
+  document.getElementById('stDateMode').value   = si.dateMode || 'DONATION_DATE';
+  document.getElementById('stIncomeNote').value = si.incomeNoteTemplate || '';
+  document.getElementById('stExpenseNote').value= si.expenseNoteTemplate || '';
+  document.getElementById('stFeePct').value     = si.feePercent != null ? si.feePercent : '';
+  document.getElementById('stFeeFixed').value   = si.feeFixed  != null ? si.feeFixed  : '';
+  document.getElementById('stUpdated').textContent = si.updatedBy ? ('Last saved by ' + si.updatedBy + (si.updatedDate ? ' on ' + fmtDate(si.updatedDate) : '')) : 'Not configured yet.';
+  const m = document.getElementById('stMsg'); m.textContent = ''; m.className = 'feedback';
+  document.getElementById('stOverlay').classList.add('open');
+  document.getElementById('stPanel').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('stOverlay').classList.remove('open');
+  document.getElementById('stPanel').classList.remove('open');
+}
+async function saveSettings() {
+  const btn = document.getElementById('stSave'); btn.disabled = true;
+  const m = document.getElementById('stMsg'); m.textContent = ''; m.className = 'feedback';
+  const body = {
+    accountingMode: 'GROSS_WITH_FEE_EXPENSE',
+    incomeSubSourceId: document.getElementById('stIncomeFund').value || null,
+    incomeTransactionTypeId: document.getElementById('stIncomeMethod').value || null,
+    incomeNoteTemplate: document.getElementById('stIncomeNote').value,
+    expensePurposeId: document.getElementById('stExpenseType').value || null,
+    expenseMainSourceId: document.getElementById('stExpenseFund').value || null,
+    expenseTransactionTypeId: document.getElementById('stExpenseMethod').value || null,
+    expenseNoteTemplate: document.getElementById('stExpenseNote').value,
+    dateMode: document.getElementById('stDateMode').value,
+    feePercent: document.getElementById('stFeePct').value,
+    feeFixed: document.getElementById('stFeeFixed').value
+  };
+  try {
+    const res = await fetch('/api/donation-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) { m.textContent = data.error || 'Could not save the settings.'; m.className = 'feedback error'; return; }
+    settingsInfo = data; settingsComplete = !!data.complete;
+    applySettingsUi();
+    closeSettings();
+    showOk('Donation Settings saved.' + (settingsComplete ? '' : ' Some mandatory fields are still missing.'));
+    await loadSettings();
+  } catch { m.textContent = 'Network error — nothing was saved.'; m.className = 'feedback error'; }
+  finally { btn.disabled = false; }
+}
+
+/* ── Accounting cell + per-row actions ── */
+function feeSrcBadge(d) {
+  if (d.feeSource === 'STRIPE')    return '<span class="fee-src actual" title="Stripe reported this fee">Stripe fee ' + fmt(parseFloat(d.stripeFee || 0), d.currency || 'USD') + '</span>';
+  if (d.feeSource === 'ESTIMATED') return '<span class="fee-src est" title="Estimated from the configured rate">est.</span>';
+  return '<span class="fee-src unk" title="Stripe has not reported the fee yet">fee pending</span>';
+}
+function accountingCell(d) {
+  const idNum = Number(d.id);
+  if (d.posted) {
+    return '<span class="acct-badge acct-posted" title="Posted ' + (d.postedAt ? fmtDate(d.postedAt) : '') + (d.postedBy ? ' by ' + esc(d.postedBy) : '') + '">&#10003; Posted</span>' +
+      feeSrcBadge(d) +
+      '<span class="acct-links">' +
+      (d.postedIncomeId  ? '<a class="acct-link" href="/income?edit='  + d.postedIncomeId  + '" title="Open the Income entry">Income #'  + d.postedIncomeId  + '</a>' : '') +
+      (d.postedExpenseId ? '<a class="acct-link" href="/expense?edit=' + d.postedExpenseId + '" title="Open the Expense entry">Expense #' + d.postedExpenseId + '</a>' : '') +
+      '</span>';
+  }
+  if (d.historicalIncomeId) {
+    // Posted by the former automatic workflow (before review existed). Reported, never re-saved
+    // or adopted; the amount shown is the income row's, which may have been edited since.
+    const amtNote = (d.historicalIncomeAmount != null && Math.round(parseFloat(d.historicalIncomeAmount) * 100) !== Math.round(parseFloat(d.amount || 0) * 100))
+      ? ' <small style="color:#b45309;" title="The income amount differs from the donation amount — it was edited after posting">(' + fmt(parseFloat(d.historicalIncomeAmount), d.currency || 'USD') + ' in income)</small>' : '';
+    return '<span class="acct-badge acct-hist" title="Already in Income — posted automatically before the review workflow existed. Nothing will be changed.">In Income #' + d.historicalIncomeId + ' (auto)</span>' +
+      '<span class="acct-links"><a class="acct-link" href="/income?edit=' + d.historicalIncomeId + '" title="Open the Income entry">Income #' + d.historicalIncomeId + '</a>' + amtNote + '</span>';
+  }
+  const dis = (postBusy || !settingsComplete) ? ' disabled' : '';
+  return '<button type="button" class="row-btn ghost" onclick="openReview(' + idNum + ')"' + dis + ' title="See the proposed Income and Expense entries, adjust, then save">Review &amp; Save</button>' +
+         '<button type="button" class="row-btn primary" onclick="postOne(' + idNum + ')"' + dis + ' title="Save using the configured Donation Settings">Save</button>' +
+         feeSrcBadge(d);
+}
+
+async function postOne(id) {
+  if (postBusy) return;
+  if (!settingsComplete) { showError(settingsInfo && settingsInfo.incompleteMessage || 'Please configure the mandatory fields in Donation Settings before saving donations.'); return; }
+  postBusy = true; renderTable(currentRows); hideFeedback();
+  try {
+    const res = await fetch('/api/donations/' + id + '/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await res.json().catch(function() { return {}; });
+    handlePostResponse(res, data);
+  } catch { showError('Network error — nothing was saved. Please try again.'); }
+  finally { postBusy = false; await loadDonations(); }
+}
+function handlePostResponse(res, data) {
+  if (!res.ok) {
+    if (data.code === 'SETTINGS_INCOMPLETE') { settingsComplete = false; applySettingsUi(); }
+    showError(data.error || 'The donation could not be saved. Nothing was changed.');
+    return false;
+  }
+  if (data.status === 'POSTED') {
+    showOk('Saved: Income #' + data.incomeId + (data.expenseId ? ' and Expense #' + data.expenseId : '') + '. ' + (data.message || ''));
+    return true;
+  }
+  if (data.status === 'ALREADY_POSTED') {
+    showOk(data.historical
+      ? 'Already in Income (#' + data.incomeId + ') — posted automatically before the review workflow existed. Nothing was changed.'
+      : 'Already posted (Income #' + data.incomeId + '). Nothing was changed.');
+    return true;
+  }
+  showError(data.message || 'The donation could not be saved.');
+  return false;
+}
+
+async function postSelected() {
+  if (postBusy || reviewBusy || selectedIds.size === 0) return;
+  const ids = Array.from(selectedIds).filter(function(id) {
+    const d = currentRows.find(function(r) { return Number(r.id) === id; });
+    return d && !d.posted && !d.historicalIncomeId;
+  });
+  if (!ids.length) return;
+  if (!settingsComplete) { showError(settingsInfo && settingsInfo.incompleteMessage || 'Please configure the mandatory fields in Donation Settings before saving donations.'); return; }
+  postBusy = true; updateSelectionUi(); renderTable(currentRows); hideFeedback();
+  const box = document.getElementById('batchResults');
+  try {
+    const res = await fetch('/api/donations/post-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids }) });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) { showError(data.error || 'Nothing was saved.'); return; }
+    const parts = [];
+    if (data.posted)        parts.push(data.posted + ' saved');
+    if (data.alreadyPosted) parts.push(data.alreadyPosted + ' already posted');
+    if (data.failed)        parts.push(data.failed + ' could not be saved');
+    (data.failed ? showError : showOk)('Save selected: ' + parts.join(', ') + '.');
+    if (box) {
+      box.style.display = '';
+      box.innerHTML = '<strong>Results</strong> <button type="button" class="row-btn ghost" onclick="document.getElementById(\'batchResults\').style.display=\'none\'">hide</button><ul style="margin:6px 0 0 16px;padding:0;">' +
+        (data.results || []).map(function(r) {
+          const cls = r.status === 'POSTED' ? 'ok' : r.status === 'ALREADY_POSTED' ? 'skip' : 'fail';
+          const what = r.status === 'POSTED' ? ('saved — Income #' + r.incomeId + (r.expenseId ? ', Expense #' + r.expenseId : ''))
+                     : r.status === 'ALREADY_POSTED' ? ('already posted' + (r.incomeId ? ' — Income #' + r.incomeId : '') + (r.historical ? ' (before the review workflow)' : ''))
+                     : ('not saved — ' + esc(r.message || ''));
+          return '<li class="' + cls + '">Donation #' + r.donationId + ': ' + what + '</li>';
+        }).join('') + '</ul>';
+    }
+  } catch { showError('Network error — nothing was saved. Please try again.'); }
+  finally { postBusy = false; selectedIds.clear(); await loadDonations(); }
+}
+
+/* ── Review & Save drawer ── */
+async function openReview(id) {
+  if (postBusy) return;
+  hideFeedback();
+  const body = document.getElementById('rvBody');
+  body.innerHTML = '<p style="color:#888;">Loading the proposed entries&hellip;</p>';
+  document.getElementById('rvNote').textContent = '';
+  document.getElementById('rvSave').disabled = true;
+  document.getElementById('rvOverlay').classList.add('open');
+  document.getElementById('rvPanel').classList.add('open');
+  try {
+    const [t, res] = await Promise.all([loadTaxonomies(), fetch('/api/donations/' + id + '/preview')]);
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) {
+      if (data.code === 'SETTINGS_INCOMPLETE') { settingsComplete = false; applySettingsUi(); }
+      body.innerHTML = '<div class="warn-list block">' + esc(data.error || 'Could not load the preview.') + '</div>';
+      return;
+    }
+    reviewState = { id: id, proposal: data, chosenMember: data.matchedMemberId || null, chosenMemberName: data.matchedMemberName || null, clearMember: false };
+    renderReview(data, t);
+  } catch { body.innerHTML = '<div class="warn-list block">Network error loading the preview.</div>'; }
+}
+function closeReview() {
+  document.getElementById('rvOverlay').classList.remove('open');
+  document.getElementById('rvPanel').classList.remove('open');
+  reviewState = null;
+}
+function renderReview(p, t) {
+  const body = document.getElementById('rvBody');
+  const cur = 'USD';
+  if (p.alreadyPosted) {
+    body.innerHTML = '<div class="warn-list">' + (p.historical
+      ? 'This donation is already in Income (#' + p.existingIncomeId + '), posted automatically before the review workflow existed. It is reported here and left exactly as it is — nothing will be changed.'
+      : 'This donation is already posted (Income #' + p.existingIncomeId + (p.existingExpenseId ? ', Expense #' + p.existingExpenseId : '') + ').') + '</div>';
+    document.getElementById('rvSave').disabled = true;
+    return;
+  }
+  const blocking = (p.warnings || []).filter(function(w) { return w.indexOf('BLOCK:') === 0; }).map(function(w) { return w.substring(6).trim(); });
+  const warnings = (p.warnings || []).filter(function(w) { return w.indexOf('BLOCK:') !== 0; });
+  const memberChip = reviewState.chosenMember
+    ? '<span class="chip">' + esc(reviewState.chosenMemberName || ('Member #' + reviewState.chosenMember)) + ' <button type="button" title="Unlink" onclick="unlinkMember()">&times;</button></span>'
+    : '<span style="color:#888;">Not linked to a person &mdash; the Income row will carry the donor\'s name.</span>';
+  body.innerHTML =
+    '<div class="sect">Donation</div>' +
+    '<div class="fgrid">' +
+      '<div class="fld"><label>Contributor</label><div>' + esc(p.donor || '') + (p.donorEmail ? ' <small style="color:#888;">' + esc(p.donorEmail) + '</small>' : '') + '</div></div>' +
+      '<div class="fld"><label>Payment</label><div>' + esc(p.paymentMethod || '') + ' &middot; ' + fmtDay(p.donationDate) + '</div></div>' +
+      '<div class="fld full"><label>Donor note</label><div>' + (p.donorNote ? esc(p.donorNote) : '<span style="color:#aaa;">none</span>') + '</div></div>' +
+    '</div>' +
+    '<div class="sect">Amounts (computed by the server)</div>' +
+    '<table class="amt-table">' +
+      '<tr><td>Original donation</td><td>' + fmt(parseFloat(p.gross), cur) + '</td></tr>' +
+      '<tr><td>Stripe transaction fee ' + (p.feeEstimated ? '<span class="fee-src est">estimated</span>' : '<span class="fee-src actual">Stripe</span>') + '</td><td>' + fmt(parseFloat(p.fee), cur) + '</td></tr>' +
+      '<tr class="net"><td>Net donation (bank deposit)</td><td>' + fmt(parseFloat(p.net), cur) + '</td></tr>' +
+      '<tr><td>Income amount</td><td>' + fmt(parseFloat(p.incomeAmount), cur) + '</td></tr>' +
+      '<tr><td>Expense amount' + (p.expenseSkipped ? ' (no expense — zero fee)' : '') + '</td><td>' + fmt(parseFloat(p.expenseAmount), cur) + '</td></tr>' +
+    '</table>' +
+    (blocking.length ? '<div class="warn-list block"><strong>Cannot be saved:</strong><ul>' + blocking.map(function(w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' : '') +
+    (warnings.length ? '<div class="warn-list"><ul>' + warnings.map(function(w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' : '') +
+    '<div class="sect">Contributor</div>' +
+    '<div class="fgrid">' +
+      '<div class="fld"><label>Category</label><select id="rvCategory">' + ['Member','Guest','Visitor'].map(function(c) { return '<option' + (c === p.category ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select><div class="hint">Match: ' + esc(String(p.matchReason || '').replace(/_/g, ' ').toLowerCase()) + '</div></div>' +
+      '<div class="fld"><label>Linked person</label><div id="rvMemberChip">' + memberChip + '</div>' +
+        '<div class="ms-wrap" style="margin-top:6px;"><input type="text" id="rvMemberSearch" placeholder="Search an existing person to link&hellip;" autocomplete="off" oninput="memberSearch(this.value)" /><div class="ms-list" id="rvMemberList"></div></div>' +
+        '<div class="hint">Only existing people of this church can be linked. Nobody is ever created from here.</div></div>' +
+    '</div>' +
+    '<div class="sect">Income entry</div>' +
+    '<div class="fgrid">' +
+      '<div class="fld"><label>Fund</label><select id="rvIncomeFund">' + optionList(t.funds, ['sourceName','name','subSourceName'], p.incomeSubSourceId) + '</select></div>' +
+      '<div class="fld"><label>Method</label><select id="rvIncomeMethod">' + optionList(t.methods, ['typeName','name'], p.incomeTransactionTypeId) + '</select></div>' +
+      '<div class="fld"><label>Date</label><input type="date" id="rvIncomeDate" value="' + esc(p.incomeDate || '') + '" /></div>' +
+      '<div class="fld full"><label>Notes</label><textarea id="rvIncomeNote">' + esc(p.incomeNote || '') + '</textarea></div>' +
+    '</div>' +
+    (p.expenseSkipped ? '' :
+    '<div class="sect">Stripe fee expense entry</div>' +
+    '<div class="fgrid">' +
+      '<div class="fld"><label>Type</label><select id="rvExpenseType">' + optionList(t.purposes, ['purposeName','name'], p.expensePurposeId) + '</select></div>' +
+      '<div class="fld"><label>Fund</label><select id="rvExpenseFund">' + optionList(t.expFunds, ['sourceName','name','mainSourceName'], p.expenseMainSourceId) + '</select></div>' +
+      '<div class="fld"><label>Method</label><select id="rvExpenseMethod">' + optionList(t.methods, ['typeName','name'], p.expenseTransactionTypeId) + '</select></div>' +
+      '<div class="fld"><label>Date</label><input type="date" id="rvExpenseDate" value="' + esc(p.expenseDate || '') + '" /></div>' +
+      '<div class="fld full"><label>Notes</label><textarea id="rvExpenseNote">' + esc(p.expenseNote || '') + '</textarea></div>' +
+    '</div>');
+  document.getElementById('rvNote').textContent = 'The Income and Expense entries are created together, or not at all.';
+  document.getElementById('rvSave').disabled = blocking.length > 0;
+}
+function unlinkMember() {
+  if (!reviewState) return;
+  reviewState.chosenMember = null; reviewState.chosenMemberName = null; reviewState.clearMember = true;
+  document.getElementById('rvMemberChip').innerHTML = '<span style="color:#888;">Not linked to a person &mdash; the Income row will carry the donor\'s name.</span>';
+}
+let msTimer = null;
+function memberSearch(q) {
+  clearTimeout(msTimer);
+  const list = document.getElementById('rvMemberList');
+  if (!q || q.trim().length < 2) { list.classList.remove('open'); return; }
+  msTimer = setTimeout(async function() {
+    try {
+      const res = await fetch('/api/members?search=' + encodeURIComponent(q.trim()));
+      const rows = res.ok ? await res.json() : [];
+      list.innerHTML = (rows || []).slice(0, 12).map(function(m) {
+        const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
+        return '<div class="ms-item" onclick="pickMember(' + Number(m.id) + ', \'' + esc(name).replace(/'/g, '&#39;') + '\')">' + esc(name) +
+               '<small>' + esc(m.memberType || '') + (m.familyName ? ' · ' + esc(m.familyName) : '') + (m.email ? ' · ' + esc(m.email) : '') + '</small></div>';
+      }).join('') || '<div class="ms-item" style="color:#888;">No matching person.</div>';
+      list.classList.add('open');
+    } catch { list.classList.remove('open'); }
+  }, 250);
+}
+function pickMember(id, name) {
+  if (!reviewState) return;
+  reviewState.chosenMember = id; reviewState.chosenMemberName = name; reviewState.clearMember = false;
+  document.getElementById('rvMemberChip').innerHTML = '<span class="chip">' + esc(name) + ' <button type="button" title="Unlink" onclick="unlinkMember()">&times;</button></span>';
+  document.getElementById('rvMemberList').classList.remove('open');
+  document.getElementById('rvMemberSearch').value = '';
+}
+async function postFromReview() {
+  if (!reviewState || postBusy) return;
+  const g = function(id) { const el = document.getElementById(id); return el ? el.value : null; };
+  const o = {
+    category: g('rvCategory'),
+    matchedMemberId: reviewState.chosenMember || null,
+    clearMember: !!reviewState.clearMember && !reviewState.chosenMember,
+    incomeSubSourceId: g('rvIncomeFund') || null, incomeTransactionTypeId: g('rvIncomeMethod') || null,
+    incomeDate: g('rvIncomeDate') || null, incomeNote: g('rvIncomeNote'),
+    expensePurposeId: g('rvExpenseType') || null, expenseMainSourceId: g('rvExpenseFund') || null,
+    expenseTransactionTypeId: g('rvExpenseMethod') || null, expenseDate: g('rvExpenseDate') || null, expenseNote: g('rvExpenseNote')
+  };
+  const id = reviewState.id;
+  postBusy = true; document.getElementById('rvSave').disabled = true;
+  try {
+    const res = await fetch('/api/donations/' + id + '/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
+    const data = await res.json().catch(function() { return {}; });
+    if (handlePostResponse(res, data)) closeReview();
+    else document.getElementById('rvSave').disabled = false;
+  } catch { showError('Network error — nothing was saved. Please try again.'); document.getElementById('rvSave').disabled = false; }
+  finally { postBusy = false; await loadDonations(); }
+}
+
 /* ════ HELPERS ════ */
 function fmt(amount, currency) {
   try {
@@ -523,6 +988,14 @@ function fmt(amount, currency) {
   } catch { return '$' + amount.toFixed(2); }
 }
 
+/* A date-only string (YYYY-MM-DD) formatted without a timezone shift. */
+function fmtDay(s) {
+  if (!s) return '&#8212;';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  if (!m) return fmtDate(s);
+  try { return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return s; }
+}
 function fmtDate(s) {
   if (!s) return '&#8212;';
   try {

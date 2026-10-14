@@ -4,7 +4,6 @@ import com.churchgeniuspro.controller.MemberContributionController;
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
 import com.churchgeniuspro.service.ChurchStripeGateway;
-import com.churchgeniuspro.service.DonationIncomePostingService;
 import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.util.PublicSendLimiter;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +36,6 @@ class MemberContributionTest {
     FamilyMemberRepository memberRepo;
     SubSourceRepository subSourceRepo;
     SubscriptionService subs;
-    DonationIncomePostingService poster;
     ChurchStripeGateway gateway;
     FakeChurchStripe stripe;
     MemberContributionController controller;
@@ -64,9 +62,8 @@ class MemberContributionTest {
         subs = mock(SubscriptionService.class);
         when(subs.isFeatureEnabled(CID, "onlineGiving")).thenReturn(true);
         when(subs.canAcceptOnlineGiving(CID)).thenReturn(true);
-        poster = mock(DonationIncomePostingService.class);
         gateway = new ChurchStripeGateway(); stripe = new FakeChurchStripe(); gateway.setTransport(stripe);
-        controller = new MemberContributionController(donationRepo, stripeRepo, memberRepo, subSourceRepo, subs, poster, gateway, new PublicSendLimiter());
+        controller = new MemberContributionController(donationRepo, stripeRepo, memberRepo, subSourceRepo, subs, gateway, new PublicSendLimiter());
     }
 
     static MockHttpServletRequest member(String clientId, int memberId) {
@@ -153,13 +150,14 @@ class MemberContributionTest {
             assertThat(d.getFirstName()).isEqualTo("Anson"); assertThat(d.getEmail()).isEqualTo("anson@x.org");
             assertThat(d.getClientId()).isEqualTo(CID);
             assertThat(d.getNote()).isEqualTo("October");
-            verify(poster).postToIncome(d);
+            // Donation Review (V14): saved, not posted — review posts it later.
+            assertThat(d.isPosted()).isFalse();
+            assertThat(d.getPostedIncomeId()).isNull();
             verify(subs).recordOnlineGiving(CID);
 
             // Retry / refresh: already recorded, nothing new.
             assertThat(body(controller.save(Map.of("paymentIntentId", id), member(CID, 10)))).containsEntry("message", "Contribution already recorded.");
             verify(donationRepo, times(1)).save(any(Donation.class));
-            verify(poster, times(1)).postToIncome(any());
         }
 
         @Test @DisplayName("a failed or cancelled payment records nothing")
@@ -170,7 +168,6 @@ class MemberContributionTest {
             assertThat(r.getStatusCode().value()).isEqualTo(400);
             assertThat(String.valueOf(body(r).get("error"))).contains("has not completed");
             assertThat(saved).isEmpty();
-            verify(poster, never()).postToIncome(any());
             verify(subs, never()).recordOnlineGiving(anyString());
         }
 

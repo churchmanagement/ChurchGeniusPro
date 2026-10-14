@@ -8,7 +8,6 @@ import com.churchgeniuspro.repository.DonationRepository;
 import com.churchgeniuspro.repository.PublicScreenLinkRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
-import com.churchgeniuspro.service.DonationIncomePostingService;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,14 +53,13 @@ class DonationCurrencyTest {
     @Mock private ChurchLogoRepository       logoRepo;
     @Mock private EmailService               emailService;
     @Mock private SubscriptionService        subscriptionService;
-    @Mock private DonationIncomePostingService donationIncomePoster;
 
     private DonationController controller;
 
     @BeforeEach
     void setUp() {
         controller = new DonationController(donationRepo, stripeRepo, linkRepo,
-                clientRepo, logoRepo, emailService, subscriptionService, donationIncomePoster,
+                clientRepo, logoRepo, emailService, subscriptionService,
                 new com.churchgeniuspro.util.PublicSendLimiter());
 
         PublicScreenLink link = new PublicScreenLink();

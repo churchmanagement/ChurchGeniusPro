@@ -31,44 +31,16 @@ class MemberContributionPostingAndReviewTest {
     static final String CID = "CHR-1";
 
     @Test
-    @DisplayName("a member contribution is posted to the member and the purpose they chose; a public donation as before (by email)")
-    void postingUsesMemberAndPurpose() {
-        IncomeService incomeService = mock(IncomeService.class);
-        SourceService sourceService = mock(SourceService.class);
-        FamilyMemberRepository memberRepo = mock(FamilyMemberRepository.class);
-        TransactionTypeRepository ttRepo = mock(TransactionTypeRepository.class);
-        SubSourceRepository subRepo = mock(SubSourceRepository.class);
-        SubSource tithe = new SubSource(); tithe.setId(7); tithe.setAppClientId(CID);
-        SubSource online = new SubSource(); online.setId(99); online.setAppClientId(CID);
-        when(subRepo.findByIdAndAppClientIdAndDeleteFlagFalse(7, CID)).thenReturn(Optional.of(tithe));
-        when(sourceService.findOrCreateOnlineDonationsSubSource(CID)).thenReturn(online);
-        TransactionType card = new TransactionType(); card.setId(3);
-        when(ttRepo.findFirstByTypeNameIgnoreCaseAndAppClientIdAndDeleteFlagFalse(anyString(), eq(CID))).thenReturn(Optional.of(card));
-        FamilyMember anson = new FamilyMember(); anson.setId(10);
-        when(memberRepo.findByIdAndTenant(10, CID)).thenReturn(Optional.of(anson));
-        when(memberRepo.findActiveByEmailAndTenant("guest@x.org", CID)).thenReturn(List.of());
-        DonationIncomePostingService poster = new DonationIncomePostingService(incomeService, sourceService, memberRepo, ttRepo);
-        poster.setSubSourceRepo(subRepo);
-
+    @DisplayName("Donation Review (V14): a member contribution is saved with its member and purpose but is NOT posted to income at save — posting happens on review (DonationPostingServiceTest covers that it then goes to the member and their purpose)")
+    void savedNotPosted() {
         Donation member = new Donation(); member.setClientId(CID); member.setSource("MEMBER_PORTAL"); member.setMemberId(10); member.setSubSourceId(7);
         member.setAmount(new BigDecimal("10.00")); member.setIntendedAmount(new BigDecimal("10.00")); member.setFeeCovered(BigDecimal.ZERO);
         member.setPaymentMethod("Visa •••• 4242"); member.setStripePaymentIntentId("pi_m1");
-        assertThat(poster.postToIncome(member)).isTrue();
-        ArgumentCaptor<Integer> memberId = ArgumentCaptor.forClass(Integer.class), sub = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<String> note = ArgumentCaptor.forClass(String.class);
-        verify(incomeService).createIncome(memberId.capture(), sub.capture(), any(), eq(3), isNull(), eq(new BigDecimal("10.00")),
-                note.capture(), isNull(), eq(false), eq(CID), anyString(), eq("pi_m1"), eq(true));
-        assertThat(memberId.getValue()).isEqualTo(10);
-        assertThat(sub.getValue()).isEqualTo(7);
-        assertThat(note.getValue()).startsWith("Member portal contribution");
-
-        reset(incomeService);
-        Donation pub = new Donation(); pub.setClientId(CID); pub.setFirstName("Guest"); pub.setEmail("guest@x.org");
-        pub.setAmount(new BigDecimal("5.00")); pub.setIntendedAmount(new BigDecimal("5.00")); pub.setFeeCovered(BigDecimal.ZERO);
-        pub.setPaymentMethod("Card"); pub.setStripePaymentIntentId("pi_p1");
-        assertThat(poster.postToIncome(pub)).isTrue();
-        verify(incomeService).createIncome(isNull(), eq(99), any(), eq(3), isNull(), eq(new BigDecimal("5.00")),
-                startsWith("Online donation"), eq("Guest"), eq(false), eq(CID), anyString(), eq("pi_p1"), eq(true));
+        assertThat(member.isMemberContribution()).isTrue();
+        assertThat(member.isPosted()).isFalse();
+        assertThat(member.getPostedIncomeId()).isNull();
+        assertThat(member.getPostedExpenseId()).isNull();
+        assertThat(member.getFeeSource()).isNull();
     }
 
     @Test
@@ -80,7 +52,7 @@ class MemberContributionPostingAndReviewTest {
         when(subRepo.findByIdAndAppClientIdAndDeleteFlagFalse(7, CID)).thenReturn(Optional.of(tithe));
         DonationController c = new DonationController(donationRepo, mock(StripeSettingsRepository.class), mock(PublicScreenLinkRepository.class),
                 mock(ServiceClientRepository.class), mock(ChurchLogoRepository.class), mock(EmailService.class),
-                mock(SubscriptionService.class), mock(DonationIncomePostingService.class), new PublicSendLimiter());
+                mock(SubscriptionService.class), new PublicSendLimiter());
         c.setSubSourceRepo(subRepo);
         Donation pub = new Donation(); pub.setId(1L); pub.setClientId(CID); pub.setFirstName("Binny"); pub.setAmount(new BigDecimal("100.00")); pub.setCurrency("usd"); pub.setStatus("succeeded");
         Donation mem = new Donation(); mem.setId(2L); mem.setClientId(CID); mem.setFirstName("Anson"); mem.setAmount(new BigDecimal("10.00")); mem.setCurrency("usd"); mem.setStatus("succeeded");

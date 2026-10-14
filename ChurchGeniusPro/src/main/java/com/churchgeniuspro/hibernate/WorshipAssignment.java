@@ -2,19 +2,26 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDate;
 
 /**
  * A worship assignment for a specific date and group.
- * Each combination of (client_id, group_id, assignment_date) represents
- * one Sunday (or any day) service plan for that group.
+ * Each combination of (client_id, group_id, assignment_date, assignment_type)
+ * represents one Sunday (or any day) service plan for that group in ONE
+ * workflow: {@code manual} (user-built schedule) or {@code auto} (generated
+ * rotation). The two workflows never share a row, so editing one can never
+ * overwrite the other.
+ *
+ * <p>Uniqueness is enforced by the partial index {@code ux_worship_assignment_active}
+ * (… WHERE delete_flag = false), created by Flyway V13 /
+ * {@code config/WorshipSchemaInitializer} — NOT by a JPA constraint, because the
+ * key must ignore soft-deleted rows (regenerating a schedule soft-deletes the old
+ * dates and re-creates them).
  */
 @Data
 @Entity
 @Table(name = "worship_assignment",
-       uniqueConstraints = @UniqueConstraint(
-               name = "uq_worship_assignment_client_group_date",
-               columnNames = {"client_id", "group_id", "assignment_date"}),
        indexes = {
            @Index(name = "idx_worship_assignment_client_date",
                   columnList = "client_id, assignment_date"),
@@ -38,8 +45,20 @@ public class WorshipAssignment {
     @Column(name = "assignment_date", nullable = false)
     private LocalDate assignmentDate;
 
-    @Column(name = "assignment_type", length = 20)
+    /** Workflow that owns this row: {@code manual} or {@code auto}. Part of the key. */
+    @Column(name = "assignment_type", nullable = false, length = 20)
+    @ColumnDefault("'manual'")
     private String assignmentType = "manual";
+
+    /**
+     * Manual workflow only: the date is marked "skipped" (no service / not
+     * scheduled) but its members are KEPT, so un-skipping restores them exactly.
+     * Automatic Assignment never sets this (its skip handling is client-side).
+     * Skipped rows are hidden from the read-only schedule views.
+     */
+    @Column(name = "skipped", nullable = false)
+    @ColumnDefault("false")
+    private boolean skipped = false;
 
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag = false;

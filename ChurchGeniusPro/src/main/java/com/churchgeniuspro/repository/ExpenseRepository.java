@@ -32,6 +32,9 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
     Optional<Expense> findFirstByAppClientIdAndImportRefAndDeleteFlagFalse(
             String appClientId, String importRef);
 
+    /** Donation Review reconciliation: the active fee expenses posted for these import refs (V14). */
+    List<Expense> findByAppClientIdAndImportRefInAndDeleteFlagFalse(String appClientId, java.util.Collection<String> importRefs);
+
     /**
      * Latest quick-add expense templates for the Accountant dashboard.
      * Returns up to 10 records (limit applied in the service).

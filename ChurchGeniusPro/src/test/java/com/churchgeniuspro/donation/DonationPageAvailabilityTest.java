@@ -65,14 +65,13 @@ class DonationPageAvailabilityTest {
     @Mock private ChurchLogoRepository       logoRepo;
     @Mock private EmailService               emailService;
     @Mock private SubscriptionService        subscriptionService;
-    @Mock private com.churchgeniuspro.service.DonationIncomePostingService donationIncomePoster;
 
     private DonationController controller;
 
     @BeforeEach
     void setUp() {
         controller = new DonationController(donationRepo, stripeRepo, linkRepo,
-                clientRepo, logoRepo, emailService, subscriptionService, donationIncomePoster,
+                clientRepo, logoRepo, emailService, subscriptionService,
                 new com.churchgeniuspro.util.PublicSendLimiter());
 
         PublicScreenLink link = new PublicScreenLink();

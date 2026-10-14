@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Financial audit H9. Two pieces of {@link SourceService} that {@link
- * DonationIncomePostingService} depends on:
+ * (formerly used by the automatic DonationIncomePostingService; kept for MidRegMeet/event giving) depends on:
  * <ul>
  *   <li>the "Online Giving" &rarr; "Online Donations" category a posted
  *       donation is filed under is created once per church, on first use,

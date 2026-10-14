@@ -31,6 +31,25 @@ public interface WorshipSongRepository extends JpaRepository<WorshipSong, Long> 
             @Param("groupId") Long groupId,
             @Param("serviceDate") LocalDate serviceDate);
 
+    /** Songs for a group+date belonging to ONE schedule (manual | auto). */
+    List<WorshipSong> findByClientIdAndGroupIdAndServiceDateAndScheduleTypeAndDeleteFlagFalseOrderBySortOrderAsc(
+            String clientId, Long groupId, LocalDate serviceDate, String scheduleType);
+
+    /** Songs of ONE schedule for a client+group across a date range. */
+    List<WorshipSong> findByClientIdAndGroupIdAndScheduleTypeAndServiceDateBetweenAndDeleteFlagFalseOrderByServiceDateAscSortOrderAsc(
+            String clientId, Long groupId, String scheduleType, LocalDate from, LocalDate to);
+
+    /** Bulk-delete the songs of ONE schedule for a group+date (full replace). */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM WorshipSong s WHERE s.clientId = :clientId AND s.groupId = :groupId "
+         + "AND s.serviceDate = :serviceDate AND s.scheduleType = :scheduleType")
+    void deleteByClientIdAndGroupIdAndServiceDateAndScheduleType(
+            @Param("clientId") String clientId,
+            @Param("groupId") Long groupId,
+            @Param("serviceDate") LocalDate serviceDate,
+            @Param("scheduleType") String scheduleType);
+
     /** Group-level library songs (serviceDate IS NULL). */
     List<WorshipSong> findByClientIdAndGroupIdAndServiceDateIsNullAndDeleteFlagFalseOrderBySortOrderAsc(
             String clientId, Long groupId);

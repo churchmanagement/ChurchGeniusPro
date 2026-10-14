@@ -8,7 +8,6 @@ import com.churchgeniuspro.repository.DonationRepository;
 import com.churchgeniuspro.repository.PublicScreenLinkRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
-import com.churchgeniuspro.service.DonationIncomePostingService;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +64,6 @@ class DonationReviewStatusTest {
     @Mock private ChurchLogoRepository         logoRepo;
     @Mock private EmailService                 emailService;
     @Mock private SubscriptionService          subscriptionService;
-    @Mock private DonationIncomePostingService donationIncomePoster;
 
     private DonationController       listController;
     private DonationReviewController reviewController;
@@ -73,7 +71,7 @@ class DonationReviewStatusTest {
     @BeforeEach
     void setUp() {
         listController = new DonationController(donationRepo, stripeRepo, linkRepo,
-                clientRepo, logoRepo, emailService, subscriptionService, donationIncomePoster,
+                clientRepo, logoRepo, emailService, subscriptionService,
                 new com.churchgeniuspro.util.PublicSendLimiter());
         reviewController = new DonationReviewController(donationRepo);
     }
@@ -312,7 +310,7 @@ class DonationReviewStatusTest {
         void touchesNothingElse() {
             when(donationRepo.countByClientIdAndIdIn(eq(CLIENT_ID), anyCollection())).thenReturn(1L);
             reviewController.setReviewStatus(req("COMPLETED", 5), staff("Accountant", null));
-            verifyNoInteractions(donationIncomePoster, stripeRepo, emailService);
+            verifyNoInteractions(stripeRepo, emailService);
         }
     }
 

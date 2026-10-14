@@ -85,6 +85,14 @@ class ApiPermissionCheckRatchetTest {
         // directly. This one write endpoint only; GET /api/donations and every other
         // donation API stay role-only per the 2026-09-29 rule (DonationController: 0).
         Map.entry("controller/DonationReviewController.java", 1),
+        // 2026-10-13 approved exception (Donation Review accounting, decision 5): the
+        // endpoints that POST reviewed donations to Income/Expense and that save the
+        // church's Donation Settings check `accounting.donation` in addition to the
+        // Accountant/Admin role and own-church scoping — they change financial records,
+        // the same reasoning as review-status above. Each file has ONE shared gate
+        // helper. GET /api/donations and the other donation reads stay role-only.
+        Map.entry("controller/DonationPostingController.java", 1),
+        Map.entry("controller/DonationSettingsController.java", 1),
         Map.entry("controller/AiDataSearchController.java", 1),    // POST /api/ai-search/data
         Map.entry("controller/VoiceCommandController.java", 1)     // POST /api/ai-assist
     ));

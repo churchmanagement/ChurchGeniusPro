@@ -90,7 +90,10 @@ class TenantScopedLookupRatchetTest {
         entry("controller/SubscriptionPlanAdminController.java", 1),
         entry("controller/SundaySchoolController.java", 69),
         entry("controller/VolunteerController.java", 12),
-        entry("controller/WorshipPlanningController.java", 11),
+        // +1 (2026-10-09): assignmentRepo.findById(id) in setSkipped — same shape as the
+        // deleteAssignment handler beside it: the row's getClientId() is compared to the
+        // session tenant (404 otherwise) before the skipped flag is written.
+        entry("controller/WorshipPlanningController.java", 12),
         entry("payroll/controller/PayrollAdminController.java", 4),
         entry("payroll/controller/PayrollExportController.java", 2),
         entry("payroll/controller/PayrollPaystubController.java", 1),

@@ -2,6 +2,7 @@ package com.churchgeniuspro.controller;
 
 import com.churchgeniuspro.hibernate.ChurchLogo;
 import com.churchgeniuspro.hibernate.Donation;
+import com.churchgeniuspro.service.ChurchStripeGateway;
 import com.churchgeniuspro.hibernate.PublicScreenLink;
 import com.churchgeniuspro.hibernate.ServiceClient;
 import com.churchgeniuspro.hibernate.StripeSettings;
@@ -77,7 +78,6 @@ public class DonationController {
     private final ChurchLogoRepository       logoRepo;
     private final EmailService               emailService;
     private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
-    private final com.churchgeniuspro.service.DonationIncomePostingService donationIncomePoster;
     private final PublicSendLimiter          sendLimiter;
     /**
      * Phase D: the Stripe REST calls below are the church-side integration, shared
@@ -102,7 +102,6 @@ public class DonationController {
                                ChurchLogoRepository logoRepo,
                                EmailService emailService,
                                com.churchgeniuspro.service.SubscriptionService subscriptionService,
-                               com.churchgeniuspro.service.DonationIncomePostingService donationIncomePoster,
                                PublicSendLimiter sendLimiter) {
         this.sendLimiter  = sendLimiter;
         this.donationRepo = donationRepo;
@@ -112,7 +111,6 @@ public class DonationController {
         this.logoRepo     = logoRepo;
         this.emailService = emailService;
         this.subscriptionService  = subscriptionService;
-        this.donationIncomePoster = donationIncomePoster;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -443,13 +441,25 @@ public class DonationController {
         donation.setStripeChargeId(chargeId);
         donation.setStatus(status);
 
+        // Donation Review (V14): Stripe's processing fee, read off the charge's
+        // balance transaction the verification call above already expanded. Present
+        // for a settled card charge; absent (left null) for a pending ACH debit, and
+        // picked up later by Donation Review's fee refresh. Never guessed here.
+        ChurchStripeGateway.feeInfo(pi).ifPresent(f -> {
+            donation.setStripeFee(f.fee());
+            donation.setStripeNet(f.net());
+            donation.setStripeBalanceTransactionId(f.balanceTransactionId());
+            donation.setFeeSource(Donation.FEE_SOURCE_STRIPE);
+        });
+
         donationRepo.save(donation);
         subscriptionService.recordOnlineGiving(clientId);
-        // Financial audit H9: so this gift appears on the church's Year-End Tax
-        // Report, the donor's own giving statement, and every other income
-        // report — none of which reads the donation table. Best-effort and
-        // never throws; a posting failure never affects the donor's confirmation.
-        donationIncomePoster.postToIncome(donation);
+        // Donation Review (V14): this gift is NOT posted to income here any more. It
+        // waits on the Donation Review page until an authorised user posts it — the
+        // full charge as Income and the Stripe fee as Expense, under the church's
+        // Donation Settings (DonationPostingService). Posting it automatically used to
+        // record income above the bank deposit and create the card label as a
+        // transaction type.
         try { sendDonationThankyou(donation, clientId); } catch (Exception ignored) {}
         if (submissionNotifications != null) {
             String donor = ((donation.getFirstName() == null ? "" : donation.getFirstName()) + " "
@@ -618,6 +628,17 @@ public class DonationController {
     /** Phase D: resolves the purpose name for a member contribution row. Optional (unit tests). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.repository.SubSourceRepository subSourceRepo;
+
+    /**
+     * Donation Review (V14): finds donations the FORMER automatic hook already posted —
+     * an active income row of this church whose {@code import_ref} is the donation's
+     * ledger key — so the page shows "In Income #n (auto)" instead of a Save button.
+     * Tenant-safe: the lookup carries the session's church. Read-only; nothing is
+     * adopted or backfilled (approval decision 7). Optional (unit tests).
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.IncomeRepository incomeRepo;
+    public void setIncomeRepo(com.churchgeniuspro.repository.IncomeRepository r) { this.incomeRepo = r; }
     public void setSubSourceRepo(com.churchgeniuspro.repository.SubSourceRepository r) { this.subSourceRepo = r; }
 
     /**
@@ -644,6 +665,23 @@ public class DonationController {
                 .filter(d -> d.isMemberContribution() == memberTab)
                 .toList();
         Map<Integer, String> purposeNames = new java.util.HashMap<>();
+
+        // Donation Review (V14): rows already in Income from the former automatic hook.
+        // One batched, church-scoped lookup; only the income id and amount are exposed.
+        Map<String, com.churchgeniuspro.hibernate.Income> historicalByRef = new java.util.HashMap<>();
+        if (incomeRepo != null && !donations.isEmpty()) {
+            List<String> refs = new ArrayList<>();
+            for (Donation d : donations) if (!d.isPosted()) refs.add(com.churchgeniuspro.service.DonationPostingService.ledgerRef(d));
+            if (!refs.isEmpty()) {
+                try {
+                    for (com.churchgeniuspro.hibernate.Income i : incomeRepo.findByAppClientIdAndImportRefInAndDeleteFlagFalse(clientId, refs)) {
+                        historicalByRef.put(i.getImportRef(), i);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Donation list: historical income lookup failed for client {}: {}", clientId, ex.getClass().getSimpleName());
+                }
+            }
+        }
 
         List<Map<String, Object>> result = new ArrayList<>();
         // Financial audit M11: totalsByCurrency/countByCurrency are accumulated from
@@ -686,6 +724,23 @@ public class DonationController {
                                 .map(ss -> ss.getSourceName()).orElse(null)));
             }
             m.put("reviewCompletedAt",     d.getReviewCompletedAt() != null ? d.getReviewCompletedAt().toString() : null);
+            // Donation Review (V14): accounting-posted state, shown separately from review status.
+            m.put("posted",                d.isPosted());
+            m.put("postedIncomeId",        d.getPostedIncomeId());
+            m.put("postedExpenseId",       d.getPostedExpenseId());
+            m.put("postedAt",              d.getPostedAt() != null ? d.getPostedAt().toString() : null);
+            m.put("postedBy",              d.getPostedBy());
+            m.put("stripeFee",             d.getStripeFee());
+            m.put("stripeNet",             d.getStripeNet());
+            m.put("feeSource",             d.getFeeSource());
+            m.put("hasChargeId",           d.getStripeChargeId() != null);
+            m.put("contributorCategory",   d.getContributorCategory());
+            m.put("matchedMemberId",       d.getMatchedMemberId());
+            com.churchgeniuspro.hibernate.Income hist = d.isPosted() ? null
+                    : historicalByRef.get(com.churchgeniuspro.service.DonationPostingService.ledgerRef(d));
+            m.put("historicalIncomeId",     hist != null ? hist.getId() : null);
+            m.put("historicalIncomeAmount", hist != null ? hist.getAmount() : null);
+            m.put("inLedger",               d.isPosted() || hist != null);
             result.add(m);
 
             // Same "missing currency means USD" normalization the review page itself

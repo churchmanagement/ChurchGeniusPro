@@ -35,7 +35,11 @@ class StripeSeparationRatchetTest {
     static final List<String> DONATION_FILES = List.of(
             "controller/DonationController.java", "controller/StripeSettingsController.java",
             "hibernate/StripeSettings.java", "repository/StripeSettingsRepository.java",
-            "service/DonationIncomePostingService.java");
+            "service/ChurchStripeGateway.java",
+            // Donation Review (V14): every file that posts donations or reads their Stripe fee
+            "service/DonationFeeService.java", "service/DonationPostingService.java",
+            "service/DonationSettingsService.java", "controller/DonationPostingController.java",
+            "controller/DonationSettingsController.java", "controller/MemberContributionController.java");
 
     static final Path ROOT = Paths.get("src/main/java/com/churchgeniuspro");
 

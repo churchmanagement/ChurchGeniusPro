@@ -233,22 +233,43 @@ public class WorshipPlanningController {
     // ASSIGNMENTS
     // ======================================================================
 
+    /**
+     * Lists assignments.
+     *
+     * <p>{@code type} (optional, {@code manual} | {@code auto}) restricts the result to
+     * one workflow; omitted = every workflow, exactly as before the per-workflow key.
+     * {@code includeSkipped} (optional, default {@code false}) includes rows the Manual
+     * workflow has marked skipped; the default hides them so the read-only schedule
+     * views (Worship Planning, member portal) never show a skipped date. Automatic
+     * Assignment never sets the flag, so its rows are unaffected either way.
+     */
     @GetMapping("/assignments")
     public ResponseEntity<?> getAssignments(@RequestParam(required = false) String from,
                                              @RequestParam(required = false) String to,
+                                             @RequestParam(required = false) String type,
+                                             @RequestParam(required = false, defaultValue = "false") boolean includeSkipped,
                                              HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
-        List<WorshipAssignment> assignments;
+        String workflow = normaliseType(type);
+        if (type != null && !type.isBlank() && workflow == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "type must be manual or auto."));
+        LocalDate fromDate, toDate;
         if (from != null && to != null) {
-            assignments = assignmentRepo.findByClientIdAndAssignmentDateBetweenAndDeleteFlagFalse(
-                    clientId, LocalDate.parse(from), LocalDate.parse(to));
+            fromDate = LocalDate.parse(from);
+            toDate   = LocalDate.parse(to);
         } else {
             // Apply a default floor of today - 7 days when no date range is supplied,
             // to avoid loading the entire historical dataset.
-            LocalDate floor = LocalDate.now().minusDays(7);
-            assignments = assignmentRepo.findByClientIdAndAssignmentDateBetweenAndDeleteFlagFalse(
-                    clientId, floor, floor.plusYears(1));
+            fromDate = LocalDate.now().minusDays(7);
+            toDate   = fromDate.plusYears(1);
+        }
+        List<WorshipAssignment> assignments = workflow == null
+                ? assignmentRepo.findByClientIdAndAssignmentDateBetweenAndDeleteFlagFalse(clientId, fromDate, toDate)
+                : assignmentRepo.findByClientIdAndAssignmentTypeAndAssignmentDateBetweenAndDeleteFlagFalse(
+                        clientId, workflow, fromDate, toDate);
+        if (!includeSkipped) {
+            assignments = assignments.stream().filter(a -> !a.isSkipped()).collect(Collectors.toList());
         }
         return ResponseEntity.ok(buildAssignmentDetails(assignments));
     }
@@ -280,13 +301,19 @@ public class WorshipPlanningController {
             }
         }
         LocalDate date = LocalDate.parse(dateStr);
+        // The row is keyed by (client, group, date, WORKFLOW): a manual save can only ever
+        // create or update the manual row, an automatic save only the automatic row.
+        // Absent/unknown type = "manual" — the entity default the API has always applied.
+        String workflow = normaliseType(type);
+        if (workflow == null) workflow = TYPE_MANUAL;
         WorshipAssignment assignment = assignmentRepo
-                .findFirstByClientIdAndGroupIdAndAssignmentDateAndDeleteFlagFalse(clientId, groupId, date)
+                .findFirstByClientIdAndGroupIdAndAssignmentDateAndAssignmentTypeAndDeleteFlagFalse(
+                        clientId, groupId, date, workflow)
                 .orElse(new WorshipAssignment());
         assignment.setClientId(clientId);
         assignment.setGroupId(groupId);
         assignment.setAssignmentDate(date);
-        assignment.setAssignmentType(type != null ? type : "manual");
+        assignment.setAssignmentType(workflow);
         assignment.setDeleteFlag(false);
         assignmentRepo.save(assignment);
         assignmentMemberRepo.deleteByAssignmentId(assignment.getId());
@@ -319,6 +346,89 @@ public class WorshipPlanningController {
         a.setDeleteFlag(true);
         assignmentRepo.save(a);
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    // ======================================================================
+    // MANUAL ASSIGNMENT — user-initiated only (no generation, no rotation)
+    // ======================================================================
+
+    /**
+     * Marks a date skipped or active. Touches ONLY the flag — the assignment's
+     * members are never read or written here, so un-skipping restores exactly
+     * what was there. Manual rows only — Automatic Assignment keeps its own
+     * client-side skip handling and its rows are refused here.
+     */
+    @PutMapping("/assignments/{id}/skip")
+    public ResponseEntity<?> setSkipped(@PathVariable Long id,
+                                        @RequestBody Map<String, Object> body,
+                                        HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null) return ResponseEntity.status(401).build();
+        Optional<WorshipAssignment> opt = assignmentRepo.findById(id);
+        if (opt.isEmpty() || !opt.get().getClientId().equals(clientId) || opt.get().isDeleteFlag())
+            return ResponseEntity.notFound().build();
+        WorshipAssignment a = opt.get();
+        if (!TYPE_MANUAL.equals(a.getAssignmentType()))
+            return ResponseEntity.badRequest().body(Map.of("error", "Only manual assignments can be skipped here."));
+        a.setSkipped(Boolean.TRUE.equals(body.get("skipped")));
+        assignmentRepo.save(a);
+        return ResponseEntity.ok(buildAssignmentDetail(a));
+    }
+
+    /**
+     * Creates EMPTY manual schedule rows for a group: every {@code dayOfWeek}
+     * (1 = Monday … 7 = Sunday) from {@code startDate} for {@code weeks} weeks.
+     *
+     * <p>Pure date arithmetic. It assigns nobody, reads no roster, performs no
+     * rotation and never touches the automatic workflow's rows or code path —
+     * the user fills every cell by hand afterwards. Dates that already have a
+     * manual row are left untouched and reported under {@code existing}.
+     */
+    @PostMapping("/assignments/manual-dates")
+    @Transactional
+    public ResponseEntity<?> addManualDates(@RequestBody Map<String, Object> body,
+                                            HttpServletRequest request) {
+        ResponseEntity<?> denied = writeDeny(request);
+        if (denied != null) return denied;
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null) return ResponseEntity.status(401).build();
+        Long    groupId  = longVal(body.get("groupId"));
+        String  startStr = str(body.get("startDate"));
+        Integer weeks    = intVal(body.get("weeks"));
+        Integer dowRaw   = intVal(body.get("dayOfWeek"));
+        if (groupId == null || startStr == null || weeks == null || dowRaw == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "groupId, startDate, weeks, dayOfWeek required."));
+        if (weeks < 1 || weeks > MAX_MANUAL_WEEKS || dowRaw < 1 || dowRaw > 7)
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "weeks must be 1-" + MAX_MANUAL_WEEKS + " and dayOfWeek 1-7."));
+        if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
+            return ResponseEntity.notFound().build();
+        LocalDate cur = LocalDate.parse(startStr);
+        DayOfWeek target = DayOfWeek.of(dowRaw);
+        while (cur.getDayOfWeek() != target) cur = cur.plusDays(1);
+        List<WorshipAssignment> created  = new ArrayList<>();
+        List<String>            existing = new ArrayList<>();
+        for (int w = 0; w < weeks; w++, cur = cur.plusWeeks(1)) {
+            if (assignmentRepo.findFirstByClientIdAndGroupIdAndAssignmentDateAndAssignmentTypeAndDeleteFlagFalse(
+                    clientId, groupId, cur, TYPE_MANUAL).isPresent()) {
+                existing.add(cur.toString());
+                continue;
+            }
+            WorshipAssignment a = new WorshipAssignment();
+            a.setClientId(clientId);
+            a.setGroupId(groupId);
+            a.setAssignmentDate(cur);
+            a.setAssignmentType(TYPE_MANUAL);
+            a.setSkipped(false);
+            a.setDeleteFlag(false);
+            created.add(assignmentRepo.save(a));            // no members: an empty schedule row
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("created",  buildAssignmentDetails(created));
+        out.put("existing", existing);
+        return ResponseEntity.ok(out);
     }
 
     // ======================================================================
@@ -432,17 +542,19 @@ public class WorshipPlanningController {
     public ResponseEntity<?> getSongsBatch(@RequestParam List<Long> groupIds,
                                            @RequestParam String from,
                                            @RequestParam String to,
+                                           @RequestParam(required = false) String scheduleType,
                                            HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         LocalDate fromDate = LocalDate.parse(from);
         LocalDate toDate   = LocalDate.parse(to);
+        String schedule = scheduleOf(scheduleType);
         // result map: "groupId|date" → list of song titles (non-headings, ordered)
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (Long groupId : groupIds) {
             List<WorshipSong> songs = songRepo
-                    .findByClientIdAndGroupIdAndServiceDateBetweenAndDeleteFlagFalseOrderByServiceDateAscSortOrderAsc(
-                            clientId, groupId, fromDate, toDate);
+                    .findByClientIdAndGroupIdAndScheduleTypeAndServiceDateBetweenAndDeleteFlagFalseOrderByServiceDateAscSortOrderAsc(
+                            clientId, groupId, schedule, fromDate, toDate);
             for (WorshipSong s : songs) {
                 if (s.isHeading()) continue;
                 String key = groupId + "|" + s.getServiceDate().toString();
@@ -452,9 +564,15 @@ public class WorshipPlanningController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Dated song lists belong to ONE schedule: {@code scheduleType} (optional,
+     * {@code auto} | {@code manual}, default {@code auto} = every pre-existing caller).
+     * The library ({@code date} absent) is shared and ignores the parameter.
+     */
     @GetMapping("/songs")
     public ResponseEntity<?> getSongs(@RequestParam Long groupId,
                                       @RequestParam(required = false) String date,
+                                      @RequestParam(required = false) String scheduleType,
                                       HttpServletRequest request) {
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
@@ -465,8 +583,8 @@ public class WorshipPlanningController {
             return ResponseEntity.ok(songs.stream().map(this::songMap).collect(Collectors.toList()));
         }
         List<WorshipSong> songs = songRepo
-                .findByClientIdAndGroupIdAndServiceDateAndDeleteFlagFalseOrderBySortOrderAsc(
-                        clientId, groupId, LocalDate.parse(date));
+                .findByClientIdAndGroupIdAndServiceDateAndScheduleTypeAndDeleteFlagFalseOrderBySortOrderAsc(
+                        clientId, groupId, LocalDate.parse(date), scheduleOf(scheduleType));
         return ResponseEntity.ok(songs.stream().map(this::songMap).collect(Collectors.toList()));
     }
 
@@ -488,6 +606,7 @@ public class WorshipPlanningController {
         s.setClientId(clientId);
         s.setGroupId(groupId);
         s.setServiceDate(dateStr != null && !dateStr.isBlank() ? LocalDate.parse(dateStr) : null);
+        s.setScheduleType(scheduleOf(str(body.get("scheduleType"))));
         s.setHeading(Boolean.TRUE.equals(body.get("isHeading")));
         s.setSongTitle(title);
         s.setSortOrder(intVal(body.get("sortOrder")));
@@ -565,7 +684,8 @@ public class WorshipPlanningController {
         if (groupRepo.findByIdAndClientId(groupId, clientId).isEmpty())
             return ResponseEntity.notFound().build();
         LocalDate date = LocalDate.parse(dateStr);
-        songRepo.deleteByClientIdAndGroupIdAndServiceDate(clientId, groupId, date);
+        String schedule = scheduleOf(str(body.get("scheduleType")));
+        songRepo.deleteByClientIdAndGroupIdAndServiceDateAndScheduleType(clientId, groupId, date, schedule);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("songs");
         List<Map<String, Object>> saved = new ArrayList<>();
@@ -578,6 +698,7 @@ public class WorshipPlanningController {
                 s.setClientId(clientId);
                 s.setGroupId(groupId);
                 s.setServiceDate(date);
+                s.setScheduleType(schedule);
                 s.setHeading(Boolean.TRUE.equals(item.get("isHeading")));
                 s.setSongTitle(title);
                 s.setSortOrder(i);
@@ -591,6 +712,7 @@ public class WorshipPlanningController {
     @PostMapping("/songs/upload")
     public ResponseEntity<?> uploadSongDoc(@RequestParam Long groupId,
                                            @RequestParam(required = false) String date,
+                                           @RequestParam(required = false) String scheduleType,
                                            @RequestParam("file") MultipartFile file,
                                            HttpServletRequest request) {
         ResponseEntity<?> denied = writeDeny(request);
@@ -631,13 +753,14 @@ public class WorshipPlanningController {
         // null date -> library upload (clears and replaces library for this group)
         boolean isLibrary = (date == null || date.isBlank());
         LocalDate serviceDate = isLibrary ? null : LocalDate.parse(date);
+        String schedule = scheduleOf(scheduleType);
         if (isLibrary) {
             // Replace the group library entirely
             songRepo.deleteLibraryByClientIdAndGroupId(clientId, groupId);
         }
         List<WorshipSong> existing = isLibrary
                 ? songRepo.findByClientIdAndGroupIdAndServiceDateIsNullAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId)
-                : songRepo.findByClientIdAndGroupIdAndServiceDateAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId, serviceDate);
+                : songRepo.findByClientIdAndGroupIdAndServiceDateAndScheduleTypeAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId, serviceDate, schedule);
         int nextOrder = existing.stream()
                 .mapToInt(s -> s.getSortOrder() == null ? 0 : s.getSortOrder())
                 .max().orElse(-1) + 1;
@@ -646,6 +769,7 @@ public class WorshipPlanningController {
             s.setClientId(clientId);
             s.setGroupId(groupId);
             s.setServiceDate(serviceDate);
+            s.setScheduleType(schedule);
             s.setHeading(true);   // All uploaded lines become headings (section names)
             s.setSongTitle(line);
             s.setSortOrder(nextOrder++);
@@ -653,7 +777,7 @@ public class WorshipPlanningController {
         }
         List<WorshipSong> all = isLibrary
                 ? songRepo.findByClientIdAndGroupIdAndServiceDateIsNullAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId)
-                : songRepo.findByClientIdAndGroupIdAndServiceDateAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId, serviceDate);
+                : songRepo.findByClientIdAndGroupIdAndServiceDateAndScheduleTypeAndDeleteFlagFalseOrderBySortOrderAsc(clientId, groupId, serviceDate, schedule);
         return ResponseEntity.ok(all.stream().map(this::songMap).collect(Collectors.toList()));
     }
 
@@ -662,6 +786,7 @@ public class WorshipPlanningController {
         m.put("id",          s.getId());
         m.put("groupId",     s.getGroupId());
         m.put("serviceDate", s.getServiceDate() != null ? s.getServiceDate().toString() : null);
+        m.put("scheduleType", s.getScheduleType());
         m.put("isHeading",   s.isHeading());
         m.put("songTitle",   s.getSongTitle());
         m.put("sortOrder",   s.getSortOrder());
@@ -671,6 +796,24 @@ public class WorshipPlanningController {
     // ======================================================================
     // HELPERS
     // ======================================================================
+
+    /** Workflow / schedule identifiers — part of the assignment key and the song-list key. */
+    static final String TYPE_MANUAL = "manual";
+    static final String TYPE_AUTO   = "auto";
+    /** Upper bound for the Manual "add dates" helper (one year of weekly dates). */
+    static final int MAX_MANUAL_WEEKS = 52;
+
+    /** {@code "manual"} / {@code "auto"} (case-insensitive) → canonical value; anything else → null. */
+    private static String normaliseType(String type) {
+        if (type == null) return null;
+        String t = type.trim().toLowerCase(Locale.ROOT);
+        return TYPE_MANUAL.equals(t) || TYPE_AUTO.equals(t) ? t : null;
+    }
+
+    /** Song-list schedule: {@code manual} only when asked for explicitly; everything else is {@code auto}. */
+    private static String scheduleOf(String scheduleType) {
+        return TYPE_MANUAL.equals(normaliseType(scheduleType)) ? TYPE_MANUAL : TYPE_AUTO;
+    }
 
     /**
      * Same guard chain as the {@code /worshipPlanning} page route, applied to
@@ -791,6 +934,7 @@ public class WorshipPlanningController {
             map.put("groupId",        a.getGroupId());
             map.put("assignmentDate", a.getAssignmentDate().toString());
             map.put("assignmentType", a.getAssignmentType());
+            map.put("skipped",        a.isSkipped());
             map.put("groupName",      groupNames.getOrDefault(a.getGroupId(), ""));
             List<WorshipAssignmentMember> amList =
                     membersByAssignment.getOrDefault(a.getId(), List.of());

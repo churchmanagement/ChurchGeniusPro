@@ -88,13 +88,56 @@ public class ChurchStripeGateway {
         }
     }
 
-    /** Retrieves a PaymentIntent with its latest charge expanded. The id must match {@link #PAYMENT_INTENT_ID}. */
+    /**
+     * Retrieves a PaymentIntent with its latest charge — and that charge's balance
+     * transaction — expanded. The id must match {@link #PAYMENT_INTENT_ID}.
+     *
+     * <p>The balance transaction is where Stripe reports the processor fee it kept
+     * ({@code fee}) and what the church actually receives ({@code net}); Donation
+     * Review posts the fee as an Expense, so it is fetched here, in the same call
+     * that already verifies the payment, rather than in a second round trip. For a
+     * card payment it is present as soon as the charge succeeds; for an ACH debit
+     * that is still pending it is {@code null} until the payment settles, and
+     * {@link #feeInfo} returns empty — see {@link DonationFeeService}.
+     */
     public Map<String, Object> retrieveIntent(String secretKey, String piId) {
         try {
-            return transport.get(STRIPE_API_BASE + "/payment_intents/" + piId + "?expand[]=latest_charge", headers(secretKey));
+            return transport.get(STRIPE_API_BASE + "/payment_intents/" + piId
+                    + "?expand[]=latest_charge&expand[]=latest_charge.balance_transaction", headers(secretKey));
         } catch (HttpClientErrorException ex) {
             return Map.of("error", Map.of("message", ex.getStatusText()));
         }
+    }
+
+    /** A Stripe Charge id, and nothing that could steer the URL it is put into. */
+    public static final Pattern CHARGE_ID = Pattern.compile("^ch_[A-Za-z0-9]{1,64}$");
+
+    /**
+     * Retrieves a Charge with its balance transaction expanded — used to pick up the
+     * actual fee of a donation whose fee was unknown when it was saved (an ACH
+     * payment that has since settled, or a donation recorded before fees were
+     * captured). The id must match {@link #CHARGE_ID}; anything else is refused
+     * without touching the network.
+     */
+    public Map<String, Object> retrieveCharge(String secretKey, String chargeId) {
+        if (chargeId == null || !CHARGE_ID.matcher(chargeId).matches()) {
+            return Map.of("error", Map.of("message", "Invalid charge id."));
+        }
+        try {
+            return transport.get(STRIPE_API_BASE + "/charges/" + chargeId + "?expand[]=balance_transaction", headers(secretKey));
+        } catch (HttpClientErrorException ex) {
+            // The HTTP status is kept so the caller can tell "the key may not read
+            // charges / balance transactions" (401/403 — a restricted key) from "no such
+            // charge" (404). Stripe's own message is safe to surface; the key never is.
+            return Map.of("error", Map.of("message", ex.getStatusText(), "status", ex.getStatusCode().value()));
+        }
+    }
+
+    /** True when an error map from this gateway is an authentication/permission refusal (401/403). */
+    public static boolean isPermissionError(Map<String, Object> reply) {
+        Object err = reply == null ? null : reply.get("error");
+        if (err instanceof Map<?, ?> e && e.get("status") instanceof Integer code) return code == 401 || code == 403;
+        return false;
     }
 
     private static HttpHeaders headers(String secretKey) {
@@ -140,6 +183,50 @@ public class ChurchStripeGateway {
             }
         } catch (Exception ignored) { /* keep default */ }
         return new ChargeInfo(chargeId, paymentMethod);
+    }
+
+    /**
+     * The processor fee Stripe kept and the net the church receives, read off an
+     * expanded {@code balance_transaction}; both in major units (dollars), exactly
+     * converted from Stripe's integer cents. {@code balanceTransactionId} is kept for
+     * reconciliation against the Stripe dashboard.
+     */
+    public record FeeInfo(java.math.BigDecimal fee, java.math.BigDecimal net, String balanceTransactionId) {}
+
+    /**
+     * Fee details from a PaymentIntent retrieved by {@link #retrieveIntent}, or empty
+     * when the balance transaction is absent or not yet expanded (pending ACH, an
+     * older unexpanded fetch, a non-card object shape). Never throws, never guesses:
+     * an empty result means "Stripe has not told us the fee", not "the fee is zero".
+     */
+    public static java.util.Optional<FeeInfo> feeInfo(Map<String, Object> pi) {
+        if (pi == null) return java.util.Optional.empty();
+        Object latestCharge = pi.get("latest_charge");
+        if (!(latestCharge instanceof Map<?, ?> charge)) return java.util.Optional.empty();
+        return feeInfoFromCharge(charge);
+    }
+
+    /** As {@link #feeInfo}, from a Charge retrieved by {@link #retrieveCharge}. */
+    public static java.util.Optional<FeeInfo> feeInfoFromCharge(Map<?, ?> charge) {
+        if (charge == null) return java.util.Optional.empty();
+        Object bt = charge.get("balance_transaction");
+        if (!(bt instanceof Map<?, ?> tx)) return java.util.Optional.empty();   // a bare id string, or null while pending
+        Long feeCents = asLong(tx.get("fee"));
+        Long netCents = asLong(tx.get("net"));
+        if (feeCents == null || netCents == null) return java.util.Optional.empty();
+        if (feeCents < 0) return java.util.Optional.empty();                      // a refund/reversal shape — not a donation fee
+        java.math.BigDecimal fee = java.math.BigDecimal.valueOf(feeCents).movePointLeft(2).setScale(2);
+        java.math.BigDecimal net = java.math.BigDecimal.valueOf(netCents).movePointLeft(2).setScale(2);
+        return java.util.Optional.of(new FeeInfo(fee, net, str(tx.get("id"))));
+    }
+
+    private static Long asLong(Object o) {
+        if (o instanceof Number n) {
+            double d = n.doubleValue();
+            return d == Math.rint(d) ? n.longValue() : null;     // Stripe sends integer cents; anything else is not ours
+        }
+        if (o instanceof String s && s.matches("-?\\d{1,15}")) return Long.parseLong(s);
+        return null;
     }
 
     private static boolean isBlank(String s) { return s == null || s.isBlank(); }

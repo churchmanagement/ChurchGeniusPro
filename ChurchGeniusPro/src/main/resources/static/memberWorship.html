@@ -244,6 +244,14 @@
     .roster-instruments{display:flex;flex-wrap:wrap;gap:16px;}
     .roster-inst-block{min-width:140px;}
     .roster-inst-name{font-size:12px;font-weight:700;color:#673147;margin-bottom:6px;}
+    /* ── Manual schedule: a skipped date keeps its members (dimmed) — unskip restores them ── */
+    .manual-row-skipped td{background:#f6f3f5 !important;}
+    .manual-row-skipped .member-chip{opacity:.45;cursor:default;}
+    .manual-row-skipped .pivot-date-cell{color:#9a7d8b;}
+    .manual-row-skipped .manual-date-text{text-decoration:line-through;}
+    .manual-skip-note{display:block;font-size:10px;color:#9a7d8b;font-weight:400;margin-top:2px;}
+    .row-del-btn{font-size:11px;background:none;border:1px solid #e0c8d4;border-radius:6px;padding:1px 6px;cursor:pointer;color:#b09aab;margin-left:4px;}
+    .row-del-btn:hover{border-color:#e53935;color:#e53935;}
 
     /* ── Toast ── */
     .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;}
@@ -301,21 +309,43 @@
       <button class="tab-btn"        id="assignTabAuto"   onclick="switchAssignTab('auto')">Automatic Assignment</button>
     </div>
 
-    <!-- Manual -->
+    <!-- Manual — a fully user-driven schedule. Nothing here generates assignments:
+         "Add Dates" creates EMPTY rows, every member is placed by hand, and the
+         data lives in its own rows (assignment_type = manual) so it can never
+         overwrite — or be overwritten by — Automatic Assignment. -->
     <div id="tab-assign-manual">
       <div class="card">
-        <div class="card-header" style="flex-wrap:wrap;gap:10px;">
-          <h3><span class="hdr-icon">📅</span> Manual Assignment</h3>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <div class="ctrl-group">
-              <span class="ctrl-label">Date</span>
-              <input type="date" class="ctrl-input" id="manualDate" onchange="loadManualAssignments()" />
-            </div>
-            <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addManualAssignmentForDate()">+ Add Assignment</button>
+        <div class="card-header"><h3><span class="hdr-icon">📅</span> Manual Assignment</h3></div>
+        <div class="ctrl-row" id="manualAddRow">
+          <div class="ctrl-group">
+            <span class="ctrl-label">Group</span>
+            <select class="ctrl-input" id="manualGroup" style="min-width:160px;"></select>
           </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Day of Week</span>
+            <select class="ctrl-input" id="manualDow">
+              <option value="0">Start date only (1 date)</option>
+              <option value="1">Monday</option><option value="2">Tuesday</option>
+              <option value="3">Wednesday</option><option value="4">Thursday</option>
+              <option value="5">Friday</option><option value="6">Saturday</option>
+              <option value="7" selected>Sunday</option>
+            </select>
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Start Date</span>
+            <input type="date" class="ctrl-input" id="manualStartDate" />
+          </div>
+          <div class="ctrl-group">
+            <span class="ctrl-label">Weeks</span>
+            <input type="number" class="ctrl-input" id="manualWeeks" value="4" min="1" max="52" style="width:80px;" />
+          </div>
+          <button class="btn btn-primary" id="manualAddDatesBtn" style="align-self:flex-end;" onclick="addManualDates()">+ Add Empty Dates</button>
+        </div>
+        <div class="skip-dates-hint" id="manualAddHint" style="margin:0 0 12px;">
+          Creates empty schedule rows for the chosen dates — nobody is assigned and no rotation runs. Fill each cell yourself with “+ Add” or by dragging from the roster.
         </div>
         <div class="card-body" id="manualAssignmentArea" style="min-height:60px;">
-          <div style="color:#bbb;font-size:13px;">Select a date to view or create assignments.</div>
+          <p style="color:#888;margin:12px 0;">Loading…</p>
         </div>
       </div>
     </div>
@@ -536,20 +566,6 @@
   </div>
 </div>
 
-<!-- Modal: Add Manual Assignment -->
-<div class="modal-overlay" id="modalAddAssignment">
-  <div class="modal">
-    <h3>Add Assignment for <span id="modalAddAssignDate"></span></h3>
-    <div class="modal-field">
-      <label class="modal-label">Group</label>
-      <select class="modal-input" id="modalAddAssignGroup"></select>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('modalAddAssignment')">Cancel</button>
-      <button class="btn btn-primary"   onclick="confirmAddAssignment()">Add</button>
-    </div>
-  </div>
-</div>
 
 <script src="/session.js"></script>
 <script>
@@ -567,7 +583,8 @@ function formatDate(s) {
 ════════════════════════════════════════════════ */
 let groups          = [];   // [{id, groupName, instruments:[{id, instrumentName, members:[...]}]}]
 let allFamilyMembers = [];  // [{id, firstName, lastName}] loaded from /api/members
-let manualAssignments = []; // assignments loaded for selected manual date
+let manualRows      = [];   // Manual Assignment rows (assignment_type = manual), same shape as autoPreview
+let expandedManual  = new Set(); // manual groupIds currently expanded
 let autoPreview     = [];   // auto-generated preview rows
 let autoGroupOrder  = [];   // groupIds, most-recently-generated first (controls render order)
 let expandedGroups  = new Set(); // groupIds currently expanded; empty = all collapsed by default
@@ -622,6 +639,8 @@ function switchTab(name) {
   if (name === 'assignments') {
     populateAutoGroupSelect();
     loadSavedAutoAssignments();
+    populateManualGroupSelect();
+    loadManualSchedule();
   }
 }
 
@@ -987,233 +1006,368 @@ async function deleteMember(id) {
 }
 
 /* ════════════════════════════════════════════════
-   MANUAL ASSIGNMENTS
+   WORKFLOW HELPERS (shared by the Automatic and Manual tabs)
+   Every shared helper takes a trailing `sched` argument ('auto' | 'manual').
+   The default is 'auto', so Automatic Assignment's existing calls are unchanged.
 ════════════════════════════════════════════════ */
-async function loadManualAssignments() {
-  const date = document.getElementById('manualDate').value;
-  if (!date) return;
-  const res = await fetch('/api/worship/assignments?from=' + date + '&to=' + date);
-  if (!res.ok) { toast('Failed to load assignments.', true); return; }
-  manualAssignments = await res.json();
-  renderManualAssignments(date);
+/* ── Workflow helpers shared by both tabs (default = 'auto' → unchanged behaviour) ── */
+function schedRows(sched)              { return sched === 'manual' ? manualRows : autoPreview; }
+function songKey(groupId, dateStr, sched) { return (sched === 'manual' ? 'm|' : '') + groupId + '|' + dateStr; }
+function songQuery(sched)              { return sched === 'manual' ? '&scheduleType=manual' : ''; }
+function songBodyExtra(sched)          { return sched === 'manual' ? { scheduleType: 'manual' } : {}; }
+function inlineSongsId(groupId, dateStr, sched) {
+  return (sched === 'manual' ? 'mInlineSongs_' : 'inlineSongs_') + groupId + '_' + String(dateStr).replace(/-/g, '');
+}
+function schedRerender(sched)          { if (sched === 'manual') renderManualSchedule(); else renderAutoPreview(); }
+function schedSave(groupId, sched)     { if (sched === 'manual') manualSaveGroup(groupId); else autoSaveGroup(groupId); }
+function todayIsoLocal() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
 }
 
-function renderManualAssignments(date) {
+/* ════════════════════════════════════════════════
+   MANUAL ASSIGNMENTS
+   A user-driven schedule that mirrors the Automatic tab's management features
+   (per-group tables, cell editing, roster drag, skip, songs, print, PDF, delete)
+   but NEVER generates anything: rows are created empty and every member is
+   placed by the user. Manual rows are stored with assignment_type = 'manual'
+   and read with ?type=manual, so the two workflows cannot touch each other.
+   The shared helpers (cell edit, drag/drop, songs, print/PDF) take a trailing
+   `sched` argument; Automatic Assignment keeps calling them without it.
+════════════════════════════════════════════════ */
+
+function populateManualGroupSelect() {
+  const sel = document.getElementById('manualGroup');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = groups.map(g => `<option value="${g.id}">${esc(g.groupName)}</option>`).join('');
+  if (prev && groups.some(g => String(g.id) === prev)) sel.value = prev;
+  const sd = document.getElementById('manualStartDate');
+  if (sd && !sd.value) sd.value = todayIsoLocal();
+}
+
+/* Load ONLY manual rows (current & future), skipped ones included. */
+async function loadManualSchedule() {
   const area = document.getElementById('manualAssignmentArea');
-  if (!manualAssignments.length) {
-    area.innerHTML = `<div style="color:#bbb;font-size:13px;">No assignments for ${formatDate(date)}. Use "+ Add Assignment" to create one.</div>`;
+  try {
+    const from = todayIsoLocal();
+    const d = new Date(from + 'T00:00:00'); d.setFullYear(d.getFullYear() + 1);
+    const to = d.toISOString().slice(0, 10);
+    const res = await fetch(`/api/worship/assignments?from=${from}&to=${to}&type=manual&includeSkipped=true`);
+    if (!res.ok) { if (area) area.innerHTML = '<p style="color:#c62828;margin:12px 0;">Failed to load manual assignments.</p>'; return; }
+    const raw = await res.json();
+    manualRows = (Array.isArray(raw) ? raw : []).map(manualRowFromApi);
+    manualRows.sort((a, b) => a.assignmentDate < b.assignmentDate ? -1 : a.assignmentDate > b.assignmentDate ? 1 : 0);
+    renderManualSchedule();
+  } catch (e) {
+    console.error('loadManualSchedule error', e);
+    if (area) area.innerHTML = '<p style="color:#c62828;margin:12px 0;">Failed to load manual assignments.</p>';
+  }
+}
+
+function manualRowFromApi(a) {
+  return {
+    id:             a.id,
+    groupId:        a.groupId,
+    groupName:      a.groupName || '',
+    assignmentDate: a.assignmentDate,
+    assignmentType: 'manual',
+    skipped:        !!a.skipped,
+    slots: (a.slots || []).map(s => ({
+      instrumentId:   s.instrumentId,
+      instrumentName: s.instrumentName,
+      members: (s.members || []).map(m => ({
+        memberId:   m.id ?? ('db_' + s.instrumentId + '_' + m.memberName),
+        memberName: m.memberName,
+        sortOrder:  m.sortOrder ?? 0
+      }))
+    }))
+  };
+}
+
+/* "+ Add Empty Dates": weekday + start + weeks → EMPTY manual rows via the
+   server's date helper. No members, no rotation, no /auto-assign. */
+async function addManualDates() {
+  const groupId   = parseInt(document.getElementById('manualGroup').value);
+  const dowSel    = parseInt(document.getElementById('manualDow').value);
+  const startDate = document.getElementById('manualStartDate').value;
+  let   weeks     = parseInt(document.getElementById('manualWeeks').value) || 1;
+  if (!groupId)   { toast('Please select a group.', true); return; }
+  if (!startDate) { toast('Please select a start date.', true); return; }
+  let dayOfWeek = dowSel;
+  if (dowSel === 0) {                       // "Start date only": exactly that one date
+    const js = new Date(startDate + 'T00:00:00').getDay();   // 0=Sun … 6=Sat
+    dayOfWeek = js === 0 ? 7 : js;
+    weeks = 1;
+  }
+  if (weeks < 1 || weeks > 52) { toast('Weeks must be between 1 and 52.', true); return; }
+  const btn = document.getElementById('manualAddDatesBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/worship/assignments/manual-dates', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId, dayOfWeek, startDate, weeks })
+    });
+    if (!res.ok) {
+      let msg = 'Failed to add dates.';
+      try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      toast(msg, true); return;
+    }
+    const out = await res.json();
+    const created = (out.created || []).map(manualRowFromApi);
+    const today = todayIsoLocal();
+    const keys = new Set(manualRows.map(r => r.groupId + '|' + r.assignmentDate));
+    for (const r of created) if (!keys.has(r.groupId + '|' + r.assignmentDate)) manualRows.push(r);
+    manualRows.sort((a, b) => a.assignmentDate < b.assignmentDate ? -1 : a.assignmentDate > b.assignmentDate ? 1 : 0);
+    expandedManual.add(Number(groupId));
+    renderManualSchedule();
+    const pastCount = created.filter(r => r.assignmentDate < today).length;
+    const existing  = (out.existing || []).length;
+    let msg = `${created.length} empty date${created.length !== 1 ? 's' : ''} added — assign members by hand.`;
+    if (existing)  msg += ` ${existing} already existed.`;
+    if (pastCount) msg += ` ${pastCount} in the past (not shown).`;
+    toast(msg);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ── Persist manual rows: ONE row per save, always type 'manual' ── */
+async function manualPersistRow(row) {
+  const allMembers = [];
+  for (const slot of (row.slots || [])) {
+    (slot.members || []).forEach((m, i) =>
+      allMembers.push({ instrumentId: slot.instrumentId, memberName: m.memberName, sortOrder: i })
+    );
+  }
+  const res = await fetch('/api/worship/assignments', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groupId: row.groupId, assignmentDate: row.assignmentDate,
+                           assignmentType: 'manual', members: allMembers })
+  });
+  if (!res.ok) return false;
+  const saved = await res.json();
+  if (saved && saved.id) {
+    row.id = saved.id;
+    // Sync the members from the server so every chip carries its real DB id
+    // (roster-dragged members arrive without one) — unless the user edited the
+    // row again while this save was in flight.
+    if (!row._dirty) row.slots = manualRowFromApi(saved).slots;
+  }
+  return true;
+}
+
+/* Debounced + coalesced per group, same engine shape as autoSaveGroup, but only
+   rows the user actually changed (row._dirty) are sent. */
+const _manualSaveTimers = {};
+const _manualSaveState  = {};
+function manualSaveGroup(groupId) {
+  groupId = Number(groupId);
+  clearTimeout(_manualSaveTimers[groupId]);
+  _manualSaveTimers[groupId] = setTimeout(function () { runManualSave(groupId); }, 600);
+}
+async function runManualSave(groupId) {
+  const st = _manualSaveState[groupId] || (_manualSaveState[groupId] = { inFlight: false, dirty: false });
+  if (st.inFlight) { st.dirty = true; return; }
+  st.inFlight = true; st.dirty = false;
+  let ok = true;
+  try {
+    for (const row of manualRows.filter(r => Number(r.groupId) === groupId && r._dirty)) {
+      row._dirty = false;
+      try { if (!(await manualPersistRow(row))) { ok = false; row._dirty = true; } }
+      catch (e) { ok = false; row._dirty = true; }
+    }
+  } catch (e) { ok = false; }
+  st.inFlight = false;
+  if (st.dirty) { runManualSave(groupId); return; }
+  renderManualSchedule();                      // chips now carry their saved ids
+  toast(ok ? 'Changes saved' : 'Save failed — please check your connection.', !ok);
+}
+
+/* ── Skip / Unskip: flag only — the server never touches the members ── */
+async function toggleManualSkip(groupId, dateStr) {
+  const row = manualRows.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (!row) return;
+  if (!row.id) { toast('Please wait — this date is still being saved.', true); return; }
+  const next = !row.skipped;
+  const res = await fetch('/api/worship/assignments/' + row.id + '/skip', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skipped: next })
+  });
+  if (!res.ok) { toast('Failed to update.', true); return; }
+  const saved = await res.json();
+  row.skipped = !!saved.skipped;
+  renderManualSchedule();
+  toast(row.skipped ? 'Date skipped — its members are kept and come back when you unskip.' : 'Date restored.');
+}
+
+/* ── Delete one date ── */
+async function deleteManualRow(groupId, dateStr) {
+  const row = manualRows.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  if (!row) return;
+  if (!confirm('Delete the manual assignment for ' + formatDate(dateStr) + '?')) return;
+  if (row.id) {
+    const res = await fetch('/api/worship/assignments/' + row.id, { method: 'DELETE' });
+    if (!res.ok) { toast('Failed to delete.', true); return; }
+  }
+  manualRows = manualRows.filter(r => r !== row);
+  renderManualSchedule();
+  toast('Assignment deleted.');
+}
+
+/* ── Delete every manual date of a group ── */
+async function deleteManualGroup(groupId) {
+  const rows = manualRows.filter(r => Number(r.groupId) === Number(groupId));
+  if (!rows.length) return;
+  if (!confirm('Delete all manual assignments for this group?')) return;
+  let ok = true;
+  for (const row of rows) {
+    if (row.id) {
+      const res = await fetch('/api/worship/assignments/' + row.id, { method: 'DELETE' });
+      if (!res.ok) ok = false;
+    }
+  }
+  manualRows = manualRows.filter(r => Number(r.groupId) !== Number(groupId));
+  renderManualSchedule();
+  toast(ok ? 'Deleted.' : 'Some rows failed to delete.', !ok);
+}
+
+function toggleManualGroup(groupId) {
+  const gid = Number(groupId);
+  const block = document.getElementById('manualGroup_' + groupId);
+  if (!block) return;
+  const collapsed = block.classList.toggle('collapsed');
+  if (collapsed) expandedManual.delete(gid); else expandedManual.add(gid);
+  const caret = block.querySelector('.auto-caret');
+  if (caret) caret.textContent = collapsed ? '▸' : '▾';
+}
+
+/* Instrument columns come from the GROUP definition (empty rows have no slots). */
+function manualInstrumentsFor(groupId, rows) {
+  const instMap = new Map();
+  const g = groups.find(x => Number(x.id) === Number(groupId));
+  for (const inst of ((g && g.instruments) || [])) instMap.set(inst.id, inst.instrumentName);
+  for (const row of rows) for (const slot of (row.slots || [])) {
+    if (!instMap.has(slot.instrumentId)) instMap.set(slot.instrumentId, slot.instrumentName);
+  }
+  return Array.from(instMap.entries());
+}
+
+/* ── Render: one collapsible pivot table per group (same CSS as the Automatic tab) ── */
+function renderManualSchedule() {
+  const wrap = document.getElementById('manualAssignmentArea');
+  if (!wrap) return;
+  const todayIso = todayIsoLocal();
+  const visible = (manualRows || []).filter(r => !r.assignmentDate || r.assignmentDate >= todayIso);
+
+  if (!visible.length) {
+    wrap.innerHTML = '<p style="color:#888;margin:12px 0;" id="manualEmpty">No manual assignments yet. Use “+ Add Empty Dates” above to create schedule rows, then assign members by hand.</p>';
     return;
   }
-  area.innerHTML = manualAssignments.map(a => renderAssignmentBlock(a, true)).join('');
-}
 
-function renderAssignmentBlock(a, editable) {
-  const dateLabel = formatDate(a.assignmentDate);
-  const dow = getDow(a.assignmentDate);
-  const slots = (a.slots || []).map(s => renderSlot(a, s, editable)).join('');
-  const delBtn = editable ? `<button class="btn btn-sm btn-danger" style="margin-left:auto;" onclick="deleteAssignment(${a.id})">Delete</button>` : '';
-  return `
-    <div class="date-block" id="ablock-${a.id}">
-      <div class="date-header">
-        <span class="date-label">${dateLabel} (${dow})</span>
-        <span style="font-size:12px;opacity:.75;">${esc(a.groupName||'')}</span>
-        ${delBtn}
-      </div>
-      <div class="date-body">
-        <div class="group-block">
-          <div class="group-block-title">${esc(a.groupName||'')}</div>
-          ${slots || '<div class="empty-hint">No instruments assigned to this group.</div>'}
+  const groupMap = new Map();
+  for (const row of visible) {
+    if (!groupMap.has(row.groupId)) groupMap.set(row.groupId, { groupName: row.groupName, rows: [] });
+    groupMap.get(row.groupId).rows.push(row);
+  }
+
+  let html = '';
+  for (const [groupId, { groupName, rows }] of groupMap) {
+    const instruments = manualInstrumentsFor(groupId, rows);
+    const isExpanded = expandedManual.has(Number(groupId));
+    const gName = groupName || ((groups.find(g => Number(g.id) === Number(groupId)) || {}).groupName) || '';
+    html += `<div class="auto-group-block manual-group-block${isExpanded ? '' : ' collapsed'}" id="manualGroup_${groupId}" data-group="${groupId}">
+      <div class="auto-group-header">
+        <span class="auto-group-title" onclick="toggleManualGroup(${groupId})" title="Show / hide assignments">
+          <span class="auto-caret">${isExpanded ? '▾' : '▸'}</span>${esc(gName)}
+        </span>
+        <div class="auto-group-actions">
+          <button class="btn btn-sm btn-secondary" onclick="openSongMgr(${groupId},'${esc(gName)}')">📚 Manage Songs</button>
+          <button class="btn btn-sm btn-secondary" onclick="printGroupTable(${groupId},'manual')">🖨️ Print</button>
+          <button class="btn btn-sm btn-secondary" onclick="downloadGroupPdf(${groupId},'manual')">⬇️ Download PDF</button>
+          <button class="btn btn-sm" style="color:#e53935;border-color:#e53935" onclick="deleteManualGroup(${groupId})">Delete</button>
         </div>
       </div>
-    </div>`;
-}
+      <div class="auto-group-collapsible">
+      <div class="auto-table-wrap">
+        <table class="auto-pivot-table manual-pivot-table" id="manualPivotTable_${groupId}">
+          <thead><tr>
+            <th>Date</th>
+            ${instruments.map(([iid, iname]) => `<th>${esc(iname)}<br><span class="roster-drag-hint">drag from below</span></th>`).join('')}
+            <th>Songs</th>
+          </tr></thead>
+          <tbody>`;
 
-function renderSlot(a, s, editable) {
-  const chips = (s.members||[]).map(m =>
-    editable
-      ? `<span class="member-chip">${esc(m.memberName)}<span class="chip-rm" onclick="removeAssignmentMember(${a.id},${s.instrumentId},${m.id},'${esc(m.memberName)}')" title="Remove">✕</span></span>`
-      : `<span class="member-chip">${esc(m.memberName)}</span>`
-  ).join('');
+    for (const row of rows) {
+      const dateStr = row.assignmentDate;
+      const displayDate = formatDate(dateStr);
+      const slotMap = new Map();
+      for (const slot of (row.slots || [])) slotMap.set(slot.instrumentId, slot.members || []);
+      const isSkipped = !!row.skipped;
 
-  const addWidget = editable ? `
-    <span class="inline-search-wrap" id="isw-${a.id}-${s.instrumentId}">
-      <input class="inline-search-input" placeholder="Add member…"
-             id="isinput-${a.id}-${s.instrumentId}"
-             autocomplete="off"
-             oninput="onInlineSearch(${a.id},${s.instrumentId},this.value)"
-             onfocus="onInlineSearch(${a.id},${s.instrumentId},this.value)"
-             onkeydown="onInlineKey(event,${a.id},${s.instrumentId})" />
-      <div class="inline-dropdown" id="isdd-${a.id}-${s.instrumentId}"></div>
-    </span>` : '';
+      html += `<tr data-group="${groupId}" data-date="${dateStr}" class="${isSkipped ? 'manual-row-skipped' : ''}">
+        <td class="pivot-date-cell">
+          <span class="manual-date-text">${displayDate}</span>
+          ${isSkipped ? '<span class="manual-skip-note">skipped — members kept</span>' : ''}
+          <div style="margin-top:4px;white-space:nowrap;">
+            <button class="skip-row-btn ${isSkipped ? 'unskip' : ''}" onclick="toggleManualSkip(${groupId},'${dateStr}')">${isSkipped ? '↩ Unskip' : '⊘ Skip'}</button>
+            <button class="row-del-btn" title="Delete this date" onclick="deleteManualRow(${groupId},'${dateStr}')">🗑</button>
+          </div>
+        </td>`;
 
-  return `<div class="instrument-slot">
-    <span class="slot-label">${esc(s.instrumentName)}:</span>
-    <span class="slot-members">${chips}${addWidget}</span>
-  </div>`;
-}
+      for (const [iid] of instruments) {
+        const members = slotMap.get(iid) || [];
+        if (isSkipped) {
+          // members stay visible (dimmed) so the user sees what Unskip restores
+          const chipsHtml = members.map(m => `<span class="member-chip">${esc(m.memberName)}</span>`).join('');
+          html += `<td class="pivot-cell"><div class="cell-members">${chipsHtml || '<span style="color:#ccc;font-style:italic;font-size:12px;">—</span>'}</div></td>`;
+        } else {
+          const chipsHtml = members.map(m =>
+            `<span class="member-chip" draggable="true"
+              ondragstart="onMemberChipDragStart(event,${groupId},'${dateStr}',${iid},'${m.memberId}','manual')"
+              >${esc(m.memberName)}<button class="chip-del" onclick="removeCellMember(${groupId},'${dateStr}',${iid},'${m.memberId}','manual')" title="Remove">×</button></span>`
+          ).join('');
+          html += `<td class="pivot-cell" data-group="${groupId}" data-date="${dateStr}" data-inst="${iid}"
+            ondragover="event.preventDefault();this.classList.add('drop-hover')"
+            ondragleave="this.classList.remove('drop-hover')"
+            ondrop="onCellDrop(event,${groupId},'${dateStr}',${iid},'manual')">
+            <div class="cell-members">${chipsHtml}</div>
+            <button class="cell-add-btn" onclick="openCellAdd(${groupId},'${dateStr}',${iid},'manual')">+ Add</button>
+          </td>`;
+        }
+      }
 
-/* ── Inline search state per slot ── */
-const _inlineFiltered = {}; // key `${aid}-${iid}` → filtered members array
-const _inlineHL       = {}; // highlight index
-
-function onInlineSearch(aid, iid, val) {
-  const key = `${aid}-${iid}`;
-  const dd  = document.getElementById(`isdd-${aid}-${iid}`);
-  const q   = val.trim().toLowerCase();
-  if (!q) { dd.classList.remove('open'); return; }
-  _inlineFiltered[key] = allFamilyMembers.filter(m => fullName(m).toLowerCase().includes(q)).slice(0, 40);
-  dd.innerHTML = _inlineFiltered[key].length
-    ? _inlineFiltered[key].map((m, i) =>
-        `<div class="inline-dd-item" onmousedown="pickInlineMember(${aid},${iid},${i})" onmouseover="hiInlineDD('${key}',${i})">${esc(fullName(m))}</div>`
-      ).join('')
-    : '<div class="inline-dd-empty">No members found</div>';
-  dd.classList.add('open');
-  _inlineHL[key] = -1;
-}
-function hiInlineDD(key, i) {
-  _inlineHL[key] = i;
-  document.querySelectorAll(`#isdd-${key.replace('-','\\-')} .inline-dd-item`).forEach((el,j) => el.classList.toggle('hi', j===i));
-}
-function onInlineKey(e, aid, iid) {
-  const key = `${aid}-${iid}`;
-  const dd  = document.getElementById(`isdd-${aid}-${iid}`);
-  if (!dd.classList.contains('open')) return;
-  if (e.key === 'ArrowDown') { e.preventDefault(); hiInlineDD(key, Math.min((_inlineHL[key]||0)+1, (_inlineFiltered[key]||[]).length-1)); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); hiInlineDD(key, Math.max((_inlineHL[key]||0)-1, 0)); }
-  else if (e.key === 'Enter') {
-    e.preventDefault();
-    const hl = _inlineHL[key] ?? -1;
-    if (hl >= 0) pickInlineMember(aid, iid, hl);
-    else {
-      // allow free-text enter
-      const inputEl = document.getElementById(`isinput-${aid}-${iid}`);
-      const name = inputEl.value.trim();
-      if (name) addInlineMemberByName(aid, iid, name, inputEl);
-    }
-  }
-  else if (e.key === 'Escape') dd.classList.remove('open');
-}
-async function pickInlineMember(aid, iid, idx) {
-  const key  = `${aid}-${iid}`;
-  const m    = (_inlineFiltered[key]||[])[idx];
-  if (!m) return;
-  const name = fullName(m);
-  const inputEl = document.getElementById(`isinput-${aid}-${iid}`);
-  document.getElementById(`isdd-${aid}-${iid}`).classList.remove('open');
-  if (inputEl) inputEl.value = '';
-  await addInlineMemberByName(aid, iid, name, null);
-}
-async function addInlineMemberByName(aid, iid, name, inputEl) {
-  if (!name) return;
-  const a = manualAssignments.find(x => x.id === aid);
-  if (!a) return;
-  let slot = (a.slots||[]).find(s => s.instrumentId === iid);
-  const existing = slot ? (slot.members||[]).map(m => ({instrumentId: iid, memberName: m.memberName, sortOrder: m.sortOrder||0})) : [];
-  existing.push({instrumentId: iid, memberName: name, sortOrder: existing.length});
-  await saveAssignmentFull(a, iid, existing);
-  if (inputEl) inputEl.value = '';
-  await loadManualAssignments();
-}
-
-async function removeAssignmentMember(assignmentId, instrumentId, memberId, memberName) {
-  if (!confirm('Remove ' + memberName + ' from this assignment?')) return;
-  const a = manualAssignments.find(x => x.id === assignmentId);
-  if (!a) return;
-  const slot = (a.slots||[]).find(s => s.instrumentId === instrumentId);
-  const remaining = (slot?.members||[]).filter(m => m.id !== memberId).map((m,i) => ({instrumentId: instrumentId, memberName: m.memberName, sortOrder: i}));
-  await saveAssignmentFull(a, instrumentId, remaining);
-  await loadManualAssignments();
-}
-
-async function saveAssignmentFull(a, changedInstrumentId, newSlotMembers) {
-  const allMembers = [];
-  for (const slot of (a.slots||[])) {
-    if (slot.instrumentId === changedInstrumentId) {
-      allMembers.push(...newSlotMembers);
-    } else {
-      allMembers.push(...(slot.members||[]).map((m,i) => ({instrumentId: slot.instrumentId, memberName: m.memberName, sortOrder: i})));
-    }
-  }
-  // If this is a new slot not yet in a.slots, add it
-  const hasSlot = (a.slots||[]).some(s => s.instrumentId === changedInstrumentId);
-  if (!hasSlot) allMembers.push(...newSlotMembers);
-
-  await fetch('/api/worship/assignments', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      groupId: a.groupId,
-      assignmentDate: a.assignmentDate,
-      assignmentType: a.assignmentType || 'manual',
-      members: allMembers
-    })
-  });
-}
-
-function addManualAssignmentForDate() {
-  const date = document.getElementById('manualDate').value;
-  if (!date) { toast('Please select a date first.', true); return; }
-  const usedGroupIds = new Set(manualAssignments.map(a => a.groupId));
-  const available = groups.filter(g => !usedGroupIds.has(g.id));
-  if (!available.length) { toast('All groups already have assignments on this date.'); return; }
-  const sel = document.getElementById('modalAddAssignGroup');
-  sel.innerHTML = available.map(g => `<option value="${g.id}">${esc(g.groupName)}</option>`).join('');
-  document.getElementById('modalAddAssignDate').textContent = formatDate(date);
-  openModal('modalAddAssignment');
-}
-
-async function confirmAddAssignment() {
-  const date    = document.getElementById('manualDate').value;
-  const groupId = parseInt(document.getElementById('modalAddAssignGroup').value);
-  closeModal('modalAddAssignment');
-  if (!date || !groupId) return;
-
-  // Find group's instruments so we create slots for all of them upfront
-  const g = groups.find(x => x.id === groupId);
-  if (!g) return;
-
-  // Build empty member list (one entry per instrument slot so the slot appears in UI)
-  // We'll send an empty members array — the renderAssignmentBlock will show add widgets per slot
-  // BUT: to make the slots appear, we need the assignment to reference the group's instruments.
-  // The server returns slots based on saved assignment_members, so if members=[] no slots show.
-  // Instead: create one placeholder entry per instrument then remove it, OR just render from group.
-  // Best approach: save empty assignment, then immediately load and augment display with group instruments.
-  const res = await fetch('/api/worship/assignments', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ groupId, assignmentDate: date, assignmentType: 'manual', members: [] })
-  });
-  if (!res.ok) { toast('Failed to create assignment.', true); return; }
-
-  toast('Assignment created. Add members using the search fields.');
-  await loadManualAssignments();
-  // After loading, augment any assignment with empty slots for instruments that have no members yet
-  augmentSlotsFromGroup();
-}
-
-function augmentSlotsFromGroup() {
-  // For each manual assignment, ensure all instruments of its group appear as slots (even if empty)
-  for (const a of manualAssignments) {
-    const g = groups.find(x => x.id === a.groupId);
-    if (!g) continue;
-    const existingInstIds = new Set((a.slots||[]).map(s => s.instrumentId));
-    for (const inst of (g.instruments||[])) {
-      if (!existingInstIds.has(inst.id)) {
-        if (!a.slots) a.slots = [];
-        a.slots.push({ instrumentId: inst.id, instrumentName: inst.instrumentName, members: [] });
+      if (isSkipped) {
+        html += `<td class="pivot-song-cell" style="color:#ccc;font-style:italic;font-size:12px;">—</td></tr>`;
+      } else {
+        html += `<td class="pivot-song-cell">
+          <div class="inline-songs" id="${inlineSongsId(groupId, dateStr, 'manual')}"><span class="inline-songs-empty">…</span></div>
+          <button class="btn btn-xs" onclick="openWeekSongMgr(${groupId},'${dateStr}','manual')">✎ Songs</button>
+        </td></tr>`;
       }
     }
-  }
-  // Re-render
-  const date = document.getElementById('manualDate').value;
-  if (date) renderManualAssignments(date);
-}
 
-async function deleteAssignment(id) {
-  if (!confirm('Delete this assignment?')) return;
-  const res = await fetch('/api/worship/assignments/' + id, { method:'DELETE' });
-  if (res.ok) { toast('Assignment deleted.'); await loadManualAssignments(); }
-  else toast('Failed to delete.', true);
+    html += `</tbody></table></div>`;
+    html += renderMemberRoster(groupId, rows, instruments);
+    html += `</div>`;   // .auto-group-collapsible
+    html += `</div>`;   // .auto-group-block
+  }
+
+  if (groupMap.size > 0) {
+    html += `<div id="manualGlobalActions" style="display:flex;margin-top:14px;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="printAllGroupTables('manual')">🖨️ Print All Groups</button>
+      <button class="btn btn-secondary" onclick="downloadAllGroupsPdf('manual')">⬇️ Download All as PDF</button>
+    </div>`;
+  }
+
+  wrap.innerHTML = html;
+
+  for (const [groupId] of groupMap) {
+    loadSongLibrary(groupId).then(() => renderSongLibrary(groupId));
+  }
+  for (const [groupId, { rows }] of groupMap) {
+    for (const row of rows) if (!row.skipped) loadInlineSongs(groupId, row.assignmentDate, 'manual');
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -1399,8 +1553,8 @@ const PDF_CSS = `
  * Members rendered as plain comma-separated text (no chip backgrounds).
  * Songs column omitted when no date in the group has any songs.
  */
-function buildGroupTableHtml(groupId) {
-  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+function buildGroupTableHtml(groupId, sched = 'auto') {
+  const rows = schedRows(sched).filter(r => Number(r.groupId) === Number(groupId));
   if (!rows.length) return '';
 
   const groupName = rows[0].groupName || '';
@@ -1417,7 +1571,7 @@ function buildGroupTableHtml(groupId) {
   // Determine if any non-skipped date has songs
   const hasSongs = rows.some(row => {
     if (row.skipped) return false;
-    const cached = autoSongCache[`${groupId}|${row.assignmentDate}`];
+    const cached = autoSongCache[songKey(groupId, row.assignmentDate, sched)];
     return cached && cached.filter(s => !s.isHeading).length > 0;
   });
 
@@ -1439,7 +1593,7 @@ function buildGroupTableHtml(groupId) {
       html += `<td>${members.map(m => esc(m.memberName)).join(', ') || '—'}</td>`;
     }
     if (hasSongs) {
-      const songs = (autoSongCache[`${groupId}|${row.assignmentDate}`] || [])
+      const songs = (autoSongCache[songKey(groupId, row.assignmentDate, sched)] || [])
         .filter(s => !s.isHeading)
         .map(s => esc(s.songTitle))
         .join(', ');
@@ -1452,11 +1606,11 @@ function buildGroupTableHtml(groupId) {
   return html;
 }
 
-function printGroupTable(groupId) {
-  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId));
+function printGroupTable(groupId, sched = 'auto') {
+  const rows = schedRows(sched).filter(r => Number(r.groupId) === Number(groupId));
   if (!rows.length) return;
   const groupName = rows[0].groupName || 'Group';
-  const tableHtml = buildGroupTableHtml(groupId);
+  const tableHtml = buildGroupTableHtml(groupId, sched);
   const w = window.open('', '_blank', 'width=900,height=650');
   w.document.write(`<!DOCTYPE html><html><head>
     <title>${esc(groupName)} — Worship Schedule</title>
@@ -1499,10 +1653,10 @@ function formatDateShortDow(s) {
 /* Table data (head + body arrays) for one group — same content as the
    on-screen table: date + every instrument column (Drums, Vocals, Guitar, …)
    + songs when present. */
-function buildGroupTableData(groupId) {
+function buildGroupTableData(groupId, sched = 'auto') {
   const _n = new Date();
   const todayIso = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
-  const rows = autoPreview.filter(r => Number(r.groupId) === Number(groupId)
+  const rows = schedRows(sched).filter(r => Number(r.groupId) === Number(groupId)
       && (!r.assignmentDate || r.assignmentDate >= todayIso));   // current & future only
   if (!rows.length) return null;
   const groupName = rows[0].groupName || 'Group';
@@ -1515,7 +1669,7 @@ function buildGroupTableData(groupId) {
   const instruments = Array.from(instMap.entries());
   const hasSongs = rows.some(row => {
     if (row.skipped) return false;
-    const cached = autoSongCache[`${groupId}|${row.assignmentDate}`];
+    const cached = autoSongCache[songKey(groupId, row.assignmentDate, sched)];
     return cached && cached.filter(s => !s.isHeading).length > 0;
   });
   const head = ['Date'].concat(instruments.map(([, iname]) => iname || ''));
@@ -1531,7 +1685,7 @@ function buildGroupTableData(groupId) {
       line.push(members.map(m => m.memberName).join(', ') || '—');
     }
     if (hasSongs) {
-      const songs = (autoSongCache[`${groupId}|${row.assignmentDate}`] || [])
+      const songs = (autoSongCache[songKey(groupId, row.assignmentDate, sched)] || [])
         .filter(s => !s.isHeading).map(s => s.songTitle).join(', ');
       line.push(songs || '—');
     }
@@ -1557,8 +1711,8 @@ function pdfAddGroupTable(doc, data, startY) {
   return doc.lastAutoTable.finalY;
 }
 
-function downloadGroupPdf(groupId) {
-  const data = buildGroupTableData(groupId);
+function downloadGroupPdf(groupId, sched = 'auto') {
+  const data = buildGroupTableData(groupId, sched);
   if (!data) { toast('No assignments to download.', true); return; }
   loadPdfLib().then(() => {
     const orient = data.head.length > 6 ? 'landscape' : 'portrait';
@@ -1568,14 +1722,14 @@ function downloadGroupPdf(groupId) {
   }).catch(() => {
     // Offline / CDN blocked → fall back to the print route so the user can
     // still "Save as PDF" from the dialog.
-    printGroupTable(groupId);
+    printGroupTable(groupId, sched);
   });
 }
 
-function printAllGroupTables() {
-  const groupIds = [...new Set(autoPreview.map(r => r.groupId))];
+function printAllGroupTables(sched = 'auto') {
+  const groupIds = [...new Set(schedRows(sched).map(r => r.groupId))];
   if (!groupIds.length) return;
-  const bodyHtml = groupIds.map(gid => buildGroupTableHtml(gid)).join('');
+  const bodyHtml = groupIds.map(gid => buildGroupTableHtml(gid, sched)).join('');
   const w = window.open('', '_blank', 'width=900,height=700');
   w.document.write(`<!DOCTYPE html><html><head>
     <title>Worship Schedules</title>
@@ -1589,9 +1743,9 @@ function printAllGroupTables() {
   setTimeout(() => w.print(), 400);
 }
 
-function downloadAllGroupsPdf() {
-  const groupIds = [...new Set(autoPreview.map(r => r.groupId))];
-  const datas = groupIds.map(gid => buildGroupTableData(gid)).filter(Boolean);
+function downloadAllGroupsPdf(sched = 'auto') {
+  const groupIds = [...new Set(schedRows(sched).map(r => r.groupId))];
+  const datas = groupIds.map(gid => buildGroupTableData(gid, sched)).filter(Boolean);
   if (!datas.length) { toast('No assignments to download.', true); return; }
   loadPdfLib().then(() => {
     const maxCols = Math.max.apply(null, datas.map(d => d.head.length));
@@ -1602,14 +1756,14 @@ function downloadAllGroupsPdf() {
       y = pdfAddGroupTable(doc, data, y);
     });
     doc.save('Worship Schedules.pdf');
-  }).catch(() => { printAllGroupTables(); });
+  }).catch(() => { printAllGroupTables(sched); });
 }
 
 /* ── Cell add/edit ── */
-let _cellCtx = null;  // { groupId, dateStr, iid }
+let _cellCtx = null;  // { groupId, dateStr, iid, sched }
 
-function openCellAdd(groupId, dateStr, iid) {
-  _cellCtx = { groupId, dateStr, iid };
+function openCellAdd(groupId, dateStr, iid, sched = 'auto') {
+  _cellCtx = { groupId, dateStr, iid, sched };
   // Build roster list for this instrument
   const group = groups.find(g => Number(g.id) === Number(groupId));
   _ceRoster = [];
@@ -1629,6 +1783,7 @@ function openCellAdd(groupId, dateStr, iid) {
 function saveCellEdit() {
   if (!_cellCtx) return;
   const { groupId, dateStr, iid } = _cellCtx;
+  const sched = _cellCtx.sched || 'auto';
   const manualName = document.getElementById('modalCellEditName').value.trim();
   let memberName = '', memberId = null;
   if (_ceSelected) {
@@ -1640,8 +1795,8 @@ function saveCellEdit() {
   } else {
     toast('Select a member or type a name.', true); return;
   }
-  // Add to autoPreview
-  const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  // Add to the row of the workflow this cell belongs to (autoPreview or manualRows)
+  const row = schedRows(sched).find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
   if (!row) { closeModal('modalCellEdit'); return; }
   let slot = (row.slots || []).find(s => Number(s.instrumentId) === Number(iid));
   if (!slot) {
@@ -1649,29 +1804,31 @@ function saveCellEdit() {
     row.slots = [...(row.slots || []), slot];
   }
   slot.members = [...(slot.members || []), { memberId, memberName }];
+  row._dirty = true;
   closeModal('modalCellEdit');
-  renderAutoPreview();
-  autoSaveGroup(groupId);
+  schedRerender(sched);
+  schedSave(groupId, sched);
 }
 
 /* ── Chip drag-and-drop between cells ── */
-let _chipDrag = null;  // { groupId, dateStr, iid, memberId }
+let _chipDrag = null;  // { groupId, dateStr, iid, memberId, sched }
 
-function onMemberChipDragStart(event, groupId, dateStr, iid, memberId) {
-  _chipDrag = { groupId, dateStr, iid, memberId };
+function onMemberChipDragStart(event, groupId, dateStr, iid, memberId, sched = 'auto') {
+  _chipDrag = { groupId, dateStr, iid, memberId, sched };
   event.dataTransfer.effectAllowed = 'move';
 }
 
-async function onCellDrop(event, groupId, dateStr, iid) {
+async function onCellDrop(event, groupId, dateStr, iid, sched = 'auto') {
   event.preventDefault();
   event.currentTarget.classList.remove('drop-hover');
+  const rows = schedRows(sched);
   // Roster chip drop (from roster panel)
   const rosterData = event.dataTransfer.getData('text/plain');
   if (rosterData) {
     try {
       const d = JSON.parse(rosterData);
       if (d.type === 'roster') {
-        const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+        const row = rows.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
         if (!row) return;
         let slot = (row.slots || []).find(s => Number(s.instrumentId) === Number(iid));
         if (!slot) { slot = { instrumentId: Number(iid), instrumentName: d.instrumentName || '', members: [] }; row.slots = [...(row.slots||[]), slot]; }
@@ -1679,8 +1836,9 @@ async function onCellDrop(event, groupId, dateStr, iid) {
         if (!(slot.members || []).some(m => m.memberId == d.memberId)) {
           slot.members = [...(slot.members || []), { memberId: d.memberId, memberName: d.memberName }];
         }
-        renderAutoPreview();
-        autoSaveGroup(groupId);
+        row._dirty = true;
+        schedRerender(sched);
+        schedSave(groupId, sched);
         return;
       }
     } catch(e) { /* not roster data */ }
@@ -1688,10 +1846,11 @@ async function onCellDrop(event, groupId, dateStr, iid) {
   // Chip-to-chip move
   if (!_chipDrag) return;
   const src = _chipDrag; _chipDrag = null;
+  if ((src.sched || 'auto') !== sched) return;             // never move a chip between the two workflows
   if (Number(src.groupId) === Number(groupId) && src.dateStr === dateStr && Number(src.iid) === Number(iid)) return;
 
   // Locate source row and slot
-  const srcRow  = autoPreview.find(r => Number(r.groupId) === Number(src.groupId) && r.assignmentDate === src.dateStr);
+  const srcRow  = rows.find(r => Number(r.groupId) === Number(src.groupId) && r.assignmentDate === src.dateStr);
   const srcSlot = srcRow ? (srcRow.slots||[]).find(s => Number(s.instrumentId) === Number(src.iid)) : null;
 
   // Capture memberName BEFORE removing from source
@@ -1702,26 +1861,29 @@ async function onCellDrop(event, groupId, dateStr, iid) {
   if (srcSlot) srcSlot.members = (srcSlot.members||[]).filter(m => m.memberId != src.memberId);
 
   // Add to target
-  const tgtRow = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+  const tgtRow = rows.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
   if (tgtRow) {
     let tgtSlot = (tgtRow.slots||[]).find(s => Number(s.instrumentId) === Number(iid));
     if (!tgtSlot) { tgtSlot = { instrumentId: Number(iid), instrumentName: srcSlot?.instrumentName || '', members: [] }; tgtRow.slots = [...(tgtRow.slots||[]), tgtSlot]; }
     if (!(tgtSlot.members||[]).some(m => m.memberId == src.memberId)) {
       tgtSlot.members = [...(tgtSlot.members||[]), { memberId: src.memberId, memberName }];
     }
+    tgtRow._dirty = true;
   }
-  renderAutoPreview();
-  autoSaveGroup(groupId);
-  if (Number(src.groupId) !== Number(groupId)) autoSaveGroup(src.groupId);   // moved across groups → save both
+  if (srcRow) srcRow._dirty = true;
+  schedRerender(sched);
+  schedSave(groupId, sched);
+  if (Number(src.groupId) !== Number(groupId)) schedSave(src.groupId, sched);   // moved across groups → save both
 }
 
-function removeCellMember(groupId, dateStr, iid, memberId) {
-  const row = autoPreview.find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
+function removeCellMember(groupId, dateStr, iid, memberId, sched = 'auto') {
+  const row = schedRows(sched).find(r => Number(r.groupId) === Number(groupId) && r.assignmentDate === dateStr);
   if (!row) return;
   const slot = (row.slots||[]).find(s => Number(s.instrumentId) === Number(iid));
   if (slot) slot.members = (slot.members||[]).filter(m => m.memberId != memberId);
-  renderAutoPreview();
-  autoSaveGroup(groupId);
+  row._dirty = true;
+  schedRerender(sched);
+  schedSave(groupId, sched);
 }
 
 /* ── Roster drag start (drag from roster panel into cell) ── */
@@ -1731,16 +1893,16 @@ function onRosterDragStart(event, groupId, instId, memberId, memberName) {
 }
 
 /* ── toggleSongPanel / refreshSongPanel (backward compat) ── */
-async function toggleSongPanel(groupId, dateStr, btn) {
-  openWeekSongMgr(groupId, dateStr);
+async function toggleSongPanel(groupId, dateStr, btn, sched = 'auto') {
+  openWeekSongMgr(groupId, dateStr, sched);
 }
 
-async function refreshSongPanel(groupId, dateStr, panel) {
-  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+async function refreshSongPanel(groupId, dateStr, panel, sched = 'auto') {
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}${songQuery(sched)}`);
   if (!res.ok) { if(panel) panel.innerHTML = '<span style="color:red">Failed to load songs</span>'; return; }
   const songs = await res.json();
-  autoSongCache[`${groupId}|${dateStr}`] = songs;
-  renderInlineSongs(groupId, dateStr, songs);
+  autoSongCache[songKey(groupId, dateStr, sched)] = songs;
+  renderInlineSongs(groupId, dateStr, songs, sched);
 }
 
 /* ── Skip-dates picker helpers ── */
@@ -2124,22 +2286,20 @@ function renderAutoPreview() {
   }
 }
 
-async function loadInlineSongs(groupId, dateStr) {
-  const safeDateId = dateStr.replace(/-/g,'');
-  const el = document.getElementById(`inlineSongs_${groupId}_${safeDateId}`);
+async function loadInlineSongs(groupId, dateStr, sched = 'auto') {
+  const el = document.getElementById(inlineSongsId(groupId, dateStr, sched));
   if (!el) return;
   try {
-    const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+    const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}${songQuery(sched)}`);
     if (!res.ok) { el.innerHTML = ''; return; }
     const songs = await res.json();
-    autoSongCache[`${groupId}|${dateStr}`] = songs;
-    renderInlineSongs(groupId, dateStr, songs);
+    autoSongCache[songKey(groupId, dateStr, sched)] = songs;
+    renderInlineSongs(groupId, dateStr, songs, sched);
   } catch(e) { el.innerHTML = ''; }
 }
 
-function renderInlineSongs(groupId, dateStr, songs) {
-  const safeDateId = dateStr.replace(/-/g,'');
-  const el = document.getElementById(`inlineSongs_${groupId}_${safeDateId}`);
+function renderInlineSongs(groupId, dateStr, songs, sched = 'auto') {
+  const el = document.getElementById(inlineSongsId(groupId, dateStr, sched));
   if (!el) return;
   if (!songs || songs.length === 0) {
     el.innerHTML = '<span class="inline-songs-empty">No songs</span>';
@@ -2185,7 +2345,7 @@ function renderMemberRoster(groupId, rows, instruments) {
       <div class="roster-chips">`;
     for (const mem of (inst.members || [])) {
       html += `<span class="roster-chip" draggable="true"
-        ondragstart="onRosterDragStart(event,${groupId},${inst.id},${mem.memberId},'${esc(mem.memberName)}')"
+        ondragstart="onRosterDragStart(event,${groupId},${inst.id},${mem.memberId ?? mem.id},'${esc(mem.memberName)}')"
         >${esc(mem.memberName)}</span>`;
     }
     html += `</div></div>`;
@@ -2439,10 +2599,12 @@ let autoSongCache = {};  // "groupId|date" -> [{id, songTitle, isHeading, sortOr
 let _weekSongGroupId  = null;
 let _weekSongDateStr  = null;
 let _weekSongDragIdx  = null;
+let _weekSongSched    = 'auto';   // which schedule's song list the modal edits
 
-async function openWeekSongMgr(groupId, dateStr) {
+async function openWeekSongMgr(groupId, dateStr, sched = 'auto') {
   _weekSongGroupId = groupId;
   _weekSongDateStr = dateStr;
+  _weekSongSched   = sched;
   const overlay = document.getElementById('weekSongMgrOverlay');
   overlay.classList.add('open');
   // Title: format date nicely
@@ -2461,6 +2623,7 @@ function closeWeekSongMgr(evt) {
   document.getElementById('weekSongMgrOverlay').classList.remove('open');
   _weekSongGroupId = null;
   _weekSongDateStr = null;
+  _weekSongSched   = 'auto';
 }
 
 function renderWeekSongLibPalette() {
@@ -2484,16 +2647,17 @@ function renderWeekSongLibPalette() {
 async function refreshWeekSongMgr() {
   const groupId = _weekSongGroupId;
   const dateStr = _weekSongDateStr;
+  const sched   = _weekSongSched;
   if (groupId == null || !dateStr) return;
-  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}${songQuery(sched)}`);
   if (!res.ok) {
     document.getElementById('weekSongMgrList').innerHTML = '<div class="song-mgr-empty" style="color:red">Failed to load songs.</div>';
     return;
   }
   const songs = await res.json();
-  autoSongCache[`${groupId}|${dateStr}`] = songs;
+  autoSongCache[songKey(groupId, dateStr, sched)] = songs;
   renderWeekSongMgrList(songs);
-  renderInlineSongs(groupId, dateStr, songs);
+  renderInlineSongs(groupId, dateStr, songs, sched);
 }
 
 function renderWeekSongMgrList(songs) {
@@ -2537,16 +2701,17 @@ async function weekSongMgrAdd(isHeading) {
   const input = document.getElementById('weekSongMgrInput');
   const title = input ? input.value.trim() : '';
   if (!title) { input && input.focus(); toast('Enter a title first.', true); return; }
-  const cached = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const sched = _weekSongSched;
+  const cached = autoSongCache[songKey(groupId, dateStr, sched)] || [];
   const maxOrder = cached.length ? Math.max(...cached.map(s => s.sortOrder || 0)) : 0;
   const res = await fetch('/api/worship/songs', {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1, ...songBodyExtra(sched) })
   });
   if (!res.ok) { toast('Failed to add.', true); return; }
   toast(isHeading ? 'Heading added!' : 'Song added!');
   if (input) input.value = '';
-  delete autoSongCache[`${groupId}|${dateStr}`];
+  delete autoSongCache[songKey(groupId, dateStr, sched)];
   await refreshWeekSongMgr();
   input && input.focus();
   const list = document.getElementById('weekSongMgrList');
@@ -2557,15 +2722,16 @@ async function weekSongMgrAddFromLib(title, isHeading) {
   const groupId = _weekSongGroupId;
   const dateStr = _weekSongDateStr;
   if (groupId == null || !dateStr) return;
-  const cached = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const sched = _weekSongSched;
+  const cached = autoSongCache[songKey(groupId, dateStr, sched)] || [];
   const maxOrder = cached.length ? Math.max(...cached.map(s => s.sortOrder || 0)) : 0;
   const res = await fetch('/api/worship/songs', {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1 })
+    body: JSON.stringify({ groupId, serviceDate: dateStr, isHeading, songTitle: title, sortOrder: maxOrder + 1, ...songBodyExtra(sched) })
   });
   if (!res.ok) { toast('Failed to add.', true); return; }
   toast('Added from library!');
-  delete autoSongCache[`${groupId}|${dateStr}`];
+  delete autoSongCache[songKey(groupId, dateStr, sched)];
   await refreshWeekSongMgr();
 }
 
@@ -2576,7 +2742,7 @@ async function weekSongMgrDelete(songId) {
   const res = await fetch(`/api/worship/songs/${songId}`, { method: 'DELETE' });
   if (!res.ok) { toast('Failed to remove.', true); return; }
   toast('Removed.');
-  delete autoSongCache[`${groupId}|${dateStr}`];
+  delete autoSongCache[songKey(groupId, dateStr, _weekSongSched)];
   await refreshWeekSongMgr();
 }
 
@@ -2634,14 +2800,16 @@ async function weekSongMgrDrop(event, targetIdx) {
   if (fromIdx === null || fromIdx === targetIdx) return;
   const groupId = _weekSongGroupId;
   const dateStr = _weekSongDateStr;
+  const sched   = _weekSongSched;
   if (groupId == null || !dateStr) return;
-  const songs = autoSongCache[`${groupId}|${dateStr}`] || [];
+  const key = songKey(groupId, dateStr, sched);
+  const songs = autoSongCache[key] || [];
   const item = songs.splice(fromIdx, 1)[0];
   songs.splice(targetIdx, 0, item);
   const updates = songs.map((s, i) => ({ id: s.id, sortOrder: i + 1 }));
-  autoSongCache[`${groupId}|${dateStr}`] = songs.map((s, i) => ({ ...s, sortOrder: i + 1 }));
-  renderWeekSongMgrList(autoSongCache[`${groupId}|${dateStr}`]);
-  renderInlineSongs(groupId, dateStr, autoSongCache[`${groupId}|${dateStr}`]);
+  autoSongCache[key] = songs.map((s, i) => ({ ...s, sortOrder: i + 1 }));
+  renderWeekSongMgrList(autoSongCache[key]);
+  renderInlineSongs(groupId, dateStr, autoSongCache[key], sched);
   try {
     await fetch('/api/worship/songs/reorder', {
       method: 'PUT', headers: {'Content-Type':'application/json'},
@@ -2651,17 +2819,17 @@ async function weekSongMgrDrop(event, targetIdx) {
 }
 
 /* keep toggleSongPanel for backward compat */
-async function toggleSongPanel(groupId, dateStr, btn) {
-  openWeekSongMgr(groupId, dateStr);
+async function toggleSongPanel(groupId, dateStr, btn, sched = 'auto') {
+  openWeekSongMgr(groupId, dateStr, sched);
 }
 
-async function refreshSongPanel(groupId, dateStr, panel) {
-  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}`);
+async function refreshSongPanel(groupId, dateStr, panel, sched = 'auto') {
+  const res = await fetch(`/api/worship/songs?groupId=${groupId}&date=${dateStr}${songQuery(sched)}`);
   if (!res.ok) { panel.innerHTML = '<span style="color:red">Failed to load songs</span>'; return; }
   const songs = await res.json();
-  autoSongCache[`${groupId}|${dateStr}`] = songs;
+  autoSongCache[songKey(groupId, dateStr, sched)] = songs;
   renderSongPanel(groupId, dateStr, panel, songs);
-  renderInlineSongs(groupId, dateStr, songs);
+  renderInlineSongs(groupId, dateStr, songs, sched);
 }
 
 /* ════════════════════════════════════════════════

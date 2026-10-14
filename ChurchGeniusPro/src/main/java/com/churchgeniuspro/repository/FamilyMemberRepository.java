@@ -588,4 +588,27 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
            "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
     List<FamilyMember> findActiveByEmailAndTenant(@Param("email") String email,
                                                   @Param("appClientId") String appClientId);
+
+    // ── Donation Review contributor matching (V14) ─────────────────────────────
+    // Same tenant predicate and same "every match, caller decides" contract as
+    // findActiveByEmailAndTenant: an ambiguous hit is treated as no hit.
+
+    /** Active members of this church whose first and last name both match, ignoring case. */
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+           "WHERE LOWER(m.firstName) = LOWER(:first) AND LOWER(m.lastName) = LOWER(:last) " +
+           "AND m.deleteFlag = false AND m.inactive = false " +
+           "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
+    List<FamilyMember> findActiveByNameAndTenant(@Param("first") String first, @Param("last") String last,
+                                                 @Param("appClientId") String appClientId);
+
+    /**
+     * Active members of this church with a phone on file, for digits-only comparison
+     * in Java (phones are stored as typed — "(555) 010-0228", "555-010-0228" — so a
+     * database equality on the raw column would miss most of them).
+     */
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+           "WHERE m.phone IS NOT NULL AND m.phone <> '' " +
+           "AND m.deleteFlag = false AND m.inactive = false " +
+           "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
+    List<FamilyMember> findActiveWithPhoneByTenant(@Param("appClientId") String appClientId);
 }

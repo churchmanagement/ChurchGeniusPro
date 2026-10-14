@@ -372,7 +372,7 @@ CREATE TABLE IF NOT EXISTS worship_assignment (
     assignment_type varchar(20),
     client_id       varchar(100) NOT NULL,
     CONSTRAINT worship_assignment_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_worship_assignment_client_group_date UNIQUE (client_id, group_id, assignment_date)
+    CONSTRAINT uq_worship_assignment_client_group_date UNIQUE (client_id, group_id, assignment_date)  -- dropped again by the 2026-10-09 block below (key now includes assignment_type)
 );
 CREATE INDEX IF NOT EXISTS idx_worship_assignment_client_date ON worship_assignment USING btree (client_id, assignment_date);
 CREATE INDEX IF NOT EXISTS idx_worship_assignment_client_flag ON worship_assignment USING btree (client_id, delete_flag);
@@ -1878,6 +1878,22 @@ BEGIN
         END IF;
     END LOOP;
 END $$;
+
+-- ── Worship: Manual / Automatic assignments own separate rows (2026-10-09) ──
+-- Mirror of Flyway V13__worship_assignment_per_workflow_key.sql (Flyway applies it
+-- at startup; this copy is for a manual pre-deploy run). Additive, re-runnable.
+UPDATE worship_assignment SET assignment_type = 'auto' WHERE assignment_type IS NULL;
+ALTER TABLE worship_assignment ALTER COLUMN assignment_type SET DEFAULT 'manual';
+ALTER TABLE worship_assignment ALTER COLUMN assignment_type SET NOT NULL;
+ALTER TABLE worship_assignment ADD COLUMN IF NOT EXISTS skipped BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE worship_assignment DROP CONSTRAINT IF EXISTS uq_worship_assignment_client_group_date;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_worship_assignment_active
+    ON worship_assignment (client_id, group_id, assignment_date, assignment_type)
+ WHERE delete_flag = false;
+ALTER TABLE worship_song ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(20) NOT NULL DEFAULT 'auto';
+CREATE INDEX IF NOT EXISTS idx_worship_song_schedule
+    ON worship_song (client_id, group_id, schedule_type, service_date);
+
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 2026-09 Database audit P6 — historical startup migrations, retired from code

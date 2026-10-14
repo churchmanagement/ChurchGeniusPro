@@ -2,6 +2,7 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDate;
 
 /**
@@ -14,7 +15,9 @@ import java.time.LocalDate;
 @Table(name = "worship_song",
        indexes = {
            @Index(name = "idx_worship_song_client_group_date",
-                  columnList = "client_id, group_id, service_date, delete_flag")
+                  columnList = "client_id, group_id, service_date, delete_flag"),
+           @Index(name = "idx_worship_song_schedule",
+                  columnList = "client_id, group_id, schedule_type, service_date")
        })
 public class WorshipSong {
 
@@ -38,6 +41,16 @@ public class WorshipSong {
      */
     @Column(name = "service_date", nullable = true)
     private LocalDate serviceDate;
+
+    /**
+     * Which schedule a DATED song list belongs to: {@code auto} (Automatic
+     * Assignment — the value every pre-existing row carries) or {@code manual}.
+     * Library songs ({@code serviceDate == null}) are shared by both workflows and
+     * keep the default; the value is ignored for them.
+     */
+    @Column(name = "schedule_type", nullable = false, length = 20)
+    @ColumnDefault("'auto'")
+    private String scheduleType = "auto";
 
     /**
      * When {@code true} this row is a section heading (e.g. "Praise Songs"),

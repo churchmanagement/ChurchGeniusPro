@@ -9,7 +9,6 @@ import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
 import com.churchgeniuspro.repository.SubSourceRepository;
 import com.churchgeniuspro.service.ChurchStripeGateway;
-import com.churchgeniuspro.service.DonationIncomePostingService;
 import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.util.PublicSendLimiter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,7 +53,6 @@ public class MemberContributionController {
     private final FamilyMemberRepository memberRepo;
     private final SubSourceRepository subSourceRepo;
     private final SubscriptionService subscriptionService;
-    private final DonationIncomePostingService donationIncomePoster;
     private final ChurchStripeGateway stripe;
     private final PublicSendLimiter sendLimiter;
 
@@ -69,12 +67,11 @@ public class MemberContributionController {
                                         FamilyMemberRepository memberRepo,
                                         SubSourceRepository subSourceRepo,
                                         SubscriptionService subscriptionService,
-                                        DonationIncomePostingService donationIncomePoster,
                                         ChurchStripeGateway stripe,
                                         PublicSendLimiter sendLimiter) {
         this.donationRepo = donationRepo; this.stripeRepo = stripeRepo; this.memberRepo = memberRepo;
         this.subSourceRepo = subSourceRepo; this.subscriptionService = subscriptionService;
-        this.donationIncomePoster = donationIncomePoster; this.stripe = stripe; this.sendLimiter = sendLimiter;
+        this.stripe = stripe; this.sendLimiter = sendLimiter;
     }
 
     /** The signed-in member of the signed-in church, or null. */
@@ -239,6 +236,13 @@ public class MemberContributionController {
         d.setStripePaymentIntentId(piId);
         d.setStripeChargeId(charge.chargeId());
         d.setStatus(status);
+        // Donation Review (V14): Stripe's fee from the expanded balance transaction,
+        // when settled; otherwise left null for the review page's fee refresh.
+        ChurchStripeGateway.feeInfo(pi).ifPresent(f -> {
+            d.setStripeFee(f.fee()); d.setStripeNet(f.net());
+            d.setStripeBalanceTransactionId(f.balanceTransactionId());
+            d.setFeeSource(Donation.FEE_SOURCE_STRIPE);
+        });
         try {
             donationRepo.save(d);
         } catch (org.springframework.dao.DataIntegrityViolationException race) {
@@ -246,7 +250,9 @@ public class MemberContributionController {
             return ResponseEntity.ok(Map.of("success", true, "message", "Contribution already recorded."));
         }
         subscriptionService.recordOnlineGiving(clientId);
-        donationIncomePoster.postToIncome(d);        // best-effort, never throws
+        // Donation Review (V14): not posted to income here — it waits for review and
+        // is posted (gross Income + fee Expense) by DonationPostingService, with the
+        // member and purpose the member chose pre-filled on the review screen.
         try { if (donationController != null) donationController.sendThankyou(d, clientId); } catch (Exception ignored) {}
         log.info("Member contribution recorded: client={} member={} amount={} intent={}", clientId, w.memberId(), amount, piId);
         return ResponseEntity.ok(Map.of("success", true, "donationId", d.getId(), "amount", amount, "paymentMethod", charge.paymentMethod()));

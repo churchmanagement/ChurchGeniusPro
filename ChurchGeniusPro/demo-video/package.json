@@ -4,7 +4,8 @@
   "private": true,
   "description": "Records a product-demo video of the ChurchGeniusPro event workflow by driving the real application.",
   "scripts": {
-    "demo": "node record-demo.js"
+    "demo": "node record-demo.js",
+    "tour": "node record-tour.js"
   },
   "dependencies": {
     "playwright": "^1.48.0"

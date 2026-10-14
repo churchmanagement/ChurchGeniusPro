@@ -388,6 +388,9 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
     Optional<Income> findFirstByAppClientIdAndImportRefAndDeleteFlagFalse(
             String appClientId, String importRef);
 
+    /** Donation Review reconciliation: the active income rows posted for these PaymentIntent ids (V14). */
+    List<Income> findByAppClientIdAndImportRefInAndDeleteFlagFalse(String appClientId, java.util.Collection<String> importRefs);
+
     /**
      * Pledge collection total: sum of a specific member's active income to a
      * specific fund (sub-source), scoped to the org and bounded to a date

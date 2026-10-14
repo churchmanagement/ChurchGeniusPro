@@ -224,7 +224,6 @@ class PublicSurfaceFollowupTest {
         @Mock ChurchLogoRepository logoRepo;
         @Mock EmailService emailService;
         @Mock SubscriptionService subscriptionService;
-        @Mock DonationIncomePostingService poster;
         DonationController controller;
 
         @BeforeEach
@@ -233,7 +232,7 @@ class PublicSurfaceFollowupTest {
             l.setToken("tok-donate"); l.setAppClientId(OURS); l.setPageUrl("/donate"); l.setRevoked(false);
             when(linkRepo.findByToken("tok-donate")).thenReturn(Optional.of(l));
             controller = new DonationController(donationRepo, stripeRepo, linkRepo, clientRepo, logoRepo, emailService,
-                    subscriptionService, poster, limiter);
+                    subscriptionService, limiter);
         }
 
         @Test

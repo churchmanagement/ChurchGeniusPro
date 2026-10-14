@@ -46,4 +46,22 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
     @Query("update Donation d set d.reviewStatus = null, d.reviewCompletedAt = null, d.reviewCompletedBy = null "
          + "where d.clientId = :clientId and d.id in :ids and d.reviewStatus = 'COMPLETED'")
     int markReviewPending(@Param("clientId") String clientId, @Param("ids") Collection<Long> ids);
+
+    // ── Accounting posting (V14) ───────────────────────────────────────────────
+
+    /** One of this church's donations, or empty — never another church's, whatever id is sent. */
+    Optional<Donation> findByIdAndClientId(Long id, String clientId);
+
+    /**
+     * The same, with the row locked for the duration of the caller's transaction
+     * ({@code SELECT … FOR UPDATE}). Two posts of one donation — a double click, a
+     * retry, two tabs — serialise here: the second waits, then sees the first's
+     * {@code postedIncomeId} and returns "already posted" instead of posting again.
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Donation d where d.id = :id and d.clientId = :clientId")
+    Optional<Donation> lockByIdAndClientId(@Param("id") Long id, @Param("clientId") String clientId);
+
+    /** This church's donations, in review order (pending first, newest first), for the reconciliation report. */
+    List<Donation> findByClientIdOrderByReviewStatusAscDonatedAtDesc(String clientId);
 }
