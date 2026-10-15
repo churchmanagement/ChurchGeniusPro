@@ -14,7 +14,8 @@
   <link rel="stylesheet" href="/mobile.css" />
   <link rel="stylesheet" href="/shell.css" />
   <title>Member Home – Church Genius Pro</title>
-  <script>
+  <script src="/native-bridge.js"></script>
+<script>
     /* Tell shell.js this is the member portal — no active page in staff nav */
     (function() {
       // If the URL already requests a "members" sub-tab (groups, family, directory,
@@ -643,9 +644,78 @@
         </span>
       </label>
     </div>
+    <!-- Mobile Phase 2 (M5): blocked members -->
+    <div class="modal-body" id="blockedMembersCard" style="padding:0 24px 16px 24px;border-top:1px solid #f0e4e8;">
+      <div style="font-size:13px;font-weight:700;color:#333;margin:14px 0 6px;">🚫 Blocked members</div>
+      <div style="font-size:12px;color:#888;line-height:1.5;margin-bottom:8px;">Members you block cannot send you messages in Members Chat and their messages are hidden. They are not told.</div>
+      <div id="blockedMembersList" style="font-size:13px;color:#555;">Loading…</div>
+    </div>
+    <!-- Mobile Phase 2 (M4): delete my account -->
+    <div class="modal-body" id="deleteAccountCard" style="padding:0 24px 18px 24px;border-top:1px solid #f0e4e8;">
+      <div style="font-size:13px;font-weight:700;color:#b71c1c;margin:14px 0 6px;">Delete my account</div>
+      <div style="font-size:12px;color:#888;line-height:1.5;">Permanently deletes your member portal login. Your church keeps its membership and giving records.</div>
+      <button type="button" class="btn-cancel" style="margin-top:8px;color:#b71c1c;border-color:#f3c0c0;" onclick="openDeleteAccountModal()">Delete my account…</button>
+    </div>
     <div class="modal-footer" style="justify-content:flex-end;gap:10px;">
       <button class="btn-cancel" onclick="closeSettingsModal()">Cancel</button>
       <button class="btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete account modal (mobile Phase 2, M4) -->
+<div class="modal-overlay" id="deleteAccountModal" style="display:none;z-index:260;">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h3>Delete my account</h3>
+      <button class="modal-close" onclick="closeDeleteAccountModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px 24px;font-size:13px;line-height:1.6;color:#444;">
+      <p style="margin:0 0 10px;"><strong>This will permanently delete your member portal login.</strong> You will be signed out on every device and will no longer be able to sign in, see your contributions online, or use Members Chat.</p>
+      <p style="margin:0 0 10px;"><strong>What your church keeps:</strong> your membership record, giving history and year-end statements. The church is required to keep these for its own accounting. To be removed from the church's records as well, please contact the church office.</p>
+      <p style="margin:0 0 14px;">Messages you sent in Members Chat stay in the other person's inbox, shown as from "Former member".</p>
+      <label style="display:block;font-size:12px;font-weight:600;color:#333;margin-bottom:4px;" for="deleteAccountPassword">Enter your password to confirm</label>
+      <input type="password" id="deleteAccountPassword" autocomplete="current-password" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;" />
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" id="deleteAccountConfirm" style="width:16px;height:16px;margin-top:2px;accent-color:#b71c1c;" />
+        <span>I understand that my login will be deleted now and cannot be recovered, and that my church keeps its membership and giving records.</span>
+      </label>
+      <div id="deleteAccountError" style="color:#e53935;font-size:12px;margin-top:8px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:10px;">
+      <button class="btn-cancel" onclick="closeDeleteAccountModal()">Keep my account</button>
+      <button class="btn-primary" id="deleteAccountBtn" style="background:#b71c1c;" onclick="submitDeleteAccount()">Delete my account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report message modal (mobile Phase 2, M5) -->
+<div class="modal-overlay" id="reportMsgModal" style="display:none;z-index:260;">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>🚩 Report message</h3>
+      <button class="modal-close" onclick="closeReportMsgModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px 24px;font-size:13px;color:#444;">
+      <p style="margin:0 0 10px;color:#666;">Your church's staff will review this message. The sender is not told who reported it.</p>
+      <div id="reportMsgExcerpt" style="background:#f5f6fa;border-radius:8px;padding:8px 12px;font-size:12px;color:#555;margin-bottom:12px;max-height:90px;overflow:auto;"></div>
+      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;" for="reportMsgReason">Reason</label>
+      <select id="reportMsgReason" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+        <option value="HARASSMENT">Harassment or bullying</option>
+        <option value="INAPPROPRIATE">Inappropriate content</option>
+        <option value="SPAM">Spam or scam</option>
+        <option value="OTHER">Something else</option>
+      </select>
+      <label style="display:block;font-size:12px;font-weight:600;margin:12px 0 4px;" for="reportMsgDetails">Details (optional)</label>
+      <textarea id="reportMsgDetails" rows="3" maxlength="1000" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;"></textarea>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:12px;">
+        <input type="checkbox" id="reportMsgBlock" style="width:15px;height:15px;accent-color:#673147;" /> Also block this member
+      </label>
+      <div id="reportMsgError" style="color:#e53935;font-size:12px;margin-top:8px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:10px;">
+      <button class="btn-cancel" onclick="closeReportMsgModal()">Cancel</button>
+      <button class="btn-primary" id="reportMsgBtn" onclick="submitReportMsg()">Send report</button>
     </div>
   </div>
 </div>
@@ -822,9 +892,40 @@ document.addEventListener('click', function(e) {
 pollMbrNotifications();
 setInterval(pollMbrNotifications, 60000);
 
+/* This page does not load session.js, so it carries its own copy of the
+   endpoint lookup (same contract: resolves the endpoint or null, never rejects). */
+function cgpPushEndpoint(timeoutMs) {
+  return new Promise(function (resolve) {
+    var done = false;
+    var finish = function (v) { if (!done) { done = true; resolve(v || null); } };
+    setTimeout(function () { finish(null); }, timeoutMs || 1500);
+    try {
+      /* Mobile Phase 5: in the app the "endpoint" is the FCM token the bridge registered. */
+      if (window.Capacitor) return finish(window.CGP_NATIVE && window.CGP_NATIVE.getPushToken ? window.CGP_NATIVE.getPushToken() : null);
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return finish(null);
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (!reg) return finish(null);
+        return reg.pushManager.getSubscription().then(function (sub) {
+          finish(sub && sub.endpoint ? sub.endpoint : null);
+        });
+      }).catch(function () { finish(null); });
+    } catch (e) { finish(null); }
+  });
+}
+
 async function doLogout() {
+  try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch(e) {}
+  try { sessionStorage.removeItem('cgp_push_synced'); } catch(e) {}
+  try { if (window.CGP_NATIVE && window.CGP_NATIVE.forgetPushSync) window.CGP_NATIVE.forgetPushSync(); } catch(e) {}
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    /* Phase 1 (M3): tell the server which push subscription to deactivate so a
+       shared phone stops receiving this member's notifications after sign-out. */
+    var endpoint = await cgpPushEndpoint(1500);
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+    });
   } catch(e) {}
   window.location.href = '/';
 }
@@ -2532,6 +2633,11 @@ window.applyMemberNavFilter = function(privMap) {
     </div><!-- end givePane_report -->
   </div>
 
+<div id="memberPortalSupport" style="text-align:center;font-size:12px;color:#999;padding:18px 12px 8px;">
+  Questions about this app? Contact your church office, or ChurchGeniusPro support at
+  <a href="mailto:support@churchgeniuspro.com" style="color:#673147;">support@churchgeniuspro.com</a>
+  · <a href="/account-deletion" style="color:#673147;">Account deletion</a>
+</div>
 </div><!-- end page-wrap -->
 
 <script>
@@ -2600,6 +2706,103 @@ function openSettingsModal() {
   var cb = document.getElementById('settingNoAutoLogout');
   if (cb) cb.checked = localStorage.getItem(SETTINGS_NO_AUTO_LOGOUT_KEY) === '1';
   document.getElementById('settingsModal').style.display = 'flex';
+  loadBlockedMembers();
+  /* Child, temporary and NTAG sessions cannot delete an account; hide the card for them. */
+  var del = document.getElementById('deleteAccountCard');
+  if (del) del.style.display = (window._cgpIsChildSession || window._cgpIsTempSession) ? 'none' : '';
+}
+
+/* ── Mobile Phase 2 (M5): blocked members ─────────────────────── */
+async function loadBlockedMembers() {
+  var box = document.getElementById('blockedMembersList');
+  if (!box) return;
+  try {
+    var res = await fetch('/api/member/blocks');
+    var list = res.ok ? await res.json() : [];
+    if (!Array.isArray(list) || !list.length) { box.innerHTML = '<span style="color:#999;">You have not blocked anyone.</span>'; return; }
+    box.innerHTML = list.map(function (b) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f3f3f3;">'
+        + '<span>' + esc(b.name || 'Member') + '</span>'
+        + '<button type="button" class="btn-cancel" style="padding:4px 10px;font-size:12px;" onclick="unblockMember(' + Number(b.memberId) + ')">Unblock</button></div>';
+    }).join('');
+  } catch (e) { box.innerHTML = '<span style="color:#e53935;">Could not load blocked members.</span>'; }
+}
+async function blockMember(memberId, name) {
+  if (!memberId) return;
+  if (!confirm('Block ' + (name || 'this member') + '? They will no longer be able to message you.')) return;
+  try {
+    var res = await fetch('/api/member/blocks/' + Number(memberId), { method: 'POST' });
+    if (res.ok) { showToastMH('Member blocked.'); closeModal('threadModal'); loadMessages('inbox'); loadBlockedMembers(); }
+    else showToastMH('Could not block this member.', true);
+  } catch (e) { showToastMH('Could not block this member.', true); }
+}
+async function unblockMember(memberId) {
+  try {
+    var res = await fetch('/api/member/blocks/' + Number(memberId), { method: 'DELETE' });
+    if (res.ok) { showToastMH('Member unblocked.'); loadBlockedMembers(); loadMessages('inbox'); }
+  } catch (e) {}
+}
+
+/* ── Mobile Phase 2 (M5): report a message ────────────────────── */
+var reportMsgTarget = null;
+function openReportMsgModal(messageId, senderMemberId, senderName, excerpt) {
+  reportMsgTarget = { id: messageId, senderMemberId: senderMemberId, senderName: senderName };
+  document.getElementById('reportMsgExcerpt').textContent = (excerpt || '').slice(0, 300);
+  document.getElementById('reportMsgDetails').value = '';
+  document.getElementById('reportMsgBlock').checked = false;
+  document.getElementById('reportMsgError').textContent = '';
+  document.getElementById('reportMsgModal').style.display = 'flex';
+}
+function closeReportMsgModal() { document.getElementById('reportMsgModal').style.display = 'none'; reportMsgTarget = null; }
+async function submitReportMsg() {
+  if (!reportMsgTarget) return;
+  var btn = document.getElementById('reportMsgBtn'); var err = document.getElementById('reportMsgError');
+  btn.disabled = true; err.textContent = '';
+  try {
+    var res = await fetch('/api/member/messages/' + Number(reportMsgTarget.id) + '/report', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: document.getElementById('reportMsgReason').value, details: document.getElementById('reportMsgDetails').value })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { err.textContent = data.error || 'Could not send the report.'; btn.disabled = false; return; }
+    if (document.getElementById('reportMsgBlock').checked && reportMsgTarget.senderMemberId) {
+      await fetch('/api/member/blocks/' + Number(reportMsgTarget.senderMemberId), { method: 'POST' }).catch(function () {});
+      loadMessages('inbox');
+    }
+    closeReportMsgModal(); closeModal('threadModal');
+    showToastMH('Thank you — your report was sent to your church for review.');
+  } catch (e) { err.textContent = 'Could not send the report.'; }
+  btn.disabled = false;
+}
+
+/* ── Mobile Phase 2 (M4): delete my account ───────────────────── */
+function openDeleteAccountModal() {
+  closeSettingsModal();
+  document.getElementById('deleteAccountPassword').value = '';
+  document.getElementById('deleteAccountConfirm').checked = false;
+  document.getElementById('deleteAccountError').textContent = '';
+  document.getElementById('deleteAccountModal').style.display = 'flex';
+}
+function closeDeleteAccountModal() { document.getElementById('deleteAccountModal').style.display = 'none'; }
+async function submitDeleteAccount() {
+  var err = document.getElementById('deleteAccountError'); var btn = document.getElementById('deleteAccountBtn');
+  var pw = document.getElementById('deleteAccountPassword').value;
+  var ok = document.getElementById('deleteAccountConfirm').checked;
+  err.textContent = '';
+  if (!pw) { err.textContent = 'Please enter your password.'; return; }
+  if (!ok) { err.textContent = 'Please tick the confirmation box.'; return; }
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    var res = await fetch('/api/member/account/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw, confirm: true })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { err.textContent = data.error || 'Could not delete the account.'; btn.disabled = false; btn.textContent = 'Delete my account'; return; }
+    try { sessionStorage.setItem('cgpExplicitLogout', '1'); sessionStorage.setItem('cgpAccountDeleted', '1'); } catch (e) {}
+    try { localStorage.clear(); } catch (e) {}
+    window.location.href = '/?deleted=1';
+  } catch (e) { err.textContent = 'Could not delete the account.'; btn.disabled = false; btn.textContent = 'Delete my account'; }
 }
 
 function closeSettingsModal() {
@@ -2635,6 +2838,10 @@ function startNotifPolling() {
 
 /* WEB PUSH REGISTRATION */
 async function registerMemberPush() {
+  if (window.Capacitor) {   /* Mobile Phase 4/5: native push replaces Web Push in the app */
+    try { if (window.CGP_NATIVE && window.CGP_NATIVE.registerPush) window.CGP_NATIVE.registerPush(); } catch(e) {}
+    return;
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
     var keyRes = await fetch('/api/push/vapid-public-key');
@@ -2644,7 +2851,21 @@ async function registerMemberPush() {
     if (!vapidKey) return;
     var reg = await navigator.serviceWorker.ready;
     var existing = await reg.pushManager.getSubscription();
-    if (existing) return; // already subscribed
+    if (existing) {
+      /* Phase 1 (M3): re-key the existing subscription to THIS member (and
+         re-activate it after a logout) — once per signed-in user. */
+      var who = localStorage.getItem('clientId') || '';
+      var synced = null;
+      try { synced = sessionStorage.getItem('cgp_push_synced'); } catch(e) {}
+      if (synced === who) return;
+      var r = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(existing)
+      });
+      if (r.ok) { try { sessionStorage.setItem('cgp_push_synced', who); } catch(e) {} }
+      return;
+    }
     var sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey)
@@ -2751,11 +2972,13 @@ function urlBase64ToUint8Array(base64String) {
 
   // loadFamilyData() will pick the correct starting tab based on the member's role.
   // For non-child members it eagerly loads upcoming+calendar; for children it loads groups.
-  loadFamilyData();
+  // The give config needs the member link that loadFamilyData() establishes for staff
+  // logins, so it runs after the family load settles (success or failure).
+  const familyLoaded = Promise.resolve(loadFamilyData()).catch(function () {});
   loadPurposes();
   const giveDateEl = document.getElementById('giveDate');
   if (giveDateEl) giveDateEl.value = new Date().toISOString().split('T')[0];
-  initGivePayment();   // Phase D: Stripe payment form for Give / Contribute
+  familyLoaded.then(function () { initGivePayment(); });   // Phase D: Stripe payment form for Give / Contribute
   // Start notification badge polling (updates every 60s)
   startNotifPolling();
   // Register for push notifications (background alerts when minimized)
@@ -4010,6 +4233,7 @@ async function loadFamilyData() {
       // Apply restricted tab set for Child/Son/Daughter role members
       var selfRoleLc = (self.role || '').toLowerCase();
       var isChildRole = selfRoleLc === 'child' || selfRoleLc === 'son' || selfRoleLc === 'daughter';
+      window._cgpIsChildSession = isChildRole;   /* Phase 2: no account deletion for child logins */
       if (isChildRole) {
         applyChildMode(); // hides tabs, loads groups, switches to groups tab
       } else {
@@ -4819,7 +5043,19 @@ async function initGivePayment() {
   if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
   try {
     var res = await fetch('/api/member/give/config');
-    var cfg = res.ok ? await res.json() : {};
+    var cfg = null;
+    try { cfg = await res.json(); } catch (e) { cfg = null; }
+    // Only a successful answer that says "not enabled" means the church has no online
+    // giving. A 401/403 means this login is not linked to a member record; anything
+    // else is a temporary failure — never report those as "not set up".
+    if (!res.ok || !cfg) {
+      giveEnabled = false;
+      box.textContent = (res.status === 401 || res.status === 403)
+        ? 'Online giving is available to members. Your login is not linked to a member record in this church — ask the church office to add your email to your family record.'
+        : 'Could not load the giving configuration (' + res.status + '). Please refresh the page or try again later.';
+      box.style.display = ''; if (btn) btn.disabled = true;
+      return;
+    }
     if (!cfg.onlineGivingEnabled) {
       giveEnabled = false;
       box.textContent = cfg.message || 'Online giving is not set up for your church yet. Please contact the church office.';
@@ -5311,10 +5547,15 @@ function renderThread(msgs) {
   var html = '';
   msgs.forEach(function(m) {
     var isSelf = m.fromSelf;
+    /* Mobile Phase 2 (M5): report / block controls on every message from someone else. */
+    var actions = isSelf ? '' :
+        ' <span style="float:right;">'
+      + '<button type="button" class="msg-act-report" title="Report this message" style="background:none;border:none;color:#888;cursor:pointer;font-size:11px;padding:0 4px;" onclick="openReportMsgModal(' + Number(m.id) + ',' + Number(m.senderMemberId) + ',' + JSON.stringify(String(m.fromName || '')).replace(/"/g, '&quot;') + ',' + JSON.stringify(String(m.body || '').slice(0, 300)).replace(/"/g, '&quot;') + ')">🚩 Report</button>'
+      + '<button type="button" class="msg-act-block" title="Block this member" style="background:none;border:none;color:#888;cursor:pointer;font-size:11px;padding:0 4px;" onclick="blockMember(' + Number(m.senderMemberId) + ',' + JSON.stringify(String(m.fromName || '')).replace(/"/g, '&quot;') + ')">🚫 Block</button></span>';
     html += '<div style="margin-bottom:16px;">'
       + '<div style="font-size:11px;color:#888;margin-bottom:4px;">'
       + '<strong style="color:' + (isSelf ? '#673147' : '#333') + ';">' + esc(m.fromName || '') + '</strong>'
-      + ' · ' + (m.sentAt ? m.sentAt.replace('T', ' ').slice(0, 16) : '') + '</div>'
+      + ' · ' + (m.sentAt ? m.sentAt.replace('T', ' ').slice(0, 16) : '') + actions + '</div>'
       + '<div style="background:' + (isSelf ? '#fdf5f7' : '#f5f6fa') + ';border-radius:8px;padding:10px 14px;font-size:13px;line-height:1.6;">'
       + esc(m.body || '') + '</div></div>';
   });

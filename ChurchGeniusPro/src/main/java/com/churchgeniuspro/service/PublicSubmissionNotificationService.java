@@ -64,7 +64,11 @@ public class PublicSubmissionNotificationService {
         PRAYER    ("/followups?tab=prayer",  "more",       "more.followups",      RoleGuard::requireAdminOrUser,       "followUps",  "🙏"),
         CONNECT   ("/followups?tab=connect", "more",       "more.followups",      RoleGuard::requireAdminOrUser,       "followUps",  "🤝"),
         MEMBERSHIP("/membershipRequests",    "admin",      "admin.membership",    RoleGuard::requireAdminOrChurch,     null,         "📝"),
-        DONATION  ("/donation-review",       "accounting", "accounting.donation", RoleGuard::requireAccountantOrAdmin, "accounting", "💝");
+        DONATION  ("/donation-review",       "accounting", "accounting.donation", RoleGuard::requireAccountantOrAdmin, "accounting", "💝"),
+        // Mobile Phase 2 (M5): a member reported a Members Chat message — reviewed in Follow-Ups.
+        CONTENT_REPORT  ("/followups?tab=reports", "more",  "more.followups",  RoleGuard::requireAdminOrUser,    "followUps",  "🚩"),
+        // Mobile Phase 2 (M4): a member deleted their own portal login; the membership record stays.
+        ACCOUNT_DELETION("/viewusers",             "admin", "admin",           RoleGuard::requireChurch,         null,         "👋");
 
         public final String url;
         public final String sectionKey;

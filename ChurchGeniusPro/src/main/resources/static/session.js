@@ -93,7 +93,19 @@
         document.head.appendChild(s);
     })();
 
+    /** Mobile Phase 5: hand push registration to native-bridge.js (may load after us). */
+    function CGP_nativeRegisterPush() {
+        var go = function () {
+            try { if (window.CGP_NATIVE && typeof window.CGP_NATIVE.registerPush === 'function') window.CGP_NATIVE.registerPush(); } catch (_) {}
+        };
+        if (window.CGP_NATIVE && window.CGP_NATIVE.isNative) go();
+        else document.addEventListener('cgp:native-ready', go, { once: true });
+    }
+
     (function setupPushNotifications() {
+        // Mobile Phase 4/5: inside the app shell the service worker and Web Push are
+        // not used (offline page is native); the bridge registers the OS push token.
+        if (window.Capacitor) { CGP_nativeRegisterPush(); return; }
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
         navigator.serviceWorker.register(SW_URL)
@@ -168,7 +180,24 @@
          */
         function _subscribePush(reg) {
             reg.pushManager.getSubscription().then(function (existing) {
-                if (existing) return; /* already subscribed */
+                if (existing) {
+                    /* Phase 1 (M3): the browser already holds a subscription, but the
+                       server row may belong to whoever used this device last (or be
+                       deactivated by their logout). Re-post it once per signed-in
+                       user so it is keyed to THIS user and active again. */
+                    var who = localStorage.getItem('clientId') || '';
+                    var synced = null;
+                    try { synced = sessionStorage.getItem('cgp_push_synced'); } catch (_) {}
+                    if (synced === who) return;
+                    fetch('/api/push/subscribe', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(existing)
+                    }).then(function (r) {
+                        if (r.ok) { try { sessionStorage.setItem('cgp_push_synced', who); } catch (_) {} }
+                    }).catch(function () { /* retried on the next page */ });
+                    return;
+                }
 
                 /* Retrieve VAPID public key from the server */
                 fetch('/api/push/vapid-public-key')
@@ -187,6 +216,8 @@
                             method:  'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body:    JSON.stringify(sub)
+                        }).then(function (r) {
+                            if (r.ok) { try { sessionStorage.setItem('cgp_push_synced', localStorage.getItem('clientId') || ''); } catch (_) {} }
                         });
                     })
                     .catch(function (err) {
@@ -329,8 +360,20 @@
         clearTimeout(warnTimer);
         // Signal to login.html that this is an explicit logout (skip auto-login)
         try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
-        // Call the full logout endpoint that also clears the remember-me cookie
-        fetch('/api/auth/logout', { method: 'POST' })
+        try { sessionStorage.removeItem('cgp_push_synced'); } catch (_) {}
+        try { if (window.CGP_NATIVE && window.CGP_NATIVE.forgetPushSync) window.CGP_NATIVE.forgetPushSync(); } catch (_) {}
+        // Call the full logout endpoint: it revokes THIS browser's remember-me
+        // credential and, given the endpoint, deactivates this device's push
+        // subscription so the next person on a shared device gets no stale
+        // notifications (Phase 1, M3). The lookup never delays logout by more
+        // than ~1.5 s and a failure simply logs out without it.
+        CGP_pushEndpoint(1500).then(function (endpoint) {
+            return fetch('/api/auth/logout', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+            });
+        })
             .catch(function () { /* ignore network errors on logout */ })
             .finally(function () {
                 localStorage.clear();
@@ -338,6 +381,31 @@
             });
     }
     window.logout = logout;   // expose globally so inline onclick="logout()" works
+
+    /**
+     * Resolves this browser's push endpoint (or null) within `timeoutMs`.
+     * Shared by every logout path so the server can deactivate the device's
+     * push row. Never rejects.
+     */
+    function CGP_pushEndpoint(timeoutMs) {
+        return new Promise(function (resolve) {
+            var done = false;
+            var finish = function (v) { if (!done) { done = true; resolve(v || null); } };
+            setTimeout(function () { finish(null); }, timeoutMs || 1500);
+            try {
+                // Mobile Phase 5: in the app the "endpoint" is the FCM token the bridge registered.
+                if (window.Capacitor) return finish(window.CGP_NATIVE && window.CGP_NATIVE.getPushToken ? window.CGP_NATIVE.getPushToken() : null);
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return finish(null);
+                navigator.serviceWorker.getRegistration().then(function (reg) {
+                    if (!reg) return finish(null);
+                    return reg.pushManager.getSubscription().then(function (sub) {
+                        finish(sub && sub.endpoint ? sub.endpoint : null);
+                    });
+                }).catch(function () { finish(null); });
+            } catch (_) { finish(null); }
+        });
+    }
+    window.CGP_pushEndpoint = CGP_pushEndpoint;
 
     // ── Sidebar user display ──────────────────────────────────────────────────
 
@@ -2275,6 +2343,7 @@
             .then(function (data) { if (data) updateNotificationUI(data); })
             .catch(function () { /* silent */ });
     }
+    window.refreshNotificationBadge = refreshNotifications;   // Mobile Phase 5: bridge calls it when a push arrives in the foreground
 
     function startNotificationPolling() {
         function poll() {

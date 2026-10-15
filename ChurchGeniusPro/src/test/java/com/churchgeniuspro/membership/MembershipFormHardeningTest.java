@@ -53,6 +53,9 @@ import com.churchgeniuspro.util.PublicSendLimiter;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class MembershipFormHardeningTest {
 
+    /** A real 1×1 PNG, so the review screen treats it as a photo. */
+    static final String REAL_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
     private static final String OURS   = "CHURCH-A";
     private static final String THEIRS = "CHURCH-B";
 
@@ -296,7 +299,7 @@ class MembershipFormHardeningTest {
         head.setBirthdayMonth(3); head.setBirthdayDay(14); head.setBirthdayYear(1980);
         head.setAddress1("12 Oak St"); head.setAddress2("Apt 4"); head.setCity("Dallas"); head.setState("TX"); head.setCountry("USA"); head.setPinCode("75001");
         head.setPhonePrivate(true); head.setEmailPrivate(false); head.setAddressPrivate(false);
-        head.setPhotoData("data:image/png;base64,AAAA");
+        head.setPhotoData(REAL_PNG);   // 2026-10-14: only a decodable image counts as a photo (an undecodable upload is flagged photoUnsupported)
         MembershipFamilyMember spouse = new MembershipFamilyMember();
         spouse.setId(52); spouse.setRole("Spouse"); spouse.setFirstName("Ann"); spouse.setLastName("Bennett"); spouse.setGender("Female");
         spouse.setEmail("ann@bennett.test"); spouse.setBirthdayMonth(7); spouse.setBirthdayDay(2); spouse.setBirthdayYear(1982);
@@ -325,7 +328,7 @@ class MembershipFormHardeningTest {
                 .containsEntry("birthdayMonth", 3).containsEntry("birthdayDay", 14).containsEntry("birthdayYear", 1980)
                 .containsEntry("address2", "Apt 4").containsEntry("sameAsFamilyAddress", true)
                 .containsEntry("phonePrivate", true).containsEntry("emailPrivate", false).containsEntry("addressPrivate", false)
-                .containsEntry("hasPhoto", true).containsEntry("photoData", "data:image/png;base64,AAAA");
+                .containsEntry("hasPhoto", true).containsEntry("photoData", REAL_PNG);
         assertThat(sp).containsEntry("role", "Spouse").containsEntry("gender", "Female")
                 .containsEntry("anniversaryMonth", 6).containsEntry("anniversaryDay", 21).containsEntry("anniversaryYear", 2005)
                 .containsEntry("sameAsFamilyAddress", false).containsEntry("address1", "9 Elm Rd").containsEntry("city", "Plano").containsEntry("pinCode", "75023")

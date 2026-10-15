@@ -55,9 +55,11 @@ public class FamilyMember {
     // ── Role ──────────────────────────────────────────────────────────────
 
     /**
-     * Role of this member within the family.
-     * Values: Head, Wife, Son, Daughter, Father, Mother,
-     *         Mother-in-Law, Father-in-Law.
+     * Role of this member within the family — free text. New rows use the canonical
+     * four ({@code Head of Household}, {@code Spouse}, {@code Adult}, {@code Child};
+     * see {@code util.FamilyRoles}); older rows may still carry the legacy set
+     * (Head, Wife, Son, Daughter, Father, Mother, …-in-Law), which readers map and
+     * never rewrite.
      */
     @Column(name = "role")
     private String role;
@@ -168,6 +170,14 @@ public class FamilyMember {
 
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag;
+
+    /**
+     * Set when the member deleted their own portal login (mobile Phase 2, M4). The
+     * membership record itself — and every giving, pledge and attendance row under it —
+     * is deliberately kept: it is the church's record, not the login's. Null = never.
+     */
+    @Column(name = "portal_account_deleted_at")
+    private java.time.Instant portalAccountDeletedAt;
 
     /**
      * Unique member reference token in the format {@code MBR<uuid>}.

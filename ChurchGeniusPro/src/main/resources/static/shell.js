@@ -807,6 +807,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
       var el = document.createElement('script'); el.src = src; if (id) el.id = id; el.defer = true;
       document.body.appendChild(el);
     }
+    add('/native-bridge.js', 'native-bridge-script'); // mobile app shell bridge (inert in a browser; see the file header)
     add('/voice-flags.js', 'voice-flags-script'); // per-church Voice feature gating (hides disabled buttons)
     add('/voice-openai.js', 'aa-voice');   // shared recorder engine (Voice/Converse)
     add('/ai-assistant.js', 'aa-script');  // the assistant itself

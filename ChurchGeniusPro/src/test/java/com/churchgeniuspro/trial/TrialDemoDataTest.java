@@ -92,6 +92,7 @@ class TrialDemoDataTest {
         AttendanceRecordRepository attendance; AttendanceVisitorRepository visitors; ConnectSubmissionRepository connect;
         PublicPrayerRequestRepository prayer; FollowUpRepository followUps; EmailUnsubscribeRepository unsub;
         FamilyRepository families; FamilyMemberRepository familyMembers;
+        WorshipGroupRepository worshipGroups; WorshipInstrumentRepository worshipInstruments; WorshipGroupMemberRepository worshipMembers;
         TrialDemoDataSeeder seeder;
 
         @SuppressWarnings("unchecked")
@@ -111,8 +112,11 @@ class TrialDemoDataTest {
             prayer = repo(PublicPrayerRequestRepository.class); followUps = repo(FollowUpRepository.class);
             unsub = repo(EmailUnsubscribeRepository.class); families = repo(FamilyRepository.class);
             familyMembers = repo(FamilyMemberRepository.class);
+            worshipGroups = repo(WorshipGroupRepository.class); worshipInstruments = repo(WorshipInstrumentRepository.class);
+            worshipMembers = repo(WorshipGroupMemberRepository.class);
             seeder = new TrialDemoDataSeeder(donations, mfams, mmembers, attendance, visitors, connect, prayer,
-                                             followUps, unsub, families, familyMembers);
+                                             followUps, unsub, families, familyMembers,
+                                             worshipGroups, worshipInstruments, worshipMembers);
         }
 
         @Test
@@ -174,6 +178,29 @@ class TrialDemoDataTest {
         }
 
         @Test
+        @DisplayName("worship: one team, five instruments, a rotation of demo adults on each (so Automatic Assignment works out of the box)")
+        void worshipSeeded() {
+            Map<String, Integer> c = seeder.seed(TRIAL, members(TRIAL), TODAY);
+            List<WorshipGroup> groups = of(WorshipGroup.class);
+            List<WorshipInstrument> instruments = of(WorshipInstrument.class);
+            List<WorshipGroupMember> wm = of(WorshipGroupMember.class);
+            assertEquals(1, groups.size());
+            assertEquals(TRIAL, groups.get(0).getClientId());
+            assertEquals("Sunday Worship Team", groups.get(0).getGroupName());
+            assertEquals(5, instruments.size());
+            assertTrue(instruments.stream().allMatch(i -> TRIAL.equals(i.getClientId())));
+            assertEquals(c.get("worship"), wm.size());
+            assertTrue(wm.size() >= 5, "at least one person per instrument");
+            assertTrue(wm.stream().allMatch(m -> m.getRotationOrder() != null && m.getRotationOrder() >= 1), "every member is in the rotation");
+            assertTrue(wm.stream().allMatch(m -> m.getMemberName() != null && !m.getMemberName().isBlank()));
+            assertTrue(wm.stream().allMatch(m -> TRIAL.equals(m.getClientId())));
+            // idempotent: a tenant that already has a group gets nothing more
+            when(worshipGroups.findByClientIdAndDeleteFlagFalse(TRIAL)).thenReturn(groups);
+            assertEquals(0, seeder.seedWorship(TRIAL, members(TRIAL)));
+            assertFalse(seeder.wouldFill(TRIAL, TODAY).get("worship"));
+        }
+
+        @Test
         @DisplayName("membership requests are pending applications with members and a head address")
         void membershipRequests() {
             seeder.seed(TRIAL, members(TRIAL), TODAY);
@@ -181,11 +208,12 @@ class TrialDemoDataTest {
             List<MembershipFamilyMember> ms = of(MembershipFamilyMember.class);
             assertEquals(3, fams.size());
             for (MembershipFamily f : fams) {
-                assertFalse(f.isDeleteFlag(), "pending = not yet approved (approval soft-deletes)");
+                assertFalse(f.isDeleteFlag(), "live request (V15: delete_flag now means deleted by staff)");
+                assertEquals(MembershipFamily.STATUS_PENDING_REVIEW, f.getStatus(), "a fresh application is Pending Review");
                 assertNull(f.getExistingFamilyId(), "new families, not renewals");
                 List<MembershipFamilyMember> mine = ms.stream().filter(m -> m.getMembershipFamily() == f).toList();
                 assertFalse(mine.isEmpty());
-                MembershipFamilyMember head = mine.stream().filter(m -> "Head".equals(m.getRole())).findFirst().orElseThrow();
+                MembershipFamilyMember head = mine.stream().filter(m -> "Head of Household".equals(m.getRole())).findFirst().orElseThrow();
                 assertNotNull(head.getAddress1()); assertEquals("Olathe", head.getCity());
                 assertEquals("16", head.getState(), "state stored as the form's numeric code (KS = 16)");
             }
@@ -250,6 +278,7 @@ class TrialDemoDataTest {
             when(connect.findByClientIdAndDeleteFlagFalseOrderByCreatedAtDesc(TRIAL)).thenReturn(of(ConnectSubmission.class));
             when(prayer.findByClientIdAndDeleteFlagFalseOrderByCreatedAtDesc(TRIAL)).thenReturn(of(PublicPrayerRequest.class));
             when(unsub.findByClientIdOrderByUnsubscribedAtDesc(TRIAL)).thenReturn(of(EmailUnsubscribe.class));
+            when(worshipGroups.findByClientIdAndDeleteFlagFalse(TRIAL)).thenReturn(of(WorshipGroup.class));
             Map<String, Integer> again = seeder.seed(TRIAL, members(TRIAL), TODAY);
             assertTrue(again.values().stream().allMatch(n -> n == 0), "second run: " + again);
             assertEquals(before, saved.size());

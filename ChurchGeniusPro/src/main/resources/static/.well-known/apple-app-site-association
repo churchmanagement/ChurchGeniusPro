@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_WITH_TEAMID.com.churchgeniuspro.app",
+        "paths": ["/resetPassword*", "/login*", "/signup*", "/memberSignup*", "/memberHome*", "/event-register*", "/trialRegistration*"]
+      }
+    ]
+  }
+}

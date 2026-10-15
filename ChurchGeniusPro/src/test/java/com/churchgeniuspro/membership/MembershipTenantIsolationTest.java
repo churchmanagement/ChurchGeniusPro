@@ -200,13 +200,13 @@ class MembershipTenantIsolationTest {
     }
 
     @Test
-    @DisplayName("Approve refuses to merge into a family owned by another church")
+    @DisplayName("Approve and Update refuses to merge into a family owned by another church (V15: approve itself is status-only)")
     void approveRefusesCrossTenantMerge() {
         when(mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(5, OURS)).thenReturn(Optional.of(request(5, OURS, 4242)));
         when(mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(5)).thenReturn(List.of());
         when(familyRepo.findById(4242)).thenReturn(Optional.of(family(4242, THEIRS, false)));
 
-        ResponseEntity<?> res = controller.approve(5, adminRequest());
+        ResponseEntity<?> res = controller.apply(5, adminRequest());
 
         assertThat(res.getStatusCode().is4xxClientError()).isTrue();
         assertThat(String.valueOf(res.getBody())).contains("does not belong to your church");
@@ -216,7 +216,7 @@ class MembershipTenantIsolationTest {
     }
 
     @Test
-    @DisplayName("Approve still merges into a family this church owns")
+    @DisplayName("Approve and Update still merges into a family this church owns")
     void approveAllowsOwnTenantMerge() {
         when(mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(6, OURS)).thenReturn(Optional.of(request(6, OURS, 77)));
         when(mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(6)).thenReturn(List.of());
@@ -225,7 +225,7 @@ class MembershipTenantIsolationTest {
         when(familyRepo.save(any(Family.class))).thenAnswer(i -> i.getArgument(0));
         when(mfRepo.save(any(MembershipFamily.class))).thenAnswer(i -> i.getArgument(0));
 
-        ResponseEntity<?> res = controller.approve(6, adminRequest());
+        ResponseEntity<?> res = controller.apply(6, adminRequest());
 
         assertThat(res.getStatusCode().is2xxSuccessful())
                 .as("a legitimate merge must keep working: %s", res.getBody())
@@ -241,7 +241,8 @@ class MembershipTenantIsolationTest {
         when(mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(9, OURS)).thenReturn(Optional.empty());
 
         ResponseEntity<?> res = controller.approve(9, adminRequest());
-
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        res = controller.apply(9, adminRequest());
         assertThat(res.getStatusCode().value()).isEqualTo(404);
         verify(mfRepo, never()).findByIdAndDeleteFlagFalse(any());
         verify(familyRepo, never()).save(any(Family.class));

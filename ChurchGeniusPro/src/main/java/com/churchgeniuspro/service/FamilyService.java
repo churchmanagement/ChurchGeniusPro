@@ -4,18 +4,13 @@ import com.churchgeniuspro.hibernate.Family;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.model.FamilyBO;
 import com.churchgeniuspro.model.FamilyMemberBO;
+import com.churchgeniuspro.util.PhotoImages;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.FamilyRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.imageio.ImageIO;
 
 /**
  * Service layer for family persistence and retrieval.
@@ -354,6 +348,8 @@ public class FamilyService {
         result.put("familyName", derivedName);
         result.put("inactive",   f.isInactive());
         result.put("deleted",    f.isDeleteFlag());
+        // V15: last membership renewal (set only by Membership Requests → Approve and Update)
+        result.put("membershipRenewedAt", f.getMembershipRenewedAt() != null ? f.getMembershipRenewedAt().toString() : null);
         result.put("members", f.getMembers().stream()
                 // Return all members (active, inactive, deleted) so the frontend
                 // can filter/display with its own checkboxes.
@@ -598,8 +594,9 @@ public class FamilyService {
         m.setAddressPrivate(mbo.isAddressPrivate());
         m.setOtherName(mbo.getOtherName());
         m.setComments(mbo.getComments());
-        m.setPhotoData(mbo.getPhotoData());
-        m.setPhotoThumbnail(thumbnailDataUrl(mbo.getPhotoData(), 60));
+        String photo = PhotoImages.normalise(mbo.getPhotoData());
+        m.setPhotoData(photo);
+        m.setPhotoThumbnail(PhotoImages.thumbnail(photo));
         m.setInactive(mbo.isInactive());
         m.setDisableAlerts(mbo.isDisableAlerts());
         m.setIncludeContributions(mbo.isIncludeContributions());
@@ -636,9 +633,9 @@ public class FamilyService {
         m.setComments(mbo.getComments());
         // null = no change; "" (empty string sentinel) = user explicitly removed; data URL = new photo
         if (mbo.getPhotoData() != null) {
-            String newPhoto = mbo.getPhotoData().isEmpty() ? null : mbo.getPhotoData();
+            String newPhoto = mbo.getPhotoData().isEmpty() ? null : PhotoImages.normalise(mbo.getPhotoData());
             m.setPhotoData(newPhoto);
-            m.setPhotoThumbnail(thumbnailDataUrl(newPhoto, 60));
+            m.setPhotoThumbnail(PhotoImages.thumbnail(newPhoto));
         }
         m.setInactive(mbo.isInactive());
         m.setDisableAlerts(mbo.isDisableAlerts());
@@ -651,38 +648,4 @@ public class FamilyService {
         catch (NumberFormatException e) { return null; }
     }
 
-    /**
-     * Scales a base64 data-URL photo down to a square thumbnail of {@code size} pixels.
-     * Returns the original data-URL when already small enough, null when input is null/blank.
-     *
-     * <p>This keeps the list-view payload small: a 60px JPEG thumbnail is typically
-     * 1–3 KB vs. 100–500 KB for a full-resolution member photo.
-     */
-    private String thumbnailDataUrl(String dataUrl, int size) {
-        if (dataUrl == null || dataUrl.isBlank()) return null;
-        try {
-            int commaIdx = dataUrl.indexOf(',');
-            if (commaIdx < 0) return dataUrl;
-            byte[] imageBytes = Base64.getDecoder().decode(dataUrl.substring(commaIdx + 1));
-            BufferedImage original = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            if (original == null) return dataUrl;
-            int origW = original.getWidth();
-            int origH = original.getHeight();
-            if (origW <= size && origH <= size) return dataUrl;
-            double scale = (double) size / Math.max(origW, origH);
-            int tw = Math.max(1, (int) (origW * scale));
-            int th = Math.max(1, (int) (origH * scale));
-            BufferedImage thumb = new BufferedImage(tw, th, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g2 = thumb.createGraphics();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            g2.drawImage(original, 0, 0, tw, th, null);
-            g2.dispose();
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(thumb, "jpeg", baos);
-            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(baos.toByteArray());
-        } catch (Exception e) {
-            return dataUrl;
-        }
-    }
 }

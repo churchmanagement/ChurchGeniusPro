@@ -68,6 +68,7 @@ public class ForgotPasswordController {
     private final EmailService                 emailService;
     private final PasswordResetService         passwordResetService;
     private final LoginProtectionService       loginProtection;
+    private final com.churchgeniuspro.service.RememberMeService rememberMe;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -80,8 +81,10 @@ public class ForgotPasswordController {
                                     PasswordResetTokenRepository tokenRepo,
                                     EmailService emailService,
                                     PasswordResetService passwordResetService,
-                                    LoginProtectionService loginProtection) {
+                                    LoginProtectionService loginProtection,
+                                    com.churchgeniuspro.service.RememberMeService rememberMe) {
         this.loginProtection      = loginProtection;
+        this.rememberMe           = rememberMe;
         this.loginRepo            = loginRepo;
         this.appUserRepo          = appUserRepo;
         this.churchRepo           = churchRepo;
@@ -238,6 +241,13 @@ public class ForgotPasswordController {
         // caught behind one is never waiting on an administrator. Deliberately does not
         // touch IP-scope blocks — those belong to the host, not to the account.
         loginProtection.clearAccountCounters(prt.getUsername(), user.getClientId(), "PASSWORD_RESET");
+
+        // A new password means every remembered device must prove itself again — the
+        // reset may well be because one of them was lost or shared (Phase 1, M2).
+        int revoked = rememberMe.revokeAllFor(user.getId());
+        if (revoked > 0) {
+            log.info("Password reset for username='{}' revoked {} remembered device(s)", prt.getUsername(), revoked);
+        }
 
         return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
     }

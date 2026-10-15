@@ -1896,6 +1896,86 @@ CREATE INDEX IF NOT EXISTS idx_worship_song_schedule
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- 2026-10-14 Mobile Phase 1 — mirror of Flyway V16__remember_me_token.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Additive only: creates remember_me_token; signup.remember is kept, unchanged.
+-- Safe to run before or after Flyway applies V16 (every statement is IF NOT EXISTS).
+
+CREATE TABLE IF NOT EXISTS remember_me_token (
+    id              BIGSERIAL PRIMARY KEY,
+    signup_id       INTEGER      NOT NULL,
+    token_hash      VARCHAR(64)  NOT NULL,
+    prev_token_hash VARCHAR(64),
+    rotated_at      TIMESTAMP(6) WITH TIME ZONE,
+    device_label    VARCHAR(200),
+    platform        VARCHAR(16)  NOT NULL DEFAULT 'web',
+    created_at      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    last_used_at    TIMESTAMP(6) WITH TIME ZONE,
+    expires_at      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    revoked_at      TIMESTAMP(6) WITH TIME ZONE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_remember_me_token_hash   ON remember_me_token (token_hash);
+CREATE INDEX        IF NOT EXISTS idx_remember_me_token_signup  ON remember_me_token (signup_id);
+CREATE INDEX        IF NOT EXISTS idx_remember_me_token_expires ON remember_me_token (expires_at);
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 2026-10-14 Mobile Phase 2 — mirror of Flyway V17__member_safety_and_account_deletion.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Additive only: member_block, content_report, family_member.portal_account_deleted_at.
+
+CREATE TABLE IF NOT EXISTS member_block (
+    id                BIGSERIAL PRIMARY KEY,
+    app_client_id     VARCHAR(64) NOT NULL,
+    blocker_member_id INTEGER     NOT NULL,
+    blocked_member_id INTEGER     NOT NULL,
+    created_at        TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    CONSTRAINT uq_member_block UNIQUE (app_client_id, blocker_member_id, blocked_member_id)
+);
+CREATE INDEX IF NOT EXISTS idx_member_block_blocker ON member_block (app_client_id, blocker_member_id);
+
+CREATE TABLE IF NOT EXISTS content_report (
+    id                 BIGSERIAL PRIMARY KEY,
+    app_client_id      VARCHAR(64)  NOT NULL,
+    content_type       VARCHAR(32)  NOT NULL,
+    content_id         BIGINT       NOT NULL,
+    content_excerpt    VARCHAR(2000),
+    reporter_member_id INTEGER      NOT NULL,
+    reporter_name      VARCHAR(160),
+    reported_member_id INTEGER,
+    reported_name      VARCHAR(160),
+    reason             VARCHAR(32)  NOT NULL,
+    details            VARCHAR(1000),
+    status             VARCHAR(16)  NOT NULL DEFAULT 'OPEN',
+    created_at         TIMESTAMP(6) WITH TIME ZONE NOT NULL,
+    reviewed_at        TIMESTAMP(6) WITH TIME ZONE,
+    reviewed_by        VARCHAR(150),
+    action_note        VARCHAR(500)
+);
+CREATE INDEX IF NOT EXISTS idx_content_report_client_status ON content_report (app_client_id, status);
+CREATE INDEX IF NOT EXISTS idx_content_report_content       ON content_report (content_type, content_id);
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'family_member') THEN
+        ALTER TABLE family_member ADD COLUMN IF NOT EXISTS portal_account_deleted_at TIMESTAMP(6) WITH TIME ZONE;
+    END IF;
+END $$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 2026-10-15 Mobile Phase 5 — mirror of Flyway V18__push_subscription_platform.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Additive only: push_subscription.platform ('web' for every existing row — which is
+-- what they are; 'android'/'ios' for app registrations) and device_name.
+
+ALTER TABLE push_subscription ADD COLUMN IF NOT EXISTS platform    VARCHAR(16) NOT NULL DEFAULT 'web';
+ALTER TABLE push_subscription ADD COLUMN IF NOT EXISTS device_name VARCHAR(120);
+CREATE INDEX IF NOT EXISTS idx_push_sub_platform ON push_subscription (platform);
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 2026-09 Database audit P6 — historical startup migrations, retired from code
 -- ═══════════════════════════════════════════════════════════════════════════
 --

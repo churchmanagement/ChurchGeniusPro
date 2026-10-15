@@ -1470,6 +1470,7 @@
       }
       const data = await res.json();
       familyId = data.id;
+      window._familyRenewedAt = data.membershipRenewedAt || null;   // V15: shown in the view-mode subtitle
       populateFamily(data, mode);
     } catch (err) {
       showFeedback('❌ ' + (err.message || 'Failed to load family details.'), 'error');
@@ -1597,7 +1598,8 @@
   function applyViewMode() {
     isViewMode = true;
     document.querySelector('.page-title').textContent    = 'View Family';
-    document.querySelector('.page-subtitle').textContent = 'Read-only details for this family';
+    document.querySelector('.page-subtitle').textContent = 'Read-only details for this family'
+      + (window._familyRenewedAt ? ' · Membership renewed ' + new Date(window._familyRenewedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 
     document.querySelectorAll('#pFirstName, #pLastName, #pNickName, #pEmail, #pPhone, #pCategory, #pGender, #pAddress1, #pAddress2, #pCity, #pState, #pCountry, #pPinCode, #pBirthMonth, #pBirthDay, #pBirthYear, #pInactive, #pDisableAlerts, #pIncludeContrib').forEach(el => { el.disabled = true; });
 
@@ -1615,7 +1617,8 @@
   function applyEditMode() {
     isViewMode = false;
     document.querySelector('.page-title').textContent    = 'Edit Family';
-    document.querySelector('.page-subtitle').textContent = 'Update family details and members';
+    document.querySelector('.page-subtitle').textContent = 'Update family details and members'
+      + (window._familyRenewedAt ? ' · Membership renewed ' + new Date(window._familyRenewedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '');
     const saveBtn = document.getElementById('saveBtn');
     saveBtn.textContent = 'Update Family';
     saveBtn.disabled    = false;   // Re-enable after family data has loaded

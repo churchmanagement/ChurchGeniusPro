@@ -180,6 +180,7 @@
         <button class="fu-tab active" id="fuTab_tasks"   onclick="fuShowTab('tasks',this)">📋 Follow-Up Tasks</button>
         <button class="fu-tab"        id="fuTab_connect" onclick="fuShowTab('connect',this)">🤝 Connect With Us <span id="fuCntConnect"></span></button>
         <button class="fu-tab"        id="fuTab_prayer"  onclick="fuShowTab('prayer',this)">🙏 Prayer Requests <span id="fuCntPrayer"></span></button>
+        <button class="fu-tab"        id="fuTab_reports" onclick="fuShowTab('reports',this)">🚩 Reported Content <span id="fuCntReports"></span></button>
       </div>
 
       <div class="fu-pane active" id="fuPane_tasks">
@@ -265,6 +266,28 @@
             <table class="data-table">
               <thead><tr><th>Name</th><th>Request</th><th>Source</th><th>Submitted</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead>
               <tbody id="prayBody"><tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Reported Content (mobile Phase 2, M5) ── -->
+      <div class="fu-pane" id="fuPane_reports">
+        <div class="filter-bar">
+          <select id="repStatusFilter" onchange="renderReports()">
+            <option value="OPEN">Open</option>
+            <option value="REVIEWED">Reviewed</option>
+            <option value="DISMISSED">Dismissed</option>
+            <option value="All">All</option>
+          </select>
+          <input type="search" id="repSearch" placeholder="🔍 Search names, reason, message…" oninput="renderReports()" />
+          <span style="font-size:12px;color:#777;align-self:center;">Members report Members Chat messages here. Review, remove the message if needed, or dismiss.</span>
+        </div>
+        <div class="table-card">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr><th>Reported</th><th>Reported by</th><th>Message</th><th>Reason</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="repBody"><tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -773,6 +796,57 @@
     if (btn) btn.classList.add('active');
     if (name==='connect' && !CONN._loaded) loadConnect();
     if (name==='prayer'  && !PRAY._loaded)  loadPrayer();
+    if (name==='reports' && !REPS._loaded)  loadReports();
+  };
+
+  /* ── Reported Content (mobile Phase 2, M5) ── */
+  var REPS=[];
+  function loadReports(){
+    fetch('/api/content-reports?status=All').then(function(r){return r.json();}).then(function(d){
+      REPS = (d && Array.isArray(d.reports)) ? d.reports : []; REPS._loaded=true;
+      var open = d && d.counts ? Number(d.counts.OPEN||0) : 0;
+      var c=document.getElementById('fuCntReports'); if(c) c.textContent = open ? '('+open+')' : '';
+      renderReports();
+    }).catch(function(){ document.getElementById('repBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+  }
+  window.renderReports = function(){
+    var st=document.getElementById('repStatusFilter').value;
+    var q=(document.getElementById('repSearch').value||'').toLowerCase();
+    var rows=REPS.filter(function(r){
+      if (st && st!=='All' && r.status!==st) return false;
+      var hay=((r.reportedName||'')+' '+(r.reporterName||'')+' '+(r.reason||'')+' '+(r.excerpt||'')+' '+(r.details||'')).toLowerCase();
+      return !q || hay.indexOf(q)>=0;
+    });
+    var tb=document.getElementById('repBody');
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:18px;">No reported content.</td></tr>'; return; }
+    var reasonLabel={HARASSMENT:'Harassment',SPAM:'Spam',INAPPROPRIATE:'Inappropriate',OTHER:'Other'};
+    tb.innerHTML=rows.map(function(r){
+      var txt=(r.excerpt||''); if(txt.length>90) txt=txt.slice(0,90)+'…';
+      var det=(r.details||''); if(det.length>120) det=det.slice(0,120)+'…';
+      var isOpen = r.status==='OPEN';
+      var acts = isOpen
+        ? '<button class="btn-secondary" title="Remove the message for both members" onclick="repResolve('+r.id+',\'DELETE_MESSAGE\')"'+(r.messageDeleted?' disabled':'')+'>🗑 Remove message</button> '
+          +'<button class="btn-secondary" onclick="repResolve('+r.id+',\'REVIEWED\')">✓ Reviewed</button> '
+          +'<button class="btn-secondary" onclick="repResolve('+r.id+',\'DISMISS\')">Dismiss</button>'
+        : '<span style="font-size:12px;color:#777;">'+E(r.actionNote||'')+(r.reviewedBy?' · '+E(r.reviewedBy):'')+'</span> '
+          +'<button class="btn-secondary" onclick="repResolve('+r.id+',\'REOPEN\')">Reopen</button>';
+      return '<tr><td><b>'+E(r.reportedName||'—')+'</b></td>'
+        +'<td>'+E(r.reporterName||'—')+'</td>'
+        +'<td style="max-width:260px;">'+E(txt)+(r.messageDeleted?' <span class="sub-pill" style="background:#eee;color:#777;">removed</span>':'')+(det?'<div style="font-size:11px;color:#888;margin-top:3px;">Note: '+E(det)+'</div>':'')+'</td>'
+        +'<td>'+E(reasonLabel[r.reason]||r.reason||'—')+'</td>'
+        +'<td style="white-space:nowrap;">'+E(fdt(r.createdAt))+'</td>'
+        +'<td><span class="sub-pill sp-'+E(r.status)+'">'+E(r.status)+'</span></td>'
+        +'<td style="white-space:nowrap;">'+acts+'</td></tr>';
+    }).join('');
+  };
+  window.repResolve = function(id, action){
+    var staffNote = '';
+    if (action==='DELETE_MESSAGE' && !confirm('Remove this message from both members\' inboxes? This cannot be undone.')) return;
+    if (action==='REVIEWED' || action==='DISMISS') { staffNote = prompt('Optional note for the record:', '') || ''; }
+    fetch('/api/content-reports/'+id+'/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action,note:staffNote})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+      .then(function(x){ if(!x.ok){ note(x.d.error||'Could not update the report.', false); return; } REPS._loaded=false; loadReports(); note('Report updated.', true); })
+      .catch(function(){ note('Could not update the report.', false); });
   };
 
   function loadAssignees(){
@@ -1050,7 +1124,7 @@ window.CGP_PAGE = { activePage: 'more/followups', openSection: 'more', pageTitle
   (function () {
     try {
       var t = new URLSearchParams(window.location.search).get('tab');
-      if (t === 'connect' || t === 'prayer') {
+      if (t === 'connect' || t === 'prayer' || t === 'reports') {
         var go = function () {
           var btn = document.getElementById('fuTab_' + t);
           if (btn && typeof fuShowTab === 'function') fuShowTab(t, btn);

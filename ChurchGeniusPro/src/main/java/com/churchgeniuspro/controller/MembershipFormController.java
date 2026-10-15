@@ -51,9 +51,13 @@ import com.churchgeniuspro.repository.WorshipGroupMemberRepository;
 import com.churchgeniuspro.repository.WorshipGroupRepository;
 import com.churchgeniuspro.repository.WorshipInstrumentRepository;
 import com.churchgeniuspro.repository.WorshipSongRepository;
+import com.churchgeniuspro.service.MemberSessionResolver;
+import com.churchgeniuspro.service.MembershipRequestService;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.VerificationStore;
 import com.churchgeniuspro.service.WhatsAppSenderService;
+import com.churchgeniuspro.util.FamilyRoles;
+import com.churchgeniuspro.util.PhotoImages;
 import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
@@ -218,6 +222,9 @@ public class MembershipFormController {
     private final ChurchEventRepository             churchEventRepo;
     private final ChurchEventDayRepository          churchEventDayRepo;
     private final MemberMessageRepository           memberMessageRepo;
+    /** Report & block (mobile Phase 2, M5); field-injected so the constructor and its tests stay as they are. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.MemberSafetyService memberSafety;
     private final MemberPreferenceRepository         memberPrefRepo;
     private final WhatsAppSenderService              whatsAppSenderService;
     private final GroupRepository                    groupRepo;
@@ -329,7 +336,7 @@ public class MembershipFormController {
                 .orElse(false);
 
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("showDeclaration", Boolean.TRUE.equals(link.getShowDeclaration()));
+        m.put("showDeclaration", declarationRequired(link));
         m.put("declarationText", link.getDeclarationText());
         if (churchName != null) m.put("churchName", churchName);
         if (hasLogo) m.put("logoUrl", "/api/membership-form/logo?cid=" + cid);
@@ -388,7 +395,7 @@ public class MembershipFormController {
         if (targetEmail == null || targetEmail.isBlank()) {
             // Re-assign via stream
             targetEmail = familyMemberRepo.findActiveMembersByFamilyId(family.getId()).stream()
-                    .filter(m -> "Head".equalsIgnoreCase(m.getRole()))
+                    .filter(m -> FamilyRoles.isHead(m.getRole()))
                     .map(FamilyMember::getEmail)
                     .filter(e -> e != null && !e.isBlank())
                     .findFirst()
@@ -553,7 +560,7 @@ public class MembershipFormController {
 
         // Validate declaration when required
         Boolean declAccepted = body.get("declarationAccepted") instanceof Boolean b ? b : false;
-        if (Boolean.TRUE.equals(link.getShowDeclaration()) && !Boolean.TRUE.equals(declAccepted)) {
+        if (declarationRequired(link) && !Boolean.TRUE.equals(declAccepted)) {
             return bad("You must accept the declaration to continue.");
         }
 
@@ -603,7 +610,7 @@ public class MembershipFormController {
             for (Map<String, Object> m2 : members) {
                 MembershipFamilyMember mfm = new MembershipFamilyMember();
                 mfm.setMembershipFamily(saved);
-                mfm.setRole(str(m2, "role"));
+                mfm.setRole(FamilyRoles.canonical(str(m2, "role")));   // legacy / free-text roles → the canonical four
                 mfm.setGender(str(m2, "gender"));
                 mfm.setFirstName(str(m2, "firstName"));
                 mfm.setMiddleName(str(m2, "middleName"));
@@ -631,11 +638,12 @@ public class MembershipFormController {
                 mfm.setComments(str(m2, "comments"));
                 // Photo — only the primary/head member carries a photo from the form
                 String photoVal = str(m2, "photo");
-                if (photoVal != null && !photoVal.isBlank()) mfm.setPhotoData(photoVal);
+                // Stored at most 800 px (same cap family.html applies in the browser); never enlarged.
+                if (photoVal != null && !photoVal.isBlank()) mfm.setPhotoData(PhotoImages.normalise(photoVal));
                 mfm.setInactive(false);
                 mfm.setDisableAlerts(false);
                 // Primary (Head) member gets includeContributions = true; others = false
-                mfm.setIncludeContributions("Head".equalsIgnoreCase(str(m2, "role")));
+                mfm.setIncludeContributions(FamilyRoles.isHead(str(m2, "role")));
                 mfm.setAppClientId(appClientId);
                 mfmRepo.save(mfm);
             }
@@ -656,7 +664,7 @@ public class MembershipFormController {
             String headName = "A member";
             if (submittedMembers2 != null) {
                 headName = submittedMembers2.stream()
-                        .filter(m -> "Head".equalsIgnoreCase(str(m, "role")))
+                        .filter(m -> FamilyRoles.isHead(str(m, "role")))
                         .map(m -> ((str(m, "firstName") != null ? str(m, "firstName") : "") + " " +
                                   (str(m, "lastName")  != null ? str(m, "lastName")  : "")).trim())
                         .filter(n -> !n.isBlank())
@@ -690,7 +698,7 @@ public class MembershipFormController {
                 List<Map<String, Object>> ms = (List<Map<String, Object>>) body.get("members");
                 if (ms != null) {
                     who = ms.stream()
-                            .filter(m -> "Head".equalsIgnoreCase(str(m, "role")))
+                            .filter(m -> FamilyRoles.isHead(str(m, "role")))
                             .map(m -> ((str(m, "firstName") != null ? str(m, "firstName") : "") + " "
                                      + (str(m, "lastName")  != null ? str(m, "lastName")  : "")).trim())
                             .filter(n -> !n.isBlank()).findFirst().orElse(who);
@@ -758,67 +766,11 @@ public class MembershipFormController {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         if (session == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
 
-        Object memberIdObj = session.getAttribute("memberId");
-        Integer memberId = memberIdObj instanceof Number n ? n.intValue() : null;
-
-        FamilyMember self = null;
-
-        if (memberId != null) {
-            self = familyMemberRepo.findById(memberId).orElse(null);
-        }
-
-        // memberId not in session — resolve via clientId (= memberRef = MBR<uuid>).
-        // The MBR token is the only trusted member<->row binding (unique member_ref; the
-        // same rule LoginController.buildResponse applies). There is deliberately no
-        // email/username fallback: a lookup must never change the session's tenant.
-        if (self == null) {
-            String clientId = session.getAttribute("clientId") instanceof String s ? s : null;
-            if (clientId != null && clientId.startsWith("MBR")) {
-                self = familyMemberRepo.findByMemberRef(clientId).orElse(null);
-                if (self != null) {
-                    session.setAttribute("memberId", self.getId());
-                    if (self.getMemberRef() != null)
-                        session.setAttribute("memberRef", self.getMemberRef());
-                    String appCid = self.getFamily() != null
-                            ? self.getFamily().getAppClientId() : self.getAppClientId();
-                    session.setAttribute("appClientId", appCid);
-                    memberId = self.getId();
-                }
-            }
-        }
-
-        // Still null — try resolving via staff user's linked member account.
-        // A staff AppUser may be linked to a Member signup via link_group.
-        // We look up the AppUser by appUserId stored in session, then match their
-        // email to a FamilyMember in the same org so the member portal shows real data.
-        if (self == null) {
-            Object appUserIdAttr = session.getAttribute("appUserId");
-            if (appUserIdAttr instanceof Integer appUserId) {
-                AppUser appUser = appUserRepository.findById(appUserId).orElse(null);
-                if (appUser != null && appUser.getEmail() != null && !appUser.getEmail().isBlank()) {
-                    String staffEmail    = appUser.getEmail().trim().toLowerCase();
-                    String staffClientId = appUser.getClientId(); // org's appClientId
-                    // Find a FamilyMember with matching email in the same org. The query is
-                    // tenant-scoped (never a cross-tenant scan) — same predicate the previous
-                    // in-memory filter applied, so results are unchanged.
-                    if (staffClientId != null) {
-                        java.util.List<FamilyMember> candidates =
-                                familyMemberRepo.findActiveByEmailAndTenant(staffEmail, staffClientId);
-                        if (!candidates.isEmpty()) self = candidates.get(0);
-                    }
-                    if (self != null) {
-                        // Cache in session so subsequent API calls resolve instantly
-                        session.setAttribute("memberId", self.getId());
-                        if (self.getMemberRef() != null)
-                            session.setAttribute("memberRef", self.getMemberRef());
-                        String appCid = self.getFamily() != null
-                                ? self.getFamily().getAppClientId() : self.getAppClientId();
-                        if (appCid != null) session.setAttribute("appClientId", appCid);
-                        memberId = self.getId();
-                    }
-                }
-            }
-        }
+        // One rule for every portal endpoint (see MemberSessionResolver): member login,
+        // MBR token, or a staff login matched to a member of the staff user's own church.
+        MemberSessionResolver.Resolved who = memberSessionResolver().resolve(session).orElse(null);
+        FamilyMember self = who != null ? who.member() : null;
+        Integer memberId = who != null ? who.memberId() : null;
 
         // Still null — no linked member record found for this staff user.
         // Return empty data (not 401) so the member portal renders cleanly.
@@ -1546,7 +1498,7 @@ public class MembershipFormController {
         String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
         List<MembershipFamily> families = mfRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(appClientId);
         List<Map<String,Object>> result = new ArrayList<>();
-        for (MembershipFamily f : families) result.add(toFamilyMap(f,false));
+        for (MembershipFamily f : families) result.add(toFamilyMap(f,false));   // every live status; the page filters
         return ResponseEntity.ok(result);
     }
 
@@ -1563,128 +1515,160 @@ public class MembershipFormController {
         String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
         MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
         if (mf==null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(toFamilyMap(mf,true));
+        Map<String,Object> out = toFamilyMap(mf,true);
+        // What "Approve and Update" would change, computed with the same matching rules it uses.
+        try {
+            List<MembershipFamilyMember> submitted = mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(id);
+            out.put("preview", membershipRequestService().preview(mf, submitted, appClientId));
+        } catch (RuntimeException ex) {
+            log.warn("Membership request {}: preview unavailable ({})", id, ex.toString());
+        }
+        return ResponseEntity.ok(out);
     }
 
-    @ResponseBody @PostMapping("/api/membership-requests/{id}/approve")
-    public ResponseEntity<?> approve(@PathVariable Integer id, HttpServletRequest request) {
+    // ── Membership Requests workflow (V15) ─────────────────────────────────
+    // Approve = status only. Approve and Update (apply) = the transactional write.
+    // Status moves and deletes are recorded with who/when; none of them touch the family.
+
+    /** Member sessions need admin.membership; staff need Admin/Church (data API — role-gated, per the standing rule). */
+    private ResponseEntity<?> requestsGuard(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession _s = request.getSession(false);
         boolean _isMbr = _s != null && "Member".equals(_s.getAttribute("role")) && _s.getAttribute("memberId") != null;
-        if (_isMbr) {
-            String deny = RoleGuard.requireMemberPermission(request, "admin.membership");
-            if (deny != null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
-        } else {
-            String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
-        }
-        String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
-        MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
-        if (mf==null) return ResponseEntity.notFound().build();
-        List<MembershipFamilyMember> mfMembers = mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(id);
+        String deny = _isMbr ? RoleGuard.requireMemberPermission(request, "admin.membership") : RoleGuard.requireAdminOrChurch(request);
+        return deny != null ? ResponseEntity.status(403).body(Map.of("error", "Access denied")) : null;
+    }
 
-        // Subscription plan: approving turns a public request into real people, so
-        // it answers to the same maximum-people limit the admin Add Family screen
-        // does. Checked at approval rather than at submission: a visitor filling in
-        // the public form must not be told about the church's plan, and a request
-        // that arrives while the church is at its limit is still worth keeping.
+    private String requestsTenant(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession _s = request.getSession(false);
+        boolean _isMbr = _s != null && "Member".equals(_s.getAttribute("role")) && _s.getAttribute("memberId") != null;
+        return _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
+    }
+
+    /** Who did it, for the audit columns: staff username, else the member's ref/id. */
+    /** "HEIC", "WEBP", … from a data URL's media type, for the "unsupported photo" note. */
+    static String photoFormat(String dataUrl) {
+        try {
+            String t = dataUrl.substring(5, dataUrl.indexOf(';'));       // image/heic
+            return t.substring(t.indexOf('/') + 1).toUpperCase(java.util.Locale.ROOT);
+        } catch (Exception e) { return "unknown"; }
+    }
+
+    private static String actor(HttpServletRequest request) {
+        jakarta.servlet.http.HttpSession s = request.getSession(false);
+        if (s == null) return "unknown";
+        Object u = s.getAttribute("username");
+        if (u instanceof String str && !str.isBlank()) return str;
+        Object ref = s.getAttribute("memberRef");
+        if (ref instanceof String str && !str.isBlank()) return str;
+        Object id = s.getAttribute("memberId");
+        return id != null ? "member:" + id : "unknown";
+    }
+
+    private MembershipRequestService membershipRequestService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+    /** Built lazily from the controller's own repositories so hand-built tests need no extra wiring. */
+    MembershipRequestService membershipRequestService() {
+        if (membershipRequestService == null)
+            membershipRequestService = new MembershipRequestService(mfRepo, mfmRepo, familyRepo, familyMemberRepo, loginRepository, transactionManager);
+        return membershipRequestService;
+    }
+
+    private ResponseEntity<?> refused(MembershipRequestService.RefusedException ex) {
+        return ResponseEntity.status(ex.status).body(Map.of("error", ex.getMessage()));
+    }
+
+    /** Approve: status → APPROVED. The family record is not touched; staff update it by hand. */
+    @ResponseBody @PostMapping("/api/membership-requests/{id}/approve")
+    public ResponseEntity<?> approve(@PathVariable Integer id, HttpServletRequest request) {
+        ResponseEntity<?> g = requestsGuard(request); if (g != null) return g;
+        try {
+            MembershipFamily mf = membershipRequestService().approve(id, requestsTenant(request), actor(request));
+            return ResponseEntity.ok(Map.of("success", true, "status", mf.getStatus(), "isExisting", mf.getExistingFamilyId() != null));
+        } catch (MembershipRequestService.RefusedException ex) { return refused(ex); }
+    }
+
+    /** Approve and Update: apply the submitted changes atomically, then status → UPDATED. */
+    @ResponseBody @PostMapping("/api/membership-requests/{id}/apply")
+    public ResponseEntity<?> apply(@PathVariable Integer id, HttpServletRequest request) {
+        ResponseEntity<?> g = requestsGuard(request); if (g != null) return g;
+        String appClientId = requestsTenant(request);
+        MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
+        if (mf == null) return ResponseEntity.status(404).body(Map.of("error", MembershipRequestService.ERR_NOT_FOUND));
+        List<MembershipFamilyMember> submitted = mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(id);
+
+        // Subscription plan: applying turns a public request into real people, so it
+        // answers to the same maximum-people limit the admin Add Family screen does —
+        // counting only the members that will be CREATED, not ones matched to existing
+        // people. Fail-open on a limit-check error, never on the limit itself.
         try {
             if (subscriptionService != null) {
-                long current = familyMemberRepo.countActiveMembers(appClientId);
-                String limitMsg = subscriptionService.checkPeopleLimit(appClientId, current, mfMembers.size());
-                if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+                int toCreate = submitted.size();
+                if (mf.getExistingFamilyId() != null) {
+                    List<FamilyMember> existing = familyMemberRepo.findActiveMembersByFamilyId(mf.getExistingFamilyId());
+                    toCreate = (int) MembershipRequestService.match(submitted, existing).stream().filter(m -> m.existing() == null).count();
+                }
+                if (toCreate > 0) {
+                    long current = familyMemberRepo.countActiveMembers(appClientId);
+                    String limitMsg = subscriptionService.checkPeopleLimit(appClientId, current, toCreate);
+                    if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
+                }
             }
         } catch (Exception ignored) { /* fail-open: never block an approval on a limit-check error */ }
 
-        Family targetFamily; boolean isExisting = mf.getExistingFamilyId()!=null;
-        if (isExisting) {
-            targetFamily = familyRepo.findById(mf.getExistingFamilyId()).orElse(null);
-            if (targetFamily==null) return bad("Existing family not found.");
-            // Defence in depth: never merge a request into a family belonging to a
-            // different tenant, even if a stale row predates the check in submit().
-            if (mf.getAppClientId() == null
-                    || !mf.getAppClientId().equals(targetFamily.getAppClientId())) {
-                log.warn("Membership approve: refusing cross-tenant merge of request {} (request client {}, family {} client {})",
-                         id, mf.getAppClientId(), targetFamily.getId(), targetFamily.getAppClientId());
-                return bad("This request refers to a family that does not belong to your church.");
-            }
-            familyRepo.save(targetFamily);
-            List<FamilyMember> existing = familyMemberRepo.findActiveMembersByFamilyId(targetFamily.getId());
-            // Track which existing members have already been matched to avoid double-matching
-            java.util.Set<Integer> matched = new java.util.HashSet<>();
-            for (MembershipFamilyMember mfm : mfMembers) {
-                // 1) Match by first+last name (case-insensitive) — most reliable
-                FamilyMember fm = existing.stream()
-                    .filter(e -> !matched.contains(e.getId()))
-                    .filter(e -> namesMatch(e.getFirstName(), mfm.getFirstName())
-                              && namesMatch(e.getLastName(),  mfm.getLastName()))
-                    .findFirst().orElse(null);
-                // 2) Fall back: match by normalised role (handles "Head of Household" == "Head")
-                if (fm == null) {
-                    fm = existing.stream()
-                        .filter(e -> !matched.contains(e.getId()))
-                        .filter(e -> rolesMatch(e.getRole(), mfm.getRole()))
-                        .findFirst().orElse(null);
-                }
-                if (fm == null) { fm = new FamilyMember(); fm.setFamily(targetFamily); fm.setAppClientId(mfm.getAppClientId()); }
-                else            { matched.add(fm.getId()); }
-                applyMemberFields(fm, mfm); familyMemberRepo.save(fm); mfm.setDeleteFlag(true); mfmRepo.save(mfm);
-            }
-        } else {
-            targetFamily=new Family(); targetFamily.setInactive(false); targetFamily.setAppClientId(mf.getAppClientId()); targetFamily=familyRepo.save(targetFamily);
-            for (MembershipFamilyMember mfm : mfMembers) {
-                FamilyMember fm=new FamilyMember(); fm.setFamily(targetFamily); fm.setAppClientId(mfm.getAppClientId());
-                applyMemberFields(fm,mfm); FamilyMember savedFm=familyMemberRepo.save(fm);
-                if (mf.getSignupId()!=null&&("Head".equalsIgnoreCase(mfm.getRole())||"Head of Household".equalsIgnoreCase(mfm.getRole()))) {
-                    SignUp su=loginRepository.findById(mf.getSignupId()).orElse(null);
-                    if (su!=null){su.setActive(true);loginRepository.save(su);if(su.getClientId()!=null&&su.getClientId().startsWith("MBR")){savedFm.setMemberRef(su.getClientId());familyMemberRepo.save(savedFm);}}
-                }
-                mfm.setDeleteFlag(true); mfmRepo.save(mfm);
-            }
+        try {
+            MembershipRequestService.Applied a = membershipRequestService().apply(id, appClientId, actor(request));
+            Map<String, Object> r = new LinkedHashMap<>();
+            r.put("success", true); r.put("status", MembershipFamily.STATUS_UPDATED); r.put("familyId", a.familyId());
+            r.put("isExisting", a.isExisting()); r.put("created", a.created()); r.put("updated", a.updated()); r.put("hadChanges", a.hadChanges());
+            return ResponseEntity.ok(r);
+        } catch (MembershipRequestService.RefusedException ex) {
+            return refused(ex);
+        } catch (RuntimeException ex) {
+            log.error("Membership apply failed for request {} (rolled back): {}", id, ex.toString());
+            return ResponseEntity.status(500).body(Map.of("error", "The update could not be completed; nothing was changed. " + ex.getMessage()));
         }
-        mf.setDeleteFlag(true); mfRepo.save(mf);
-        Map<String,Object> r=new LinkedHashMap<>(); r.put("success",true); r.put("familyId",targetFamily.getId()); r.put("isExisting",isExisting);
-        return ResponseEntity.ok(r);
+    }
+
+    /** Set a request back to a previous valid status (recorded only — never un-applies data). */
+    @ResponseBody @PostMapping("/api/membership-requests/{id}/status")
+    public ResponseEntity<?> setStatus(@PathVariable Integer id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ResponseEntity<?> g = requestsGuard(request); if (g != null) return g;
+        String to = body.get("status") instanceof String str ? str.trim().toUpperCase().replace(' ', '_') : null;
+        try {
+            MembershipFamily mf = membershipRequestService().setStatus(id, requestsTenant(request), actor(request), to);
+            return ResponseEntity.ok(Map.of("success", true, "status", mf.getStatus()));
+        } catch (MembershipRequestService.RefusedException ex) { return refused(ex); }
+    }
+
+    /**
+     * Soft-delete a request. Removes it from the page only; the family / member record
+     * is never modified. Approved exception to the data-API rule (2026-10-14): a
+     * destructive action, gated by admin.membership.delete like admin.family.delete.
+     */
+    @ResponseBody @DeleteMapping("/api/membership-requests/{id}")
+    public ResponseEntity<?> deleteRequest(@PathVariable Integer id, HttpServletRequest request) {
+        ResponseEntity<?> g = requestsGuard(request); if (g != null) return g;
+        String deny = RoleGuard.requirePermission(request, "admin.membership.delete");
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        try {
+            membershipRequestService().delete(id, requestsTenant(request), actor(request));
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (MembershipRequestService.RefusedException ex) { return refused(ex); }
     }
 
     // -- Private helpers ---------------------------------------------------
 
-    private void applyMemberFields(FamilyMember fm, MembershipFamilyMember mfm) {
-        fm.setRole(mfm.getRole()); fm.setGender(mfm.getGender()); fm.setFirstName(mfm.getFirstName()); fm.setMiddleName(mfm.getMiddleName());
-        fm.setLastName(mfm.getLastName()); fm.setPhone(mfm.getPhone()); fm.setEmail(mfm.getEmail()); fm.setMemberType("Member");
-        fm.setBirthdayMonth(mfm.getBirthdayMonth()); fm.setBirthdayDay(mfm.getBirthdayDay()); fm.setBirthdayYear(mfm.getBirthdayYear());
-        fm.setAnniversaryMonth(mfm.getAnniversaryMonth()); fm.setAnniversaryDay(mfm.getAnniversaryDay()); fm.setAnniversaryYear(mfm.getAnniversaryYear());
-        fm.setAddress1(mfm.getAddress1()); fm.setAddress2(mfm.getAddress2()); fm.setCity(mfm.getCity()); fm.setState(mfm.getState()); fm.setCountry(mfm.getCountry()); fm.setPinCode(mfm.getPinCode());
-        fm.setSameAsFamilyAddress(mfm.isSameAsFamilyAddress()); fm.setOtherName(mfm.getOtherName()); fm.setComments(mfm.getComments());
-        fm.setPhonePrivate(Boolean.TRUE.equals(mfm.getPhonePrivate()));
-        fm.setEmailPrivate(Boolean.TRUE.equals(mfm.getEmailPrivate()));
-        fm.setAddressPrivate(Boolean.TRUE.equals(mfm.getAddressPrivate()));
-        fm.setInactive(false); fm.setDisableAlerts(false); fm.setIncludeContributions("Head".equalsIgnoreCase(mfm.getRole()));
-        // Copy photo only when the form submission included one
-        if (mfm.getPhotoData() != null && !mfm.getPhotoData().isBlank()) {
-            fm.setPhotoData(mfm.getPhotoData());
-        }
-    }
-
-    /** Case-insensitive null-safe name comparison. */
-    private boolean namesMatch(String a, String b) {
-        if (a == null || b == null) return false;
-        return a.trim().equalsIgnoreCase(b.trim());
-    }
 
     /**
-     * Treats "Head" and "Head of Household" as the same role.
-     * All other roles must match exactly (case-insensitive).
+     * The declaration is required exactly when the form shows it: the link has it switched
+     * on AND has text to show. One predicate for {@code /config} (what the page renders) and
+     * {@code /submit} (what the server enforces), so a link with the switch on but no text
+     * can neither hide the checkbox nor demand it — and a direct API call cannot skip it.
      */
-    private boolean rolesMatch(String a, String b) {
-        if (a == null || b == null) return false;
-        String na = normaliseRole(a);
-        String nb = normaliseRole(b);
-        return na.equalsIgnoreCase(nb);
-    }
-
-    private String normaliseRole(String role) {
-        if (role == null) return "";
-        String r = role.trim().toLowerCase();
-        return (r.equals("head of household") || r.equals("head")) ? "head" : r;
+    static boolean declarationRequired(PublicScreenLink link) {
+        return link != null && Boolean.TRUE.equals(link.getShowDeclaration())
+                && link.getDeclarationText() != null && !link.getDeclarationText().isBlank();
     }
 
     private PublicScreenLink resolveLink(String cid) {
@@ -1699,7 +1683,7 @@ public class MembershipFormController {
 
     private Map<String,Object> toFamilyMap(MembershipFamily f, boolean includeMembers) {
         List<MembershipFamilyMember> allM = mfmRepo.findByMembershipFamily_IdAndDeleteFlagFalse(f.getId());
-        MembershipFamilyMember head = allM.stream().filter(m->"Head".equalsIgnoreCase(m.getRole())).findFirst().orElse(allM.isEmpty()?null:allM.get(0));
+        MembershipFamilyMember head = allM.stream().filter(m->FamilyRoles.isHead(m.getRole())).findFirst().orElse(allM.isEmpty()?null:allM.get(0));
         String familyName = head!=null&&head.getLastName()!=null&&!head.getLastName().isBlank() ? head.getLastName()+" Family" : (head!=null&&head.getFirstName()!=null?head.getFirstName()+"'s Family":"—");
         Map<String,Object> m=new LinkedHashMap<>();
         m.put("id",f.getId()); m.put("familyName",familyName); m.put("familyCity",head!=null&&head.getCity()!=null?head.getCity():"");
@@ -1711,6 +1695,14 @@ public class MembershipFormController {
         }
         m.put("declarationAccepted",f.getDeclarationAccepted()); m.put("existingFamilyId",f.getExistingFamilyId()); m.put("hasExistingFamily",f.getExistingFamilyId()!=null);
         m.put("signupId",f.getSignupId()); m.put("createdDate",f.getCreatedDate()!=null?f.getCreatedDate().toString():null);
+        m.put("memberCount", allM.size());
+        m.put("status", f.getStatus() != null ? f.getStatus() : MembershipFamily.STATUS_PENDING_REVIEW);
+        m.put("statusLabel", MembershipRequestService.label(f.getStatus()));
+        m.put("statusChangedAt", f.getStatusChangedAt() != null ? f.getStatusChangedAt().toString() : null);
+        m.put("statusChangedBy", f.getStatusChangedBy());
+        m.put("appliedAt", f.getAppliedAt() != null ? f.getAppliedAt().toString() : null);
+        m.put("appliedBy", f.getAppliedBy());
+        m.put("appliedFamilyId", f.getAppliedFamilyId());
         if (f.getSignupId()!=null){SignUp su=loginRepository.findById(f.getSignupId()).orElse(null);if(su!=null){m.put("signupUsername",su.getUsername());m.put("signupActive",Boolean.TRUE.equals(su.getActive()));}}
         if (includeMembers) {
             List<Map<String,Object>> mm=new ArrayList<>();
@@ -1723,8 +1715,12 @@ public class MembershipFormController {
                 row.put("address1",mfm.getAddress1()); row.put("address2",mfm.getAddress2()); row.put("city",mfm.getCity()); row.put("state",mfm.getState()); row.put("country",mfm.getCountry()); row.put("pinCode",mfm.getPinCode());
                 row.put("sameAsFamilyAddress",mfm.isSameAsFamilyAddress()); row.put("otherName",mfm.getOtherName()); row.put("comments",mfm.getComments());
                 row.put("phonePrivate",Boolean.TRUE.equals(mfm.getPhonePrivate())); row.put("emailPrivate",Boolean.TRUE.equals(mfm.getEmailPrivate())); row.put("addressPrivate",Boolean.TRUE.equals(mfm.getAddressPrivate()));
-                boolean hasPhoto = mfm.getPhotoData()!=null && !mfm.getPhotoData().isBlank();
+                // Only a photo the browser can show is sent as a photo; an unsupported upload
+                // (HEIC/WebP) is flagged instead of rendering as a broken image.
+                boolean submitted = mfm.getPhotoData()!=null && !mfm.getPhotoData().isBlank();
+                boolean hasPhoto = submitted && PhotoImages.isUsable(mfm.getPhotoData());
                 row.put("hasPhoto",hasPhoto); if (hasPhoto) row.put("photoData",mfm.getPhotoData());   // review screen only (admin, own tenant)
+                if (submitted && !hasPhoto) row.put("photoUnsupported", photoFormat(mfm.getPhotoData()));
                 mm.add(row);
             }
             m.put("members",mm);
@@ -2040,6 +2036,10 @@ public class MembershipFormController {
         String msgBody = str(body, "body");
         if (msgBody == null || msgBody.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Message body required."));
+        // Phase 2 (M5): a member who blocked the sender receives nothing. Neutral wording —
+        // the block itself is never disclosed.
+        if (memberSafety != null && memberSafety.isBlocked(appClientId, selfId, recipId))
+            return ResponseEntity.status(403).body(Map.of("error", com.churchgeniuspro.service.MemberSafetyService.BLOCKED_SEND_MESSAGE));
 
         String senderName = trim2(self.getFirstName()) + " " + trim2(self.getLastName());
 
@@ -2066,8 +2066,17 @@ public class MembershipFormController {
         if (selfId == null) return ResponseEntity.status(401).body(Map.of("error", "Member not found"));
 
         List<MemberMessage> msgs = memberMessageRepo.findInbox(selfId);
-        return ResponseEntity.ok(msgs.stream().map(this::msgToMap)
+        java.util.Set<Integer> hidden = blockedSenders(session, selfId);
+        return ResponseEntity.ok(msgs.stream()
+                .filter(m -> !hidden.contains(m.getSenderMemberId()))
+                .map(m -> msgToMapFor(m, selfId, resolveAppClientId(session)))
                 .collect(java.util.stream.Collectors.toList()));
+    }
+
+    /** Phase 2 (M5): ids the signed-in member has blocked — their messages are not shown. */
+    private java.util.Set<Integer> blockedSenders(jakarta.servlet.http.HttpSession session, Integer selfId) {
+        if (memberSafety == null) return java.util.Set.of();
+        return memberSafety.blockedBy(resolveAppClientId(session), selfId);
     }
 
     // -- Member API: sent ------------------------------------------------------
@@ -2082,7 +2091,7 @@ public class MembershipFormController {
         if (selfId == null) return ResponseEntity.status(401).body(Map.of("error", "Member not found"));
 
         List<MemberMessage> msgs = memberMessageRepo.findSent(selfId);
-        return ResponseEntity.ok(msgs.stream().map(this::msgToMap)
+        return ResponseEntity.ok(msgs.stream().map(m -> msgToMapFor(m, selfId, resolveAppClientId(session)))
                 .collect(java.util.stream.Collectors.toList()));
     }
 
@@ -2105,8 +2114,12 @@ public class MembershipFormController {
         }
 
         List<MemberMessage> thread = memberMessageRepo.findThread(rootId, selfId);
-        return ResponseEntity.ok(thread.stream().map(m -> {
-            Map<String, Object> mm = msgToMap(m);
+        java.util.Set<Integer> hidden = blockedSenders(session, selfId);
+        String appClientIdForThread = resolveAppClientId(session);
+        return ResponseEntity.ok(thread.stream()
+                .filter(m -> !hidden.contains(m.getSenderMemberId()))
+                .map(m -> {
+            Map<String, Object> mm = msgToMapFor(m, selfId, appClientIdForThread);
             mm.put("isMine", m.getSenderMemberId().equals(selfId));
             return mm;
         }).collect(java.util.stream.Collectors.toList()));
@@ -2141,6 +2154,8 @@ public class MembershipFormController {
         String msgBody = str(body, "body");
         if (msgBody == null || msgBody.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Message body required."));
+        if (memberSafety != null && memberSafety.isBlocked(appClientId, selfId, recipId))
+            return ResponseEntity.status(403).body(Map.of("error", com.churchgeniuspro.service.MemberSafetyService.BLOCKED_SEND_MESSAGE));
 
         FamilyMember self = familyMemberRepo.findById(selfId).orElse(null);
         String senderName = self != null
@@ -2622,6 +2637,13 @@ public class MembershipFormController {
      * Staff sessions carry a {@code username} attribute; member sessions carry
      * {@code memberId} instead.
      */
+    private MemberSessionResolver memberSessionResolver;
+    /** Built lazily from the controller's own repositories, so unit tests need no extra wiring. */
+    private MemberSessionResolver memberSessionResolver() {
+        if (memberSessionResolver == null) memberSessionResolver = new MemberSessionResolver(familyMemberRepo, appUserRepository);
+        return memberSessionResolver;
+    }
+
     private boolean isStaffSession(jakarta.servlet.http.HttpSession session) {
         if (session == null) return false;
         Object username = session.getAttribute("username");
@@ -2776,6 +2798,35 @@ public class MembershipFormController {
             }
         } catch (Exception ignored) { /* malformed JSON → allow */ }
         return null;
+    }
+
+    /**
+     * {@link #msgToMap} plus the field names memberHome.html's chat actually reads
+     * ({@code fromName}, {@code toName}, {@code rootMessageId}, {@code read},
+     * {@code fromSelf}, {@code subject}). Found while adding report/block (mobile
+     * Phase 2): the page and the API had drifted apart, so the inbox showed blank
+     * names and "(no subject)" and opening a thread used an undefined id. Additive —
+     * every original key is still present.
+     */
+    private Map<String, Object> msgToMapFor(com.churchgeniuspro.hibernate.MemberMessage msg, Integer selfId, String appClientId) {
+        Map<String, Object> m = msgToMap(msg);
+        boolean mine = selfId != null && selfId.equals(msg.getSenderMemberId());
+        m.put("fromSelf", mine);
+        m.put("fromName", msg.getSenderName() != null ? msg.getSenderName() : "");
+        m.put("toName", memberDisplayName(msg.getRecipientMemberId(), appClientId));
+        m.put("rootMessageId", msg.getParentId() != null ? msg.getParentId() : msg.getId());
+        m.put("read", msg.getReadAt() != null);
+        String body = msg.getBody() != null ? msg.getBody().trim() : "";
+        String firstLine = body.split("\\r?\\n", 2)[0];
+        m.put("subject", firstLine.length() > 80 ? firstLine.substring(0, 77) + "…" : firstLine);
+        return m;
+    }
+
+    private String memberDisplayName(Integer memberId, String appClientId) {
+        if (memberId == null || appClientId == null) return "";
+        return familyMemberRepo.findByIdAndTenant(memberId, appClientId)
+                .map(fm -> (trim2(fm.getFirstName()) + " " + trim2(fm.getLastName())).trim())
+                .orElse("Member");
     }
 
     /** Convert a MemberMessage to a response map. */

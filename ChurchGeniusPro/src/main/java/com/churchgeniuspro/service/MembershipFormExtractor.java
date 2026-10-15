@@ -116,6 +116,17 @@ public class MembershipFormExtractor {
                         if (v != null && !v.trim().isEmpty()) { raw.put(n, v.trim()); formVals++; }
                     }
                 }
+                // Gender: the two checkboxes on current forms (exactly one ticked → Male/Female,
+                // neither or both → blank); the legacy free-text "gender" field on older forms.
+                String g = genderFromBoxes(acro, "");
+                if (g != null) { if (!g.isEmpty()) raw.put("gender", g); formVals++; }
+                else {
+                    PDField legacy = acro.getField("gender");
+                    String v = legacy != null ? legacy.getValueAsString() : null;
+                    if (v != null && !v.trim().isEmpty()) { raw.put("gender", v.trim()); formVals++; }
+                }
+                // Declaration acceptance (the box before "I certify") — surfaced, not stored anywhere new.
+                if (ticked(acro.getField(MembershipFormPdfService.DECLARATION_FIELD))) { raw.put("declarationAccepted", "true"); formVals++; }
                 // "Make it Private" checkboxes → privacy flags. A ticked box reads
                 // back as "Yes" (any non-empty, non-"Off" value counts as checked).
                 for (String pf : MembershipFormPdfService.PRIVACY_FIELDS) {
@@ -130,7 +141,10 @@ public class MembershipFormExtractor {
                 // Additional members: m{i}_<suffix>
                 for (int i = 1; i <= MembershipFormPdfService.MAX_ADDITIONAL_MEMBERS; i++) {
                     Map<String, String> mr = new LinkedHashMap<>();
+                    String mg = genderFromBoxes(acro, "m" + i + "_");
+                    if (mg != null) { if (!mg.isEmpty()) mr.put("gender", mg); formVals++; }
                     for (String suffix : MembershipFormPdfService.MEMBER_FIELDS) {
+                        if ("gender".equals(suffix) && mg != null) continue;   // boxes win over the legacy text field
                         PDField f = acro.getField("m" + i + "_" + suffix);
                         if (f == null) continue;
                         String v = f.getValueAsString();
@@ -250,6 +264,27 @@ public class MembershipFormExtractor {
             out.put(prefix + "Day",   String.valueOf(Integer.parseInt(da)));
             out.put(prefix + "Year",  yr);
         }
+    }
+
+    /** A ticked AcroForm checkbox reads back as "Yes" (anything non-empty other than Off). */
+    private static boolean ticked(PDField f) {
+        if (f == null) return false;
+        String v = f.getValueAsString();
+        return v != null && !v.trim().isEmpty() && !v.trim().equalsIgnoreCase("Off");
+    }
+
+    /**
+     * Gender from the {@code <prefix>genderMale} / {@code <prefix>genderFemale} boxes:
+     * {@code null} when the form has no such boxes (legacy PDF), {@code ""} when neither
+     * or both are ticked, otherwise "Male" / "Female".
+     */
+    private static String genderFromBoxes(PDAcroForm acro, String prefix) {
+        PDField m = acro.getField(prefix + MembershipFormPdfService.GENDER_MALE);
+        PDField f = acro.getField(prefix + MembershipFormPdfService.GENDER_FEMALE);
+        if (m == null && f == null) return null;
+        boolean male = ticked(m), female = ticked(f);
+        if (male == female) return "";
+        return male ? "Male" : "Female";
     }
 
     private String normGender(String v) { String l = v.toLowerCase(); if (l.startsWith("m")) return "Male"; if (l.startsWith("f")) return "Female"; return ""; }

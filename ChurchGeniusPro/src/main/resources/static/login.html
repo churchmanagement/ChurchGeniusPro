@@ -346,7 +346,7 @@
 
       /* ── Register service worker ── */
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        if (!window.Capacitor) navigator.serviceWorker.register('/sw.js').catch(() => {});
       }
 
       /* ── Show / hide password toggle ── */
@@ -374,138 +374,30 @@
       }
 
       /* ══════════════════════════════════════════════════════════════════
-         BIOMETRIC / WEBAUTHN
-         Strategy: WebAuthn Platform Authenticator proves the user is
-         physically present (fingerprint / Face ID / Windows Hello).
-         On success we replay the saved credentials to /login — no
-         server-side WebAuthn infrastructure required.
+         Credential handling (mobile Phase 1, item M1)
+
+         Earlier versions kept the username AND the base64-encoded password in
+         localStorage when "Remember me" was ticked, and a WebAuthn prompt only
+         gated a replay of that stored password. Nothing reversible is stored
+         any more: "Remember me" is the server-side, HttpOnly rememberToken
+         cookie (one per browser/device, see /api/auth/check-remember), and the
+         only thing kept locally is the username, to prefill the form.
+
+         The hidden #biometricBtn stays in the markup for the native app shell,
+         which unlocks a device-bound token with the OS biometric prompt
+         (Phase 6, shown only when window.Capacitor is present).
       ══════════════════════════════════════════════════════════════════ */
 
-      const BIOMETRIC_KEY = 'cgp_biometric_credential_id';
+      /* One-time cleanup for browsers that still hold the old values. */
+      try {
+        localStorage.removeItem('rememberedPassword');
+        localStorage.removeItem('cgp_biometric_credential_id');
+      } catch (_) {}
 
-      /** True if the browser supports platform authenticators */
-      async function biometricAvailable() {
-        if (!window.PublicKeyCredential) return false;
-        try {
-          return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        } catch (_) { return false; }
-      }
-
-      /**
-       * Register a new WebAuthn credential for the current user.
-       * Called after a successful password login when "Remember password" is on.
-       */
-      async function registerBiometric(username) {
-        try {
-          const available = await biometricAvailable();
-          if (!available) return;
-
-          const encoder = new TextEncoder();
-          const userId  = encoder.encode(username.substring(0, 64));
-
-          const credential = await navigator.credentials.create({
-            publicKey: {
-              challenge:              crypto.getRandomValues(new Uint8Array(32)),
-              rp:                     { name: 'Church Genius Pro', id: location.hostname },
-              user:                   { id: userId, name: username, displayName: username },
-              pubKeyCredParams:       [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-              authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
-              timeout:                60000,
-              attestation:            'none'
-            }
-          });
-
-          if (credential) {
-            /* Store the raw credential ID so we can re-use it on next visit */
-            const idB64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-            localStorage.setItem(BIOMETRIC_KEY, idB64);
-          }
-        } catch (_) { /* User declined or unsupported — silently ignore */ }
-      }
-
-      /**
-       * Show the biometric prompt. On success, replay saved credentials to /login.
-       */
-      async function doBiometricLogin() {
-        const savedUser = localStorage.getItem('rememberedUsername');
-        const savedPass = localStorage.getItem('rememberedPassword');
-        if (!savedUser || !savedPass) {
-          errorMsg.textContent = 'No saved credentials. Please log in with your password first.';
-          return;
-        }
-
-        biometricBtn.disabled    = true;
-        biometricBtn.textContent = 'Verifying…';
-        errorMsg.textContent     = '';
-
-        try {
-          const storedIdB64 = localStorage.getItem(BIOMETRIC_KEY);
-          const allowCreds  = storedIdB64 ? [{
-            type: 'public-key',
-            id:   Uint8Array.from(atob(storedIdB64), c => c.charCodeAt(0)),
-            transports: ['internal']
-          }] : [];
-
-          await navigator.credentials.get({
-            publicKey: {
-              challenge:        crypto.getRandomValues(new Uint8Array(32)),
-              rpId:             location.hostname,
-              allowCredentials: allowCreds,
-              userVerification: 'required',
-              timeout:          60000
-            }
-          });
-
-          /* Biometric gesture verified — replay saved credentials */
-          let password = '';
-          try { password = atob(savedPass); } catch (_) {}
-
-          const response = await fetch('/login', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ username: savedUser, password, rememberMe: true })
-          });
-
-          const data = await response.json();
-
-          if (response.ok && data.status === 'success') {
-            applyLoginData(data);
-          } else if (response.status === 429) {
-            /* Temporarily throttled by the server-side brute-force protection.
-               Show the server's generic message rather than the biometric one —
-               retrying the fingerprint will not help until the block expires. */
-            errorMsg.textContent = data.message ||
-              'Too many unsuccessful login attempts. Please wait and try again later or reset your password.';
-            biometricBtn.disabled    = false;
-            biometricBtn.innerHTML   = biometricBtnHTML();
-          } else {
-            errorMsg.textContent = 'Biometric login failed. Please enter your password.';
-            biometricBtn.disabled    = false;
-            biometricBtn.innerHTML   = biometricBtnHTML();
-          }
-        } catch (err) {
-          if (err.name === 'NotAllowedError') {
-            errorMsg.textContent = 'Biometric verification was cancelled.';
-          } else {
-            errorMsg.textContent = 'Biometric login failed. Please enter your password.';
-          }
-          biometricBtn.disabled    = false;
-          biometricBtn.innerHTML   = biometricBtnHTML();
-        }
-      }
-
-      function biometricBtnHTML() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M12 6a6 6 0 0 0-6 6"/><path d="M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4"/><path d="M12 14v4"/></svg> Sign in with Fingerprint / Face ID';
-      }
-
-      /** Show biometric button only if supported and credentials are already saved */
-      async function initBiometricButton() {
-        const savedUser = localStorage.getItem('rememberedUsername');
-        const savedPass = localStorage.getItem('rememberedPassword');
-        const hasCreds  = !!(savedUser && savedPass);
-        if (!hasCreds) return;
-        const available = await biometricAvailable();
-        if (available && biometricBtn) biometricBtn.style.display = '';
+      /** Native shells may call this; on the web it is a no-op. */
+      function doBiometricLogin() {
+        if (!window.Capacitor) return;
+        document.dispatchEvent(new CustomEvent('cgp:native-biometric-login'));
       }
 
       /* ── On page load: attempt auto-login via remember-me cookie, then
@@ -531,6 +423,12 @@
 
         /* Pre-fill username from ?clientId=<encrypted> login link */
         const urlParams = new URLSearchParams(window.location.search);
+        /* Mobile Phase 2 (M4): arriving here right after deleting the account */
+        if (urlParams.get('deleted') === '1') {
+          errorMsg.style.color = '#2e7d32';
+          errorMsg.textContent = 'Your account has been deleted. Thank you for using ChurchGeniusPro.';
+          try { localStorage.removeItem('rememberedUsername'); } catch (_) {}
+        }
         const cidToken  = urlParams.get('clientId');
         if (cidToken) {
           try {
@@ -543,25 +441,12 @@
           } catch (_) {}
         }
 
-        /* Restore saved username + password when Remember Password is on */
+        /* Prefill the username (never the password) when Remember me was on */
         const savedUser = localStorage.getItem('rememberedUsername');
-        const savedPass = localStorage.getItem('rememberedPassword');
         if (savedUser && !cidToken) {
           document.getElementById('username').value = savedUser;
           document.getElementById('remember').checked = true;
-        }
-        if (savedPass && !cidToken) {
-          try { pwInput.value = atob(savedPass); } catch (_) {}
-        }
-
-        /* Show biometric button if available */
-        await initBiometricButton();
-
-        /* Auto-trigger biometric if credentials are saved and available */
-        const hasCreds = !!(savedUser && savedPass);
-        if (hasCreds && biometricBtn && biometricBtn.style.display !== 'none') {
-          /* Small delay so page is fully visible before the system dialog appears */
-          setTimeout(doBiometricLogin, 600);
+          pwInput.focus();
         }
       })();
 
@@ -569,6 +454,7 @@
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
         errorMsg.textContent = '';
+        errorMsg.style.color = '';
 
         const username   = document.getElementById('username').value.trim();
         const password   = pwInput.value;
@@ -592,15 +478,12 @@
           const data = await response.json();
 
           if (response.ok && data.status === 'success') {
+            /* The server has already set (or revoked) this browser's remember-me
+               cookie; locally only the username is kept, for prefilling. */
             if (rememberMe) {
               localStorage.setItem('rememberedUsername', username);
-              try { localStorage.setItem('rememberedPassword', btoa(password)); } catch (_) {}
-              /* Register a biometric credential for future logins */
-              await registerBiometric(username);
             } else {
               localStorage.removeItem('rememberedUsername');
-              localStorage.removeItem('rememberedPassword');
-              localStorage.removeItem(BIOMETRIC_KEY);
             }
             applyLoginData(data);
           } else {
@@ -615,6 +498,7 @@
         }
       });
     </script>
+    <script src="/native-bridge.js"></script>
     <script src="/pwa.js" async></script>
 
   <!-- ── Forgot Username Modal ── -->

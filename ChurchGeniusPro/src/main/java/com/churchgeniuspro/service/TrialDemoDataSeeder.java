@@ -60,6 +60,9 @@ public class TrialDemoDataSeeder {
     private final EmailUnsubscribeRepository        unsubscribeRepo;
     private final FamilyRepository                  familyRepo;
     private final FamilyMemberRepository            familyMemberRepo;
+    private final WorshipGroupRepository            worshipGroupRepo;
+    private final WorshipInstrumentRepository       worshipInstrumentRepo;
+    private final WorshipGroupMemberRepository      worshipMemberRepo;
 
     /** Used only to back-date creation timestamps the entities force to "now". Absent in unit tests. */
     @PersistenceContext
@@ -75,7 +78,10 @@ public class TrialDemoDataSeeder {
                                FollowUpRepository followUpRepo,
                                EmailUnsubscribeRepository unsubscribeRepo,
                                FamilyRepository familyRepo,
-                               FamilyMemberRepository familyMemberRepo) {
+                               FamilyMemberRepository familyMemberRepo,
+                               WorshipGroupRepository worshipGroupRepo,
+                               WorshipInstrumentRepository worshipInstrumentRepo,
+                               WorshipGroupMemberRepository worshipMemberRepo) {
         this.donationRepo         = donationRepo;
         this.membershipFamilyRepo = membershipFamilyRepo;
         this.membershipMemberRepo = membershipMemberRepo;
@@ -87,6 +93,9 @@ public class TrialDemoDataSeeder {
         this.unsubscribeRepo      = unsubscribeRepo;
         this.familyRepo           = familyRepo;
         this.familyMemberRepo     = familyMemberRepo;
+        this.worshipGroupRepo     = worshipGroupRepo;
+        this.worshipInstrumentRepo = worshipInstrumentRepo;
+        this.worshipMemberRepo    = worshipMemberRepo;
     }
 
     /**
@@ -109,6 +118,7 @@ public class TrialDemoDataSeeder {
         counts.put("connectSubmissions", seedConnect(clientId, members, today));
         counts.put("prayerRequests",     seedPrayer(clientId, today));
         counts.put("unsubscribed",       seedUnsubscribed(clientId, members, today));
+        counts.put("worship",            seedWorship(clientId, members));
         log.info("TrialDemoDataSeeder: {} → {}", clientId, counts);
         return counts;
     }
@@ -126,6 +136,7 @@ public class TrialDemoDataSeeder {
         m.put("connectSubmissions", !hasConnect(clientId));
         m.put("prayerRequests",     !hasPrayer(clientId));
         m.put("unsubscribed",       !hasUnsubscribed(clientId));
+        m.put("worship",            !hasWorship(clientId));
         return m;
     }
 
@@ -140,6 +151,49 @@ public class TrialDemoDataSeeder {
     boolean hasConnect(String c)            { return !connectRepo.findByClientIdAndDeleteFlagFalseOrderByCreatedAtDesc(c).isEmpty(); }
     boolean hasPrayer(String c)             { return !prayerRepo.findByClientIdAndDeleteFlagFalseOrderByCreatedAtDesc(c).isEmpty(); }
     boolean hasUnsubscribed(String c)       { return !unsubscribeRepo.findByClientIdOrderByUnsubscribedAtDesc(c).isEmpty(); }
+    boolean hasWorship(String c)            { return worshipGroupRepo != null && !worshipGroupRepo.findByClientIdAndDeleteFlagFalse(c).isEmpty(); }
+
+    // ── Worship Planning (/memberWorship) ─────────────────────────────────
+
+    /** Instruments of the demo worship team and how many people rotate on each. */
+    private static final String[][] WORSHIP_INSTRUMENTS = {
+        { "Vocals", "3" }, { "Keys", "2" }, { "Acoustic Guitar", "2" }, { "Bass", "2" }, { "Drums", "2" } };
+
+    /**
+     * One worship team with five instruments and a rotation on each, drawn from the
+     * tenant's demo adults, so Automatic Assignment has something to generate from
+     * the first time a trial user (or the demo video) opens Worship Planning.
+     * Returns the number of group members created (0 when the tenant already has a group).
+     */
+    public int seedWorship(String clientId, List<FamilyMember> members) {
+        if (worshipGroupRepo == null || hasWorship(clientId)) return 0;
+        List<FamilyMember> adults = adults(members);
+        if (adults.isEmpty()) return 0;
+        WorshipGroup g = new WorshipGroup();
+        g.setClientId(clientId);
+        g.setGroupName("Sunday Worship Team");
+        g = worshipGroupRepo.save(g);
+        int created = 0, next = 0;
+        for (String[] spec : WORSHIP_INSTRUMENTS) {
+            WorshipInstrument inst = new WorshipInstrument();
+            inst.setGroupId(g.getId());
+            inst.setClientId(clientId);
+            inst.setInstrumentName(spec[0]);
+            inst = worshipInstrumentRepo.save(inst);
+            int n = Math.min(Integer.parseInt(spec[1]), adults.size());
+            for (int i = 0; i < n; i++) {
+                FamilyMember who = adults.get(next++ % adults.size());   // spread people across instruments
+                WorshipGroupMember wm = new WorshipGroupMember();
+                wm.setInstrumentId(inst.getId());
+                wm.setClientId(clientId);
+                wm.setMemberName(name(who));
+                wm.setRotationOrder(i + 1);
+                worshipMemberRepo.save(wm);
+                created++;
+            }
+        }
+        return created;
+    }
 
     // ── Donations (/donation-review) ──────────────────────────────────────
 
@@ -197,18 +251,19 @@ public class TrialDemoDataSeeder {
         if (hasMembershipRequests(clientId)) return 0;
         String ks = String.valueOf(States.getCodeByAbbreviation("KS"));
         List<List<Applicant>> families = List.of(
-                List.of(new Applicant("Head", "Marcus", "Bennett", "Male", 41),
-                        new Applicant("Wife", "Alicia", "Bennett", "Female", 38),
-                        new Applicant("Son", "Caleb", "Bennett", "Male", 10)),
-                List.of(new Applicant("Head", "Naomi", "Castillo", "Female", 29)),
-                List.of(new Applicant("Head", "Peter", "Lindqvist", "Male", 57),
-                        new Applicant("Wife", "Ruth", "Lindqvist", "Female", 55)));
+                List.of(new Applicant("Head of Household", "Marcus", "Bennett", "Male", 41),
+                        new Applicant("Spouse", "Alicia", "Bennett", "Female", 38),
+                        new Applicant("Child", "Caleb", "Bennett", "Male", 10)),
+                List.of(new Applicant("Head of Household", "Naomi", "Castillo", "Female", 29)),
+                List.of(new Applicant("Head of Household", "Peter", "Lindqvist", "Male", 57),
+                        new Applicant("Spouse", "Ruth", "Lindqvist", "Female", 55)));
         String[] streets = { "418 Maple Ridge Dr", "77 Cedar Court, Apt 3B", "1290 Willow Bend Ln" };
         int created = 0;
         for (int f = 0; f < families.size(); f++) {
             MembershipFamily mf = new MembershipFamily();
             mf.setAppClientId(clientId);
             mf.setDeclarationAccepted(true);
+            mf.setStatus(MembershipFamily.STATUS_PENDING_REVIEW);   // V15: a fresh application awaits review
             mf = membershipFamilyRepo.save(mf);
             int n = 0;
             for (Applicant a : families.get(f)) {
@@ -218,11 +273,11 @@ public class TrialDemoDataSeeder {
                 m.setRole(a.role()); m.setFirstName(a.first()); m.setLastName(a.last()); m.setGender(a.gender());
                 LocalDate bday = today.minusYears(a.age()).minusDays(37L * (n + 1) + f * 11L);
                 m.setBirthdayMonth(bday.getMonthValue()); m.setBirthdayDay(bday.getDayOfMonth()); m.setBirthdayYear(bday.getYear());
-                if (!"Son".equals(a.role())) {
+                if (!"Child".equals(a.role())) {
                     m.setEmail((a.first() + "." + a.last()).toLowerCase() + "@" + domain(clientId));
                     m.setPhone("913-555-01" + String.format("%02d", 60 + f * 3 + n));
                 }
-                if ("Head".equals(a.role())) {
+                if ("Head of Household".equals(a.role())) {
                     m.setAddress1(streets[f]); m.setCity("Olathe"); m.setState(ks); m.setCountry("USA"); m.setPinCode("66061");
                     m.setSameAsFamilyAddress(false);
                     m.setComments(f == 0 ? "We moved here this summer and have been visiting for a few weeks."

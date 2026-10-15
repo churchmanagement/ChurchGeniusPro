@@ -79,7 +79,8 @@ class TenantScopedLookupRatchetTest {
         entry("controller/KmPickupPublicController.java", 4),
         entry("controller/LoginController.java", 6),
         entry("controller/MemberEventVolunteerController.java", 1),
-        entry("controller/MembershipFormController.java", 34),
+        // 34 → 28 (2026-10-14): memberId/appUserId re-reads moved to MemberSessionResolver (tenant-scoped).
+        entry("controller/MembershipFormController.java", 28),
         entry("controller/MidRegMeetController.java", 1),
         entry("controller/PrayerRequestController.java", 15),
         entry("controller/PromiseVerseController.java", 2),
@@ -147,6 +148,17 @@ class TenantScopedLookupRatchetTest {
         // +1 (2026-10-05, Phase 3): convert(id) — Service Admin → Convert, same access as extendTrial.
         entry("service/ServiceClientService.java", 6),
         entry("service/TemporaryAccessService.java", 1),
+        // appUserRepo.findById(appUserId) (2026-10-14): the signed-in STAFF user's own id, read
+        // from the session (never the request), only to take that user's e-mail and church so
+        // the member lookup that follows is tenant-scoped (findActiveByEmailAndTenant). The two
+        // bare member lookups this replaced in MembershipFormController are gone.
+        entry("service/MemberSessionResolver.java", 1),
+        // familyRepo.findById(existingFamilyId) ×2 (preview / apply) + loginRepo.findById(signupId) ×1
+        // (2026-10-14): the ids come from the request row, which was itself loaded with the
+        // tenant-scoped finder; the family's appClientId is then compared to the session tenant
+        // before anything is read or written (ERR_CROSS_TENANT), the signup only on a new-family
+        // apply. Moved here from MembershipFormController.approve (same three lookups, now atomic).
+        entry("service/MembershipRequestService.java", 3),
         // requireDeletableRole loads a demo_role_access row by the id the Service
         // Admin screen showed, then checks the TENANT it belongs to is a trial one
         // before anything is deleted. There is no session tenant to scope by — a

@@ -1654,7 +1654,11 @@
         // records saved with that old key still count via the alias table (admin.email ←
         // admin.email.delete) and are re-aligned on the next save (see savePermissions).
         { key: 'admin.email', label: 'Group Email', standalone: true },
-        { key: 'admin.membership',  label: 'Membership Requests', standalone: true },
+        { key: 'admin.membership',  label: 'Membership Requests',
+          actions: [
+            { key: 'admin.membership.delete', label: 'Delete request' },
+          ]
+        },
         { key: 'admin.unsubscribed', label: 'Unsubscribed List',  standalone: true },
       ]
     },

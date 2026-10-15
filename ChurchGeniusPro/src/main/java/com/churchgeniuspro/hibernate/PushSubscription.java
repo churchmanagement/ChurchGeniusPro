@@ -5,7 +5,13 @@ import lombok.Data;
 import java.time.Instant;
 
 /**
- * Stores a Web Push subscription for a single browser on a single device.
+ * Stores a push subscription for a single browser or app install on a single device.
+ *
+ * <p>Mobile Phase 5: rows with {@code platform} = {@code android} / {@code ios} are
+ * native (FCM) registrations made by the ChurchGeniusPro app — {@code endpoint} holds
+ * the FCM registration token and {@code p256dh}/{@code auth} hold the placeholder
+ * {@value #NATIVE_KEY_PLACEHOLDER}. Everything else (owner key, org, type, active
+ * flag, the logout deactivation and the schedulers' queries) is shared with Web Push.
  *
  * <p>One row is created every time a browser grants push-notification
  * permission and posts its subscription object to
@@ -24,9 +30,16 @@ import java.time.Instant;
 @Table(name = "push_subscription",
        indexes = {
            @Index(name = "idx_push_sub_user",   columnList = "user_key"),
-           @Index(name = "idx_push_sub_client",  columnList = "app_client_id")
+           @Index(name = "idx_push_sub_client",  columnList = "app_client_id"),
+           @Index(name = "idx_push_sub_platform", columnList = "platform")
        })
 public class PushSubscription {
+
+    public static final String PLATFORM_WEB     = "web";
+    public static final String PLATFORM_ANDROID = "android";
+    public static final String PLATFORM_IOS     = "ios";
+    /** Stored in p256dh/auth for native rows (the columns are NOT NULL, the values unused). */
+    public static final String NATIVE_KEY_PLACEHOLDER = "-";
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "push_sub_seq")
@@ -65,6 +78,18 @@ public class PushSubscription {
     @Column(name = "auth", nullable = false, columnDefinition = "TEXT")
     private String auth;
 
+    /**
+     * {@link #PLATFORM_WEB} for VAPID browser subscriptions (all rows before Phase 5),
+     * {@link #PLATFORM_ANDROID} / {@link #PLATFORM_IOS} for the app (delivered via FCM).
+     */
+    @Column(name = "platform", nullable = false, length = 16)
+    @org.hibernate.annotations.ColumnDefault("'web'")
+    private String platform = PLATFORM_WEB;
+
+    /** Optional human label for the device ("Pixel 8", "iPhone 15") — native rows only. */
+    @Column(name = "device_name", length = 120)
+    private String deviceName;
+
     /** When false this subscription is no longer delivered to (e.g. 410 Gone). */
     @Column(name = "active", nullable = false)
     private boolean active = true;
@@ -84,5 +109,10 @@ public class PushSubscription {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    /** True for app (FCM) registrations, false for Web Push rows. */
+    public boolean isNative() {
+        return platform != null && !PLATFORM_WEB.equals(platform);
     }
 }

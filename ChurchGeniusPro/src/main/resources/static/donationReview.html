@@ -317,6 +317,12 @@
           <label><input type="radio" name="stMode" value="GROSS_WITH_FEE_EXPENSE" checked /> Record the full donation as Income and the Stripe fee as a separate Expense</label>
           <div class="hint">$100.00 donation, $3.20 Stripe fee &rarr; Income $100.00, Expense $3.20, net to the bank $96.80. The donor's statement shows the full $100.00.</div>
         </div>
+        <div class="sect">Stripe fee rate (recommended) &mdash; used when Stripe has not reported the actual fee</div>
+        <div class="fgrid">
+          <div class="fld"><label>Percentage fee (%)</label><input type="number" id="stFeePct" min="0" step="0.001" inputmode="decimal" /><div class="hint">Stripe's standard card rate is 2.9</div></div>
+          <div class="fld"><label>Fixed fee ($)</label><input type="number" id="stFeeFixed" min="0" step="0.01" inputmode="decimal" /><div class="hint">Stripe's standard card fee is 0.30</div></div>
+          <div class="fld full"><div class="hint">The actual per-transaction fee from Stripe is always preferred. When it is unavailable, the fee is estimated as amount &times; % + fixed, rounded to the cent, and the Expense note says so. Without a rate, a donation whose fee Stripe has not reported cannot be saved to accounting.</div></div>
+        </div>
         <div class="sect">Income entry</div>
         <div class="fgrid">
           <div class="fld"><label>Income fund <span class="req">*</span></label><select id="stIncomeFund"></select><div class="hint">From the Income page's funds.</div></div>
@@ -331,12 +337,6 @@
           <div class="fld"><label>Transaction date <span class="req">*</span></label>
             <select id="stDateMode"><option value="DONATION_DATE">The original donation date</option><option value="TODAY">Today's date</option></select></div>
           <div class="fld full"><label>Expense notes (default, editable per donation)</label><textarea id="stExpenseNote"></textarea></div>
-        </div>
-        <div class="sect">Stripe fee &mdash; used only when Stripe has not reported the actual fee</div>
-        <div class="fgrid">
-          <div class="fld"><label>Percentage fee</label><input type="number" id="stFeePct" min="0" step="0.001" placeholder="2.9" inputmode="decimal" /><div class="hint">%, e.g. 2.9</div></div>
-          <div class="fld"><label>Fixed fee</label><input type="number" id="stFeeFixed" min="0" step="0.01" placeholder="0.30" inputmode="decimal" /><div class="hint">$, e.g. 0.30. Leave both blank to never estimate.</div></div>
-          <div class="fld full"><div class="hint">The actual per-transaction fee from Stripe is always preferred. When it is unavailable (an ACH payment that has not settled) and these are set, the fee is estimated as amount &times; % + fixed, rounded to the cent, and the Expense note says so. With neither, such a donation cannot be posted until the fee arrives.</div></div>
         </div>
       </div>
       <div class="dr-foot"><span class="dr-note" id="stUpdated"></span><button type="button" class="btn-review btn-pending" onclick="closeSettings()">Cancel</button><button type="button" class="btn-review btn-post" id="stSave" onclick="saveSettings()">Save settings</button></div>

@@ -1,0 +1,11 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.churchgeniuspro.app",
+    "sha256_cert_fingerprints": [
+      "64:B2:AC:CC:77:0E:65:CE:2B:0F:61:5B:1B:92:1D:12:D0:98:39:EE:FB:21:1C:84:A3:BD:5A:8D:39:26:A3:44",
+      "B8:B8:67:5A:C9:24:46:1F:D8:83:9C:5B:4D:F2:38:F1:88:8E:36:82:01:E5:03:4D:18:10:50:26:A6:00:71:BB"
+    ]
+  }
+}]

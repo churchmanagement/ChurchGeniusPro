@@ -91,6 +91,26 @@
     .role-primary{background:#e8eaf6;color:#673147;} .role-wife{background:#fce4ec;color:#c2185b;}
     .role-son{background:#e3f2fd;color:#1565c0;} .role-daughter{background:#f3e5f5;color:#7b1fa2;}
     .role-other{background:#fff3e0;color:#e65100;}
+    /* ── Status / changes (V15) ── */
+    .st-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .st-pending_review{background:#fff8e1;color:#b26a00;} .st-approved{background:#e3f2fd;color:#1565c0;} .st-updated{background:#e8f5e9;color:#2e7d32;}
+    .link-review{color:#673147;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;font:inherit;}
+    .filter-bar{display:flex;gap:10px;align-items:center;margin-left:auto;font-size:13px;}
+    .filter-bar select{padding:5px 8px;border:1px solid #d6d8e4;border-radius:6px;font-size:13px;}
+    .chg-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+    .chg-tbl th{background:#fff3e0;color:#e65100;font-size:11px;text-align:left;padding:5px 8px;}
+    .chg-tbl td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;}
+    .chg-old{color:#9e9e9e;text-decoration:line-through;} .chg-new{color:#2e7d32;font-weight:600;}
+    .chg-box{border:1px solid #ffe0b2;background:#fffaf3;border-radius:8px;padding:10px 12px;margin-top:10px;}
+    .chg-none{border:1px solid #c8e6c9;background:#f1f8e9;border-radius:8px;padding:10px 12px;margin-top:10px;color:#2e7d32;font-weight:600;}
+    .chg-new-member{border:1px dashed #90caf9;background:#f3f9ff;border-radius:8px;padding:8px 12px;margin-top:10px;color:#1565c0;font-weight:600;}
+    .photo-pair{display:flex;gap:16px;align-items:center;margin-top:8px;} .photo-pair img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #eee;}
+    .photo-pair .arrow{font-size:20px;color:#888;}
+    .btn-update{background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;}
+    .btn-update:disabled{opacity:.6;cursor:default;}
+    .btn-delete{background:#fff;color:#c62828;border:1px solid #ef9a9a;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;}
+    .btn-status{background:#fff;color:#555;border:1px solid #ccc;border-radius:8px;padding:9px 12px;cursor:pointer;}
+    .audit-line{font-size:12px;color:#777;margin-top:10px;}
     /* ── Actions ── */
     .detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center;}
     .mem-cards{display:grid;gap:12px;}
@@ -127,7 +147,7 @@
     <main class="page-content">
       <div class="page-header">
         <div class="page-title">📝 Membership Requests</div>
-        <div class="page-sub">Review families who applied via the public Membership Form</div>
+        <div class="page-sub">Review families who applied via the public Membership Form — Approve records the decision; Approve and Update applies the submitted changes</div>
       </div>
 
       <div class="feedback" id="feedbackMsg"></div>
@@ -145,7 +165,17 @@
       <div class="card">
         <div class="card-header">
           <span>📋</span>
-          <h3>Pending Applications</h3>
+          <h3>Membership Requests</h3>
+          <div class="filter-bar">
+            <label for="statusFilter">Show</label>
+            <select id="statusFilter" onchange="renderTable(allRequests)">
+              <option value="open" selected>Pending Review + Approved</option>
+              <option value="PENDING_REVIEW">Pending Review</option>
+              <option value="APPROVED">Approved</option>
+              <option value="UPDATED">Updated</option>
+              <option value="all">All</option>
+            </select>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="req-tbl">
@@ -153,13 +183,14 @@
               <tr>
                 <th>#</th>
                 <th>Family Name</th>
-                <th>Members</th>
+                <th>Submitted Form</th>
+                <th>Type</th>
                 <th>Submitted</th>
-                <th>Declaration</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody id="reqTableBody">
-              <tr><td class="empty-row" colspan="5">Loading…</td></tr>
+              <tr><td class="empty-row" colspan="6">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -222,32 +253,37 @@ async function loadRequests() {
   } catch { showFeedback('❌ Network error loading requests.', 'error'); }
 }
 
+function statusBadge(st) {
+  const key = (st || 'PENDING_REVIEW').toLowerCase();
+  const label = { pending_review: 'Pending Review', approved: 'Approved', updated: 'Updated' }[key] || st;
+  return `<span class="st-badge st-${key}">${esc(label)}</span>`;
+}
+function visibleRows(rows) {
+  const f = (document.getElementById('statusFilter') || {}).value || 'open';
+  if (f === 'all') return rows;
+  if (f === 'open') return rows.filter(r => (r.status || 'PENDING_REVIEW') !== 'UPDATED');
+  return rows.filter(r => (r.status || 'PENDING_REVIEW') === f);
+}
 function renderTable(rows) {
   const tbody = document.getElementById('reqTableBody');
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td class="empty-row" colspan="5">No membership requests yet.</td></tr>`;
+  const shown = visibleRows(rows || []);
+  if (!shown.length) {
+    tbody.innerHTML = `<tr><td class="empty-row" colspan="6">${rows && rows.length ? 'No requests match this filter.' : 'No membership requests yet.'}</td></tr>`;
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => `
+  tbody.innerHTML = shown.map((r, i) => {
+    const n = r.memberCount != null ? r.memberCount : 0;
+    return `
     <tr onclick="openDetail(${r.id})">
       <td>${i + 1}</td>
       <td style="font-weight:600;">${esc(r.familyName||'')}</td>
-      <td><span style="background:#e8eaf6;color:#673147;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;" id="memCount_${r.id}">…</span></td>
+      <td><button type="button" class="link-review" onclick="event.stopPropagation(); openDetail(${r.id})" title="Open the submitted membership form">Review Submitted Form (${n} member${n === 1 ? '' : 's'})</button></td>
+      <td>${r.hasExistingFamily
+            ? '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Renewal / Update</span>'
+            : '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">New Member</span>'}</td>
       <td>${fmtDate(r.createdDate)}</td>
-      <td>${r.declarationAccepted ? '<span style="color:#2e7d32;font-weight:600;">✅ Accepted</span>' : '<span style="color:#aaa;">—</span>'}</td>
-    </tr>`).join('');
-  // Load member counts (lazy)
-  rows.forEach(r => loadMemberCount(r.id));
-}
-
-async function loadMemberCount(id) {
-  try {
-    const res  = await fetch(`/api/membership-requests/${id}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const el   = document.getElementById(`memCount_${id}`);
-    if (el) el.textContent = (data.members||[]).length + ' member(s)';
-  } catch {}
+      <td>${statusBadge(r.status)}</td>
+    </tr>`; }).join('');
 }
 
 /* ════ DETAIL ════ */
@@ -289,7 +325,9 @@ function renderDetail(d) {
           : '<span style="color:#555;">Same as family address</span>' + (familyAddr ? ' — ' + esc(familyAddr) : '');
         const photo = m.hasPhoto && m.photoData && /^data:image\//.test(m.photoData)
           ? `<img src="${m.photoData}" alt="Photo" class="mem-photo" />`
-          : `<div class="mem-photo mem-photo-empty" title="No photo submitted">👤</div>`;
+          : m.photoUnsupported
+            ? `<div class="mem-photo mem-photo-empty" title="A ${esc(m.photoUnsupported)} photo was submitted, which cannot be displayed or saved. Ask the applicant for a JPG or PNG.">⚠️</div>`
+            : `<div class="mem-photo mem-photo-empty" title="No photo submitted">👤</div>`;
         return `
         <div class="mem-card">
           <div class="mem-card-head">
@@ -331,16 +369,29 @@ function renderDetail(d) {
     </div>` : '';
 
   const canApprove = !(window.CGP_PERMS && window.CGP_PERMS['admin.membership'] === false);
+  const canDelete  = canApprove && !(window.CGP_PERMS && window.CGP_PERMS['admin.membership.delete'] === false);
   const isExisting = !!d.hasExistingFamily;
+  const status = d.status || 'PENDING_REVIEW';
+  const isUpdated = status === 'UPDATED';
+  currentDetail = d;
 
-  // Approve button label and behaviour depends on whether this is an existing or new member
-  const approveBtn = canApprove ? (isExisting
-    ? `<button class="btn-approve" id="approveBtn_${d.id}" onclick="approveMembership(${d.id}, this)">
-         ✅ Approve (Update Renewal)
-       </button>`
-    : `<button class="btn-approve" id="approveBtn_${d.id}" onclick="approveMembership(${d.id}, this)">
-         ✅ Add as Member
-       </button>`) : '';
+  // What "Approve and Update" would change — computed by the server with the same
+  // matching rules the update uses, so this is exactly what will happen.
+  const changesSection = renderChanges(d);
+
+  const approveBtn = canApprove && status === 'PENDING_REVIEW'
+    ? `<button class="btn-approve" id="approveBtn_${d.id}" onclick="approveMembership(${d.id}, this)" title="Mark as approved. The family record is not changed — update it on the Family page if needed.">✅ Approve</button>` : '';
+  const updateBtn = canApprove && !isUpdated
+    ? `<button class="btn-update" id="updateBtn_${d.id}" onclick="applyMembership(${d.id}, this)" title="${isExisting ? 'Apply the submitted changes to the existing family record' : 'Create the family and its members'}">${isExisting ? '✅ Approve and Update' : '✅ Approve and Add as Member'}</button>` : '';
+  const statusBtn = canApprove && status !== 'PENDING_REVIEW'
+    ? `<button class="btn-status" onclick="changeStatus(${d.id}, 'PENDING_REVIEW', this)" title="Set the request back to Pending Review (keeps any changes already applied)">↩ Back to Pending Review</button>`
+      + (isUpdated ? ` <button class="btn-status" onclick="changeStatus(${d.id}, 'APPROVED', this)" title="Record the status as Approved (keeps the changes already applied)">↩ Set to Approved</button>` : '')
+    : '';
+  const deleteBtn = canDelete ? `<button class="btn-delete" onclick="deleteRequest(${d.id}, this)">🗑 Delete Request</button>` : '';
+  const audit = [
+    d.statusChangedBy ? `${statusBadge(status)} by ${esc(d.statusChangedBy)} on ${fmtDate(d.statusChangedAt)}` : statusBadge(status),
+    d.appliedAt ? `Applied by ${esc(d.appliedBy || '—')} on ${fmtDate(d.appliedAt)}${d.appliedFamilyId ? ' (family #' + d.appliedFamilyId + ')' : ''}` : ''
+  ].filter(Boolean).join(' · ');
 
   const approveSignupBtn = canApprove && d.signupId && !d.signupActive && isExisting
     ? `<button class="btn-approve-signup" id="approveSignupBtn_${d.id}" onclick="approveSignup(${d.id}, this)">
@@ -359,44 +410,135 @@ function renderDetail(d) {
       ${field('Family Email', val(d.familyEmail) + priv(head.emailPrivate))}
       ${field('Submitted', fmtDate(d.createdDate))}
       ${field('Declaration', d.declarationAccepted ? '✅ Accepted' : dash)}
+      ${field('Status', statusBadge(status))}
     </div>
+    ${changesSection}
     <h4 style="font-size:13px;font-weight:700;color:#673147;margin:16px 0 8px;">Family Members (${members.length})</h4>
     <p style="font-size:12px;color:#888;margin:0 0 10px;">Everything submitted on the membership form is shown below; “—” means the applicant left it blank.</p>
     <div class="mem-cards">${memCards}</div>
     ${signupSection}
     <div class="detail-actions">
       ${approveBtn}
+      ${updateBtn}
       ${approveSignupBtn}
+      ${statusBtn}
+      ${deleteBtn}
       <button class="btn-back" onclick="closeDetail()">← Back to List</button>
-    </div>`;
+    </div>
+    <div class="audit-line">${audit}</div>`;
+}
+
+/* The server's preview: per submitted member, the matched existing member and the field changes. */
+function renderChanges(d) {
+  const p = d.preview;
+  if (!p || !p.isExisting) return '';
+  if (p.familyMissing) return `<div class="chg-box">⚠ The family this request refers to no longer exists in your church. Approve and Update is not possible; approve or delete the request.</div>`;
+  const rows = p.members || [];
+  if (!p.hasChanges) return `<div class="chg-none">✔ Renewal without profile changes — the submitted form matches the family record.</div>`;
+  const dash = '<span style="color:#aaa;">—</span>';
+  function fmtVal(v) { return (v === null || v === undefined || String(v).trim() === '') ? dash : esc(String(v)); }
+  const parts = rows.map(m => {
+    if (m.matchType === 'NEW') return `<div class="chg-new-member">＋ New member: ${esc(m.name || '(no name)')} — will be added to the family</div>`;
+    const ch = m.changes || [];
+    const sub = (d.members || []).find(x => x.id === m.requestMemberId) || {};
+    if (!ch.length && !m.photoChanged && !sub.photoUnsupported) return '';
+    const tbl = ch.length ? `<table class="chg-tbl"><thead><tr><th>Field</th><th>Current</th><th>Submitted</th></tr></thead><tbody>${
+      ch.map(c => `<tr><td>${esc(c.label)}</td><td class="chg-old">${fmtVal(c.oldValue)}</td><td class="chg-new">${fmtVal(c.newValue)}</td></tr>`).join('')}</tbody></table>` : '';
+    // Shown only when the server found a usable new photo AND the page has it to display.
+    const photo = m.photoChanged && sub.photoData ? `<div class="photo-pair">
+        ${m.existingPhotoData ? `<img src="${m.existingPhotoData}" alt="Current photo" />` : '<div class="mem-photo mem-photo-empty" title="No current photo">👤</div>'}
+        <span class="arrow">→</span>
+        <img src="${sub.photoData}" alt="New photo" />
+        <span style="font-size:12px;color:#555;">${m.existingPhotoData ? 'Profile photo will be replaced' : 'Profile photo will be added'}</span></div>` : '';
+    const who = m.existingName && m.existingName !== m.name ? ` <span style="font-size:12px;color:#888;">(matches ${esc(m.existingName)}${m.matchType === 'ROLE' ? ' by role' : ''})</span>` : '';
+    const unsupported = sub.photoUnsupported ? `<div style="font-size:12px;color:#b26a00;margin-top:6px;">⚠️ A ${esc(sub.photoUnsupported)} photo was submitted but cannot be displayed or saved (not a JPG/PNG) — the current photo is kept.</div>` : '';
+    return `<div style="margin-top:8px;"><strong>${esc(m.name || '(no name)')}</strong>${who}${tbl}${photo}${unsupported}</div>`;
+  }).filter(Boolean).join('');
+  return `<div class="chg-box"><div style="font-weight:700;color:#e65100;">Changes to the existing family record</div>
+    <div style="font-size:12px;color:#777;">Only these fields change when you click Approve and Update. Blank submitted fields never clear existing values.</div>${parts}</div>`;
 }
 
 function closeDetail() {
   document.getElementById('detailPanel').classList.remove('open');
 }
 
-/* ════ APPROVE ════ */
+/* ════ ACTIONS ════ */
+let currentDetail = null;
+
+async function post(url, body) {
+  const res = await fetch(url, { method: 'POST', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  let data = {}; try { data = await res.json(); } catch {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+/* Approve = status only. Nothing on the family record changes. */
 async function approveMembership(id, btn) {
-  if (!confirm('Move this family to the Members list with Member Type = "Member"? This cannot be undone.')) return;
-  btn.disabled = true; btn.textContent = 'Processing…';
+  const d = currentDetail || {};
+  const msg = d.hasExistingFamily
+    ? 'Mark this request as Approved?\n\nThe existing family/member record will NOT be changed and the renewal date will not be updated. You can apply the submitted changes manually on the Family page, or use "Approve and Update" to apply them automatically.'
+    : 'Mark this request as Approved?\n\nNo family record will be created yet. Use "Approve and Add as Member" to add the family, or add them manually on the Family page.';
+  if (!confirm(msg)) return;
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Processing…';
   try {
-    const res  = await fetch(`/api/membership-requests/${id}/approve`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) {
-      closeDetail();
-      const msg = data.isExisting
-        ? '✅ Renewal approved. Member renewal date updated.'
-        : '✅ Family successfully added as Members! An approval email has been sent.';
-      showFeedback(msg, 'success');
-      await loadRequests();
-    } else {
-      showFeedback('❌ ' + (data.error || 'Approval failed.'), 'error');
-      btn.disabled = false; btn.textContent = btn.textContent.replace('Processing…', '✅ Approve');
-    }
-  } catch {
-    showFeedback('❌ Network error.', 'error');
-    btn.disabled = false; btn.textContent = '✅ Approve';
+    const r = await post(`/api/membership-requests/${id}/approve`);
+    if (r.ok) { showFeedback('✅ Request approved. The family record was not changed.', 'success'); await loadRequests(); await openDetail(id); }
+    else { showFeedback('❌ ' + (r.data.error || 'Approval failed.'), 'error'); btn.disabled = false; btn.textContent = label; }
+  } catch { showFeedback('❌ Network error.', 'error'); btn.disabled = false; btn.textContent = label; }
+}
+
+/* Approve and Update = apply the submitted changes in one transaction, then status → Updated. */
+async function applyMembership(id, btn) {
+  const d = currentDetail || {};
+  const p = d.preview || {};
+  let msg;
+  if (!d.hasExistingFamily) {
+    msg = 'This will create a new family with the submitted members (Member Type "Member") and set its membership renewal date. Do you want to continue?';
+  } else if (p.hasChanges === false) {
+    msg = 'No profile changes were submitted. This action will update the membership renewal date. Do you want to continue?';
+  } else {
+    msg = 'This will update the existing family/member record with the requested changes and update the membership renewal date. Do you want to continue?';
   }
+  if (!confirm(msg)) return;
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const r = await post(`/api/membership-requests/${id}/apply`);
+    if (r.ok) {
+      const a = r.data;
+      const what = a.isExisting
+        ? (a.hadChanges ? `✅ Family record updated (${a.updated} member${a.updated === 1 ? '' : 's'} changed, ${a.created} added) and the renewal date set.`
+                        : '✅ Renewal recorded — no profile changes; the renewal date was updated.')
+        : `✅ Family added with ${a.created} member${a.created === 1 ? '' : 's'}.`;
+      showFeedback(what, 'success'); await loadRequests(); await openDetail(id);
+    } else {
+      showFeedback('❌ ' + (r.data.error || 'The update could not be completed; nothing was changed.'), 'error');
+      btn.disabled = false; btn.textContent = label;
+    }
+  } catch { showFeedback('❌ Network error. Nothing was changed.', 'error'); btn.disabled = false; btn.textContent = label; }
+}
+
+async function changeStatus(id, to, btn) {
+  const d = currentDetail || {};
+  const warn = (d.status === 'UPDATED')
+    ? 'Changing the status does NOT undo the changes already applied to the family record. Continue?'
+    : `Set this request to ${to === 'PENDING_REVIEW' ? 'Pending Review' : 'Approved'}?`;
+  if (!confirm(warn)) return;
+  btn.disabled = true;
+  try {
+    const r = await post(`/api/membership-requests/${id}/status`, { status: to });
+    if (r.ok) { showFeedback('✅ Status updated.', 'success'); await loadRequests(); await openDetail(id); }
+    else { showFeedback('❌ ' + (r.data.error || 'Could not change the status.'), 'error'); btn.disabled = false; }
+  } catch { showFeedback('❌ Network error.', 'error'); btn.disabled = false; }
+}
+
+async function deleteRequest(id, btn) {
+  if (!confirm('Are you sure you want to delete this membership request? This action will remove the request from the Membership Requests page but will not delete the associated family or member record.')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/membership-requests/${id}`, { method: 'DELETE' });
+    let data = {}; try { data = await res.json(); } catch {}
+    if (res.ok) { closeDetail(); showFeedback('✅ Request deleted. The family record was not changed.', 'success'); await loadRequests(); }
+    else { showFeedback('❌ ' + (data.error || 'Could not delete the request.'), 'error'); btn.disabled = false; }
+  } catch { showFeedback('❌ Network error.', 'error'); btn.disabled = false; }
 }
 
 /* ▄▄▄▄ APPROVE SIGNUP ▄▄▄▄ */
@@ -412,11 +554,11 @@ async function approveSignup(id, btn) {
       await loadRequests();
     } else {
       showFeedback('❌ ' + (data.error || 'Could not activate account.'), 'error');
-      btn.disabled = false; btn.textContent = '✅ Approve';
+      btn.disabled = false; btn.textContent = '🔐 Approve Login Account';
     }
   } catch {
     showFeedback('❌ Network error.', 'error');
-    btn.disabled = false; btn.textContent = '✅ Approve';
+    btn.disabled = false; btn.textContent = '🔐 Approve Login Account';
   }
 }
 </script>

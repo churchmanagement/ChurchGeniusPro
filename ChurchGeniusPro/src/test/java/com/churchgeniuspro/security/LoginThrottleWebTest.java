@@ -61,7 +61,9 @@ class LoginThrottleWebTest {
                 mock(FamilyMemberRepository.class),
                 protection,
                 securityAudit,
-                mock(com.churchgeniuspro.service.DemoAccessService.class));
+                mock(com.churchgeniuspro.service.DemoAccessService.class),
+                mock(com.churchgeniuspro.service.RememberMeService.class),
+                mock(com.churchgeniuspro.repository.PushSubscriptionRepository.class));
 
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }

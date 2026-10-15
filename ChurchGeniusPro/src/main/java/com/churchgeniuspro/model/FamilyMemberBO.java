@@ -22,7 +22,7 @@ public class FamilyMemberBO {
 
     // ── Role ──────────────────────────────────────────────────────────────
 
-    /** Role within the family: Head, Wife, Son, Daughter, etc. */
+    /** Role within the family: Head of Household, Spouse, Adult or Child (legacy rows: Head, Wife, Son, …). */
     private String role;
 
     // ── Personal Information ──────────────────────────────────────────────

@@ -5,10 +5,12 @@ import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.StripeSettings;
 import com.churchgeniuspro.hibernate.SubSource;
 import com.churchgeniuspro.repository.DonationRepository;
+import com.churchgeniuspro.repository.AppUserRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.StripeSettingsRepository;
 import com.churchgeniuspro.repository.SubSourceRepository;
 import com.churchgeniuspro.service.ChurchStripeGateway;
+import com.churchgeniuspro.service.MemberSessionResolver;
 import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.util.PublicSendLimiter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -77,20 +79,31 @@ public class MemberContributionController {
     /** The signed-in member of the signed-in church, or null. */
     private record Who(Integer memberId, String clientId, FamilyMember member) {}
 
+    /** Optional (unit tests build the controller by hand); defaults to a resolver over memberRepo. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AppUserRepository appUserRepo;
+    private MemberSessionResolver resolver;
+    public void setResolver(MemberSessionResolver r) { this.resolver = r; }
+    private MemberSessionResolver resolver() {
+        if (resolver == null) resolver = new MemberSessionResolver(memberRepo, appUserRepo);
+        return resolver;
+    }
+
+    /**
+     * Member-portal identity: a member login, or a staff login (SuperAdmin, Admin, …)
+     * whose e-mail matches a member of their own church — the same rule
+     * {@code /api/member/family} uses, so "My Profile → Give" works for staff too.
+     * Unauthenticated sessions, and staff with no linked member record, get 401.
+     */
     private Who who(HttpServletRequest request) {
         HttpSession s = request.getSession(false);
         if (s == null) return null;
-        boolean isMember = "Member".equals(s.getAttribute("role")) && s.getAttribute("memberId") != null;
-        if (!isMember) return null;
-        Integer memberId = s.getAttribute("memberId") instanceof Number n ? n.intValue() : null;
-        Object cid = s.getAttribute("appClientId");
-        String clientId = cid instanceof String str && !str.isBlank() ? str : null;
-        if (memberId == null || clientId == null) return null;
-        FamilyMember fm = memberRepo.findByIdAndTenant(memberId, clientId).orElse(null);
-        return fm == null ? null : new Who(memberId, clientId, fm);
+        if (!MemberSessionResolver.isMemberSession(s) && !MemberSessionResolver.isStaffSession(s)) return null;
+        MemberSessionResolver.Resolved r = resolver().resolve(s).orElse(null);
+        if (r == null) return null;
+        return new Who(r.memberId(), r.appClientId(), r.member());
     }
 
-    /** Whether the church can take a card payment, and the key Stripe.js needs. */
     @GetMapping("/api/member/give/config")
     public ResponseEntity<?> config(HttpServletRequest request) {
         Who w = who(request);

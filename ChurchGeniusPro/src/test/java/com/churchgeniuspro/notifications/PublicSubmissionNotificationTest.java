@@ -53,6 +53,10 @@ import static org.mockito.Mockito.when;
 class PublicSubmissionNotificationTest {
 
     static final String CHURCH = "CHR-ours";
+    /** Every type is recorded once per church in setUp. */
+    static final int ALL_ROWS = Type.values().length * 2;
+    /** A staff admin sees every type except ACCOUNT_DELETION, whose page (/viewusers) is church-only. */
+    static final int STAFF_VISIBLE = Type.values().length - 1;
     static final String OTHER  = "CHR-theirs";
 
     @Mock PublicSubmissionNotificationRepository repo;
@@ -145,8 +149,10 @@ class PublicSubmissionNotificationTest {
     /** A role whose destination page admits it, per type. */
     static String roleFor(Type t) {
         return switch (t) {
-            case PRAYER, CONNECT, MEMBERSHIP -> "Admin";
+            case PRAYER, CONNECT, MEMBERSHIP, CONTENT_REPORT -> "Admin";
             case DONATION -> "Accountant";
+            // Church-owner page (/viewusers): no staff role is admitted — covered by its own test below.
+            case ACCOUNT_DELETION -> "Church";
         };
     }
 
@@ -161,7 +167,7 @@ class PublicSubmissionNotificationTest {
     class Permissions {
 
         @ParameterizedTest(name = "{0}: both permissions → shown")
-        @EnumSource(Type.class)
+        @EnumSource(value = Type.class, names = "ACCOUNT_DELETION", mode = EnumSource.Mode.EXCLUDE)
         void bothPermissions(Type t) {
             assertThat(titles(staff(1, roleFor(t), perms(t, true, true)))).contains("New " + t);
         }
@@ -182,6 +188,14 @@ class PublicSubmissionNotificationTest {
         @EnumSource(Type.class)
         void bothMissing(Type t) {
             assertThat(titles(staff(4, roleFor(t), perms(t, false, false)))).doesNotContain("New " + t);
+        }
+
+        @Test
+        @DisplayName("ACCOUNT_DELETION (mobile Phase 2, M4) goes to /viewusers: church login sees it, staff never do")
+        void accountDeletionIsChurchOnly() {
+            svc.record(CHURCH, Type.ACCOUNT_DELETION, "Member portal account deleted", "Ann deleted her login.", 7L);
+            assertThat(titles(churchLogin())).contains("Member portal account deleted");
+            assertThat(titles(staff(9, "Admin", perms(Type.ACCOUNT_DELETION, true, true)))).doesNotContain("Member portal account deleted");
         }
 
         @Test
@@ -216,9 +230,9 @@ class PublicSubmissionNotificationTest {
         }
 
         @Test
-        @DisplayName("the Church login sees only what its pages allow (Membership Requests)")
+        @DisplayName("the Church login sees only what its pages allow (Membership Requests, Users)")
         void churchLoginSeesMembershipOnly() {
-            assertThat(titles(churchLogin())).containsExactly("New MEMBERSHIP");
+            assertThat(titles(churchLogin())).containsExactlyInAnyOrder("New MEMBERSHIP", "New ACCOUNT_DELETION");
         }
 
         @Test
@@ -297,7 +311,7 @@ class PublicSubmissionNotificationTest {
         assertThat(svc.dismiss(a, prayer)).isTrue();
         assertThat(titles(a)).doesNotContain("New PRAYER");
         assertThat(titles(staff(16, "SuperAdmin", "{}"))).contains("New PRAYER");
-        assertThat(rows).hasSize(8);   // nothing deleted
+        assertThat(rows).hasSize(ALL_ROWS);   // nothing deleted
     }
 
     @Test
@@ -306,7 +320,7 @@ class PublicSubmissionNotificationTest {
         MockHttpServletRequest a = staff(17, "SuperAdmin", "{}");
         assertThat(svc.listFor(a)).allMatch(m -> Boolean.FALSE.equals(m.get("read")));
         svc.markAllRead(a);
-        assertThat(svc.listFor(a)).hasSize(4).allMatch(m -> Boolean.TRUE.equals(m.get("read")));
+        assertThat(svc.listFor(a)).hasSize(STAFF_VISIBLE).allMatch(m -> Boolean.TRUE.equals(m.get("read")));
     }
 
     /* ── active account ────────────────────────────────────────────────── */
@@ -314,16 +328,16 @@ class PublicSubmissionNotificationTest {
     @Nested
     @DisplayName("active account")
     class ActiveAccount {
-        @Test void activeChurchSeesThem() { assertThat(svc.listFor(staff(18, "SuperAdmin", "{}"))).hasSize(4); }
+        @Test void activeChurchSeesThem() { assertThat(svc.listFor(staff(18, "SuperAdmin", "{}"))).hasSize(STAFF_VISIBLE); }
 
         @Test
         @DisplayName("expired / inactive church sees none; rows are kept; renewal brings them back")
         void expiredThenRenewed() {
             activeChurches.remove(CHURCH);                     // expired or Hold/Inactive — same rule
             assertThat(svc.listFor(staff(19, "SuperAdmin", "{}"))).isEmpty();
-            assertThat(rows).hasSize(8);
+            assertThat(rows).hasSize(ALL_ROWS);
             activeChurches.add(CHURCH);                        // renewed
-            assertThat(svc.listFor(staff(19, "SuperAdmin", "{}"))).hasSize(4);
+            assertThat(svc.listFor(staff(19, "SuperAdmin", "{}"))).hasSize(STAFF_VISIBLE);
         }
     }
 

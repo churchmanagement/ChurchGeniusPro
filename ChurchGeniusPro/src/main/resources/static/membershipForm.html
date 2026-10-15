@@ -726,6 +726,7 @@
       <button class="btn-clear" onclick="clearAll()">Clear All</button>
       <button class="btn-save"  id="submitBtn" onclick="submitForm()">Submit</button>
     </div>
+    <div id="submitHint" role="alert" style="display:none;color:#c62828;font-size:13px;margin:8px 0 0;text-align:right;"></div>
 
   </div><!-- end phaseForm -->
 
@@ -782,10 +783,10 @@ let usernameCheckTimer  = null;
     try { data = await res.json(); } catch { /* ignore non-JSON body */ }
     if (!res.ok) { showInvalid(data.error || 'This link is invalid or has expired.'); return; }
 
-    showDeclaration = !!data.showDeclaration;
     declarationText = data.declarationText || '';
+    showDeclaration = !!data.showDeclaration && !!declarationText;   // required only when shown (server applies the same rule)
 
-    if (showDeclaration && declarationText) {
+    if (showDeclaration) {
       document.getElementById('declarationText').textContent   = declarationText;
       document.getElementById('declarationCard').style.display = '';
     }
@@ -876,6 +877,29 @@ function clearAndSearchAgain() {
 /* ══════════════════════════════════════
    LOOKUP
 ══════════════════════════════════════ */
+// ── Family roles ───────────────────────────────────────────────────────────
+// family.html's vocabulary. Records saved years ago may carry Head/Wife/Son/… —
+// those are mapped on the way in (same table family.html uses) and never written back.
+const ROLE_OPTIONS = ['Head of Household', 'Spouse', 'Adult', 'Child'];
+const ROLE_DB_TO_UI = {
+  'Head': 'Head of Household', 'Head of Household': 'Head of Household', 'Primary': 'Head of Household',
+  'Wife': 'Spouse', 'Husband': 'Spouse', 'Spouse': 'Spouse',
+  'Son': 'Child', 'Daughter': 'Child', 'Child': 'Child',
+  'Father': 'Adult', 'Mother': 'Adult', 'Father-in-Law': 'Adult', 'Mother-in-Law': 'Adult',
+  'Parent': 'Adult', 'Sibling': 'Adult', 'Other': 'Adult', 'Adult': 'Adult'
+};
+function canonicalRole(r) {
+  if (!r) return '';
+  const t = String(r).trim();
+  if (ROLE_DB_TO_UI[t]) return ROLE_DB_TO_UI[t];
+  const l = t.toLowerCase();
+  if (l.startsWith('head')) return 'Head of Household';
+  if (l === 'wife' || l === 'husband' || l === 'spouse') return 'Spouse';
+  if (l === 'son' || l === 'daughter' || l === 'child') return 'Child';
+  return 'Adult';
+}
+function isHeadRole(r) { return !!r && String(r).trim().toLowerCase().startsWith('head'); }
+
 async function doLookup() {
   const query = document.getElementById('lookupQuery').value.trim();
   if (!query) { setLookupMsg('Please enter a phone number or email address.', 'error'); return; }
@@ -971,7 +995,7 @@ async function verifyOtp() {
     existingFamilyId = f.id;
     updateToken      = data.updateToken || null;   // proves this family was verified; sent back on submit
 
-    const headMember   = all.find(m => m.role === 'Head') || all[0] || {};
+    const headMember   = all.find(m => isHeadRole(m.role)) || all[0] || {};   // 'Head' or 'Head of Household'
     const otherMembers = all.filter(m => m !== headMember);
 
     setVal('pFirstName',  headMember.firstName   || '');
@@ -994,7 +1018,7 @@ async function verifyOtp() {
     if (document.getElementById('pAddressPrivate')) document.getElementById('pAddressPrivate').checked = !!headMember.addressPrivate;
 
     familyMembers = otherMembers.map(m => ({
-      role:             m.role           || '',
+      role:             canonicalRole(m.role),   // legacy roles (Wife, Son, …) → the dropdown's values
       gender:           m.gender         || '',
       firstName:        m.firstName      || '',
       lastName:         m.lastName       || '',
@@ -1181,7 +1205,7 @@ function editMember(i) {
   document.getElementById('mLastName').value   = m.lastName  || '';
   document.getElementById('mPhone').value      = m.phone     || '';
   document.getElementById('mEmail').value      = m.email     || '';
-  document.getElementById('mRole').value       = m.role      || '';
+  document.getElementById('mRole').value       = canonicalRole(m.role);
   document.getElementById('mGender').value     = m.gender    || '';
   document.getElementById('mBirthMonth').value  = m.birthdayMonth || '';
   document.getElementById('mBirthDay').value    = m.birthdayDay   || '';
@@ -1270,7 +1294,7 @@ function renderRolesTable() {
   const primaryLast  = (document.getElementById('pLastName')  ? document.getElementById('pLastName').value.trim()  : '');
   const primaryName  = [primaryFirst, primaryLast].filter(Boolean).join(' ') || 'Primary Member';
 
-  const ROLES = ['Head','Spouse','Child','Parent','Sibling','Other'];
+  const ROLES = ROLE_OPTIONS;   // same four values as the Family page and the member form above
   const allRows = [{ name: primaryName, isPrimary: true, index: -1 }]
     .concat(familyMembers.map((m, i) => ({
       name: [m.firstName, m.lastName].filter(Boolean).join(' ') || '(Member ' + (i+1) + ')',
@@ -1286,7 +1310,7 @@ function renderRolesTable() {
     }).join('');
 
     const roleSelect = row.isPrimary
-      ? '<span style="color:#673147;font-weight:600;">Head (Primary)</span>'
+      ? '<span style="color:#673147;font-weight:600;">Head of Household (Primary)</span>'
       : '<select class="role-sel" onchange="onRoleRowChange(this,' + row.index + ')">' +
         '<option value="">-- Select --</option>' + roleOpts + '</select>';
 
@@ -1398,8 +1422,15 @@ async function submitForm() {
   if (showDeclaration && declChk && !declChk.checked) {
     const hint = document.getElementById('declarationHint');
     if (hint) hint.textContent = 'Please read and accept the declaration above.';
+    const sh = document.getElementById('submitHint');
+    if (sh) { sh.textContent = 'Please accept the declaration before submitting.'; sh.style.display = ''; }
+    const card = document.getElementById('declarationCard');
+    if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    declChk.focus();
     return;
   }
+  const sh0 = document.getElementById('submitHint');
+  if (sh0) { sh0.textContent = ''; sh0.style.display = 'none'; }
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.textContent = 'Submitting\u2026';
@@ -1428,7 +1459,7 @@ async function submitForm() {
   };
 
   // Merge primary as Head member into members array (Java expects all in one list)
-  const primaryMember = Object.assign({}, primary, { role: 'Head' });
+  const primaryMember = Object.assign({}, primary, { role: 'Head of Household' });
   const allMembers = [primaryMember].concat(familyMembers);
 
   const payload = {

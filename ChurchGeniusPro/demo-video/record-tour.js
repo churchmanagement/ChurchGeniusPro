@@ -83,41 +83,41 @@ const TOUR = [
   { n:0,  kind:'presenter', secs:14, title:'ChurchGeniusPro', sub:'The All-in-One Platform Churches Will Love',
     say:"Running a church means running a small organisation — people, money, events, volunteers. ChurchGeniusPro puts all of it in one place, with AI built in throughout. Here's a five-minute look." },
 
-  { n:1,  kind:'page', secs:20, route:'/home.html', scene:['Dashboard','Built around how you work'],
+  { n:1,  kind:'page', secs:10, route:'/home.html', scene:['Dashboard','Built around how you work'],
     say:"This is your dashboard. Every section can be dragged where you want it, so each staff member sees what matters to them first.",
     caps:[{ t:'Dashboard', d:'Drag any section to reorder it — the layout is saved per user.' }] },
 
-  { n:2,  kind:'page', secs:18, route:'/members.html', scene:['Families & Members','Everyone, in households'],
+  { n:2,  kind:'page', secs:10, route:'/members.html', scene:['Families & Members','Everyone, in households'],
     probe:'/api/members',
     say:"Membership starts with families, not just individuals — so parents, children and contact details stay together.",
     caps:[{ t:'Families', d:'Add a family once; every member, address and contact stays linked.' }] },
 
-  { n:3,  kind:'page', secs:20, route:'/attendance', scene:['Attendance','Two ways to take it'],
+  { n:3,  kind:'page', secs:7, route:'/attendance', scene:['Attendance','Two ways to take it'],
     fill:[{ sel:'#rFrom', value:'yearAgo' }],
     click:'Records',
     say:"Take attendance for a service in seconds, or let people check themselves in on a tablet at the door.",
     caps:[{ t:'Attendance', d:'Mark a whole service from one screen.' },
           { t:'Self check-in', d:'Or let people check themselves in at the door.' }] },
 
-  { n:4,  kind:'page', secs:18, route:'/kidsMinistry.html', scene:['Kids Ministry','Check-in built for safety'],
+  { n:4,  kind:'page', secs:9, route:'/kidsMinistry.html', scene:['Kids Ministry','Check-in built for safety'],
     say:"Kids ministry has its own check-in, with matching guardian and child labels so no child leaves with the wrong adult.",
     caps:[{ t:'Kids check-in', d:'Guardian and child labels are matched at pick-up.' }] },
 
-  { n:5,  kind:'page', secs:24, route:'/events.html', scene:['Events','Create once, publish everywhere'],
+  { n:5,  kind:'page', secs:12, route:'/events.html', scene:['Events','Create once, publish everywhere'],
     say:"Create an event once and it publishes its own registration page. Returning guests are recognised automatically — their details fill themselves in.",
     caps:[{ t:'Create an event', d:'Dates, capacity, fees, food and accommodation.' },
           { t:'Public registration', d:'Every event gets its own page to share.' }] },
 
-  { n:8,  kind:'page', secs:24, route:'/financial-report.html', scene:['Reports','The numbers your board asks for'],
+  { n:8,  kind:'page', secs:9, route:'/financial-report.html', scene:['Reports','The numbers your board asks for'],
     say:"Income, expense, transaction, tax and full financial reports are built in — the numbers your treasurer and your board actually ask for.",
     click:'Generate',
     caps:[{ t:'Financial reports', d:'Income, expense, transaction, tax and full financials.' }] },
 
-  { n:9,  kind:'page', secs:14, route:'/payroll', scene:['Payroll','Staff pay in the same books'],
+  { n:9,  kind:'page', secs:9, route:'/payroll', scene:['Payroll','Staff pay in the same books'],
     say:"Payroll for your staff runs inside the same system, so salaries land in the same books as everything else.",
     caps:[{ t:'Payroll', d:'Pay runs post straight to your accounts.' }] },
 
-  { n:10,  kind:'page', secs:20, route:'/memberWorship.html', scene:['Worship Planning','Automatic or by hand'],
+  { n:10,  kind:'page', secs:7, route:'/memberWorship.html', scene:['Worship Planning','Automatic or by hand'],
     steps:[{ click:'Assignments' }, { click:'Automatic Assignment' },
            { fill:{ sel:'#autoGroup', pick:'first' } },
            { fill:{ sel:'#autoStartDate', value:'nextSunday' } },
@@ -125,44 +125,45 @@ const TOUR = [
     say:"Plan worship weeks ahead. Assign people automatically on a rotation, or place them by hand — drag a name where you want it.",
     caps:[{ t:'Worship assignments', d:'Rotate automatically, or drag a name into place.' }] },
 
-  { n:11,  kind:'page', secs:18, route:'/reminders.html', scene:['Reminders & Email','Reaching everyone'],
+  { n:11,  kind:'page', secs:11, route:'/reminders.html', scene:['Reminders & Email','Reaching everyone'],
     say:"Reminders go out by email and text — for an event, on a schedule, or as a one-off. And you can write the whole church a message from here.",
     caps:[{ t:'Reminders', d:'Event, periodic and one-time — by email and SMS.' }] },
 
-  { n:12,  kind:'page', secs:24, route:'/ai-assistant.html', scene:['AI Assistant','Help, everywhere in the app'],
+  { n:12,  kind:'page', secs:14, route:'/ai-assistant.html', scene:['AI Assistant','Help, everywhere in the app'],
     say:"The AI assistant works throughout the application. Ask it in plain language — it understands your church's own data, and helps you fill forms by voice, by photo, or just by describing what you want.",
     caps:[{ t:'AI Assistant', d:'Ask in plain language — it knows your church data.' },
           { t:'Voice and photo', d:'Fill forms by speaking, or from a photo of a paper form.' }] },
 
-  { n:13,  kind:'page', secs:22, route:'/ai-assistant.html', scene:['AI Search','Ask your data a question'],
-    click:'What was the income',
+  { n:13,  kind:'page', secs:11, route:'/ai-assistant.html', scene:['AI Search','Ask your data a question'],
+    // Ask about a month the demo tenant has income for (the "March" chip answers "no income").
+    steps:[{ fill:{ sel:'#aiSearchInput', value:'What was the income for September?' } }, { click:'Send' }],
     say:"And AI Search answers real questions about your church. Ask who gave last month, or which families haven't attended since Easter, and it reads your data to tell you.",
     caps:[{ t:'AI Search', d:'"Who gave last month?" — answered from your own records.' }] },
 
   { n:14,  kind:'presenter', secs:8, title:"And there's more", sub:'Everything else waiting inside',
     say:"That's the heart of it — but it is nowhere near all of it. Here's what else is waiting for you inside." },
 
-  { n:15,  kind:'panel', secs:14, title:'Money & giving',
+  { n:15,  kind:'panel', secs:12, title:'Money & giving',
     items:['Income','Bank Import','Bank Sync','Donations & Giving','Pledges'],
     say:"On the money side: income tracking, bank import for statements, bank synchronisation, donations and giving, and pledges for your fundraising campaigns." },
 
-  { n:16,  kind:'panel', secs:16, title:'People & ministry',
+  { n:16,  kind:'panel', secs:11, title:'People & ministry',
     items:['Groups','Meetings','Volunteers','Prayer Ministry','Follow-ups','Certificates','Songbook'],
     say:"For your people: Groups, Meetings, Volunteers, Prayer Ministry, Follow-ups, Certificates — and a Songbook for your worship team." },
 
-  { n:17,  kind:'panel', secs:16, title:'Your church online',
+  { n:17,  kind:'panel', secs:15, title:'Your church online',
     items:['Event Calendar','Upcoming Events','Prayer Request Form','Kids Check-in','Member Sign-up','Membership Form','Donation Form','NTag Landing Page'],
     say:"Seven public pages your church can share: an event calendar, upcoming events, prayer requests, kids check-in, member sign-up, a membership form and a donation form — plus your own NTag landing page." },
 
-  { n:18,  kind:'panel', secs:10, title:'Running the system',
+  { n:18,  kind:'panel', secs:13, title:'Running the system',
     items:['Role Assignment','Add User','Temporary Access','Private Page Access','Link Accounts','Church Settings','Favorites'],
     say:"Behind the scenes: role assignment, adding users, temporary access, private page access, linked accounts, church settings — and Favourites, so your team's most-used screens are one click away." },
 
-  { n:19,  kind:'panel', secs:8, title:'Help when you need it',
+  { n:19,  kind:'panel', secs:9, title:'Help when you need it',
     items:['Help Center','Ticketing','Free migration assistance'],
     say:"And if you get stuck, there's a built-in Help Center and ticketing — plus free migration assistance when you move your data across." },
 
-  { n:20,  kind:'flyer', secs:24,
+  { n:20,  kind:'flyer', secs:18,
     say:"Free for small churches. Twenty dollars a month for Standard, forty for Pro with advanced AI. Start with two months free — every Pro feature included, no credit card required. Visit churchgeniuspro.com." },
 ];
 
@@ -264,13 +265,20 @@ async function ringSel(page, sel) {
   } catch (_) { return false; }
 }
 
+/** Narration is stamped when the segment's content is actually ON SCREEN (not when
+ *  the script starts loading it), on the video's own clock, so a voice-over placed at
+ *  these times lands with the picture. */
+function narrate(seg) {
+  const shown = stamp();
+  narration.push(`[${shown}] (${seg.secs}s) ${seg.say}`);
+}
+
 async function segment(page, seg) {
-  const started = stamp();
-  narration.push(`[${started}] (${seg.secs}s) ${seg.say}`);
-  console.log(`  ${started}  #${seg.n} ${seg.kind.padEnd(9)} ${seg.scene ? seg.scene[0] : (seg.title || 'flyer')}`);
+  console.log(`  ${stamp()}  #${seg.n} ${seg.kind.padEnd(9)} ${seg.scene ? seg.scene[0] : (seg.title || 'flyer')}`);
 
   if (seg.kind === 'presenter') {
     await ui(page, ([n,s]) => window.__tour && window.__tour.full('ChurchGeniusPro', n, s), [seg.title, seg.sub]);
+    narrate(seg);
     await sleep(seg.secs * 1000);
     await ui(page, () => window.__tour && window.__tour.hideFull());
     return;
@@ -278,6 +286,7 @@ async function segment(page, seg) {
 
   if (seg.kind === 'panel') {
     await ui(page, ([t]) => window.__tour && window.__tour.full('Also included', t, ''), [seg.title]);
+    narrate(seg);
     await sleep(600);
     await ui(page, (items) => window.__tour && window.__tour.chips(items), seg.items);
     await sleep(seg.secs * 1000 - 600);
@@ -291,6 +300,7 @@ async function segment(page, seg) {
     catch (_) { console.warn('    ! flyer image missing:', CFG.flyer); }
     if (src) await ui(page, (s) => window.__tour && window.__tour.img(s), src);
     else await ui(page, () => window.__tour && window.__tour.full('', 'churchgeniuspro.com', 'Two months free — no credit card required'));
+    narrate(seg);
     await sleep(seg.secs * 1000);
     return;
   }
@@ -304,6 +314,7 @@ async function segment(page, seg) {
   catch (_) { ok = false; }
   await sleep(1200);
   await ui(page, () => window.__tour && window.__tour.hideFull());
+  narrate(seg);                                   // the page is on screen from here
 
   if (!ok) {
     await ui(page, ([m]) => window.__tour && window.__tour.warn(m), ['Page did not load: ' + seg.route]);
@@ -401,6 +412,7 @@ async function login(page) {
     viewport: { width: CFG.width, height: CFG.height },
     recordVideo: { dir: CFG.outDir, size: { width: CFG.width, height: CFG.height } },
   });
+  t0 = Date.now();                                // the recording starts with the context: this is the video's clock
   await context.addInitScript(installOverlay);
   const page = await context.newPage();
 
@@ -411,7 +423,6 @@ async function login(page) {
   try {
     await login(page);
     await assertSampleTenant(page);
-    t0 = Date.now();
     for (const seg of TOUR) await segment(page, seg);
   } finally {
     const ts = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');

@@ -38,7 +38,9 @@ public class CspFilter implements Filter {
             "font-src 'self' https://fonts.gstatic.com; " +
             "img-src 'self' data: blob: https://ssl.gstatic.com; " +
             // Plaid Link exchanges data with *.plaid.com while a bank connection is in progress.
-            "connect-src 'self' https://api.stripe.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://tessdata.projectnaptha.com https://cdn.plaid.com https://production.plaid.com https://sandbox.plaid.com; " +
+            // blob:/data: — same-document objects only (jsPDF/SheetJS output read back by
+            // native-bridge.js inside the mobile shell; no network origin is added).
+            "connect-src 'self' blob: data: https://api.stripe.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://tessdata.projectnaptha.com https://cdn.plaid.com https://production.plaid.com https://sandbox.plaid.com; " +
             // Plaid Link renders its bank-login flow inside an iframe hosted on cdn.plaid.com.
             // reCAPTCHA renders its challenge in an iframe on www.google.com.
             "frame-src 'self' https://js.stripe.com https://cdn.plaid.com https://www.google.com; " +

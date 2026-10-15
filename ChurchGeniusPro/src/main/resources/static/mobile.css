@@ -331,13 +331,40 @@
   #dirEmailBtn { font-size: 11px; padding: 6px 10px; }
 }
 
-/* ── PWA: safe area insets (notch / home indicator) ─────────────────────── */
+/* ── PWA / app shell: safe area insets (status bar, notch, home indicator) ──
+   The pages declare viewport-fit=cover, so in the Android/iOS app shell the
+   WebView is drawn edge-to-edge under the status bar (Capacitor 8 SystemBars,
+   Android 15+ enforced edge-to-edge). Every inset is 0 in a normal browser, so
+   these rules are inert there. A fixed brand-plum strip (body::before) fills the
+   status-bar area exactly like the installed PWA's theme-color bar; the 100vh
+   .app shell (shell.css) is pushed down and shortened by the same amount so the
+   topbar sits right under the strip and .page-content (the only scroller) still
+   ends at the bottom edge. Pages without the .app shell pad the body instead.
+   The slide-over sidebar is fixed, so it starts below the strip too.
+   native-bridge.js sets light status icons to suit the plum strip. */
 @supports (padding: env(safe-area-inset-top)) {
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top);
+    background: #673147;
+    z-index: 400; /* above sidebar (300) and topbar (250) */
+    pointer-events: none;
+  }
+  .app {
+    margin-top: env(safe-area-inset-top);
+    height: calc(100vh - env(safe-area-inset-top));
+  }
+  body:not(:has(.app)) {
+    padding-top: env(safe-area-inset-top);
+  }
   .topbar {
     padding-left:  max(12px, env(safe-area-inset-left));
     padding-right: max(12px, env(safe-area-inset-right));
   }
   .sidebar {
+    top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .page-content {

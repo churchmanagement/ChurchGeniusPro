@@ -72,7 +72,9 @@ class SubscriptionExpiryLoginTest {
                 loginRepo, appUserRepo, mock(ChurchRegistrationRepository.class),
                 serviceClientRepo, mock(UserPermissionsRepository.class), familyMemberRepo,
                 protection, mock(SecurityAuditService.class),
-                mock(com.churchgeniuspro.service.DemoAccessService.class));
+                mock(com.churchgeniuspro.service.DemoAccessService.class),
+                mock(com.churchgeniuspro.service.RememberMeService.class),
+                mock(com.churchgeniuspro.repository.PushSubscriptionRepository.class));
 
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }

@@ -62,7 +62,9 @@ class ApiPermissionCheckRatchetTest {
         Map.entry("controller/MeetingController.java", 4),
         Map.entry("controller/MeetingTemplateController.java", 1),
         Map.entry("controller/MeetingTypeController.java", 1),
-        Map.entry("controller/MembershipFormController.java", 4),
+        // 4 → 5 (2026-10-14, approved): DELETE /api/membership-requests/{id} checks admin.membership.delete
+        // in addition to the Admin/Church role — a destructive action, gated exactly like admin.family.delete.
+        Map.entry("controller/MembershipFormController.java", 5),
         Map.entry("controller/MembershipPrintController.java", 1),
         Map.entry("controller/NotifyEmailController.java", 2),
         Map.entry("controller/PledgeController.java", 6),

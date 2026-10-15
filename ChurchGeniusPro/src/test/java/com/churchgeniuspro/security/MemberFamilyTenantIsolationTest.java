@@ -187,7 +187,8 @@ class MemberFamilyTenantIsolationTest {
     @DisplayName("3a. a properly linked member (memberId in session) still gets their own tenant's family")
     void legitimateMemberById() {
         FamilyMember me = member(7, "me@church-a.org", TENANT_A, "MBR-me");
-        when(familyMemberRepo.findById(7)).thenReturn(Optional.of(me));
+        // 2026-10-14: the cached memberId is re-read INSIDE the session's tenant (MemberSessionResolver)
+        when(familyMemberRepo.findByIdAndTenant(7, TENANT_A)).thenReturn(Optional.of(me));
         when(familyMemberRepo.findActiveMembersByFamilyId(70)).thenReturn(List.of(me));
         ChurchRegistration reg = new ChurchRegistration();
         reg.setClientId(TENANT_A);

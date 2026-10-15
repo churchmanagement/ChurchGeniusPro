@@ -1665,7 +1665,7 @@
   (function () {
     var LABEL = { meetings: 'Meetings', pledges: 'Pledges', donations: 'Donations', membershipRequests: 'Membership Requests',
                   attendance: 'Attendance', connectSubmissions: 'Connect With Us', prayerRequests: 'Prayer Requests',
-                  unsubscribed: 'Unsubscribed List' };
+                  unsubscribed: 'Unsubscribed List', worship: 'Worship Planning' };
     function E(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
     function fb(msg, ok) { var el = document.getElementById('tbFeedback'); el.textContent = msg || '';
       el.className = 'form-feedback' + (msg ? (ok ? ' success' : ' error') : ''); }

@@ -12,17 +12,18 @@ import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.LoginRepository;
 import com.churchgeniuspro.repository.ServiceClientRepository;
 import com.churchgeniuspro.repository.UserPermissionsRepository;
+import com.churchgeniuspro.repository.PushSubscriptionRepository;
 import com.churchgeniuspro.service.LoginProtectionService;
+import com.churchgeniuspro.service.RememberMeService;
 import com.churchgeniuspro.service.SecurityAuditService;
 import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.util.PasswordUtil;
-import jakarta.servlet.http.Cookie;
+import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,26 +33,34 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Controller
 public class LoginController {
 
     private static final Logger LOG = LoggerFactory.getLogger(LoginController.class);
 
-    private static final String COOKIE_NAME    = "rememberToken";
-    private static final int    COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
-
     /**
-     * Mirrors {@code server.servlet.session.cookie.secure} so the remember-me
-     * cookie also gets the Secure flag in production (where HTTPS is used).
-     * Defaults to {@code false} for local HTTP development.
+     * The Capacitor shell appends this to the WebView's User-Agent
+     * ({@code capacitor.config.ts} → {@code appendUserAgent}). Mobile Phase 3.
      */
-    @Value("${server.servlet.session.cookie.secure:false}")
-    private boolean cookieSecure;
+    public static final String APP_UA_MARKER = "ChurchGeniusProApp/";
+    public static final String KIDS_PORTAL_APP_MESSAGE =
+            "The Kids Portal is available on the website, not in the app. Please sign in at churchgeniuspro.net.";
+
+    /** True when the request comes from the Android / iOS shell. */
+    public static boolean isAppShell(HttpServletRequest request) {
+        String ua = request == null ? null : request.getHeader("User-Agent");
+        return ua != null && ua.contains(APP_UA_MARKER);
+    }
+
+    /*
+     * Remember-me (Phase 1, M2): the cookie, its hashing, rotation and revocation all
+     * live in RememberMeService — one per-device row per browser instead of the old
+     * single signup.remember column. This controller only decides WHEN to issue,
+     * refresh or revoke.
+     */
 
     /**
      * Dummy BCrypt hash of a value nobody will ever submit. When the username does not
@@ -71,6 +80,8 @@ public class LoginController {
     private final LoginProtectionService       loginProtection;
     private final SecurityAuditService         securityAudit;
     private final com.churchgeniuspro.service.DemoAccessService demoAccess;
+    private final RememberMeService            rememberMe;
+    private final PushSubscriptionRepository   pushSubRepo;
 
     public LoginController(LoginRepository loginRepository,
                            AppUserRepository appUserRepository,
@@ -80,9 +91,13 @@ public class LoginController {
                            FamilyMemberRepository familyMemberRepository,
                            LoginProtectionService loginProtection,
                            SecurityAuditService securityAudit,
-                           com.churchgeniuspro.service.DemoAccessService demoAccess) {
+                           com.churchgeniuspro.service.DemoAccessService demoAccess,
+                           RememberMeService rememberMe,
+                           PushSubscriptionRepository pushSubRepo) {
         this.securityAudit                = securityAudit;
         this.demoAccess                   = demoAccess;
+        this.rememberMe                   = rememberMe;
+        this.pushSubRepo                  = pushSubRepo;
         this.loginRepository              = loginRepository;
         this.appUserRepository            = appUserRepository;
         this.churchRegistrationRepository = churchRegistrationRepository;
@@ -96,6 +111,16 @@ public class LoginController {
     @GetMapping("/")
     public String rootPage() {
         return "forward:/login.html";
+    }
+
+    /**
+     * Public account-deletion information page (mobile Phase 2, M4). Google Play
+     * requires a web link that explains how to delete the account; the page points at
+     * the in-app flow and states what the church keeps.
+     */
+    @GetMapping("/account-deletion")
+    public String accountDeletionPage() {
+        return "forward:/accountDeletion.html";
     }
 
     /**
@@ -132,7 +157,7 @@ public class LoginController {
                                                       HttpServletResponse response) {
         String  username   = body.get("username")   instanceof String s ? s.trim() : "";
         String  password   = body.get("password")   instanceof String s ? s       : "";
-        boolean rememberMe = Boolean.TRUE.equals(body.get("rememberMe"));
+        boolean rememberMeFlag = Boolean.TRUE.equals(body.get("rememberMe"));
 
         Map<String, Object> res = new HashMap<>();
 
@@ -341,6 +366,16 @@ public class LoginController {
 
         buildResponse(res, user, isChurch, session);
 
+        // ── Mobile Phase 3 (M6 decision: adults-only app) ────────────────────
+        // A Kids-portal (child) login is a web-only feature; the app shell refuses it
+        // after the password check so the message is specific, and the half-built
+        // session is discarded. Recorded as a denial, never a failure (correct password).
+        if (isAppShell(request) && RoleGuard.isKidsPortalSession(session)) {
+            session.invalidate();
+            loginProtection.recordDenied(request, username, "KIDS_PORTAL_APP", user.getClientId(), "/login");
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", KIDS_PORTAL_APP_MESSAGE));
+        }
+
         // ── Demo/trial agreement gate ────────────────────────────────────────
         // Recorded on the session so DemoTrialAgreementFilter can enforce it without
         // a database read per request, and so the front end knows to raise the
@@ -368,19 +403,15 @@ public class LoginController {
         // counter is deliberately left running — see LoginProtectionService.
         securityAudit.recordLogin(request, username, user.getClientId(), session);
 
-        // ── Remember-me: persist token to DB and set cookie ───────────────
-        if (rememberMe) {
-            String token = UUID.randomUUID().toString();
-            user.setRemember(token);
-            loginRepository.save(user);
-            addRememberCookie(response, token);
+        // ── Remember-me: one credential for THIS browser (Phase 1, M2) ────
+        // Ticked: a new per-device row + cookie; every other remembered device of the
+        // account keeps working. Unticked: only this browser's credential is revoked —
+        // the old code cleared the single shared token and silently signed every other
+        // device out.
+        if (rememberMeFlag) {
+            this.rememberMe.issue(user, request, response);
         } else {
-            // Clear any existing token if user unchecked the box
-            if (user.getRemember() != null) {
-                user.setRemember(null);
-                loginRepository.save(user);
-            }
-            clearRememberCookie(response);
+            this.rememberMe.revokeCurrent(request, response);
         }
 
         return ResponseEntity.ok(res);
@@ -398,15 +429,16 @@ public class LoginController {
                                                               HttpServletResponse response) {
         Map<String, Object> res = new HashMap<>();
 
-        String token = readRememberCookie(request);
-        if (token == null || token.isBlank()) {
+        if (RememberMeService.readCookie(request) == null) {
             res.put("status", "none");
             return ResponseEntity.ok(res);
         }
 
-        SignUp user = loginRepository.findByRememberToken(token).orElse(null);
+        // Per-device row (or a legacy signup.remember value, migrated on the spot).
+        RememberMeService.Resolved resolved = rememberMe.resolve(request).orElse(null);
+        SignUp user = resolved == null ? null : resolved.user();
         if (user == null || Boolean.FALSE.equals(user.getActive())) {
-            clearRememberCookie(response);
+            rememberMe.revokeCurrent(request, response);
             res.put("status", "none");
             return ResponseEntity.ok(res);
         }
@@ -419,7 +451,7 @@ public class LoginController {
             // so the remember-me cookie is cleared immediately and login is required.
             AppUser staffUser = appUserRepository.findByUserIdAndDeleteFlagFalse(cid4check).orElse(null);
             if (staffUser == null || !staffUser.isEnabled()) {
-                clearRememberCookie(response);
+                rememberMe.revokeCurrent(request, response);
                 res.put("status", "none");
                 return ResponseEntity.ok(res);
             }
@@ -429,7 +461,7 @@ public class LoginController {
                     ? loginRepository.countValidChurchLogin(user.getUsername())
                     : loginRepository.countValidNonChurchLogin(user.getUsername());
             if (validCount == 0) {
-                clearRememberCookie(response);
+                rememberMe.revokeCurrent(request, response);
                 res.put("status", "none");
                 return ResponseEntity.ok(res);
             }
@@ -443,7 +475,7 @@ public class LoginController {
         String reissueBlock = reissueBlockReason(user, isChurch, cid4check, isMbrAcct);
         if (reissueBlock != null) {
             LOG.warn("Remember-me refused for username='{}' — {}", user.getUsername(), reissueBlock);
-            clearRememberCookie(response);
+            rememberMe.revokeCurrent(request, response);
             res.put("status", "none");
             return ResponseEntity.ok(res);
         }
@@ -455,12 +487,21 @@ public class LoginController {
 
         buildResponse(res, user, isChurch, session);
 
+        if (isAppShell(request) && RoleGuard.isKidsPortalSession(session)) {   // Mobile Phase 3 (M6)
+            session.invalidate();
+            rememberMe.revokeCurrent(request, response);
+            res.clear();
+            res.put("status", "none");
+            res.put("message", KIDS_PORTAL_APP_MESSAGE);
+            return ResponseEntity.ok(res);
+        }
+
         // A remember-me auto-login is still a sign-in and belongs in the audit trail —
         // arguably more so, since it happens without anyone typing a password.
         securityAudit.recordLogin(request, user.getUsername(), user.getClientId(), session);
 
-        // Refresh cookie lifetime
-        addRememberCookie(response, token);
+        // Rotate the credential (new cookie value, sliding 30-day expiry).
+        rememberMe.rotate(resolved.token(), response);
 
         return ResponseEntity.ok(res);
     }
@@ -499,13 +540,23 @@ public class LoginController {
     }
 
     /**
-     * Logout endpoint: clears the remember-me token from the database and cookie,
-     * then invalidates the session.
+     * Logout endpoint: revokes THIS device's remember-me credential (other devices keep
+     * theirs), deactivates this device's push subscription when the page tells us its
+     * endpoint (Phase 1, M3), then invalidates the session.
+     *
+     * <p>Optional JSON body: {@code { "pushEndpoint": "https://fcm.googleapis.com/..." }}.
+     * The endpoint is the browser's own unguessable push URL; deactivating it is what
+     * {@code /api/push/unsubscribe} already allows for any signed-in user. Carrying it in
+     * the logout request means one round trip and no ordering problem — a logout never
+     * waits on, or fails because of, the push lookup.
      */
     @ResponseBody
     @PostMapping("/api/auth/logout")
-    public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request,
+    public ResponseEntity<Map<String, Object>> logout(@RequestBody(required = false) Map<String, Object> body,
+                                                       HttpServletRequest request,
                                                        HttpServletResponse response) {
+        deactivatePushEndpoint(body);
+
         // Capture session info before invalidation for logout log
         HttpSession session = request.getSession(false);
         if (session != null) {
@@ -515,17 +566,22 @@ public class LoginController {
             session.invalidate();
         }
 
-        // Clear remember token from DB if present
-        String token = readRememberCookie(request);
-        if (token != null && !token.isBlank()) {
-            loginRepository.findByRememberToken(token).ifPresent(user -> {
-                user.setRemember(null);
-                loginRepository.save(user);
-            });
-        }
-        clearRememberCookie(response);
+        rememberMe.revokeCurrent(request, response);
 
         return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    /** Shared with {@code SessionController./api/logout}: deactivate the device's push row. */
+    void deactivatePushEndpoint(Map<String, Object> body) {
+        if (body == null) return;
+        Object ep = body.get("pushEndpoint");
+        if (ep instanceof String endpoint && !endpoint.isBlank() && endpoint.length() <= 2048) {
+            try {
+                pushSubRepo.deactivateByEndpoint(endpoint.trim());
+            } catch (Exception e) {
+                LOG.warn("Logout: could not deactivate push subscription — {}", e.getMessage());
+            }
+        }
     }
 
     /**
@@ -1192,34 +1248,6 @@ public class LoginController {
                 session.getAttribute("username"));
 
         res.put("status", "success");
-    }
-
-    // ── Cookie helpers ────────────────────────────────────────────────────────
-
-    private void addRememberCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie(COOKIE_NAME, token);
-        cookie.setMaxAge(COOKIE_MAX_AGE);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);              // same flag as the session cookie
-        cookie.setAttribute("SameSite", "Lax");      // never sent on cross-site sub-requests
-        response.addCookie(cookie);
-    }
-
-    private void clearRememberCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(COOKIE_NAME, "");
-        cookie.setMaxAge(0);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        response.addCookie(cookie);
-    }
-
-    private String readRememberCookie(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
-        return Arrays.stream(request.getCookies())
-                .filter(c -> COOKIE_NAME.equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst().orElse(null);
     }
 
     private static String str(Object val) {

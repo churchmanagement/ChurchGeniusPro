@@ -37,6 +37,11 @@ public class SessionController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
+    /** Full logout (remember-me + push + audit); optional so lightweight tests can omit it. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private LoginController loginController;
+
     public SessionController(AppUserRepository appUserRepository) {
         this.appUserRepository = appUserRepository;
     }
@@ -161,8 +166,17 @@ public class SessionController {
      * login page.
      */
     @PostMapping("/api/logout")
-    public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
+    public ResponseEntity<Map<String, Object>> logout(
+            @org.springframework.web.bind.annotation.RequestBody(required = false) Map<String, Object> body,
+            HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response) {
 
+        // Phase 1 (M2/M3): this used to invalidate the session and nothing else, so a
+        // page that signed out through here left the remember-me cookie — and the
+        // device's push subscription — alive. It now does what /api/auth/logout does.
+        if (loginController != null) {
+            return loginController.logout(body, request, response);
+        }
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();

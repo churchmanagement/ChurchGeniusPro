@@ -121,11 +121,59 @@ class MemberContributionTest {
             assertThat(stripe.creates).isEmpty();
         }
 
-        @Test @DisplayName("a staff session is not a member: refused")
+        @Test @DisplayName("a staff session with no linked member record is refused (401), never treated as 'not configured'")
         void staffRefused() {
             MockHttpServletRequest req = new MockHttpServletRequest(); MockHttpSession s = new MockHttpSession();
             s.setAttribute("role", "Admin"); s.setAttribute("username", "a"); s.setAttribute("appClientId", CID); req.setSession(s);
             assertThat(controller.createIntent(Map.of("amount", "10", "subSourceId", 7), req).getStatusCode().value()).isEqualTo(401);
+            assertThat(controller.config(req).getStatusCode().value()).isEqualTo(401);
+        }
+
+        /** Staff login whose e-mail matches a member of their own church (the My Profile → Give case). */
+        MockHttpServletRequest staff(String clientId, int appUserId, String email) {
+            MockHttpServletRequest req = new MockHttpServletRequest(); MockHttpSession s = new MockHttpSession();
+            s.setAttribute("role", "SuperAdmin"); s.setAttribute("username", email); s.setAttribute("appClientId", clientId);
+            s.setAttribute("appUserId", appUserId); s.setAttribute("clientId", "USR-" + appUserId);
+            req.setSession(s); return req;
+        }
+
+        @Test @DisplayName("a SuperAdmin whose e-mail is on a member record gets the church's config (publishable key only) and can give")
+        void staffLinkedBySelfEmail() {
+            com.churchgeniuspro.repository.AppUserRepository users = mock(com.churchgeniuspro.repository.AppUserRepository.class);
+            com.churchgeniuspro.hibernate.AppUser u = new com.churchgeniuspro.hibernate.AppUser(); u.setId(1); u.setEmail("Anson@x.org"); u.setClientId(CID);
+            when(users.findById(1)).thenReturn(Optional.of(u));
+            FamilyMember anson = memberRepo.findByIdAndTenant(10, CID).get();
+            when(memberRepo.findActiveByEmailAndTenant("anson@x.org", CID)).thenReturn(java.util.List.of(anson));
+            controller.setResolver(new com.churchgeniuspro.service.MemberSessionResolver(memberRepo, users));
+
+            MockHttpServletRequest req = staff(CID, 1, "Anson@x.org");
+            ResponseEntity<?> r = controller.config(req);
+            assertThat(r.getStatusCode().value()).as("%s", r.getBody()).isEqualTo(200);
+            assertThat(body(r)).containsEntry("onlineGivingEnabled", true).containsEntry("publishableKey", "pk_test_church");
+            assertThat(String.valueOf(r.getBody())).doesNotContain("sk_test");
+            assertThat(req.getSession().getAttribute("memberId")).as("link cached for later calls").isEqualTo(10);
+
+            ResponseEntity<?> i = controller.createIntent(Map.of("amount", "10.00", "subSourceId", 7), req);
+            assertThat(i.getStatusCode().value()).as("%s", i.getBody()).isEqualTo(200);
+            assertThat(stripe.creates.get(0).getFirst("metadata[member_id]")).isEqualTo("10");
+            assertThat(stripe.creates.get(0).getFirst("metadata[client_id]")).isEqualTo(CID);
+        }
+
+        @Test @DisplayName("cross-church isolation: a staff user of church A never sees church B's giving config even if B has a member with the same e-mail")
+        void staffCrossTenant() {
+            com.churchgeniuspro.repository.AppUserRepository users = mock(com.churchgeniuspro.repository.AppUserRepository.class);
+            com.churchgeniuspro.hibernate.AppUser u = new com.churchgeniuspro.hibernate.AppUser(); u.setId(2); u.setEmail("shared@x.org"); u.setClientId(OTHER);
+            when(users.findById(2)).thenReturn(Optional.of(u));
+            FamilyMember inA = new FamilyMember(); inA.setId(44); inA.setEmail("shared@x.org"); inA.setAppClientId(CID);
+            // the resolver must ask with the staff user's OWN tenant (OTHER) — church A's match is never consulted
+            when(memberRepo.findActiveByEmailAndTenant("shared@x.org", CID)).thenReturn(java.util.List.of(inA));
+            when(memberRepo.findActiveByEmailAndTenant("shared@x.org", OTHER)).thenReturn(java.util.List.of());
+            controller.setResolver(new com.churchgeniuspro.service.MemberSessionResolver(memberRepo, users));
+
+            ResponseEntity<?> r = controller.config(staff(OTHER, 2, "shared@x.org"));
+            assertThat(r.getStatusCode().value()).isEqualTo(401);
+            assertThat(String.valueOf(r.getBody())).doesNotContain("pk_test_church");
+            verify(memberRepo, never()).findActiveByEmailAndTenant("shared@x.org", CID);
         }
     }
 

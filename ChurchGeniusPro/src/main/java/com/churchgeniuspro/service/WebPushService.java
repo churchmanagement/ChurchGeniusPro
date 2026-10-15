@@ -38,6 +38,14 @@ import java.util.stream.Collectors;
  * a startup warning.  Run the key-generation helper once to populate the
  * properties file.
  *
+ * <h3>Mobile Phase 5 — one subscription table, two transports</h3>
+ * <p>Every send method is the single entry point for ALL devices of a user / org.
+ * Rows with {@code platform = web} go out exactly as before (VAPID); rows the app
+ * registered ({@code android} / {@code ios}) are handed to {@link NativePushService}
+ * (FCM). {@link #isEnabled()} is true when either transport is configured, so the
+ * schedulers keep running when only one of them is; the VAPID key endpoint asks
+ * {@link #isWebPushEnabled()} specifically.
+ *
  * <h3>Logging variants</h3>
  * <p>Every {@code sendToOrg} / {@code sendToUser} call has a corresponding
  * {@code logAndSend*} variant that writes a {@link PushNotificationLog} row
@@ -64,15 +72,19 @@ public class WebPushService {
 
     private final PushSubscriptionRepository    pushSubRepo;
     private final PushNotificationLogRepository logRepo;
+    private final NativePushService             nativePush;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private PushService pushService;
-    private boolean enabled = false;
+    /** VAPID configured (browser delivery possible). */
+    private boolean webEnabled = false;
 
     public WebPushService(PushSubscriptionRepository pushSubRepo,
-                          PushNotificationLogRepository logRepo) {
+                          PushNotificationLogRepository logRepo,
+                          NativePushService nativePush) {
         this.pushSubRepo = pushSubRepo;
         this.logRepo     = logRepo;
+        this.nativePush  = nativePush;
     }
 
     @PostConstruct
@@ -91,7 +103,7 @@ public class WebPushService {
 
         try {
             pushService = new PushService(vapidPublicKey, vapidPrivateKey, vapidSubject);
-            enabled = true;
+            webEnabled = true;
             log.info("[WebPush] Initialized — push notifications enabled.");
         } catch (Exception e) {
             log.error("[WebPush] Failed to initialize PushService: {}", e.getMessage(), e);
@@ -115,8 +127,19 @@ public class WebPushService {
                ? vapidPublicKeyRaw : vapidPublicKey;
     }
 
+    /** True when at least one transport (VAPID browsers, FCM app) can deliver. */
     public boolean isEnabled() {
-        return enabled;
+        return webEnabled || (nativePush != null && nativePush.isEnabled());
+    }
+
+    /** True only when VAPID is configured — what browsers need before subscribing. */
+    public boolean isWebPushEnabled() {
+        return webEnabled;
+    }
+
+    /** True only when the FCM service account is configured. */
+    public boolean isNativePushEnabled() {
+        return nativePush != null && nativePush.isEnabled();
     }
 
     /**
@@ -124,7 +147,7 @@ public class WebPushService {
      * Does NOT write a log row — use {@link #logAndSendToUser} from schedulers.
      */
     public void sendToUser(String userKey, String title, String body, String url, String tag) {
-        if (!enabled) return;
+        if (!isEnabled()) return;
         List<PushSubscription> subs = pushSubRepo.findByUserKeyAndActiveTrue(userKey);
         sendToSubscriptions(subs, title, body, url, tag);
     }
@@ -135,7 +158,7 @@ public class WebPushService {
      */
     public void sendToOrgByType(String appClientId, String userType,
                                 String title, String body, String url, String tag) {
-        if (!enabled) return;
+        if (!isEnabled()) return;
         List<PushSubscription> subs = pushSubRepo
                 .findByAppClientIdAndUserTypeAndActiveTrue(appClientId, userType);
         sendToSubscriptions(subs, title, body, url, tag);
@@ -147,7 +170,7 @@ public class WebPushService {
      */
     public void sendToOrg(String appClientId,
                           String title, String body, String url, String tag) {
-        if (!enabled) return;
+        if (!isEnabled()) return;
         List<PushSubscription> subs = pushSubRepo.findByAppClientIdAndActiveTrue(appClientId);
         sendToSubscriptions(subs, title, body, url, tag);
     }
@@ -171,7 +194,7 @@ public class WebPushService {
      */
     public void logAndSendToOrgByType(String appClientId, String userType,
                                       String title, String body, String url, String tag) {
-        if (!enabled) return;
+        if (!isEnabled()) return;
         List<PushSubscription> subs = pushSubRepo
                 .findByAppClientIdAndUserTypeAndActiveTrue(appClientId, userType);
         // Log once per unique user (not per device)
@@ -188,7 +211,7 @@ public class WebPushService {
      */
     public void logAndSendToOrg(String appClientId,
                                 String title, String body, String url, String tag) {
-        if (!enabled) return;
+        if (!isEnabled()) return;
         List<PushSubscription> subs = pushSubRepo.findByAppClientIdAndActiveTrue(appClientId);
         // Log once per unique user (not per device)
         subs.stream()
@@ -270,6 +293,15 @@ public class WebPushService {
         }
     }
 
+    /** Mobile Phase 5: app rows go through FCM; an unregistered token deactivates the row. */
+    private void deliverNative(PushSubscription sub, String title, String body, String url, String tag) {
+        if (nativePush == null) return;
+        NativePushService.Result r = nativePush.send(sub, title, body, url, tag);
+        if (r == NativePushService.Result.UNREGISTERED) {
+            try { pushSubRepo.deactivateByEndpoint(sub.getEndpoint()); } catch (Exception ignored) { /* best effort */ }
+        }
+    }
+
     private void sendToSubscriptions(List<PushSubscription> subs,
                                      String title, String body, String url, String tag) {
         if (subs == null || subs.isEmpty()) return;
@@ -290,6 +322,11 @@ public class WebPushService {
         }
 
         for (PushSubscription sub : subs) {
+            if (sub.isNative()) {
+                deliverNative(sub, title, body, url, tag);
+                continue;
+            }
+            if (!webEnabled) continue;   // VAPID not configured: browser rows are skipped, app rows still go
             try {
                 Notification notification = new Notification(
                     sub.getEndpoint(),

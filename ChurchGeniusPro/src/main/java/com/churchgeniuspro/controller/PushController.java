@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
  *   <li>{@code GET  /api/push/vapid-public-key}  — returns the server's VAPID public key.</li>
  *   <li>{@code POST /api/push/subscribe}           — stores/updates a browser push subscription.</li>
  *   <li>{@code POST /api/push/unsubscribe}          — deactivates a subscription by endpoint.</li>
+ *   <li>{@code POST /api/push/register-native}      — Mobile Phase 5: stores the app's FCM token (Android/iOS).</li>
  *   <li>{@code GET  /api/push/badge}               — returns unread notification count for badge.</li>
  *   <li>{@code GET  /api/push/notifications}       — returns recent notification history (last 20).</li>
  *   <li>{@code POST /api/push/mark-read}           — marks all notifications as read.</li>
@@ -69,7 +70,7 @@ public class PushController {
     // sends e.g. Accept: application/json).
     @GetMapping(value = "/api/push/vapid-public-key")
     public ResponseEntity<String> vapidPublicKey() {
-        if (!pushService.isEnabled()) {
+        if (!pushService.isWebPushEnabled()) {
             // Push is optional: when VAPID keys aren't configured, return 204 No Content
             // so the client can silently skip registration without logging an error.
             return ResponseEntity.noContent().build();
@@ -118,6 +119,59 @@ public class PushController {
         // Return the current unread count so the browser can initialise the badge
         long unread = logRepo.countUnread(clientId);
         return ResponseEntity.ok(Map.of("status", "subscribed", "unreadCount", unread));
+    }
+
+    // ── POST /api/push/register-native ────────────────────────────────────────
+
+    /**
+     * Mobile Phase 5: the ChurchGeniusPro app registers (or re-keys) its FCM token for
+     * the signed-in user. Body: {@code { token, platform: "android"|"ios", deviceName? }}.
+     * The row lives in the same table as browser subscriptions — keyed to THIS user,
+     * re-activated if a previous user's logout deactivated it, deactivated again by the
+     * next logout via the existing {@code pushEndpoint} mechanism.
+     *
+     * <p>Child (kids-mode) sessions never reach this endpoint: the app refuses child
+     * logins at the gate (Phase 3), and the bridge does not register on the web.
+     */
+    @PostMapping("/api/push/register-native")
+    public ResponseEntity<?> registerNative(@RequestBody Map<String, Object> body,
+                                            HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("clientId") == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+        String token = body.get("token") instanceof String t ? t.trim() : "";
+        if (token.isEmpty() || token.length() > 4096) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing token"));
+        }
+        String platform = body.get("platform") instanceof String p ? p.trim().toLowerCase() : "";
+        if (!PushSubscription.PLATFORM_ANDROID.equals(platform) && !PushSubscription.PLATFORM_IOS.equals(platform)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "platform must be android or ios"));
+        }
+        String deviceName = body.get("deviceName") instanceof String d && !d.isBlank()
+                ? d.trim().substring(0, Math.min(120, d.trim().length())) : null;
+
+        String clientId    = (String) session.getAttribute("clientId");
+        String role        = (String) session.getAttribute("role");
+        String appClientId = resolveAppClientId(session);
+        String userType    = "Member".equals(role) ? "member" : "staff";
+
+        PushSubscription sub = pushSubRepo.findByEndpoint(token).orElseGet(PushSubscription::new);
+        sub.setEndpoint(token);
+        sub.setP256dh(PushSubscription.NATIVE_KEY_PLACEHOLDER);
+        sub.setAuth(PushSubscription.NATIVE_KEY_PLACEHOLDER);
+        sub.setPlatform(platform);
+        if (deviceName != null) sub.setDeviceName(deviceName);
+        sub.setUserKey(clientId);
+        sub.setAppClientId(appClientId);
+        sub.setUserType(userType);
+        sub.setActive(true);
+        pushSubRepo.save(sub);
+
+        long unread = logRepo.countUnread(clientId);
+        return ResponseEntity.ok(Map.of("status", "registered",
+                                        "enabled", pushService.isNativePushEnabled(),
+                                        "unreadCount", unread));
     }
 
     // ── POST /api/push/unsubscribe ────────────────────────────────────────────

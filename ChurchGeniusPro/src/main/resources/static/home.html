@@ -1008,8 +1008,17 @@ function visibleSections() {
 }
 
 async function doLogout() {
+  try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
+  try { sessionStorage.removeItem('cgp_push_synced'); } catch (_) {}
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    /* Phase 1 (M3): session.js resolves this device's push endpoint so the
+       server can deactivate its subscription on sign-out. */
+    var endpoint = window.CGP_pushEndpoint ? await window.CGP_pushEndpoint(1500) : null;
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+    });
   } catch (_) { /* ignore */ }
   localStorage.removeItem('rememberedUsername');
   window.location.href = '/login';

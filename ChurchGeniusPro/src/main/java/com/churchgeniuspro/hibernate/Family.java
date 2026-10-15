@@ -75,6 +75,15 @@ public class Family {
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag;
 
+    /**
+     * When the family's membership was last renewed — set only by a successful
+     * "Approve and Update" of a membership request (V15). Never set by plain Approve,
+     * deletion or a status change; a later successful renewal replaces it.
+     */
+    @Column(name = "membership_renewed_at")
+    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
+    private Date membershipRenewedAt;
+
     // ── Audit ─────────────────────────────────────────────────────────────
 
     /** Timestamp set automatically on first insert. Never updated. */

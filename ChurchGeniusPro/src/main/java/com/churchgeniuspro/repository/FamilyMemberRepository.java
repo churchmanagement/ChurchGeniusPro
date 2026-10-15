@@ -566,12 +566,28 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
      * A member of the given church, by id. Tenant is the family's appClientId when
      * the member belongs to a family, otherwise the member's own. Returns empty for
      * an id that exists in another church, so callers cannot tell the difference.
+     *
+     * <p>The family is JOIN FETCHed (like {@link #findByMemberRef}) because
+     * {@code MemberSessionResolver} reads {@code family.appClientId} outside a
+     * transaction and {@code spring.jpa.open-in-view} is off: a lazy proxy here
+     * made every member-portal request after the first fail with
+     * LazyInitializationException.
      */
-    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN FETCH m.family f " +
            "WHERE m.id = :id AND m.deleteFlag = false " +
            "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
     java.util.Optional<FamilyMember> findByIdAndTenant(@Param("id") Integer id,
                                                        @Param("appClientId") String appClientId);
+
+    /**
+     * The church of one member as a plain string — the family's appClientId when the
+     * member belongs to a family, otherwise the member's own. Used by
+     * {@code MemberSessionResolver} when it holds a member whose family was not
+     * fetched, so it never has to initialise a lazy proxy outside a transaction.
+     */
+    @Query("SELECT COALESCE(f.appClientId, m.appClientId) FROM FamilyMember m LEFT JOIN m.family f " +
+           "WHERE m.id = :id")
+    String findTenantOfMember(@Param("id") Integer id);
 
     /**
      * Active members of the given church whose email matches exactly
@@ -583,7 +599,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
      * family inbox) the same as no hit, rather than guessing which member
      * to credit. Financial audit H9.
      */
-    @Query("SELECT m FROM FamilyMember m LEFT JOIN m.family f " +
+    @Query("SELECT m FROM FamilyMember m LEFT JOIN FETCH m.family f " +
            "WHERE LOWER(m.email) = LOWER(:email) AND m.deleteFlag = false AND m.inactive = false " +
            "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
     List<FamilyMember> findActiveByEmailAndTenant(@Param("email") String email,

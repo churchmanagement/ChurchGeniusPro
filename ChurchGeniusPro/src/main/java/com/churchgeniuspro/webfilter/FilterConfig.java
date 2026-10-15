@@ -124,6 +124,20 @@ public class FilterConfig {
     }
 
     /**
+     * Cache-Control: no-store on every /api/** response (Phase 1, M7). Order -1 like
+     * CspFilter; the header is set before the chain so controllers can override it.
+     */
+    @Bean
+    public FilterRegistrationBean<ApiNoStoreFilter> apiNoStoreFilter() {
+        FilterRegistrationBean<ApiNoStoreFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new ApiNoStoreFilter());
+        registration.addUrlPatterns("/api/*");
+        registration.setName("apiNoStoreFilter");
+        registration.setOrder(-1);
+        return registration;
+    }
+
+    /**
      * Sets Content-Security-Policy on every response.
      * Runs at order -1 so it fires before all other custom filters.
      */

@@ -8,6 +8,8 @@
 
 (function () {
   'use strict';
+  /* Mobile Phase 4: the app shell IS the installed app — no install banner. */
+  if (window.Capacitor) return;
 
   /* ── 1. Service worker registration ─────────────────────────────────────────
    * SW registration is fully owned by session.js (which also wires the
