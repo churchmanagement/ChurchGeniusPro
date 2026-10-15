@@ -1014,10 +1014,14 @@ async function doLogout() {
     /* Phase 1 (M3): session.js resolves this device's push endpoint so the
        server can deactivate its subscription on sign-out. */
     var endpoint = window.CGP_pushEndpoint ? await window.CGP_pushEndpoint(1500) : null;
+    var body = endpoint ? { pushEndpoint: endpoint } : {};
+    /* Mobile Phase 6: the app's device credential dies with the session. */
+    var dt = window.CGP_deviceToken ? await window.CGP_deviceToken(1500) : null;
+    if (dt) body.deviceToken = dt;
     await fetch('/api/auth/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+      body: JSON.stringify(body)
     });
   } catch (_) { /* ignore */ }
   localStorage.removeItem('rememberedUsername');

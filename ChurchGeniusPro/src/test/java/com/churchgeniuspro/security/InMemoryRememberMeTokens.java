@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,7 @@ final class InMemoryRememberMeTokens {
             rows.put(t.getId(), t);
             return t;
         });
+        when(tokens.findById(anyLong())).thenAnswer(inv -> Optional.ofNullable(rows.get((Long) inv.getArgument(0))));
         when(tokens.findByTokenHash(anyString())).thenAnswer(inv ->
                 rows.values().stream().filter(t -> inv.getArgument(0).equals(t.getTokenHash())).findFirst());
         when(tokens.findByPrevTokenHash(anyString())).thenAnswer(inv ->

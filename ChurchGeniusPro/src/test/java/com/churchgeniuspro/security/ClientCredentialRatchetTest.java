@@ -40,11 +40,13 @@ class ClientCredentialRatchetTest {
     @Test
     @DisplayName("every logout path can hand the push endpoint to the server")
     void logoutPathsCarryPushEndpoint() throws Exception {
+        // Phase 6 widened the body ({ pushEndpoint?, deviceToken? }); the endpoint is still carried on every path.
         assertThat(read("session.js")).contains("function CGP_pushEndpoint(")
-                .contains("JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})");
+                .contains("if (r[0]) body.pushEndpoint = r[0];");
         assertThat(read("memberHome.html")).contains("function cgpPushEndpoint(")
-                .contains("JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})");
-        assertThat(read("home.html")).contains("JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})");
+                .contains("var body = endpoint ? { pushEndpoint: endpoint } : {};");
+        assertThat(read("home.html")).contains("var body = endpoint ? { pushEndpoint: endpoint } : {};")
+                .contains("if (dt) body.deviceToken = dt;");
     }
 
     @Test

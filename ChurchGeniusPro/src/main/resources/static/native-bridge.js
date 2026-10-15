@@ -343,6 +343,111 @@
   syncStatusBarStyle();
   window.CGP_NATIVE.syncStatusBarStyle = syncStatusBarStyle;
 
+  /* ── 8. biometric sign-in with a device-bound secret (Mobile Phase 6) ─── */
+  // The app never stores a password. When Remember me is ticked in the app,
+  // /login answers with a one-time `deviceToken` instead of a cookie; it lives
+  // in the OS secure store (iOS Keychain, kSecAttrAccessibleWhenUnlockedThisDeviceOnly;
+  // Android Keystore-encrypted preferences) and is only read after the OS
+  // biometric / device-credential prompt succeeds. /api/auth/device-login
+  // rotates it on every use and refuses revoked ones, in which case the copy
+  // here is deleted. Plugins: @aparajita/capacitor-secure-storage (native
+  // name "SecureStorage") and @aparajita/capacitor-biometric-auth
+  // ("BiometricAuthNative"), both reached through Capacitor.Plugins like push.
+  var DEVICE_TOKEN_KEY = 'cgp_device_token';
+  var KEYCHAIN_WHEN_UNLOCKED_THIS_DEVICE_ONLY = 1;   // KeychainAccess enum of the plugin
+
+  function hasSecureStorage() { return !!(P.SecureStorage && typeof P.SecureStorage.internalGetItem === 'function'); }
+  function hasBiometry()      { return !!(P.BiometricAuthNative && typeof P.BiometricAuthNative.internalAuthenticate === 'function'); }
+
+  function readDeviceToken() {
+    if (!hasSecureStorage()) return Promise.resolve(null);
+    return P.SecureStorage.internalGetItem({ prefixedKey: DEVICE_TOKEN_KEY, sync: false })
+      .then(function (r) { return r && typeof r.data === 'string' && r.data ? r.data : null; })
+      .catch(function () { return null; });
+  }
+  function writeDeviceToken(token) {
+    if (!hasSecureStorage() || !token) return Promise.resolve(false);
+    return P.SecureStorage.internalSetItem({ prefixedKey: DEVICE_TOKEN_KEY, data: token, sync: false,
+                                             access: KEYCHAIN_WHEN_UNLOCKED_THIS_DEVICE_ONLY })
+      .then(function () { return true; }).catch(function (e) { log('secure store write failed', e && e.message); return false; });
+  }
+  function clearDeviceToken() {
+    if (!hasSecureStorage()) return Promise.resolve();
+    return P.SecureStorage.internalRemoveItem({ prefixedKey: DEVICE_TOKEN_KEY, sync: false }).catch(function () {});
+  }
+
+  /** Can this device protect a secret? (biometrics enrolled, or at least a passcode/PIN). */
+  function deviceCanUnlock() {
+    if (!hasBiometry()) return Promise.resolve(false);
+    return P.BiometricAuthNative.checkBiometry()
+      .then(function (b) { return !!(b && (b.isAvailable || b.deviceIsSecure)); })
+      .catch(function () { return false; });
+  }
+
+  /**
+   * login.html calls this with the deviceToken from /login. Stored only when
+   * the OS can gate it; otherwise the user simply signs in with the password
+   * next time (nothing is kept).
+   */
+  function storeDeviceToken(token) {
+    return deviceCanUnlock().then(function (ok) {
+      if (!ok) { log('device has no biometrics/passcode — not storing a device token'); return false; }
+      return writeDeviceToken(token);
+    });
+  }
+
+  /** Prompts the OS (biometrics, or device PIN/pattern as fallback). Resolves true/false; never throws. */
+  function promptUnlock(reason) {
+    if (!hasBiometry()) return Promise.resolve(false);
+    return P.BiometricAuthNative.internalAuthenticate({
+      reason: reason || 'Sign in to ChurchGeniusPro',
+      cancelTitle: 'Use password',
+      allowDeviceCredential: true,
+      androidTitle: 'ChurchGeniusPro',
+      androidSubtitle: 'Unlock to sign in',
+      androidConfirmationRequired: false,
+      iosFallbackTitle: 'Use passcode'
+    }).then(function () { return true; }).catch(function (e) { log('unlock cancelled/failed', e && (e.code || e.message)); return false; });
+  }
+
+  /**
+   * The whole flow for login.html: unlock → device-login → store the rotated
+   * token. Resolves the login payload on success, or null (the page then
+   * shows the password form). A token the server no longer accepts is deleted.
+   */
+  function biometricLogin() {
+    return readDeviceToken().then(function (token) {
+      if (!token) return null;
+      return promptUnlock().then(function (ok) {
+        if (!ok) return null;
+        return fetch('/api/auth/device-login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token })
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (data && data.status === 'success') {
+            return (data.deviceToken ? writeDeviceToken(data.deviceToken) : Promise.resolve()).then(function () { return data; });
+          }
+          if (data && data.status === 'none') clearDeviceToken();   // revoked / expired / refused
+          return null;
+        }).catch(function () { return null; });   // offline: keep the token, show the form
+      });
+    });
+  }
+
+  window.CGP_NATIVE.storeDeviceToken  = storeDeviceToken;
+  window.CGP_NATIVE.getDeviceToken    = readDeviceToken;      // devices.js, logout bodies
+  window.CGP_NATIVE.hasDeviceToken    = function () { return readDeviceToken().then(function (t) { return !!t; }); };
+  window.CGP_NATIVE.clearDeviceToken  = clearDeviceToken;
+  window.CGP_NATIVE.biometricLogin    = biometricLogin;
+  window.CGP_NATIVE.deviceName        = deviceLabel();        // /login body → remember_me_token.device_label
+
+  // login.html's hidden #biometricBtn dispatches this; the page handles the payload.
+  document.addEventListener('cgp:native-biometric-login', function () {
+    biometricLogin().then(function (data) {
+      document.dispatchEvent(new CustomEvent('cgp:native-biometric-result', { detail: data }));
+    });
+  });
+
   log('active on', window.CGP_NATIVE.platform);
   // session.js may have run before this file (shell.js injects it deferred): let it know.
   try { document.dispatchEvent(new CustomEvent('cgp:native-ready')); } catch (_) {}

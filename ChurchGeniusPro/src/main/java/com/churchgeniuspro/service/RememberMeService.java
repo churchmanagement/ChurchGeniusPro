@@ -93,21 +93,40 @@ public class RememberMeService {
      */
     @Transactional
     public RememberMeToken issue(SignUp user, HttpServletRequest request, HttpServletResponse response) {
+        String secret = newSecret();
+        RememberMeToken row = issueRow(user, request, secret, null);
+        addCookie(response, secret);
+        return row;
+    }
+
+    /**
+     * Mobile Phase 6: mints a per-device credential for the app shell and returns the
+     * RAW secret instead of setting a cookie. The app keeps it in the OS secure store
+     * (Keychain / Keystore) behind the biometric prompt and presents it to
+     * {@code /api/auth/device-login}; the server only ever stores its hash. Rows look
+     * exactly like cookie rows (same table, cap, expiry, revocation), with
+     * {@code platform} android/ios and the device name the app reports.
+     */
+    @Transactional
+    public String issueDeviceSecret(SignUp user, HttpServletRequest request, String deviceName) {
+        String secret = newSecret();
+        issueRow(user, request, secret, deviceName);
+        return secret;
+    }
+
+    private RememberMeToken issueRow(SignUp user, HttpServletRequest request, String secret, String deviceName) {
         Instant now = Instant.now();
         enforceCap(user.getId(), now);
-
-        String secret = newSecret();
         RememberMeToken row = new RememberMeToken();
         row.setSignupId(user.getId());
         row.setTokenHash(sha256Hex(secret));
-        row.setDeviceLabel(deviceLabel(request));
+        String label = deviceName == null ? null : deviceName.trim();
+        row.setDeviceLabel(label == null || label.isEmpty() ? deviceLabel(request) : label.substring(0, Math.min(label.length(), 200)));
         row.setPlatform(platformOf(request));
         row.setCreatedAt(now);
         row.setLastUsedAt(now);
         row.setExpiresAt(now.plus(TOKEN_TTL));
         tokens.save(row);
-
-        addCookie(response, secret);
         return row;
     }
 
@@ -118,8 +137,16 @@ public class RememberMeService {
      */
     @Transactional
     public Optional<Resolved> resolve(HttpServletRequest request) {
-        String raw = readCookie(request);
-        if (raw == null || raw.isBlank()) return Optional.empty();
+        return resolveSecret(readCookie(request), request);
+    }
+
+    /**
+     * Mobile Phase 6: validates a raw secret presented in a request body (the app's
+     * device token) exactly as {@link #resolve} validates the cookie. Does not rotate.
+     */
+    @Transactional
+    public Optional<Resolved> resolveSecret(String raw, HttpServletRequest request) {
+        if (raw == null || raw.isBlank() || raw.length() > 128) return Optional.empty();
         Instant now = Instant.now();
 
         String hash = sha256Hex(raw);
@@ -161,6 +188,15 @@ public class RememberMeService {
      */
     @Transactional
     public void rotate(RememberMeToken row, HttpServletResponse response) {
+        addCookie(response, rotateSecret(row));
+    }
+
+    /**
+     * Mobile Phase 6: rotates {@code row} and returns the NEW raw secret for the app to
+     * store; the previous hash stays valid for the grace window.
+     */
+    @Transactional
+    public String rotateSecret(RememberMeToken row) {
         Instant now = Instant.now();
         String secret = newSecret();
         row.setPrevTokenHash(row.getTokenHash());
@@ -169,7 +205,7 @@ public class RememberMeService {
         row.setLastUsedAt(now);
         row.setExpiresAt(now.plus(TOKEN_TTL));
         tokens.save(row);
-        addCookie(response, secret);
+        return secret;
     }
 
     /**
@@ -195,6 +231,69 @@ public class RememberMeService {
             });
         }
         clearCookie(response);
+    }
+
+    /**
+     * Mobile Phase 6: revokes the row behind a raw device secret (app logout). Safe with
+     * an unknown or blank value.
+     */
+    @Transactional
+    public void revokeSecret(String raw) {
+        if (raw == null || raw.isBlank() || raw.length() > 128) return;
+        Instant now = Instant.now();
+        String hash = sha256Hex(raw);
+        tokens.findByTokenHash(hash).or(() -> tokens.findByPrevTokenHash(hash)).ifPresent(row -> {
+            if (row.getRevokedAt() == null) {
+                row.setRevokedAt(now);
+                tokens.save(row);
+            }
+        });
+    }
+
+    /**
+     * "Your devices": revokes one row of the login. Returns false when the row is not
+     * this login's (or does not exist), so a caller can answer 404 without leaking.
+     */
+    @Transactional
+    public boolean revokeOne(Integer signupId, Long rowId) {
+        if (signupId == null || rowId == null) return false;
+        RememberMeToken row = tokens.findById(rowId).orElse(null);
+        if (row == null || !signupId.equals(row.getSignupId())) return false;
+        if (row.getRevokedAt() == null) {
+            row.setRevokedAt(Instant.now());
+            tokens.save(row);
+        }
+        return true;
+    }
+
+    /**
+     * "Sign out of other devices": every live row of the login except the one proving
+     * {@code request} (its cookie or the app's device secret). Returns the count.
+     */
+    @Transactional
+    public int revokeOthers(Integer signupId, HttpServletRequest request, String currentDeviceSecret) {
+        if (signupId == null) return 0;
+        Instant now = Instant.now();
+        Long keep = currentRowId(request, currentDeviceSecret);
+        int n = 0;
+        for (RememberMeToken row : tokens.findActiveBySignupId(signupId, now)) {
+            if (keep != null && keep.equals(row.getId())) continue;
+            row.setRevokedAt(now);
+            tokens.save(row);
+            n++;
+        }
+        return n;
+    }
+
+    /** The id of the row proving this request (cookie first, then the app's device secret), or null. */
+    public Long currentRowId(HttpServletRequest request, String deviceSecret) {
+        for (String raw : new String[] { readCookie(request), deviceSecret }) {
+            if (raw == null || raw.isBlank() || raw.length() > 128) continue;
+            String hash = sha256Hex(raw);
+            Optional<RememberMeToken> row = tokens.findByTokenHash(hash).or(() -> tokens.findByPrevTokenHash(hash));
+            if (row.isPresent()) return row.get().getId();
+        }
+        return null;
     }
 
     /** "Sign out everywhere": every live row of the login is revoked. Returns the count. */
@@ -302,10 +401,18 @@ public class RememberMeService {
         return browser + " on " + os;
     }
 
-    /** {@code web} today; Phase 6 shells send {@code X-CGP-Platform: android|ios}. */
+    /** {@code web} for browsers; the app shell is recognised by header or User-Agent marker. */
     static String platformOf(HttpServletRequest request) {
         String p = request == null ? null : request.getHeader("X-CGP-Platform");
-        if (p == null) return RememberMeToken.PLATFORM_WEB;
+        if (p == null) {
+            // The shell appends "ChurchGeniusProApp/1.0 (android|ios)" to its User-Agent.
+            String ua = request == null ? null : request.getHeader("User-Agent");
+            if (ua != null && ua.contains("ChurchGeniusProApp/")) {
+                if (ua.contains("(android)")) return "android";
+                if (ua.contains("(ios)")) return "ios";
+            }
+            return RememberMeToken.PLATFORM_WEB;
+        }
         p = p.trim().toLowerCase();
         return (p.equals("android") || p.equals("ios")) ? p : RememberMeToken.PLATFORM_WEB;
     }

@@ -370,7 +370,15 @@
         localStorage.setItem('firstName',  data.firstName  || '');
         localStorage.setItem('role',       data.role       || '');
         localStorage.setItem('churchName', data.churchName || '');
-        window.location.href = data.redirect || (data.church ? '/viewusers' : '/home');
+        var go = function () { window.location.href = data.redirect || (data.church ? '/viewusers' : '/home'); };
+        /* Mobile Phase 6: the app shell keeps the device secret in the OS secure
+           store (never localStorage); the redirect waits for that write. */
+        if (data.deviceToken && window.CGP_NATIVE && typeof window.CGP_NATIVE.storeDeviceToken === 'function') {
+          var t = setTimeout(go, 4000);
+          window.CGP_NATIVE.storeDeviceToken(data.deviceToken).then(function () { clearTimeout(t); go(); }, function () { clearTimeout(t); go(); });
+          return;
+        }
+        go();
       }
 
       /* ══════════════════════════════════════════════════════════════════
@@ -397,6 +405,7 @@
       /** Native shells may call this; on the web it is a no-op. */
       function doBiometricLogin() {
         if (!window.Capacitor) return;
+        if (biometricBtn) { biometricBtn.disabled = true; }
         document.dispatchEvent(new CustomEvent('cgp:native-biometric-login'));
       }
 
@@ -419,6 +428,23 @@
               return;
             }
           } catch (_) { /* ignore — proceed to manual login */ }
+
+          /* Mobile Phase 6: in the app, a stored device secret signs in behind the
+             OS biometric prompt. native-bridge.js may load after this script, so
+             wait for it briefly. A cancelled prompt just leaves the form. */
+          if (window.Capacitor) {
+            try {
+              const bridge = await new Promise(function (resolve) {
+                if (window.CGP_NATIVE && window.CGP_NATIVE.hasDeviceToken) return resolve(window.CGP_NATIVE);
+                const t = setTimeout(function () { resolve(window.CGP_NATIVE || null); }, 1500);
+                document.addEventListener('cgp:native-ready', function () { clearTimeout(t); resolve(window.CGP_NATIVE); }, { once: true });
+              });
+              if (bridge && bridge.hasDeviceToken && await bridge.hasDeviceToken()) {
+                biometricBtn.style.display = '';
+                doBiometricLogin();
+              }
+            } catch (_) { /* fall through to the form */ }
+          }
         }
 
         /* Pre-fill username from ?clientId=<encrypted> login link */
@@ -451,6 +477,13 @@
       })();
 
       /* ── Manual login form submit ── */
+      /* Mobile Phase 6: outcome of the biometric flow (payload, or null → show the form). */
+      document.addEventListener('cgp:native-biometric-result', function (ev) {
+        if (biometricBtn) biometricBtn.disabled = false;
+        if (ev.detail && ev.detail.status === 'success') { applyLoginData(ev.detail); return; }
+        if (ev.detail && ev.detail.message) { errorMsg.textContent = ev.detail.message; }
+      });
+
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
         errorMsg.textContent = '';
@@ -472,7 +505,8 @@
           const response = await fetch('/login', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ username, password, rememberMe })
+            body:    JSON.stringify(Object.assign({ username, password, rememberMe },
+                       (window.CGP_NATIVE && window.CGP_NATIVE.isNative && window.CGP_NATIVE.deviceName) ? { deviceName: window.CGP_NATIVE.deviceName } : {}))
           });
 
           const data = await response.json();

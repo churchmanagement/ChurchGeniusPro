@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/shell.css" />
   <title>Member Home – Church Genius Pro</title>
   <script src="/native-bridge.js"></script>
+  <script src="/devices.js" defer></script>
 <script>
     /* Tell shell.js this is the member portal — no active page in staff nav */
     (function() {
@@ -645,6 +646,11 @@
       </label>
     </div>
     <!-- Mobile Phase 2 (M5): blocked members -->
+    <div class="modal-body" id="devicesCard" style="padding:0 24px 16px 24px;border-top:1px solid #f0e4e8;">
+      <div style="font-size:13px;font-weight:700;color:#333;margin:14px 0 6px;">&#128241; Signed-in devices</div>
+      <div style="font-size:12px;color:#888;line-height:1.5;margin-bottom:4px;">Browsers and phones that stay signed in with "Remember me". Signing one out means it needs the password next time.</div>
+      <div id="devicesList" style="font-size:13px;color:#555;">Loading…</div>
+    </div>
     <div class="modal-body" id="blockedMembersCard" style="padding:0 24px 16px 24px;border-top:1px solid #f0e4e8;">
       <div style="font-size:13px;font-weight:700;color:#333;margin:14px 0 6px;">🚫 Blocked members</div>
       <div style="font-size:12px;color:#888;line-height:1.5;margin-bottom:8px;">Members you block cannot send you messages in Members Chat and their messages are hidden. They are not told.</div>
@@ -921,10 +927,18 @@ async function doLogout() {
     /* Phase 1 (M3): tell the server which push subscription to deactivate so a
        shared phone stops receiving this member's notifications after sign-out. */
     var endpoint = await cgpPushEndpoint(1500);
+    var body = endpoint ? { pushEndpoint: endpoint } : {};
+    /* Mobile Phase 6: the app's device credential dies with the session. */
+    try {
+      if (window.CGP_NATIVE && window.CGP_NATIVE.getDeviceToken) {
+        var dt = await window.CGP_NATIVE.getDeviceToken();
+        if (dt) { body.deviceToken = dt; window.CGP_NATIVE.clearDeviceToken(); }
+      }
+    } catch(e) {}
     await fetch('/api/auth/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+      body: JSON.stringify(body)
     });
   } catch(e) {}
   window.location.href = '/';
@@ -2707,6 +2721,12 @@ function openSettingsModal() {
   if (cb) cb.checked = localStorage.getItem(SETTINGS_NO_AUTO_LOGOUT_KEY) === '1';
   document.getElementById('settingsModal').style.display = 'flex';
   loadBlockedMembers();
+  /* Mobile Phase 6: signed-in devices (devices.js); child sessions have no login of their own to manage. */
+  var devCard = document.getElementById('devicesCard');
+  if (devCard) {
+    devCard.style.display = (window._cgpIsChildSession || window._cgpIsTempSession) ? 'none' : '';
+    if (devCard.style.display !== 'none' && window.CGP_DEVICES) window.CGP_DEVICES.render(document.getElementById('devicesList'));
+  }
   /* Child, temporary and NTAG sessions cannot delete an account; hide the card for them. */
   var del = document.getElementById('deleteAccountCard');
   if (del) del.style.display = (window._cgpIsChildSession || window._cgpIsTempSession) ? 'none' : '';

@@ -408,13 +408,111 @@ public class LoginController {
         // account keeps working. Unticked: only this browser's credential is revoked —
         // the old code cleared the single shared token and silently signed every other
         // device out.
-        if (rememberMeFlag) {
+        if (rememberMeFlag && isAppShell(request)) {
+            // Mobile Phase 6: the app keeps a device secret in the OS secure store behind
+            // the biometric prompt and presents it to /api/auth/device-login. No cookie:
+            // a remember cookie in the WebView would auto-login without the prompt.
+            String deviceName = body.get("deviceName") instanceof String d ? d : null;
+            res.put("deviceToken", this.rememberMe.issueDeviceSecret(user, request, deviceName));
+            this.rememberMe.revokeCurrent(request, response);
+        } else if (rememberMeFlag) {
             this.rememberMe.issue(user, request, response);
         } else {
             this.rememberMe.revokeCurrent(request, response);
         }
 
         return ResponseEntity.ok(res);
+    }
+
+    /**
+     * Mobile Phase 6: signs the app in with its device secret (the credential
+     * {@code /login} returned when Remember me was ticked in the app shell). Same
+     * eligibility checks, audit and throttling as a cookie auto-login; on success the
+     * secret is rotated and the new value returned as {@code deviceToken}. A refused or
+     * unknown secret answers {@code status: "none"} and the app discards its copy.
+     *
+     * <p>Body: {@code { "token": "<secret>" }}. Public (whitelisted in AuthFilter) like
+     * {@code /api/auth/check-remember}.
+     */
+    @ResponseBody
+    @PostMapping("/api/auth/device-login")
+    public ResponseEntity<Map<String, Object>> deviceLogin(@RequestBody(required = false) Map<String, Object> body,
+                                                            HttpServletRequest request,
+                                                            HttpServletResponse response) {
+        Map<String, Object> res = new HashMap<>();
+        String raw = body != null && body.get("token") instanceof String t ? t.trim() : "";
+        if (raw.isEmpty() || !isAppShell(request)) {
+            res.put("status", "none");
+            return ResponseEntity.ok(res);
+        }
+
+        // Same brute-force gate as a password login, keyed by IP (no username yet).
+        LoginProtectionService.GuardResult guard = loginProtection.check(request, "");
+        if (guard.blocked()) {
+            loginProtection.recordBlockedAttempt(request, "", "/api/auth/device-login");
+            res.put("status", "none");
+            res.put("blocked", true);
+            return ResponseEntity.status(429).header("Retry-After", String.valueOf(guard.retryAfterSeconds())).body(res);
+        }
+
+        RememberMeService.Resolved resolved = rememberMe.resolveSecret(raw, request).orElse(null);
+        if (resolved == null) {
+            loginProtection.recordFailure(request, "", "unknown or revoked device token", null, "/api/auth/device-login");
+            res.put("status", "none");
+            return ResponseEntity.ok(res);
+        }
+        String refusal = autoLoginRefusal(resolved.user(), request);
+        if (refusal != null) {
+            LOG.warn("Device login refused for username='{}' — {}", resolved.user().getUsername(), refusal);
+            rememberMe.revokeSecret(raw);
+            res.put("status", "none");
+            return ResponseEntity.ok(res);
+        }
+
+        HttpSession session = establishAutoLoginSession(resolved.user(), request, res);
+        if (isAppShell(request) && RoleGuard.isKidsPortalSession(session)) {   // Mobile Phase 3 (M6)
+            session.invalidate();
+            rememberMe.revokeSecret(raw);
+            res.clear();
+            res.put("status", "none");
+            res.put("message", KIDS_PORTAL_APP_MESSAGE);
+            return ResponseEntity.ok(res);
+        }
+        securityAudit.recordLogin(request, resolved.user().getUsername(), resolved.user().getClientId(), session);
+        res.put("deviceToken", rememberMe.rotateSecret(resolved.token()));
+        return ResponseEntity.ok(res);
+    }
+
+    /**
+     * Why a remembered credential may NOT sign in right now, or null when it may:
+     * inactive/deleted login, disabled staff user, no valid subscription, blocked demo
+     * window, lapsed church (shared by the cookie and device paths).
+     */
+    private String autoLoginRefusal(SignUp user, HttpServletRequest request) {
+        if (user == null || Boolean.FALSE.equals(user.getActive())) return "login inactive";
+        boolean isChurch   = Boolean.TRUE.equals(user.getChurch());
+        String  cid4check  = user.getClientId() != null ? user.getClientId() : "";
+        boolean isMbrAcct  = cid4check.toUpperCase().startsWith("MBR");
+        if (!isMbrAcct && !isChurch) {
+            AppUser staffUser = appUserRepository.findByUserIdAndDeleteFlagFalse(cid4check).orElse(null);
+            if (staffUser == null || !staffUser.isEnabled()) return "staff user disabled or deleted";
+        }
+        if (!isMbrAcct) {
+            int validCount = isChurch
+                    ? loginRepository.countValidChurchLogin(user.getUsername())
+                    : loginRepository.countValidNonChurchLogin(user.getUsername());
+            if (validCount == 0) return "no valid subscription";
+        }
+        return reissueBlockReason(user, isChurch, cid4check, isMbrAcct);
+    }
+
+    /** Fresh session + the normal login payload for an auto-login (cookie or device). */
+    private HttpSession establishAutoLoginSession(SignUp user, HttpServletRequest request, Map<String, Object> res) {
+        HttpSession existing = request.getSession(false);
+        if (existing != null) existing.invalidate();
+        HttpSession session = request.getSession(true);
+        buildResponse(res, user, Boolean.TRUE.equals(user.getChurch()), session);
+        return session;
     }
 
     /**
@@ -437,55 +535,15 @@ public class LoginController {
         // Per-device row (or a legacy signup.remember value, migrated on the spot).
         RememberMeService.Resolved resolved = rememberMe.resolve(request).orElse(null);
         SignUp user = resolved == null ? null : resolved.user();
-        if (user == null || Boolean.FALSE.equals(user.getActive())) {
+        String refusal = autoLoginRefusal(user, request);
+        if (refusal != null) {
+            if (user != null) LOG.warn("Remember-me refused for username='{}' — {}", user.getUsername(), refusal);
             rememberMe.revokeCurrent(request, response);
             res.put("status", "none");
             return ResponseEntity.ok(res);
         }
 
-        boolean isChurch   = Boolean.TRUE.equals(user.getChurch());
-        String  cid4check  = user.getClientId() != null ? user.getClientId() : "";
-        boolean isMbrAcct  = cid4check.toUpperCase().startsWith("MBR");
-        if (!isMbrAcct && !isChurch) {
-            // For staff accounts: explicitly reject disabled or deleted app_users
-            // so the remember-me cookie is cleared immediately and login is required.
-            AppUser staffUser = appUserRepository.findByUserIdAndDeleteFlagFalse(cid4check).orElse(null);
-            if (staffUser == null || !staffUser.isEnabled()) {
-                rememberMe.revokeCurrent(request, response);
-                res.put("status", "none");
-                return ResponseEntity.ok(res);
-            }
-        }
-        if (!isMbrAcct) {
-            int validCount = isChurch
-                    ? loginRepository.countValidChurchLogin(user.getUsername())
-                    : loginRepository.countValidNonChurchLogin(user.getUsername());
-            if (validCount == 0) {
-                rememberMe.revokeCurrent(request, response);
-                res.put("status", "none");
-                return ResponseEntity.ok(res);
-            }
-        }
-
-        // A remember-me auto-login is a sign-in, so it answers to the same two
-        // questions the password path does. It used to answer to neither: a demo
-        // role a Service Admin had blocked, or whose window had ended, kept getting
-        // a session indefinitely as long as its tenant's own subscription was still
-        // running, and a member's church could lapse without ever cutting them off.
-        String reissueBlock = reissueBlockReason(user, isChurch, cid4check, isMbrAcct);
-        if (reissueBlock != null) {
-            LOG.warn("Remember-me refused for username='{}' — {}", user.getUsername(), reissueBlock);
-            rememberMe.revokeCurrent(request, response);
-            res.put("status", "none");
-            return ResponseEntity.ok(res);
-        }
-
-        // Rebuild session
-        HttpSession existing = request.getSession(false);
-        if (existing != null) existing.invalidate();
-        HttpSession session = request.getSession(true);
-
-        buildResponse(res, user, isChurch, session);
+        HttpSession session = establishAutoLoginSession(user, request, res);
 
         if (isAppShell(request) && RoleGuard.isKidsPortalSession(session)) {   // Mobile Phase 3 (M6)
             session.invalidate();
@@ -556,6 +614,9 @@ public class LoginController {
                                                        HttpServletRequest request,
                                                        HttpServletResponse response) {
         deactivatePushEndpoint(body);
+        // Mobile Phase 6: the app sends its device secret so this device's credential dies
+        // with the session (other devices keep theirs, exactly like the cookie path).
+        if (body != null && body.get("deviceToken") instanceof String dt) rememberMe.revokeSecret(dt);
 
         // Capture session info before invalidation for logout log
         HttpSession session = request.getSession(false);

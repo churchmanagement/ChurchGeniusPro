@@ -367,11 +367,14 @@
         // subscription so the next person on a shared device gets no stale
         // notifications (Phase 1, M3). The lookup never delays logout by more
         // than ~1.5 s and a failure simply logs out without it.
-        CGP_pushEndpoint(1500).then(function (endpoint) {
+        Promise.all([CGP_pushEndpoint(1500), CGP_deviceToken(1500)]).then(function (r) {
+            var body = {};
+            if (r[0]) body.pushEndpoint = r[0];
+            if (r[1]) body.deviceToken  = r[1];   // Mobile Phase 6: this device's credential dies with the session
             return fetch('/api/auth/logout', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(endpoint ? { pushEndpoint: endpoint } : {})
+                body:    JSON.stringify(body)
             });
         })
             .catch(function () { /* ignore network errors on logout */ })
@@ -406,6 +409,25 @@
         });
     }
     window.CGP_pushEndpoint = CGP_pushEndpoint;
+
+    /** Mobile Phase 6: the app's device secret (null in a browser), within `timeoutMs`. Never rejects. */
+    function CGP_deviceToken(timeoutMs) {
+        return new Promise(function (resolve) {
+            var done = false;
+            var finish = function (v) { if (!done) { done = true; resolve(v || null); } };
+            setTimeout(function () { finish(null); }, timeoutMs || 1500);
+            try {
+                if (window.CGP_NATIVE && typeof window.CGP_NATIVE.getDeviceToken === 'function') {
+                    window.CGP_NATIVE.getDeviceToken().then(function (t) {
+                        // the secret leaves the device the moment we sign out
+                        if (t && window.CGP_NATIVE.clearDeviceToken) window.CGP_NATIVE.clearDeviceToken();
+                        finish(t);
+                    }, function () { finish(null); });
+                } else finish(null);
+            } catch (_) { finish(null); }
+        });
+    }
+    window.CGP_deviceToken = CGP_deviceToken;
 
     // ── Sidebar user display ──────────────────────────────────────────────────
 
@@ -2214,6 +2236,9 @@
                     '.cgp-notif-unread-dot{width:7px;height:7px;border-radius:50%;',
                     '  background:#e53935;flex-shrink:0;margin-top:5px;}',
                     '.cgp-notif-empty{padding:20px 14px;font-size:13px;color:#aaa;text-align:center;}',
+                    '.cgp-notif-foot{border-top:1px solid #f0e4e8;padding:6px 8px;text-align:right;}',
+                    '.cgp-notif-devices{background:none;border:0;color:#673147;font-size:12px;font-weight:600;cursor:pointer;padding:4px 6px;border-radius:6px;}',
+                    '.cgp-notif-devices:hover{background:#fdf5f7;}',
                     '.cgp-notif-hdr{display:flex;align-items:center;justify-content:space-between;}',
                     '.cgp-notif-clear{font-size:11px;font-weight:600;color:#888;cursor:pointer;background:none;',
                     '  border:none;padding:0;display:none;}',
@@ -2252,13 +2277,22 @@
                               '<button type="button" class="cgp-notif-clear" id="cgpNotifClearAll" ' +
                               'title="Clear submission notifications">Clear all</button></div>' +
                               '<div class="cgp-notif-list" id="cgpNotifBody">' +
-                              '<div class="cgp-notif-empty">Loading…</div></div>';
+                              '<div class="cgp-notif-empty">Loading…</div></div>' +
+                              '<div class="cgp-notif-foot"><button type="button" class="cgp-notif-devices" id="cgpNotifDevices">' +
+                              '\uD83D\uDCF1 Signed-in devices</button></div>';
 
             wrap.appendChild(bell);
             wrap.appendChild(panel);
 
             // ✕ / Clear all stop their own click from reaching the document, so the
             // panel stays open for them; every other click behaves as before.
+            // Mobile Phase 6: "Signed-in devices" (devices.js, injected by shell.js)
+            var devBtn = panel.querySelector('#cgpNotifDevices');
+            if (devBtn) devBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                panel.classList.remove('open');
+                if (window.CGP_DEVICES) window.CGP_DEVICES.openModal();
+            });
             var clearAll = panel.querySelector('#cgpNotifClearAll');
             if (clearAll) clearAll.addEventListener('click', function (e) {
                 e.stopPropagation();

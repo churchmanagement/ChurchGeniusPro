@@ -81,4 +81,51 @@ class NativeBridgeRatchetTest {
         String csp = Files.readString(Path.of("src/main/java/com/churchgeniuspro/webfilter/CspFilter.java"), StandardCharsets.UTF_8);
         assertThat(csp).contains("connect-src 'self' blob: data: https://api.stripe.com");
     }
+    @Test
+    @DisplayName("Phase 6: the device secret lives only in the OS secure store, is released by the OS prompt, and dies on logout")
+    void biometricContract() throws Exception {
+        String js = read("native-bridge.js");
+        int gate = js.indexOf("if (!isNative) return;");
+        assertThat(js.substring(0, gate)).doesNotContain("SecureStorage").doesNotContain("BiometricAuthNative");
+        assertThat(js).contains("P.SecureStorage.internalSetItem(")
+                      .contains("P.SecureStorage.internalGetItem(")
+                      .contains("P.SecureStorage.internalRemoveItem(")
+                      .contains("KEYCHAIN_WHEN_UNLOCKED_THIS_DEVICE_ONLY = 1")
+                      .contains("P.BiometricAuthNative.checkBiometry()")
+                      .contains("P.BiometricAuthNative.internalAuthenticate(")
+                      .contains("allowDeviceCredential: true")
+                      .contains("fetch('/api/auth/device-login'")
+                      .contains("window.CGP_NATIVE.storeDeviceToken  = storeDeviceToken")
+                      .contains("window.CGP_NATIVE.getDeviceToken    = readDeviceToken")
+                      .contains("window.CGP_NATIVE.biometricLogin    = biometricLogin")
+                      .contains("addEventListener('cgp:native-biometric-login'")
+                      .contains("new CustomEvent('cgp:native-biometric-result'");
+        // The token never touches localStorage/sessionStorage anywhere in the bridge.
+        int sec8 = js.indexOf("8. biometric sign-in");
+        assertThat(js.substring(sec8)).doesNotContain("localStorage").doesNotContain("sessionStorage.setItem");
+
+        String login = read("login.html");
+        assertThat(login).contains("window.CGP_NATIVE.storeDeviceToken(data.deviceToken)")
+                         .contains("bridge.hasDeviceToken()")
+                         .contains("cgp:native-biometric-result")
+                         .contains("deviceName: window.CGP_NATIVE.deviceName")
+                         .doesNotContain("rememberedPassword', ")       // M1 stays fixed: no password store
+                         .doesNotContain("localStorage.setItem('deviceToken'");
+        // Both logout paths hand the device secret to the server and clear it locally.
+        assertThat(read("session.js")).contains("body.deviceToken  = r[1]").contains("window.CGP_NATIVE.clearDeviceToken()");
+        assertThat(read("memberHome.html")).contains("body.deviceToken = dt; window.CGP_NATIVE.clearDeviceToken();");
+        // "Signed-in devices": shared widget on both surfaces.
+        assertThat(read("shell.js")).contains("add('/devices.js', 'devices-script')");
+        assertThat(read("session.js")).contains("window.CGP_DEVICES.openModal()");
+        assertThat(read("memberHome.html")).contains("<script src=\"/devices.js\" defer></script>")
+                                           .contains("window.CGP_DEVICES.render(document.getElementById('devicesList'))");
+        assertThat(read("devices.js")).contains("fetchJson('/api/auth/devices' + q)")
+                                      .contains("/api/auth/devices/revoke-others")
+                                      .doesNotContain("localStorage");
+        // The web never calls the device endpoint: only the bridge does.
+        for (String page : new String[] {"session.js", "memberHome.html", "login.html", "pwa.js", "sw.js", "shell.js", "devices.js"}) {
+            assertThat(read(page)).as(page).doesNotContain("device-login");
+        }
+    }
+
 }
