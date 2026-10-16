@@ -408,10 +408,13 @@ public class LoginController {
         // account keeps working. Unticked: only this browser's credential is revoked —
         // the old code cleared the single shared token and silently signed every other
         // device out.
-        if (rememberMeFlag && isAppShell(request)) {
+        if (rememberMeFlag && isAppShell(request) && Boolean.TRUE.equals(body.get("deviceStore"))) {
             // Mobile Phase 6: the app keeps a device secret in the OS secure store behind
             // the biometric prompt and presents it to /api/auth/device-login. No cookie:
             // a remember cookie in the WebView would auto-login without the prompt.
+            // `deviceStore` is sent only by an app build that ships the secure-storage and
+            // biometric plugins on a device that can gate the secret; an older build (1.0)
+            // or a phone without a lock screen gets the ordinary remember cookie below.
             String deviceName = body.get("deviceName") instanceof String d ? d : null;
             res.put("deviceToken", this.rememberMe.issueDeviceSecret(user, request, deviceName));
             this.rememberMe.revokeCurrent(request, response);

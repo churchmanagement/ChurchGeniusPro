@@ -409,6 +409,15 @@
         document.dispatchEvent(new CustomEvent('cgp:native-biometric-login'));
       }
 
+      /** native-bridge.js may load after this script: resolves CGP_NATIVE within ~1.5 s. */
+      function waitForBridge() {
+        return new Promise(function (resolve) {
+          if (window.CGP_NATIVE && window.CGP_NATIVE.hasDeviceToken) return resolve(window.CGP_NATIVE);
+          const t = setTimeout(function () { resolve(window.CGP_NATIVE || null); }, 1500);
+          document.addEventListener('cgp:native-ready', function () { clearTimeout(t); resolve(window.CGP_NATIVE); }, { once: true });
+        });
+      }
+
       /* ── On page load: attempt auto-login via remember-me cookie, then
              restore saved credentials and initialise biometric button ── */
       (async function checkRemember() {
@@ -418,7 +427,16 @@
         const explicitLogout = sessionStorage.getItem('cgpExplicitLogout');
         if (explicitLogout) {
           sessionStorage.removeItem('cgpExplicitLogout');
-          /* Fall through to the credential-restore block below — no auto-login. */
+          /* Fall through to the credential-restore block below — no auto-login.
+             Mobile Phase 6: the app keeps its device credential across Logout, so
+             offer "Unlock with fingerprint" here too — shown, not auto-prompted,
+             because the person just chose to sign out. */
+          if (window.Capacitor) {
+            try {
+              const bridge = await waitForBridge();
+              if (bridge && bridge.hasDeviceToken && await bridge.hasDeviceToken()) biometricBtn.style.display = '';
+            } catch (_) { /* form only */ }
+          }
         } else {
           try {
             const res  = await fetch('/api/auth/check-remember');
@@ -434,11 +452,7 @@
              wait for it briefly. A cancelled prompt just leaves the form. */
           if (window.Capacitor) {
             try {
-              const bridge = await new Promise(function (resolve) {
-                if (window.CGP_NATIVE && window.CGP_NATIVE.hasDeviceToken) return resolve(window.CGP_NATIVE);
-                const t = setTimeout(function () { resolve(window.CGP_NATIVE || null); }, 1500);
-                document.addEventListener('cgp:native-ready', function () { clearTimeout(t); resolve(window.CGP_NATIVE); }, { once: true });
-              });
+              const bridge = await waitForBridge();
               if (bridge && bridge.hasDeviceToken && await bridge.hasDeviceToken()) {
                 biometricBtn.style.display = '';
                 doBiometricLogin();
@@ -506,7 +520,7 @@
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(Object.assign({ username, password, rememberMe },
-                       (window.CGP_NATIVE && window.CGP_NATIVE.isNative && window.CGP_NATIVE.deviceName) ? { deviceName: window.CGP_NATIVE.deviceName } : {}))
+                       (window.CGP_NATIVE && window.CGP_NATIVE.isNative && window.CGP_NATIVE.deviceName) ? { deviceName: window.CGP_NATIVE.deviceName, deviceStore: window.CGP_NATIVE.deviceStore === true } : {}))
           });
 
           const data = await response.json();

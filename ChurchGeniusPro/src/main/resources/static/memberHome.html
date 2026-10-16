@@ -928,13 +928,9 @@ async function doLogout() {
        shared phone stops receiving this member's notifications after sign-out. */
     var endpoint = await cgpPushEndpoint(1500);
     var body = endpoint ? { pushEndpoint: endpoint } : {};
-    /* Mobile Phase 6: the app's device credential dies with the session. */
-    try {
-      if (window.CGP_NATIVE && window.CGP_NATIVE.getDeviceToken) {
-        var dt = await window.CGP_NATIVE.getDeviceToken();
-        if (dt) { body.deviceToken = dt; window.CGP_NATIVE.clearDeviceToken(); }
-      }
-    } catch(e) {}
+    /* Mobile Phase 6: the app's device credential is KEPT on logout so the next
+       open offers "Unlock with fingerprint"; forgetting the phone is done from
+       Settings → Signed-in devices. */
     await fetch('/api/auth/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

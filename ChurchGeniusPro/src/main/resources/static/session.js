@@ -367,10 +367,13 @@
         // subscription so the next person on a shared device gets no stale
         // notifications (Phase 1, M3). The lookup never delays logout by more
         // than ~1.5 s and a failure simply logs out without it.
-        Promise.all([CGP_pushEndpoint(1500), CGP_deviceToken(1500)]).then(function (r) {
+        // Mobile Phase 6: Logout ends the session only — the app's device credential
+        // (OS secure store) is KEPT so the next open offers "Unlock with fingerprint".
+        // Forgetting the phone is explicit: "Signed-in devices" → Sign out, or a login
+        // with "Remember" unticked. (Decided 2026-10-15.)
+        CGP_pushEndpoint(1500).then(function (endpoint) {
             var body = {};
-            if (r[0]) body.pushEndpoint = r[0];
-            if (r[1]) body.deviceToken  = r[1];   // Mobile Phase 6: this device's credential dies with the session
+            if (endpoint) body.pushEndpoint = endpoint;
             return fetch('/api/auth/logout', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -410,7 +413,7 @@
     }
     window.CGP_pushEndpoint = CGP_pushEndpoint;
 
-    /** Mobile Phase 6: the app's device secret (null in a browser), within `timeoutMs`. Never rejects. */
+    /** Mobile Phase 6: the app's device secret (null in a browser), within `timeoutMs`. Read-only; never rejects. */
     function CGP_deviceToken(timeoutMs) {
         return new Promise(function (resolve) {
             var done = false;
@@ -418,11 +421,7 @@
             setTimeout(function () { finish(null); }, timeoutMs || 1500);
             try {
                 if (window.CGP_NATIVE && typeof window.CGP_NATIVE.getDeviceToken === 'function') {
-                    window.CGP_NATIVE.getDeviceToken().then(function (t) {
-                        // the secret leaves the device the moment we sign out
-                        if (t && window.CGP_NATIVE.clearDeviceToken) window.CGP_NATIVE.clearDeviceToken();
-                        finish(t);
-                    }, function () { finish(null); });
+                    window.CGP_NATIVE.getDeviceToken().then(finish, function () { finish(null); });
                 } else finish(null);
             } catch (_) { finish(null); }
         });

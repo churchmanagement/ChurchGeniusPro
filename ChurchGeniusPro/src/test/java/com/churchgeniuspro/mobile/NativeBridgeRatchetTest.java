@@ -111,9 +111,12 @@ class NativeBridgeRatchetTest {
                          .contains("deviceName: window.CGP_NATIVE.deviceName")
                          .doesNotContain("rememberedPassword', ")       // M1 stays fixed: no password store
                          .doesNotContain("localStorage.setItem('deviceToken'");
-        // Both logout paths hand the device secret to the server and clear it locally.
-        assertThat(read("session.js")).contains("body.deviceToken  = r[1]").contains("window.CGP_NATIVE.clearDeviceToken()");
-        assertThat(read("memberHome.html")).contains("body.deviceToken = dt; window.CGP_NATIVE.clearDeviceToken();");
+        // Logout KEEPS the device credential (decided 2026-10-15): no logout path sends or clears it;
+        // forgetting the phone is explicit via "Signed-in devices". login.html offers the button after logout.
+        for (String f : new String[]{"session.js", "memberHome.html", "home.html"}) {
+            assertThat(read(f)).as(f).doesNotContain("body.deviceToken").doesNotContain("clearDeviceToken()");
+        }
+        assertThat(login).contains("if (bridge && bridge.hasDeviceToken && await bridge.hasDeviceToken()) biometricBtn.style.display = '';");
         // "Signed-in devices": shared widget on both surfaces.
         assertThat(read("shell.js")).contains("add('/devices.js', 'devices-script')");
         assertThat(read("session.js")).contains("window.CGP_DEVICES.openModal()");

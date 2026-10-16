@@ -85,7 +85,7 @@ class DeviceLoginWebTest {
 
     private MvcResult login(String ua, boolean rememberMe, String deviceName) throws Exception {
         String body = "{\"username\":\"member@example.org\",\"password\":\"" + PASSWORD + "\",\"rememberMe\":" + rememberMe
-                + (deviceName == null ? "" : ",\"deviceName\":\"" + deviceName + "\"") + "}";
+                + (deviceName == null ? "" : ",\"deviceName\":\"" + deviceName + "\",\"deviceStore\":true") + "}";
         return mvc.perform(post("/login").contentType("application/json").header("User-Agent", ua).content(body))
                 .andExpect(status().isOk()).andReturn();
     }
@@ -116,6 +116,19 @@ class DeviceLoginWebTest {
         assertThat(row.getTokenHash()).isEqualTo(RememberMeService.sha256Hex(token)).isNotEqualTo(token);
         assertThat(row.getPlatform()).isEqualTo("android");
         assertThat(row.getDeviceLabel()).isEqualTo("Pixel 8");
+    }
+
+    @Test
+    @DisplayName("app WITHOUT deviceStore (1.0 build, or no lock screen) keeps the Phase 1 cookie — no deviceToken")
+    void appWithoutSecureStoreFallsBackToCookie() throws Exception {
+        MvcResult r = mvc.perform(post("/login").contentType("application/json").header("User-Agent", APP_UA)
+                .content("{\"username\":\"member@example.org\",\"password\":\"" + PASSWORD + "\",\"rememberMe\":true,\"deviceName\":\"Pixel 8\"}"))
+                .andExpect(status().isOk()).andReturn();
+        assertThat(json(r).has("deviceToken")).isFalse();
+        Cookie c = r.getResponse().getCookie(RememberMeService.COOKIE_NAME);
+        assertThat(c).isNotNull();
+        assertThat(c.getMaxAge()).isGreaterThan(0);
+        assertThat(store.rows.values().iterator().next().getPlatform()).isEqualTo("android");
     }
 
     @Test

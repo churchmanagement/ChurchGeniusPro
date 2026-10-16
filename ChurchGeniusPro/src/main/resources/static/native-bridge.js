@@ -440,6 +440,11 @@
   window.CGP_NATIVE.clearDeviceToken  = clearDeviceToken;
   window.CGP_NATIVE.biometricLogin    = biometricLogin;
   window.CGP_NATIVE.deviceName        = deviceLabel();        // /login body → remember_me_token.device_label
+  // Only an app build that ships the two plugins AND a device that can gate the
+  // secret may receive a device token; otherwise /login falls back to the Phase 1
+  // remember cookie (what the 1.0 app without these plugins relies on).
+  window.CGP_NATIVE.deviceStore       = false;
+  if (hasSecureStorage()) deviceCanUnlock().then(function (ok) { window.CGP_NATIVE.deviceStore = !!ok; });
 
   // login.html's hidden #biometricBtn dispatches this; the page handles the payload.
   document.addEventListener('cgp:native-biometric-login', function () {
