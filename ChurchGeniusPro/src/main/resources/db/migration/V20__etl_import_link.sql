@@ -26,6 +26,17 @@ CREATE TABLE IF NOT EXISTS import_link (
 CREATE INDEX IF NOT EXISTS ix_import_link_run    ON import_link (run_id);
 CREATE INDEX IF NOT EXISTS ix_import_link_target ON import_link (client_id, entity, target_id);
 
-ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_proposal VARCHAR(160);
-ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_decision VARCHAR(16);
-ALTER TABLE import_batch   ADD COLUMN IF NOT EXISTS error_message      VARCHAR(1000);
+-- Guarded (2026-10-16, after Phase 5): on a brand-new database Flyway runs before
+-- Hibernate creates staging_family / import_batch, so these ALTERs run only when the table
+-- exists (Hibernate adds the columns otherwise). import_link above is created outright, as
+-- before. Checksum changed: see scripts/sql/flyway_repair_v19_v20.sql.
+DO $$
+BEGIN
+    IF to_regclass('public.staging_family') IS NOT NULL THEN
+        ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_proposal VARCHAR(160);
+        ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_decision VARCHAR(16);
+    END IF;
+    IF to_regclass('public.import_batch') IS NOT NULL THEN
+        ALTER TABLE import_batch ADD COLUMN IF NOT EXISTS error_message VARCHAR(1000);
+    END IF;
+END $$;

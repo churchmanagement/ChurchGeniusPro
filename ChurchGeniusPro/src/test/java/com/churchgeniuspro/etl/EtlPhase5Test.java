@@ -438,4 +438,35 @@ class EtlPhase5Test {
         String prod = Files.readString(Path.of("scripts/sql/migrate_production.sql"));
         assertThat(prod).contains("suggested_table");
     }
+
+    /**
+     * Fresh-database safety for every ETL migration: Flyway runs before Hibernate creates the
+     * entity tables, so an ALTER TABLE / CREATE INDEX on a table the file does not create itself
+     * must sit behind {@code to_regclass('public.<table>')}. V19/V20 lacked this (a brand-new
+     * database failed at V19 with "relation family does not exist"); this pins the fix.
+     * (FlywayMigrationIT proves the same end to end but needs Docker.)
+     */
+    @Test
+    @DisplayName("V19–V22: every statement on an existing table is to_regclass-guarded or targets a table the file creates")
+    void etlMigrationsAreFreshDatabaseSafe() throws Exception {
+        java.util.regex.Pattern touch = java.util.regex.Pattern.compile(
+            "(?i)(?:ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?|CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?\\w+\\s+ON\\s+)(\\w+)");
+        java.util.regex.Pattern created = java.util.regex.Pattern.compile("(?i)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(\\w+)");
+        for (String f : List.of("V19__etl_source_identity.sql", "V20__etl_import_link.sql", "V21__etl_record_types.sql", "V22__etl_file_data_type.sql")) {
+            String sql = Files.readString(Path.of("src/main/resources/db/migration/" + f)).replaceAll("(?m)--.*$", "");
+            Set<String> own = new HashSet<>();
+            var cm = created.matcher(sql); while (cm.find()) own.add(cm.group(1).toLowerCase());
+            var m = touch.matcher(sql);
+            int checked = 0;
+            while (m.find()) {
+                String table = m.group(1).toLowerCase();
+                checked++;
+                if (own.contains(table)) continue;
+                assertThat(sql).as(f + ": statement on '" + table + "' must be guarded").contains("to_regclass('public." + table + "')");
+                int guard = sql.indexOf("to_regclass('public." + table + "')");
+                assertThat(guard).as(f + ": guard for '" + table + "' comes before its statement").isLessThan(m.start());
+            }
+            assertThat(checked).as(f + " has statements to check").isPositive();
+        }
+    }
 }
