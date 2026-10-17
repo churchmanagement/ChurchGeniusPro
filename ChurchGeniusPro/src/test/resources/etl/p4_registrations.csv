@@ -1,0 +1,4 @@
+Registration ID,Event ID,Person ID,First Name,Last Name,Email,Adults,Kids,Attended
+R-1,E-1,701,,,,2,1,Yes
+R-2,E-1,,Lena,Walker,lena.walker@example.org,1,0,No
+R-3,E-2,704,,,,1,0,Yes

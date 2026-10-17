@@ -29,6 +29,11 @@ public class EtlAuditVerifier {
     private final ImportBatchRepository    batchRepo;
     private final ImportAuditRepository    auditRepo;
 
+    /** Phase 4: staged rows of the record data types (optional so older hand-built tests are unchanged). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.StagingRecordRepository recordRepo;
+    public void setRecordRepo(com.churchgeniuspro.repository.StagingRecordRepository r) { this.recordRepo = r; }
+
     public EtlAuditVerifier(StagingFamilyRepository familyRepo,
                             StagingIncomeRepository incomeRepo,
                             StagingExpenseRepository expenseRepo,
@@ -53,6 +58,9 @@ public class EtlAuditVerifier {
             rows.add(new Row("income", r.getRowStatus(), r.getTargetId(), r.getBatchId(), r.getClientId()));
         for (StagingExpense r : expenseRepo.findByRunId(runId))
             rows.add(new Row("expense", r.getRowStatus(), r.getTargetId(), r.getBatchId(), r.getClientId()));
+        if (recordRepo != null)
+            for (com.churchgeniuspro.hibernate.StagingRecord r : recordRepo.findByRunId(runId))
+                rows.add(new Row(r.getTargetTable(), r.getRowStatus(), r.getTargetId(), r.getBatchId(), r.getClientId()));
 
         List<ImportBatch> batches = batchRepo.findByRunIdOrderByIdAsc(runId);
         List<ImportAudit> audit = auditRepo.findByRunIdOrderByCreatedDateAsc(runId);

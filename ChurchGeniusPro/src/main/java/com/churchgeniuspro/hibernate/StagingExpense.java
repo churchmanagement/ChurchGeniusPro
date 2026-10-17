@@ -50,6 +50,13 @@ public class StagingExpense {
     @Column(name = "validation_msgs", columnDefinition = "TEXT") private String validationMsgs;
     @Column(name = "dedupe_match_id") private Long dedupeMatchId;
     @Column(name = "dedupe_action", length = 16) private String dedupeAction;
+    /** Phase 2 match tier: EXACT | STRONG | POSSIBLE | IN_FILE | NONE (see EtlMatchService). */
+    @Column(name = "match_tier", length = 16) private String matchTier;
+    /** Phase 2: how the match was made ("email", "name + birth date", "same file row 12" …). */
+    @Column(name = "match_detail", length = 255) private String matchDetail;
+    /** Phase 2: ETL import reference (source id or fingerprint) → expense.import_ref. */
+    @Column(name = "import_ref", length = 160) private String importRef;
+
     @Column(name = "resolved_member_id") private Long resolvedMemberId;
     @Column(name = "target_id") private Long targetId;
     /** JSON snapshot of the live row BEFORE an UPDATE load (for rollback). Null for INSERTs. */

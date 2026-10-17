@@ -35,6 +35,14 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
     /** Donation Review reconciliation: the active fee expenses posted for these import refs (V14). */
     List<Expense> findByAppClientIdAndImportRefInAndDeleteFlagFalse(String appClientId, java.util.Collection<String> importRefs);
 
+    /** ETL Migration Phase 2: live rows in the staged date window, for Strong/Possible duplicate matching. */
+    List<Expense> findByAppClientIdAndDeleteFlagFalseAndExpenseDateBetween(String appClientId, java.time.LocalDate from, java.time.LocalDate to);
+
+    /** ETL Migration Phase 3: is a purpose / category / payment method still used by a live row (reference-row cleanup on rollback)? */
+    long countByPurpose_IdAndDeleteFlagFalse(Integer purposeId);
+    long countByMainSource_IdAndDeleteFlagFalse(Integer mainSourceId);
+    long countByTransactionType_IdAndDeleteFlagFalse(Integer transactionTypeId);
+
     /**
      * Latest quick-add expense templates for the Accountant dashboard.
      * Returns up to 10 records (limit applied in the service).

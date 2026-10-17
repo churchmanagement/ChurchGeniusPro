@@ -70,10 +70,30 @@ public class ServiceAdminController {
         return "forward:/serviceadminhome.html";
     }
 
-    /** ETL data-import wizard (Phase 5 UI over the /api/serviceadmin/etl endpoints). */
+    /**
+     * ETL data-import wizard. Migration Phase 5: the page is no longer a public static file —
+     * it lives outside {@code static/} and is served only to a session carrying
+     * {@code serviceAdminId} (the same check {@code ServiceAdminAuthFilter} applies to the
+     * APIs). Anyone else is sent to the service-admin login.
+     */
     @GetMapping("/etlImport")
-    public String etlImportPage() {
-        return "forward:/etl-import.html";
+    public ResponseEntity<byte[]> etlImportPage(HttpServletRequest request) throws java.io.IOException {
+        jakarta.servlet.http.HttpSession s = request.getSession(false);
+        if (s == null || s.getAttribute("serviceAdminId") == null) {
+            log.warn("[ServiceAdmin] /etlImport refused — no service-admin session");
+            return ResponseEntity.status(302).header("Location", "/serviceadminlogin").header("Cache-Control", "no-store").build();
+        }
+        byte[] html = new org.springframework.core.io.ClassPathResource("admin-pages/etl-import.html").getInputStream().readAllBytes();
+        return ResponseEntity.ok()
+            .contentType(org.springframework.http.MediaType.parseMediaType("text/html;charset=UTF-8"))
+            .header("Cache-Control", "no-store")
+            .body(html);
+    }
+
+    /** The page's old static address now goes through the gate above. */
+    @GetMapping("/etl-import.html")
+    public ResponseEntity<Void> etlImportOldUrl() {
+        return ResponseEntity.status(302).header("Location", "/etlImport").build();
     }
 
     // ── Login ─────────────────────────────────────────────────────────────────

@@ -16,13 +16,41 @@ public final class CsvUtil {
 
     private CsvUtil() {}
 
-    /** Parse the whole CSV text into a list of rows, each a list of string cells. */
+    /** Parse the whole CSV text (comma-separated) into a list of rows, each a list of string cells. */
     public static List<List<String>> parse(String text) {
+        return parse(text, ',');
+    }
+
+    /**
+     * Migration Phase 1: pick the delimiter from the header line — the candidate
+     * ({@code , ; TAB |}) that occurs most often outside quotes; comma on a tie or
+     * when none occurs. Semicolon exports (European Excel) and tab exports were
+     * previously read as a single column.
+     */
+    public static char sniffDelimiter(String text) {
+        if (text == null || text.isEmpty()) return ',';
+        int end = text.indexOf('\n'); if (end < 0) end = text.length();
+        String line = text.substring(0, end);
+        char[] cands = {',', ';', '\t', '|'};
+        int[] counts = new int[cands.length];
+        boolean q = false;
+        for (char c : line.toCharArray()) {
+            if (c == '"') { q = !q; continue; }
+            if (q) continue;
+            for (int i = 0; i < cands.length; i++) if (c == cands[i]) counts[i]++;
+        }
+        int best = 0;
+        for (int i = 1; i < cands.length; i++) if (counts[i] > counts[best]) best = i;
+        return counts[best] == 0 ? ',' : cands[best];
+    }
+
+    /** Parse with an explicit delimiter (see {@link #sniffDelimiter}). Quotes and newlines as RFC 4180. */
+    public static List<List<String>> parse(String text, char delimiter) {
         List<List<String>> rows = new ArrayList<>();
         if (text == null || text.isEmpty()) return rows;
 
         // Strip a UTF-8 BOM if present.
-        if (text.charAt(0) == '﻿') text = text.substring(1);
+        if (text.charAt(0) == '\uFEFF') text = text.substring(1);
 
         List<String> row = new ArrayList<>();
         StringBuilder cell = new StringBuilder();
@@ -46,13 +74,14 @@ public final class CsvUtil {
                 continue;
             }
 
+            if (c == delimiter) {
+                row.add(cell.toString());
+                cell.setLength(0);
+                continue;
+            }
             switch (c) {
                 case '"':
                     inQuotes = true;
-                    break;
-                case ',':
-                    row.add(cell.toString());
-                    cell.setLength(0);
                     break;
                 case '\r':
                     // swallow; the '\n' (or end) finishes the row

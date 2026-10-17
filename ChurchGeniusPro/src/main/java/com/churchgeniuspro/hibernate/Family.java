@@ -70,6 +70,19 @@ public class Family {
     /** Optional org identifier from the app_user who created this record. */
     @Column(name = "app_client_id")
     private String appClientId;
+    /**
+     * ETL Migration Phase 2 — identity of the record in the system it was migrated
+     * from: the source application preset ({@code BREEZE}, {@code CHMEETINGS}, …)
+     * and that system's own id. Null for every record created in ChurchGeniusPro.
+     * Lets a re-import recognise the same record (Exact match) and lets related
+     * files refer to it. Additive columns (Flyway V19 / ddl-auto).
+     */
+    @Column(name = "source_system", length = 32)
+    private String sourceSystem;
+
+    @Column(name = "source_id", length = 128)
+    private String sourceId;
+
 
     /** Soft-delete flag. Defaults to {@code false} on insert. */
     @Column(name = "delete_flag", nullable = false)

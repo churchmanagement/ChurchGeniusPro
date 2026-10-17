@@ -1,0 +1,5 @@
+Pledge ID,Campaign ID,Person ID,Name,Pledge Amount,Monthly,Notes
+PL-1,C-10,701,,1200.00,100.00,
+PL-2,C-10,703,,600,50,
+PL-3,C-11,,Visiting Donor,250,,One-time pledge
+PL-4,C-10,701,,1200.00,100.00,duplicate of PL-1

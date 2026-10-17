@@ -46,6 +46,24 @@ public class ImportRun {
     @Column(name = "status", nullable = false, length = 24)
     private String status;
 
+    // ── Migration Phase 1 (all additive; ddl-auto adds the columns, see migrate_production.sql) ──
+
+    /** Source application preset code ({@link com.churchgeniuspro.util.SourcePreset}); null = GENERIC. */
+    @Column(name = "source_preset", length = 32)
+    private String sourcePreset;
+
+    /** Date order the source files use: AUTO | MDY | DMY | YMD (null = AUTO). */
+    @Column(name = "date_order", length = 8)
+    private String dateOrder;
+
+    /**
+     * Whether the OpenAI mapping fallback may be used for this run. Off by default;
+     * when on, only column names and inferred types are sent — never sample values.
+     */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(name = "ai_assist", nullable = false)
+    private boolean aiAssist;
+
     @Column(name = "created_date", nullable = false, updatable = false)
     private LocalDateTime createdDate;
 

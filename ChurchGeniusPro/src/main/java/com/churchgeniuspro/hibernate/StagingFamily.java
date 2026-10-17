@@ -70,6 +70,18 @@ public class StagingFamily {
     @Column(name = "dedupe_match_id") private Long dedupeMatchId;
     /** INSERT | UPDATE | SKIP  (default SKIP unless the operator confirms). */
     @Column(name = "dedupe_action", length = 16) private String dedupeAction;
+    /** Phase 2 match tier: EXACT | STRONG | POSSIBLE | IN_FILE | NONE (see EtlMatchService). */
+    @Column(name = "match_tier", length = 16) private String matchTier;
+    /** Phase 2: how the match was made ("email", "name + birth date", "same file row 12" …). */
+    @Column(name = "match_detail", length = 255) private String matchDetail;
+    /**
+     * Phase 3: proposed household key (last name + address) for a row the file gave no
+     * household id. Only takes effect when the admin ACCEPTs the proposal — never automatically.
+     */
+    @Column(name = "household_proposal", length = 160) private String householdProposal;
+    /** Phase 3: ACCEPTED | REJECTED | null (undecided = each person stays in their own household). */
+    @Column(name = "household_decision", length = 16) private String householdDecision;
+
     /** Live row id after load (for rollback + traceability). */
     @Column(name = "target_id") private Long targetId;
     /** Live parent Family id created/used at load (for rollback). */

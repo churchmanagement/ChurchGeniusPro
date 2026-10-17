@@ -802,6 +802,23 @@
     </div>
   </div>
 
+  <!-- ── Data Migrations (ETL Import, Phase 5) ───────────── -->
+  <div class="list-card" id="etlOverviewCard">
+    <div class="list-card-header">
+      <span class="list-card-title">⤓ Data Migrations</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="loadEtlOverview()">↻ Refresh</button>
+        <button class="btn-primary" style="font-size:12px;padding:6px 16px;" id="btnNewMigration" onclick="window.location.href='/etlImport?new=1'">+ New migration</button>
+      </div>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Imports from other church-management products (Breeze, CHMeetings, Gracely, Planning Center, CCB, spreadsheets). Every import is staged, reviewed and reversible.
+      </div>
+      <div id="etlOverviewBody"><div style="color:#aaa;font-size:13px;">Loading…</div></div>
+    </div>
+  </div>
+
   <!-- ── Public Website Visitors ───────────────────────── -->
   <div class="list-card" id="webStatsCard">
     <div class="list-card-header">
@@ -2938,6 +2955,36 @@
   }
   window.loadWebStats = loadWebStats;
   loadWebStats();
+
+  /* ── Data Migrations card (GET /api/serviceadmin/etl/overview) ── */
+  async function loadEtlOverview() {
+    const el = document.getElementById('etlOverviewBody');
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const when = v => v ? esc(String(v).replace('T', ' ').slice(0, 16)) : '';
+    const th = 'text-align:left;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;';
+    const td = 'padding:8px 12px;border-bottom:1px solid #f0f1f5;';
+    const table = (title, rows, completed) => '<div style="font-weight:700;font-size:13px;margin:10px 0 6px;">' + title + '</div>' +
+      (rows.length ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>' +
+        '<th style="' + th + '">Run</th><th style="' + th + '">Church</th><th style="' + th + '">Source</th><th style="' + th + '">Status</th>' +
+        (completed ? '<th style="' + th + '">Loaded</th>' : '<th style="' + th + '">Files</th>') + '<th style="' + th + '">Updated</th><th style="' + th + '"></th></tr></thead><tbody>' +
+        rows.map(r => '<tr><td style="' + td + '">#' + r.id + '</td><td style="' + td + '">' + esc(r.church) + '</td><td style="' + td + '">' + esc(r.sourcePresetLabel) + '</td>' +
+          '<td style="' + td + '">' + esc(r.status) + '</td>' +
+          (completed ? '<td style="' + td + '">' + (r.inserted || 0) + ' added' + (r.updated ? ', ' + r.updated + ' updated' : '') + '<div style="font-size:11px;color:#999;">' + esc((r.dataTypes || []).join(', ')) + '</div></td>'
+                     : '<td style="' + td + '">' + (r.files || 0) + '</td>') +
+          '<td style="' + td + '">' + when(r.updatedDate) + '</td>' +
+          '<td style="' + td + 'text-align:right;"><a href="/etlImport?clientId=' + encodeURIComponent(r.clientId) + '&run=' + r.id + '">Open</a></td></tr>').join('') +
+        '</tbody></table></div>' : '<div style="color:#aaa;font-size:13px;">None.</div>');
+    try {
+      const r = await fetch('/api/serviceadmin/etl/overview', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      el.innerHTML = table('In progress', j.inProgress || [], false) + table('Last five completed', j.completed || [], true);
+    } catch (e) {
+      el.innerHTML = '<div style="color:#c62828;font-size:13px;">Could not load migrations: ' + esc(e.message) + '</div>';
+    }
+  }
+  window.loadEtlOverview = loadEtlOverview;
+  loadEtlOverview();
 
   /* ════════════════════════════════════════════════════════
      SUBSCRIPTION PLAN MANAGEMENT

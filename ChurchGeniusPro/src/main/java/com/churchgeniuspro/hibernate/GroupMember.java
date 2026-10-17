@@ -43,6 +43,14 @@ public class GroupMember {
     @Column(name = "email")
     private String email;
 
+    /**
+     * ETL Migration Phase 4 (approved decision 6): the member this membership belongs to,
+     * when an import could resolve one. Nullable and informational — nothing in the Groups
+     * feature reads or maintains it, so memberships added or edited in the app leave it null.
+     */
+    @Column(name = "family_member_id")
+    private Integer familyMemberId;
+
     /** Optional org identifier from the app_user who created this record. Null for church-level accounts. */
     @Column(name = "app_client_id")
     private String appClientId;

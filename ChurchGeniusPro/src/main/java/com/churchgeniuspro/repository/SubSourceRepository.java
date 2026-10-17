@@ -42,6 +42,9 @@ public interface SubSourceRepository extends JpaRepository<SubSource, Integer> {
     @Query("UPDATE SubSource s SET s.deleteFlag = true WHERE s.mainSource = :mainSource")
     void softDeleteByMainSource(@Param("mainSource") MainSource mainSource);
 
+    /** ETL Migration Phase 3: does a main source still own a live fund (reference-row cleanup on rollback)? */
+    long countByMainSource_IdAndDeleteFlagFalse(Integer mainSourceId);
+
     /** Duplicate-check on create within the same main source. */
     boolean existsBySourceNameIgnoreCaseAndDeleteFlagFalseAndMainSource_Id(
             String sourceName, Integer mainSourceId);

@@ -33,7 +33,7 @@ public class ImportBatch {
     @Column(name = "target_table", nullable = false, length = 32)
     private String targetTable;
 
-    /** STAGED | APPROVED | LOADED | ROLLED_BACK | FAILED */
+    /** STAGED | APPROVED | LOADED | ROLLED_BACK | FAILED (Phase 3: FAILED = load stopped part-way; retry or roll back) */
     @Column(name = "status", nullable = false, length = 24)
     private String status;
 
@@ -47,6 +47,9 @@ public class ImportBatch {
     @Column(name = "updated_count")  private Integer updatedCount  = 0;
     @Column(name = "skipped_count")  private Integer skippedCount  = 0;
     @Column(name = "failed_count")   private Integer failedCount   = 0;
+
+    /** Phase 3: why a load stopped (batch status FAILED). The rows already committed stay reversible. */
+    @Column(name = "error_message", length = 1000) private String errorMessage;
 
     @Column(name = "created_date", nullable = false, updatable = false)
     private LocalDateTime createdDate;

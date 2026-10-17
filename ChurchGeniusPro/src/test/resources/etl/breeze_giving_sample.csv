@@ -1,0 +1,7 @@
+Payment ID,Person ID,Name,Date,Amount,Fund(s),Method,Check Number,Note
+P-5001,10001,Grace Example,01/07/2024,150.00,General Fund,Check,1042,Sanitized fixture row
+P-5002,10002,Thomas Example,01/07/2024,"1,200.00",Building Fund,Credit Card,,
+P-5003,10001,Grace Example,02/04/2024,150.00,General Fund,Check,1057,
+P-5004,10004,Samuel Sampleton,02/11/2024,25.50,Missions,Cash,,First gift
+P-5005,,Anonymous Visitor,03/03/2024,40.00,General Fund,Cash,,Plate offering — no donor record
+P-5006,10002,Thomas Example,12/01/2024,300.00,general fund,ACH,,Year-end

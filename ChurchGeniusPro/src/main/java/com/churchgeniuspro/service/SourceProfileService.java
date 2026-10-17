@@ -77,6 +77,10 @@ public class SourceProfileService {
         }
 
         profileRepo.deleteByRunIdAndSourceTable(runId, sourceTable);
+        // Phase 5: flush the deletes before the inserts — Hibernate otherwise orders inserts
+        // first, and re-profiling the same file in a run (re-upload into its slot) would hit
+        // uq_src_profile_col.
+        profileRepo.flush();
         List<SourceColumnProfile> out = new ArrayList<>();
         for (Map.Entry<String, ColStat> e : cols.entrySet()) {
             out.add(profileRepo.save(toEntity(runId, clientId, sourceTable, e.getKey(), e.getValue())));

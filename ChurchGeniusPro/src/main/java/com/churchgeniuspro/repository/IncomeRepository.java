@@ -391,6 +391,13 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
     /** Donation Review reconciliation: the active income rows posted for these PaymentIntent ids (V14). */
     List<Income> findByAppClientIdAndImportRefInAndDeleteFlagFalse(String appClientId, java.util.Collection<String> importRefs);
 
+    /** ETL Migration Phase 2: live rows in the staged date window, for Strong/Possible duplicate matching. */
+    List<Income> findByAppClientIdAndDeleteFlagFalseAndIncomeDateBetween(String appClientId, java.time.LocalDate from, java.time.LocalDate to);
+
+    /** ETL Migration Phase 3: is a fund / payment method still used by a live row (reference-row cleanup on rollback)? */
+    long countBySubSource_IdAndDeleteFlagFalse(Integer subSourceId);
+    long countByTransactionType_IdAndDeleteFlagFalse(Integer transactionTypeId);
+
     /**
      * Pledge collection total: sum of a specific member's active income to a
      * specific fund (sub-source), scoped to the org and bounded to a date

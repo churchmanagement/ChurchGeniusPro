@@ -1,0 +1,4 @@
+Person Id,First Name,Last Name,Fund(s),Envelope Number,Fee,Amount,Notes,Payment Method,Date,Deposit Date,Batch Number,Batch Name,Transaction Id,Check Number
+501,Grace,Example,Tithe,12,0.00,"$1,250.00",,Check,2026-01-04,2026-01-05,B-1,January week 1,TX-9001,1047
+502,Thomas,Example,Building,13,2.90,100.00,Online gift,Card,2026-01-04,2026-01-05,B-1,January week 1,TX-9002,
+503,Samuel,Sampleton,Tithes,,0.00,40,Visitor,Cash,01/11/2026,2026-01-12,B-2,January week 2,TX-9003,

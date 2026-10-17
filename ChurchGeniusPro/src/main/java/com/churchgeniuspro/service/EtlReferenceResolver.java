@@ -3,9 +3,11 @@ package com.churchgeniuspro.service;
 import com.churchgeniuspro.hibernate.MainSource;
 import com.churchgeniuspro.hibernate.Purpose;
 import com.churchgeniuspro.hibernate.SubSource;
+import com.churchgeniuspro.hibernate.TransactionType;
 import com.churchgeniuspro.repository.MainSourceRepository;
 import com.churchgeniuspro.repository.PurposeRepository;
 import com.churchgeniuspro.repository.SubSourceRepository;
+import com.churchgeniuspro.repository.TransactionTypeRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -30,13 +32,30 @@ public class EtlReferenceResolver {
     private final MainSourceRepository mainSourceRepo;
     private final SubSourceRepository  subSourceRepo;
     private final PurposeRepository    purposeRepo;
+    private final TransactionTypeRepository txTypeRepo;   // Migration Phase 1: payment methods
 
+    @org.springframework.beans.factory.annotation.Autowired
     public EtlReferenceResolver(MainSourceRepository mainSourceRepo,
                                 SubSourceRepository subSourceRepo,
-                                PurposeRepository purposeRepo) {
+                                PurposeRepository purposeRepo,
+                                TransactionTypeRepository txTypeRepo) {
         this.mainSourceRepo = mainSourceRepo;
         this.subSourceRepo  = subSourceRepo;
         this.purposeRepo    = purposeRepo;
+        this.txTypeRepo     = txTypeRepo;
+    }
+
+    /** Compatibility constructor (no payment-method resolution). */
+    public EtlReferenceResolver(MainSourceRepository mainSourceRepo,
+                                SubSourceRepository subSourceRepo,
+                                PurposeRepository purposeRepo) {
+        this(mainSourceRepo, subSourceRepo, purposeRepo, null);
+    }
+
+    /** Tenant-scoped payment-method lookup by id (rollback of a before-image). */
+    public Optional<TransactionType> transactionTypeById(Integer id, String tenant) {
+        if (id == null || txTypeRepo == null) return Optional.empty();
+        return txTypeRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, tenant);
     }
 
     public Session session(String tenant) {
@@ -79,9 +98,17 @@ public class EtlReferenceResolver {
         private final Map<String, MainSource> mainByName = new HashMap<>();
         private final Map<String, SubSource>  subByKey   = new HashMap<>();   // mainId|subName
         private final Map<String, Purpose>    purposeByName = new HashMap<>();
-        private boolean mainLoaded, subLoaded, purposeLoaded;
+        private final Map<String, TransactionType> txTypeByName = new HashMap<>();
+        private boolean mainLoaded, subLoaded, purposeLoaded, txTypeLoaded;
+        /** Migration Phase 3: reference rows this session CREATED (entity, name, id) — recorded as import links so a rollback can remove them if unused. */
+        private final List<Object[]> created = new java.util.ArrayList<>();
 
         Session(String tenant) { this.tenant = tenant; }
+
+        /** Reference rows created by this session so far: {entity code, name as spelled, live id}. */
+        public List<Object[]> created() { return created; }
+        /** Forget the rows reported so far (after they have been recorded as links). */
+        public void clearCreated() { created.clear(); }
 
         public MainSource mainSource(String name) {
             String n = (name == null || name.isBlank()) ? "Imported" : name.trim();
@@ -99,6 +126,7 @@ public class EtlReferenceResolver {
             created.setCreatedDate(new Date());
             created = mainSourceRepo.save(created);
             mainByName.put(key(n), created);
+            this.created.add(new Object[]{"ref:main_source", n, created.getId()});
             return created;
         }
 
@@ -125,6 +153,7 @@ public class EtlReferenceResolver {
             created.setCreatedDate(new Date());
             created = subSourceRepo.save(created);
             subByKey.put(k, created);
+            this.created.add(new Object[]{"ref:sub_source", main.getId() + "|" + sn, created.getId()});
             return created;
         }
 
@@ -144,6 +173,33 @@ public class EtlReferenceResolver {
             created.setCreatedDate(new Date());
             created = purposeRepo.save(created);
             purposeByName.put(key(n), created);
+            this.created.add(new Object[]{"ref:purpose", n, created.getId()});
+            return created;
+        }
+
+        /**
+         * Migration Phase 1: payment method ("Cash", "Check", "Card"…) → the tenant's
+         * {@code transaction_type}, created once per distinct spelling when absent.
+         * Blank → null (the live column is nullable; the form's non-null rule does not
+         * apply to migrated history). Null when the resolver has no repository.
+         */
+        public TransactionType transactionType(String name) {
+            if (txTypeRepo == null || name == null || name.isBlank()) return null;
+            String n = name.trim();
+            if (!txTypeLoaded) {
+                for (TransactionType t : safe(txTypeRepo.findActiveByAppUser(tenant)))
+                    txTypeByName.putIfAbsent(key(t.getTypeName()), t);
+                txTypeLoaded = true;
+            }
+            TransactionType hit = txTypeByName.get(key(n));
+            if (hit != null) return hit;
+            TransactionType created = new TransactionType();
+            created.setTypeName(n);
+            created.setAppClientId(tenant);
+            created.setDeleteFlag(false);
+            created = txTypeRepo.save(created);
+            txTypeByName.put(key(n), created);
+            this.created.add(new Object[]{"ref:transaction_type", n, created.getId()});
             return created;
         }
 

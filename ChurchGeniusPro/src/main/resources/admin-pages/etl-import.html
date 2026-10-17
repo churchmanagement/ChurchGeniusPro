@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#673147" />
+  <title>Church Genius Pro – Data Import</title>
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; background: #f5f6fa; color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    button { cursor: pointer; font-family: inherit; border: none; }
+
+    .topbar { background: #3a5a9b; color: #fff; padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; }
+    .topbar-brand img { height: 30px; }
+    .admin-chip { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 10px; }
+    .btn-ghost { background: rgba(255,255,255,.15); color:#fff; border-radius: 6px; padding: 7px 14px; font-size: 13px; }
+    .btn-ghost:hover { background: rgba(255,255,255,.28); }
+
+    .main { max-width: 1080px; margin: 22px auto; padding: 0 18px 60px; }
+
+    /* stepper */
+    .steps { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .step { flex: 1; min-width: 160px; background: #fff; border: 1px solid #e4e7ee; border-radius: 10px;
+      padding: 12px 14px; display: flex; gap: 10px; align-items: center; opacity: .55; }
+    .step.active { opacity: 1; border-color: #3a5a9b; box-shadow: 0 2px 10px rgba(58,90,155,.12); }
+    .step.done { opacity: 1; }
+    .step .num { width: 26px; height: 26px; border-radius: 50%; background: #eceff5; color: #3a5a9b;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: none; }
+    .step.active .num { background: #3a5a9b; color: #fff; }
+    .step.done .num { background: #2e9e5b; color: #fff; }
+    .step .lbl { font-size: 13px; font-weight: 600; }
+    .step .sub { font-size: 11px; color: #8a8f9c; }
+
+    .card { background: #fff; border: 1px solid #e4e7ee; border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
+    .card h2 { font-size: 16px; margin-bottom: 4px; }
+    .card .hint { font-size: 12.5px; color: #7c818d; margin-bottom: 16px; }
+    .hidden { display: none !important; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #555; margin: 0 0 5px; }
+    select, input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid #cfd4df; border-radius: 8px;
+      font-size: 13.5px; background: #fff; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .row > .col { flex: 1; min-width: 200px; }
+
+    .btn { background: #3a5a9b; color: #fff; border-radius: 8px; padding: 9px 16px; font-size: 13.5px; font-weight: 600; }
+    .btn:hover { background: #32508c; }
+    .btn:disabled { background: #b9c0cf; cursor: not-allowed; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+    .btn-green { background: #2e9e5b; } .btn-green:hover { background: #28894f; }
+    .btn-red { background: #d24a52; } .btn-red:hover { background: #bd3d45; }
+    .btn-light { background: #eef1f7; color: #3a5a9b; } .btn-light:hover { background: #e2e7f2; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 8px 9px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8a8f9c; background: #fafbfd; }
+    .tbl-wrap { overflow-x: auto; border: 1px solid #eef0f4; border-radius: 10px; }
+
+    .badge { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+      padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
+    .b-auto { background: #e2f3e8; color: #2e7d44; }
+    .b-review { background: #fdf0d8; color: #9a6b12; }
+    .b-confirmed { background: #dce9fb; color: #2c5aa0; }
+    .b-rejected { background: #f6dede; color: #b23b3b; }
+    .b-valid { background: #e2f3e8; color: #2e7d44; }
+    .b-warn { background: #fdf0d8; color: #9a6b12; }
+    .b-error { background: #f6dede; color: #b23b3b; }
+    .b-pending { background: #ececf1; color: #6a6f7c; }
+    .b-review-row { background: #ede7f6; color: #5e35b1; }
+    .t-exact { background: #f6dede; color: #b23b3b; } .t-strong { background: #fdf0d8; color: #9a6b12; }
+    .t-possible { background: #ede7f6; color: #5e35b1; } .t-in_file { background: #e3f2fd; color: #1565c0; } .t-none { background: #e2f3e8; color: #2e7d44; }
+    .act-sel { padding: 4px 6px; font-size: 11.5px; border: 1px solid #cfd4df; border-radius: 6px; background: #fff; }
+
+    .pill { display:inline-block; background:#eef1f7; color:#3a5a9b; border-radius:20px;
+      padding:3px 11px; font-size:12px; font-weight:600; margin:0 6px 6px 0; cursor:pointer; border:1px solid transparent; }
+    .pill.on { background:#3a5a9b; color:#fff; }
+    .summary { display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 14px; }
+    .stat { background:#f7f9fc; border:1px solid #eef0f4; border-radius:10px; padding:10px 16px; min-width:90px; }
+    .stat .n { font-size:20px; font-weight:800; } .stat .k { font-size:11px; color:#8a8f9c; text-transform:uppercase; }
+
+    .msg { font-size: 11.5px; color:#9a6b12; }
+    .msg.err { color:#b23b3b; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color:#555;
+      max-width: 320px; white-space: pre-wrap; word-break: break-word; }
+    .note { background:#fff8e6; border:1px solid #f3e2b3; color:#8a6d1f; border-radius:8px; padding:10px 13px; font-size:12.5px; }
+
+    .req { color:#b23b3b; font-weight:800; margin-left:2px; }
+    .chip { display:inline-block; background:#eef1f7; color:#3a5a9b; border-radius:6px; padding:2px 8px; font-size:11.5px; margin:2px 4px 2px 0; }
+    .chip.warn { background:#fdf0d8; color:#9a6b12; }
+    .chip.ok { background:#e2f3e8; color:#2e7d44; }
+    .panel { border:1px solid #eef0f4; border-radius:10px; padding:12px 14px; margin-top:14px; background:#fafbfd; }
+    .panel h3 { font-size:13.5px; margin-bottom:6px; }
+    .dict-sel { width:100%; padding:5px 7px; font-size:12px; border:1px solid #cfd4df; border-radius:6px; }
+    .checkline { display:flex; align-items:center; gap:8px; font-size:12.5px; color:#555; margin-top:22px; }
+    .checkline input { width:auto; }
+    .plan { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin:10px 0 14px; }
+    .plan .ptile { border:1px solid #e4e7ee; border-radius:10px; padding:11px 13px; background:#fff; cursor:pointer; }
+    .plan .ptile.on { border-color:#3a5a9b; box-shadow:0 2px 10px rgba(58,90,155,.12); }
+    .plan .ptile .pt { font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+    .plan .ptile .ps { font-size:11.5px; color:#7c818d; margin-top:4px; }
+    .s-not_staged { background:#ececf1; color:#6a6f7c; } .s-validated { background:#e2f3e8; color:#2e7d44; }
+    .s-review { background:#ede7f6; color:#5e35b1; } .s-approved { background:#dce9fb; color:#2c5aa0; }
+    .s-loaded { background:#e2f3e8; color:#2e7d44; } .s-failed { background:#f6dede; color:#b23b3b; } .s-rolled_back { background:#ececf1; color:#6a6f7c; }
+    .hh { border:1px solid #eef0f4; border-radius:10px; padding:10px 12px; margin-top:8px; background:#fff; }
+    .hh.acc { border-color:#2e9e5b; } .hh.rej { opacity:.65; }
+    .hh .hname { font-weight:700; font-size:13px; } .hh .haddr { font-size:12px; color:#7c818d; }
+    .hh ul { margin:6px 0 0 16px; font-size:12.5px; } .hh li { margin:2px 0; }
+    #toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px);
+      background: #2b2f3a; color: #fff; padding: 11px 18px; border-radius: 8px; font-size: 13px;
+      opacity: 0; transition: all .3s; z-index: 99; max-width: 80vw; }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.err { background: #b23b3b; }
+      /* ── Phase 5 wizard ── */
+    .runbar { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1px solid #e4e7ee; padding: 10px 28px;
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 6px rgba(0,0,0,.04); }
+    .runbar .rb-item { font-size: 12.5px; color: #555; } .runbar .rb-item strong { color: #222; }
+    .runbar .rb-spacer { flex: 1; }
+    .rail { display: flex; gap: 6px; margin: 4px 0 18px; flex-wrap: wrap; }
+    .rail .rs { flex: 1; min-width: 120px; background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 10px 12px;
+      display: flex; gap: 9px; align-items: center; cursor: pointer; opacity: .6; }
+    .rail .rs.on { opacity: 1; border-color: #3a5a9b; box-shadow: 0 2px 10px rgba(58,90,155,.12); }
+    .rail .rs.done { opacity: 1; }
+    .rail .rs.locked { cursor: not-allowed; }
+    .rail .rs .num { width: 24px; height: 24px; border-radius: 50%; background: #eceff5; color: #3a5a9b; display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 12px; flex: none; }
+    .rail .rs.on .num { background: #3a5a9b; color: #fff; } .rail .rs.done .num { background: #2e9e5b; color: #fff; }
+    .rail .rs .lbl { font-size: 12.5px; font-weight: 700; } .rail .rs .sub { font-size: 10.5px; color: #8a8f9c; }
+    .step-card { display: none; } .step-card.on { display: block; }
+    .navrow { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+    .presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 8px 0 14px; }
+    .preset { border: 1px solid #e4e7ee; border-radius: 10px; padding: 12px 14px; cursor: pointer; background: #fff; }
+    .preset.on { border-color: #3a5a9b; box-shadow: 0 2px 10px rgba(58,90,155,.15); background: #f8faff; }
+    .preset .pn { font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+    .preset ul { margin: 6px 0 0 16px; font-size: 12px; color: #555; } .preset li { margin: 2px 0; }
+    .drop { border: 2px dashed #b9c4dd; border-radius: 12px; padding: 26px; text-align: center; color: #5a6a8a; background: #f8faff; cursor: pointer; }
+    .drop.over { border-color: #3a5a9b; background: #eef3ff; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tab { padding: 6px 12px; border-radius: 8px; border: 1px solid #e4e7ee; background: #fff; font-size: 12.5px; cursor: pointer; }
+    .tab.on { background: #3a5a9b; border-color: #3a5a9b; color: #fff; }
+    .chk { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; border: 1px solid #e4e7ee; border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+    .chk .ord { width: 28px; height: 28px; border-radius: 50%; background: #eceff5; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #3a5a9b; font-size: 12px; }
+    .chk.loaded .ord { background: #2e9e5b; color: #fff; } .chk.failed .ord { background: #d24a52; color: #fff; }
+    .bar { height: 6px; background: #eef0f4; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .bar > div { height: 100%; background: #3a5a9b; width: 0; transition: width .3s; }
+    .drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(560px, 100vw); background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,.15);
+      z-index: 60; transform: translateX(110%); transition: transform .25s; display: flex; flex-direction: column; }
+    .drawer.on { transform: none; }
+    .drawer .dh { padding: 14px 18px; border-bottom: 1px solid #eef0f4; display: flex; justify-content: space-between; align-items: center; }
+    .drawer .db { padding: 12px 18px; overflow-y: auto; flex: 1; }
+    .tot { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-brand">
+    <img src="/logo.png" alt="Church Genius Pro" />
+    <span>Church Genius Pro</span>
+    <span class="admin-chip">Data Import</span>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn-ghost" onclick="window.location.href='/serviceadminhome'">← Admin Home</button>
+    <button class="btn-ghost" id="logoutBtn">Logout</button>
+  </div>
+</div>
+
+<!-- Run header: who, what, where it stands -->
+<div class="runbar" id="runBar">
+  <span class="rb-item" id="rbChurch">No run open — start or resume one below.</span>
+  <span class="rb-item" id="rbSource"></span>
+  <span class="rb-item" id="rbRun"></span>
+  <span class="rb-item" id="rbStatus"></span>
+  <span class="rb-item" id="rbLast"></span>
+  <span class="rb-spacer"></span>
+  <button class="btn btn-sm btn-light hidden" id="btnAudit">Audit trail</button>
+  <button class="btn btn-sm btn-light hidden" id="btnCloseRun">Close run</button>
+</div>
+
+<div class="main">
+  <div class="rail" id="rail">
+    <div class="rs" data-step="1"><div class="num">1</div><div><div class="lbl">Start</div><div class="sub">Church &amp; source</div></div></div>
+    <div class="rs" data-step="2"><div class="num">2</div><div><div class="lbl">Files</div><div class="sub">Upload &amp; detect</div></div></div>
+    <div class="rs" data-step="3"><div class="num">3</div><div><div class="lbl">Map</div><div class="sub">Columns &amp; values</div></div></div>
+    <div class="rs" data-step="4"><div class="num">4</div><div><div class="lbl">Review</div><div class="sub">Validate &amp; decide</div></div></div>
+    <div class="rs" data-step="5"><div class="num">5</div><div><div class="lbl">Load</div><div class="sub">In order</div></div></div>
+    <div class="rs" data-step="6"><div class="num">6</div><div><div class="lbl">Summary</div><div class="sub">Results &amp; undo</div></div></div>
+  </div>
+
+  <!-- STEP 1 · START -->
+  <div class="card step-card" id="step1">
+    <h2>1 · Start a migration</h2>
+    <div class="hint">A run imports data for ONE church. Everything it stages or loads belongs only to that church, and every load can be undone.</div>
+    <div class="row">
+      <div class="col">
+        <label>Church (tenant)</label>
+        <select id="clientSel"><option value="">Loading…</option></select>
+      </div>
+    </div>
+    <div id="historyArea" style="margin-top:14px;"></div>
+
+    <div class="panel" id="newRunPanel">
+      <h3>New migration</h3>
+      <div class="hint" style="margin-bottom:6px;">Which product is the church moving from? Known column names from that product map automatically.
+        <strong>Preset (unverified)</strong> means no real export from that product has been run end to end yet — review every mapping.</div>
+      <div class="presets" id="presetCards"></div>
+      <div class="row">
+        <div class="col">
+          <label>Dates in the files are</label>
+          <select id="dateOrderSel">
+            <option value="AUTO">Detect (ISO first, then month/day/year)</option>
+            <option value="MDY">Month / Day / Year (US, e.g. 12/25/2024)</option>
+            <option value="DMY">Day / Month / Year (e.g. 25/12/2024)</option>
+            <option value="YMD">Year / Month / Day (e.g. 2024-12-25)</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Notes (optional)</label>
+          <input type="text" id="sourceLabel" placeholder="e.g. Breeze export received 2026-10-16" />
+        </div>
+      </div>
+      <label class="checkline"><input type="checkbox" id="aiAssistChk" /> Allow AI mapping suggestions (column names and types only — never the church's data)</label>
+      <div style="margin-top:14px;"><button class="btn" id="btnCreateRun">Create run</button></div>
+    </div>
+  </div>
+
+  <!-- STEP 2 · FILES -->
+  <div class="card step-card" id="step2">
+    <h2>2 · Upload the exported files</h2>
+    <div class="hint">Drop every file from the old system at once — CSV, Excel (.xlsx / .xls) or JSON. Each file is captured as-is, profiled, and given a data type from its column names; change the type if it guessed wrong. The same file for the same church is refused unless you choose to import it again. Nothing live is touched.</div>
+    <div class="drop" id="dropZone">
+      <div style="font-size:15px;font-weight:700;">Drop files here</div>
+      <div style="font-size:12.5px;margin-top:4px;">or click to choose (several at once is fine)</div>
+      <input type="file" id="fileInput" multiple accept=".csv,.tsv,.txt,.json,.xlsx,.xls,text/csv,application/json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
+    </div>
+    <div id="uploadLog" style="margin-top:10px;"></div>
+    <div id="filesArea" style="margin-top:14px;"></div>
+    <div id="fileWarn"></div>
+    <div class="navrow"><button class="btn btn-light" data-go="1">← Start</button><button class="btn" id="btnToMap">Next: map columns →</button></div>
+  </div>
+
+  <!-- STEP 3 · MAP -->
+  <div class="card step-card" id="step3">
+    <h2>3 · Map columns and values</h2>
+    <div class="hint">One tab per file. Required columns come first (<span class="req">*</span>). AUTO = high confidence; REVIEW = please check. Confirm or change any row; values such as funds, roles and payment methods are unified below before anything is staged.</div>
+    <div class="tabs" id="mapTabs"></div>
+    <div class="row" style="display:none;">
+      <select id="targetSel"></select>
+      <select id="mapSrcSel"><option value="">—</option></select>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <span id="mapHeading" style="font-weight:700;font-size:13.5px;"></span>
+      <button class="btn btn-sm btn-light" id="btnSuggest">Suggest again</button>
+    </div>
+    <div id="reviewArea" style="margin-top:12px;"></div>
+    <div id="mapArea" style="margin-top:14px;"></div>
+    <div id="dictArea"></div>
+    <div class="panel" id="datePanel" style="display:none;"></div>
+    <div class="navrow"><button class="btn btn-light" data-go="2">← Files</button><button class="btn" id="btnToReview">Next: stage &amp; review →</button></div>
+  </div>
+
+  <!-- STEP 4 · REVIEW -->
+  <div class="card step-card" id="step4">
+    <h2>4 · Review: validate and decide</h2>
+    <div class="hint">Each data type is staged and validated on its own. Pick a tile to see its rows. Possible duplicates must be decided (Skip / Update / Merge / Import as new) before the type can be approved. Still nothing live.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+      <button class="btn btn-sm" id="btnStageAll">Stage &amp; validate all mapped files</button>
+    </div>
+    <div id="planArea" class="plan"></div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <span style="font-size:12.5px;color:#555;">Working on:</span>
+      <strong id="stageTarget" style="font-size:13.5px;">family</strong>
+      <button class="btn btn-sm btn-light" id="btnStage">Re-stage this type</button>
+      <button class="btn btn-sm btn-green" id="btnApprove">Approve this type</button>
+    </div>
+    <div id="valSummary" class="summary"></div>
+    <div id="matchSummary" class="summary"></div>
+    <div id="reviewNote"></div>
+    <div id="householdArea"></div>
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+      <div id="previewFilters" style="flex:1;"></div>
+      <a id="csvLink" class="btn btn-sm btn-light" href="#" style="text-decoration:none;" download>Download validation report (CSV)</a>
+    </div>
+    <div id="previewArea"></div>
+    <div class="navrow"><button class="btn btn-light" data-go="3">← Map</button><button class="btn" data-go="5">Next: load →</button></div>
+  </div>
+
+  <!-- STEP 5 · LOAD -->
+  <div class="card step-card" id="step5">
+    <h2>5 · Load to live data</h2>
+    <div class="note" style="margin:6px 0 12px;">
+      Types load in this order — people and the records others refer to first — and a type waits for the ones it depends on.
+      Loading writes the approved rows into this church's live data, tenant-stamped, honouring every decision.
+      Every batch can be rolled back; <em>Roll back run</em> undoes all of them in reverse order.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-green" id="btnApproveAll">Approve all ready types</button>
+      <button class="btn" id="btnLoadRun">Load all in order</button>
+      <button class="btn btn-red" id="btnRollbackRun">Roll back run</button>
+      <button class="btn btn-light" id="btnVerify">Verify run</button>
+    </div>
+    <div id="loadList"></div>
+    <div id="batchArea" style="margin-top:14px;"></div>
+    <div id="reportArea" style="margin-top:10px;"></div>
+    <div id="verifyArea" style="margin-top:12px;"></div>
+    <div class="navrow"><button class="btn btn-light" data-go="4">← Review</button><button class="btn" data-go="6">Next: summary →</button></div>
+  </div>
+
+  <!-- STEP 6 · SUMMARY -->
+  <div class="card step-card" id="step6">
+    <h2>6 · Summary</h2>
+    <div id="summaryArea"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+      <a class="btn btn-light" id="lnkSummaryCsv" href="#" style="text-decoration:none;" download>Migration summary (CSV)</a>
+      <a class="btn btn-light" id="lnkAuditCsv" href="#" style="text-decoration:none;" download>Audit trail (CSV)</a>
+      <button class="btn btn-red" id="btnUndoAll">Undo entire import</button>
+    </div>
+    <div class="navrow"><button class="btn btn-light" data-go="5">← Load</button><span></span></div>
+  </div>
+</div>
+
+<!-- Audit trail drawer -->
+<div class="drawer" id="auditDrawer">
+  <div class="dh"><strong>Audit trail</strong><div style="display:flex;gap:8px;"><a class="btn btn-sm btn-light" id="lnkAuditCsv2" href="#" style="text-decoration:none;" download>CSV</a><button class="btn btn-sm btn-light" id="btnAuditClose">Close</button></div></div>
+  <div class="db" id="auditBody"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ── auth guard (UX only; the server serves this page only to a service-admin session) ── */
+if (!localStorage.getItem('serviceAdminLoggedIn')) window.location.href = '/serviceadminlogin';
+document.getElementById('logoutBtn').addEventListener('click', function () {
+  localStorage.removeItem('serviceAdminLoggedIn');
+  window.location.href = '/serviceadminlogin';
+});
+
+var S = { clientId: '', clientName: '', runId: null, runStatus: '', run: null, sources: {}, target: 'family', step: 1,
+          previewFilter: 'all', previewOffset: 0, presets: [], preset: 'GENERIC', labels: {}, files: [], fileObjs: {}, plan: [] };
+var TYPE_LABELS = { family: 'People & households', income: 'Income / donations', expense: 'Expenses', pledge_campaign: 'Pledge campaigns',
+  pledge: 'Pledges', event: 'Events', event_registration: 'Event registrations', attendance: 'Attendance', group: 'Groups',
+  group_member: 'Group memberships', km_child: 'Kids Ministry children', km_checkin: 'Kids Ministry check-ins' };
+S.labels = TYPE_LABELS;
+
+/* ── helpers ── */
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toast._t); toast._t = setTimeout(function () { t.className = ''; }, 3600);
+}
+function esc(v) {
+  return (v == null ? '' : String(v)).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; });
+}
+function qs(obj) {
+  return Object.keys(obj).filter(function (k) { return obj[k] != null && obj[k] !== ''; })
+    .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]); }).join('&');
+}
+async function apiGet(path, params) {
+  var r = await fetch(path + (params ? ('?' + qs(params)) : ''), { headers: { 'Accept': 'application/json' } });
+  var j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+  return j;
+}
+async function apiSend(method, path, body) {
+  var r = await fetch(path, { method: method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body || {}) });
+  var j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+  return j;
+}
+function isFinancial(t) { return t === 'income' || t === 'expense' || t === 'pledge'; }
+function label(t) { return S.labels[t] || TYPE_LABELS[t] || t; }
+function when(v) { return v ? esc(String(v).replace('T', ' ').slice(0, 16)) : ''; }
+function tierBadge(t) {
+  if (!t) return '';
+  var l = { EXACT: 'already imported', STRONG: 'likely duplicate', POSSIBLE: 'possible duplicate', IN_FILE: 'duplicate in file', NONE: 'new' }[t] || t;
+  return '<span class="badge t-' + esc(t.toLowerCase()) + '">' + esc(l) + '</span>';
+}
+function statusBadge(s) {
+  var map = { AUTO: 'b-auto', NEEDS_REVIEW: 'b-review', CONFIRMED: 'b-confirmed', REJECTED: 'b-rejected', VALID: 'b-valid', WARN: 'b-warn', ERROR: 'b-error',
+              PENDING: 'b-pending', REVIEW: 'b-review-row', LOADED: 'b-valid', SKIPPED: 'b-pending', FAILED: 'b-error', APPROVED: 'b-confirmed', ROLLED_BACK: 'b-pending' };
+  return '<span class="badge ' + (map[s] || 'b-pending') + '">' + esc(s === 'NEEDS_REVIEW' ? 'REVIEW' : s) + '</span>';
+}
+function stat(n, k, extra) { return '<div class="stat"' + (extra || '') + '><div class="n">' + (n || 0) + '</div><div class="k">' + k + '</div></div>'; }
+
+/* ── steps ── */
+function go(n) {
+  if (n > 1 && !S.runId) { toast('Create or resume a run first', true); n = 1; }
+  S.step = n;
+  for (var i = 1; i <= 6; i++) document.getElementById('step' + i).classList.toggle('on', i === n);
+  Array.prototype.forEach.call(document.querySelectorAll('#rail .rs'), function (el) {
+    var k = Number(el.getAttribute('data-step'));
+    el.classList.toggle('on', k === n); el.classList.toggle('done', !!S.runId && k < n); el.classList.toggle('locked', !S.runId && k > 1);
+  });
+  if (n === 2) refreshFiles();
+  if (n === 3) openMap();
+  if (n === 4) showTable(S.target || firstStagedOrFamily());
+  if (n === 5) refreshLoad();
+  if (n === 6) refreshSummaryStep();
+  window.scrollTo(0, 0);
+}
+function setStep(n) { go(n); }   // older name, kept for callers
+Array.prototype.forEach.call(document.querySelectorAll('#rail .rs'), function (el) {
+  el.addEventListener('click', function () { go(Number(el.getAttribute('data-step'))); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function (el) {
+  el.addEventListener('click', function () { go(Number(el.getAttribute('data-go'))); });
+});
+function firstStagedOrFamily() {
+  var t = (S.plan || []).filter(function (x) { return x.staged > 0; })[0];
+  return t ? t.targetTable : 'family';
+}
+
+/* ── run header ── */
+async function renderRunBar() {
+  var r = S.run;
+  document.getElementById('btnAudit').classList.toggle('hidden', !S.runId);
+  document.getElementById('btnCloseRun').classList.toggle('hidden', !S.runId);
+  if (!r) {
+    document.getElementById('rbChurch').innerHTML = 'No run open — start or resume one below.';
+    ['rbSource', 'rbRun', 'rbStatus', 'rbLast'].forEach(function (id) { document.getElementById(id).innerHTML = ''; });
+    return;
+  }
+  document.getElementById('rbChurch').innerHTML = 'Church: <strong>' + esc(S.clientName || r.clientId) + '</strong>';
+  document.getElementById('rbSource').innerHTML = 'Source: <strong>' + esc(r.sourcePresetLabel) + '</strong>' +
+    (r.sourcePreset !== 'GENERIC' ? (r.sourcePresetVerified ? ' <span class="chip ok">Supported</span>' : ' <span class="chip warn">Preset (unverified)</span>') : '');
+  document.getElementById('rbRun').innerHTML = 'Run <strong>#' + r.id + '</strong> · dates ' + esc(r.dateOrder);
+  document.getElementById('rbStatus').innerHTML = statusBadge(S.runStatus || r.status);
+  try {
+    var a = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/audit', { clientId: S.clientId });
+    var last = (a.audit || []).slice(-1)[0];
+    document.getElementById('rbLast').innerHTML = last ? 'Last: <strong>' + esc(last.action) + '</strong> ' + when(last.createdDate) : '';
+  } catch (e) { /* ignore */ }
+}
+document.getElementById('btnCloseRun').addEventListener('click', function () {
+  S.runId = null; S.run = null; S.runStatus = ''; S.sources = {}; S.files = []; S.plan = []; S.fileObjs = {};
+  history.replaceState(null, '', '/etlImport'); renderRunBar(); refreshHistory(); go(1);
+});
+
+/* ── audit drawer ── */
+document.getElementById('btnAudit').addEventListener('click', async function () {
+  document.getElementById('auditDrawer').classList.add('on');
+  var href = '/api/serviceadmin/etl/runs/' + S.runId + '/audit-csv?' + qs({ clientId: S.clientId });
+  document.getElementById('lnkAuditCsv2').href = href;
+  try {
+    var a = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/audit', { clientId: S.clientId });
+    document.getElementById('auditBody').innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Action</th><th>Batch</th><th>Detail</th></tr></thead><tbody>' +
+      (a.audit || []).slice().reverse().map(function (x) {
+        var d = x.detail; try { var o = JSON.parse(x.detail || '{}'); d = Object.keys(o).map(function (k) { return k + ': ' + (typeof o[k] === 'object' ? JSON.stringify(o[k]) : o[k]); }).join(' · '); } catch (e) { }
+        return '<tr><td style="white-space:nowrap;">' + when(x.createdDate) + '<div class="msg" style="color:#8a8f9c">' + esc(x.actor) + '</div></td><td><strong>' + esc(x.action) + '</strong></td><td>' +
+          esc(x.batchId == null ? '' : '#' + x.batchId) + '</td><td class="mono">' + esc(d) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch (e) { document.getElementById('auditBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; }
+});
+document.getElementById('btnAuditClose').addEventListener('click', function () { document.getElementById('auditDrawer').classList.remove('on'); });
+
+/* ═════════ STEP 1 · START ═════════ */
+async function loadClients() {
+  try {
+    var j = await apiGet('/api/serviceadmin/clients');
+    var list = (j.data || []).filter(function (c) { return c.clientId; });
+    S.clients = {};
+    list.forEach(function (c) { S.clients[c.clientId] = c.churchName || c.name || c.clientId; });
+    document.getElementById('clientSel').innerHTML = '<option value="">Select a church…</option>' + list.map(function (c) {
+      return '<option value="' + esc(c.clientId) + '">' + esc(c.churchName || c.name || c.clientId) + ' (' + esc(c.clientId) + ')</option>';
+    }).join('');
+  } catch (e) { toast('Could not load churches: ' + e.message, true); }
+}
+async function loadPresets() {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/presets');
+    S.presets = j.presets || [];
+    if (j.tableLabels) Object.keys(j.tableLabels).forEach(function (k) { S.labels[k] = j.tableLabels[k]; });
+    renderPresetCards();
+  } catch (e) { /* GENERIC stays */ }
+}
+function renderPresetCards() {
+  document.getElementById('presetCards').innerHTML = S.presets.map(function (p) {
+    var badge = p.code === 'GENERIC' ? '<span class="chip">Any file</span>' : (p.verified ? '<span class="chip ok">Supported</span>' : '<span class="chip warn">Preset (unverified)</span>');
+    return '<div class="preset' + (S.preset === p.code ? ' on' : '') + '" data-code="' + esc(p.code) + '"><div class="pn"><span>' + esc(p.label) + '</span>' + badge + '</div>' +
+      '<div style="font-size:11px;color:#8a8f9c;margin-top:4px;">' + (p.code === 'GENERIC' ? 'Export from' : 'Export from ' + esc(p.label)) + ':</div>' +
+      '<ul>' + (p.exports || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#presetCards .preset'), function (el) {
+    el.addEventListener('click', function () {
+      S.preset = el.getAttribute('data-code'); renderPresetCards();
+      var p = S.presets.filter(function (x) { return x.code === S.preset; })[0];
+      if (p && p.dateOrder && p.dateOrder !== 'AUTO') document.getElementById('dateOrderSel').value = p.dateOrder;
+    });
+  });
+}
+document.getElementById('clientSel').addEventListener('change', function () {
+  S.clientId = this.value; S.clientName = S.clients ? S.clients[this.value] : ''; refreshHistory();
+});
+async function refreshHistory() {
+  var el = document.getElementById('historyArea');
+  if (!S.clientId) { el.innerHTML = ''; return; }
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs', { clientId: S.clientId });
+    var runs = j.runs || [];
+    if (!runs.length) { el.innerHTML = '<div class="hint">No imports for this church yet.</div>'; return; }
+    el.innerHTML = '<div class="panel"><h3>Import history for this church</h3><div class="tbl-wrap"><table><thead><tr><th>Run</th><th>Source</th><th>Status</th><th>Files</th>' +
+      '<th>Loaded</th><th>Notes</th><th>Updated</th><th></th></tr></thead><tbody>' + runs.map(function (r) {
+        var done = r.status === 'DISCARDED' || r.status === 'FAILED';
+        return '<tr><td>#' + r.id + '</td><td>' + esc(r.sourcePresetLabel) + '</td><td>' + statusBadge(r.status) + '</td><td>' + (r.files || 0) + '</td>' +
+          '<td>' + (r.inserted || 0) + ' added' + (r.updated ? ', ' + r.updated + ' updated' : '') + '<div class="msg" style="color:#8a8f9c">' + esc((r.dataTypes || []).join(', ')) + '</div></td>' +
+          '<td>' + esc(r.sourceLabel || '') + '</td><td>' + when(r.updatedDate) + '</td>' +
+          '<td>' + (done ? '' : '<button class="btn btn-sm btn-light" data-resume="' + r.id + '">Open</button>') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    Array.prototype.forEach.call(el.querySelectorAll('[data-resume]'), function (b) {
+      b.addEventListener('click', function () { resumeRun(b.getAttribute('data-resume')); });
+    });
+  } catch (e) { el.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; }
+}
+
+document.getElementById('btnCreateRun').addEventListener('click', async function () {
+  if (!S.clientId) { toast('Pick a church first', true); return; }
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs', { clientId: S.clientId, sourceLabel: document.getElementById('sourceLabel').value,
+      sourcePreset: S.preset, dateOrder: document.getElementById('dateOrderSel').value,
+      aiAssist: document.getElementById('aiAssistChk').checked ? 'true' : 'false' });
+    await openRun(j.run);
+    toast('Run #' + S.runId + ' created — now add the files');
+    go(2);
+  } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+});
+
+async function openRun(run) {
+  S.runId = run.id; S.run = run; S.runStatus = run.status; S.sources = {}; S.files = []; S.fileObjs = {};
+  history.replaceState(null, '', '/etlImport?' + qs({ clientId: S.clientId, run: S.runId }));
+  try {
+    var p = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/profile', { clientId: S.clientId });
+    Object.keys(p.profile || {}).forEach(function (t) { S.sources[t] = { profile: p.profile[t] }; });
+  } catch (e) { /* ignore */ }
+  await refreshFiles(true);
+  await refreshPlan(true);
+  renderRunBar();
+}
+async function resumeRun(id) {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + id, { clientId: S.clientId });
+    await openRun(j.run);
+    var staged = (S.plan || []).some(function (t) { return t.staged > 0; });
+    var loaded = (S.plan || []).some(function (t) { return (t.batches || []).some(function (b) { return b.status === 'LOADED' || b.status === 'ROLLED_BACK'; }); });
+    go(loaded ? 5 : staged ? 4 : S.files.length ? 3 : 2);
+    toast('Opened run #' + S.runId + ' (' + S.runStatus + ')');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ═════════ STEP 2 · FILES ═════════ */
+var dz = document.getElementById('dropZone'), fi = document.getElementById('fileInput');
+dz.addEventListener('click', function () { fi.click(); });
+dz.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', function () { dz.classList.remove('over'); });
+dz.addEventListener('drop', function (e) { e.preventDefault(); dz.classList.remove('over'); uploadFiles(Array.prototype.slice.call(e.dataTransfer.files)); });
+fi.addEventListener('change', function () { uploadFiles(Array.prototype.slice.call(fi.files)); fi.value = ''; });
+
+function sourceNameOf(file) { return file.name.replace(/\.[^.]*$/, ''); }
+
+/** extract → (if the type matters for ids) extract again with the detected type */
+async function extractOne(file, targetTable, force) {
+  var fd = new FormData();
+  fd.append('file', file); fd.append('clientId', S.clientId); fd.append('sourceTable', sourceNameOf(file));
+  if (targetTable) fd.append('targetTable', targetTable);
+  if (force) fd.append('force', 'true');
+  var r = await fetch('/api/serviceadmin/etl/runs/' + S.runId + '/extract', { method: 'POST', body: fd });
+  var j = await r.json().catch(function () { return {}; });
+  return { status: r.status, j: j };
+}
+async function uploadFiles(files) {
+  if (!S.runId) { toast('Create a run first', true); return; }
+  var log = document.getElementById('uploadLog');
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var line = document.createElement('div'); line.className = 'msg'; line.textContent = 'Uploading ' + f.name + '…'; log.appendChild(line);
+    try {
+      var res = await extractOne(f, null, false);
+      if (res.status === 409 && res.j.duplicateOf) {
+        line.innerHTML = '<span class="msg err">' + esc(f.name) + ': ' + esc(res.j.message) + '</span> <button class="btn btn-sm btn-light">Import it again</button>';
+        (function (file, ln) {
+          ln.querySelector('button').addEventListener('click', async function () { ln.textContent = 'Uploading ' + file.name + ' again…'; await finishUpload(file, ln, true); await refreshFiles(true); });
+        })(f, line);
+        continue;
+      }
+      if (res.status !== 200) throw new Error(res.j.message || ('HTTP ' + res.status));
+      await finishUpload(f, line, false, res);
+    } catch (e) { line.innerHTML = '<span class="msg err">' + esc(f.name) + ': ' + esc(e.message) + '</span>'; }
+  }
+  await refreshFiles(true);
+  S.runStatus = S.runStatus === 'DRAFT' ? 'PROFILED' : S.runStatus; renderRunBar();
+}
+async function finishUpload(f, line, force, first) {
+  var res = first || await extractOne(f, null, force);
+  if (res.status !== 200) { line.innerHTML = '<span class="msg err">' + esc(f.name) + ': ' + esc(res.j.message || ('HTTP ' + res.status)) + '</span>'; return; }
+  var t = res.j.suggestedTarget, conf = String(res.j.suggestionConfidence || '').toLowerCase();
+  if (t) res = await extractOne(f, t, force);   // same slot: re-read with the type so its own id column is recognised
+  if (res.status !== 200) { line.innerHTML = '<span class="msg err">' + esc(f.name) + ': ' + esc(res.j.message) + '</span>'; return; }
+  S.fileObjs[res.j.sourceTable] = f;
+  S.sources[res.j.sourceTable] = { profile: res.j.profile, rowCount: res.j.rowCount };
+  line.innerHTML = '✓ <strong>' + esc(f.name) + '</strong> — ' + res.j.rowCount + ' rows' + (t ? ' · looks like <strong>' + esc(label(t)) + '</strong> (' + esc(conf) + ' confidence)' : ' · data type not recognised — choose it below') +
+    (res.j.idColumn ? ' · ids from "' + esc(res.j.idColumn) + '"' : '');
+}
+
+async function refreshFiles(quiet) {
+  if (!S.runId) return;
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/files', { clientId: S.clientId });
+    S.files = j.files || [];
+  } catch (e) { S.files = []; }
+  renderFiles();
+}
+function typeOptions(sel) {
+  return '<option value="">— choose —</option>' + Object.keys(TYPE_LABELS).map(function (t) {
+    return '<option value="' + t + '"' + (t === sel ? ' selected' : '') + '>' + esc(label(t)) + '</option>';
+  }).join('');
+}
+function renderFiles() {
+  var el = document.getElementById('filesArea');
+  var files = S.files;
+  if (!files.length) { el.innerHTML = '<div class="hint">No files yet.</div>'; document.getElementById('fileWarn').innerHTML = ''; return; }
+  el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>File</th><th>Rows</th><th>Data type</th><th>Ids from</th><th>Format</th><th>SHA-256</th><th>Uploaded</th></tr></thead><tbody>' +
+    files.map(function (f) {
+      var sugg = f.suggestedTable && f.suggestedTable !== f.targetTable ? '<div class="msg">detected: ' + esc(label(f.suggestedTable)) + '</div>' : '';
+      return '<tr><td><strong>' + esc(f.fileName) + '</strong>' + (f.forced ? ' <span class="chip warn">re-import</span>' : '') + '<div class="msg" style="color:#8a8f9c">' + esc(f.sourceTable) + '</div></td>' +
+        '<td>' + esc(f.rowCount) + '</td>' +
+        '<td><select class="dict-sel ft-sel" data-src="' + esc(f.sourceTable) + '">' + typeOptions(f.targetTable) + '</select>' + sugg + '</td>' +
+        '<td>' + esc(f.idColumn || 'row number') + '</td><td>' + esc(f.format) + '</td>' +
+        '<td class="mono">' + esc((f.sha256 || '').slice(0, 12)) + '…</td><td>' + when(f.createdDate) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  Array.prototype.forEach.call(el.querySelectorAll('.ft-sel'), function (sel) {
+    sel.addEventListener('change', async function () {
+      var src = sel.getAttribute('data-src'), file = S.fileObjs[src];
+      if (!file) { toast('Drop that file again to change its data type (the original is not kept in the browser after a reload)', true); renderFiles(); return; }
+      sel.disabled = true;
+      var prev = S.files.filter(function (x) { return x.sourceTable === src; })[0] || {};
+      var res = await extractOne(file, sel.value, !!prev.forced);
+      if (res.status !== 200) toast(res.j.message || 'Could not re-read the file', true); else toast(file.name + ' → ' + label(sel.value));
+      await refreshFiles(true);
+    });
+  });
+  var counts = {};
+  files.forEach(function (f) { if (f.targetTable) counts[f.targetTable] = (counts[f.targetTable] || 0) + 1; });
+  var dup = Object.keys(counts).filter(function (k) { return counts[k] > 1; });
+  var none = files.filter(function (f) { return !f.targetTable; });
+  document.getElementById('fileWarn').innerHTML =
+    (dup.length ? '<div class="note" style="margin-top:10px;">One file per data type per run: ' + dup.map(function (d) { return esc(label(d)); }).join(', ') + ' has more than one. Combine them into one file, or import the second in another run.</div>' : '') +
+    (none.length ? '<div class="note" style="margin-top:10px;">Choose a data type for: ' + none.map(function (f) { return esc(f.fileName); }).join(', ') + '</div>' : '');
+}
+document.getElementById('btnToMap').addEventListener('click', function () {
+  if (!S.files.length) { toast('Upload at least one file', true); return; }
+  if (S.files.some(function (f) { return !f.targetTable; })) { toast('Choose a data type for every file first', true); return; }
+  go(3);
+});
+
+/* ═════════ STEP 3 · MAP ═════════ */
+function mappedFiles() { return S.files.filter(function (f) { return f.targetTable; }); }
+async function openMap() {
+  var files = mappedFiles();
+  document.getElementById('mapTabs').innerHTML = files.map(function (f) {
+    return '<div class="tab" data-src="' + esc(f.sourceTable) + '" data-t="' + esc(f.targetTable) + '">' + esc(f.fileName) + ' → ' + esc(label(f.targetTable)) + '</div>';
+  }).join('') || '<div class="hint">No files with a data type yet — go back to Files.</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('#mapTabs .tab'), function (tab) {
+    tab.addEventListener('click', function () { openMapTab(tab.getAttribute('data-src'), tab.getAttribute('data-t'), false); });
+  });
+  var cur = files.filter(function (f) { return f.sourceTable === document.getElementById('mapSrcSel').value; })[0] || files[0];
+  if (cur) await openMapTab(cur.sourceTable, cur.targetTable, false);
+}
+async function openMapTab(src, target, forceSuggest) {
+  Array.prototype.forEach.call(document.querySelectorAll('#mapTabs .tab'), function (t) { t.classList.toggle('on', t.getAttribute('data-src') === src); });
+  document.getElementById('targetSel').innerHTML = '<option value="' + esc(target) + '">' + esc(target) + '</option>';
+  document.getElementById('mapSrcSel').innerHTML = '<option value="' + esc(src) + '">' + esc(src) + '</option>';
+  document.getElementById('mapHeading').textContent = label(target) + ' ← ' + src;
+  if (!S.sources[src]) {
+    try { var p = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/profile', { clientId: S.clientId }); Object.keys(p.profile || {}).forEach(function (t) { S.sources[t] = { profile: p.profile[t] }; }); } catch (e) { }
+  }
+  var rules = [];
+  if (!forceSuggest) {
+    try { rules = ((await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/mappings', { clientId: S.clientId, targetTable: target })).mappings || [])
+      .filter(function (r) { return !r.sourceTable || r.sourceTable === src; }); } catch (e) { rules = []; }
+  }
+  if (forceSuggest || !rules.length || !rules.some(function (r) { return r.sourceTable === src; })) {
+    try {
+      var j = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/mappings/suggest', { clientId: S.clientId, targetTable: target, sourceTable: src });
+      rules = j.mappings || []; S.runStatus = S.runStatus === 'PROFILED' ? 'MAPPED' : S.runStatus; renderRunBar();
+      renderReview(j.review || null);
+    } catch (e) { toast(e.message, true); }
+  } else refreshReview();
+  renderMappings(rules, src);
+  loadDictionaries();
+  loadDatePreview();
+}
+document.getElementById('btnSuggest').addEventListener('click', function () {
+  openMapTab(document.getElementById('mapSrcSel').value, document.getElementById('targetSel').value, true);
+});
+
+async function refreshReview() {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/mappings/review',
+      { clientId: S.clientId, targetTable: document.getElementById('targetSel').value, sourceTable: document.getElementById('mapSrcSel').value });
+    renderReview(j.review || null);
+  } catch (e) { /* ignore */ }
+}
+function renderReview(rv) {
+  var el = document.getElementById('reviewArea');
+  if (!rv) { el.innerHTML = ''; return; }
+  var missing = rv.missingRequired || [], unmapped = rv.unmappedSources || [];
+  el.innerHTML = '<div class="panel"><h3>Mapping check' + (rv.preset && rv.preset !== 'GENERIC' ? ' · ' + esc(rv.presetLabel) +
+      (rv.presetVerified ? ' <span class="chip ok">Supported</span>' : ' <span class="chip warn">Preset (unverified)</span>') : '') + '</h3>' +
+    (missing.length ? '<div class="msg err" style="margin-bottom:6px;">Required and not yet mapped: ' + missing.map(function (m) { return '<span class="chip warn">' + esc(m) + '</span>'; }).join('') + ' — rows without them are rejected at validation.</div>'
+                    : '<div class="msg" style="color:#2e7d44;margin-bottom:6px;">All required columns are mapped.</div>') +
+    '<div style="font-size:12px;color:#555;">Columns not used (kept in the staged row, not loaded): ' +
+    (unmapped.length ? unmapped.map(function (u) { return '<span class="chip">' + esc(u) + '</span>'; }).join('') : '<em>none</em>') + '</div></div>';
+  S.reviewReady = !!rv.ready;
+}
+
+async function loadDictionaries() {
+  var el = document.getElementById('dictArea');
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/dictionaries', { clientId: S.clientId, targetTable: document.getElementById('targetSel').value });
+    var dicts = j.dictionaries || [];
+    if (!dicts.length) { el.innerHTML = ''; return; }
+    el.innerHTML = dicts.map(function (d, di) {
+      var listId = 'dl_' + di;
+      var opts = (d.options || []).map(function (o) { return '<option value="' + esc(o) + '">'; }).join('');
+      var rows = (d.values || []).map(function (v) {
+        return '<tr><td><strong>' + esc(v.source) + '</strong></td><td>' + v.count + '</td>' +
+          '<td><input list="' + listId + '" class="dict-sel" data-src="' + esc(v.source) + '" value="' + esc(v.target) + '" placeholder="keep as is" /></td>' +
+          '<td class="msg">' + (v.fromPreset ? 'preset' : (v.target ? 'you' : '')) + '</td></tr>';
+      }).join('');
+      return '<div class="panel" data-dict="' + esc(d.dictionary) + '"><h3>Values for <em>' + esc(d.dictionary) + '</em> (' + esc((d.columns || []).join(', ')) + ')</h3>' +
+        '<div class="hint" style="margin-bottom:8px;">Map each spelling in the file to one of this church\'s values (or type a new one). Blank keeps the value. Applied when you stage.</div>' +
+        '<datalist id="' + listId + '">' + opts + '</datalist>' +
+        '<div class="tbl-wrap"><table><thead><tr><th>In the file</th><th>Rows</th><th>Becomes</th><th>Set by</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<div style="margin-top:10px;"><button class="btn btn-sm dict-save">Save ' + esc(d.dictionary) + ' values</button></div></div>';
+    }).join('');
+    Array.prototype.forEach.call(el.querySelectorAll('.panel'), function (panel) {
+      panel.querySelector('.dict-save').addEventListener('click', async function () {
+        var entries = Array.prototype.map.call(panel.querySelectorAll('input[data-src]'), function (inp) { return { source: inp.getAttribute('data-src'), target: inp.value.trim() }; });
+        this.disabled = true;
+        try {
+          await apiSend('PUT', '/api/serviceadmin/etl/runs/' + S.runId + '/dictionaries', { clientId: S.clientId, dictionary: panel.getAttribute('data-dict'), entries: entries });
+          toast('Saved ' + entries.length + ' ' + panel.getAttribute('data-dict') + ' values — applied when you stage');
+        } catch (e) { toast(e.message, true); }
+        this.disabled = false;
+      });
+    });
+  } catch (e) { el.innerHTML = ''; }
+}
+
+/* date-order picker: every mapped date column, read four ways */
+async function loadDatePreview() {
+  var el = document.getElementById('datePanel');
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/date-preview', { clientId: S.clientId, targetTable: document.getElementById('targetSel').value });
+    var cols = j.columns || [];
+    if (!cols.length) { el.style.display = 'none'; return; }
+    var cur = j.dateOrder || 'AUTO';
+    var locked = S.runStatus === 'APPROVED' || S.runStatus === 'LOADED';
+    var orders = [['AUTO', 'Detect'], ['MDY', 'Month/Day/Year'], ['DMY', 'Day/Month/Year'], ['YMD', 'Year/Month/Day']];
+    el.innerHTML = '<h3>Dates — how should they be read? (currently ' + esc(cur) + ')</h3>' +
+      '<div class="hint" style="margin-bottom:8px;">' + (j.ambiguous ? '<strong>Some sample dates read differently depending on the order</strong> — pick the one the old system used. ' : 'The samples read the same in every order. ') +
+      'This applies to every file of the run' + (locked ? '; it can no longer change because something is approved or loaded.' : '; re-stage after changing it.') + '</div>' +
+      cols.map(function (c) {
+        return '<div style="font-size:12px;font-weight:700;margin:8px 0 4px;">' + esc(c.sourceColumn) + ' → ' + esc(c.targetColumn) + '</div>' +
+          '<div class="tbl-wrap"><table><thead><tr><th>In the file</th>' + orders.map(function (o) { return '<th' + (o[0] === cur ? ' style="color:#3a5a9b"' : '') + '>' + o[1] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          (c.samples || []).map(function (s) { return '<tr><td><strong>' + esc(s.raw) + '</strong></td>' + orders.map(function (o) { return '<td' + (o[0] === cur ? ' style="font-weight:700"' : '') + '>' + esc(s[o[0]]) + '</td>'; }).join('') + '</tr>'; }).join('') +
+          '</tbody></table></div>';
+      }).join('') +
+      (locked ? '' : '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">Use: ' + orders.map(function (o) {
+        return '<button class="btn btn-sm ' + (o[0] === cur ? '' : 'btn-light') + ' do-order" data-o="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>');
+    el.style.display = '';
+    Array.prototype.forEach.call(el.querySelectorAll('.do-order'), function (b) {
+      b.addEventListener('click', async function () {
+        try {
+          var r = await apiSend('PUT', '/api/serviceadmin/etl/runs/' + S.runId + '/settings', { clientId: S.clientId, dateOrder: b.getAttribute('data-o') });
+          S.run = r.run; renderRunBar(); toast('Dates will be read as ' + b.getAttribute('data-o') + ' — re-stage to apply'); loadDatePreview();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+  } catch (e) { el.style.display = 'none'; }
+}
+
+function sourceColOptions(sourceTable, selected) {
+  var cols = (S.sources[sourceTable] || {}).profile || [];
+  return '<option value="">— none —</option>' + cols.map(function (c) {
+    return '<option value="' + esc(c.column) + '"' + (c.column === selected ? ' selected' : '') + '>' + esc(c.column) + '</option>';
+  }).join('');
+}
+function renderMappings(rules, sourceTable) {
+  // Required first, then mapped, then the rest — the order a reviewer needs.
+  rules = rules.slice().sort(function (a, b) {
+    var ra = a.required ? 0 : (a.sourceColumn ? 1 : 2), rb = b.required ? 0 : (b.sourceColumn ? 1 : 2);
+    return ra - rb;
+  });
+  var auto = rules.filter(function (r) { return r.status === 'AUTO'; }).length;
+  var review = rules.filter(function (r) { return r.status === 'NEEDS_REVIEW'; }).length;
+  document.getElementById('mapArea').innerHTML =
+    '<div class="summary">' + stat(auto, 'auto') + stat(review, 'review') + '</div>' +
+    '<datalist id="tfList"><option value="trim"><option value="titlecase"><option value="parse_date"><option value="parse_datetime"><option value="parse_time"><option value="parse_amount">' +
+    '<option value="parse_int"><option value="parse_bool"><option value="normalize_phone"><option value="first_of_list"><option value="split_name_first"><option value="split_name_last"></datalist>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Target</th><th>Source column</th><th>Transform</th><th>Conf.</th><th>Status</th><th>Why</th><th>Decision</th></tr></thead><tbody>' +
+    rules.map(function (r) {
+      return '<tr data-tc="' + esc(r.targetColumn) + '">' +
+        '<td><strong>' + esc(r.targetColumn) + '</strong>' + (r.required ? '<span class="req" title="required">*</span>' : '') +
+          (r.dictionary ? ' <span class="chip" title="goes through the ' + esc(r.dictionary) + ' values">' + esc(r.dictionary) + '</span>' : '') +
+          (r.virtual ? ' <span class="chip">helper</span>' : '') + '</td>' +
+        '<td><select class="m-src">' + sourceColOptions(sourceTable, r.sourceColumn) + '</select></td>' +
+        '<td><input type="text" list="tfList" class="m-tf" value="' + esc(r.transform || '') + '" style="padding:6px 8px;font-size:12px;"></td>' +
+        '<td>' + (r.confidence != null ? Number(r.confidence).toFixed(2) : '') + '</td>' +
+        '<td>' + statusBadge(r.status) + '</td>' +
+        '<td class="msg">' + esc(r.rationale || '') + '</td>' +
+        '<td style="white-space:nowrap;"><button class="btn btn-sm btn-green m-confirm">Confirm</button> <button class="btn btn-sm btn-red m-reject">Reject</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
+  Array.prototype.forEach.call(document.querySelectorAll('#mapArea tbody tr'), function (tr) {
+    function decide(decision) {
+      return async function () {
+        try {
+          var j = await apiSend('PUT', '/api/serviceadmin/etl/runs/' + S.runId + '/mappings', {
+            clientId: S.clientId, targetTable: document.getElementById('targetSel').value, targetColumn: tr.getAttribute('data-tc'),
+            sourceTable: sourceTable, sourceColumn: tr.querySelector('.m-src').value, transform: tr.querySelector('.m-tf').value, decision: decision });
+          tr.children[4].innerHTML = statusBadge(j.mapping.status);
+          toast(tr.getAttribute('data-tc') + ' ' + decision.toLowerCase());
+          refreshReview(); if (j.mapping.dictionary) loadDictionaries(); loadDatePreview();
+        } catch (e) { toast(e.message, true); }
+      };
+    }
+    tr.querySelector('.m-confirm').addEventListener('click', decide('CONFIRMED'));
+    tr.querySelector('.m-reject').addEventListener('click', decide('REJECTED'));
+  });
+}
+document.getElementById('btnToReview').addEventListener('click', async function () {
+  this.disabled = true;
+  await stageAll(true);
+  this.disabled = false;
+  go(4);
+});
+
+/* ═════════ STEP 4 · REVIEW ═════════ */
+async function stageOne(t) {
+  return apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/stage', { clientId: S.clientId, targetTable: t });
+}
+/** Stage every mapped file whose type has no live batch yet (onlyNew: skip types already staged). */
+async function stageAll(onlyNew) {
+  await refreshPlan(true);
+  var done = 0, failed = [];
+  for (var i = 0; i < mappedFiles().length; i++) {
+    var t = mappedFiles()[i].targetTable;
+    var entry = (S.plan || []).filter(function (x) { return x.targetTable === t; })[0];
+    var frozen = entry && (entry.batches || []).some(function (b) { return b.status === 'APPROVED' || b.status === 'LOADED' || b.status === 'FAILED'; });
+    if (frozen || (onlyNew && entry && entry.staged > 0)) continue;
+    try {
+      var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/mappings', { clientId: S.clientId, targetTable: t });
+      if (!(j.mappings || []).length) await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/mappings/suggest', { clientId: S.clientId, targetTable: t, sourceTable: mappedFiles()[i].sourceTable });
+      await stageOne(t); done++;
+    } catch (e) { failed.push(label(t) + ': ' + e.message); }
+  }
+  await refreshPlan(true);
+  if (failed.length) toast('Could not stage — ' + failed.join(' · '), true);
+  else if (done) toast('Staged & validated ' + done + ' data type' + (done === 1 ? '' : 's'));
+}
+document.getElementById('btnStageAll').addEventListener('click', async function () { this.disabled = true; await stageAll(false); this.disabled = false; showTable(S.target); });
+document.getElementById('btnStage').addEventListener('click', async function () {
+  this.disabled = true;
+  try { var j = await stageOne(S.target); toast('Staged & validated ' + (j.staged || 0) + ' rows'); } catch (e) { toast(e.message, true); }
+  this.disabled = false;
+  showTable(S.target);
+});
+
+async function refreshPlan(quiet) {
+  if (!S.runId) return;
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/plan', { clientId: S.clientId });
+    S.plan = j.plan || []; S.planMeta = j;
+    if (j.run) { S.run = j.run; S.runStatus = j.run.status; }
+    S.plan.forEach(function (t) { if (t.label) S.labels[t.targetTable] = t.label; });
+    document.getElementById('planArea').innerHTML = S.plan.filter(function (t) { return t.staged > 0 || (t.batches || []).length; }).map(function (t) {
+      var st = t.state || 'NOT_STAGED';
+      var b = (t.batches || []).slice(-1)[0];
+      var sub = t.staged + ' staged · ' + (t.counts.VALID || 0) + ' valid · ' + (t.counts.WARN || 0) + ' warn · ' + (t.counts.ERROR || 0) + ' errors' +
+        (t.review ? ' · ' + t.review + ' to review' : '') +
+        (b && (b.status === 'LOADED' || b.status === 'FAILED') ? ' · batch #' + b.id + ': ' + (b.inserted || 0) + ' ins / ' + (b.updated || 0) + ' upd / ' + (b.skipped || 0) + ' skip' : '') +
+        (b && b.errorMessage ? ' · ' + b.errorMessage : '');
+      return '<div class="ptile ' + (S.target === t.targetTable ? 'on' : '') + '" data-t="' + t.targetTable + '">' +
+        '<div class="pt"><span>' + t.order + '. ' + esc(label(t.targetTable)) + '</span><span class="badge s-' + esc(st.toLowerCase()) + '">' + esc(st.replace('_', ' ')) + '</span></div>' +
+        '<div class="ps">' + esc(sub) + (t.dependsOn ? ' · loads after ' + esc(t.dependsOn.split(',').map(label).join(' and ')) : '') + '</div></div>';
+    }).join('') || '<div class="hint">Nothing staged yet — use “Stage &amp; validate all mapped files”.</div>';
+    Array.prototype.forEach.call(document.querySelectorAll('#planArea .ptile'), function (tile) {
+      tile.addEventListener('click', function () { showTable(tile.getAttribute('data-t')); });
+    });
+    document.getElementById('btnLoadRun').disabled = !j.canLoadRun;
+    document.getElementById('btnRollbackRun').disabled = !j.canRollbackRun;
+    renderRunBar();
+  } catch (e) { /* ignore */ }
+}
+
+async function showTable(t) {
+  S.target = t;
+  document.getElementById('stageTarget').textContent = label(t);
+  S.previewFilter = 'all'; S.previewOffset = 0;
+  await refreshPlan();
+  var entry = (S.plan || []).filter(function (x) { return x.targetTable === t; })[0];
+  if (!entry || !entry.staged) {
+    ['valSummary', 'matchSummary', 'reviewNote', 'householdArea', 'previewFilters'].forEach(function (id) { document.getElementById(id).innerHTML = ''; });
+    document.getElementById('previewArea').innerHTML = '<div class="hint" style="margin-top:10px;">Nothing staged for ' + esc(label(t)) + ' yet.</div>';
+    document.getElementById('btnApprove').disabled = true;
+    return;
+  }
+  await refreshSummary();
+  renderFilters(); loadPreview(true); refreshHouseholds();
+  if (S.step === 5) refreshLoad();
+}
+
+async function refreshSummary() {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/summary', { clientId: S.clientId, targetTable: S.target });
+    var m = j.summary || {}; S.summary = m;
+    document.getElementById('valSummary').innerHTML = stat(m.total, 'staged') + stat(m.valid, 'valid') + stat(m.warn, 'warn') +
+      stat(m.review, 'needs review', m.review ? ' style="border-color:#5e35b1"' : '') + stat(m.error, 'errors');
+    document.getElementById('matchSummary').innerHTML = stat(m.new, 'new') + stat(m.exact, 'already imported') + stat(m.strong, 'likely duplicates') +
+      stat(m.possible, 'possible duplicates') + stat(m.inFile, 'duplicates in file') + stat(m.willInsert, 'will insert') +
+      stat((m.willUpdate || 0) + (m.willMerge || 0), 'will update/merge') + stat(m.willSkip, 'will skip');
+    document.getElementById('reviewNote').innerHTML = m.review
+      ? '<div class="note" style="margin-top:8px;">' + m.review + ' possible duplicate' + (m.review === 1 ? '' : 's') + ' need a decision (Skip, Update' +
+        (!isFinancial(S.target) ? ', Merge' : '') + ' or Import as new) before this type can be approved. Use the <em>review</em> filter below.</div>' : '';
+    var entry = (S.plan || []).filter(function (x) { return x.targetTable === S.target; })[0] || {};
+    var hasBatch = (entry.batches || []).some(function (b) { return b.status !== 'ROLLED_BACK'; });
+    var ap = document.getElementById('btnApprove');
+    ap.disabled = !m.canApprove || hasBatch;
+    ap.title = hasBatch ? 'Already approved — see Load' : (m.canApprove ? '' : (m.review ? 'Resolve the possible duplicates first' : 'No loadable rows'));
+    document.getElementById('csvLink').href = '/api/serviceadmin/etl/runs/' + S.runId + '/report-csv?' + qs({ clientId: S.clientId, targetTable: S.target });
+  } catch (e) { /* ignore */ }
+}
+document.getElementById('btnApprove').addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    var j = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/batches', { clientId: S.clientId, targetTable: S.target });
+    toast(label(S.target) + ': batch #' + j.batch.id + ' approved — load it in step 5');
+  } catch (e) { toast(e.message, true); }
+  await showTable(S.target);
+});
+
+function renderFilters() {
+  var f = ['all', 'valid', 'warn', 'review', 'error', 'duplicates', 'new', 'skipped'];
+  document.getElementById('previewFilters').innerHTML = f.map(function (x) {
+    return '<span class="pill ' + (S.previewFilter === x ? 'on' : '') + '" data-f="' + x + '">' + x + '</span>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#previewFilters .pill'), function (p) {
+    p.addEventListener('click', function () { S.previewFilter = p.getAttribute('data-f'); S.previewOffset = 0; renderFilters(); loadPreview(true); });
+  });
+}
+async function loadPreview() {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/preview', { clientId: S.clientId, targetTable: S.target, filter: S.previewFilter, limit: 50, offset: S.previewOffset });
+    var rows = j.rows || [];
+    var body = rows.map(function (r) {
+      var vals = Object.keys(r.values || {}).filter(function (k) { return !r.linkedTo || r.values[k] != null; }).map(function (k) {
+        return '<div><span style="color:#9aa0ad">' + esc(k) + ':</span> ' + esc(r.values[k]) + '</div>';
+      }).join('');
+      var msgs = '';
+      try {
+        msgs = (r.validationMsgs ? JSON.parse(r.validationMsgs) : []).map(function (m) {
+          return '<div class="msg ' + (m.level === 'ERROR' ? 'err' : '') + '"' + (m.level === 'REVIEW' ? ' style="color:#5e35b1"' : (m.level === 'INFO' ? ' style="color:#3a5a9b"' : '')) + '>• ' + esc(m.message) + '</div>';
+        }).join('');
+      } catch (e) { msgs = ''; }
+      var decided = ['LOADED', 'SKIPPED', 'FAILED', 'ROLLED_BACK', 'APPROVED'].indexOf(r.rowStatus) >= 0;
+      var hasMatch = !!r.dedupeMatchId;
+      var canUpdate = hasMatch && (!isFinancial(S.target) || r.matchTier === 'EXACT' || r.matchTier === 'STRONG');
+      var opts = '<option value="">—</option><option value="SKIP"' + (r.dedupeAction === 'SKIP' ? ' selected' : '') + '>Skip</option>' +
+        (canUpdate ? '<option value="UPDATE"' + (r.dedupeAction === 'UPDATE' ? ' selected' : '') + '>Update existing #' + r.dedupeMatchId + '</option>' : '') +
+        (hasMatch && !isFinancial(S.target) ? '<option value="MERGE"' + (r.dedupeAction === 'MERGE' ? ' selected' : '') + '>Merge into #' + r.dedupeMatchId + ' (fill blanks)</option>' : '') +
+        '<option value="INSERT"' + (r.dedupeAction === 'INSERT' ? ' selected' : '') + '>Import as new</option>';
+      var dedupe = tierBadge(r.matchTier) + (r.matchDetail ? '<div class="msg">' + esc(r.matchDetail) + '</div>' : '') +
+        (r.rowStatus === 'ERROR' || decided ? '<div class="msg">' + esc(r.dedupeAction || '') + '</div>'
+          : '<div style="margin-top:4px;"><select class="act-sel" data-row="' + r.id + '">' + opts + '</select></div>');
+      var lk = r.linkedTo ? Object.keys(r.linkedTo).map(function (k) {
+        var v = r.linkedTo[k];
+        return '<span class="chip' + (/^new/.test(v) ? ' warn' : (/^existing/.test(v) ? ' ok' : '')) + '">' + esc(k) + ': ' + esc(v) + '</span>';
+      }).join('') : '';
+      if (lk) vals = '<div style="margin-bottom:4px;">' + lk + '</div>' + vals;
+      var hh = r.householdProposal ? '<div style="margin-top:3px;"><span class="chip ' + (r.householdDecision === 'ACCEPTED' ? 'ok' : (r.householdDecision === 'REJECTED' ? '' : 'warn')) + '">household: ' +
+        esc(r.householdDecision === 'ACCEPTED' ? 'accepted' : (r.householdDecision === 'REJECTED' ? 'kept separate' : 'proposed')) + '</span></div>' : '';
+      return '<tr><td>' + esc(r.sourceRowId) + '</td><td>' + statusBadge(r.rowStatus) + hh + '</td><td>' + vals + '</td><td>' + msgs + '</td><td>' + dedupe + '</td></tr>';
+    }).join('');
+    var wrap = document.getElementById('previewArea');
+    wrap.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Src row</th><th>Status</th><th>Values</th><th>Messages</th><th>Match &amp; decision</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<div style="margin-top:10px;font-size:12px;color:#8a8f9c;">Showing ' + (rows.length ? (S.previewOffset + 1) : 0) + '–' + (S.previewOffset + rows.length) + ' of ' + j.total +
+      (S.previewOffset + rows.length < j.total ? ' · <a href="#" id="moreLink">load more</a>' : '') + '</div>';
+    Array.prototype.forEach.call(wrap.querySelectorAll('.act-sel'), function (sel) {
+      sel.addEventListener('change', async function () {
+        if (!sel.value) return;
+        sel.disabled = true;
+        try {
+          await apiSend('PATCH', '/api/serviceadmin/etl/runs/' + S.runId + '/rows/' + sel.getAttribute('data-row'), { clientId: S.clientId, targetTable: S.target, dedupeAction: sel.value });
+          toast('Row ' + sel.getAttribute('data-row') + ': ' + sel.options[sel.selectedIndex].text);
+          await refreshSummary(); refreshPlan(); loadPreview();
+        } catch (e) { toast(e.message, true); sel.disabled = false; }
+      });
+    });
+    var more = document.getElementById('moreLink');
+    if (more) more.addEventListener('click', function (e) { e.preventDefault(); S.previewOffset += 50; loadPreview(); });
+  } catch (e) { toast(e.message, true); }
+}
+
+/* proposed households (people only) */
+async function refreshHouseholds() {
+  var el = document.getElementById('householdArea');
+  if (S.target !== 'family') { el.innerHTML = ''; return; }
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/households', { clientId: S.clientId });
+    var hh = j.households || [];
+    if (!hh.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="panel"><h3>Proposed households · ' + hh.length + ' (' + j.accepted + ' accepted, ' + j.rejected + ' rejected, ' + j.undecided + ' undecided)</h3>' +
+      '<div class="hint" style="margin-bottom:6px;">These rows share a last name and street address but the file gave them no household. Nothing is combined unless you <strong>accept</strong> a proposal; undecided and rejected rows each become their own household. People matched to an existing member keep their existing household.</div>' +
+      hh.map(function (g) {
+        var cls = g.decision === 'ACCEPTED' ? 'acc' : (g.decision === 'REJECTED' ? 'rej' : '');
+        var btns = g.locked ? '<span class="chip">locked — batch approved/loaded</span>' :
+          '<button class="btn btn-sm btn-green hh-dec" data-k="' + esc(g.key) + '" data-d="ACCEPT"' + (g.decision === 'ACCEPTED' ? ' disabled' : '') + '>Accept</button> ' +
+          '<button class="btn btn-sm btn-light hh-dec" data-k="' + esc(g.key) + '" data-d="REJECT"' + (g.decision === 'REJECTED' ? ' disabled' : '') + '>Keep separate</button>' +
+          (g.decision ? ' <button class="btn btn-sm btn-light hh-dec" data-k="' + esc(g.key) + '" data-d="CLEAR">Undo</button>' : '');
+        return '<div class="hh ' + cls + '"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">' +
+          '<div><span class="hname">' + esc(g.lastName) + ' household</span> ' + (g.decision ? '<span class="chip ' + (g.decision === 'ACCEPTED' ? 'ok' : '') + '">' + esc(g.decision.toLowerCase()) + '</span>' : '<span class="chip warn">undecided</span>') +
+          '<div class="haddr">' + esc(g.address) + '</div></div><div>' + btns + '</div></div>' +
+          '<ul>' + g.members.map(function (m) {
+            return '<li>' + esc(m.name) + (m.role ? ' · ' + esc(m.role) : '') + (m.birthYear ? ' · b. ' + m.birthYear : '') + (m.email ? ' · ' + esc(m.email) : '') +
+              ' ' + statusBadge(m.rowStatus) + (m.matchTier && m.matchTier !== 'NONE' ? ' ' + tierBadge(m.matchTier) : '') + '</li>';
+          }).join('') + '</ul></div>';
+      }).join('') + '</div>';
+    Array.prototype.forEach.call(el.querySelectorAll('.hh-dec'), function (btn) {
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          await apiSend('PATCH', '/api/serviceadmin/etl/runs/' + S.runId + '/households', { clientId: S.clientId, key: btn.getAttribute('data-k'), decision: btn.getAttribute('data-d') });
+          toast({ ACCEPT: 'Household accepted — these people will share one household', REJECT: 'Kept separate', CLEAR: 'Decision cleared' }[btn.getAttribute('data-d')]);
+          refreshHouseholds(); loadPreview();
+        } catch (e) { toast(e.message, true); btn.disabled = false; }
+      });
+    });
+  } catch (e) { el.innerHTML = ''; }
+}
+
+/* ═════════ STEP 5 · LOAD ═════════ */
+function progressOf(t) {
+  var c = t.counts || {};
+  var done = (c.LOADED || 0) + (c.SKIPPED || 0) + (c.FAILED || 0) + (c.ROLLED_BACK || 0);
+  var todo = done + (c.APPROVED || 0);
+  return todo ? Math.round(100 * done / todo) : 0;
+}
+async function refreshLoad() {
+  await refreshPlan(true);
+  var list = (S.plan || []).filter(function (t) { return t.staged > 0 || (t.batches || []).length; });
+  var states = {};
+  list.forEach(function (t) { states[t.targetTable] = t.state; });
+  document.getElementById('loadList').innerHTML = list.map(function (t, i) {
+    var b = (t.batches || []).filter(function (x) { return x.status !== 'ROLLED_BACK'; }).slice(-1)[0] || (t.batches || []).slice(-1)[0];
+    var deps = (t.dependsOn ? t.dependsOn.split(',') : []).filter(function (d) { return states[d] && states[d] !== 'LOADED' && states[d] !== 'ROLLED_BACK'; });
+    var waiting = deps.length ? '<div class="msg">waits for ' + esc(deps.map(label).join(' and ')) + '</div>' : '';
+    var acts = '';
+    if (!b || b.status === 'ROLLED_BACK') acts = t.canApprove ? '<button class="btn btn-sm btn-green" data-approve="' + t.targetTable + '">Approve</button>'
+      : '<span class="msg">' + (t.review ? t.review + ' to review in step 4' : (t.loadable ? '' : 'nothing loadable')) + '</span>';
+    else if (b.status === 'APPROVED') acts = '<button class="btn btn-sm" data-load="' + b.id + '"' + (deps.length ? ' disabled' : '') + '>Load</button>';
+    else if (b.status === 'LOADED') acts = '<button class="btn btn-sm btn-light" data-rep="' + b.id + '">Report</button> <button class="btn btn-sm btn-red" data-rb="' + b.id + '">Roll back</button>';
+    else if (b.status === 'FAILED') acts = '<button class="btn btn-sm" data-load="' + b.id + '">Retry remaining</button> <button class="btn btn-sm btn-light" data-rep="' + b.id + '">Report</button> <button class="btn btn-sm btn-red" data-rb="' + b.id + '">Roll back</button>';
+    var counts = b && (b.status === 'LOADED' || b.status === 'FAILED' || b.status === 'ROLLED_BACK')
+      ? (b.inserted || 0) + ' inserted · ' + (b.updated || 0) + ' updated · ' + (b.skipped || 0) + ' skipped · ' + (b.failed || 0) + ' failed' : (t.loadable || 0) + ' rows ready';
+    var cls = t.state === 'LOADED' ? 'loaded' : (t.state === 'FAILED' ? 'failed' : '');
+    return '<div class="chk ' + cls + '" data-t="' + t.targetTable + '"><div class="ord">' + (i + 1) + '</div>' +
+      '<div><div style="font-weight:700;font-size:13px;">' + esc(label(t.targetTable)) + ' <span class="badge s-' + esc((t.state || '').toLowerCase()) + '">' + esc((t.state || '').replace('_', ' ')) + '</span></div>' +
+      '<div class="msg" style="color:#555">' + esc(counts) + (b && b.errorMessage ? ' · ' + esc(b.errorMessage) : '') + '</div>' + waiting +
+      '<div class="bar"><div style="width:' + progressOf(t) + '%"></div></div></div>' +
+      '<div style="white-space:nowrap;">' + acts + '</div></div>';
+  }).join('') || '<div class="hint">Nothing staged yet.</div>';
+  var el = document.getElementById('loadList');
+  Array.prototype.forEach.call(el.querySelectorAll('[data-approve]'), function (btn) {
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      try { await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/batches', { clientId: S.clientId, targetTable: btn.getAttribute('data-approve') }); toast(label(btn.getAttribute('data-approve')) + ' approved'); }
+      catch (e) { toast(e.message, true); }
+      refreshLoad();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-load]'), function (btn) {
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      await withProgress(apiSend('POST', '/api/serviceadmin/etl/batches/' + btn.getAttribute('data-load') + '/load', { clientId: S.clientId })
+        .then(function (r) { toast('Loaded: ' + r.batch.inserted + ' inserted, ' + r.batch.updated + ' updated/merged, ' + r.batch.skipped + ' skipped, ' + r.batch.failed + ' failed'); }));
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-rb]'), function (btn) {
+    btn.addEventListener('click', async function () {
+      if (!confirm('Roll back batch #' + btn.getAttribute('data-rb') + '? Inserted rows are removed, updated rows restored.')) return;
+      btn.disabled = true;
+      try { var r = await apiSend('POST', '/api/serviceadmin/etl/batches/' + btn.getAttribute('data-rb') + '/rollback', { clientId: S.clientId }); toast('Rolled back batch #' + r.batch.id); }
+      catch (e) { toast(e.message, true); }
+      refreshLoad();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll('[data-rep]'), function (btn) {
+    btn.addEventListener('click', async function () {
+      try {
+        var r = await apiGet('/api/serviceadmin/etl/batches/' + btn.getAttribute('data-rep') + '/report', { clientId: S.clientId });
+        document.getElementById('reportArea').innerHTML = '<h3 style="font-size:13.5px;margin-bottom:6px;">Batch #' + esc(btn.getAttribute('data-rep')) + ' — per-row outcome</h3>' +
+          '<div class="tbl-wrap"><table><thead><tr><th>Src row</th><th>Outcome</th><th>Live id</th><th>Dup of</th></tr></thead><tbody>' +
+          (r.report || []).slice(0, 200).map(function (x) {
+            return '<tr><td>' + esc(x.sourceRowId) + '</td><td>' + statusBadge(x.rowStatus) + '</td><td>' + esc(x.targetId == null ? '' : x.targetId) + '</td><td>' + esc(x.dedupeMatchId == null ? '' : x.dedupeMatchId) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      } catch (e) { toast(e.message, true); }
+    });
+  });
+}
+/** Run a load request while polling the plan, so each type's bar moves as its chunks commit. */
+async function withProgress(promise) {
+  var timer = setInterval(function () { refreshLoad(); }, 1200);
+  try { await promise; } catch (e) { toast(e.message, true); }
+  clearInterval(timer);
+  await refreshLoad();
+}
+document.getElementById('btnApproveAll').addEventListener('click', async function () {
+  this.disabled = true;
+  await refreshPlan(true);
+  var n = 0, skipped = [];
+  for (var i = 0; i < S.plan.length; i++) {
+    var t = S.plan[i];
+    var live = (t.batches || []).some(function (b) { return b.status !== 'ROLLED_BACK'; });
+    if (!t.staged || live) continue;
+    if (!t.canApprove) { skipped.push(label(t.targetTable) + (t.review ? ' (' + t.review + ' to review)' : '')); continue; }
+    try { await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/batches', { clientId: S.clientId, targetTable: t.targetTable }); n++; }
+    catch (e) { skipped.push(label(t.targetTable) + ': ' + e.message); }
+  }
+  toast(n + ' type' + (n === 1 ? '' : 's') + ' approved' + (skipped.length ? ' · not approved: ' + skipped.join(', ') : ''), !!skipped.length);
+  this.disabled = false;
+  refreshLoad();
+});
+document.getElementById('btnLoadRun').addEventListener('click', async function () {
+  var approved = (S.plan || []).filter(function (t) { return (t.batches || []).some(function (b) { return b.status === 'APPROVED'; }); }).map(function (t) { return label(t.targetTable); });
+  if (!confirm('Load the approved types into live data, in this order?\n\n' + approved.join(' → '))) return;
+  this.disabled = true;
+  await withProgress(apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/load', { clientId: S.clientId }).then(function (r) {
+    var tot = (r.batches || []).reduce(function (a, b) { a.i += b.inserted || 0; a.u += b.updated || 0; a.s += b.skipped || 0; a.f += b.failed || 0; return a; }, { i: 0, u: 0, s: 0, f: 0 });
+    toast('Loaded ' + (r.batches || []).length + ' type(s): ' + tot.i + ' inserted, ' + tot.u + ' updated/merged, ' + tot.s + ' skipped, ' + tot.f + ' failed');
+  }));
+});
+async function rollbackRun() {
+  if (!confirm('Roll back every loaded batch of run #' + S.runId + ', in reverse order? Inserted rows are removed, updated ones restored, and funds / groups / classrooms the import created are removed when nothing else uses them.')) return false;
+  try { var r = await apiSend('POST', '/api/serviceadmin/etl/runs/' + S.runId + '/rollback', { clientId: S.clientId }); toast('Rolled back ' + (r.batches || []).length + ' batch(es)'); return true; }
+  catch (e) { toast(e.message, true); return false; }
+}
+document.getElementById('btnRollbackRun').addEventListener('click', async function () { this.disabled = true; await rollbackRun(); refreshLoad(); });
+document.getElementById('btnVerify').addEventListener('click', async function () {
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/verify', { clientId: S.clientId });
+    document.getElementById('verifyArea').innerHTML = '<div style="margin:6px 0;font-weight:700;">Verification: ' +
+      (j.verified ? '<span class="badge b-valid">ALL CHECKS PASSED</span>' : '<span class="badge b-error">ISSUES FOUND</span>') +
+      ' · ' + j.stagedRows + ' staged · ' + j.batches + ' batches · ' + j.auditEvents + ' audit events</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Result</th><th>Check</th><th>Detail</th></tr></thead><tbody>' + (j.checks || []).map(function (c) {
+        var cls = c.status === 'PASS' ? 'b-valid' : (c.status === 'WARN' ? 'b-warn' : 'b-error');
+        return '<tr><td><span class="badge ' + cls + '">' + esc(c.status) + '</span></td><td><strong>' + esc(c.name) + '</strong></td><td class="msg">' + esc(c.detail) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch (e) { toast(e.message, true); }
+});
+
+/* ═════════ STEP 6 · SUMMARY ═════════ */
+async function refreshSummaryStep() {
+  var el = document.getElementById('summaryArea');
+  document.getElementById('lnkSummaryCsv').href = '/api/serviceadmin/etl/runs/' + S.runId + '/migration-summary-csv?' + qs({ clientId: S.clientId });
+  document.getElementById('lnkAuditCsv').href = '/api/serviceadmin/etl/runs/' + S.runId + '/audit-csv?' + qs({ clientId: S.clientId });
+  try {
+    var j = await apiGet('/api/serviceadmin/etl/runs/' + S.runId + '/migration-summary', { clientId: S.clientId });
+    var s = j.summary, t = s.totals;
+    var warn = (s.tables || []).filter(function (x) { return x.failed || x.errors || x.notLoaded; });
+    el.innerHTML =
+      '<div class="hint" style="margin-bottom:6px;">' + esc(s.church) + ' · ' + esc(s.run.sourcePresetLabel) + ' · run #' + s.run.id + ' · ' + statusBadge(s.run.status) +
+        (s.lastLoadedAt ? ' · last loaded ' + when(s.lastLoadedAt) : '') + (s.lastRollbackAt ? ' · last rollback ' + when(s.lastRollbackAt) : '') + '</div>' +
+      '<div class="tot">' + stat(t.inserted, 'records added') + stat(t.updated, 'updated / merged') + stat(t.skipped, 'skipped (duplicates)') +
+        stat(t.failed, 'failed') + stat(t.notLoaded, 'not loaded') + '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Data type</th><th>State</th><th>Staged</th><th>Added</th><th>Updated</th><th>Skipped</th><th>Failed</th><th>Errors</th><th>Not loaded</th><th></th></tr></thead><tbody>' +
+      (s.tables || []).map(function (x) {
+        return '<tr><td><strong>' + esc(x.label) + '</strong></td><td>' + statusBadge(x.state) + '</td><td>' + x.staged + '</td><td>' + x.inserted + '</td><td>' + x.updated + '</td><td>' +
+          x.skipped + '</td><td>' + x.failed + '</td><td>' + x.errors + '</td><td>' + x.notLoaded + '</td>' +
+          '<td><a href="/api/serviceadmin/etl/runs/' + s.run.id + '/report-csv?' + qs({ clientId: S.clientId, targetTable: x.targetTable }) + '" download>validation CSV</a></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (warn.length ? '<div class="note" style="margin-top:12px;"><strong>Needs attention:</strong><ul style="margin:6px 0 0 18px;">' + warn.map(function (x) {
+        return '<li>' + esc(x.label) + ': ' + [x.failed ? x.failed + ' failed to load' : '', x.errors ? x.errors + ' rows with errors' : '', x.notLoaded ? x.notLoaded + ' rows not loaded' : '']
+          .filter(Boolean).join(', ') + ' — see the validation CSV.</li>';
+      }).join('') + '</ul></div>' : '<div class="msg" style="color:#2e7d44;margin-top:10px;">Every staged row was loaded or deliberately skipped.</div>') +
+      '<div class="hint" style="margin-top:10px;">The church sees a read-only entry for this import on its Church Settings page (“Data was imported on … by ChurchGeniusPro support”).</div>';
+    document.getElementById('btnUndoAll').disabled = !(S.planMeta && S.planMeta.canRollbackRun);
+  } catch (e) { el.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; }
+}
+document.getElementById('btnUndoAll').addEventListener('click', async function () {
+  this.disabled = true;
+  if (await rollbackRun()) { await refreshPlan(true); }
+  refreshSummaryStep();
+});
+
+/* ── init: ?clientId=&run= resumes, ?new=1 starts fresh ── */
+(async function init() {
+  go(1);
+  await Promise.all([loadClients(), loadPresets()]);
+  var p = new URLSearchParams(location.search);
+  var cid = p.get('clientId');
+  if (cid && S.clients && S.clients[cid]) {
+    document.getElementById('clientSel').value = cid;
+    S.clientId = cid; S.clientName = S.clients[cid];
+    await refreshHistory();
+    if (p.get('run')) await resumeRun(p.get('run'));
+  }
+})();
+</script>
+</body>
+</html>

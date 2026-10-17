@@ -2170,3 +2170,118 @@ CREATE TABLE IF NOT EXISTS support_ticket (
 );
 CREATE INDEX IF NOT EXISTS ix_support_ticket_client ON support_ticket (client_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_support_ticket_status ON support_ticket (status, created_at);
+
+-- ── ETL Import — Migration Phase 1 (2026-10-16) ──────────────────────────────
+-- Additive only. The ETL tables are created by ddl-auto in dev; production gets
+-- the same columns/tables here. Safe to re-run (IF NOT EXISTS everywhere).
+ALTER TABLE import_run ADD COLUMN IF NOT EXISTS source_preset VARCHAR(32);
+ALTER TABLE import_run ADD COLUMN IF NOT EXISTS date_order    VARCHAR(8);
+ALTER TABLE import_run ADD COLUMN IF NOT EXISTS ai_assist     BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE staging_income ADD COLUMN IF NOT EXISTS guest_name VARCHAR(300);
+
+-- One uploaded file per run/source table: identity for the import history and
+-- the "same file for the same church" guard (hash compared across the tenant's
+-- non-discarded runs).
+CREATE TABLE IF NOT EXISTS import_file (
+    id            BIGSERIAL PRIMARY KEY,
+    run_id        BIGINT       NOT NULL,
+    client_id     VARCHAR(64)  NOT NULL,
+    source_table  VARCHAR(128),
+    file_name     VARCHAR(255),
+    size_bytes    BIGINT,
+    sha256        VARCHAR(64)  NOT NULL,
+    format        VARCHAR(8),
+    row_count     INTEGER,
+    id_column     VARCHAR(128),
+    uploaded_by   VARCHAR(128),
+    forced        BOOLEAN,
+    created_date  TIMESTAMP    NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_import_file_run  ON import_file (run_id);
+CREATE INDEX IF NOT EXISTS idx_import_file_hash ON import_file (client_id, sha256);
+
+-- Per-run value dictionaries (fund / method / category / gender / role /
+-- memberType): "source spelling → our value", applied at stage time.
+CREATE TABLE IF NOT EXISTS import_value_map (
+    id            BIGSERIAL PRIMARY KEY,
+    run_id        BIGINT       NOT NULL,
+    client_id     VARCHAR(64)  NOT NULL,
+    dictionary    VARCHAR(32)  NOT NULL,
+    source_value  VARCHAR(255) NOT NULL,
+    target_value  VARCHAR(255),
+    decided_by    VARCHAR(128),
+    created_date  TIMESTAMP    NOT NULL DEFAULT now(),
+    updated_date  TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_import_value_map_run ON import_value_map (run_id, dictionary);
+
+-- ── ETL Import — Migration Phase 2 (2026-10-16) ──────────────────────────────
+-- Mirrors Flyway V19 (source identity) plus the staging columns ddl-auto adds.
+ALTER TABLE family        ADD COLUMN IF NOT EXISTS source_system VARCHAR(32);
+ALTER TABLE family        ADD COLUMN IF NOT EXISTS source_id     VARCHAR(128);
+ALTER TABLE family_member ADD COLUMN IF NOT EXISTS source_system VARCHAR(32);
+ALTER TABLE family_member ADD COLUMN IF NOT EXISTS source_id     VARCHAR(128);
+CREATE INDEX IF NOT EXISTS ix_family_source        ON family        (app_client_id, source_system, source_id);
+CREATE INDEX IF NOT EXISTS ix_family_member_source ON family_member (app_client_id, source_system, source_id);
+ALTER TABLE staging_family  ADD COLUMN IF NOT EXISTS match_tier VARCHAR(16);
+ALTER TABLE staging_family  ADD COLUMN IF NOT EXISTS match_detail VARCHAR(255);
+ALTER TABLE staging_income  ADD COLUMN IF NOT EXISTS match_tier VARCHAR(16);
+ALTER TABLE staging_income  ADD COLUMN IF NOT EXISTS match_detail VARCHAR(255);
+ALTER TABLE staging_income  ADD COLUMN IF NOT EXISTS import_ref VARCHAR(160);
+ALTER TABLE staging_expense ADD COLUMN IF NOT EXISTS match_tier VARCHAR(16);
+ALTER TABLE staging_expense ADD COLUMN IF NOT EXISTS match_detail VARCHAR(255);
+ALTER TABLE staging_expense ADD COLUMN IF NOT EXISTS import_ref VARCHAR(160);
+
+-- ── ETL Import — Migration Phase 3 (2026-10-16) ──────────────────────────────
+-- Mirrors Flyway V20 (persistent link resolver, household proposals, batch error).
+-- Additive only. Not yet executed in production — run only with explicit approval.
+CREATE TABLE IF NOT EXISTS import_link (
+    id            BIGSERIAL PRIMARY KEY,
+    client_id     VARCHAR(64)  NOT NULL,
+    source_system VARCHAR(32)  NOT NULL,
+    entity        VARCHAR(32)  NOT NULL,
+    source_key    VARCHAR(160) NOT NULL,
+    target_id     BIGINT       NOT NULL,
+    run_id        BIGINT       NOT NULL,
+    batch_id      BIGINT,
+    created_date  TIMESTAMP(6) NOT NULL,
+    CONSTRAINT uq_import_link UNIQUE (client_id, source_system, entity, source_key)
+);
+CREATE INDEX IF NOT EXISTS ix_import_link_run    ON import_link (run_id);
+CREATE INDEX IF NOT EXISTS ix_import_link_target ON import_link (client_id, entity, target_id);
+ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_proposal VARCHAR(160);
+ALTER TABLE staging_family ADD COLUMN IF NOT EXISTS household_decision VARCHAR(16);
+ALTER TABLE import_batch   ADD COLUMN IF NOT EXISTS error_message      VARCHAR(1000);
+
+-- ── ETL Import — Migration Phase 4 (2026-10-16) ──────────────────────────────
+-- Mirrors Flyway V21 (staging_record for the new data types; group_member.family_member_id).
+-- Additive only. Not yet executed in production — run only with explicit approval.
+CREATE TABLE IF NOT EXISTS staging_record (
+    id              BIGSERIAL PRIMARY KEY,
+    run_id          BIGINT       NOT NULL,
+    client_id       VARCHAR(64)  NOT NULL,
+    target_table    VARCHAR(32)  NOT NULL,
+    source_row_id   VARCHAR(128),
+    source_payload  TEXT         NOT NULL,
+    values_json     TEXT,
+    links_json      TEXT,
+    row_status      VARCHAR(16)  NOT NULL,
+    validation_msgs TEXT,
+    dedupe_match_id BIGINT,
+    dedupe_action   VARCHAR(16),
+    match_tier      VARCHAR(16),
+    match_detail    VARCHAR(255),
+    target_id       BIGINT,
+    before_image    TEXT,
+    batch_id        BIGINT,
+    created_date    TIMESTAMP(6) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_staging_record_run   ON staging_record (run_id, target_table);
+CREATE INDEX IF NOT EXISTS ix_staging_record_batch ON staging_record (batch_id);
+ALTER TABLE group_member ADD COLUMN IF NOT EXISTS family_member_id INTEGER;
+
+-- ── ETL Import — Migration Phase 5 (2026-10-16) ──────────────────────────────
+-- Mirrors Flyway V22 (data type of each uploaded file). Additive only.
+-- Not yet executed in production — run only with explicit approval.
+ALTER TABLE import_file ADD COLUMN IF NOT EXISTS target_table    VARCHAR(32);
+ALTER TABLE import_file ADD COLUMN IF NOT EXISTS suggested_table VARCHAR(32);

@@ -1,10 +1,12 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.hibernate.ImportRun;
 import com.churchgeniuspro.hibernate.MappingRule;
 import com.churchgeniuspro.hibernate.SourceColumnProfile;
 import com.churchgeniuspro.repository.MappingRuleRepository;
 import com.churchgeniuspro.repository.SourceColumnProfileRepository;
 import com.churchgeniuspro.util.EtlTargetSchema;
+import com.churchgeniuspro.util.SourcePreset;
 import com.churchgeniuspro.util.EtlTargetSchema.TargetColumn;
 import com.churchgeniuspro.util.MappingMatcher;
 import com.churchgeniuspro.util.MappingMatcher.SourceCol;
@@ -29,6 +31,15 @@ import java.util.*;
  *
  * <p>All suggestions are persisted as {@code mapping_rule} rows (one per target
  * column) so the review UI can show the full picture. No live data is touched.
+ *
+ * <p>Migration Phase 1: a <b>preset pass</b> runs first — a header that is one of
+ * the run's {@link SourcePreset} aliases for a target column is placed at
+ * confidence 1.0 ({@code AUTO}); the generic matcher then scores only the columns
+ * the preset did not place. The AI fallback is <b>opt-in per run</b>
+ * ({@code ImportRun.aiAssist}) and is sent column names and inferred types only —
+ * never sample values, which may be names, e-mails or amounts. {@link #review}
+ * reports the required target columns still unmapped, the source columns no
+ * target uses (kept in the staging payload, not lost) and the preset applied.
  */
 @Service
 public class MappingService {
@@ -40,6 +51,10 @@ public class MappingService {
 
     private final MappingRuleRepository         ruleRepo;
     private final SourceColumnProfileRepository profileRepo;
+    /** Phase 4: which column of an uploaded file is its row id (optional so older hand-built tests are unchanged). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.ImportFileRepository fileRepo;
+    public void setFileRepo(com.churchgeniuspro.repository.ImportFileRepository r) { this.fileRepo = r; }
     private final OpenAiVoiceService            openAi;
     private final ImportRunService              runService;
 
@@ -75,17 +90,40 @@ public class MappingService {
             throw new MappingException("No profile for source table '" + sourceTable
                 + "'. Run extract/profile first.");
 
+        // Phase 4: for the record data types the file's own id column is the row's source id,
+        // never a value to map (it otherwise attracts weak name matches such as "Event ID" → event type).
+        Set<String> rowIdCols = new HashSet<>();
+        if (EtlTargetSchema.isRecordTable(targetTable) && fileRepo != null)
+            for (com.churchgeniuspro.hibernate.ImportFile f : fileRepo.findByRunIdAndSourceTable(runId, sourceTable))
+                if (f.getIdColumn() != null) rowIdCols.add(f.getIdColumn());
         List<SourceCol> sources = profile.stream()
+            .filter(p -> !rowIdCols.contains(p.getColumnName()))
             .map(p -> new SourceCol(p.getColumnName(), p.getInferredType()))
             .toList();
 
-        // 1) Deterministic pass.
-        List<Suggestion> suggestions = MappingMatcher.match(targetTable, sources);
+        ImportRun run = runService.getRun(runId, clientId);
+        SourcePreset preset = SourcePreset.of(run.getSourcePreset());
 
-        // 2) AI fallback for whatever the matcher left unplaced.
+        // 0) Preset pass: documented headers of the source application place at 1.0.
+        Map<String, String> presetHits = presetMatches(preset, targetTable, sources);   // target → source
+        List<SourceCol> remaining = sources.stream()
+            .filter(sc -> !presetHits.containsValue(sc.name())).toList();
+
+        // 1) Deterministic pass over what the preset left.
+        List<Suggestion> suggestions = MappingMatcher.match(targetTable, remaining, presetHits.keySet());
+        for (Suggestion sg : suggestions) {
+            String src = presetHits.get(sg.targetColumn);
+            if (src == null) continue;
+            sg.sourceColumn = src;
+            sg.confidence   = 1.0;
+            sg.status       = "AUTO";
+            sg.rationale    = "'" + src + "' → " + sg.targetColumn + " (" + preset.label() + " preset column)";
+        }
+
+        // 2) AI fallback for whatever is still unplaced — only when the run opted in.
         List<Suggestion> unmatched = suggestions.stream()
             .filter(s -> s.sourceColumn == null).toList();
-        if (!unmatched.isEmpty() && openAi.isEnabled()) {
+        if (!unmatched.isEmpty() && run.isAiAssist() && openAi.isEnabled()) {
             try {
                 applyAiFallback(targetTable, unmatched, profile, sources);
             } catch (Exception e) {
@@ -127,7 +165,9 @@ public class MappingService {
             "sourceTable", sourceTable,
             "auto", auto,
             "needsReview", review,
-            "aiAssisted", ai));
+            "aiAssisted", ai,
+            "preset", preset.name(),
+            "presetColumns", presetHits.size()));
         log.info("ETL run {} mapped {} ({} auto, {} review, {} AI) {}→{}",
             runId, suggestions.size(), auto, review, ai, sourceTable, targetTable);
         return saved;
@@ -165,6 +205,81 @@ public class MappingService {
             sug.rationale    = "AI: '" + source + "' → " + target + " — " + why;
             usedSources.add(source);
         }
+    }
+
+    /** target column → source header for every preset alias present (each source used once). */
+    static Map<String, String> presetMatches(SourcePreset preset, String targetTable, List<SourceCol> sources) {
+        Map<String, String> hits = new LinkedHashMap<>();
+        if (preset == null || preset == SourcePreset.GENERIC) return hits;
+        Set<String> used = new HashSet<>();
+        for (TargetColumn t : EtlTargetSchema.columns(targetTable)) {
+            for (String alias : preset.aliases(targetTable, t.name())) {       // alias order = priority
+                SourceCol hit = null;
+                for (SourceCol sc : sources) {
+                    if (used.contains(sc.name())) continue;
+                    if (preset.matches(targetTable, t.name(), sc.name()) && SourcePreset.norm(alias).equals(SourcePreset.norm(sc.name()))) { hit = sc; break; }
+                }
+                if (hit != null) { hits.put(t.name(), hit.name()); used.add(hit.name()); break; }
+            }
+        }
+        return hits;
+    }
+
+    /**
+     * Mapping review for one target table: required targets with no active mapping,
+     * source columns no active mapping uses, virtual/dictionary info and the preset.
+     * Read-only; what the UI shows above the mapping grid.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> review(Long runId, String clientId, String targetTable, String sourceTable) {
+        if (!EtlTargetSchema.isTable(targetTable))
+            throw new MappingException("Unknown target table: " + targetTable);
+        ImportRun run = runService.getRun(runId, clientId);
+        SourcePreset preset = SourcePreset.of(run.getSourcePreset());
+        List<MappingRule> rules = ruleRepo.findByRunIdAndTargetTable(runId, targetTable);
+        Set<String> mappedTargets = new HashSet<>();
+        Set<String> usedSources = new HashSet<>();
+        for (MappingRule r : rules) {
+            boolean active = ("CONFIRMED".equals(r.getStatus()) || "AUTO".equals(r.getStatus()))
+                && r.getSourceColumn() != null && !r.getSourceColumn().isBlank();
+            if (active) { mappedTargets.add(r.getTargetColumn()); usedSources.add(r.getSourceColumn()); }
+        }
+        // fullName satisfies firstName/lastName; birthDate satisfies the three birthday parts.
+        if (mappedTargets.contains("fullName")) { mappedTargets.add("firstName"); mappedTargets.add("lastName"); }
+
+        List<String> missingRequired = new ArrayList<>();
+        for (TargetColumn t : EtlTargetSchema.required(targetTable))
+            if (!mappedTargets.contains(t.name())) missingRequired.add(t.name());
+        if ("family".equals(targetTable) && !mappedTargets.contains("firstName") && !mappedTargets.contains("lastName"))
+            missingRequired.add("firstName or lastName (or fullName)");
+
+        List<String> unmappedSources = new ArrayList<>();
+        String st = sourceTable;
+        if (st == null || st.isBlank()) {
+            st = rules.stream().map(MappingRule::getSourceTable).filter(Objects::nonNull).findFirst().orElse(null);
+        }
+        if (st != null) {
+            for (SourceColumnProfile p : profileRepo.findByRunIdAndSourceTableOrderByOrdinalAsc(runId, st))
+                if (!usedSources.contains(p.getColumnName())) unmappedSources.add(p.getColumnName());
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("targetTable", targetTable);
+        out.put("sourceTable", st);
+        out.put("preset", preset.name());
+        out.put("presetLabel", preset.label());
+        out.put("presetVerified", preset.verified());
+        out.put("dateOrder", run.getDateOrder() == null ? "AUTO" : run.getDateOrder());
+        out.put("aiAssist", run.isAiAssist());
+        out.put("missingRequired", missingRequired);
+        out.put("unmappedSources", unmappedSources);
+        out.put("requiredColumns", EtlTargetSchema.required(targetTable).stream().map(TargetColumn::name).toList());
+        out.put("dictionaryColumns", EtlTargetSchema.columns(targetTable).stream()
+            .filter(c -> c.dictionary() != null).map(c -> Map.of("column", c.name(), "dictionary", c.dictionary())).toList());
+        out.put("virtualColumns", EtlTargetSchema.columns(targetTable).stream().filter(TargetColumn::virtual).map(TargetColumn::name).toList());
+        out.put("transforms", EtlTargetSchema.transforms());
+        out.put("ready", missingRequired.isEmpty());
+        return out;
     }
 
     // ───────────────────────── review actions ─────────────────────────
@@ -228,25 +343,27 @@ public class MappingService {
     private String aiSystemPrompt() {
         return "You map SOURCE database columns onto fixed TARGET columns for importing data into a "
              + "church-management system. You are a careful assistant: only propose a mapping when the "
-             + "source column's NAME and SAMPLE VALUES clearly fit the target's meaning and type. It is "
+             + "source column's NAME and inferred TYPE clearly fit the target's meaning and type. It is "
              + "better to leave a target unmapped than to guess. Never invent a source column — choose only "
              + "from the provided source list. Reply ONLY as JSON: "
              + "{\"mappings\":[{\"target\":\"<targetColumn>\",\"source\":\"<sourceColumn>\",\"confidence\":0.0,"
              + "\"rationale\":\"<short why>\"}]}. Omit targets you are unsure about.";
     }
 
-    private String aiUserPrompt(String targetTable, List<Suggestion> unmatched,
+    String aiUserPrompt(String targetTable, List<Suggestion> unmatched,
                                 List<SourceColumnProfile> profile) {
         StringBuilder sb = new StringBuilder();
         sb.append("TARGET TABLE: ").append(targetTable).append('\n');
         sb.append("UNMAPPED TARGET COLUMNS (name : type):\n");
         for (Suggestion s : unmatched) sb.append("  - ").append(s.targetColumn)
             .append(" : ").append(s.targetType).append('\n');
-        sb.append("\nAVAILABLE SOURCE COLUMNS (name : inferredType : sampleValues):\n");
+        // Privacy (Migration Phase 1): column NAMES and inferred TYPES only — sample
+        // values can be names, e-mails, phone numbers or gift amounts and never leave
+        // the server.
+        sb.append("\nAVAILABLE SOURCE COLUMNS (name : inferredType):\n");
         for (SourceColumnProfile p : profile) {
             sb.append("  - ").append(p.getColumnName())
               .append(" : ").append(p.getInferredType())
-              .append(" : ").append(p.getSampleValues() == null ? "[]" : p.getSampleValues())
               .append('\n');
         }
         return sb.toString();

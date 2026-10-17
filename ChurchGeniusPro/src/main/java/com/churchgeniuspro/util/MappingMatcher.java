@@ -54,6 +54,15 @@ public final class MappingMatcher {
      * AI fallback / operator.
      */
     public static List<Suggestion> match(String table, List<SourceCol> sources) {
+        return match(table, sources, Set.of());
+    }
+
+    /**
+     * As {@link #match(String, List)}, but targets in {@code alreadyPlaced} (filled by a
+     * source preset) take no source here, so the generic scorer cannot steal a column
+     * for them. They are still returned (unmatched) so the caller can fill them.
+     */
+    public static List<Suggestion> match(String table, List<SourceCol> sources, Set<String> alreadyPlaced) {
         List<TargetColumn> targets = EtlTargetSchema.columns(table);
         Map<String, Suggestion> byTarget = new LinkedHashMap<>();
         for (TargetColumn t : targets) byTarget.put(t.name(), new Suggestion(t.name(), t.type()));
@@ -61,6 +70,7 @@ public final class MappingMatcher {
         // Score all viable pairs.
         List<Pair> pairs = new ArrayList<>();
         for (TargetColumn t : targets) {
+            if (alreadyPlaced != null && alreadyPlaced.contains(t.name())) continue;
             for (SourceCol s : sources) {
                 double nameScore = nameScore(t, s.name());
                 if (nameScore <= 0) continue;
@@ -169,6 +179,8 @@ public final class MappingMatcher {
             case "EMAIL"   -> s.equals("STRING") ? 0.6 : 0.3;
             case "PHONE"   -> s.equals("INTEGER") ? 0.7 : (s.equals("STRING") ? 0.6 : 0.3);
             case "BOOLEAN" -> s.equals("INTEGER") ? 0.6 : (s.equals("STRING") ? 0.4 : 0.3);
+            case "DATETIME" -> s.equals("DATE") ? 0.9 : (s.equals("STRING") ? 0.8 : 0.3);   // Phase 4: "2026-03-01 09:45" profiles as STRING
+            case "TIME"    -> s.equals("STRING") ? 0.8 : 0.3;                               // Phase 4: "11:00 AM" profiles as STRING
             default        -> 0.5;
         };
     }

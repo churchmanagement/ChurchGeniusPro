@@ -55,6 +55,16 @@ public class ImportRunService {
      */
     @Transactional
     public ImportRun createRun(String clientId, String createdBy, String sourceLabel) {
+        return createRun(clientId, createdBy, sourceLabel, null, null, false);
+    }
+
+    /**
+     * Migration Phase 1: the run also records the source application preset, the
+     * date order its files use and whether AI mapping assistance is allowed.
+     */
+    @Transactional
+    public ImportRun createRun(String clientId, String createdBy, String sourceLabel,
+                               String sourcePreset, String dateOrder, boolean aiAssist) {
         if (clientId == null || clientId.isBlank())
             throw new ImportRunException("clientId is required to create an import run");
         if (createdBy == null || createdBy.isBlank())
@@ -65,11 +75,20 @@ public class ImportRunService {
         run.setCreatedBy(createdBy.trim());
         run.setSourceLabel(sourceLabel == null ? null : sourceLabel.trim());
         run.setStatus(ImportRunStatus.DRAFT.name());
+        com.churchgeniuspro.util.SourcePreset preset = com.churchgeniuspro.util.SourcePreset.of(sourcePreset);
+        run.setSourcePreset(preset.name());
+        String order = com.churchgeniuspro.util.Transforms.Context.of(
+            dateOrder == null || dateOrder.isBlank() ? preset.dateOrder() : dateOrder).dateOrder();
+        run.setDateOrder(order);
+        run.setAiAssist(aiAssist);
         run = runRepo.save(run);
 
         audit(run, createdBy, "CREATE", Map.of(
             "status", run.getStatus(),
-            "sourceLabel", String.valueOf(run.getSourceLabel())));
+            "sourceLabel", String.valueOf(run.getSourceLabel()),
+            "sourcePreset", preset.name(),
+            "dateOrder", order,
+            "aiAssist", aiAssist));
         log.info("ETL run {} created for tenant {} by {}", run.getId(), clientId, createdBy);
         return run;
     }
@@ -86,6 +105,41 @@ public class ImportRunService {
     @Transactional(readOnly = true)
     public List<ImportRun> listRuns(String clientId) {
         return runRepo.findByClientIdOrderByCreatedDateDesc(clientId);
+    }
+
+    /** Migration Phase 5: recent runs in these statuses across all churches (Service Admin overview only). */
+    @Transactional(readOnly = true)
+    public List<ImportRun> recentAcrossChurches(java.util.Collection<String> statuses) {
+        return runRepo.findTop50ByStatusInOrderByUpdatedDateDesc(statuses);
+    }
+
+    /**
+     * Migration Phase 5: change a run's date order and/or label from the wizard. Allowed until
+     * anything of the run has been approved or loaded (the date order decides how every
+     * staged date was read, so it cannot move under an approved batch). Audited.
+     */
+    @Transactional
+    public ImportRun updateSettings(Long id, String clientId, String actor, String dateOrder, String sourceLabel) {
+        ImportRun run = getRun(id, clientId);
+        ImportRunStatus st = ImportRunStatus.fromString(run.getStatus());
+        if (st == null || st.isTerminal() || st == ImportRunStatus.APPROVED || st == ImportRunStatus.LOADED)
+            throw new ImportRunException("Settings can only change before anything is approved or loaded (run is " + run.getStatus() + ")");
+        Map<String, Object> detail = new LinkedHashMap<>();
+        if (dateOrder != null) {
+            String d = dateOrder.trim().toUpperCase();
+            if (!java.util.Set.of("AUTO", "MDY", "DMY", "YMD").contains(d)) throw new ImportRunException("Date order must be AUTO, MDY, DMY or YMD");
+            detail.put("dateOrder", d + " (was " + (run.getDateOrder() == null ? "AUTO" : run.getDateOrder()) + ")");
+            run.setDateOrder(d);
+        }
+        if (sourceLabel != null) {
+            String l = sourceLabel.trim();
+            if (l.length() > 256) l = l.substring(0, 256);
+            detail.put("sourceLabel", l);
+            run.setSourceLabel(l.isEmpty() ? null : l);
+        }
+        run = runRepo.save(run);
+        audit(run, actor, "SETTINGS", detail);
+        return run;
     }
 
     @Transactional(readOnly = true)
@@ -156,6 +210,10 @@ public class ImportRunService {
         a.setActor(actor == null ? "system" : actor);
         a.setAction(action);
         a.setDetail(toJson(detail));
+        // Migration Phase 5: batch events (APPROVE, LOAD, LOAD_FAILED, ROLLBACK) carry their batch
+        // in the detail; record it in the column too, so a batch's history is one indexed lookup.
+        Object b = detail == null ? null : detail.get("batchId");
+        if (b instanceof Number n) a.setBatchId(n.longValue());
         auditRepo.save(a);
     }
 

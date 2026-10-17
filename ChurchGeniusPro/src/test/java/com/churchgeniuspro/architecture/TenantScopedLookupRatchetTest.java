@@ -134,6 +134,11 @@ class TenantScopedLookupRatchetTest {
         // tenant.equals(x.getAppClientId()))) — same pattern as above, same
         // reason the regex still counts them.
         entry("service/EtlReferenceResolver.java", 3),
+        // ETL Migration Phase 3: removeIfUnused() looks a reference row (sub_source /
+        // main_source / purpose / transaction_type) back up by the id an import_link of
+        // THIS tenant recorded, filtered by tenant (repo.findById(id).filter(x ->
+        // tenant.equals(x.getAppClientId()))) before it is soft-deleted on rollback.
+        entry("service/EtlLinkService.java", 4),
         entry("service/GuessItPlayService.java", 1),
         entry("service/KmPickupAlertService.java", 1),
         entry("service/MeetingOccurrenceService.java", 1),
