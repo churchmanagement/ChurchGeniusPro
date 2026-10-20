@@ -28,6 +28,8 @@ public class W2PdfService {
 
     private static final float LEFT = 50f, RIGHT = 562f, TOP = 742f;
 
+    /** No longer used (SSN is not printed); kept so the constructor is unchanged. */
+    @SuppressWarnings("unused")
     private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
     public W2PdfService(com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
@@ -58,11 +60,7 @@ public class W2PdfService {
                 String who = w2.getEmployeeName() == null ? "" : w2.getEmployeeName();
                 text(cs, bold, 11, LEFT, y, "Employee: " + who);
                 y -= 14;
-                // Stored encrypted at rest; decrypted only for this authorized document
-                String ssn4 = employee != null ? ssnCrypto.decrypt(employee.getSsnLast4()) : null;
-                if (ssn4 != null && !ssn4.isBlank()) {
-                    text(cs, normal, 9, LEFT, y, "SSN: XXX-XX-" + ssn4); y -= 12;
-                }
+                // SSN (last 4) is no longer printed on this W-2 summary (2026-10-19).
                 y -= 6; hr(cs, y); y -= 20;
 
                 // Box grid (two columns)

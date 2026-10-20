@@ -31,7 +31,7 @@ public class DonationSettings {
 
     /** Default note templates — placeholders are filled by {@code DonationPostingService}. */
     public static final String DEFAULT_INCOME_NOTE  = "{card} — {donorNote}";
-    public static final String DEFAULT_EXPENSE_NOTE = "Stripe fees for donation of {gross} on {date} — {donorNote}";
+    public static final String DEFAULT_EXPENSE_NOTE = "Stripe fee for donation {number} from {donor} — {gross} on {date} — {donorNote}";
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "donation_settings_seq")

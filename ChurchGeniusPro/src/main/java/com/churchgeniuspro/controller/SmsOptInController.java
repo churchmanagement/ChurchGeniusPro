@@ -38,6 +38,14 @@ public class SmsOptInController {
     private final StripeSettingsRepository      stripeRepo;
     private final SmsService                    smsService;
 
+    /**
+     * Reply to HELP / INFO with the branded help text. OFF by default (property
+     * {@code sms.help-reply}, env {@code SMS_HELP_REPLY}) so HELP is handled exactly as before
+     * (Twilio's own reply) until production moves to the verified toll-free number.
+     */
+    @Value("${sms.help-reply:false}")
+    boolean helpReply = false;
+
     @Value("${app.base-url:http://localhost:8080}")
     private String appBaseUrl;
 
@@ -225,6 +233,14 @@ public class SmsOptInController {
             return handleGiveKeyword(from, trimmed, records);
         }
 
+        // HELP / INFO: answer with who is texting and how to get help or stop. On a plain
+        // Twilio number with default opt-out handling Twilio answers HELP itself and does
+        // not forward it here; with Advanced Opt-Out on a Messaging Service it is
+        // forwarded and this branded reply is the one the person receives.
+        if (helpReply && (keyword.equals("HELP") || keyword.equals("INFO"))) {
+            return buildTwiml(helpMessage(records));
+        }
+
         if (records.isEmpty()) {
             log.debug("SmsWebhook: no opt-in record for {}", from);
             return "<Response/>";
@@ -364,6 +380,25 @@ public class SmsOptInController {
 
         log.info("SmsGive: sending donation link to {} for church {} amount={}", from, appClientId, amount);
         return buildTwiml(msg);
+    }
+
+    /** Support address given in HELP replies (also on churchgeniuspro.com/sms). */
+    static final String SMS_SUPPORT_EMAIL = "support@churchgeniuspro.com";
+
+    /**
+     * The HELP reply: the church the number signed up with (the first one, when it signed
+     * up with several), the platform, the support address, rates and how to stop.
+     */
+    String helpMessage(List<SmsOptIn> records) {
+        String church = null;
+        if (records != null && !records.isEmpty()) {
+            ChurchRegistration c = churchRepo.findByClientIdAndDeleteFlagFalse(records.get(0).getAppClientId()).orElse(null);
+            if (c != null && c.getChurchName() != null && !c.getChurchName().isBlank()) church = c.getChurchName().trim();
+        }
+        String who = church != null ? church + ": Texts from " + church + " via ChurchGeniusPro."
+                                    : "ChurchGeniusPro: Church text messages.";
+        return who + " Help: " + SMS_SUPPORT_EMAIL + " or churchgeniuspro.com/sms. Msg frequency varies. "
+             + "Msg & data rates may apply. Reply STOP to opt out.";
     }
 
     /** Wraps a message in TwiML so Twilio sends it as an SMS reply. */

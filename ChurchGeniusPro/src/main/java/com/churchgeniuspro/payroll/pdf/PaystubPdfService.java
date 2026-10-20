@@ -47,6 +47,8 @@ public class PaystubPdfService {
     private final PaystubRepository paystubRepo;
     private final PaystubItemRepository itemRepo;
     private final PayrollEmployeeRepository employeeRepo;
+    /** No longer used (SSN is not printed); kept so the constructor is unchanged. */
+    @SuppressWarnings("unused")
     private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
     public PaystubPdfService(PaystubRepository paystubRepo,
@@ -116,12 +118,7 @@ public class PaystubPdfService {
                     join(emp.getCity(), emp.getState(), emp.getPostalCode())}) {
                 if (l != null && !l.isBlank()) { d.text(LEFT, 9, d.normal, l); d.move(11); }
             }
-            // Stored encrypted at rest; decrypted only for this authorized document
-            String ssn4 = ssnCrypto.decrypt(emp.getSsnLast4());
-            if (ssn4 != null && !ssn4.isBlank()) {
-                d.text(LEFT, 9, d.normal, "SSN: XXX-XX-" + ssn4);
-                d.move(11);
-            }
+            // SSN (last 4) is no longer printed on pay stubs (2026-10-19).
         }
         float leftBottom = d.y;
 
@@ -219,8 +216,9 @@ public class PaystubPdfService {
     private void directDeposit(Doc d, Paystub stub) throws IOException {
         if (stub.getDirectDepositAccountLast4() == null || stub.getDirectDepositAccountLast4().isBlank()) return;
         String type = stub.getDirectDepositAccountType() == null ? "" : " (" + stub.getDirectDepositAccountType() + ")";
-        d.text(LEFT, 9, d.normal,
-                "Direct Deposit - Account ****" + stub.getDirectDepositAccountLast4() + type);
+        // The line still shows that net pay went by direct deposit, but no longer prints
+        // any digits of the bank account (2026-10-19).
+        d.text(LEFT, 9, d.normal, "Direct Deposit" + type);
         d.rightText(YTD_RIGHT, 9, d.normal, money(stub.getNetPay()));
         d.move(LINE);
     }

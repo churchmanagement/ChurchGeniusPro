@@ -195,6 +195,27 @@ public class Donation {
     /** True once Income (and, in the gross-with-fee mode, Expense) rows exist for this donation. */
     public boolean isPosted() { return postedIncomeId != null; }
 
+    /**
+     * The donation's reference number, e.g. {@code DON-000042}. Derived from the
+     * sequence-assigned id, so it is unique, never changes, and exists for every
+     * donation — old and new — without a stored column. New Income and fee Expense
+     * rows carry it as their Ref #.
+     */
+    public static String numberOf(Long id) {
+        return id == null ? null : String.format(java.util.Locale.ROOT, "DON-%06d", id);
+    }
+
+    /** {@link #numberOf} for this donation (not a bean getter, so it is never mapped). */
+    public String donationNumber() { return numberOf(id); }
+
+    /** The id inside a {@code DON-000042} reference, or null when the text is not one. */
+    public static Long idFromNumber(String number) {
+        if (number == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)^\\s*DON-0*(\\d{1,18})\\s*$").matcher(number);
+        if (!m.matches()) return null;
+        try { long v = Long.parseLong(m.group(1)); return v > 0 ? v : null; } catch (NumberFormatException e) { return null; }
+    }
+
     @PrePersist
     public void prePersist() {
         if (donatedAt == null) donatedAt = LocalDateTime.now();

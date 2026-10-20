@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 public class PayrollSetupController {
 
     private final PayrollSetupService setup;
+    /** No longer used by this controller (SSN is not returned); kept so the constructor is unchanged. */
+    @SuppressWarnings("unused")
     private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
     public PayrollSetupController(PayrollSetupService setup,
@@ -160,10 +162,9 @@ public class PayrollSetupController {
         m.put("fullName", e.fullName());
         m.put("email", e.getEmail());
         m.put("phone", e.getPhone());
-        // Stored encrypted (AES-GCM); decrypted only here, for payroll-authorized
-        // callers (this API is gated by RoleGuard.requirePayroll via the tenant
-        // check + payroll page guards). The UI keeps it masked until the eye icon.
-        m.put("ssnLast4", ssnCrypto.decrypt(e.getSsnLast4()));
+        // SSN (last 4) and the bank account / routing last-4 are no longer returned
+        // (2026-10-19): they are sensitive and not needed to run payroll. Values already
+        // stored stay in the database untouched; nothing here reads or decrypts them.
         m.put("addressLine1", e.getAddressLine1());
         m.put("addressLine2", e.getAddressLine2());
         m.put("city", e.getCity());
@@ -178,8 +179,6 @@ public class PayrollSetupController {
         m.put("payPeriodsPerYearOverride", e.getPayPeriodsPerYearOverride());
         m.put("stateTaxCode", e.getStateTaxCode());
         m.put("bankName", e.getBankName());
-        m.put("directDepositAccountLast4", e.getDirectDepositAccountLast4());
-        m.put("directDepositRoutingLast4", e.getDirectDepositRoutingLast4());
         m.put("directDepositAccountType", e.getDirectDepositAccountType());
         m.put("active", e.isActive());
         m.put("status", employeeStatus(e));   // Active | Inactive | Terminated (for display)

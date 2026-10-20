@@ -42,6 +42,17 @@ public class AccountingReportController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.service.FinancialReportLetterService letterService;
 
+    /**
+     * Online donations (Transactions report: donation labels + the "Online Donations &amp;
+     * Contributions" view). Field-injected and null-checked like {@code letterService}
+     * so existing construction sites are unchanged; absent → no labels, view refused.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.DonationRepository donationRepo;
+
+    /** Test seam. */
+    public void setDonationRepo(com.churchgeniuspro.repository.DonationRepository r) { this.donationRepo = r; }
+
     /** Test seam — supply the letter text without a Spring context. */
     public void setLetterService(com.churchgeniuspro.service.FinancialReportLetterService s) {
         this.letterService = s;
@@ -297,6 +308,7 @@ public class AccountingReportController {
             m.put("method",   str(r[8]));                          // method    (was r[7])
             m.put("refNo",    str(r[9]));                          // ref_no    (was r[8])
             m.put("note",     str(r[10]));                         // note      (was r[9])
+            m.put("importRef", r.length > 11 ? str(r[11]) : "");   // only used to label donation rows below
             incList.add(m);
             totalIncome = totalIncome.add(amt);
         }
@@ -317,9 +329,12 @@ public class AccountingReportController {
             m.put("method",  str(r[5]));
             m.put("refNo",   str(r[6]));
             m.put("note",    str(r[7]));
+            m.put("importRef", r.length > 8 ? str(r[8]) : "");
             expList.add(m);
             totalExpense = totalExpense.add(amt);
         }
+
+        labelDonationRows(incList, expList, appClientId);
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("startDate",    startDate);
@@ -329,6 +344,166 @@ public class AccountingReportController {
         res.put("totalIncome",  totalIncome);
         res.put("totalExpense", totalExpense);
         res.put("netBalance",   totalIncome.subtract(totalExpense));
+        return ResponseEntity.ok(res);
+    }
+
+    /**
+     * Adds {@code donationId}/{@code donationNumber} to Income and Expense rows that
+     * belong to an online donation — by the posting links stored on the donation, or,
+     * for rows posted before the review workflow, by the Stripe PaymentIntent in
+     * {@code import_ref}. Removes the internal {@code importRef} from every row.
+     * Never changes amounts, totals or which rows appear. Best effort: on any failure
+     * the report is returned without labels.
+     */
+    private void labelDonationRows(List<Map<String, Object>> inc, List<Map<String, Object>> exp, String clientId) {
+        try {
+            if (donationRepo == null || clientId == null || (inc.isEmpty() && exp.isEmpty())) return;
+            Map<Integer, com.churchgeniuspro.hibernate.Donation> byIncome = new HashMap<>();
+            Map<Integer, com.churchgeniuspro.hibernate.Donation> byExpense = new HashMap<>();
+            Map<String, com.churchgeniuspro.hibernate.Donation> byRef = new HashMap<>();
+
+            List<Integer> incIds = new ArrayList<>(), expIds = new ArrayList<>();
+            Set<String> refs = new HashSet<>();
+            for (Map<String, Object> m : inc) {
+                if (m.get("id") != null) incIds.add(((Number) m.get("id")).intValue());
+                String r = (String) m.get("importRef"); if (r != null && !r.isBlank()) refs.add(r);
+            }
+            for (Map<String, Object> m : exp) {
+                if (m.get("id") != null) expIds.add(((Number) m.get("id")).intValue());
+                String r = (String) m.get("importRef");
+                if (r != null && r.endsWith(com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX)) {
+                    refs.add(r.substring(0, r.length() - com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX.length()));
+                }
+            }
+            if (!incIds.isEmpty()) for (var d : donationRepo.findCreditPostedTo(clientId, incIds)) byIncome.put(d.getPostedIncomeId(), d);
+            if (!expIds.isEmpty()) for (var d : donationRepo.findFeePostedTo(clientId, expIds)) byExpense.put(d.getPostedExpenseId(), d);
+            List<String> pis = new ArrayList<>(); List<Long> ids = new ArrayList<>();
+            for (String r : refs) {
+                if (r.startsWith("pi_")) pis.add(r);
+                else if (r.startsWith("donation:")) { try { ids.add(Long.parseLong(r.substring(9))); } catch (NumberFormatException ignore) { } }
+            }
+            if (!pis.isEmpty()) for (var d : donationRepo.findByClientIdAndStripePaymentIntentIdIn(clientId, pis)) byRef.put(com.churchgeniuspro.service.DonationPostingService.ledgerRef(d), d);
+            if (!ids.isEmpty()) for (var d : donationRepo.findByClientIdAndIdIn(clientId, ids)) byRef.put(com.churchgeniuspro.service.DonationPostingService.ledgerRef(d), d);
+
+            for (Map<String, Object> m : inc) {
+                Integer id = m.get("id") != null ? ((Number) m.get("id")).intValue() : null;
+                var d = id != null ? byIncome.get(id) : null;
+                if (d == null) d = byRef.get((String) m.get("importRef"));
+                if (d != null) { m.put("donationId", d.getId()); m.put("donationNumber", d.donationNumber()); }
+            }
+            for (Map<String, Object> m : exp) {
+                Integer id = m.get("id") != null ? ((Number) m.get("id")).intValue() : null;
+                var d = id != null ? byExpense.get(id) : null;
+                String r = (String) m.get("importRef");
+                if (d == null && r != null && r.endsWith(com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX)) {
+                    d = byRef.get(r.substring(0, r.length() - com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX.length()));
+                }
+                if (d != null) { m.put("donationId", d.getId()); m.put("donationNumber", d.donationNumber()); }
+            }
+        } catch (Exception ex) {
+            org.slf4j.LoggerFactory.getLogger(AccountingReportController.class)
+                    .warn("Transactions report: donation labels skipped for client {}: {}", clientId, ex.getClass().getSimpleName());
+        } finally {
+            inc.forEach(m -> m.remove("importRef"));
+            exp.forEach(m -> m.remove("importRef"));
+        }
+    }
+
+    // ── 3b. Online Donations & Contributions ───────────────────────────────
+    /**
+     * The Transactions report's "Online Donations &amp; Contributions" view: online
+     * donations (public page and Member Portal) that are approved and saved to
+     * accounting, whose Income date is in [startDate, endDate] (inclusive).
+     *
+     * <p>Fees are never assumed. {@code feeStatus}:
+     * <ul>
+     *   <li>{@code RECORDED} — a fee Expense exists for the donation (its amount is the fee);</li>
+     *   <li>{@code NO_FEE} — posted by Donation Review and Stripe reported a $0.00 fee
+     *       (so no Expense was needed);</li>
+     *   <li>{@code STRIPE_ONLY} — Stripe reported the actual fee but no Expense records it;</li>
+     *   <li>{@code NOT_RECORDED} — no fee Expense and no verified fee: fee and deposited
+     *       are null and shown as "Not recorded" / "—".</li>
+     * </ul>
+     * Same role gate as the rest of the report (SuperAdmin / Admin / Accountant —
+     * the roles that already see contributors' email and phone on Donation Review).
+     * Permissions control pages, not data APIs, so no permission check is added here.
+     */
+    @GetMapping("/online-donations")
+    public ResponseEntity<?> onlineDonationsReport(@RequestParam String startDate,
+                                                   @RequestParam String endDate,
+                                                   HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> denied = gate(request);
+        if (denied != null) return denied;
+        if (donationRepo == null) return ResponseEntity.status(503).body(Map.of("error", "Online donations are unavailable."));
+        LocalDate sdl, edl;
+        try { sdl = LocalDate.parse(startDate); edl = LocalDate.parse(endDate); }
+        catch (Exception e) { return ResponseEntity.badRequest().body(Map.of("error", "Invalid date.")); }
+        if (edl.isBefore(sdl)) return ResponseEntity.badRequest().body(Map.of("error", "End date must be on or after the start date."));
+        String clientId = SessionUtil.getAppClientId(request);
+
+        List<Object[]> rows = donationRepo.reportOnlineDonationsInRange(Date.valueOf(sdl), Date.valueOf(edl), clientId);
+        List<Map<String, Object>> list = new ArrayList<>();
+        BigDecimal totalDon = BigDecimal.ZERO, totalFee = BigDecimal.ZERO, totalDep = BigDecimal.ZERO;
+        int notRecorded = 0;
+        Set<Long> seen = new HashSet<>();
+        for (Object[] r : rows) {
+            Long donationId = ((Number) r[0]).longValue();
+            if (!seen.add(donationId)) continue;              // defensive: one row per donation
+            BigDecimal amount = toBD(r[6]).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal incomeAmt = r[10] != null ? toBD(r[10]).setScale(2, java.math.RoundingMode.HALF_UP) : null;
+            boolean postedByReview = Boolean.TRUE.equals(r[17]);
+
+            BigDecimal fee = null; String feeStatus;
+            if (r[13] != null) {
+                fee = toBD(r[14]).setScale(2, java.math.RoundingMode.HALF_UP); feeStatus = "RECORDED";
+            } else if (r[15] != null && "STRIPE".equals(str(r[16]))) {
+                BigDecimal sf = toBD(r[15]).setScale(2, java.math.RoundingMode.HALF_UP);
+                if (sf.signum() == 0 && postedByReview) { fee = sf; feeStatus = "NO_FEE"; }
+                else { fee = sf; feeStatus = "STRIPE_ONLY"; }
+            } else {
+                feeStatus = "NOT_RECORDED";
+            }
+            BigDecimal deposited = fee != null ? amount.subtract(fee) : null;
+
+            String mf = str(r[11]), ml = str(r[12]);
+            String contributor = (!mf.isBlank() || !ml.isBlank())
+                    ? (ml + (!ml.isBlank() && !mf.isBlank() ? ", " : "") + mf).trim()
+                    : ((str(r[1]) + " " + str(r[2])).trim().isEmpty() ? "Online Donor" : (str(r[1]) + " " + str(r[2])).trim());
+
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("donationId",     donationId);
+            m.put("donationNumber", com.churchgeniuspro.hibernate.Donation.numberOf(donationId));
+            m.put("contributor",    contributor);
+            m.put("email",          str(r[3]));
+            m.put("phone",          str(r[4]));
+            m.put("note",           str(r[5]));
+            m.put("date",           toDateStr(r[9]));
+            m.put("source",         com.churchgeniuspro.hibernate.Donation.SOURCE_MEMBER_PORTAL.equals(str(r[7])) ? "Member Portal" : "Online");
+            m.put("amount",         amount);
+            m.put("fee",            fee);
+            m.put("deposited",      deposited);
+            m.put("feeStatus",      feeStatus);
+            m.put("incomeId",       r[8] != null ? ((Number) r[8]).longValue() : null);
+            m.put("expenseId",      r[13] != null ? ((Number) r[13]).longValue() : null);
+            m.put("postedBeforeReview", !postedByReview);
+            // The Income row was edited after posting (or posted net by the old hook): say so.
+            m.put("incomeAmount",   incomeAmt != null && incomeAmt.compareTo(amount) != 0 ? incomeAmt : null);
+            m.put("currency",       str(r[18]).isBlank() ? "USD" : str(r[18]));
+            list.add(m);
+
+            totalDon = totalDon.add(amount);
+            if (fee != null) { totalFee = totalFee.add(fee); totalDep = totalDep.add(deposited); }
+            else notRecorded++;
+        }
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("startDate", startDate);
+        res.put("endDate", endDate);
+        res.put("rows", list);
+        res.put("count", list.size());
+        res.put("totalAmount", totalDon);
+        res.put("totalFees", totalFee);
+        res.put("totalDeposited", totalDep);
+        res.put("feeNotRecordedCount", notRecorded);
         return ResponseEntity.ok(res);
     }
 

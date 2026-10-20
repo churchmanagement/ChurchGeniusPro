@@ -84,11 +84,11 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
      * Date Range Transactions report — expense side.
      * Scoped to the logged-in org via appClientId.
      * Returns rows of: [id, expense_date, main_name, purpose_name,
-     *                   amount, method, ref_no, note].
+     *                   amount, method, ref_no, note, import_ref].
      */
     @Query(value =
            "SELECT e.id, e.expense_date, ms.source_name AS main_name, p.purpose_name, " +
-           "       e.amount, tt.type_name AS method, e.ref_no, e.note " +
+           "       e.amount, tt.type_name AS method, e.ref_no, e.note, e.import_ref " +
            "FROM   expense     e " +
            "JOIN   main_source ms ON ms.id = e.main_source_id " +
            "JOIN   purpose     p  ON p.id  = e.purpose_id " +

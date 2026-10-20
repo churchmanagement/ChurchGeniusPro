@@ -114,6 +114,8 @@
     .acct-hist{background:#ede7f3;color:#5e35b1;}
     .acct-link{font-size:11.5px;color:#1565c0;text-decoration:none;margin-left:4px;}
     .acct-link:hover{text-decoration:underline;}
+    .acct-ref{font-size:11px;font-weight:600;color:#475569;background:#f1f5f9;border-radius:4px;padding:1px 5px;margin-right:2px;}
+    .acct-nofee{color:#b45309;margin-left:4px;}
     .fee-src{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;}
     .fee-src.actual{background:#e8f5e9;color:#2e7d32;}
     .fee-src.est{background:#fff3e0;color:#b45309;}
@@ -327,7 +329,7 @@
         <div class="fgrid">
           <div class="fld"><label>Income fund <span class="req">*</span></label><select id="stIncomeFund"></select><div class="hint">From the Income page's funds.</div></div>
           <div class="fld"><label>Income method <span class="req">*</span></label><select id="stIncomeMethod"></select><div class="hint">A configured method such as Bank Transfer &mdash; never the card number.</div></div>
-          <div class="fld full"><label>Income notes (default, editable per donation)</label><textarea id="stIncomeNote"></textarea><div class="hint">Placeholders: {card} {donorNote} {gross} {fee} {net} {date} {donor} {pi}</div></div>
+          <div class="fld full"><label>Income notes (default, editable per donation)</label><textarea id="stIncomeNote"></textarea><div class="hint">Placeholders: {card} {donorNote} {gross} {fee} {net} {date} {donor} {pi} {number}</div></div>
         </div>
         <div class="sect">Stripe fee expense entry</div>
         <div class="fgrid">
@@ -336,7 +338,7 @@
           <div class="fld"><label>Expense method <span class="req">*</span></label><select id="stExpenseMethod"></select></div>
           <div class="fld"><label>Transaction date <span class="req">*</span></label>
             <select id="stDateMode"><option value="DONATION_DATE">The original donation date</option><option value="TODAY">Today's date</option></select></div>
-          <div class="fld full"><label>Expense notes (default, editable per donation)</label><textarea id="stExpenseNote"></textarea></div>
+          <div class="fld full"><label>Expense notes (default, editable per donation)</label><textarea id="stExpenseNote"></textarea><div class="hint">Same placeholders. The donation number (DON-…) and donor name are always added if the note leaves them out.</div></div>
         </div>
       </div>
       <div class="dr-foot"><span class="dr-note" id="stUpdated"></span><button type="button" class="btn-review btn-pending" onclick="closeSettings()">Cancel</button><button type="button" class="btn-review btn-post" id="stSave" onclick="saveSettings()">Save settings</button></div>
@@ -760,6 +762,7 @@ function accountingCell(d) {
     return '<span class="acct-badge acct-posted" title="Posted ' + (d.postedAt ? fmtDate(d.postedAt) : '') + (d.postedBy ? ' by ' + esc(d.postedBy) : '') + '">&#10003; Posted</span>' +
       feeSrcBadge(d) +
       '<span class="acct-links">' +
+      (d.donationNumber ? '<span class="acct-ref" title="Donation reference — the Ref # on its Income and fee Expense">' + esc(d.donationNumber) + '</span>' : '') +
       (d.postedIncomeId  ? '<a class="acct-link" href="/income?edit='  + d.postedIncomeId  + '" title="Open the Income entry">Income #'  + d.postedIncomeId  + '</a>' : '') +
       (d.postedExpenseId ? '<a class="acct-link" href="/expense?edit=' + d.postedExpenseId + '" title="Open the Expense entry">Expense #' + d.postedExpenseId + '</a>' : '') +
       '</span>';
@@ -770,7 +773,13 @@ function accountingCell(d) {
     const amtNote = (d.historicalIncomeAmount != null && Math.round(parseFloat(d.historicalIncomeAmount) * 100) !== Math.round(parseFloat(d.amount || 0) * 100))
       ? ' <small style="color:#b45309;" title="The income amount differs from the donation amount — it was edited after posting">(' + fmt(parseFloat(d.historicalIncomeAmount), d.currency || 'USD') + ' in income)</small>' : '';
     return '<span class="acct-badge acct-hist" title="Already in Income — posted automatically before the review workflow existed. Nothing will be changed.">In Income #' + d.historicalIncomeId + ' (auto)</span>' +
-      '<span class="acct-links"><a class="acct-link" href="/income?edit=' + d.historicalIncomeId + '" title="Open the Income entry">Income #' + d.historicalIncomeId + '</a>' + amtNote + '</span>';
+      '<span class="acct-links">' +
+      (d.donationNumber ? '<span class="acct-ref" title="Donation reference">' + esc(d.donationNumber) + '</span>' : '') +
+      '<a class="acct-link" href="/income?edit=' + d.historicalIncomeId + '" title="Open the Income entry">Income #' + d.historicalIncomeId + '</a>' + amtNote +
+      (d.historicalExpenseId
+        ? '<a class="acct-link" href="/expense?edit=' + d.historicalExpenseId + '" title="Open the fee Expense entry">Expense #' + d.historicalExpenseId + '</a>'
+        : ' <small class="acct-nofee" title="The automatic posting before the review workflow recorded only Income; no Stripe fee Expense exists for this donation">no fee expense recorded</small>') +
+      '</span>';
   }
   const dis = (postBusy || !settingsComplete) ? ' disabled' : '';
   return '<button type="button" class="row-btn ghost" onclick="openReview(' + idNum + ')"' + dis + ' title="See the proposed Income and Expense entries, adjust, then save">Review &amp; Save</button>' +
@@ -888,6 +897,7 @@ function renderReview(p, t) {
   body.innerHTML =
     '<div class="sect">Donation</div>' +
     '<div class="fgrid">' +
+      (p.donationNumber ? '<div class="fld"><label>Donation reference</label><div><b>' + esc(p.donationNumber) + '</b> <small style="color:#888;">saved as Ref # on the Income and fee Expense</small></div></div>' : '') +
       '<div class="fld"><label>Contributor</label><div>' + esc(p.donor || '') + (p.donorEmail ? ' <small style="color:#888;">' + esc(p.donorEmail) + '</small>' : '') + '</div></div>' +
       '<div class="fld"><label>Payment</label><div>' + esc(p.paymentMethod || '') + ' &middot; ' + fmtDay(p.donationDate) + '</div></div>' +
       '<div class="fld full"><label>Donor note</label><div>' + (p.donorNote ? esc(p.donorNote) : '<span style="color:#aaa;">none</span>') + '</div></div>' +

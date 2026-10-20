@@ -639,6 +639,10 @@ public class DonationController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.repository.IncomeRepository incomeRepo;
     public void setIncomeRepo(com.churchgeniuspro.repository.IncomeRepository r) { this.incomeRepo = r; }
+    /** The fee Expense of a historical (auto-posted) donation, when one exists. Optional (unit tests). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.ExpenseRepository expenseRepo;
+    public void setExpenseRepo(com.churchgeniuspro.repository.ExpenseRepository r) { this.expenseRepo = r; }
     public void setSubSourceRepo(com.churchgeniuspro.repository.SubSourceRepository r) { this.subSourceRepo = r; }
 
     /**
@@ -682,6 +686,19 @@ public class DonationController {
                 }
             }
         }
+        // …and their fee Expenses, so the page can say plainly when one was never recorded.
+        Map<String, com.churchgeniuspro.hibernate.Expense> historicalFeeByRef = new java.util.HashMap<>();
+        if (expenseRepo != null && !historicalByRef.isEmpty()) {
+            try {
+                List<String> feeRefs = historicalByRef.keySet().stream()
+                        .map(r -> r + com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX).toList();
+                for (com.churchgeniuspro.hibernate.Expense e : expenseRepo.findByAppClientIdAndImportRefInAndDeleteFlagFalse(clientId, feeRefs)) {
+                    historicalFeeByRef.put(e.getImportRef(), e);
+                }
+            } catch (Exception ex) {
+                log.warn("Donation list: historical fee lookup failed for client {}: {}", clientId, ex.getClass().getSimpleName());
+            }
+        }
 
         List<Map<String, Object>> result = new ArrayList<>();
         // Financial audit M11: totalsByCurrency/countByCurrency are accumulated from
@@ -703,6 +720,7 @@ public class DonationController {
         for (Donation d : donations) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id",                    d.getId());
+            m.put("donationNumber",        d.donationNumber());
             m.put("firstName",             d.getFirstName());
             m.put("lastName",              d.getLastName());
             m.put("email",                 d.getEmail());
@@ -740,6 +758,9 @@ public class DonationController {
                     : historicalByRef.get(com.churchgeniuspro.service.DonationPostingService.ledgerRef(d));
             m.put("historicalIncomeId",     hist != null ? hist.getId() : null);
             m.put("historicalIncomeAmount", hist != null ? hist.getAmount() : null);
+            com.churchgeniuspro.hibernate.Expense histFee = hist == null ? null
+                    : historicalFeeByRef.get(hist.getImportRef() + com.churchgeniuspro.service.DonationPostingService.FEE_REF_SUFFIX);
+            m.put("historicalExpenseId",    histFee != null ? histFee.getId() : null);
             m.put("inLedger",               d.isPosted() || hist != null);
             result.add(m);
 

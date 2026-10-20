@@ -110,6 +110,15 @@
        to the browser's print dialog — html2pdf renders the live DOM, so a
        separate runtime class is needed to keep the Action column out of PDFs. */
     .pdf-hide{display:none!important;}
+    .field label.chk-online{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#673147;cursor:pointer;text-transform:none;letter-spacing:normal;padding:9px 0;}
+    .field label.chk-online input[type=checkbox]{width:18px;height:18px;padding:0;margin:0;border:0;box-shadow:none;accent-color:#673147;appearance:auto;-webkit-appearance:checkbox;flex:none;cursor:pointer;}
+    .note-col{max-width:260px;white-space:normal;word-break:break-word;font-size:12px;color:#555;}
+    .don-tag{display:inline-block;margin-left:4px;padding:0 5px;border-radius:4px;background:#f1f5f9;color:#475569;font-size:10.5px;font-weight:600;text-decoration:none;}
+    .don-sub{font-size:10.5px;color:#888;margin-top:2px;}
+    .fee-nr{color:#b45309;font-weight:600;}
+    .fee-hint{color:#888;font-size:10px;}
+    .sec-hint{font-size:11px;font-weight:500;color:#999;margin-left:6px;}
+    .fee-missing-note{background:#fff8e1;border:1px solid #ffe082;color:#7a5b00;border-radius:8px;padding:8px 12px;font-size:12.5px;margin:4px 0 8px;}
   </style>
 </head>
 <body>
@@ -129,11 +138,11 @@
         <div class="form-grid">
           <div class="field">
             <label>Start Date</label>
-            <input type="date" id="startDate"/>
+            <input type="date" id="startDate" oninput="clearQuickPeriod()"/>
           </div>
           <div class="field">
             <label>End Date</label>
-            <input type="date" id="endDate"/>
+            <input type="date" id="endDate" oninput="clearQuickPeriod()"/>
           </div>
           <div class="field">
             <label>Quick Period</label>
@@ -146,6 +155,11 @@
               <option value="4">Last 4 months</option>
               <option value="5">Last 5 months</option>
             </select>
+          </div>
+          <div class="field">
+            <label class="chk-online" title="Show only online donations and Member Portal contributions that were approved and saved to accounting">
+              <input type="checkbox" id="onlineOnly"/> Online Donations &amp; Contributions
+            </label>
           </div>
           <div class="field span2">
             <button class="btn-primary" onclick="generateReport()">Generate Report</button>
@@ -161,7 +175,7 @@
         <div id="reportContent">
           <div class="rpt-print-header">
             <h2 id="printChurchName"></h2>
-            <p>Date Range Transactions</p>
+            <p id="printTitle">Date Range Transactions</p>
             <p id="printRange"></p>
           </div>
           <div id="reportTable"></div>
@@ -180,35 +194,58 @@
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function fmt(n){return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${M[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;}
-function applyQuickPeriod(){
-  const val=document.getElementById('quickPeriod').value;
-  if(!val)return;
-  const today=new Date();
-  const end=today.toISOString().slice(0,10);
-  let start;
-  if(val==='ytd'){
-    start=`${today.getFullYear()}-01-01`;
-  }else{
-    const d=new Date();d.setMonth(d.getMonth()-parseInt(val,10));
-    start=d.toISOString().slice(0,10);
-  }
-  document.getElementById('endDate').value=end;
-  document.getElementById('startDate').value=start;
+// Local calendar date as YYYY-MM-DD. (toISOString() is UTC: in the evening in the
+// Americas it is already tomorrow, which put tomorrow's date in "End Date".)
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// Same day n months earlier, clamped to the end of a shorter month (Mar 31 − 1 month =
+// Feb 28/29, not Mar 3 as Date.setMonth gives).
+function monthsBefore(d,n){
+  const y=d.getFullYear(),m=d.getMonth()-n;
+  const last=new Date(y,m+1,0).getDate();
+  return new Date(y,m,Math.min(d.getDate(),last));
 }
+function quickRange(val,today){
+  if(!val)return null;
+  const end=ymd(today);
+  const start=val==='ytd'?`${today.getFullYear()}-01-01`:ymd(monthsBefore(today,parseInt(val,10)));
+  return {start,end};
+}
+function applyQuickPeriod(){
+  const r=quickRange(document.getElementById('quickPeriod').value,new Date());
+  if(!r)return;
+  document.getElementById('endDate').value=r.end;
+  document.getElementById('startDate').value=r.start;
+}
+// Typing a date by hand means the quick period no longer describes the range.
+function clearQuickPeriod(){document.getElementById('quickPeriod').value='';}
 
 async function generateReport(){
   const sd=document.getElementById('startDate').value,ed=document.getElementById('endDate').value;
   if(!sd||!ed){alert('Please select a date range.');return;}
   if(new Date(ed)<new Date(sd)){alert('End date must be after start date.');return;}
   if((new Date(ed)-new Date(sd))/(1000*60*60*24*365)>5){alert('Date range cannot exceed 5 years.');return;}
+  const online=document.getElementById('onlineOnly').checked;
   try{
+    if(online){
+      const res=await fetch(`/api/reports/online-donations?startDate=${sd}&endDate=${ed}`);
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok){alert(data.error||'Failed to load online donations.');return;}
+      renderOnline(data,sd,ed);
+      return;
+    }
     const res=await fetch(`/api/reports/transactions?startDate=${sd}&endDate=${ed}&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
     renderReport(await res.json(),sd,ed);
   }catch(e){alert('Failed to load report.');console.error(e);}
 }
 
+function donTag(r){
+  // Rows that belong to an online donation carry its reference; new rows already show it as Ref #.
+  if(!r.donationNumber||r.refNo===r.donationNumber)return'';
+  return ` <a class="don-tag" href="/donation-review" title="Online donation ${esc(r.donationNumber)}">${esc(r.donationNumber)}</a>`;
+}
 function renderReport(data,sd,ed){
   const label=`${fmtDate(sd)} – ${fmtDate(ed)}`;
+  document.getElementById('printTitle').textContent='Date Range Transactions';
   document.getElementById('reportRangeLabel').textContent=`Transactions · ${label}`;
   document.getElementById('printRange').textContent=label;
   document.getElementById('printChurchName').textContent=localStorage.getItem('churchName')||'';
@@ -230,7 +267,7 @@ function renderReport(data,sd,ed){
   else{
     let rows=inc.map(r=>{
       const editUrl=`/income${r.id?'?editId='+encodeURIComponent(r.id):''}`;
-      return `<tr><td>${esc(r.date)}</td><td>${esc(r.member)}</td><td>${esc(r.mainCat)}</td>
+      return `<tr><td>${esc(r.date)}</td><td>${esc(r.member)}${donTag(r)}</td><td>${esc(r.mainCat)}</td>
         <td>${esc(r.subCat)}</td><td class="amt">${fmt(r.amount)}</td><td>${esc(r.method)}</td><td>${esc(r.refNo)}</td>
         <td class="act-col" style="white-space:nowrap;">
           <button class="act-btn edit" title="Edit" onclick="window.location='${editUrl}'">✏️</button>
@@ -250,20 +287,63 @@ function renderReport(data,sd,ed){
   else{
     let rows=exp.map(r=>{
       const editUrl=`/expense${r.id?'?editId='+encodeURIComponent(r.id):''}`;
-      return `<tr><td>${esc(r.date)}</td><td>${esc(r.mainCat)}</td><td>${esc(r.purpose)}</td>
-        <td class="amt">${fmt(r.amount)}</td><td>${esc(r.method)}</td><td>${esc(r.refNo)}</td>
+      return `<tr><td>${esc(r.date)}</td><td>${esc(r.mainCat)}</td><td>${esc(r.purpose)}${donTag(r)}</td>
+        <td class="note-col">${esc(r.note)}</td><td class="amt">${fmt(r.amount)}</td><td>${esc(r.method)}</td><td>${esc(r.refNo)}</td>
         <td class="act-col" style="white-space:nowrap;">
           <button class="act-btn edit" title="Edit" onclick="window.location='${editUrl}'">✏️</button>
           <button class="act-btn del" title="Delete" onclick="deleteExpense(${r.id},this)">🗑️</button>
         </td></tr>`;
     }).join('');
-    rows+=`<tr class="exp-total"><td colspan="3">Total Expense</td><td class="amt">${fmt(data.totalExpense||0)}</td><td colspan="3"></td></tr>`;
+    rows+=`<tr class="exp-total"><td colspan="4">Total Expense</td><td class="amt">${fmt(data.totalExpense||0)}</td><td colspan="3"></td></tr>`;
     html+=`<div class="tbl-scroll"><table class="rpt"><thead><tr><th style="width:100px">Date</th><th style="width:160px">Category</th>
-      <th>Purpose</th><th class="amt" style="width:110px">Amount</th>
+      <th>Purpose</th><th>Note</th><th class="amt" style="width:110px">Amount</th>
       <th style="width:100px">Method</th><th style="width:80px">Ref #</th>
       <th class="act-col" style="width:72px">Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
+  document.getElementById('reportTable').innerHTML=html;
+  document.getElementById('reportCard').style.display='';
+}
+
+function renderOnline(data,sd,ed){
+  const label=`${fmtDate(sd)} – ${fmtDate(ed)}`;
+  document.getElementById('printTitle').textContent='Online Donations & Contributions';
+  document.getElementById('reportRangeLabel').textContent=`Online Donations & Contributions · ${label}`;
+  document.getElementById('printRange').textContent=label;
+  document.getElementById('printChurchName').textContent=localStorage.getItem('churchName')||'';
+  const rows=data.rows||[];
+  const missing=Number(data.feeNotRecordedCount||0);
+  let html=`<div class="summary-box">
+    <div class="sum-card inc"><div class="sum-label">Total Donations (${rows.length})</div><div class="sum-value">${fmt(data.totalAmount||0)}</div></div>
+    <div class="sum-card exp"><div class="sum-label">Total Fees${missing?' *':''}</div><div class="sum-value">${fmt(data.totalFees||0)}</div></div>
+    <div class="sum-card net"><div class="sum-label">Total Deposited${missing?' *':''}</div><div class="sum-value">${fmt(data.totalDeposited||0)}</div></div>
+  </div>`;
+  if(missing){
+    html+=`<div class="fee-missing-note">* ${missing} donation${missing===1?' has':'s have'} no recorded Stripe fee, so ${missing===1?'it is':'they are'} left out of Total Fees and Total Deposited. ${missing===1?'It is':'They are'} marked “Not recorded” below.</div>`;
+  }
+  html+=`<div class="section-title">💳 Online Donations &amp; Contributions (${rows.length} records) <span class="sec-hint">approved and saved to accounting only</span></div>`;
+  if(!rows.length){html+='<div class="empty-msg">No approved and saved online donations in this period.</div>';}
+  else{
+    const body=rows.map(r=>{
+      let feeCell,depCell;
+      if(r.feeStatus==='NOT_RECORDED'){feeCell='<span class="fee-nr" title="No Stripe fee Expense exists for this donation and Stripe has not reported a fee">Not recorded</span>';depCell='<span class="fee-nr">—</span>';}
+      else{
+        feeCell=fmt(r.fee)+(r.feeStatus==='STRIPE_ONLY'?' <small class="fee-hint" title="Stripe reported this fee, but no Expense entry records it">Stripe, no expense</small>':'');
+        depCell=fmt(r.deposited);
+      }
+      const extra=[];
+      if(r.source==='Member Portal')extra.push('Member Portal');
+      if(r.postedBeforeReview)extra.push('posted before review');
+      if(r.incomeAmount!=null)extra.push(`income entry ${fmt(r.incomeAmount)}`);
+      return `<tr><td>${esc(r.contributor)}<div class="don-sub">${esc(r.donationNumber)}${extra.length?' · '+esc(extra.join(' · ')):''}</div></td>
+        <td>${esc(r.email)}</td><td>${esc(r.phone)}</td><td class="note-col">${esc(r.note)}</td><td style="white-space:nowrap">${esc(r.date)}</td>
+        <td class="amt">${fmt(r.amount)}</td><td class="amt">${feeCell}</td><td class="amt">${depCell}</td></tr>`;
+    }).join('');
+    const total=`<tr class="total-row"><td colspan="5">Total</td><td class="amt">${fmt(data.totalAmount||0)}</td><td class="amt">${fmt(data.totalFees||0)}${missing?' *':''}</td><td class="amt">${fmt(data.totalDeposited||0)}${missing?' *':''}</td></tr>`;
+    html+=`<div class="tbl-scroll"><table class="rpt"><thead><tr><th style="width:170px">Contributor</th><th>Email</th><th style="width:110px">Phone Number</th>
+      <th>Note</th><th style="width:95px">Date</th><th class="amt" style="width:105px">Donation Amount</th><th class="amt" style="width:95px">Fees</th>
+      <th class="amt" style="width:105px">Deposited Amount</th></tr></thead><tbody>${body}${total}</tbody></table></div>`;
+  }
   document.getElementById('reportTable').innerHTML=html;
   document.getElementById('reportCard').style.display='';
 }
@@ -293,7 +373,8 @@ async function deleteExpense(id,btn){
 function downloadPDF(){
   const el=document.getElementById('reportContent');
   const sd=document.getElementById('startDate').value,ed=document.getElementById('endDate').value;
-  const opt={margin:[8,8,8,8],filename:`transactions-${sd}-to-${ed}.pdf`,
+  const online=document.getElementById('printTitle').textContent.startsWith('Online');
+  const opt={margin:[8,8,8,8],filename:`${online?'online-donations':'transactions'}-${sd}-to-${ed}.pdf`,
     image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},
     jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}};
   // Hide the Action column (Edit/Delete buttons) for the duration of the

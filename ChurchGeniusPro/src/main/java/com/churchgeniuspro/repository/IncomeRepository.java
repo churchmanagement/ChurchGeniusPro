@@ -171,13 +171,13 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
      * Date Range Transactions report — income side.
      * Scoped to the logged-in org via appClientId.
      * Returns rows of: [id, income_date, first_name, last_name, guest_name,
-     *                   sub_name, main_name, amount, method, ref_no, note].
+     *                   sub_name, main_name, amount, method, ref_no, note, import_ref].
      * Uses LEFT JOIN on family_member so guest entries (member_id IS NULL) are included.
      */
     @Query(value =
            "SELECT i.id, i.income_date, fm.first_name, fm.last_name, i.guest_name, " +
            "       ss.source_name AS sub_name, ms.source_name AS main_name, " +
-           "       i.amount, tt.type_name AS method, i.ref_no, i.note " +
+           "       i.amount, tt.type_name AS method, i.ref_no, i.note, i.import_ref " +
            "FROM   income     i " +
            "LEFT JOIN family_member fm ON fm.id  = i.member_id " +
            "JOIN   sub_source    ss ON ss.id  = i.sub_source_id " +

@@ -121,6 +121,8 @@ public class DonationPostingService {
     public static final class Proposal {
         public Long donationId;
         public String donor, donorEmail, donorPhone, paymentMethod, donorNote, paymentIntentId;
+        /** The donation's reference number (DON-000042) — stored as Ref # on the Income and fee Expense. */
+        public String donationNumber;
         public LocalDate donationDate;
         public String category; public Integer matchedMemberId; public String matchedMemberName; public String matchReason;
         public BigDecimal gross, fee, net, incomeAmount, expenseAmount;
@@ -141,6 +143,7 @@ public class DonationPostingService {
         public Map<String, Object> describe() {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("donationId", donationId);
+            m.put("donationNumber", donationNumber);
             m.put("donor", donor); m.put("donorEmail", donorEmail); m.put("donorPhone", donorPhone);
             m.put("paymentMethod", paymentMethod); m.put("donorNote", donorNote);
             m.put("paymentIntentId", paymentIntentId);
@@ -303,7 +306,7 @@ public class DonationPostingService {
         // Guard 4 (inside the services) + Guard 5 (this transaction).
         Income income = incomeService.createIncome(
                 p.matchedMemberId, p.incomeSubSourceId, p.incomeDate, p.incomeTransactionTypeId,
-                /* refNo */ null, p.incomeAmount, p.incomeNote, p.guestName, /* quickAdd */ false,
+                /* refNo */ p.donationNumber, p.incomeAmount, p.incomeNote, p.guestName, /* quickAdd */ false,
                 clientId, POSTED_BY, /* importRef */ ledgerRef(d),
                 /* force — the PaymentIntent id is a precise fingerprint; two unrelated
                    same-day same-amount gifts must not be flagged as duplicates of each other */ true);
@@ -312,7 +315,7 @@ public class DonationPostingService {
         if (!p.expenseSkipped) {
             expense = expenseService.createExpense(
                     p.expensePurposeId, p.expenseMainSourceId, p.expenseDate, p.expenseTransactionTypeId,
-                    /* refNo */ null, p.expenseAmount, p.expenseNote, /* quickAdd */ false,
+                    /* refNo */ p.donationNumber, p.expenseAmount, p.expenseNote, /* quickAdd */ false,
                     clientId, POSTED_BY, feeImportRef(d), true);
         }
 
@@ -367,6 +370,7 @@ public class DonationPostingService {
                            String clientId, Proposal p) {
         if (o == null) o = Overrides.NONE;
         p.donationId      = d.getId();
+        p.donationNumber  = d.donationNumber();
         p.donor           = donorName(d);
         p.donorEmail      = d.getEmail();
         p.donorPhone      = d.getPhone();
@@ -487,6 +491,10 @@ public class DonationPostingService {
         p.expenseDate = o.expenseDate() != null ? o.expenseDate() : p.incomeDate;
         String expNote = o.expenseNote() != null ? clip(o.expenseNote(), 4000)
                 : fill(s.getExpenseNoteTemplate() != null ? s.getExpenseNoteTemplate() : DonationSettings.DEFAULT_EXPENSE_NOTE, d, p);
+        // The fee Expense must always say which donation it belongs to, even when the
+        // church saved a note template from before {number}/{donor} existed (a saved
+        // template is used verbatim) or the reviewer typed their own note.
+        expNote = withDonationIdentity(expNote, p);
         if (fee.estimated() && !expNote.toLowerCase(Locale.ROOT).contains("estimated")) {
             expNote = expNote + " (fee estimated at the configured rate; Stripe's actual fee was not yet available)";
         }
@@ -517,7 +525,20 @@ public class DonationPostingService {
         return new PostResult(d.getId(), PostResult.ALREADY_POSTED, p.existingIncomeId, p.existingExpenseId, msg, p.historical);
     }
 
-    /** Fills the note template. Placeholders: {card} {donorNote} {gross} {fee} {net} {date} {donor} {pi}. */
+    /** Appends "(donation DON-…, from <donor>)" for whichever of the two the note does not already contain. */
+    static String withDonationIdentity(String note, Proposal p) {
+        String n = note == null ? "" : note.trim();
+        String lower = n.toLowerCase(Locale.ROOT);
+        boolean hasNumber = p.donationNumber == null || lower.contains(p.donationNumber.toLowerCase(Locale.ROOT));
+        boolean hasDonor  = p.donor == null || p.donor.isBlank() || lower.contains(p.donor.toLowerCase(Locale.ROOT));
+        if (hasNumber && hasDonor) return n;
+        StringBuilder add = new StringBuilder();
+        if (!hasNumber) add.append("donation ").append(p.donationNumber);
+        if (!hasDonor)  add.append(add.length() > 0 ? ", " : "").append("from ").append(p.donor);
+        return clip((n.isEmpty() ? "" : n + " ") + "(" + add + ")", 4000);
+    }
+
+    /** Fills the note template. Placeholders: {card} {donorNote} {gross} {fee} {net} {date} {donor} {pi} {number}. */
     static String fill(String template, Donation d, Proposal p) {
         String card  = d.getPaymentMethod() != null ? d.getPaymentMethod() : "Online";
         String dnote = d.getNote() != null && !d.getNote().isBlank() ? d.getNote().trim() : "";
@@ -531,6 +552,7 @@ public class DonationPostingService {
                 .replace("{net}",       money(p.net))
                 .replace("{date}",      p.donationDate != null ? p.donationDate.format(LONG_DATE) : "")
                 .replace("{donor}",     p.donor != null ? p.donor : "")
+                .replace("{number}",    d.donationNumber() != null ? d.donationNumber() : "")
                 .replace("{pi}",        d.getStripePaymentIntentId() != null ? d.getStripePaymentIntentId() : "");
         return clip(out.trim(), 4000);
     }

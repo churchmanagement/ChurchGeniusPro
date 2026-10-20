@@ -186,17 +186,17 @@ class DonationPostingServiceTest {
 
             ArgumentCaptor<BigDecimal> incAmt = ArgumentCaptor.forClass(BigDecimal.class);
             ArgumentCaptor<String> incNote = ArgumentCaptor.forClass(String.class);
-            verify(incomeService).createIncome(isNull(), eq(5), eq(LocalDate.of(2026, 9, 27)), eq(9), isNull(),
+            verify(incomeService).createIncome(isNull(), eq(5), eq(LocalDate.of(2026, 9, 27)), eq(9), eq("DON-000001"),
                     incAmt.capture(), incNote.capture(), eq("Binny Varghese"), eq(false), eq(CLIENT), eq("donation-review"), eq(PI), eq(true));
             assertThat(incAmt.getValue()).isEqualByComparingTo("100.00");
             assertThat(incNote.getValue()).isEqualTo("Visa •••• 6676 — Online donation — Rajan Uncle for 2026 SFCNA Summit");
 
             ArgumentCaptor<BigDecimal> expAmt = ArgumentCaptor.forClass(BigDecimal.class);
             ArgumentCaptor<String> expNote = ArgumentCaptor.forClass(String.class);
-            verify(expenseService).createExpense(eq(3), eq(2), eq(LocalDate.of(2026, 9, 27)), eq(10), isNull(),
+            verify(expenseService).createExpense(eq(3), eq(2), eq(LocalDate.of(2026, 9, 27)), eq(10), eq("DON-000001"),
                     expAmt.capture(), expNote.capture(), eq(false), eq(CLIENT), eq("donation-review"), eq(PI + ":stripe-fee"), eq(true));
             assertThat(expAmt.getValue()).isEqualByComparingTo("3.20");
-            assertThat(expNote.getValue()).isEqualTo("Stripe fees for donation of $100.00 on September 27, 2026 — Online donation — Rajan Uncle for 2026 SFCNA Summit");
+            assertThat(expNote.getValue()).isEqualTo("Stripe fee for donation DON-000001 from Binny Varghese — $100.00 on September 27, 2026 — Online donation — Rajan Uncle for 2026 SFCNA Summit");
 
             // net = income − expense = bank deposit
             assertThat(incAmt.getValue().subtract(expAmt.getValue())).isEqualByComparingTo("96.80");
@@ -211,6 +211,52 @@ class DonationPostingServiceTest {
             verify(donationRepo).save(d);
             assertThat(txm.committed).isEqualTo(1);
             assertThat(txm.rolledBack).isZero();
+        }
+
+        @Test
+        @DisplayName("$50.00 → Income $50.00 and Expense $1.75 (2.9% + $0.30), both with Ref # DON-000042")
+        void fiftyDollarGift() {
+            Donation d = donation(42, "50.00");
+            BigDecimal est = DonationFeeService.estimate(new BigDecimal("50.00"), new BigDecimal("2.9"), new BigDecimal("0.30"));
+            when(feeService.resolve(any(), any())).thenReturn(new DonationFeeService.Resolved(
+                    est, new BigDecimal("50.00").subtract(est), Donation.FEE_SOURCE_STRIPE, false));
+            stage(d);
+            DonationPostingService.PostResult r = svc.post(42L, CLIENT, DonationPostingService.Overrides.NONE, "bookkeeper@example.org");
+            assertThat(r.status()).isEqualTo("POSTED");
+            ArgumentCaptor<BigDecimal> incAmt = ArgumentCaptor.forClass(BigDecimal.class);
+            ArgumentCaptor<BigDecimal> expAmt = ArgumentCaptor.forClass(BigDecimal.class);
+            verify(incomeService).createIncome(any(), anyInt(), any(), anyInt(), eq("DON-000042"), incAmt.capture(), any(), any(),
+                    anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
+            verify(expenseService).createExpense(anyInt(), anyInt(), any(), anyInt(), eq("DON-000042"), expAmt.capture(), any(),
+                    anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
+            assertThat(incAmt.getValue()).isEqualByComparingTo("50.00");
+            assertThat(expAmt.getValue()).isEqualByComparingTo("1.75");
+            assertThat(incAmt.getValue().subtract(expAmt.getValue())).isEqualByComparingTo("48.25");
+        }
+
+        @Test
+        @DisplayName("a church's saved note template from before {number}/{donor} still gets the donation number and donor appended")
+        void oldTemplateGetsIdentity() {
+            settings.setExpenseNoteTemplate("Stripe fees for donation of {gross} on {date} — {donorNote}");
+            Donation d = donation(1, "100.00");
+            stage(d);
+            svc.post(1L, CLIENT, DonationPostingService.Overrides.NONE, "bookkeeper@example.org");
+            ArgumentCaptor<String> expNote = ArgumentCaptor.forClass(String.class);
+            verify(expenseService).createExpense(anyInt(), anyInt(), any(), anyInt(), any(), any(), expNote.capture(),
+                    anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
+            assertThat(expNote.getValue()).isEqualTo("Stripe fees for donation of $100.00 on September 27, 2026 — Online donation — Rajan Uncle for 2026 SFCNA Summit (donation DON-000001, from Binny Varghese)");
+        }
+
+        @Test
+        @DisplayName("a reviewer's own note that already names the donation and donor is kept exactly")
+        void ownNoteKept() {
+            Donation d = donation(1, "100.00");
+            stage(d);
+            DonationPostingService.Overrides o = new DonationPostingService.Overrides(null, null, false, null, null, null, null,
+                    null, null, null, null, "Fee DON-000001 Binny Varghese");
+            svc.post(1L, CLIENT, o, "bookkeeper@example.org");
+            verify(expenseService).createExpense(anyInt(), anyInt(), any(), anyInt(), any(), any(), eq("Fee DON-000001 Binny Varghese"),
+                    anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
         }
 
         @Test
@@ -289,7 +335,7 @@ class DonationPostingServiceTest {
             assertThat(amt.getValue()).isEqualByComparingTo("100.00");
             ArgumentCaptor<BigDecimal> fee = ArgumentCaptor.forClass(BigDecimal.class);
             verify(expenseService).createExpense(anyInt(), anyInt(), eq(LocalDate.of(2026, 10, 1)), anyInt(), any(),
-                    fee.capture(), eq("Edited fee note"), anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
+                    fee.capture(), eq("Edited fee note (donation DON-000001, from Binny Varghese)"), anyBoolean(), anyString(), anyString(), anyString(), anyBoolean());
             assertThat(fee.getValue()).isEqualByComparingTo("3.20");
             assertThat(d.getContributorCategory()).isEqualTo("Guest");
         }

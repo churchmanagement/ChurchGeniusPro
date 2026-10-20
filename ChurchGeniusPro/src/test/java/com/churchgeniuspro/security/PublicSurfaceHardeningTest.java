@@ -252,6 +252,24 @@ class PublicSurfaceHardeningTest {
             controller.handleInboundSms("+15550101234", "YES", "ACother", post("+15550101234", "YES", "ACother", sig));
             verify(optInRepo, never()).findByPhoneNumber(anyString());
         }
+        @Test void helpIsUnchangedByDefault() throws Exception {
+            // sms.help-reply defaults to false: HELP falls through exactly as before (empty TwiML).
+            var params = new java.util.HashMap<String, String>();
+            params.put("From", "+15550101234"); params.put("Body", "HELP"); params.put("AccountSid", "ACtest");
+            String sig = twilioSign("12345", "https://churchgeniuspro.net/webhook/sms", params);
+            when(optInRepo.findByPhoneNumber("+15550101234")).thenReturn(List.of());
+            String out = controller.handleInboundSms("+15550101234", "HELP", "ACtest", post("+15550101234", "HELP", "ACtest", sig));
+            assertThat(out).isEqualTo("<Response/>");
+        }
+        @Test void helpGetsTheBrandedReplyWhenSwitchedOn() throws Exception {
+            ReflectionTestUtils.setField(controller, "helpReply", true);
+            var params = new java.util.HashMap<String, String>();
+            params.put("From", "+15550101234"); params.put("Body", "help"); params.put("AccountSid", "ACtest");
+            String sig = twilioSign("12345", "https://churchgeniuspro.net/webhook/sms", params);
+            when(optInRepo.findByPhoneNumber("+15550101234")).thenReturn(List.of());
+            String out = controller.handleInboundSms("+15550101234", "help", "ACtest", post("+15550101234", "help", "ACtest", sig));
+            assertThat(out).startsWith("<Response><Message>ChurchGeniusPro:").contains("support@churchgeniuspro.com").contains("Reply STOP to opt out.");
+        }
         @Test void aGenuineRequestIsProcessed() throws Exception {
             var params = new java.util.HashMap<String, String>();
             params.put("From", "+15550101234"); params.put("Body", "STOP"); params.put("AccountSid", "ACtest");

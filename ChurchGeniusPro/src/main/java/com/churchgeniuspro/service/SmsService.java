@@ -152,6 +152,48 @@ public class SmsService {
     /** Test seam — supply the plan without a Spring context. */
     public void setSubscriptionService(SubscriptionService s) { this.subscriptionService = s; }
 
+    /**
+     * Consent and message-identity rules (toll-free verification / TCPA, 2026-10-19).
+     * Field-injected and null-checked like the guards above, so existing construction
+     * sites and their unit tests are unchanged.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.SmsOptInRepository optInRepo;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.EmailSettingsRepository emailSettingsRepo;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.ChurchRegistrationRepository churchRepo;
+
+    /**
+     * When true, a church's texts go only to numbers that confirmed SMS opt-in for that
+     * church (signed up and replied YES). The opt-in confirmation request itself is the one
+     * exception — it is how a number confirms. OFF by default (property
+     * {@code sms.require-opt-in}, env {@code SMS_REQUIRE_OPT_IN}) so deploying this changes
+     * nothing until production moves to the verified toll-free number.
+     */
+    @Value("${sms.require-opt-in:false}")
+    private boolean requireOptIn = false;
+
+    /**
+     * When true, every text gets the sender's name prefixed and "Reply STOP to opt out."
+     * appended when missing ({@link #withIdentityAndOptOut}). OFF by default (property
+     * {@code sms.add-sender-identity}, env {@code SMS_ADD_SENDER_IDENTITY}): message text is
+     * then exactly what the caller built, as before.
+     */
+    @Value("${sms.add-sender-identity:false}")
+    private boolean addSenderIdentity = false;
+
+    /** Test seams. */
+    public void setOptInRepo(com.churchgeniuspro.repository.SmsOptInRepository r) { this.optInRepo = r; }
+    public void setEmailSettingsRepo(com.churchgeniuspro.repository.EmailSettingsRepository r) { this.emailSettingsRepo = r; }
+    public void setChurchRepo(com.churchgeniuspro.repository.ChurchRegistrationRepository r) { this.churchRepo = r; }
+    public void setRequireOptIn(boolean b) { this.requireOptIn = b; }
+    public void setAddSenderIdentity(boolean b) { this.addSenderIdentity = b; }
+
+    /** The reason a send is refused when the recipient has not opted in. */
+    public static final String NOT_OPTED_IN_MSG =
+            "Recipient has not opted in to texts from this church (they must sign up and reply YES)";
+
     /** The reason a send is refused once the plan's monthly allowance is spent. */
     public static final String ALLOWANCE_SPENT_MSG =
             "Monthly SMS allowance for this subscription plan is used up";
@@ -164,7 +206,7 @@ public class SmsService {
      * only thing standing between generated demo data and a real phone.
      */
     public SendOutcome sendForClient(String clientId, String toNumber, String body) {
-        return doSend(toNumber, body, fromNumber, clientId);
+        return doSend(toNumber, body, fromNumber, clientId, false);
     }
 
     /**
@@ -172,7 +214,7 @@ public class SmsService {
      * is subject to the same block as everything else that church sends.
      */
     public boolean sendConfirmationRequest(String toNumber, String churchName, String clientId) {
-        return doSend(toNumber, confirmationBody(churchName), fromNumber, clientId).sent();
+        return doSend(toNumber, confirmationBody(churchName), fromNumber, clientId, true).sent();
     }
 
     /** The Twilio number this service sends from — shown as the default in admin tools. */
@@ -194,11 +236,11 @@ public class SmsService {
         if (from == null) {
             return SendOutcome.fail("Not a usable 'from' number: " + fromOverride);
         }
-        return doSend(toNumber, body, from, null);
+        return doSend(toNumber, body, from, null, false);
     }
 
     public SendOutcome sendWithOutcome(String toNumber, String body) {
-        return doSend(toNumber, body, fromNumber, null);
+        return doSend(toNumber, body, fromNumber, null, false);
     }
 
     /**
@@ -209,7 +251,7 @@ public class SmsService {
      * may be null for genuinely tenant-less sends (Service Admin broadcasts, pre-login
      * codes); every caller that knows its tenant is expected to pass it.
      */
-    private SendOutcome doSend(String toNumber, String body, String sendFrom, String clientId) {
+    private SendOutcome doSend(String toNumber, String body, String sendFrom, String clientId, boolean consentRequest) {
         if (messagingPolicy != null) {
             String blocked = messagingPolicy.smsBlockReason(clientId);
             if (blocked != null) {
@@ -241,6 +283,15 @@ public class SmsService {
             return SendOutcome.fail("Not a usable phone number: " + toNumber);
         }
 
+        boolean tenant = clientId != null && !clientId.isBlank();
+        if (tenant && !consentRequest && requireOptIn && optInRepo != null && !optInRepo.isOptedIn(e164, clientId)) {
+            log.info("SmsService: skipping send to {} for client {} — no confirmed SMS opt-in", e164, clientId);
+            return SendOutcome.fail(NOT_OPTED_IN_MSG);
+        }
+        if (addSenderIdentity) {
+            body = withIdentityAndOptOut(body, tenant ? senderName(clientId) : "ChurchGeniusPro");
+        }
+
         try {
             Message msg = Message.creator(
                     new PhoneNumber(e164),
@@ -260,6 +311,44 @@ public class SmsService {
             log.error("SmsService: failed to send to {} — {}", e164, e.getMessage());
             return SendOutcome.fail(e.getMessage());
         }
+    }
+
+    /**
+     * Every text must say who it is from and how to stop (carrier rules, TCPA). Prefixes
+     * "{name}: " unless the body already starts with the name, and appends
+     * "Reply STOP to opt out." unless the body already mentions STOP. Messages that
+     * already comply (reminders, RSVP confirmations, the opt-in request) are unchanged.
+     */
+    static String withIdentityAndOptOut(String body, String name) {
+        String b = body == null ? "" : body.trim();
+        if (name != null && !name.isBlank()) {
+            String n = name.trim();
+            if (!b.regionMatches(true, 0, n, 0, n.length())) b = n + ": " + b;
+        }
+        if (!b.toUpperCase(java.util.Locale.ROOT).contains("STOP")) {
+            b = b + (b.endsWith(".") || b.endsWith("!") || b.endsWith("?") ? " " : ". ") + "Reply STOP to opt out.";
+        }
+        return b;
+    }
+
+    /** The name a church's texts carry: the email display name, else the registered church name. */
+    private String senderName(String clientId) {
+        try {
+            if (emailSettingsRepo != null) {
+                String d = emailSettingsRepo.findByClientId(clientId)
+                        .map(com.churchgeniuspro.hibernate.EmailSettings::getDisplayName)
+                        .filter(n -> n != null && !n.isBlank()).orElse(null);
+                if (d != null) return d.trim();
+            }
+            if (churchRepo != null) {
+                return churchRepo.findByClientIdAndDeleteFlagFalse(clientId)
+                        .map(com.churchgeniuspro.hibernate.ChurchRegistration::getChurchName)
+                        .filter(n -> n != null && !n.isBlank()).map(String::trim).orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("SmsService: could not resolve sender name for client {}: {}", clientId, e.getClass().getSimpleName());
+        }
+        return null;
     }
 
     /**
