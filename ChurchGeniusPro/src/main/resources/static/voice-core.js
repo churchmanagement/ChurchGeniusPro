@@ -278,9 +278,21 @@
     var rest=(m[2]||'').trim();
     // swallow further words of the same field ("payment method", "reference number")
     var more=rest.match(/^([a-z]+)\b(.*)$/);
-    while(more && (fieldOf(more[1])===field || /^(number|no|name)$/.test(more[1]))){ rest=more[2].trim(); more=rest.match(/^([a-z]+)\b(.*)$/); }
+    while(more && (fieldOf(more[1])===field || /^(number|no|name|field|fields|box)$/.test(more[1]))){ rest=more[2].trim(); more=rest.match(/^([a-z]+)\b(.*)$/); }
     rest=rest.replace(/^(to|as|is|equals|=|:)\s+/,'').replace(/^(to|as|is|equals|=|:)$/,'').trim();
     return {kind:'set', field:field, value:rest};
+  }
+
+  // Transcriptions the speech model is known to invent on silence or noise ("Thank you
+  // for watching"), and text in another script while the language is English, are never
+  // treated as the user's words.
+  var HALLUCINATIONS=[/^(thank you|thanks)( so much| very much)? for watching\.?$/i, /^(thank you|thanks) for (listening|your attention)\.?$/i,
+    /subtitles? (by|provided by)/i, /^(please )?(like,? )?(and )?subscribe\.?$/i, /amara\.org/i, /^you\.?$/i, /^(bye|goodbye|see you)( bye)?\.?$/i];
+  function isLikelyHallucination(text){
+    var t=String(text||'').trim(); if(!t) return false;
+    if(/[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/.test(t)) return true;   // not Latin script
+    for(var i=0;i<HALLUCINATIONS.length;i++){ if(HALLUCINATIONS[i].test(t)) return true; }
+    return false;
   }
 
   // Decide which of the extractor's fields may be applied for one phrase.
@@ -293,6 +305,11 @@
     var present=[]; order.forEach(function(f){ if(fields[f]!=null && String(fields[f]).trim()!=='') present.push(f); });
     Object.keys(fields).forEach(function(f){ if(present.indexOf(f)<0 && fields[f]!=null && String(fields[f]).trim()!=='') present.push(f); });
     if(activeField){
+      // A phrase that NAMES a different field ("amount 999" while Contributor is active)
+      // is a deliberate switch; otherwise everything goes to the active field.
+      var toksA=words(transcript), switched=null;
+      present.forEach(function(f){ if(!switched && f!==activeField){ var kws=(keywords&&keywords[f])||[]; if(kws.some(function(k){ return toksA.indexOf(k)>=0; })) switched=f; } });
+      if(switched) return {pairs:[{field:switched, value:String(fields[switched])}], reason:'switch'};
       var v = fields[activeField]!=null && String(fields[activeField]).trim()!=='' ? String(fields[activeField]) : String(transcript||'');
       return {pairs: v.trim() ? [{field:activeField, value:v.trim()}] : [], reason:'active'};
     }
@@ -457,7 +474,7 @@
   root.VoiceCore = {
     parseDate: parseDate, parseAmount: parseAmount, validateAmount: validateAmount, AMOUNT_MAX: AMOUNT_MAX,
     matchOption: matchOption, matchContributor: matchContributor, phoneticKey: phoneticKey, diceSim: diceSim,
-    parseSetCommand: parseSetCommand, routeFields: routeFields,
+    parseSetCommand: parseSetCommand, routeFields: routeFields, isLikelyHallucination: isLikelyHallucination,
     segment: segment, titleCase: titleCase, normKey: normKey, words: words,
     createSpeech: createSpeech
   };

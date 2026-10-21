@@ -435,6 +435,7 @@
     var fields = payload.fields || {};
     logEvent('entities', JSON.stringify(fields));
     if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
+    if(VC.isLikelyHallucination(transcript)){ logEvent('ignored','speech model artefact — “'+transcript+'”'); setStatus('Didn’t catch that — please say it again.'); return; }
 
     // 1. Explicit field selection — "Set Contributor to Anson Mathew", "Set Amount", "Done".
     //    Checked on the raw transcript FIRST, so the extractor cannot re-route it.
@@ -445,10 +446,13 @@
         else announce('Nothing is being set right now. Say “Set Amount”, “Set Contributor”, …', null);
         return;
       }
-      logEvent('command','set '+fieldLabel(sc.field)+(sc.value?' = "'+sc.value+'"':''));
-      if(!sc.value){ setActive(sc.field, true); return; }
+      // The extractor saw the same phrase; when it isolated this field's value, that is
+      // the cleaner form ("Set the Note field as Thank You" → "Thank You").
+      var setVal = (fields[sc.field]!=null && String(fields[sc.field]).trim()) ? String(fields[sc.field]).trim() : sc.value;
+      logEvent('command','set '+fieldLabel(sc.field)+(setVal?' = "'+setVal+'"':''));
+      if(!setVal){ setActive(sc.field, true); return; }
       setActive(sc.field, false);
-      applyOne(sc.field, sc.value, payload);
+      applyOne(sc.field, setVal, payload);
       return;
     }
 
@@ -1255,6 +1259,7 @@
 
     // Backstop: never act on the system's own voice if it leaked into the mic.
     if(looksLikeSelfEcho(transcript)){ logEvent('ignored', 'system speech echo — “'+transcript+'”'); return; }
+    if(VC.isLikelyHallucination(transcript)){ logEvent('ignored', 'speech model artefact — “'+transcript+'”'); return; }
     if(transcript) logEvent('user-speech', transcript);
 
     var got=Object.keys(fields).filter(function(k){ return fields[k]; });
@@ -1310,8 +1315,15 @@
       advanceFrom(fromIdx, capitalize(labelFor(cur))+' done.'); return;
     }
     if(sc && sc.kind==='set'){
-      logEvent('command','set '+labelFor(sc.field)+(sc.value?' = "'+sc.value+'"':''));
-      if(!sc.value){ focusField(sc.field); return; }
+      var setVal = (fields[sc.field]!=null && String(fields[sc.field]).trim()) ? String(fields[sc.field]).trim() : sc.value;
+      logEvent('command','set '+labelFor(sc.field)+(setVal?' = "'+setVal+'"':''));
+      if(!setVal){ focusField(sc.field); return; }
+      if(sc.field==='note'){
+        // An explicit "Set Note …" REPLACES the note (plain dictation appends).
+        var nt=titleCase(setVal); convo.focusField='note'; convo.expecting='note'; convo.step=stepIndexOf('note'); setCurrentField('note');
+        convoProcess(function(){ setNote(nt); }, 'Notes set to '+nt+'.'); return;
+      }
+      sc.value=setVal;
       // "Set <field> to <value>": select the field, then resolve the value for it.
       speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
       convo.focusField=sc.field; convo.expecting=sc.field; convo.step=stepIndexOf(sc.field);

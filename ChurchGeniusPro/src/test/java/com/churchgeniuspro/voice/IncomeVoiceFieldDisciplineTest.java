@@ -56,6 +56,8 @@ class IncomeVoiceFieldDisciplineTest {
         assertThat(set("Set Date to October 21, 2026").get("field").asText()).isEqualTo("date");
         assertThat(set("Set payment method to cash").get("value").asText()).isEqualTo("cash");
         assertThat(set("set contributor").get("value").asText()).as("field only → wait for the value").isEmpty();
+        assertThat(set("Set the Note Field as Thank You.").get("field").asText()).isEqualTo("note");   // 2026-10-21 12:47 log
+        assertThat(set("Set the Note Field as Thank You.").get("value").asText()).isEqualTo("thank you.");
         assertThat(set("Done").get("kind").asText()).isEqualTo("done");
         assertThat(set("Anson Mathew").isNull()).as("ordinary words are not commands").isTrue();
         assertThat(set("one hundred").isNull()).isTrue();
@@ -69,6 +71,18 @@ class IncomeVoiceFieldDisciplineTest {
         assertThat(r.get("pairs").get(0).get("field").asText()).isEqualTo("contributor");
         JsonNode r2 = route("{}", "one hundred", "amount");
         assertThat(r2.get("pairs").get(0).get("value").asText()).isEqualTo("one hundred");
+    }
+
+    @Test @DisplayName("speech-model artefacts ('Thank you for watching', non-Latin text) are never taken as the user's words")
+    void hallucinations() throws Exception {
+        for (String t : new String[] { "Thank you for watching.", "Thanks for watching", "please subscribe", "Subtitles by the Amara.org community", "Don't remember where I did Stop  меня attack" })
+            assertThat(NodeJs.evalVoiceCore("VoiceCore.isLikelyHallucination(" + new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(t) + ")").asBoolean()).as(t).isTrue();
+        for (String t : new String[] { "Thank you", "Anson Mathew", "one hundred", "Set amount to 100", "Thank you for the gift" })
+            assertThat(NodeJs.evalVoiceCore("VoiceCore.isLikelyHallucination(" + new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(t) + ")").asBoolean()).as(t).isFalse();
+        String js = Files.readString(Paths.get("src/main/resources/static/income-voice.js"));
+        assertThat(js).contains("if(VC.isLikelyHallucination(transcript)){ logEvent('ignored','speech model artefact")   // Voice mode
+                      .contains("if(VC.isLikelyHallucination(transcript)){ logEvent('ignored', 'speech model artefact")  // Converse
+                      .contains("An explicit \"Set Note …\" REPLACES the note");
     }
 
     @Test @DisplayName("11: the page keeps a filled field when the transcript is low-confidence, and never flips Contributor to a guest without a click")
