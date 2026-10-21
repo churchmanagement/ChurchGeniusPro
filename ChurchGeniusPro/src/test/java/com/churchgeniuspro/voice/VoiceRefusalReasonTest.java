@@ -78,7 +78,11 @@ class VoiceRefusalReasonTest {
     void pagesShowTheRealReason() throws IOException {
         String rec = Files.readString(Paths.get("src/main/resources/static/voice-openai.js"));
         assertThat(rec).contains("opts.onDisabled(stat, { reason: res.d.reason || res.d.code || '', error: res.d.error || '' })");
-        for (String f : List.of("income-voice.js", "expense-voice.js", "home-voice.js", "voice-nav.js")) {
+        // ai-assistant.js is the LIVE AI Search box on every page (home-voice.js / home-assist.js
+        // are retired) and meeting-voice.js the meeting assistant — both were missed by the
+        // 2026-10-07 fix and kept saying "disabled or limit reached" for every refusal.
+        for (String f : List.of("income-voice.js", "expense-voice.js", "home-voice.js", "voice-nav.js",
+                                "ai-assistant.js", "meeting-voice.js")) {
             String s = Files.readString(Paths.get("src/main/resources/static/" + f));
             assertThat(s).as(f).contains("function voiceRefusalMessage(st, why)")
                     .contains("if (reason === 'LIMIT' ||")
@@ -86,7 +90,30 @@ class VoiceRefusalReasonTest {
                     .contains("voiceRefusalMessage(st, why)");
             // the generic text survives only inside voiceRefusalMessage (LIMIT) and the on-load quota check
             String handler = s.substring(s.indexOf("onDisabled:"), s.indexOf("\n", s.indexOf("onDisabled:")));
-            assertThat(handler).doesNotContain("Voice limit reached");
+            assertThat(handler).doesNotContain("Voice limit reached").doesNotContain("limit reached");
         }
+    }
+
+    @Test @DisplayName("the quota gate and the Service Admin numbers come from the same arithmetic: 12.7 of 30 minutes is available")
+    void quotaMathMatchesServiceAdmin() {
+        com.churchgeniuspro.hibernate.OpenAiUsage u = new com.churchgeniuspro.hibernate.OpenAiUsage();
+        u.setClientId("CHR-1"); u.setVoiceEnabled(true); u.setVoiceLimitMinutes(30); u.setVoiceUsedSeconds(762L); // 12.7 min
+        com.churchgeniuspro.repository.OpenAiUsageRepository repo = mock(com.churchgeniuspro.repository.OpenAiUsageRepository.class);
+        when(repo.findByClientId("CHR-1")).thenReturn(java.util.Optional.of(u));
+        OpenAiUsageService usage = new OpenAiUsageService(repo);
+
+        assertThat(usage.voiceAvailable("CHR-1")).isTrue();
+        Map<String, Object> admin = usage.adminMap("CHR-1");
+        assertThat(Math.round(((Number) admin.get("voiceUsedSeconds")).doubleValue() / 60 * 10) / 10.0).isEqualTo(12.7); // what the page prints
+        assertThat(admin).containsEntry("voiceLimitMinutes", 30).containsEntry("voiceAvailable", true)
+                         .containsEntry("voiceRemainingSeconds", 30L * 60 - 762);
+
+        // and the gate only closes when the same numbers say so
+        u.setVoiceUsedSeconds(30L * 60);
+        assertThat(usage.voiceAvailable("CHR-1")).isFalse();
+        assertThat(usage.statusMap("CHR-1")).containsEntry("voiceAvailable", false).containsEntry("voiceRemainingSeconds", 0L);
+        u.setVoiceUsedSeconds(762L); u.setVoiceEnabled(false);
+        assertThat(usage.voiceAvailable("CHR-1")).isFalse();
+        assertThat(usage.statusMap("CHR-1")).containsEntry("voiceEnabled", false);
     }
 }

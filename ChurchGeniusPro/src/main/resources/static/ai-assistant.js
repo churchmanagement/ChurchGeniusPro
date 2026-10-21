@@ -1006,7 +1006,9 @@
             var inp=document.getElementById('aiSearchInput'); if(inp) inp.value=t;
             setDebug({transcript:t}); runAssist(t);
           },
-          onDisabled:function(){ voiceErr='Voice is unavailable for your account (disabled or limit reached).'; toast(voiceErr); }
+          // The server says WHY it refused (STAFF_ONLY / FEATURE_OFF / VOICE_OFF / LIMIT);
+          // show that, never a blanket "limit reached" (the quota may be fine).
+          onDisabled:function(st, why){ voiceErr=voiceRefusalMessage(st, why); toast(voiceErr); }
         });
       }catch(e){ voiceErr='Unable to start voice mode. Please check the AI service configuration.'; toast(voiceErr); return false; }
     }
@@ -1017,6 +1019,15 @@
     return true;
   }
   function toastIfVoice(){ if(voiceErr) toast(voiceErr); }
+  // Same rules as income/expense/voice-nav: the reason code wins, then the server's
+  // own message (staff-only, church feature off), then a neutral fallback.
+  function voiceRefusalMessage(st, why){
+    var reason = (why && why.reason) || '';
+    if (reason === 'LIMIT' || (!reason && st && st.voiceAvailable === false && st.voiceEnabled !== false)) return 'Voice limit reached. Please contact your administrator.';
+    if (reason === 'VOICE_OFF' || (st && st.voiceEnabled === false)) return 'Voice is disabled by your administrator.';
+    if (why && why.error) return why.error;
+    return 'Voice is not available for this login. Please contact your administrator.';
+  }
 
   /* ════════════════════════ Styles + UI ════════════════════════ */
   function injectStyles(){

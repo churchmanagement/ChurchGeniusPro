@@ -1483,6 +1483,15 @@
     }
     if(m==='voice') startVoice();
   }
+  // Server refusal → message (reason code first, then the server's own text).
+  function voiceRefusalMessage(st, why){
+    var reason = (why && why.reason) || '';
+    if (reason === 'LIMIT' || (!reason && st && st.voiceAvailable === false && st.voiceEnabled !== false)) return 'Voice limit reached. Please contact your administrator.';
+    if (reason === 'VOICE_OFF' || (st && st.voiceEnabled === false)) return 'Voice is disabled by your administrator.';
+    if (why && why.error) return why.error;
+    return 'Voice is not available for this login. Please contact your administrator.';
+  }
+
   // Start (or reuse) the shared recorder. It listens continuously and is muted
   // only while the assistant is speaking (speakIf), so after each spoken prompt
   // the microphone automatically resumes — in both Voice and Converse modes.
@@ -1540,7 +1549,7 @@
           }
           var i=el('mvInput'); if(i) i.value=t; handleUtterance(t);
         },
-        onDisabled:function(){ if(conversationActive) endSession('error'); respond('Voice is unavailable (disabled or limit reached). You can still type your answers.'); }
+        onDisabled:function(st, why){ if(conversationActive) endSession('error'); respond(voiceRefusalMessage(st, why)+' You can still type your answers.'); }
       });
     }
     if(recorder && recorder.isRecording && !recorder.isRecording()){
