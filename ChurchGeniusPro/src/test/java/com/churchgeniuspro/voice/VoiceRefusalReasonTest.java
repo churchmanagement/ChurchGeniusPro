@@ -94,6 +94,36 @@ class VoiceRefusalReasonTest {
         }
     }
 
+    @Test @DisplayName("a staff login whose own member record is linked on the session (memberId set) is still staff — voice is allowed")
+    void staffWithLinkedMemberRecordIsStaff() {
+        // Sharon Fellowship, 2026-10-21: SuperAdmin, 12.7 of 30 minutes used, every flag on,
+        // yet every voice request was refused STAFF_ONLY because Give/Contribute had linked the
+        // admin's own member row onto the staff session (MemberSessionResolver.resolve step 3).
+        assertThat(VoiceCommandController.isStaffSession(session("SuperAdmin", Map.of("memberId", 42, "memberRef", "MBR-x")))).isTrue();
+        assertThat(VoiceCommandController.isStaffSession(session("Admin", Map.of()))).isTrue();
+        assertThat(VoiceCommandController.isStaffSession(session("User", Map.of("memberId", 42)))).isTrue();
+        // the two kinds of session that really are not staff
+        assertThat(VoiceCommandController.isStaffSession(session("Member", Map.of("memberId", 7)))).isFalse();
+        assertThat(VoiceCommandController.isStaffSession(session("SuperAdmin", Map.of("tempAccessId", 3L)))).isFalse();
+
+        OpenAiVoiceService voice = mock(OpenAiVoiceService.class);
+        OpenAiUsageService usage = mock(OpenAiUsageService.class);
+        ChurchVoiceSettingService feats = mock(ChurchVoiceSettingService.class);
+        when(voice.isEnabled()).thenReturn(true);
+        when(feats.audioEnabled(anyString())).thenReturn(true);
+        when(usage.voiceAvailable(anyString())).thenReturn(true);
+        when(usage.statusMap(anyString())).thenReturn(Map.of("voiceEnabled", true, "voiceAvailable", true));
+        when(voice.transcribe(any(), anyString(), anyString())).thenReturn(new OpenAiVoiceService.Transcription("open the members page", 3.2, 0.9));
+        when(voice.toCommand(anyString(), anyString())).thenReturn("go to members");
+        VoiceCommandController c = new VoiceCommandController(voice, usage, feats);
+        MockMultipartFile audio = new MockMultipartFile("audio", "a.webm", "audio/webm", new byte[] { 1 });
+
+        ResponseEntity<Map<String, Object>> r = c.command(audio, "home", session("SuperAdmin", Map.of("memberId", 42)));
+        assertThat(r.getStatusCode().value()).isEqualTo(200);
+        assertThat(body(r)).containsEntry("transcript", "open the members page");
+        verify(usage).addVoiceSeconds("CHR-1", 3L);
+    }
+
     @Test @DisplayName("the quota gate and the Service Admin numbers come from the same arithmetic: 12.7 of 30 minutes is available")
     void quotaMathMatchesServiceAdmin() {
         com.churchgeniuspro.hibernate.OpenAiUsage u = new com.churchgeniuspro.hibernate.OpenAiUsage();

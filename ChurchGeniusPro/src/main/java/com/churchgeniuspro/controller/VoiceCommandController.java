@@ -272,10 +272,22 @@ public class VoiceCommandController {
      * Voice/AI calls are metered against the church's paid OpenAI quota, so they are
      * for staff logins only — not member-portal or temporary-badge sessions.
      */
-    private static boolean isStaffSession(HttpServletRequest request) {
+    /**
+     * A staff login: has a username, is not a temporary-access session and is not a
+     * member-portal session ({@code role=Member}, the same rule as
+     * {@link com.churchgeniuspro.service.MemberSessionResolver#isMemberSession}).
+     *
+     * <p>A {@code memberId} on the session does NOT make it a member session: staff
+     * whose e-mail matches a member of their own church get their member record
+     * linked onto the staff session the first time they use Give / Contribute or the
+     * membership form ({@code MemberSessionResolver.resolve}). Until 2026-10-21 that
+     * link alone flipped this check, so a SuperAdmin with a healthy quota was refused
+     * voice as "staff only" — and the AI Search box reported it as a limit.
+     */
+    public static boolean isStaffSession(HttpServletRequest request) {
         jakarta.servlet.http.HttpSession s = request.getSession(false);
         if (s == null || s.getAttribute("username") == null) return false;
-        if (s.getAttribute("memberId") != null || s.getAttribute("tempAccessId") != null) return false;
+        if (s.getAttribute("tempAccessId") != null) return false;
         return !"Member".equals(s.getAttribute("role"));
     }
 }
