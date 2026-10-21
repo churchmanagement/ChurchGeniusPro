@@ -134,8 +134,9 @@ public class BankImportController {
      * A fictional sample statement for trial/demo tenants ({@link BankImportDemoStatement}).
      * Role check only: the {@code accounting.bankimport} permission gates the /bank-import
      * PAGE (permissions govern pages, menus and buttons, not APIs), and this returns no
-     * church data. Every other church gets 404, which
-     * is also how the page decides whether to show its "Load sample statement" button —
+     * church data. Every other church gets 204 No Content (not 404: browsers print every
+     * 4xx to the console, and a regular church's console should stay clean), which is
+     * also how the page decides whether to show its "Load sample statement" button —
      * so for a regular church the page is exactly as it was.
      */
     @ResponseBody
@@ -147,7 +148,7 @@ public class BankImportController {
             return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
         }
         if (!com.churchgeniuspro.service.TestDataService.isManagedTenant(clientId)) {
-            return ResponseEntity.status(404).body(Map.of("error", "Not available."));
+            return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok()
                 .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))

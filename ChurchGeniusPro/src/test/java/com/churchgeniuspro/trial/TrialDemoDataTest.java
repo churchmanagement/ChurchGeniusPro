@@ -453,13 +453,15 @@ class TrialDemoDataTest {
         }
 
         @Test
-        @DisplayName("served to trial accounts; a regular church gets 404 (button stays hidden)")
+        @DisplayName("served to trial accounts; a regular church gets 204 No Content (button stays hidden, console stays clean)")
         void onlyForTrial() throws Exception {
             BankImportController c = controller();
             ResponseEntity<?> trial = c.demoStatement(staff(TRIAL));
             assertEquals(200, trial.getStatusCode().value());
             assertTrue(String.valueOf(trial.getBody()).startsWith("Date,Description,Amount"));
-            assertEquals(404, c.demoStatement(staff("CHR-1001")).getStatusCode().value());
+            ResponseEntity<?> regular = c.demoStatement(staff("CHR-1001"));
+            assertEquals(204, regular.getStatusCode().value());   // 2xx: browsers log nothing for it
+            assertEquals(null, regular.getBody());
             assertEquals(401, c.demoStatement(new MockHttpServletRequest()).getStatusCode().value());
         }
     }

@@ -347,11 +347,12 @@
   });
 
   // ── Sample statement (trial/demo accounts only) ──
-  // The endpoint answers only for trial/demo tenants; everyone else gets 404 and
-  // the button stays hidden, so the page is unchanged for regular churches.
+  // The endpoint answers with the CSV only for trial/demo tenants; everyone else gets
+  // 204 No Content (nothing in the console) and the button stays hidden, so the page
+  // is unchanged for regular churches.
   var SAMPLE = null;
   fetch('/api/bank-import/demo-statement', { cache: 'no-store' })
-    .then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(r){ return (r.ok && r.status !== 204) ? r.text() : null; })
     .then(function(txt){ if (txt) { SAMPLE = txt; $('btnSample').classList.remove('hidden'); } })
     .catch(function(){ /* not available — keep hidden */ });
   $('btnSample').addEventListener('click', function(){
