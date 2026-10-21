@@ -152,13 +152,14 @@
       + 'Or say it all at once, naming each field:<br>'
       + '<code>Contributor Anson Mathew, Offering Church Fund, Date May thirty-first twenty twenty-six, Method Bank Transfer, Amount one hundred</code>'
       + '<ul style="margin:8px 0 0 18px;padding:0;">'
-      + '<li><b>Contributor</b> — say the person’s name: <code>Contributor Anson Mathew</code>. Not a member? It is entered as a guest name for you to confirm.</li>'
+      + '<li><b>Contributor</b> — say the person’s name: <code>Set Contributor to Anson Mathew</code>. If the name is unclear you get the closest existing contributors to pick from; a new person is only added when you choose “Add as a new contributor”.</li>'
       + '<li><b>Offering / Fund</b> — say the fund name with either keyword: <code>Offering Church Fund</code>, <code>Fund Building Fund</code>, <code>Offering Missions</code> — or just say the name, e.g. <code>Church Fund</code>.</li>'
       + '<li><b>Date</b> — many formats: <code>Date May thirty-first twenty twenty-six</code>, <code>Date five thirty-one two zero two six</code>, or <code>Date 5 31 2026</code>.</li>'
       + '<li><b>Method</b> — payment method: <code>Method Bank Transfer</code>, <code>Method Cash</code>, <code>Method Check</code>.</li>'
       + '<li><b>Amount</b> — words or digits: <code>Amount one hundred</code> or <code>Amount 100</code> → 100.00.</li>'
       + '<li><b>Reference / Check No</b> — <code>Reference Number 12345</code>, <code>Ref No 987654</code>, <code>Check Number 4567</code>, <code>Check No 7890</code>, <code>Cheque No …</code>. Letters work too: <code>Reference Number ABC123</code>; for hyphens say “dash”: <code>Check Number TXN dash 2026 dash 001</code> → TXN-2026-001.</li>'
       + '<li><b>Note</b>: <code>Note weekly tithe</code>.</li>'
+      + '<li><b>Set a field</b> — <code>Set Contributor to Anson Mathew</code>, <code>Set Fund to Youth Fund</code>, <code>Set Amount to 100</code>, <code>Set Date to October 21, 2026</code>. Or say just <code>Set Contributor</code>, then the name; the next thing you say goes to that field only. Say <code>Done</code> to finish it. If a value is clear it is accepted without “Done”; if not, you are asked to repeat it.</li>'
       + '<li><b>Clear / Reset</b> — fix mistakes by voice: <code>Clear Contributor</code>, <code>Clear Amount</code>, <code>Clear Date</code>, <code>Clear Method</code> (clears one field) · <code>Reset Field</code> (resets the field you changed last) · <code>Reset Fields</code> / <code>Clear Form</code> / <code>Reset Form</code> (clears the whole form).</li>'
       + '</ul>'
       + '<div style="margin-top:6px;color:#888;">Auto-filled fields are outlined; amber means please confirm before saving. If several people or funds match, pick the right one from the suggestions.</div>'
@@ -184,10 +185,16 @@
       panel.innerHTML = '<div id="voiceStatus"></div><div id="voiceTranscript"></div>'
         + '<div id="voiceCurrent"></div>'
         + '<div id="voiceResults"></div><div id="voiceSuggest"></div>'
+        + '<div id="voicePrefs" style="margin-top:6px;font-size:12px;color:#666;">Speech accent: <select id="voiceLocale" style="font-size:12px;padding:2px 4px;"></select>'
+        + ' <span title="Tells the speech-recognition service your English variety where it supports it. It can improve recognition of names and numbers but cannot guarantee a perfect transcription.">ⓘ</span></div>'
         + '<div id="voiceDebugHead"></div>'
         + '<div id="voiceDebug"></div>'
         + guideHTML();
       body.insertBefore(panel, grid);
+      var sel=$('voiceLocale');
+      if(sel){ LOCALES.forEach(function(l){ var o=document.createElement('option'); o.value=l[0]; o.textContent=l[1]; sel.appendChild(o); });
+        sel.value=voiceLocale(); if(sel.value!==voiceLocale()) sel.value='en-US';
+        sel.addEventListener('change', function(){ setVoiceLocale(sel.value); }); }
     }
   }
 
@@ -199,18 +206,17 @@
   // ── Field fillers (apply one value to the DOM, return {chip, suggest, confirm}) ──
   function fillContributor(value){
     var cm = matchContributor(value, contributorsCache||[]);
-    if(cm.best && !cm.ambiguous && cm.best.score>=60){
+    if(cm.best && !cm.ambiguous && cm.best.score>=70){
       applyContributor(cm.best.id, cm.best.fullName); markField('fContributorInput','ok');
-      return {chip:chip('Contributor: '+cm.best.fullName,'ok')};
+      return {chip:chip('Contributor: '+cm.best.fullName,'ok'), said:cm.best.fullName};
     }
-    if(cm.ambiguous || (cm.best && cm.candidates.length>1)){
-      markField('fContributorInput','confirm');
-      return {confirm:true, chip:chip('Contributor: choose below','confirm'),
-        suggest:suggestRow('Contributor — "'+value+'"', cm.candidates.map(function(c){
-          return {label:c.fullName, onpick:"window.__voicePick('contributor','"+c.id+"',"+JSON.stringify(c.fullName)+")"}; }))};
-    }
-    if(typeof window.toggleGuestMode==='function'){ window.toggleGuestMode(true); var g=$('fGuestName'); if(g){ g.value=titleCase(value); markField('fGuestName','confirm'); } }
-    return {confirm:true, chip:chip('Contributor: guest "'+titleCase(value)+'" (confirm)','confirm')};
+    // Not sure → offer the closest existing contributors (and, last, "add as new").
+    // The chosen contributor is NEVER replaced or switched to a guest without a click.
+    var opts=cm.candidates.map(function(c){ return {label:c.fullName, onpick:"window.__voicePick('contributor','"+c.id+"',"+JSON.stringify(c.fullName)+")"}; });
+    opts.push({label:'➕ Add “'+titleCase(value)+'” as a new contributor', onpick:"window.__voicePick('newContributor',"+JSON.stringify(titleCase(value))+")"});
+    markField('fContributorInput','confirm');
+    var head = cm.candidates.length ? 'Contributor — I heard "'+value+'". Did you mean:' : 'Contributor — I heard "'+value+'" but found no match:';
+    return {confirm:true, pending:true, chip:chip(cm.candidates.length ? 'Contributor: choose below' : 'Contributor: "'+value+'" not found — choose below','confirm'), suggest:suggestRow(head, opts)};
   }
   function fillFund(value){
     var all=selectOptions('fFund');
@@ -264,10 +270,18 @@
     if(bw && WD[bw[1]]!=null){ var f2=(WD[bw[1]]-today.getDay()+7)%7; return iso(addDays(f2===0?7:f2)); }
     return null;
   }
+  function amountProblem(value){
+    // Why an amount was refused, for the status line / speech.
+    var groups=String(value||'').match(/\d+(?:\.\d+)?/g)||[];
+    if(groups.length>1) return 'I heard several numbers — please say the amount once, for example “Set Amount to 100”.';
+    var raw=parseFloat(String(value||'').replace(/[^0-9.]/g,''));
+    if(isFinite(raw) && raw>VC.AMOUNT_MAX) return 'That amount is larger than the ledger allows — please repeat it.';
+    return 'I couldn’t confidently identify that amount. Please repeat it.';
+  }
   function fillAmount(value){
-    var a=parseAmount(value);
-    if(a!=null && a>0){ var ae=$('fAmount'); if(ae){ ae.value=a.toFixed(2); ae.dispatchEvent(new Event('input',{bubbles:true})); } markField('fAmount','ok'); return {chip:chip('Amount: '+a.toFixed(2),'ok')}; }
-    markField('fAmount','fail'); return {confirm:true, chip:chip('Amount: not understood','fail')};
+    var a=parseAmount(value);          // null unless a valid, positive, in-range number
+    if(a!=null){ var ae=$('fAmount'); if(ae){ ae.value=a.toFixed(2); ae.dispatchEvent(new Event('input',{bubbles:true})); } markField('fAmount','ok'); return {chip:chip('Amount: '+a.toFixed(2),'ok'), said:a.toFixed(2)}; }
+    markField('fAmount','fail'); return {confirm:true, pending:true, chip:chip('Amount: not understood — please repeat','fail'), problem:amountProblem(value)};
   }
   // Normalize a spoken reference/check value: keep letters, digits, spaces and
   // hyphens; turn spoken "dash"/"hyphen" into "-"; uppercase (ref/check numbers
@@ -308,7 +322,7 @@
 
   // Per-session field state so the panel accumulates across utterances.
   var pendingField=null, sessionFields={};
-  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
+  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; if(typeof activeField!=='undefined') activeField=null; var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
   function renderSession(){
     var chips=[], sug='', confirm=false;
     Object.keys(sessionFields).forEach(function(f){ var r=sessionFields[f]; if(!r)return; if(r.chip)chips.push(r.chip); if(r.suggest)sug+=r.suggest; if(r.confirm)confirm=true; });
@@ -400,57 +414,123 @@
   // The backend returns a structured {fields} object per phrase, so each field
   // is applied as soon as it is recognized (one phrase ≈ one field).
   var ORDER=['contributor','fund','date','method','amount','ref','note'];
+  // Voice mode's ACTIVE field: set by "Set <field>" (or "Set <field> to <value>"),
+  // cleared by "Done", by a confidently applied value, or by another "Set …".
+  // While a field is active, speech goes to that field and nowhere else.
+  var activeField=null;
+  var MIN_CONF=0.6;   // below this the transcript is not trusted to overwrite a filled field
+  function lowConfidence(payload){ var c=(payload&&payload.confidence); return typeof c==='number' && c>=0 && c<MIN_CONF; }
+  function fieldLabel(f){ return DISPLAY[f]||f; }
+  // Spoken + visible feedback. Voice mode speaks only results and questions (the
+  // mic is muted while it talks, see speak()), never a running commentary.
+  function announce(text, spoken){ setStatus(text); if(spoken && speech){ speak(spoken); } }
+  function setActive(field, spokenToo){
+    activeField=field; setCurrentField(field);
+    if(field) announce('🎯 Setting '+fieldLabel(field)+' — say the value'+(field==='amount'?' (e.g. “100”)':'')+', or “Done”.', spokenToo ? 'Setting '+fieldLabel(field)+'.' : null);
+  }
   function applyPayload(payload){
     payload = payload || {};
     var transcript = payload.transcript || '';
     setTranscript(transcript);
     var fields = payload.fields || {};
     logEvent('entities', JSON.stringify(fields));
+    if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
 
-    // Clear / reset command from the model (e.g. "clear amount", "reset form").
+    // 1. Explicit field selection — "Set Contributor to Anson Mathew", "Set Amount", "Done".
+    //    Checked on the raw transcript FIRST, so the extractor cannot re-route it.
+    var sc=VC.parseSetCommand(transcript, FIELD_WORDS);
+    if(sc){
+      if(sc.kind==='done'){
+        if(activeField){ logEvent('command','done — '+fieldLabel(activeField)+' finished'); var fin=activeField; activeField=null; setCurrentField(null); announce('✅ '+fieldLabel(fin)+' done. Say “Set” and the next field name.', fieldLabel(fin)+' done.'); }
+        else announce('Nothing is being set right now. Say “Set Amount”, “Set Contributor”, …', null);
+        return;
+      }
+      logEvent('command','set '+fieldLabel(sc.field)+(sc.value?' = "'+sc.value+'"':''));
+      if(!sc.value){ setActive(sc.field, true); return; }
+      setActive(sc.field, false);
+      applyOne(sc.field, sc.value, payload);
+      return;
+    }
+
+    // 2. Clear / reset commands (from the model or the transcript).
     if(payload.command){ logEvent('command', payload.command);
       if(handleCommand(payload.command)){ setCurrentField(null); return; } }
+    if(transcript && handleCommand(transcript)){ setCurrentField(null); return; }
+    if(!activeField && transcript && handleRefCommand(transcript)){ setCurrentField(null); return; }
 
-    // Structured fields → apply immediately.
-    var pairs=[];
-    ORDER.forEach(function(f){ if(fields[f]) pairs.push({field:f, value:String(fields[f])}); });
-    Object.keys(fields).forEach(function(f){ if(fields[f] && ORDER.indexOf(f)<0) pairs.push({field:f, value:String(fields[f])}); });
-    if(pairs.length){ applyPairs(pairs); return; }
+    // 3. Route the extractor's fields: the active field wins; otherwise only fields the
+    //    user NAMED in the phrase; otherwise a single returned field; several unnamed
+    //    fields → ask rather than guess.
+    var route=VC.routeFields(fields, transcript, activeField, KEYWORDS, ORDER);
+    if(route.reason==='ambiguous'){
+      logEvent('warn','several fields in one phrase, none named: '+route.fields.join(', '));
+      announce('I heard values for '+route.fields.map(fieldLabel).join(' and ')+'. Please set one at a time, e.g. “Set '+fieldLabel(route.fields[0])+' to …”.', 'I heard more than one field. Please set one at a time.');
+      return;
+    }
+    if(route.reason==='switch'){ logEvent('command','switched from '+fieldLabel(activeField)+' to '+fieldLabel(route.pairs[0].field)+' (named in the phrase)'); activeField=route.pairs[0].field; setCurrentField(activeField); }
+    if(route.pairs.length){ applyPairs(route.pairs, payload); return; }
 
-    // Fallback: the deterministic segmenter on the raw transcript.
+    // 4. Fallback: the deterministic segmenter on the raw transcript (keyword-led only).
     if(transcript){
-      if(handleCommand(transcript)){ setCurrentField(null); return; }
-      if(handleRefCommand(transcript)){ setCurrentField(null); return; }
       var seg=segment(transcript);
       var fb=[]; ORDER.forEach(function(f){ if(seg[f]) fb.push({field:f, value:seg[f]}); });
-      if(fb.length){ logEvent('warn','model returned no fields — used transcript segmenter'); applyPairs(fb); return; }
-      var c=classify(transcript); if(c){ applyPairs([{field:c.field, value:transcript}]); return; }
+      if(fb.length){ logEvent('warn','model returned no fields — used transcript segmenter'); applyPairs(fb, payload); return; }
+      // A bare value with no field named and no active field: only an unmistakable
+      // amount or date may be classified; names are never guessed into Contributor.
+      var c=classify(transcript);
+      if(c && (c.field==='amount' || c.field==='date')){ applyPairs([{field:c.field, value:transcript}], payload); return; }
+      if(c){ announce('I heard “'+transcript+'” — which field is it for? Say “Set '+fieldLabel(c.field)+' to '+transcript+'”.', 'Which field is that for? Say Set, then the field name.'); return; }
     }
     setCurrentField(null);
     logEvent('warn','no field detected in this phrase');
-    setStatus('Didn’t catch a value in that phrase. Say e.g. “Contributor Anson Mathew”, then pause; then “Amount 100”, then pause.');
+    announce('Didn’t catch a value in that phrase. Say “Set Contributor to Anson Mathew”, then pause; then “Set Amount to 100”.', null);
   }
+  function applyOne(field, value, payload){ applyPairs([{field:field, value:value}], payload); }
+  // Entry points for automated page tests (Playwright feeds the JSON /api/voice/command
+  // returns straight in, so the routing rules run against the real form without a mic).
+  window.__incomeVoice = { applyPayload: applyPayload, convoTurn: function(p){ return convoTurn(p); }, startConvo: function(){ return startConvo(); }, endConvo: function(){ return endConvo(); },
+                           activeField: function(){ return activeField; }, convo: function(){ return convo; } };
 
-  // Apply field(s) from one phrase. Usually a single field → instant; multiple
-  // fields stagger slightly so each one is visible as it lands.
-  function applyPairs(pairs){
-    var i=0;
+  // Apply field(s) from one phrase, with staged feedback: I heard → Processing →
+  // set / needs confirmation. A low-confidence transcript never overwrites a field
+  // that already has a value; an empty field takes it but is marked for review.
+  function applyPairs(pairs, payload){
+    var i=0, lowConf=lowConfidence(payload);
     function step(){
       if(i>=pairs.length){
-        setCurrentField(null);
         var confirm=renderSession();
-        setStatus(confirm
-          ? '⚠️ Review the highlighted fields, fix anything in amber/red, then Save.'
-          : '✅ Field filled. Keep speaking the next field, or tap Stop.');
+        if(!activeField) setCurrentField(null);
+        if(!confirm) setStatus(activeField ? '🎯 '+fieldLabel(activeField)+' is still active — say the value again, or “Done”.' : '✅ Field filled. Say “Set …” and the next field, e.g. “Set Amount to 100”, or tap Stop.');
         return;
       }
       var p=pairs[i++];
       setCurrentField(p.field);
-      logEvent('fill', (DISPLAY[p.field]||p.field)+' = "'+p.value+'"');
+      logEvent('fill', fieldLabel(p.field)+' = "'+p.value+'"');
+      setStatus('🎧 I heard “'+p.value+'” for '+fieldLabel(p.field)+' …');
+      if(lowConf && fieldPresent(p.field)){
+        logEvent('warn','low confidence — '+fieldLabel(p.field)+' already set, not overwritten');
+        sessionFields[p.field]={confirm:true, chip:chip(fieldLabel(p.field)+': heard “'+p.value+'” but not clearly — unchanged','confirm')};
+        renderSession();
+        announce('🤔 I heard “'+p.value+'” for '+fieldLabel(p.field)+' but wasn’t sure, so I left it unchanged. Please repeat it.', 'I wasn’t sure I heard the '+fieldLabel(p.field)+' correctly. Please repeat it.');
+        setTimeout(step, 40); return;
+      }
+      setStatus('⏳ Processing '+fieldLabel(p.field)+' …');
       if(FILLERS[p.field]){
-        var res=FILLERS[p.field](p.value);
+        var res=FILLERS[p.field](p.value) || {};
+        if(lowConf && !res.confirm){ markField((CLEAR_TARGETS[p.field]||[])[0],'confirm'); res.confirm=true; res.chip=chip(fieldLabel(p.field)+': '+(res.said||p.value)+' (heard unclearly — please check)','confirm'); }
         sessionFields[p.field]=res; lastField=p.field; renderSession();
-        logEvent('result', (DISPLAY[p.field]||p.field)+': '+(res && res.confirm ? 'needs confirmation' : 'set'));
+        var ok = !res.confirm;
+        logEvent('result', fieldLabel(p.field)+': '+(ok ? 'set' : 'needs confirmation'));
+        if(ok){
+          if(activeField===p.field){ activeField=null; }            // value accepted → field finished
+          announce('✅ '+fieldLabel(p.field)+' set to '+(res.said||p.value)+'.', fieldLabel(p.field)+' set to '+(res.said||p.value)+'.');
+        } else if(res.problem){
+          announce('❌ '+res.problem, res.problem);                   // e.g. amount not a number → stays active
+        } else if(res.pending){
+          announce('⚠️ '+fieldLabel(p.field)+': please choose from the suggestions below.', 'I’m not sure about the '+fieldLabel(p.field)+'. Please choose from the suggestions.');
+        } else {
+          announce('⚠️ '+fieldLabel(p.field)+' needs a check — see the highlighted field.', null);
+        }
       }
       setTimeout(step, i<pairs.length ? 300 : 40);
     }
@@ -470,8 +550,14 @@
 
   // Suggestion picker (called from injected onclick)
   window.__voicePick = function(field, value, name){
-    if(field==='contributor'){ applyContributor(value, name); markField('fContributorInput','ok'); }
-    else { setSelect(field, value); markField(field,'ok'); }
+    if(field==='contributor'){ applyContributor(value, name); markField('fContributorInput','ok'); sessionFields.contributor={chip:chip('Contributor: '+name,'ok')}; }
+    else if(field==='newContributor'){
+      if(typeof window.toggleGuestMode==='function'){ window.toggleGuestMode(true); }
+      var g=$('fGuestName'); if(g){ g.value=value; try{ g.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} markField('fGuestName','ok'); }
+      sessionFields.contributor={chip:chip('Contributor: new — '+value,'ok')};
+    }
+    else { setSelect(field, value); markField(field,'ok'); if(field==='fFund') sessionFields.fund={chip:chip('Fund selected','ok')}; if(field==='fMethod') sessionFields.method={chip:chip('Method selected','ok')}; }
+    renderSession(); setStatus('✅ Selected.');
   };
 
   // ── Speech recognition (shared engine in voice-core.js) ───────────────────
@@ -513,8 +599,15 @@
   }
   // OpenAI-powered voice (records audio → OpenAI transcription → normalized
   // command, applied by the same applyResult pipeline used before).
+  // Speech-recognition locale preference (per browser, like the other UI prefs).
+  // The transcription service today accepts only a language (English); the hint is
+  // sent along so it is applied wherever the service supports it.
+  var LOCALES=[['en-US','English (US)'],['en-GB','English (UK)'],['en-IN','English (India)'],['en-AU','English (Australia)'],['en-CA','English (Canada)'],['en-NZ','English (New Zealand)'],['en-IE','English (Ireland)'],['en-ZA','English (South Africa)']];
+  function voiceLocale(){ try{ return localStorage.getItem('cgp.voice.locale')||'en-US'; }catch(e){ return 'en-US'; } }
+  function setVoiceLocale(v){ try{ localStorage.setItem('cgp.voice.locale', v); }catch(e){} logEvent('locale', v); }
   var speech = (window.VoiceOpenAI) ? window.VoiceOpenAI.createRecorder({
     context:      'income',
+    getExtra:     function(){ return { expecting: (convo && convo.active) ? (convo.focusField||convo.expecting||'') : (activeField||''), locale: voiceLocale() }; },
     onState:      setRecording,
     onStatus:     function(m){ setStatus(m); },
     onDebug:      function(label, detail){ logEvent(label, detail); },
@@ -584,7 +677,7 @@
   function stepIndexOf(field){ for(var i=0;i<SCRIPT.length;i++){ if(SCRIPT[i].f===field) return i; } return -1; }
   function isSkip(t){ return /(^|\b)(skip|skip it|skip this|leave (it )?blank|not now|no thanks|move on|next field)(\b|$)/.test(t); }
 
-  function ttsSupported(){ return typeof window!=='undefined' && 'speechSynthesis' in window; }
+  function ttsSupported(){ return typeof window!=='undefined' && !!window.speechSynthesis && typeof window.speechSynthesis.speak==='function'; }
 
   // ── Self-echo guard ───────────────────────────────────────────────────────
   // Defensive backstop: if a transcription comes back closely matching what the
@@ -835,20 +928,21 @@
       if(cm.best && !cm.ambiguous && cm.best.score>=70){
         return {status:'ok', apply:function(){ applyContributor(cm.best.id, cm.best.fullName); markField('fContributorInput','ok'); }, confirm:'Contributor '+cm.best.fullName+'.'};
       }
-      if(cm.candidates && cm.candidates.length>1){
-        return {status:'multiple', head:'I found multiple matching contributors.',
-          options: cm.candidates.map(function(c){ return {text:c.fullName,
-            apply:function(){ applyContributor(c.id,c.fullName); markField('fContributorInput','ok'); },
-            confirm:'Contributor '+c.fullName+'.'}; })};
+      function opt(c){ return {text:c.fullName, score:c.score,
+        apply:function(){ applyContributor(c.id,c.fullName); markField('fContributorInput','ok'); },
+        confirm:'Contributor '+c.fullName+'.'}; }
+      if(cm.candidates && cm.candidates.length>1 && (cm.ambiguous || cm.best.score<70)){
+        return {status:'multiple', head:'I heard “'+titleCase(val)+'”. Did you mean one of these?', options: cm.candidates.map(opt)};
       }
       if(cm.candidates && cm.candidates.length===1 && cm.best && cm.best.score>=70){
         return {status:'ok', apply:function(){ applyContributor(cm.best.id, cm.best.fullName); markField('fContributorInput','ok'); }, confirm:'Contributor '+cm.best.fullName+'.'};
       }
-      // No confident match → don't silently create a guest. Report "none" with any
-      // close matches so the conversation can offer the new-contributor flow.
-      return {status:'none', closeMatches: (cm.candidates||[]).slice(0,6).map(function(c){ return {text:c.fullName,
-        apply:function(){ applyContributor(c.id,c.fullName); markField('fContributorInput','ok'); },
-        confirm:'Contributor '+c.fullName+'.'}; })};
+      // One plausible but unconfirmed person → ask "did you mean…?" rather than apply or reject.
+      if(cm.candidates && cm.candidates.length===1 && cm.best.score>=40){
+        return {status:'confirm', option: opt(cm.best), question:'I heard “'+titleCase(val)+'”. Did you mean '+cm.best.fullName+'?'};
+      }
+      // Nothing plausible → "none"; the conversation may then ask about a new contributor.
+      return {status:'none', closeMatches: (cm.candidates||[]).slice(0,6).map(opt)};
     }
     if(f==='fund' || f==='method'){
       var id=(f==='fund')?'fFund':'fMethod';
@@ -922,9 +1016,9 @@
   // After a fill: in FIELD-FOCUS mode stay on the focused field (don't auto-advance);
   // otherwise continue the guided flow from the current step.
   var FOCUS_DONE = [
-    'You can change it, click another field, or say “continue” to go on.',
-    'Done. Click another field to jump there, or say “continue” to keep going.',
-    'Set. Say a new value to change it, click another field, or say “continue”.'
+    'You can change it, say “Set” and another field, or say “Done” to go on.',
+    'Say “Set” and a field name to jump there, or “Done” to keep going.',
+    'Set. Say a new value to change it, or say “Done”.'
   ];
   function focusDoneLine(){ var p=FOCUS_DONE[(convo.fdi||0)%FOCUS_DONE.length]; convo.fdi=(convo.fdi||0)+1; return p; }
   function respondAfterFill(confirmText){
@@ -980,7 +1074,7 @@
     speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}  // interrupt any current prompt
     convo.focusField=f; convo.expecting=f; convo.step=stepIndexOf(f);
     convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.mni=0; convo.fieldMisses=0;
-    convo.awaitingConfirm=false; convo.awaitingNewContributor=false; convo.collectingNewName=false;
+    convo.awaitingConfirm=false; convo.awaitingNewContributor=false; convo.collectingNewName=false; convo.awaitingPick=null;
     clearOptionChips(); setCurrentField(f); logEvent('field-focus', labelFor(f)+' (selected by user)');
     var s=SCRIPT[stepIndexOf(f)];
     if(s && s.confirm && fieldPresent(f)){ convo.confirmField=f; say(confirmFieldPrompt(f)); }
@@ -1043,7 +1137,7 @@
     if(speech.supported===false){ setStatus('Voice conversation needs Chrome, Edge, or Safari with a microphone.'); return; }
     if(convo.active){ endConvo('Conversation ended.'); return; }
     convo={active:true, awaitingConfirm:false, expecting:null, step:-1, confirmField:null, focusField:null, awaitingClearNotes:false, fieldMisses:0, options:null, methodAsked:false,
-           menuShown:false, mni:0, awaitingNewContributor:false, collectingNewName:false, pendingName:'', contribCloseMatches:null,
+           menuShown:false, mni:0, awaitingNewContributor:false, collectingNewName:false, pendingName:'', contribCloseMatches:null, awaitingPick:null, lowConf:false,
            lastPrompt:'', cpi:0, cci:0, uci:0};
     showPanel(); clearDebug(); resetSession(); setCurrentField(null); clearOptionChips();
     ending=false; clearTimeout(sessionTimer);
@@ -1114,16 +1208,27 @@
 
     var val = fields[f] ? String(fields[f]) : transcript;   // route the answer to THIS field only
     var r=resolveField(f, val);
+    // A transcript the engine itself was unsure of never silently replaces a value already there.
+    if(convo.lowConf && fieldPresent(f) && (r.status==='ok' || r.status==='confirm')){
+      logEvent('warn','low confidence — '+labelFor(f)+' already set, not overwritten');
+      say('I heard “'+titleCase(val)+'” for the '+labelFor(f)+' but wasn’t sure. Say it again, or say “keep it”.'); return;
+    }
     if(r.status==='ok'){ convo.fieldMisses=0; convoProcess(r.apply, r.confirm); return; }
     if(r.status==='multiple'){ presentOptions(f, r.options, r.head); return; }
+    if(r.status==='confirm'){ convo.awaitingPick=r.option; convo.pendingName=val; say(r.question); return; }
 
     // ── status 'none' → field-specific re-ask ──
     convo.fieldMisses=(convo.fieldMisses||0)+1;
 
     if(f==='contributor'){
       convo.pendingName=val; convo.contribCloseMatches=r.closeMatches||[];
-      if(convo.fieldMisses>=2){ convo.awaitingNewContributor=true; say('I couldn’t find an existing contributor. Is this a new contributor?'); return; }
+      if(convo.contribCloseMatches.length){ presentOptions('contributor', convo.contribCloseMatches, 'I couldn’t find “'+titleCase(val)+'” exactly. Did you mean one of these?'); return; }
+      if(convo.fieldMisses>=2){ convo.awaitingNewContributor=true; say('I couldn’t find an existing contributor named “'+titleCase(val)+'”. Is this a new contributor?'); return; }
       say('I couldn’t find ' + titleCase(val) + '. ' + FIELD_PROMPT.contributor); return;
+    }
+    if(f==='amount'){
+      if(convo.fieldMisses>=3){ convo.fieldMisses=0; say('I’m having trouble with the amount. You can also type it. '+FIELD_PROMPT.amount); return; }
+      say(amountProblem(val)); return;
     }
     if(f==='fund' || f==='method'){
       if(!convo.menuShown && convo.fieldMisses>=2){ presentSelectMenu(f); return; }
@@ -1145,6 +1250,8 @@
     var transcript=(payload&&payload.transcript||'').trim();
     var tl=transcript.toLowerCase();
     setTranscript(transcript); logEvent('entities', JSON.stringify(fields));
+    convo.lowConf=lowConfidence(payload);
+    if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
 
     // Backstop: never act on the system's own voice if it leaked into the mic.
     if(looksLikeSelfEcho(transcript)){ logEvent('ignored', 'system speech echo — “'+transcript+'”'); return; }
@@ -1174,12 +1281,44 @@
     // Stop / cancel works at any time and ends immediately (but never confuse the
     // notes punctuation "full stop" for a stop command).
     var isStop = !/\bfull stop\b/.test(tl) && (
-        /^\s*(stop|stop it|cancel|never ?mind|quit|exit|end|done)\s*[.!]?$/.test(tl)
+        /^\s*(stop|stop it|cancel|never ?mind|quit|exit|end)\s*[.!]?$/.test(tl)
         || /\b(stop|end|cancel|exit) (the )?conversation\b/.test(tl)
         || /\bstop listening\b/.test(tl));
     if(isStop){
       logEvent('system','User Command = Stop'); logEvent('system','Conversation Terminated');
       endConvo(null, { say:'Okay. The conversation has been stopped.' }); return;
+    }
+
+    // ── "Did you mean <name>?" (one plausible contributor) → yes applies, no re-asks ──
+    if(convo.awaitingPick){
+      var pk=convo.awaitingPick;
+      if(isAffirmative(tl) && !/\bno\b/.test(tl)){ convo.awaitingPick=null; convo.fieldMisses=0; convoProcess(pk.apply, pk.confirm); return; }
+      if(isNegative(tl)){ convo.awaitingPick=null; convo.fieldMisses=(convo.fieldMisses||0)+1;
+        if(convo.fieldMisses>=2){ convo.awaitingNewContributor=true; say('Okay. Is this a new contributor?'); return; }
+        say('Okay. '+FIELD_PROMPT.contributor); return; }
+      say('Did you mean '+pk.text+'? Please say yes or no.'); return;
+    }
+
+    // ── Explicit field commands: "Set Amount to 100", "Set Contributor", "Done" ──
+    var sc=VC.parseSetCommand(transcript, FIELD_WORDS);
+    if(sc && sc.kind==='done'){
+      var cur=convo.focusField||convo.expecting;
+      if(!cur){ say(completePrompt(), true); return; }
+      if(!fieldPresent(cur)){ say('I don’t have the '+labelFor(cur)+' yet. '+FIELD_PROMPT[cur]); return; }
+      logEvent('command','done — '+labelFor(cur)+' finished');
+      var fromIdx=stepIndexOf(cur); convo.focusField=null; convo.confirmField=null; convo.options=null; clearOptionChips();
+      advanceFrom(fromIdx, capitalize(labelFor(cur))+' done.'); return;
+    }
+    if(sc && sc.kind==='set'){
+      logEvent('command','set '+labelFor(sc.field)+(sc.value?' = "'+sc.value+'"':''));
+      if(!sc.value){ focusField(sc.field); return; }
+      // "Set <field> to <value>": select the field, then resolve the value for it.
+      speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+      convo.focusField=sc.field; convo.expecting=sc.field; convo.step=stepIndexOf(sc.field);
+      convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.fieldMisses=0; convo.awaitingConfirm=false; convo.awaitingNewContributor=false; convo.collectingNewName=false; convo.awaitingPick=null;
+      clearOptionChips(); setCurrentField(sc.field); setStatus('🎯 Setting '+labelFor(sc.field)+' — I heard “'+sc.value+'”');
+      var setFields={}; setFields[sc.field]=sc.value;
+      handleExpected(sc.value, setFields); return;
     }
 
     // ── New-contributor sub-flow ──
@@ -1252,8 +1391,11 @@
 
     // Form complete → the user is changing or adding something.
     if(got.length){
+      if(got.length>1){ say('I heard more than one field. Please say “Set”, the field name, and the value — for example “Set Amount to 100”.', true); return; }
       var f0=got[0]; var r0=resolveField(f0, String(fields[f0]));
+      if(convo.lowConf && fieldPresent(f0)){ say('I heard “'+titleCase(String(fields[f0]))+'” for the '+labelFor(f0)+' but wasn’t sure, so I left it unchanged. Say “Set '+labelFor(f0)+'” and repeat it.', true); return; }
       if(r0.status==='multiple'){ presentOptions(f0, r0.options, r0.head); return; }
+      if(r0.status==='confirm'){ convo.expecting=f0; convo.awaitingPick=r0.option; say(r0.question); return; }
       if(r0.status==='ok'){ convoProcess(r0.apply, r0.confirm); return; }
     }
     say(clarifyComplete(), true);

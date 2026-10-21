@@ -71,7 +71,7 @@ class VoiceRefusalReasonTest {
         r = c.command(audio, "income", session("Admin", Map.of()));
         assertThat(body(r)).containsEntry("reason", "VOICE_OFF");
         assertThat(String.valueOf(body(r).get("error"))).contains("disabled by your administrator");
-        verify(voice, never()).transcribe(any(), anyString(), anyString());
+        verify(voice, never()).transcribe(any(), anyString(), anyString(), any(), any());
     }
 
     @Test @DisplayName("the recorder passes reason + error to the pages, and no page defaults a refusal to 'limit reached' any more")
@@ -113,7 +113,7 @@ class VoiceRefusalReasonTest {
         when(feats.audioEnabled(anyString())).thenReturn(true);
         when(usage.voiceAvailable(anyString())).thenReturn(true);
         when(usage.statusMap(anyString())).thenReturn(Map.of("voiceEnabled", true, "voiceAvailable", true));
-        when(voice.transcribe(any(), anyString(), anyString())).thenReturn(new OpenAiVoiceService.Transcription("open the members page", 3.2, 0.9));
+        when(voice.transcribe(any(), anyString(), anyString(), any(), any())).thenReturn(new OpenAiVoiceService.Transcription("open the members page", 3.2, 0.9));
         when(voice.toCommand(anyString(), anyString())).thenReturn("go to members");
         VoiceCommandController c = new VoiceCommandController(voice, usage, feats);
         MockMultipartFile audio = new MockMultipartFile("audio", "a.webm", "audio/webm", new byte[] { 1 });

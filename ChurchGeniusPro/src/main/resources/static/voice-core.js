@@ -32,24 +32,51 @@
   function words(s){ return (s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(Boolean); }
   function titleCase(s){ return (s||'').replace(/\w\S*/g, function(t){ return t.charAt(0).toUpperCase()+t.slice(1).toLowerCase(); }); }
 
+  // Largest amount the ledger stores: income/expense.amount is numeric(15,2).
+  var AMOUNT_MAX = 9999999999999.99;
+  // Round to cents; reject anything that is not a finite, positive, in-range number.
+  // Returns {ok:true, value} or {ok:false, reason:'none'|'range'|'invalid'}.
+  function validateAmount(n){
+    if(n==null || typeof n!=='number' || !isFinite(n) || isNaN(n)) return {ok:false, reason:'none'};
+    var v=Math.round(n*100)/100;
+    if(v<=0) return {ok:false, reason:'none'};
+    if(v>AMOUNT_MAX) return {ok:false, reason:'range'};
+    return {ok:true, value:v};
+  }
+  // Spoken or typed amount → Number (cents-rounded, within AMOUNT_MAX) or null.
+  // A run of separate digit groups ("1 2 3 4", "100 200") is NOT concatenated —
+  // that is how "1 2 3 … 24" once became 1.2345678910111214e+38 — unless the
+  // groups are thousands separators ("1,250" / "1 250 000").
   function parseAmount(text){
     if(text==null) return null;
-    var t = text.toLowerCase().replace(/dollars?|bucks?|\band\b/g,' ').trim();
-    if(t.replace(/[, ]+/g,'').match(/^\$?\d+(\.\d+)?$/)) return parseFloat(t.replace(/[$, ]/g,''));
-    var bare = t.match(/\d+(\.\d+)?/);
-    var toks = t.split(/\s+/).filter(Boolean), result=0, current=0, used=false;
+    var t = String(text).toLowerCase().replace(/dollars?|bucks?|usd|\band\b/g,' ').replace(/\$/g,' ').trim();
+    if(!t) return null;
+    function finish(n){ var v=validateAmount(n); return v.ok ? v.value : null; }
+    // Plain number, optionally with thousands separators: 100 · 100.50 · 1,250 · 1 250 000 · 1,250.75
+    var plain=t.match(/^(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?$/);
+    if(plain) return finish(parseFloat(plain[1].replace(/,/g,'')+(plain[2]||'')));
+    // More than one separate digit group that is not a thousands pattern → ambiguous, refuse.
+    var groups=t.match(/\d+(?:\.\d+)?/g)||[];
+    if(groups.length>1) return null;
+    var toks = t.split(/\s+/).filter(Boolean), result=0, current=0, used=false, unknown=0, lastSmall=false;
     for(var i=0;i<toks.length;i++){ var w=toks[i];
-      if(w in ONES){ current+=ONES[w]; used=true; }
-      else if(w in TEENS){ current+=TEENS[w]; used=true; }
-      else if(w in TENS){ current+=TENS[w]; used=true; }
+      if(w in ONES){ current+=ONES[w]; used=true; lastSmall=ONES[w]>0; continue; }
+      if(w in TEENS){ current+=TEENS[w]; used=true; lastSmall=true; continue; }
+      // "one fifty" = 150, "twelve fifty" = 1250 (a small number spoken before a tens word)
+      if(w in TENS){ current = lastSmall ? current*100+TENS[w] : current+TENS[w]; used=true; lastSmall=false; continue; }
+      lastSmall=false;
+      if(false){ }
       else if(w==='hundred'){ current=(current||1)*100; used=true; }
       else if(w==='thousand'){ result+=(current||1)*1000; current=0; used=true; }
       else if(w==='million'){ result+=(current||1)*1000000; current=0; used=true; }
       else if(/^\d+(\.\d+)?$/.test(w)){ current+=parseFloat(w); used=true; }
+      else if(/^(amount|is|of|the|a|total|value|set|to|please|cents?|point)$/.test(w)){ /* filler */ }
+      else unknown++;
     }
     result+=current;
-    if(used && result>0) return result;
-    return bare ? parseFloat(bare[0]) : null;
+    if(used && result>0 && unknown<=2) return finish(result);
+    if(!used && groups.length===1 && unknown<=2) return finish(parseFloat(groups[0]));
+    return null;
   }
 
   function wordVal(w){
@@ -161,6 +188,40 @@
     scored.sort(function(a,b){return b.score-a.score;});
     return {best:scored.length?scored[0]:null, candidates:scored.slice(0,5), ambiguous: scored.length>1 && Math.abs(scored[0].score-scored[1].score)<5};
   }
+  // Bigram Dice similarity of two normalised strings (0..1) — order-tolerant,
+  // forgiving of a dropped or added letter in the middle of a name.
+  function bigrams(s){ var out={}; for(var i=0;i<s.length-1;i++){ var g=s.substr(i,2); out[g]=(out[g]||0)+1; } return out; }
+  function diceSim(a,b){
+    if(!a||!b||a.length<2||b.length<2) return 0;
+    var A=bigrams(a), B=bigrams(b), inter=0, na=0, nb=0, k;
+    for(k in A){ na+=A[k]; if(B[k]) inter+=Math.min(A[k],B[k]); }
+    for(k in B){ nb+=B[k]; }
+    return (2*inter)/(na+nb);
+  }
+  // A small phonetic key: how a name SOUNDS, so "Matthew"/"Mathew", "Hanson"/"Anson",
+  // "Philip"/"Fillip" collapse to the same or nearly the same key.
+  function phoneticKey(w){
+    var s=String(w||'').toLowerCase().replace(/[^a-z]/g,'');
+    if(!s) return '';
+    s=s.replace(/^(kn|gn|pn|wr)/,function(m){ return m.charAt(1); }).replace(/^x/,'s').replace(/^wh/,'w').replace(/^h(?=[aeiou])/,'');
+    s=s.replace(/ph/g,'f').replace(/ck/g,'k').replace(/sch/g,'sk').replace(/gh(?![aeiou])/g,'').replace(/dg/g,'j')
+       .replace(/c(?=[eiy])/g,'s').replace(/c/g,'k').replace(/q/g,'k').replace(/x/g,'ks').replace(/z/g,'s').replace(/v/g,'f')
+       .replace(/w(?![aeiou])/g,'').replace(/y(?![aeiou])/g,'').replace(/h/g,'');
+    s=s.replace(/(.)\1+/g,'$1');                               // squash doubles
+    s=s.charAt(0)+s.slice(1).replace(/[aeiou]/g,'');            // keep only a leading vowel
+    return s;
+  }
+  function phoneticSim(a,b){
+    var ka=phoneticKey(a), kb=phoneticKey(b);
+    if(!ka||!kb) return false;
+    if(ka===kb) return true;
+    var max=Math.max(ka.length,kb.length);
+    return max>=3 && levN(ka,kb,2)<=(max<=4?1:2);
+  }
+  // Score a spoken phrase against each known contributor. Scores ≥70 are safe to
+  // apply; 40–69 are "did you mean…" candidates; below 40 is noise. Candidates are
+  // ALWAYS returned (lowest first omitted) so a miss can still offer the nearest
+  // names instead of jumping to "new contributor?".
   function matchContributor(spoken, people){
     var sToks=words(spoken), sN=normKey(spoken);
     if(!sToks.length) return {best:null,candidates:[],ambiguous:false};
@@ -169,17 +230,78 @@
       var nToks=words(p.fullName), nN=normKey(p.fullName), score=0;
       if(nN===sN) score=100;
       else {
-        var mm=0;
-        sToks.forEach(function(st){ if(nToks.some(function(nt){ return tokenSim(st,nt); })) mm++; });
+        var mm=0, pm=0;
+        sToks.forEach(function(st){
+          if(nToks.some(function(nt){ return tokenSim(st,nt); })) mm++;
+          else if(st.length>=4 && nToks.some(function(nt){ return phoneticSim(st,nt); })) pm++;
+        });
         if(mm===sToks.length && mm>0) score=62+mm*6;
         else if(mm>0) score=32+mm*6;
         if(Math.max(sN.length,nN.length)>=5 && levN(sN,nN,3)<=2) score=Math.max(score,84); // whole-name fuzzy
         if(nN.indexOf(sN)!==-1||sN.indexOf(nN)!==-1) score=Math.max(score,80);
+        if(mm+pm===sToks.length && pm>0) score=Math.max(score, 48+mm*8);       // sounds like every word
+        else if(pm>0) score=Math.max(score, 40);                               // sounds like one word
+        // Letter-overlap (bigram Dice) only between strings of comparable length — a long
+        // noisy phrase shares letters with everything, and must not look like a name.
+        function comparable(a,b){ var r=a.length/b.length; return r>=0.6 && r<=1.67; }
+        // Below 0.8 the letters must also START alike or SOUND alike, or "weather" would
+        // pass for "Mathew" on shared letters alone.
+        var dice=0, alike=false;
+        function consider(a,b){ if(!comparable(a,b)) return; var d=diceSim(a,b); if(d>dice){ dice=d; alike = a.charAt(0)===b.charAt(0) || phoneticSim(a,b); } }
+        consider(sN,nN);
+        sToks.forEach(function(st){ nToks.forEach(function(nt){ if(st.length>=4) consider(st,nt); }); });
+        if(dice>=0.8) score=Math.max(score, 72);
+        else if(dice>=0.6 && alike) score=Math.max(score, 55);
+        else if(dice>=0.45 && alike) score=Math.max(score, 42);
       }
-      if(score>0) scored.push({id:p.id,fullName:p.fullName,score:score});
+      if(score>=40) scored.push({id:p.id,fullName:p.fullName,score:score});
     });
     scored.sort(function(a,b){return b.score-a.score;});
-    return {best:scored.length?scored[0]:null, candidates:scored.slice(0,5), ambiguous: scored.length>1 && Math.abs(scored[0].score-scored[1].score)<5};
+    // Two plausible people → never pick one on sound alone; the page must ask.
+    var amb = scored.length>1 && scored[0].score<90 && (scored[1].score>=60 || scored[0].score-scored[1].score<5);
+    return {best:scored.length?scored[0]:null, candidates:scored.slice(0,5), ambiguous: amb};
+  }
+
+  // ── Explicit field selection ("Set Contributor to Anson Mathew", "Set Fund", "Done")
+  // fieldWords = {contributor:['contributor','member',…], …}. Returns
+  //   {kind:'set', field, value}   value '' when only the field was named
+  //   {kind:'done'}                finish the current field
+  //   null                         not a command
+  function parseSetCommand(transcript, fieldWords){
+    var t=String(transcript||'').toLowerCase().replace(/[^a-z0-9.,/\-: ]+/g,' ').replace(/\s+/g,' ').trim();
+    if(!t) return null;
+    if(/^(done|finished|finish|that'?s it|i'?m done|next field|next)\.?$/.test(t)) return {kind:'done'};
+    var m=t.match(/^(?:please )?(?:set|select|choose|change|update|edit|enter|fill|go to|switch to|focus(?: on)?)(?: the)? ([a-z]+)(.*)$/);
+    if(!m) return null;
+    function fieldOf(word){ for(var f in fieldWords){ if(fieldWords[f].indexOf(word)>=0) return f; } return null; }
+    var field=fieldOf(m[1]); if(!field) return null;
+    var rest=(m[2]||'').trim();
+    // swallow further words of the same field ("payment method", "reference number")
+    var more=rest.match(/^([a-z]+)\b(.*)$/);
+    while(more && (fieldOf(more[1])===field || /^(number|no|name)$/.test(more[1]))){ rest=more[2].trim(); more=rest.match(/^([a-z]+)\b(.*)$/); }
+    rest=rest.replace(/^(to|as|is|equals|=|:)\s+/,'').replace(/^(to|as|is|equals|=|:)$/,'').trim();
+    return {kind:'set', field:field, value:rest};
+  }
+
+  // Decide which of the extractor's fields may be applied for one phrase.
+  //   activeField  — the field the user selected ("Set Amount"); only it may change
+  //   keywords     — {field:[spoken keywords]}; a field named in the phrase may change
+  // Returns {pairs:[{field,value}], reason}. reason: 'active' | 'keyword' | 'single' |
+  // 'none' (nothing to apply) | 'ambiguous' (several fields, none named — ask).
+  function routeFields(fields, transcript, activeField, keywords, order){
+    fields=fields||{}; order=order||Object.keys(fields);
+    var present=[]; order.forEach(function(f){ if(fields[f]!=null && String(fields[f]).trim()!=='') present.push(f); });
+    Object.keys(fields).forEach(function(f){ if(present.indexOf(f)<0 && fields[f]!=null && String(fields[f]).trim()!=='') present.push(f); });
+    if(activeField){
+      var v = fields[activeField]!=null && String(fields[activeField]).trim()!=='' ? String(fields[activeField]) : String(transcript||'');
+      return {pairs: v.trim() ? [{field:activeField, value:v.trim()}] : [], reason:'active'};
+    }
+    if(!present.length) return {pairs:[], reason:'none'};
+    if(present.length===1) return {pairs:[{field:present[0], value:String(fields[present[0]])}], reason:'single'};
+    var toks=words(transcript), named=[];
+    present.forEach(function(f){ var kws=(keywords&&keywords[f])||[]; if(kws.some(function(k){ return toks.indexOf(k)>=0; })) named.push(f); });
+    if(named.length) return {pairs: named.map(function(f){ return {field:f, value:String(fields[f])}; }), reason:'keyword'};
+    return {pairs:[], reason:'ambiguous', fields:present};
   }
 
   // True if a and b are within edit distance 1 (handles common mishearings like
@@ -333,8 +455,9 @@
   }
 
   root.VoiceCore = {
-    parseDate: parseDate, parseAmount: parseAmount,
-    matchOption: matchOption, matchContributor: matchContributor,
+    parseDate: parseDate, parseAmount: parseAmount, validateAmount: validateAmount, AMOUNT_MAX: AMOUNT_MAX,
+    matchOption: matchOption, matchContributor: matchContributor, phoneticKey: phoneticKey, diceSim: diceSim,
+    parseSetCommand: parseSetCommand, routeFields: routeFields,
     segment: segment, titleCase: titleCase, normKey: normKey, words: words,
     createSpeech: createSpeech
   };

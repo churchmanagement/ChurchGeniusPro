@@ -93,6 +93,16 @@ public class OpenAiVoiceService {
      * Returns {@code null} on error / when disabled.
      */
     public Transcription transcribe(byte[] audio, String filename, String contentType) {
+        return transcribe(audio, filename, contentType, null, null);
+    }
+
+    /**
+     * Transcribes with a vocabulary hint and an optional language override.
+     * @param prompt   words the speaker is likely to say (contributor / fund names, the
+     *                 page's command words) — the API's own bias mechanism; null for none
+     * @param language ISO-639-1 code to use instead of the configured default; null keeps it
+     */
+    public Transcription transcribe(byte[] audio, String filename, String contentType, String prompt, String language) {
         if (!isEnabled() || audio == null || audio.length == 0) return null;
         if (filename == null || filename.isBlank()) filename = "audio.webm";
         if (contentType == null || contentType.isBlank()) contentType = "application/octet-stream";
@@ -102,8 +112,11 @@ public class OpenAiVoiceService {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
             writePart(body, boundary, "model", transcribeModel);
             writePart(body, boundary, "response_format", "verbose_json");
-            if (voiceLanguage != null && !voiceLanguage.isBlank())
-                writePart(body, boundary, "language", voiceLanguage.trim());   // English-only
+            String lang = (language != null && !language.isBlank()) ? language.trim() : voiceLanguage;
+            if (lang != null && !lang.isBlank())
+                writePart(body, boundary, "language", lang.trim());   // English-only
+            if (prompt != null && !prompt.isBlank())
+                writePart(body, boundary, "prompt", prompt.trim());
             writeFilePart(body, boundary, "file", filename, contentType, audio);
             body.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
 

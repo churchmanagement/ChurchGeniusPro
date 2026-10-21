@@ -15,6 +15,7 @@
  *     cancel() aborts: pending audio is discarded, in-flight requests are
  *              aborted, timers cleared and the mic released immediately, and
  *              no queued callback may touch the UI afterwards.
+ *     opts.getExtra() -> {expecting, locale} extra form fields sent with each phrase
  *     opts callbacks: onState(recording), onStatus(msg,kind), onDebug(label,detail),
  *                     onTranscript(text), onStatusData(status), onResult(payload),
  *                     onDisabled(status), onPhase('listening'|'processing'|'idle'),
@@ -300,6 +301,12 @@
       var fd = new FormData();
       fd.append('audio', blob, 'voice.' + ext);
       fd.append('context', opts.context || 'income');
+      // Page-supplied hints: the field being filled (vocabulary for the transcriber)
+      // and the user's speech-locale preference.
+      try {
+        var extra = (typeof opts.getExtra === 'function') ? (opts.getExtra() || {}) : {};
+        Object.keys(extra).forEach(function (k) { if (extra[k] != null && extra[k] !== '') fd.append(k, String(extra[k])); });
+      } catch (e) {}
       var t0 = Date.now();
       dbg('request', 'POST /api/voice/command  context=' + (opts.context || 'income'));
       var myGen = gen;

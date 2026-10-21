@@ -31,6 +31,9 @@ import java.util.Map;
 @Controller
 public class ExpenseController {
 
+    /** Largest amount the ledger column (numeric(15,2)) can hold. */
+    static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999999.99");
+
     private final ExpenseService expenseService;
 
     public ExpenseController(ExpenseService expenseService) {
@@ -144,6 +147,7 @@ public class ExpenseController {
             if (transactionTypeId == null) return bad("Method is required.");
             if (amount == null)           return bad("Amount is required.");
             if (amount.compareTo(BigDecimal.ZERO) <= 0) return bad("Amount must be greater than zero.");
+            if (amount.compareTo(AMOUNT_MAX) > 0) return bad("Amount is too large (maximum " + AMOUNT_MAX.toPlainString() + ").");
 
             String createdBy   = SessionUtil.getUsername(request);
             com.churchgeniuspro.hibernate.Expense saved = expenseService.createExpense(purposeId, mainSourceId, expenseDate,
@@ -190,6 +194,7 @@ public class ExpenseController {
             if (transactionTypeId == null) return bad("Method is required.");
             if (amount == null)            return bad("Amount is required.");
             if (amount.compareTo(BigDecimal.ZERO) <= 0) return bad("Amount must be greater than zero.");
+            if (amount.compareTo(AMOUNT_MAX) > 0) return bad("Amount is too large (maximum " + AMOUNT_MAX.toPlainString() + ").");
 
             String updatedBy = SessionUtil.getUsername(request);
             expenseService.updateExpense(id, purposeId, mainSourceId, expenseDate,

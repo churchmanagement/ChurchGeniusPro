@@ -3,6 +3,7 @@ package com.churchgeniuspro.controller;
 import com.churchgeniuspro.service.ChurchVoiceSettingService;
 import com.churchgeniuspro.service.OpenAiUsageService;
 import com.churchgeniuspro.service.OpenAiVoiceService;
+import com.churchgeniuspro.service.VoiceVocabularyService;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ public class VoiceCommandController {
     private final OpenAiVoiceService voiceService;
     private final OpenAiUsageService usageService;
     private final ChurchVoiceSettingService voiceFeatures;
+    private VoiceVocabularyService vocabulary;   // optional: vocabulary hint for the transcriber
 
     /** Reason codes on a 403 from {@code /api/voice/command}. */
     public static final String REASON_STAFF_ONLY  = "STAFF_ONLY";
@@ -47,6 +49,9 @@ public class VoiceCommandController {
         this.usageService = usageService;
         this.voiceFeatures = voiceFeatures;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setVocabulary(VoiceVocabularyService vocabulary) { this.vocabulary = vocabulary; }
 
     /** Diagnostic: is OpenAI voice configured? (No secret is returned.) */
     @GetMapping("/api/voice/status")
@@ -66,10 +71,23 @@ public class VoiceCommandController {
         return ResponseEntity.ok(voiceFeatures.effectiveMap(clientId));
     }
 
+    /** Convenience overload (tests, older callers): no field hint, default locale. */
+    public ResponseEntity<Map<String, Object>> command(MultipartFile audio, String context, HttpServletRequest request) {
+        return command(audio, context, null, null, request);
+    }
+
+    /**
+     * @param expecting the form field the page is filling ("contributor", "fund", "amount" …) —
+     *                  selects the vocabulary hint sent to the transcriber; blank = all
+     * @param locale    the user's speech-locale preference (e.g. en-IN); applied where the
+     *                  transcription service supports it (today: language only)
+     */
     @PostMapping("/api/voice/command")
     public ResponseEntity<Map<String, Object>> command(
             @RequestParam("audio") MultipartFile audio,
             @RequestParam(value = "context", defaultValue = "income") String context,
+            @RequestParam(value = "expecting", required = false) String expecting,
+            @RequestParam(value = "locale", required = false) String locale,
             HttpServletRequest request) {
 
         Map<String, Object> resp = new LinkedHashMap<>();
@@ -117,7 +135,9 @@ public class VoiceCommandController {
 
         OpenAiVoiceService.Transcription tr;
         try {
-            tr = voiceService.transcribe(audio.getBytes(), audio.getOriginalFilename(), audio.getContentType());
+            String prompt = vocabulary == null ? null : vocabulary.promptFor(clientId, context, expecting);
+            String language = VoiceVocabularyService.languageFor(locale);
+            tr = voiceService.transcribe(audio.getBytes(), audio.getOriginalFilename(), audio.getContentType(), prompt, language);
         } catch (Exception e) {
             resp.put("error", "Could not read the audio.");
             return ResponseEntity.status(500).body(resp);
@@ -134,6 +154,8 @@ public class VoiceCommandController {
         // Diagnostics for the debug panel.
         resp.put("transcript",      tr.text());
         resp.put("confidence",      tr.confidence());          // 0..1, or -1 if unknown
+        if (expecting != null && !expecting.isBlank()) resp.put("expecting", expecting.trim());
+        if (locale != null && !locale.isBlank()) resp.put("locale", locale.trim());
         resp.put("durationSeconds", seconds);
         resp.put("apiType",         "OpenAI Voice API");
         resp.put("transcribeModel", voiceService.transcribeModel());
