@@ -67,58 +67,8 @@ public class AiSearchService {
         "jul","aug","sep","oct","nov","dec"
     };
 
-    // ── Accessible sections per role ──────────────────────────────────────
-
-    private Set<String> accessibleSections(String role, boolean isChurch) {
-        if (isChurch) return Set.of("admin");
-        if (role == null) return Set.of();
-        return switch (role) {
-            case "SuperAdmin" -> Set.of("admin","admin-settings","reminders",
-                                        "accounting","accounting-reports","account-settings");
-            case "Admin"      -> Set.of("admin","admin-settings","reminders");
-            case "Accountant" -> Set.of("admin","accounting","accounting-reports","account-settings");
-            default           -> Set.of("admin");  // "User" — GENERAL section only
-        };
-    }
-
-    // ── All navigable pages ───────────────────────────────────────────────
-
-    private static final List<Map<String, String>> ALL_PAGES = List.of(
-        // ── Accounting (transactional) ───────────────────────────────────
-        pg("Income",            "/income",              "💰", "Record and view income transactions",          "accounting",           "income,tithe,offering,contribution,donation,giving,revenue,collected"),
-        pg("Expense",           "/expense",             "📤", "Record and view expenses",                    "accounting",           "expense,payment,spending,cost,purchase,expenditure"),
-        // ── Accounting Reports ────────────────────────────────────────────
-        pg("Income Reports",    "/income-report",       "📊", "View income reports and summaries",           "accounting-reports",   "report,income,reports,summary,annual"),
-        pg("Expense Reports",   "/expense-report",      "📈", "View expense reports and summaries",          "accounting-reports",   "report,expense,reports,summary"),
-        pg("Transactions",      "/transactions-report", "📋", "View all transaction records",                "accounting-reports",   "transaction,transactions,history,ledger,all"),
-        pg("Tax Report",        "/tax-report",          "🧾", "Generate year-end tax reports",               "accounting-reports",   "tax,annual,year,report"),
-        // ── General (admin) ───────────────────────────────────────────────
-        pg("Families",          "/family",              "👨‍👩‍👧", "Manage church families and members",          "admin",                "family,families,member,members,people,household"),
-        pg("Meetings",          "/meetings",            "📅", "Schedule and track meetings",                 "admin",                "meeting,meetings,schedule,service,worship"),
-        pg("Events",            "/event",               "🎉", "Create and manage events",                   "admin",                "event,events,program,programs,celebration,conference"),
-        pg("Groups",            "/groups",              "👥", "Manage groups and small groups",              "admin",                "group,groups,ministry,team,cell"),
-        pg("Prayer Requests",   "/prayerRequest",       "🙏", "View and manage prayer requests",             "admin",                "prayer,prayers,request,requests,intercession"),
-        pg("Event Calendar",    "/eventcalendar",       "📆", "View the full event calendar",                "admin",                "calendar,schedule,event,agenda"),
-        pg("Notify / Email",    "/notifyEmail",         "✉️", "Send bulk notifications and emails",          "admin",                "email,notify,notification,send,message,bulk"),
-        // ── Admin Settings ────────────────────────────────────────────────
-        pg("View Users",        "/viewusers",           "🧑‍💼", "Manage staff user accounts",                 "admin-settings",       "user,users,staff,account,login,password"),
-        pg("Meeting Types",     "/meetingtype",         "📋", "Configure meeting type categories",           "admin-settings",       "meeting,type,category"),
-        // ── Reminders ─────────────────────────────────────────────────────
-        pg("Reminders",         "/eventReminders",      "🔔", "Manage event reminders",                      "reminders",            "reminder,reminders,alert,alerts,notification"),
-        pg("Meeting Reminders", "/meetingReminders",    "🔔", "Manage meeting reminders",                    "reminders",            "reminder,meeting,alert"),
-        // ── Account Settings ──────────────────────────────────────────────
-        pg("Purposes",          "/purpose",             "🗂️", "Manage expense purpose categories",           "account-settings",     "purpose,category,expense,type"),
-        pg("Funds / Sources",   "/source",              "💳", "Manage income fund categories",               "account-settings",     "fund,source,category,income,type"),
-        pg("Transaction Types", "/transactiontype",     "🏷️", "Configure transaction type categories",       "account-settings",     "transaction,type,category")
-    );
-
-    private static Map<String, String> pg(String label, String url, String icon,
-                                           String desc, String section, String keywords) {
-        Map<String, String> m = new LinkedHashMap<>();
-        m.put("label", label); m.put("url", url); m.put("icon", icon);
-        m.put("description", desc); m.put("section", section); m.put("keywords", keywords);
-        return m;
-    }
+    // ── Navigation: the server catalogue (AiNavigationCatalog) filtered by what the
+    //    session may open (AiAccess.pages, decided by AiAccessPolicy) ───────────────
 
     // ── Stop words for name extraction ────────────────────────────────────
 
@@ -175,11 +125,16 @@ public class AiSearchService {
             return mkResult("error", "Please enter a search query.", List.of(), null);
         }
         if (access == null || access.kids()) return denied();     // Kids Portal: nothing, not even navigation
-        String role = access.role();
-        boolean isChurch = access.church();
-
         String q = query.toLowerCase().trim();
         LocalDate today = AppClock.today();                       // church calendar (America/Chicago)
+
+        // ── Navigation / set-up requests go to the catalogue first ("go to …", "open …",
+        //    "I need to add a new fund", "how do I set the daily verse") — otherwise the
+        //    topic words below ("expense", "payment") would turn them into data lookups.
+        if (Pattern.compile("^\\s*(go to|open|navigate to|take me to|show me the .* page|where (is|are|do i find)|how (do|can) i (set|configure|change|add|create|find|get to)|i (need|want) to (add|set|create|change|configure)( up)? (a|the|my)? ?(new )?)").matcher(q).find()
+                || Pattern.compile("\\b(settings? page|setup page|add a new|set up|configure)\\b").matcher(q).find()) {
+            return handleNavigation(q, access);
+        }
 
         // ── Detect topic keywords ────────────────────────────────────────
         boolean topicIncome  = has(q, "income","tithe","tithes","offering","offerings",
@@ -235,11 +190,11 @@ public class AiSearchService {
         }
         if (topicCount && topicMembers) {
             if (!access.members()) return denied();
-            return handleMemberCount(topicNew, month, year, appClientId, role, isChurch);
+            return handleMemberCount(topicNew, month, year, appClientId, access);
         }
 
         // ── Default: navigation ───────────────────────────────────────────
-        return handleNavigation(q, role, isChurch);
+        return handleNavigation(q, access);
     }
 
     // ── Income ────────────────────────────────────────────────────────────
@@ -417,54 +372,71 @@ public class AiSearchService {
 
     // ── Navigation ────────────────────────────────────────────────────────
 
-    private Map<String, Object> handleNavigation(String q, String role, boolean isChurch) {
-        Set<String> allowed = accessibleSections(role, isChurch);
-
-        List<Map<String, Object>> links = ALL_PAGES.stream()
-            .filter(p -> allowed.contains(p.get("section")))
-            .map(p -> {
-                int score = 0;
-                for (String kw : p.get("keywords").split(",")) {
-                    if (q.contains(kw.trim())) score += 3;
-                }
-                if (q.contains(p.get("label").toLowerCase())) score += 6;
-                Map<String, Object> out = new LinkedHashMap<>(p);
-                out.put("score", score);
-                return out;
-            })
-            .filter(p -> (int) p.get("score") > 0)
-            .sorted((a, b) -> (int) b.get("score") - (int) a.get("score"))
-            .limit(8)
-            .collect(Collectors.toList());
-
-        // Build section labels
-        List<String> sections = new ArrayList<>();
-        if (allowed.contains("accounting"))         sections.add("ACCOUNTING");
-        if (allowed.contains("accounting-reports")) sections.add("ACCOUNTING REPORTS");
-        if (allowed.contains("admin"))              sections.add("GENERAL");
-        if (allowed.contains("reminders"))          sections.add("REMINDERS");
-        if (allowed.contains("admin-settings"))     sections.add("ADMIN SETTINGS");
-        if (allowed.contains("account-settings"))   sections.add("ACCOUNT SETTINGS");
-
-        String ans;
-        if (links.isEmpty() && sections.isEmpty()) {
-            ans = "No accessible pages found. Please contact your administrator for access.";
-        } else if (links.isEmpty()) {
-            ans = "Your accessible sections: " + String.join(", ", sections) + ". No pages matched your query — try a more specific term.";
-        } else {
-            ans = "Here are " + links.size() + " page(s) matching your search:";
+    private Map<String, Object> handleNavigation(String q, AiAccess access) {
+        // "I need to add a new method" — a transaction method, or something else? Ask (scenario 24).
+        boolean methodWord = Pattern.compile("\\bmethods?\\b").matcher(q).find();
+        boolean methodQualified = Pattern.compile("\\b(payment|transaction|pay|cash|check|cheque|card|bank|income|expense|accounting)\\b").matcher(q).find();
+        if (methodWord && !methodQualified) {
+            List<Map<String, Object>> opts = new ArrayList<>();
+            catalogPage("/transactiontype").ifPresent(p -> { if (access.canOpen(p.url())) opts.add(link(p, 10)); });
+            catalogPage("/helpCenter").ifPresent(p -> { if (access.canOpen(p.url())) opts.add(link(p, 5)); });
+            Map<String, Object> res = mkResult("clarify",
+                    "Do you mean a payment / transaction method (Cash, Check, Card, Bank Transfer — managed under Transaction Types), or something else? "
+                    + "Say “add a new payment method”, or tell me which feature you have in mind.", List.of(), opts);
+            res.put("topic", "method");
+            return res;
         }
 
+        List<Map<String, Object>> links = new ArrayList<>();
+        List<String> unavailable = new ArrayList<>();
+        List<Map.Entry<AiNavigationCatalog.Page, Integer>> scored = new ArrayList<>();
+        for (AiNavigationCatalog.Page p : AiNavigationCatalog.PAGES) {
+            int score = 0;
+            for (String kw : p.keywords()) if (Pattern.compile("\\b" + Pattern.quote(kw) + "\\b").matcher(q).find()) score += 3 + kw.length() / 4;
+            if (q.contains(p.label().toLowerCase())) score += 6;
+            if (score > 0) scored.add(Map.entry(p, score));
+        }
+        scored.sort((a, b) -> b.getValue() - a.getValue());
+        for (Map.Entry<AiNavigationCatalog.Page, Integer> e : scored) {
+            AiNavigationCatalog.Page p = e.getKey();
+            if (access.canOpen(p.url())) { if (links.size() < 8) links.add(link(p, e.getValue())); }
+            else if (unavailable.size() < 3 && !unavailableAlready(unavailable, p)) unavailable.add(p.label() + " — " + p.description());
+        }
+
+        String ans;
+        if (links.isEmpty() && unavailable.isEmpty()) {
+            ans = "I couldn’t match that to a page. Try the feature’s name, for example “Open the Income Report” or “Go to Meetings”.";
+        } else if (links.isEmpty()) {
+            // The feature exists; this login cannot open it. Say so — never that it does not exist.
+            ans = "That feature is part of ChurchGeniusPro but is not available to your current login, permissions or plan — an administrator can enable it: "
+                    + String.join("; ", unavailable) + ".";
+        } else {
+            ans = "Here " + (links.size() == 1 ? "is the page" : "are " + links.size() + " pages") + " matching your search:"
+                    + (unavailable.isEmpty() ? "" : " (Also related, but not available to your login: " + String.join("; ", unavailable) + ".)");
+        }
         Map<String, Object> res = mkResult("navigation", ans, List.of(), links);
-        res.put("sections", sections);
+        res.put("sections", List.of());
         return res;
+    }
+
+    private static boolean unavailableAlready(List<String> list, AiNavigationCatalog.Page p) {
+        for (String s : list) if (s.startsWith(p.label() + " — ")) return true;
+        return false;
+    }
+    private static java.util.Optional<AiNavigationCatalog.Page> catalogPage(String url) {
+        return AiNavigationCatalog.PAGES.stream().filter(p -> p.url().equals(url)).findFirst();
+    }
+    private static Map<String, Object> link(AiNavigationCatalog.Page p, int score) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("label", p.label()); m.put("url", p.url()); m.put("icon", "🔗");
+        m.put("description", p.description()); m.put("section", p.category()); m.put("score", score);
+        return m;
     }
 
     // ── Members count ─────────────────────────────────────────────────────
 
     private Map<String, Object> handleMemberCount(boolean isNew, int month, int year,
-                                                   String appClientId,
-                                                   String role, boolean isChurch) {
+                                                   String appClientId, AiAccess access) {
         long count;
         String ans;
         if (isNew) {
@@ -476,15 +448,9 @@ public class AiSearchService {
             ans = "There are " + count + " active member(s) in the church.";
         }
 
-        // Include the Families page link if the role has access
-        Set<String> allowed = accessibleSections(role, isChurch);
-        List<Map<String, Object>> links = List.of();
-        if (allowed.contains("admin")) {
-            links = ALL_PAGES.stream()
-                .filter(p -> "/family".equals(p.get("url")))
-                .map(p -> { Map<String, Object> out = new LinkedHashMap<>(p); out.put("score", 10); return out; })
-                .collect(Collectors.toList());
-        }
+        // Include the Families page link when this login may open it
+        List<Map<String, Object>> links = new ArrayList<>();
+        catalogPage("/viewfamily").ifPresent(p -> { if (access.canOpen(p.url())) links.add(link(p, 10)); });
         return mkResult("members_count", ans, List.of(), links);
     }
 

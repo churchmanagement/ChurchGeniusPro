@@ -80,7 +80,7 @@ class ApiPermissionCheckRatchetTest {
         // are to be enforced "on the backend/API as well, so hiding the menu item is not
         // the only protection". These are the only requireFeature call sites:
         Map.entry("controller/SupportTicketController.java", 3),   // /tickets page, /ai-assistant page, deny() for every /api/tickets/* call
-        Map.entry("controller/AiSearchController.java", 1),        // POST /api/ai-search
+        Map.entry("controller/AiSearchController.java", 2),        // POST /api/ai-search + GET /api/ai-search/nav (AI feature gate, Phase D 2026-10-22)
         // ── Approved exception (user decision, 2026-10-06): POST /api/donations/review-status
         // changes the review status of financial donation records, so in addition to the
         // Accountant/Admin role and own-church scoping it requires the accounting.donation

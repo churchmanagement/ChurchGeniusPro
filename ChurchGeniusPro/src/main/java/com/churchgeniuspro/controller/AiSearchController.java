@@ -50,4 +50,28 @@ public class AiSearchController {
         Map<String, Object> result = searchService.search(query, accessPolicy.resolve(request, clientId), clientId);
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * GET /api/ai-search/nav — the navigation catalogue with the server's verdict per page for
+     * this session (Phase D). The search bar uses it so a link is offered only for a page the
+     * login can actually open; a page it cannot open is still described, never hidden as if
+     * the feature did not exist.
+     */
+    @org.springframework.web.bind.annotation.GetMapping("/api/ai-search/nav")
+    public ResponseEntity<Map<String, Object>> nav(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null || RoleGuard.clientId(request) == null) return ResponseEntity.status(401).build();
+        if (RoleGuard.requireFeature(request, RoleGuard.PERM_AI_ASSISTANT) != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not have access to the AI Assistant."));
+        }
+        com.churchgeniuspro.service.AiAccessPolicy.AiAccess a = accessPolicy.resolve(request, RoleGuard.clientId(request));
+        java.util.List<Map<String, Object>> pages = new java.util.ArrayList<>();
+        for (com.churchgeniuspro.service.AiNavigationCatalog.Page p : com.churchgeniuspro.service.AiNavigationCatalog.PAGES) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("label", p.label()); m.put("url", p.url()); m.put("category", p.category());
+            m.put("description", p.description()); m.put("available", a.canOpen(p.url()));
+            pages.add(m);
+        }
+        return ResponseEntity.ok(Map.of("pages", pages));
+    }
 }

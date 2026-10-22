@@ -987,6 +987,8 @@
   ════════════════════════════════════ */
   let emailSettingsOpen = false;
 
+  // Opened from the AI Search as /notifyEmail#emailSettings → show the Email Settings panel.
+  window.addEventListener('load', function(){ try{ if (location.hash === '#emailSettings' && !emailSettingsOpen) setTimeout(toggleEmailSettings, 400); }catch(e){} });
   function toggleEmailSettings() {
     emailSettingsOpen = !emailSettingsOpen;
     const panel = document.getElementById('emailSettingsPanel');

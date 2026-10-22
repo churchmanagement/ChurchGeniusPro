@@ -125,6 +125,75 @@ class AiSearchEndpointSecurityTest {
         verify(expenseRepo, never()).searchExpense(anyString(), any(), any(), any());
     }
 
+    /* ── Phase D: navigation from the server catalogue ───────────────────────── */
+
+    @SuppressWarnings("unchecked")
+    static List<String> urls(ResponseEntity<Map<String, Object>> r) {
+        List<String> out = new java.util.ArrayList<>();
+        for (Map<String, Object> l : (List<Map<String, Object>>) r.getBody().get("links")) out.add(String.valueOf(l.get("url")));
+        return out;
+    }
+
+    @Test @DisplayName("navigation links come from the server catalogue and only for pages the login can open; an unavailable feature is described, never hidden")
+    void navigationFollowsPageRules() {
+        assertThat(urls(search.search(Map.of("query", "go to the ntag page"), staff("Admin")))).contains("/ntagLandingAdmin");
+        ResponseEntity<Map<String, Object>> u = search.search(Map.of("query", "go to the ntag page"), staff("User"));
+        assertThat(urls(u)).doesNotContain("/ntagLandingAdmin", "/ntagAccess");
+        assertThat(String.valueOf(u.getBody().get("answer"))).contains("not available to your current login").contains("NTag");
+        assertThat(urls(search.search(Map.of("query", "go to private page access"), staff("Admin")))).contains("/private-access-settings");
+        assertThat(urls(search.search(Map.of("query", "go to private page access"), staff("Accountant")))).doesNotContain("/private-access-settings");
+        assertThat(urls(search.search(Map.of("query", "I need to add a new fund"), staff("Accountant")))).contains("/fund");
+        assertThat(urls(search.search(Map.of("query", "I need to add a new expense category"), staff("Admin")))).contains("/purpose");
+        assertThat(urls(search.search(Map.of("query", "I need to add a new expense."), staff("Admin"))).get(0)).as("scenario 23: a new expense (type) → Expense Categories first").isEqualTo("/purpose");
+        assertThat(urls(search.search(Map.of("query", "how do I set the daily bible verse"), staff("Admin")))).contains("/dailyVerseSetup");
+        assertThat(urls(search.search(Map.of("query", "how do I set the daily bible verse"), staff("User")))).doesNotContain("/dailyVerseSetup");
+        assertThat(urls(search.search(Map.of("query", "I need to set the email display name"), staff("User")))).contains("/notifyEmail#emailSettings");
+        assertThat(urls(search.search(Map.of("query", "open the financial report"), staff("Accountant")))).contains("/financial-report").doesNotContain("/tax-report");
+        // a permission switched off removes the link but keeps the description
+        ResponseEntity<Map<String, Object>> off = search.search(Map.of("query", "go to the income report"), staffWith("Accountant", "{\"accounting.reports\":false}"));
+        assertThat(urls(off)).doesNotContain("/income-report");
+        assertThat(String.valueOf(off.getBody().get("answer"))).contains("not available");
+        // church-owner login: NTag landing yes, income no
+        assertThat(urls(search.search(Map.of("query", "ntag landing page"), churchReq()))).contains("/ntagLandingAdmin");
+        assertThat(urls(search.search(Map.of("query", "go to income"), churchReq()))).doesNotContain("/income");
+    }
+
+    @Test @DisplayName("\"add a new method\" is ambiguous → the assistant asks (transaction method vs something else) and offers Transaction Types")
+    void methodIsClarified() {
+        ResponseEntity<Map<String, Object>> r = search.search(Map.of("query", "I need to add a new method"), staff("Accountant"));
+        assertThat(r.getBody().get("intent")).isEqualTo("clarify");
+        assertThat(String.valueOf(r.getBody().get("answer"))).contains("payment / transaction method");
+        assertThat(urls(r)).contains("/transactiontype");
+        assertThat(search.search(Map.of("query", "add a new payment method"), staff("Accountant")).getBody().get("intent")).isEqualTo("navigation");
+        assertThat(urls(search.search(Map.of("query", "add a new payment method"), staff("Accountant")))).contains("/transactiontype");
+    }
+
+    @Test @DisplayName("/api/ai-search/nav: every page with the server verdict; Kids refused; Member sees only granted portal tabs")
+    @SuppressWarnings("unchecked")
+    void navEndpoint() {
+        ResponseEntity<Map<String, Object>> r = search.nav(staff("Admin"));
+        List<Map<String, Object>> pages = (List<Map<String, Object>>) r.getBody().get("pages");
+        Map<String, Boolean> avail = new java.util.HashMap<>();
+        pages.forEach(p -> avail.put(String.valueOf(p.get("url")), (Boolean) p.get("available")));
+        assertThat(avail.get("/viewfamily")).isTrue(); assertThat(avail.get("/dailyVerseSetup")).isTrue();
+        assertThat(avail.get("/viewusers")).as("church-only page").isFalse(); assertThat(avail.get("/memberHome?tab=directory")).isFalse();
+        assertThat(search.nav(member("Son", "{\"more.aiassistant\":true}")).getStatusCode().value()).isEqualTo(403);
+        ResponseEntity<Map<String, Object>> m = search.nav(member("Head", "{\"more.aiassistant\":true,\"member.directory\":true}"));
+        Map<String, Boolean> mAvail = new java.util.HashMap<>();
+        ((List<Map<String, Object>>) m.getBody().get("pages")).forEach(p -> mAvail.put(String.valueOf(p.get("url")), (Boolean) p.get("available")));
+        assertThat(mAvail.get("/memberHome?tab=directory")).isTrue(); assertThat(mAvail.get("/memberHome?tab=give")).isFalse();
+        assertThat(mAvail.get("/viewfamily")).isFalse(); assertThat(mAvail.get("/income")).isFalse(); assertThat(mAvail.get("/ai-assistant")).isTrue();
+    }
+
+    static MockHttpServletRequest staffWith(String role, String privs) {
+        MockHttpServletRequest r = staff(role); r.getSession().setAttribute("privileges", privs); return r;
+    }
+    static MockHttpServletRequest churchReq() {
+        MockHttpSession s = new MockHttpSession();
+        s.setAttribute("username", "church"); s.setAttribute("role", "church"); s.setAttribute("church", Boolean.TRUE); s.setAttribute("clientId", MINE);
+        MockHttpServletRequest r = new MockHttpServletRequest(); r.setSession(s); return r;
+    }
+
     @Test @DisplayName("the search bar is drawn only when /api/session says the server allows the assistant")
     void frontendDrawsOnlyOnServerVerdict() throws Exception {
         String js = Files.readString(Paths.get("src/main/resources/static/ai-assistant.js"));

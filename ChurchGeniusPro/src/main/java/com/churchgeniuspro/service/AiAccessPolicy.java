@@ -52,19 +52,22 @@ public class AiAccessPolicy {
     public record AiAccess(String role, String username, boolean church, boolean member, boolean kids,
                            boolean members, boolean incomeRecords, boolean expenseRecords, boolean reports,
                            boolean volunteers, boolean meetings, boolean prayer, boolean followUps, boolean followUpsAll,
-                           boolean events, boolean reminders, boolean pledges, boolean kidsMinistry, boolean publicLinks) {
+                           boolean events, boolean reminders, boolean pledges, boolean kidsMinistry, boolean publicLinks,
+                           Set<String> pages) {
         /** Any finance data at all (used for the generic denial wording). */
         public boolean anyFinance() { return incomeRecords || expenseRecords || reports; }
+        /** True when the session may open this catalogue page (Phase D navigation). */
+        public boolean canOpen(String url) { return pages != null && pages.contains(url); }
         /** Nothing may be answered except navigation/how-to. */
         public static AiAccess none(String role) {
             return new AiAccess(role, "", false, false, true, false, false, false, false, false,
-                                false, false, false, false, false, false, false, false, false);
+                                false, false, false, false, false, false, false, false, false, Set.of());
         }
         /** Phase A shape (members / finance / volunteers only) — used by tests and the legacy intents. */
         public static AiAccess of(String role, boolean church, boolean member, boolean kids, boolean members,
                                   boolean incomeRecords, boolean expenseRecords, boolean reports, boolean volunteers) {
             return new AiAccess(role, "", church, member, kids, members, incomeRecords, expenseRecords, reports, volunteers,
-                                false, false, false, false, false, false, false, false, false);
+                                false, false, false, false, false, false, false, false, false, Set.of());
         }
     }
 
@@ -100,13 +103,13 @@ public class AiAccessPolicy {
             // like the member nav.
             boolean dir = memberKeyTrue(s, "member.directory");
             return new AiAccess(role, username, false, true, false, dir, false, false, false, false,
-                                false, false, false, false, false, false, false, false, false);
+                                false, false, false, false, false, false, false, false, false, openable(req, s, clientId, role, true, false));
         }
         if (church) {
             // The church-owner login cannot open /income, /viewfamily, /volunteers, /prayerRequest,
             // /followups … (their role guards deny it) — the AI mirrors those pages.
             return new AiAccess(role, username, true, false, false, false, false, false, false, false,
-                                false, false, false, false, false, false, false, false, false);
+                                false, false, false, false, false, false, false, false, false, openable(req, s, clientId, role, false, true));
         }
         boolean fin = FINANCE_ROLES.contains(role) && feature(clientId, "accounting");
         boolean members        = MEMBER_PAGE_ROLES.contains(role) && page(req, "admin.family");
@@ -123,7 +126,36 @@ public class AiAccessPolicy {
         boolean kidsMinistry   = ADMIN_OR_USER.contains(role) && page(req, "general.ministry.kids") && feature(clientId, "kidsMinistry");
         boolean publicLinks    = ADMIN_OR_USER.contains(role) && page(req, "more.publicscreens") && feature(clientId, "publicScreens");
         return new AiAccess(role, username, false, false, false, members, incomeRecords, expenseRecords, reports, volunteers,
-                            meetings, prayer, followUps, followUps && ADMINS.contains(role), events, reminders, pledges, kidsMinistry, publicLinks);
+                            meetings, prayer, followUps, followUps && ADMINS.contains(role), events, reminders, pledges, kidsMinistry, publicLinks,
+                            openable(req, s, clientId, role, false, false));
+    }
+
+    /**
+     * The catalogue pages this session may open — each page's own route rule (role guard,
+     * alias-aware page key, member tab key or opt-in key) plus the plan feature the
+     * subscription filter would apply to its path. Evaluated once per request.
+     */
+    private Set<String> openable(HttpServletRequest req, HttpSession s, String clientId, String role, boolean member, boolean church) {
+        Set<String> out = new java.util.LinkedHashSet<>();
+        for (AiNavigationCatalog.Page p : AiNavigationCatalog.PAGES) {
+            AiNavigationCatalog.Rule r = p.rule();
+            boolean ok;
+            if (r.optInKey() != null) {
+                ok = RoleGuard.featureAllowed(req, r.optInKey());
+            } else if (member) {
+                ok = r.memberKey() != null && memberKeyTrue(s, r.memberKey());
+            } else if (church) {
+                ok = r.church();
+            } else {
+                ok = r.roles().contains(role) && (r.pageKey() == null || page(req, r.pageKey()));
+            }
+            if (!ok) continue;
+            String path = p.url(); int cut = path.indexOf('?'); if (cut > 0) path = path.substring(0, cut); cut = path.indexOf('#'); if (cut > 0) path = path.substring(0, cut);
+            String featureKey = com.churchgeniuspro.util.SubscriptionFeatureCatalog.keyForPath(path);
+            if (featureKey != null && !feature(clientId, featureKey)) continue;
+            out.add(p.url());
+        }
+        return out;
     }
 
     private static boolean page(HttpServletRequest req, String key) {

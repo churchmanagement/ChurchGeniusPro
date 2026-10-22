@@ -44,7 +44,7 @@
     { label:'Expense Report',     target:'/expense-report',     section:'accounting', cat:'Reports', desc:'Expenses by period and category.', keys:['expense report'] },
     { label:'Transaction Report', target:'/transactions-report',section:'accounting', cat:'Reports', desc:'Every income and expense transaction for a period.', keys:['transaction report','transactions report'] },
     { label:'Tax Report',         target:'/tax-report',         section:'accounting', cat:'Reports', desc:'Year-end giving statements per contributor, with an editable letter and signature.', keys:['tax report'] },
-    { label:'Financial Report',   target:'/tax-report',         section:'accounting', cat:'Reports', desc:'Church financial summary letter for a period.', keys:['financial report'] },
+    { label:'Financial Report',   target:'/financial-report',   section:'accounting', cat:'Reports', desc:'Church financial summary for a year: income by fund, expenses by purpose, net.', keys:['financial report','financial statement'] },
     { label:'Payroll',          target:'/payroll',           section:'accounting', cat:'Payroll', payroll:true, desc:'Employee payroll: pay runs with deductions, taxes and withholding.', keys:['payroll'] },
     { label:'Employee Payroll', target:'/payroll/employees', section:'accounting', cat:'Payroll', payroll:true, desc:'Employees and their pay settings.', keys:['employee payroll','employees payroll'] },
     { label:'Payroll Runs',     target:'/payroll/runs',      section:'accounting', cat:'Payroll', payroll:true, desc:'Create and finalise pay runs.', keys:['payroll runs','payroll run'] },
@@ -65,10 +65,12 @@
     { label:'Public Screens',   target:'/publicScreens',     section:'more', cat:'Administration', desc:'Encrypted public links for your church: event calendar, prayer requests, kids check-in, membership form, member signup, donation page.', keys:['public screens','public screen'] },
     { label:'Follow-Ups',       target:'/followups',         section:'more', cat:'Administration', desc:'Follow-up tasks for visitors and members, with volunteers.', keys:['follow ups','follow-ups','followups','follow up'] },
     { label:'Help Center',      target:'/helpCenter',        section:'more', cat:'Administration', desc:'Help articles and the Help Assistant chat.', keys:['help center','help centre'] },
-    { label:'Fund',             target:'/fund',              section:'account-settings', cat:'Administration', desc:'Accounting funds (sources).', keys:['fund','funds'] },
-    { label:'Purpose',          target:'/purpose',           section:'account-settings', cat:'Administration', desc:'Income purposes / sub-sources (e.g. Tithe, Building Fund).', keys:['purpose','purposes'] },
-    { label:'Transaction Type', target:'/transactiontype',   section:'account-settings', cat:'Administration', desc:'Expense/transaction categories.', keys:['transaction type'] },
-    { label:'Email Sender Settings', target:'/notifyEmail',  section:'general',           cat:'Administration', desc:'Church email sender settings; on Trial/Demo accounts the verified test email address.', keys:['email settings','sender settings'] },
+    { label:'Fund',             target:'/fund',              section:'account-settings', cat:'Administration', desc:'Add or edit income funds / sources (e.g. Tithe, Building Fund).', keys:['fund','funds','new fund','add fund'] },
+    { label:'Expense Categories', target:'/purpose',         section:'account-settings', cat:'Administration', desc:'Add or edit expense categories (purposes) used when recording an expense.', keys:['purpose','purposes','expense category','expense categories','new expense category','add expense category'] },
+    { label:'Transaction Types', target:'/transactiontype',  section:'account-settings', cat:'Administration', desc:'Add or edit payment / transaction methods (Cash, Check, Card, Bank Transfer…).', keys:['transaction type','transaction types','payment method','payment methods','transaction method','new payment method'] },
+    { label:'Email Sender Settings', target:'/notifyEmail#emailSettings', section:'general', cat:'Administration', desc:'The Email Settings panel on the Email page: the display name shown as the sender, reply-to and signature.', keys:['email settings','sender settings','email display name','display name','sender name','set the email'] },
+    { label:'Daily Bible Verse', target:'/dailyVerseSetup',  section:'admin-settings',   cat:'Administration', desc:'Set up the daily Bible verse shown on the home pages.', keys:['daily verse','daily bible verse','bible verse','verse of the day','promise verse'] },
+    { label:'NTag Landing Page', target:'/ntagLandingAdmin', section:'admin-settings',   cat:'Admin', desc:'The NTag (NFC tap) landing page: enable it, choose its buttons and preview it.', keys:['ntag page','ntag landing','ntag landing page','nfc landing','nfc page'] },
     // ── Added 2026-10-07: every menu item has an entry, so the assistant can explain any feature ──
     { label:'Attendance',       target:'/attendance',        section:'general', cat:'Ministry', perm:'general.attendance', feature:'attendance', desc:'Record and report attendance for services, classes and meetings.', keys:['attendance','take attendance'] },
     { label:'Volunteers',       target:'/volunteers',        section:'general', cat:'Ministry', feature:'volunteers', desc:'Volunteer roles and assignments across events, with email broadcasts to volunteers.', keys:['volunteers','volunteer roles'] },
@@ -144,10 +146,21 @@
     'Member':     ['general','members','activity','more']
   };
   var session = { role:(safeLS('role')||'User'), church:(safeLS('church')==='true'), ready:false, aiAssistant:null };
+  // Server verdict per catalogue page (GET /api/ai-search/nav): url → available. When present
+  // it overrides the client-side role guesses below, so a link is only offered for a page the
+  // server says this login can open. Loaded after the session; absent until then.
+  var serverNav = null;
+  function loadServerNav(){
+    return fetch('/api/ai-search/nav').then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if (!j || !Array.isArray(j.pages)) return;
+      var m={}; j.pages.forEach(function(p){ if(p && p.url) m[p.url]=(p.available===true); }); serverNav=m;
+    }).catch(function(){});
+  }
   function safeLS(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function allowedSections(){ if (session.church) return ['admin','accounting']; return ROLE_SECTIONS[session.role] || ['general','more','help']; }
 
   function isAvailable(d){
+    if (serverNav && d && !d.dynamic && d.target && Object.prototype.hasOwnProperty.call(serverNav, d.target)) return serverNav[d.target];
     if (d.placeholder) return false;
     if (d.dynamic) return (publicLinks === null) ? true : !!findPublicLink(d.base);
     var role = session.role, church = session.church;
@@ -1283,6 +1296,7 @@
       if (session.aiAssistant!==true){ hideHomeBar(); return; }   // nothing is injected for a session the server refuses
       if(!injectUI()) return;
       captureOriginal();
+      loadServerNav();
       loadPublicLinks();
       restoreState();
       if (window.VoiceOpenAI && window.VoiceOpenAI.getStatus){
