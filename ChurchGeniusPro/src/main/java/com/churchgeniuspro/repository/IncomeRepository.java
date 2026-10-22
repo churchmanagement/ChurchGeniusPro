@@ -498,4 +498,31 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
                                                   @Param("subSourceId") Integer subSourceId,
                                                   @Param("startDate") LocalDate startDate);
 
+
+    // ── AI Search: one member's giving for a period (bounded; the Income page rule applies first) ──
+
+    /** [SUM(amount), COUNT] of one member's non-deleted income in [start, end]; tithe funds only when {@code titheOnly}. */
+    @Query(value =
+           "SELECT COALESCE(SUM(i.amount), 0), COUNT(*) FROM income i " +
+           "JOIN sub_source ss ON ss.id = i.sub_source_id " +
+           "WHERE i.delete_flag = false AND i.app_client_id = :appClientId AND i.member_id = :memberId " +
+           "  AND i.income_date BETWEEN :startDate AND :endDate " +
+           "  AND (:titheOnly = false OR LOWER(ss.source_name) LIKE '%tithe%')",
+           nativeQuery = true)
+    List<Object[]> aiMemberGivingTotals(@Param("appClientId") String appClientId, @Param("memberId") Integer memberId,
+                                        @Param("startDate") java.sql.Date startDate, @Param("endDate") java.sql.Date endDate,
+                                        @Param("titheOnly") boolean titheOnly);
+
+    /** Newest first: [income_date, amount, fund name, import_ref] — at most {@code limit} rows. */
+    @Query(value =
+           "SELECT i.income_date, i.amount, ss.source_name, i.import_ref FROM income i " +
+           "JOIN sub_source ss ON ss.id = i.sub_source_id " +
+           "WHERE i.delete_flag = false AND i.app_client_id = :appClientId AND i.member_id = :memberId " +
+           "  AND i.income_date BETWEEN :startDate AND :endDate " +
+           "  AND (:titheOnly = false OR LOWER(ss.source_name) LIKE '%tithe%') " +
+           "ORDER BY i.income_date DESC, i.id DESC LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiMemberGivingRows(@Param("appClientId") String appClientId, @Param("memberId") Integer memberId,
+                                      @Param("startDate") java.sql.Date startDate, @Param("endDate") java.sql.Date endDate,
+                                      @Param("titheOnly") boolean titheOnly, @Param("limit") int limit);
 }

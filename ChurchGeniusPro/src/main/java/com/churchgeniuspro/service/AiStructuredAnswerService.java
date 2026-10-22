@@ -131,21 +131,29 @@ public class AiStructuredAnswerService {
         if (has(q, "meetings?"))                                                                  return meetings(a, clientId, today, q);
         if (has(q, "prayers?|prayer requests?|intercessions?"))                                   return prayer(a, clientId);
         if (has(q, "follow[- ]?ups?|tasks?|to-?dos?|action items?"))                              return followUps(a, clientId);
-        if (has(q, "volunteers?") && has(q, "assign\\w*|schedul\\w*|serving|roster|upcoming"))    return assignedVolunteers(a, clientId, today);
+        if (has(q, "volunteers?") && has(q, "assign\\w*|schedul\\w*|serving|roster|upcoming")
+                || has(q, "serving|roster") && !has(q, "meetings?|events?"))                     return assignedVolunteers(a, clientId, today);   // "who is serving / on duty"
         if (has(q, "campaigns?|pledges?|pledge drives?"))                                         return campaigns(a, clientId, q);
         if (has(q, "members?") && has(q, "how many|count|number of|total|males?|females?|gender|men|women|male|female")) return memberCounts(a, clientId);
         // Period reports (Phase C) — before the plain totals, so "income report" is a report.
         if (has(q, "reports?|statements?") && !has(q, "tax report|contribution statements?|giving statements?")) {
             if (has(q, "financial|finance|profit|net|income and expenses?|summary report"))    return financialReport(a, clientId, q, today);
             if (has(q, "expenses?|spending|expenditures?"))                                    return expenseReport(a, clientId, q, today);
-            if (has(q, "income|contributions?|donations?|giving|revenue|offerings?|tithes?"))  return incomeReport(a, clientId, q, today);
+            if (has(q, "income|contributions?|donations?|giving|revenue|offerings?|tithes?"))  return incomeReport(a, clientId, q, today);   // canonical words: income / contribution / tithe
             if (has(q, "transactions?"))                                                       return transactions(a, clientId, q, today);
         }
         if (has(q, "transactions?"))                                                              return transactions(a, clientId, q, today);
         if (has(q, "expenses?|spent|spending|expenditures?|costs?|paid out"))                     return expenses(a, clientId, q, today);
-        if (has(q, "contributors?|donations?|donors?|givers?") || has(q, "who") && has(q, "gave|contributed|donated|tithed"))
-            return contributors(a, clientId, q, today);
-        if (has(q, "income|revenue|collections?|offerings?|tithes?|giving|received"))             return incomeTotal(a, clientId, q, today);
+        // Church-wide giving (a single person's giving was answered before this router). The
+        // question arrives with synonyms already mapped (AiQueryLexicon): every way of saying
+        // donation / gift / offering / gave reads "contribution". A list ("who", "show", "top")
+        // is the Income page's rows; a "how much" is the Reports total.
+        if (has(q, "contributions?|tithes?|contributors?|donations?|donors?|givers?")) {
+            if (has(q, "who|which|list|show|display|all|top|breakdown|each|everyone|names?|members?|people|details?|records?|entries|contributors?|donors?|givers?"))
+                return contributors(a, clientId, q, today);
+            return incomeTotal(a, clientId, q, today);
+        }
+        if (has(q, "income|revenue|collections?|offerings?|tithes?|giving|received|receive|came in"))   return incomeTotal(a, clientId, q, today);
         return null;
     }
 
@@ -467,18 +475,71 @@ public class AiStructuredAnswerService {
                 List.of("Child"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
     }
 
+    /**
+     * The public screens a visitor can be sent to: the pages Public Screens offers, plus the two
+     * visitor pages behind the NTag cards. Anything else — the kiosk pre-login link, withdrawn or
+     * internal pages — is never listed, even if a row for it exists.
+     */
+    static final Map<String, String[]> PUBLIC_SCREENS = new LinkedHashMap<>();
+    static {
+        for (Map<String, String> p : PublicPagePolicy.AVAILABLE_PAGES) PUBLIC_SCREENS.put(p.get("url"), new String[] { p.get("label"), "" });
+        PUBLIC_SCREENS.put(PublicPagePolicy.UPCOMING_EVENTS_URL, new String[] { "Upcoming Events", "" });
+        PUBLIC_SCREENS.put(PublicPagePolicy.NTAG_LANDING_URL, new String[] { "NTag Landing Page", "" });
+        String[][] desc = {
+            { PublicPagePolicy.PUBLIC_CALENDAR_URL,    "View the church's public event calendar" },
+            { PublicPagePolicy.MEMBERSHIP_FORM_URL,    "Apply for membership online" },
+            { PublicPagePolicy.DONATION_PAGE_URL,      "Give to the church online" },
+            { PublicPagePolicy.MEMBER_SIGNUP_URL,      "Create a Member Portal account" },
+            { PublicPagePolicy.SMS_OPT_IN_URL,         "Sign up for the church's text messages" },
+            { PublicPagePolicy.GUESS_IT_URL,           "Join the Guess It game" },
+            { PublicPagePolicy.KIDS_CHECKIN_URL,       "Check children in to Kids Ministry" },
+            { PublicPagePolicy.CONNECT_URL,            "Visitor connect card" },
+            { PublicPagePolicy.PUBLIC_PRAYER_FORM_URL, "Send the church a prayer request" },
+            { PublicPagePolicy.UPCOMING_EVENTS_URL,    "See the church's upcoming events" },
+            { PublicPagePolicy.NTAG_LANDING_URL,       "The tap-to-connect page behind your NTag cards" } };
+        for (String[] d : desc) if (PUBLIC_SCREENS.containsKey(d[0])) PUBLIC_SCREENS.get(d[0])[1] = d[1];
+    }
+
+    /** The church's publishing rule (plan, trial/demo, withdrawn pages). Without it nothing is listed. */
+    private PublicPagePolicy publicPagePolicy;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPublicPagePolicy(PublicPagePolicy policy) { this.publicPagePolicy = policy; }
+
     private Map<String, Object> publicLinks(AiAccess a, String cid, LocalDate today) {
         if (!a.publicLinks()) return denied("publiclinks");
         List<PublicScreenLink> all = publicLinkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(cid);
         List<PublicScreenLink> live = new ArrayList<>();
-        for (PublicScreenLink l : all) if (l.getExpirationDate() == null || !l.getExpirationDate().isBefore(today)) live.add(l);   // PublicLinkResolver.isActive
+        for (PublicScreenLink l : all) {
+            if (l == null || l.isRevoked() || cid == null || !cid.equals(l.getAppClientId())) continue;            // the caller's church only
+            if (l.getExpirationDate() != null && l.getExpirationDate().isBefore(today)) continue;                   // expired (church calendar)
+            if (l.getToken() == null || l.getToken().isBlank() || l.getPageUrl() == null) continue;                 // no usable public address
+            if (!PUBLIC_SCREENS.containsKey(l.getPageUrl())) continue;                                                // not an explicitly public screen
+            if (publicPagePolicy == null || !publicPagePolicy.mayPublish(l.getPageUrl(), cid)) continue;             // the page's own rule, as when it is opened
+            live.add(l);
+        }
         if (live.isEmpty()) return ok("publiclinks", "There are no active public links.", null, "/publicScreens", "Open Public Screens");
         boolean truncated = live.size() > maxRows;
-        List<List<String>> out = new ArrayList<>();
-        for (PublicScreenLink l : live.subList(0, Math.min(live.size(), maxRows)))   // label + page + expiry; the token is the secret and is never returned
-            out.add(List.of(str(l.getPageLabel()), str(l.getPageUrl()), l.getExpirationDate() == null ? "No expiry" : date(l.getExpirationDate())));
-        return table("publiclinks", live.size() + " active public link" + (live.size() == 1 ? "" : "s") + ". Open Public Screens to copy or share a link." + (truncated ? " Showing the first " + maxRows + "." : ""),
-                List.of("Screen", "Page", "Expires"), out, (long) live.size(), truncated, null, "/publicScreens", "Open Public Screens");
+        List<Map<String, String>> links = new ArrayList<>();
+        for (PublicScreenLink l : live.subList(0, Math.min(live.size(), maxRows))) {
+            String[] screen = PUBLIC_SCREENS.get(l.getPageUrl());
+            String label = l.getPageLabel() != null && !l.getPageLabel().isBlank() ? l.getPageLabel().trim() : screen[0];
+            Map<String, String> m = new LinkedHashMap<>();
+            m.put("label", label);
+            m.put("description", screen[1]);
+            // The address the Public Screens page itself hands out (PublicScreensController.linkPath):
+            // the screen's own page with this link's access parameter — never the internal route alone.
+            m.put("url", com.churchgeniuspro.controller.PublicScreensController.linkPath(l));
+            m.put("expires", l.getExpirationDate() == null ? "No expiry" : date(l.getExpirationDate()));
+            links.add(m);
+        }
+        Map<String, Object> m = ok("publiclinks", live.size() + " active public link" + (live.size() == 1 ? "" : "s")
+                + ". Select a name to open the public screen, or open Public Screens to copy, share or revoke a link."
+                + (truncated ? " Showing the first " + maxRows + "." : ""), null, "/publicScreens", "Open Public Screens");
+        m.put("publicLinks", links);
+        m.put("total", (long) live.size());
+        m.put("shown", links.size());
+        m.put("truncated", truncated);
+        return m;
     }
 
     /* ════════════════════════ helpers ════════════════════════ */

@@ -85,18 +85,33 @@ public class AiDataSearchService {
         AiAccess a = access.resolve(req, clientId);
         if (a.kids()) return denied("kids");                   // Kids Portal: never any data
 
+        // Synonyms ("donated", "gave", "offerings", "spent", "programs", "helpers" …) are mapped
+        // to the router's own words once, here, for every category (AiQueryLexicon). Names are
+        // still matched on the original question; the period words are never rewritten.
+        String qc = AiQueryLexicon.canonical(q);
+
         // Order matters: volunteers (profiles) first, then a named person's giving, then
         // the Phase B structured intents, then the remaining legacy intents.
-        boolean assignments = q.matches(".*\\b(assign\\w*|schedul\\w*|serving|roster|upcoming)\\b.*");
-        if (q.matches(".*\\bvolunteers?\\b.*") && !assignments) return volunteers(a, clientId, q);
-        boolean giving = q.matches(".*\\b(tithe|tithes|contribut\\w*|donat\\w*|gave|give|giving|offering)\\b.*");
+        boolean assignments = qc.matches(".*\\b(assign\\w*|schedul\\w*|serving|roster|upcoming)\\b.*");
+        if (qc.matches(".*\\bvolunteers?\\b.*") && !assignments) return volunteers(a, clientId, qc);
+        boolean giving = AiQueryLexicon.isGiving(qc);
         if (giving && !a.incomeRecords() && !a.reports())      return denied("contributions");   // never run a name search the user may not see
-        if (giving && a.incomeRecords() && findPersonName(clientId, q) != null) return personGiving(a, clientId, q, today);
+        if (giving) {
+            // A question about ONE person's giving is answered for that person only, under the
+            // Income page rule — never with the church-wide total.
+            List<FamilyMember> people = findPersonMatches(clientId, q);
+            String named = AiQueryLexicon.personMentioned(question);
+            if ((!people.isEmpty() || named != null) && !a.incomeRecords()) return denied("contributions");
+            if (people.size() > 1) return whichPerson(people);
+            if (people.size() == 1) return personGiving(a, clientId, q, qc, people.get(0), today);
+            if (named != null) return ok("contributions", "I could not find an active member named “" + named + "”. "
+                    + "Please check the spelling, or use their first and last name.");
+        }
         if (structured != null) {
-            Map<String, Object> s = structured.route(q, a, clientId, today);
+            Map<String, Object> s = structured.route(qc, a, clientId, today);
             if (s != null) return s;
         }
-        if (q.matches(".*\\b(income|revenue|collections?)\\b.*")) return incomeSummary(a, clientId, q, today);
+        if (qc.matches(".*\\b(income|revenue|collections?)\\b.*")) return incomeSummary(a, clientId, q, today);
         boolean bday = q.matches(".*\\bbirth\\s?days?\\b.*");
         boolean anni = q.matches(".*\\banniversar\\w*\\b.*");
         if (bday || anni)                                      return datesLookup(a, clientId, q, today, bday, anni);
@@ -166,36 +181,82 @@ public class AiDataSearchService {
                 + " across " + list.size() + " transaction" + (list.size() == 1 ? "" : "s") + ".");
     }
 
-    private Map<String, Object> personGiving(AiAccess a, String clientId, String q, LocalDate today) {
+    /** More than one active member matches the name: ask which one (names only, bounded). */
+    private Map<String, Object> whichPerson(List<FamilyMember> people) {
+        List<String> names = new ArrayList<>();
+        for (FamilyMember m : people) { if (names.size() >= 8) break; names.add(fullName(m)); }
+        Map<String, Object> m = ok("clarify", "More than one member matches that name: " + String.join(", ", names)
+                + (people.size() > names.size() ? ", …" : "") + ". Which one do you mean? Please ask again with the full name.");
+        m.put("clarify", true);
+        return m;
+    }
+
+    private static final int PERSON_ROWS = 5;
+
+    /**
+     * One member's giving for a period — two bounded statements (an aggregate and the newest
+     * {@value #PERSON_ROWS} gifts), never the whole period's income list. Tithe questions count
+     * tithe funds only.
+     */
+    private Map<String, Object> personGiving(AiAccess a, String clientId, String q, String qc, FamilyMember person, LocalDate today) {
         if (!a.incomeRecords()) return denied("contributions"); // individual gifts → the Income page rule
-        FamilyMember person = findPersonName(clientId, q);
-        if (person == null) return notHandled();
         DateRange r = parsePeriod(q, today);
         if (r == null) r = DateRange.month(today, "this month");
-        boolean titheOnly = q.contains("tithe");
-        List<Income> list = incomeRepo.findRangeByAppClientId(clientId, r.from, r.to);
-        BigDecimal total = BigDecimal.ZERO;
-        int n = 0;
-        List<String> details = new ArrayList<>();
-        for (Income i : list) {
-            if (i.getMember() == null || i.getMember().getId() == null
-                    || !i.getMember().getId().equals(person.getId())) continue;
-            String fund = i.getSubSource() != null && i.getSubSource().getSourceName() != null
-                    ? i.getSubSource().getSourceName() : "";
-            if (titheOnly && !fund.toLowerCase(Locale.ROOT).contains("tithe")) continue;
-            if (i.getAmount() != null) total = total.add(i.getAmount());
-            n++;
-            if (details.size() < 5)
-                details.add(money(i.getAmount()) + (fund.isBlank() ? "" : " to " + fund) + " on " + fmtDate(i.getIncomeDate()));
-        }
+        boolean titheOnly = AiQueryLexicon.isTithe(qc);
+        Integer mid = intId(person.getId());
+        java.sql.Date from = java.sql.Date.valueOf(r.from), to = java.sql.Date.valueOf(r.to);
+        List<Object[]> tot = incomeRepo.aiMemberGivingTotals(clientId, mid, from, to, titheOnly);
+        Object[] t = tot == null || tot.isEmpty() ? null : tot.get(0);
+        BigDecimal total = t == null || t[0] == null ? BigDecimal.ZERO : new BigDecimal(String.valueOf(t[0]));
+        long n = t == null || t[1] == null ? 0 : ((Number) t[1]).longValue();
         String what = titheOnly ? "tithe" : "contribution";
         String name = fullName(person);
-        if (n == 0)
-            return ok("contributions", "No, " + name + " has no recorded " + what
-                    + " for " + r.label + " (" + fmtRange(r) + ").");
-        return ok("contributions", "Yes — " + name + " gave " + money(total) + " ("
-                + n + " " + what + (n == 1 ? "" : "s") + ") in " + r.label + ": "
-                + String.join("; ", details) + (n > details.size() ? "; …" : "") + ".");
+        String when = inPeriod(r.label) + " (" + fmtRange(r) + ")";
+        boolean yesNo = q.matches("^(did|has|have|does|do|is|was|were)\\b.*");
+        if (n == 0) {
+            Map<String, Object> m = ok("contributions", (yesNo ? "No — " : "") + name + " has no recorded " + what + "s " + when + ".");
+            m.put("period", periodMap(r));
+            return m;
+        }
+        List<List<String>> rows = new ArrayList<>();
+        for (Object[] x : incomeRepo.aiMemberGivingRows(clientId, mid, from, to, titheOnly, PERSON_ROWS)) {
+            String ref = x[3] == null ? "" : String.valueOf(x[3]);
+            String via = ref.startsWith("pi_") || ref.startsWith("donation:") ? "Online donation" : "";
+            rows.add(List.of(fmtDate(toLocalDate(x[0])), x[2] == null ? "" : String.valueOf(x[2]).trim(),
+                             money(x[1] == null ? BigDecimal.ZERO : new BigDecimal(String.valueOf(x[1]))), via));
+        }
+        String answer = (yesNo ? "Yes — " : "") + name + " gave " + money(total) + " " + when + " across " + n + " " + what + (n == 1 ? "" : "s")
+                + (n > rows.size() ? ". The " + rows.size() + " most recent are listed." : ".");
+        Map<String, Object> m = ok("contributions", answer);
+        m.put("columns", List.of("Date", "Fund", "Amount", "Note"));
+        m.put("rows", rows);
+        m.put("total", n);
+        m.put("shown", rows.size());
+        m.put("truncated", n > rows.size());
+        Map<String, String> summary = new LinkedHashMap<>();
+        summary.put("Contributor", name); summary.put("Total", money(total)); summary.put(titheOnly ? "Tithes" : "Contributions", String.valueOf(n));
+        m.put("summary", summary);
+        m.put("period", periodMap(r));
+        Map<String, String> link = new LinkedHashMap<>(); link.put("label", "Open Income"); link.put("url", "/income");
+        if (a.canOpen("/income")) m.put("link", link);
+        return m;
+    }
+
+    /** "this month" stays as is; "September 2026" becomes "in September 2026". */
+    static String inPeriod(String label) {
+        String l = label == null ? "" : label.trim();
+        return l.matches("(?i)^(this|last|next|past|previous|today|yesterday|so far|year to date).*") ? l : "in " + l;
+    }
+    private static Map<String, String> periodMap(DateRange r) {
+        Map<String, String> p = new LinkedHashMap<>();
+        p.put("label", r.label); p.put("from", r.from.toString()); p.put("to", r.to.toString());
+        return p;
+    }
+    private static LocalDate toLocalDate(Object o) {
+        if (o instanceof java.sql.Date d) return d.toLocalDate();
+        if (o instanceof LocalDate d) return d;
+        if (o instanceof java.util.Date d) return new java.sql.Date(d.getTime()).toLocalDate();
+        return LocalDate.parse(String.valueOf(o).substring(0, 10));
     }
 
     private Map<String, Object> datesLookup(AiAccess a, String clientId, String q,
@@ -247,6 +308,32 @@ public class AiDataSearchService {
     }
 
     /* ════════════════════════ name matching ════════════════════════ */
+
+    /**
+     * Every active member the question names: full-name matches first (longest wins); otherwise
+     * everyone whose first name (≥ 3 letters) appears; otherwise a unique last name. Several
+     * people with the same first name are all returned so the caller can ask which one.
+     */
+    List<FamilyMember> findPersonMatches(String clientId, String q) {
+        String padded = " " + q + " ";
+        List<FamilyMember> full = new ArrayList<>(), firsts = new ArrayList<>(), lasts = new ArrayList<>();
+        int bestFull = 0;
+        for (FamilyMember m : members(clientId)) {
+            String first = lc(m.getFirstName()), last = lc(m.getLastName());
+            String fn = norm(first + " " + last);
+            if (!fn.isBlank() && fn.contains(" ") && padded.contains(" " + fn + " ")) {
+                if (fn.length() > bestFull) { full.clear(); bestFull = fn.length(); }
+                if (fn.length() == bestFull) full.add(m);
+                continue;
+            }
+            String f = norm(first), l = norm(last);
+            if (f.length() >= 3 && padded.contains(" " + f + " ")) firsts.add(m);
+            else if (l.length() >= 3 && padded.contains(" " + l + " ")) lasts.add(m);
+        }
+        if (!full.isEmpty()) return full;
+        if (!firsts.isEmpty()) return firsts;
+        return lasts.size() == 1 ? lasts : (lasts.isEmpty() ? List.of() : lasts);
+    }
 
     /** Finds a member whose name appears in the question (longest match wins). */
     FamilyMember findPersonName(String clientId, String q) {

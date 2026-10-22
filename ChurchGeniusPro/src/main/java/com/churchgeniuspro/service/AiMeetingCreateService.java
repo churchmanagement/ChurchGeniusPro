@@ -67,10 +67,20 @@ public class AiMeetingCreateService {
     private final MeetingRepository meetingRepo;
     private final MeetingService meetingService;
     private final AiAccessPolicy access;
+    /** The Meetings page's location picker source: members with their own address. Null in older tests. */
+    private final com.churchgeniuspro.repository.FamilyMemberRepository memberRepo;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AiMeetingCreateService(MeetingTypeRepository typeRepo, MeetingRepository meetingRepo,
+                                  MeetingService meetingService, AiAccessPolicy access,
+                                  com.churchgeniuspro.repository.FamilyMemberRepository memberRepo) {
+        this.typeRepo = typeRepo; this.meetingRepo = meetingRepo; this.meetingService = meetingService; this.access = access;
+        this.memberRepo = memberRepo;
+    }
 
     public AiMeetingCreateService(MeetingTypeRepository typeRepo, MeetingRepository meetingRepo,
                                   MeetingService meetingService, AiAccessPolicy access) {
-        this.typeRepo = typeRepo; this.meetingRepo = meetingRepo; this.meetingService = meetingService; this.access = access;
+        this(typeRepo, meetingRepo, meetingService, access, null);
     }
 
     // ── Draft kept in the session ────────────────────────────────────────────
@@ -79,13 +89,29 @@ public class AiMeetingCreateService {
     enum Stage { ASK, CONFIRM }
 
     static final class Draft implements java.io.Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 2L;
         String clientId; String username; Stage stage;
         Integer typeId; String typeName; LocalDate date; LocalTime start; LocalTime end; String note;
         /** An hour given without AM/PM ("at 7") — the time stays required until it is resolved. */
         String timeHint;
+        /**
+         * Location, exactly as the Meetings form stores it: either a member whose own address is on
+         * file (locationMemberId + that address copied into the address fields, like the page's
+         * picker) or a typed address (address1 only). {@code locSkipped}: the user said there is none.
+         */
+        Integer locMemberId; String locLabel; String addr1, addr2, city, state, country, pin;
+        boolean locSkipped, timeSkipped;
+        /** Several members matched the location name: their ids and labels, to pick from. */
+        List<Integer> locChoiceIds; List<String> locChoiceLabels;
+        /** "Mark's house" named a member with no address on file — said once, then the question is asked again. */
+        String notFoundHome;
+        /** The field the last question asked for ("category", "date", "location", "locationPick", "time", "ampm"). */
+        String asked;
         String token; Instant created;
-        boolean complete() { return typeId != null && date != null && (start != null || timeHint == null); }
+        boolean hasLocation() { return locLabel != null || locSkipped; }
+        boolean hasTime() { return (start != null || timeSkipped) && timeHint == null; }
+        /** The four things the AI asks for: category, date, location, time (location/time may be left blank on request). */
+        boolean complete() { return typeId != null && date != null && hasLocation() && hasTime() && locChoiceIds == null; }
     }
 
     // ── Entry points ─────────────────────────────────────────────────────────
@@ -102,6 +128,21 @@ public class AiMeetingCreateService {
         "^\\s*(yes|yeah|yep|yup|sure|confirm|confirmed|correct|ok|okay|go ahead|do it|create it|create|proceed|that'?s right|please do)"
         + "([,.! ]+(yes|please|create it|go ahead|do it|confirm|thanks?|thank you|that'?s right))*[.!]?\\s*$",
         Pattern.CASE_INSENSITIVE);
+    private static final Pattern CANCEL = Pattern.compile(
+        "^\\s*(cancel|cancel it|cancel that|never ?mind|stop|forget it|discard|don'?t create( it)?|do not create( it)?)[.!]?\\s*$", Pattern.CASE_INSENSITIVE);
+    /** "Leave it blank" answers to the location / time question. */
+    private static final Pattern SKIP = Pattern.compile(
+        "^\\s*(no|none|nope|n/?a|skip|skip it|skip this|leave it|leave it blank|leave (it )?empty|blank|not sure|unsure|i don'?t know|don'?t know|dunno|unknown|"
+        + "not (yet )?decided|undecided|tbd|tba|to be (decided|announced|confirmed)|later|not now|no location|no place|no venue|no address|no time|no start time|"
+        + "anywhere|any time|no preference)[.!]?\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SKIP_LOCATION = Pattern.compile(
+        "(?i)\\b(no (location|place|venue|address)|location (unknown|not decided|tbd|to be decided)|without a location|leave the location( blank)?)\\b");
+    private static final Pattern SKIP_TIME = Pattern.compile(
+        "(?i)\\b(no (start )?time|time (unknown|not decided|tbd|to be decided)|without a time|leave the time( blank)?|any time)\\b");
+    /** A reply that is plainly another question — never taken as a location. */
+    private static final Pattern QUESTION = Pattern.compile(
+        "(?i)^\\s*(what|how|who|when|which|why|whose|show|list|go to|open|take me|navigate|find|where is|where are)\\b|\\?\\s*$");
+
     private static final Pattern NO = Pattern.compile(
         "^\\s*(no|nope|cancel|never ?mind|stop|forget it|don'?t|do not|discard|not now)"
         + "([,.! ]+(no|nope|cancel|never ?mind|stop|forget it|please|thanks?|thank you|don'?t|do not))*[.!]?\\s*$", Pattern.CASE_INSENSITIVE);
@@ -148,7 +189,12 @@ public class AiMeetingCreateService {
             return null;                   // some other question: the draft stays until the button is used or it expires
         }
         // ASK stage: does this message supply any of the missing fields?
-        if (NO.matcher(q).matches()) { clear(session); return base("meeting.cancelled", "Okay — I have not created the meeting.", false); }
+        // "cancel" always cancels; a bare "no"/"none" answering the location or time question
+        // means "leave it blank" (the form allows both empty), not "cancel the meeting".
+        boolean askedOptional = "location".equals(pending.asked) || "locationPick".equals(pending.asked) || "time".equals(pending.asked);
+        if (CANCEL.matcher(q).matches() || (!askedOptional && NO.matcher(q).matches())) {
+            clear(session); return base("meeting.cancelled", "Okay — I have not created the meeting.", false);
+        }
         boolean filled = fill(pending, q, today, clientId, false);
         if (!filled) { clear(session); return null; }   // the user moved on; do not hijack their question
         return advance(session, pending, a);
@@ -187,64 +233,109 @@ public class AiMeetingCreateService {
         bo.setNote(d.note);
         bo.setOccurrence("One-time");
         bo.setDoNotAutoDelete(false);
+        // Location exactly as the Meetings form saves it (member picker → id + that address;
+        // typed → Address 1). MeetingService re-checks that the member belongs to this church.
+        bo.setLocationMemberId(d.locMemberId);
+        bo.setAddress1(d.addr1); bo.setAddress2(d.addr2); bo.setCity(d.city);
+        bo.setState(d.state); bo.setCountry(d.country); bo.setPinCode(d.pin);
         Meeting saved;
         try {
             saved = meetingService.save(bo, clientId);
         } catch (IllegalArgumentException e) {
-            return base("meeting.error", "I could not create the meeting: " + e.getMessage(), false);
+            return base("meeting.error", "I could not create the meeting: " + e.getMessage() + " Nothing was saved.", false);
+        } catch (RuntimeException e) {
+            return base("meeting.error", "The meeting could not be saved, so nothing was created. Please try again, or use the Meetings page.", false);
         }
-        if (saved == null || saved.getId() == null) return base("meeting.error", "The meeting was not created.", false);
+        if (saved == null || saved.getId() == null)
+            return base("meeting.error", "The meeting could not be saved, so nothing was created. Please try again, or use the Meetings page.", false);
         Map<String, Object> m = base("meeting.created", "Created a one-time " + mt.getTypeName() + " meeting on " + fmtDate(d.date)
-            + timeText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ".", false);
+            + timeText(d) + locationText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ".", false);
         m.put("created", true);
-        return withLink(m, a);
+        m.put("meetingId", saved.getId());
+        // The link opens THIS meeting on the Meetings page (meeting.html reads ?meetingId= and
+        // opens it with the page's own editMeeting(id), which loads it tenant-scoped from
+        // GET /api/meetings/{id}). Only after a confirmed save, and only for a login that can open the page.
+        if (a != null && a.canOpen(MEETINGS_URL)) {
+            Map<String, String> link = new LinkedHashMap<>();
+            link.put("label", "Open this meeting"); link.put("url", MEETINGS_URL + "?meetingId=" + saved.getId());
+            m.put("link", link);
+        }
+        return m;
     }
 
     // ── Flow helpers ─────────────────────────────────────────────────────────
 
     private Map<String, Object> advance(HttpSession session, Draft d, AiAccess a) {
         if (d.complete()) {
-            d.stage = Stage.CONFIRM; d.token = UUID.randomUUID().toString(); d.created = Instant.now();
+            d.stage = Stage.CONFIRM; d.asked = null; d.token = UUID.randomUUID().toString(); d.created = Instant.now();
             session.setAttribute(SESSION_KEY, d);
             Map<String, Object> m = base("meeting.confirm", "Ready to create a one-time " + d.typeName + " meeting on " + fmtDate(d.date)
-                + timeText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ". Shall I create it?", false);
+                + timeText(d) + locationText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ". Shall I create it?", false);
             Map<String, Object> c = new LinkedHashMap<>();
             c.put("token", d.token);
             Map<String, String> summary = new LinkedHashMap<>();
             summary.put("Category", d.typeName); summary.put("Date", fmtDate(d.date));
-            summary.put("Time", d.start == null ? "not set" : fmtTime(d.start) + (d.end == null ? "" : " – " + fmtTime(d.end)));
+            summary.put("Time", d.start == null ? "Not set" : fmtTime(d.start) + (d.end == null ? "" : " – " + fmtTime(d.end)));
+            summary.put("Location", d.locLabel == null ? "Not set" : d.locLabel);
             summary.put("Repeats", "One-time");
             if (d.note != null) summary.put("Note", d.note);
             c.put("summary", summary);
             m.put("confirm", c);
             return m;
         }
-        // Something is missing — ask, with the church's categories when that is what is missing.
+        // Ask for ONE missing thing at a time, in the order of the Meetings form: category, date,
+        // location, time. Anything the user already gave is never asked again.
         d.stage = Stage.ASK; d.created = Instant.now();
         session.setAttribute(SESSION_KEY, d);
-        List<String> missing = new ArrayList<>();
-        StringBuilder ask = new StringBuilder();
+        String ask; String field;
         if (d.typeId == null) {
-            missing.add("category");
             List<MeetingType> types = typeRepo.findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(d.clientId);
             if (types.isEmpty()) {
                 clear(session);
                 return withLink(base("meeting.ask", "There are no meeting categories yet — add one under Meeting Types first, then ask me again.", false), a);
             }
-            if (d.typeName != null) ask.append("Several categories match \"").append(d.typeName).append("\". ");
-            ask.append("Which category is the meeting? ");
             List<String> names = new ArrayList<>();
             for (int i = 0; i < types.size() && i < maxRows; i++) names.add(types.get(i).getTypeName());
-            ask.append(String.join(", ", names));
-            if (types.size() > maxRows) ask.append(" … (more on the Meeting Types page)");
-            ask.append(". ");
+            ask = (d.typeName != null ? "Several categories match \"" + d.typeName + "\". " : "")
+                + "Which category is this meeting? " + String.join(", ", names) + (types.size() > maxRows ? " … (more on the Meeting Types page)" : "") + ".";
+            field = "category";
+        } else if (d.date == null) {
+            ask = "What date is the " + d.typeName + " meeting?";
+            field = "date";
+        } else if (d.locChoiceIds != null) {
+            ask = "Several members match that name: " + String.join(", ", d.locChoiceLabels)
+                + ". Which one's home is the meeting at? You can also type an address, or say \u201cno location\u201d.";
+            field = "locationPick";
+        } else if (!d.hasLocation() && d.notFoundHome != null) {
+            ask = "I could not find a member named \u201c" + d.notFoundHome + "\u201d with an address on file. "
+                + "Please type the address or place instead, or say \u201cno location\u201d.";
+            d.notFoundHome = null;
+            field = "location";
+        } else if (!d.hasLocation()) {
+            ask = "Where will it be held? Name the member whose home it is at, type an address or place, or say \u201cno location\u201d.";
+            field = "location";
+        } else if (d.timeHint != null) {
+            ask = "Is " + d.timeHint + " o'clock AM or PM?";
+            field = "ampm";
+        } else {
+            ask = "What time does it start? You can add an end time too (for example \u201c7 to 8:30 pm\u201d), or say \u201cno time\u201d.";
+            field = "time";
         }
-        if (d.date == null) { missing.add("date"); ask.append("What date is the meeting? "); }
-        if (d.start == null && d.timeHint != null) { missing.add("time"); ask.append("Is ").append(d.timeHint).append(" o'clock AM or PM? "); }
-        Map<String, Object> m = base("meeting.ask", ask.toString().trim(), false);
-        m.put("missing", missing);
+        d.asked = field;
+        Map<String, Object> m = base("meeting.ask", ask, false);
+        m.put("missing", missingFields(d));
+        m.put("asking", "ampm".equals(field) ? "time" : "locationPick".equals(field) ? "location" : field);
         m.put("pending", true);
         return m;
+    }
+
+    private static List<String> missingFields(Draft d) {
+        List<String> out = new ArrayList<>();
+        if (d.typeId == null) out.add("category");
+        if (d.date == null) out.add("date");
+        if (!d.hasLocation() || d.locChoiceIds != null) out.add("location");
+        if (!d.hasTime()) out.add("time");
+        return out;
     }
 
     /**
@@ -255,6 +346,21 @@ public class AiMeetingCreateService {
     boolean fill(Draft d, String text, LocalDate today, String clientId, boolean initial) {
         boolean any = false;
         String rest = text;
+        String asked = d.asked;
+        // "Leave it blank" answers to the question just asked, and explicit "no location" / "no time".
+        if (("location".equals(asked) || "locationPick".equals(asked)) && SKIP.matcher(rest).matches()) {
+            d.locSkipped = true; d.locLabel = null; d.locChoiceIds = null; d.locChoiceLabels = null; return true;
+        }
+        if ("time".equals(asked) && SKIP.matcher(rest).matches()) { d.timeSkipped = true; return true; }
+        Matcher sl = SKIP_LOCATION.matcher(rest);
+        if (!d.hasLocation() && sl.find()) { d.locSkipped = true; d.locChoiceIds = null; rest = cut(rest, sl); any = true; }
+        Matcher st = SKIP_TIME.matcher(rest);
+        if (d.start == null && st.find()) { d.timeSkipped = true; d.timeHint = null; rest = cut(rest, st); any = true; }
+        // Picking one of several members offered for the location.
+        if ("locationPick".equals(asked) && d.locChoiceIds != null) {
+            Integer pick = pickChoice(d, rest);
+            if (pick != null) { setMemberLocation(d, clientId, pick); return true; }
+        }
         if (d.date == null) {
             Parsed<LocalDate> p = parseDate(rest, today);
             if (p != null) { d.date = p.value; rest = p.rest; any = true; }
@@ -268,12 +374,16 @@ public class AiMeetingCreateService {
                 if (t != null) { d.start = t; d.timeHint = null; return true; }
             }
         }
-        if (d.start == null) {
+        if (d.start == null && !d.timeSkipped) {
             Parsed<LocalTime[]> t = parseTime(rest);
             if (t != null) { d.start = t.value[0]; d.end = t.value[1]; d.timeHint = null; rest = t.rest; any = true; }
             else {
                 Matcher am = AMBIGUOUS_HOUR.matcher(rest);                // "at 7" — AM or PM?
                 if (am.find()) { d.timeHint = am.group(1); rest = cut(rest, am); any = true; }
+                else if ("time".equals(asked)) {
+                    Matcher bare = BARE_HOUR.matcher(rest);                // the answer to "what time?" is just "7"
+                    if (bare.matches()) { d.timeHint = bare.group(1); return true; }
+                }
             }
         }
         String noteText = null;
@@ -281,6 +391,7 @@ public class AiMeetingCreateService {
             Matcher n = NOTE.matcher(rest);
             if (n.find()) { noteText = cap(n.group(2).trim()); rest = rest.substring(0, n.start()) + " "; }
         }
+        String matchedTypeName = null;
         if (d.typeId == null) {
             String probe = rest;
             if (initial) probe = CREATE_WORDS.matcher(probe).replaceAll(" ");
@@ -292,12 +403,130 @@ public class AiMeetingCreateService {
                 hits = matchTypes(types, cleanProbe(noteText));
                 if (hits.size() == 1) noteText = null;
             }
-            if (hits.size() == 1) { d.typeId = hits.get(0).getId(); d.typeName = hits.get(0).getTypeName(); any = true; }
+            if (hits.size() == 1) { d.typeId = hits.get(0).getId(); d.typeName = hits.get(0).getTypeName(); matchedTypeName = d.typeName; any = true; }
             else if (hits.size() > 1) { d.typeName = probe; any = true; }   // ambiguous → the ask lists the categories
         }
         if (noteText != null && !noteText.isEmpty()) { d.note = noteText; any = true; }
+        // Location: the whole reply when it answers the location question; otherwise only an
+        // explicit "at / in / held at / location is …" phrase left over after the date, time,
+        // category and note have been taken out.
+        if (!d.hasLocation() && (d.locChoiceIds == null || "locationPick".equals(asked))) {
+            String phrase = null;
+            if ("location".equals(asked) || "locationPick".equals(asked)) {
+                if (!QUESTION.matcher(text).find()) phrase = stripLocationFiller(rest);
+            } else {
+                String left = rest;
+                if (initial) left = CREATE_WORDS.matcher(left).replaceAll(" ");
+                if (matchedTypeName != null) left = left.replaceAll("(?i)" + Pattern.quote(matchedTypeName), " ");
+                if (d.typeName != null) left = left.replaceAll("(?i)" + Pattern.quote(d.typeName), " ");
+                Matcher lm = LOCATION_MARK.matcher(left.replaceAll("\\s+", " ").trim());
+                if (lm.find()) phrase = stripLocationFiller(lm.group(1));
+            }
+            if (phrase != null && phrase.matches(".*\\p{L}.*")) { resolveLocation(d, clientId, phrase); any = true; }
+        }
         return any;
     }
+
+    /** "at the church hall" / "the meeting will be held at …" / "location is …" → the place itself. */
+    private static final Pattern LOCATION_MARK = Pattern.compile(
+        "(?i)(?:\\b(?:held|hosted|happening|taking place)\\s+)?\\b(?:at|in|location(?:\\s+is|:)?|venue(?:\\s+is|:)?|place(?:\\s+is|:)?|address(?:\\s+is|:)?)\\s+(.+)$");
+    private static final Pattern BARE_HOUR = Pattern.compile("^\\s*(?:at\\s+)?(\\d{1,2})\\s*(?:o'?clock)?[.!]?\\s*$", Pattern.CASE_INSENSITIVE);
+
+    private static String stripLocationFiller(String phrase) {
+        String p = phrase == null ? "" : phrase.trim();
+        p = p.replaceAll("(?i)^(?:it(?:'s| is| will be)|the meeting(?:'s| is| will be)|we(?:'ll| will) (?:meet|be)|let'?s (?:meet|do it))\\s+", "");
+        p = p.replaceAll("(?i)^(?:held|hosted|happening|taking place)\\s+", "");
+        p = p.replaceAll("(?i)^(?:at|in|location(?:\\s+is|:)?|venue(?:\\s+is|:)?|place(?:\\s+is|:)?|address(?:\\s+is|:)?)\\s+", "");
+        p = p.replaceAll("[.!,;]+$", "").replaceAll("\\s+", " ").trim();
+        p = p.replaceAll("(?i)(?:\\s+(?:on|at|for|from|by|and|with|starting|from))+$", "").trim();   // left behind when the date/time was cut out
+        if (NOT_A_PLACE.matcher(p).matches()) return "";              // "in November", "in the morning" are not places
+        return p.length() > 200 ? p.substring(0, 200) : p;
+    }
+
+
+
+    /**
+     * A member's home (the Meetings page's picker: members with their own address) when the
+     * phrase names exactly one such member; several → the user is asked which; otherwise the
+     * phrase is kept as a typed address, as the page lets you type one.
+     */
+    void resolveLocation(Draft d, String clientId, String phrase) {
+        d.locChoiceIds = null; d.locChoiceLabels = null;
+        boolean homeWords = phrase.matches("(?i).*\\b(home|house|place|residence|apartment|flat)\\b.*") || phrase.matches(".*['\u2019]s?\\b.*");
+        String name = phrase.replaceAll("(?i)\\b(?:the|at|in)\\b", " ")
+                            .replaceAll("(?i)['\u2019]s?\\b", " ")
+                            .replaceAll("(?i)\\b(home|house|place|residence|apartment|flat|family|families|of)\\b", " ")
+                            .replaceAll("\\s+", " ").trim();
+        List<com.churchgeniuspro.hibernate.FamilyMember> hits = new ArrayList<>();
+        if (memberRepo != null && !name.isEmpty() && name.split(" ").length <= 3) {
+            String want = name.toLowerCase(Locale.ROOT);
+            List<com.churchgeniuspro.hibernate.FamilyMember> all = memberRepo.findAllMembersWithOwnAddressByAppUser(clientId);
+            for (com.churchgeniuspro.hibernate.FamilyMember m : all)
+                if (fullName(m).toLowerCase(Locale.ROOT).equals(want)) hits.add(m);
+            if (hits.isEmpty()) {
+                for (com.churchgeniuspro.hibernate.FamilyMember m : all) {
+                    String f = lc(m.getFirstName()), l = lc(m.getLastName());
+                    if ((!f.isEmpty() && f.equals(want)) || (!l.isEmpty() && l.equals(want))) hits.add(m);
+                }
+            }
+        }
+        if (hits.size() == 1) { setMember(d, hits.get(0)); return; }
+        if (hits.size() > 1) {
+            d.locChoiceIds = new ArrayList<>(); d.locChoiceLabels = new ArrayList<>();
+            for (com.churchgeniuspro.hibernate.FamilyMember m : hits) {
+                if (d.locChoiceIds.size() >= 8) break;
+                d.locChoiceIds.add(m.getId()); d.locChoiceLabels.add(fullName(m));
+            }
+            return;
+        }
+        if (homeWords && memberRepo != null && !name.isEmpty() && name.matches("(?i)[\\p{L} .'\\-]+")) {
+            // "Mark's house" but no Mark with an address on file: say so instead of storing "Mark's house".
+            d.locChoiceIds = null; d.locLabel = null; d.notFoundHome = name;
+            return;
+        }
+        d.locMemberId = null; d.locLabel = cap100(phrase); d.addr1 = cap100(phrase);
+        d.addr2 = null; d.city = null; d.state = null; d.country = null; d.pin = null;
+    }
+
+    private void setMemberLocation(Draft d, String clientId, Integer memberId) {
+        if (memberRepo == null) return;
+        for (com.churchgeniuspro.hibernate.FamilyMember m : memberRepo.findAllMembersWithOwnAddressByAppUser(clientId))
+            if (m.getId() != null && m.getId().equals(memberId)) { setMember(d, m); return; }
+    }
+
+    /** Exactly what the page's selectLocation() does: the member id plus their address fields. */
+    private static void setMember(Draft d, com.churchgeniuspro.hibernate.FamilyMember m) {
+        d.locMemberId = m.getId();
+        d.addr1 = m.getAddress1(); d.addr2 = m.getAddress2(); d.city = m.getCity();
+        d.state = m.getState(); d.country = m.getCountry(); d.pin = m.getPinCode();
+        String addr = joinAddr(m.getAddress1(), m.getCity());
+        d.locLabel = fullName(m) + "\u2019s home" + (addr.isEmpty() ? "" : " (" + addr + ")");
+        d.locChoiceIds = null; d.locChoiceLabels = null; d.notFoundHome = null;
+    }
+
+    private static Integer pickChoice(Draft d, String reply) {
+        String r = reply.trim().toLowerCase(Locale.ROOT).replaceAll("[.!]+$", "");
+        Matcher num = Pattern.compile("^(?:number\\s+|#)?(\\d)$").matcher(r);
+        if (num.matches()) { int i = Integer.parseInt(num.group(1)) - 1; return i >= 0 && i < d.locChoiceIds.size() ? d.locChoiceIds.get(i) : null; }
+        Integer hit = null;
+        for (int i = 0; i < d.locChoiceLabels.size(); i++) {
+            String lab = d.locChoiceLabels.get(i).toLowerCase(Locale.ROOT);
+            if (r.equals(lab) || r.contains(lab)) return d.locChoiceIds.get(i);
+            String last = lab.contains(" ") ? lab.substring(lab.lastIndexOf(' ') + 1) : lab;
+            if (r.equals(last) || r.matches(".*\\b" + Pattern.quote(last) + "\\b.*")) { if (hit != null) return null; hit = d.locChoiceIds.get(i); }
+        }
+        return hit;
+    }
+
+    private static String joinAddr(String a1, String city) {
+        String a = a1 == null ? "" : a1.trim(), c = city == null ? "" : city.trim();
+        return a.isEmpty() ? c : (c.isEmpty() ? a : a + ", " + c);
+    }
+    private static String fullName(com.churchgeniuspro.hibernate.FamilyMember m) {
+        return ((m.getFirstName() == null ? "" : m.getFirstName().trim()) + " " + (m.getLastName() == null ? "" : m.getLastName().trim())).trim();
+    }
+    private static String lc(String s) { return s == null ? "" : s.trim().toLowerCase(Locale.ROOT); }
+    private static String cap100(String s) { return s == null ? null : (s.length() > 200 ? s.substring(0, 200) : s); }
 
     private static String cleanProbe(String probe) {
         return probe.replaceAll("(?i)\\b(a|an|the|new|one[- ]time|single|meeting|for|on|at|in|called|named|titled|please|me|us|with|about|it|is|will be)\\b", " ")
@@ -337,6 +566,9 @@ public class AiMeetingCreateService {
 
     private static final String MONTHS = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
     private static final String DAYS = "(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?)";
+    private static final Pattern NOT_A_PLACE = Pattern.compile(
+        "(?i)^(?:the\\s+)?(?:" + MONTHS + "|" + DAYS + "|morning|afternoon|evening|night|noon|week|weekend|month|year|today|tomorrow|tonight|"
+        + "next (?:week|month|year)|this (?:week|month|year)|a (?:week|month)|\\d+\\s+(?:days?|weeks?|months?))(?:\\s+\\d{4})?$");
     private static final Pattern ISO = Pattern.compile("\\b(\\d{4})-(\\d{2})-(\\d{2})\\b");
     private static final Pattern SLASH = Pattern.compile("\\b(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?\\b");
     private static final Pattern MON_DAY = Pattern.compile("(?i)\\b" + MONTHS + "\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b");
@@ -463,6 +695,9 @@ public class AiMeetingCreateService {
     static String fmtDate(LocalDate d) { return d.format(DATE_FMT); }
     static String fmtTime(LocalTime t) { return t.format(TIME_FMT); }
     static String hhmm(LocalTime t) { return String.format("%02d:%02d", t.getHour(), t.getMinute()); }
+    private static String locationText(Draft d) {
+        return d.locLabel == null ? "" : " at " + d.locLabel;
+    }
     private static String timeText(Draft d) {
         if (d.start == null) return " (no time set)";
         return " at " + fmtTime(d.start) + (d.end == null ? "" : " – " + fmtTime(d.end));

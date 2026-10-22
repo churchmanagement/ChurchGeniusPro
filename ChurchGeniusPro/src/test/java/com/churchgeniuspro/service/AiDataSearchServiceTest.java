@@ -149,26 +149,111 @@ class AiDataSearchServiceTest {
     @Test
     void personTitheThisMonth() {
         asRole("Admin");
-        LocalDate today = LocalDate.now();
-        LocalDate from = today.withDayOfMonth(1);
-        when(incomeRepo.findRangeByAppClientId(CID, from, from.plusMonths(1).minusDays(1)))
-                .thenReturn(List.of(
-                        income(1, "Tithe", "200.00", from.plusDays(3)),
-                        income(1, "Building Fund", "75.00", from.plusDays(4)),
-                        income(3, "Tithe", "60.00", from.plusDays(5))));
+        LocalDate today = com.churchgeniuspro.util.AppClock.today();
+        LocalDate from = today.withDayOfMonth(1), to = from.plusMonths(1).minusDays(1);
+        // One aggregate + the newest rows for member 1 only, tithe funds only (titheOnly = true).
+        when(incomeRepo.aiMemberGivingTotals(CID, 1, java.sql.Date.valueOf(from), java.sql.Date.valueOf(to), true))
+                .thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("200.00"), 1L }));
+        when(incomeRepo.aiMemberGivingRows(CID, 1, java.sql.Date.valueOf(from), java.sql.Date.valueOf(to), true, 5))
+                .thenReturn(List.<Object[]>of(new Object[] { java.sql.Date.valueOf(from.plusDays(3)), new BigDecimal("200.00"), "Tithe", null }));
         Map<String, Object> r = svc.answer(req, CID, "Did Anson give tithe this month?");
         String a = String.valueOf(r.get("answer"));
         assertTrue(a.startsWith("Yes"), a);
-        assertTrue(a.contains("$200.00"), a);          // tithe only — Building Fund excluded
+        assertTrue(a.contains("$200.00"), a);          // tithe only — the aggregate was asked for tithe funds
         assertFalse(a.contains("$275"), a);
+        verify(incomeRepo, never()).findRangeByAppClientId(anyString(), any(), any());   // no full-period load any more
     }
 
     @Test
     void personTitheNone() {
         asRole("Admin");
-        when(incomeRepo.findRangeByAppClientId(anyString(), any(), any())).thenReturn(List.of());
+        when(incomeRepo.aiMemberGivingTotals(anyString(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(List.<Object[]>of(new Object[] { BigDecimal.ZERO, 0L }));
         Map<String, Object> r = svc.answer(req, CID, "Did Maria give tithe this month?");
         assertTrue(String.valueOf(r.get("answer")).startsWith("No"), String.valueOf(r.get("answer")));
+    }
+
+    /* ── synonyms and different ways of asking (one person's giving) ─────────────── */
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "What is Anson's contribution this month?",
+        "How much has Anson donated this month?",
+        "How much did Anson give this month?",
+        "Show Anson's donations this month.",
+        "Anson's offerings this month",
+        "Has Anson given anything this month?",
+        "What gifts did Anson Mathew make this month?",
+        "contributions from Anson this month",
+    })
+    void everyWayOfAskingAnswersForThatPersonAndPeriod(String question) {
+        asRole("Admin");
+        LocalDate today = com.churchgeniuspro.util.AppClock.today();
+        LocalDate from = today.withDayOfMonth(1), to = from.plusMonths(1).minusDays(1);
+        when(incomeRepo.aiMemberGivingTotals(CID, 1, java.sql.Date.valueOf(from), java.sql.Date.valueOf(to), false))
+                .thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("125.00"), 2L }));
+        when(incomeRepo.aiMemberGivingRows(CID, 1, java.sql.Date.valueOf(from), java.sql.Date.valueOf(to), false, 5))
+                .thenReturn(List.<Object[]>of(new Object[] { java.sql.Date.valueOf(from), new BigDecimal("100.00"), "Tithe", "pi_1" },
+                                              new Object[] { java.sql.Date.valueOf(from), new BigDecimal("25.00"), "Building", null }));
+        Map<String, Object> r = svc.answer(req, CID, question);
+        String a = String.valueOf(r.get("answer"));
+        assertEquals("contributions", r.get("intent"), question);
+        assertTrue(a.contains("Anson Mathew") && a.contains("$125.00") && a.contains("2 contributions") && a.contains("this month"), question + " → " + a);
+        @SuppressWarnings("unchecked") Map<String, String> period = (Map<String, String>) r.get("period");
+        assertEquals(from.toString(), period.get("from")); assertEquals(to.toString(), period.get("to"));
+        verify(incomeRepo, never()).aiIncomeTotals(anyString(), any(), any());          // never the church-wide total
+    }
+
+    @Test
+    void personAndExplicitPeriodAreBothExtracted() {
+        asRole("Admin");
+        int y = com.churchgeniuspro.util.AppClock.today().getYear();
+        when(incomeRepo.aiMemberGivingTotals(CID, 3, java.sql.Date.valueOf(LocalDate.of(y, 9, 1)), java.sql.Date.valueOf(LocalDate.of(y, 9, 30)), false))
+                .thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("60.00"), 1L }));
+        when(incomeRepo.aiMemberGivingRows(anyString(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(List.of());
+        Map<String, Object> r = svc.answer(req, CID, "How much did Peter Thomas give in September?");
+        assertTrue(String.valueOf(r.get("answer")).contains("Peter Thomas gave $60.00 in September"), String.valueOf(r.get("answer")));
+    }
+
+    @Test
+    void twoMembersWithTheSameFirstNameAreNotGuessed() {
+        asRole("Admin");
+        when(memberRepo.findAllWithFamilyByAppUser(anyString())).thenReturn(List.of(
+                member(1, "Anson", "Mathew", null, null, null, null, null, null),
+                member(7, "Anson", "Lee", null, null, null, null, null, null)));
+        Map<String, Object> r = svc.answer(req, CID, "How much did Anson give this month?");
+        assertEquals("clarify", r.get("intent"));
+        assertTrue(String.valueOf(r.get("answer")).contains("Anson Mathew") && String.valueOf(r.get("answer")).contains("Anson Lee"));
+        verify(incomeRepo, never()).aiMemberGivingTotals(anyString(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void unknownPersonIsSaidSoNeverAnsweredWithTheChurchTotal() {
+        asRole("Admin");
+        Map<String, Object> r = svc.answer(req, CID, "How much did Zebulon give this month?");
+        assertTrue(String.valueOf(r.get("answer")).contains("could not find an active member named “Zebulon”"), String.valueOf(r.get("answer")));
+        verify(incomeRepo, never()).aiIncomeTotals(anyString(), any(), any());
+        verify(incomeRepo, never()).findRangeByAppClientId(anyString(), any(), any());
+    }
+
+    @Test
+    void onePersonsGivingNeedsTheIncomePageRuleEvenWithReports() {
+        asRole("Accountant");
+        when(session.getAttribute("privileges")).thenReturn("{\"accounting.income\":false}");   // Reports yes, Income records no
+        for (String q : new String[] { "How much did Anson give this month?", "How much did Zebulon donate this month?" }) {
+            Map<String, Object> r = svc.answer(req, CID, q);
+            assertEquals(true, r.get("denied"), q);
+        }
+        verify(incomeRepo, never()).aiMemberGivingTotals(anyString(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void memberPortalNeverGetsAnotherPersonsGiving() {
+        asMemberPortal();
+        Map<String, Object> r = svc.answer(req, CID, "How much did Anson give this month?");
+        assertEquals(true, r.get("denied"));
+        verify(incomeRepo, never()).aiMemberGivingTotals(anyString(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     @Test

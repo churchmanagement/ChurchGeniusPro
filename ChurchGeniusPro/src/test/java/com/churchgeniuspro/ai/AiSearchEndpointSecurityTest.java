@@ -203,7 +203,7 @@ class AiSearchEndpointSecurityTest {
         AiAccessPolicy policy = new AiAccessPolicy();
         AiDataSearchController ctl = new AiDataSearchController(new AiDataSearchService(memberRepo, incomeRepo, volunteerRepo, policy),
                 new com.churchgeniuspro.service.AiMeetingCreateService(typeRepo, meetingRepo, meetingService, policy));
-        String ask = "Create a Bible Study meeting tomorrow at 7pm";
+        String ask = "Create a Bible Study meeting tomorrow at 7pm in the fellowship hall";
 
         // Staff with the page + edit permission: parsed and shown back, nothing written yet.
         MockHttpServletRequest admin = staff("Admin");

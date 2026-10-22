@@ -85,6 +85,7 @@ class AiSearchTenantIsolationIT {
     @Autowired ChurchEventRepository eventRepo; @Autowired KmChildRepository kmChildRepo; @Autowired KmClassroomRepository kmClassroomRepo;
     @Autowired PledgeCampaignRepository campaignRepo; @Autowired PledgeMemberRepository pledgeRepo;
     @Autowired MeetingRepository meetingRepo; @Autowired MeetingTypeRepository meetingTypeRepo;
+    @Autowired PublicScreenLinkRepository publicLinkRepo;
 
     LocalDate today;
     Integer bMemberId, bRoleIdInt, bTypeId, bCampaignId, bClassroomInt; Long bRoleId, bClassroomId;
@@ -136,6 +137,8 @@ class AiSearchTenantIsolationIT {
         MeetingType mt = new MeetingType(); mt.setTypeName(tag + " Study"); mt.setAppClientId(cid); mt = meetingTypeRepo.save(mt);
         Meeting m = new Meeting(); m.setAppClientId(cid); m.setMeetingType(mt); m.setMeetingDate(today.plusDays(2)); m.setStartTime("19:00"); m.setOccurrence("One-time"); meetingRepo.save(m);
         if (cid.equals(B)) bTypeId = mt.getId(); else aTypeId = mt.getId();
+        PublicScreenLink pl = new PublicScreenLink(); pl.setAppClientId(cid); pl.setPageLabel(tag + " Connect"); pl.setPageUrl("/connect");
+        pl.setToken(tag + "TOKEN" + System.nanoTime()); pl.setRevoked(false); publicLinkRepo.save(pl);
     }
 
     FamilyMember member(Family f, String first, String last, String role, String gender) {
@@ -173,6 +176,16 @@ class AiSearchTenantIsolationIT {
         assertThat(answerA("upcoming volunteer assignments")).contains("Alpha Usher").contains("AlphaHead");
         assertThat(answerA("kids ministry children")).contains("AlphaChild").contains("Alpha Lambs");
         assertThat(answerA("children in family records")).contains("AlphaKid");
+    }
+
+    @Test @DisplayName("public links: only the caller's church's links, as named links to the real public address")
+    @SuppressWarnings("unchecked")
+    void publicLinksAreTenantScoped() {
+        Map<String, Object> r = structured.route("show the public links", full("pat"), A, today);
+        List<Map<String, String>> links = (List<Map<String, String>>) r.get("publicLinks");
+        assertThat(links).extracting(l -> l.get("label")).containsExactly("Alpha Connect");
+        assertThat(links.get(0).get("url")).startsWith("/connect?c=AlphaTOKEN");
+        assertThat(String.valueOf(r)).doesNotContain(MARK);
     }
 
     @Test @DisplayName("a non-admin sees only follow-ups assigned to them — within their own tenant")
@@ -222,12 +235,23 @@ class AiSearchTenantIsolationIT {
         Map<String, Object> ask = meetingCreate.handle(r, A, "Create a " + MARK + " Study meeting on " + today.plusDays(10) + " at 7pm");
         assertThat(ask.get("intent")).isEqualTo("meeting.ask");
         assertThat(String.valueOf(ask.get("answer"))).contains("Alpha Study").doesNotContain(MARK);
-        // Tenant A's own category → confirm → created under A only.
-        Map<String, Object> c = meetingCreate.handle(r, A, "Create an Alpha Study meeting on " + today.plusDays(10) + " at 7pm");
+        // Tenant B's member named as the host is not found for Tenant A (no address of theirs is used).
+        Map<String, Object> loc = meetingCreate.handle(r, A, "Create an Alpha Study meeting on " + today.plusDays(10) + " at 7pm at " + MARK + "Head " + MARK + "Family's house");
+        assertThat(loc.get("asking")).isEqualTo("location");
+        assertThat(String.valueOf(loc)).doesNotContain("home (");
+        // Tenant A's own member's home → confirm → created under A only, with A's member as the location.
+        Map<String, Object> c = meetingCreate.handle(r, A, "Create an Alpha Study meeting on " + today.plusDays(10) + " at 7pm at AlphaHead AlphaFamily's house");
         assertThat(c.get("intent")).isEqualTo("meeting.confirm");
         @SuppressWarnings("unchecked") String token = String.valueOf(((Map<String, Object>) c.get("confirm")).get("token"));
         MockHttpServletRequest r2 = new MockHttpServletRequest(); r2.setSession(s);
-        assertThat(meetingCreate.confirm(r2, A, token).get("intent")).isEqualTo("meeting.created");
+        Map<String, Object> created = meetingCreate.confirm(r2, A, token);
+        assertThat(created.get("intent")).isEqualTo("meeting.created");
+        Integer newId = (Integer) created.get("meetingId");
+        assertThat(meetingRepo.findByIdAndAppClientIdAndDeleteFlagFalse(newId, A)).get()
+                .satisfies(m -> assertThat(m.getLocationMemberId()).isEqualTo(aMemberId));
+        assertThat(meetingRepo.findByIdAndAppClientIdAndDeleteFlagFalse(newId, B)).isEmpty();
+        @SuppressWarnings("unchecked") Map<String, String> link = (Map<String, String>) created.get("link");
+        assertThat(link).containsEntry("url", "/meetings?meetingId=" + newId);
         assertThat(meetingRepo.aiCountSameSlot(A, aTypeId, today.plusDays(10), "19:00")).isEqualTo(1);
         assertThat(meetingRepo.aiCountSameSlot(B, bTypeId, today.plusDays(10), "19:00")).isZero();
         assertThat(meetingRepo.findByAppClientIdAndDeleteFlagFalse(B)).hasSize(1);

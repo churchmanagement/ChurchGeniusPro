@@ -369,16 +369,73 @@ class AiStructuredAnswerServiceTest {
         verify(kmChildRepo, never()).countByClientIdAndDeleteFlagFalseAndInactiveFalse(eq("other"));
     }
 
-    @Test @DisplayName("public links: not revoked and not expired; label, page and expiry only — the token never appears")
-    void publicLinks() {
-        PublicScreenLink live = new PublicScreenLink(); live.setPageLabel("Upcoming Events"); live.setPageUrl("/upcomingEvents"); live.setToken("SECRET-TOKEN-123"); live.setExpirationDate(LocalDate.of(2027, 1, 1));
-        PublicScreenLink expired = new PublicScreenLink(); expired.setPageLabel("Old"); expired.setPageUrl("/connect"); expired.setToken("SECRET-OLD"); expired.setExpirationDate(LocalDate.of(2026, 1, 1));
-        when(linkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(CID)).thenReturn(List.of(live, expired));
-        Map<String, Object> r = svc.route("show all public links", all(), CID, TODAY);
-        assertThat(rows(r)).hasSize(1);
-        assertThat(rows(r).get(0)).containsExactly("Upcoming Events", "/upcomingEvents", "2027-01-01");
-        assertThat(r.toString()).doesNotContain("SECRET");
+    static PublicScreenLink link(String cid, String label, String url, String token, LocalDate exp, boolean revoked) {
+        PublicScreenLink l = new PublicScreenLink(); l.setAppClientId(cid); l.setPageLabel(label); l.setPageUrl(url); l.setToken(token);
+        l.setExpirationDate(exp); l.setRevoked(revoked); return l;
+    }
+    @SuppressWarnings("unchecked") static List<Map<String, String>> publicLinks(Map<String, Object> m) { return (List<Map<String, String>>) m.get("publicLinks"); }
+
+    @Test @DisplayName("public links: the screen's NAME is the link, to the real public address; no internal route is shown")
+    void publicLinksAreNamedLinks() {
+        com.churchgeniuspro.service.PublicPagePolicy policy = mock(com.churchgeniuspro.service.PublicPagePolicy.class);
+        when(policy.mayPublish(anyString(), eq(CID))).thenReturn(true);
+        svc.setPublicPagePolicy(policy);
+        when(linkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(CID)).thenReturn(List.of(
+                link(CID, "Event Calendar", "/viewEventCalendar", "TOKCAL", LocalDate.of(2027, 1, 1), false),
+                link(CID, "", "/donate", "TOKDON", null, false)));
+        Map<String, Object> r = svc.route("show the public links", all(), CID, TODAY);
+        List<Map<String, String>> l = publicLinks(r);
+        assertThat(l).hasSize(2);
+        assertThat(l.get(0)).containsEntry("label", "Event Calendar").containsEntry("description", "View the church's public event calendar")
+                            .containsEntry("url", "/viewEventCalendar?cid=TOKCAL").containsEntry("expires", "2027-01-01");
+        // Blank stored label → the screen's own name; the donation page's address form is /donate/<token>.
+        assertThat(l.get(1)).containsEntry("label", "Donation Page").containsEntry("url", "/donate/TOKDON").containsEntry("expires", "No expiry");
+        // Same address the Public Screens page hands out.
+        assertThat(l.get(0).get("url")).isEqualTo(com.churchgeniuspro.controller.PublicScreensController.linkPath(
+                link(CID, "Event Calendar", "/viewEventCalendar", "TOKCAL", null, false)));
+        // No raw route as text anywhere: no table rows, no route in the answer or labels.
+        assertThat(r).doesNotContainKeys("rows", "columns");
+        assertThat(answer(r)).doesNotContain("/viewEventCalendar").doesNotContain("/donate");
+        assertThat(l).allSatisfy(x -> assertThat(x.get("label") + x.get("description") + x.get("expires")).doesNotContain("/").doesNotContain("TOK"));
+        // The token appears only inside each link's own address.
+        String withoutUrls = r.toString().replace("/viewEventCalendar?cid=TOKCAL", "").replace("/donate/TOKDON", "");
+        assertThat(withoutUrls).doesNotContain("TOKCAL").doesNotContain("TOKDON");
+    }
+
+    @Test @DisplayName("public links: revoked, expired, another church's, withdrawn/private pages, pages the plan no longer allows and token-less rows are all left out")
+    void publicLinksExclusions() {
+        com.churchgeniuspro.service.PublicPagePolicy policy = mock(com.churchgeniuspro.service.PublicPagePolicy.class);
+        when(policy.mayPublish(anyString(), eq(CID))).thenReturn(true);
+        when(policy.mayPublish(eq("/memberSignup"), eq(CID))).thenReturn(false);            // plan no longer includes it
+        svc.setPublicPagePolicy(policy);
+        when(linkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(CID)).thenReturn(List.of(
+                link(CID, "Connect", "/connect", "OK1", LocalDate.of(2027, 1, 1), false),
+                link(CID, "Old", "/connect", "EXPIRED", TODAY.minusDays(1), false),
+                link(CID, "Gone", "/connect", "REVOKED", null, true),
+                link("OTHER-CHURCH", "Theirs", "/connect", "FOREIGN", null, false),
+                link(CID, "Kiosk", "/private-access", "PRIVATE", null, false),
+                link(CID, "Prayer list", "/viewPrayerRequest", "WITHDRAWN", null, false),
+                link(CID, "Meetings", "/meetings", "INTERNAL", null, false),
+                link(CID, "Signup", "/memberSignup", "NOPLAN", null, false),
+                link(CID, "Blank", "/connect", "", null, false),
+                link(CID, "Today", "/kidsCheckin", "TODAY", TODAY, false)));                      // expires today = still valid today
+        Map<String, Object> r = svc.route("show the public links", all(), CID, TODAY);
+        assertThat(publicLinks(r)).extracting(x -> x.get("label")).containsExactly("Connect", "Today");
+        String all = r.toString();
+        for (String t : new String[] { "EXPIRED", "REVOKED", "FOREIGN", "PRIVATE", "WITHDRAWN", "INTERNAL", "NOPLAN", "private-access" })
+            assertThat(all).as(t).doesNotContain(t);
+    }
+
+    @Test @DisplayName("public links: without the publishing rule nothing is listed (unclear → deny); without the page rule → denied, no lookup")
+    void publicLinksDenyWhenUnclear() {
+        when(linkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(CID)).thenReturn(List.of(
+                link(CID, "Connect", "/connect", "OK1", null, false)));
+        Map<String, Object> r = svc.route("show the public links", all(), CID, TODAY);     // no PublicPagePolicy wired
+        assertThat(answer(r)).isEqualTo("There are no active public links.");
+        assertThat(r).doesNotContainKey("publicLinks");
+        org.mockito.Mockito.clearInvocations(linkRepo);
         assertThat(svc.route("list the generated public links", only("events"), CID, TODAY).get("denied")).isEqualTo(true);
+        verifyNoInteractions(linkRepo);
     }
 
     @Test @DisplayName("denied answers touch no repository at all, and unrelated questions are not handled here")
@@ -389,5 +446,47 @@ class AiStructuredAnswerServiceTest {
         verifyNoInteractions(incomeRepo, expenseRepo, memberRepo, prayerRepo, followUpRepo, assignmentRepo, eventRepo, reminderService, linkRepo, kmChildRepo, meetingRepo, campaignRepo);
         assertThat(svc.route("how do i add a family", all(), CID, TODAY)).isNull();
         assertThat(svc.route("anything", AiAccess.none("Member"), CID, TODAY)).isNull();
+    }
+
+    /* ── synonyms reach the same intent in every category (AiQueryLexicon → route) ─────── */
+
+    static String canon(String q) {
+        String n = q.toLowerCase(java.util.Locale.ROOT).replace("’", "'").replace("'s ", " ").replace("'", "")
+                    .replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+        return com.churchgeniuspro.service.AiQueryLexicon.canonical(n);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0} → {1}")
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "What was our revenue this month?           | income",
+        "How much money did we receive in September? | income",
+        "How much were the offerings this month?    | income",
+        "Who are the donors this month?             | contributors",
+        "Show the gifts received this month         | contributors",
+        "How much did we spend last month?          | expenses",
+        "What were our costs this month?            | expenses",
+        "Show the ledger for this month             | transactions",
+        "Any meetups coming up?                     | meetings",
+        "What gatherings and meetings are planned?  | meetings",
+        "Upcoming programs                          | events",
+        "What functions are coming up?              | events",
+        "Who is on duty this week?                  | volunteers",
+        "Which helpers are scheduled this week?     | volunteers",
+    })
+    void synonymsReachTheSameIntent(String question, String intent) {
+        Map<String, Object> r = svc.route(canon(question.trim()), all(), CID, TODAY);
+        assertThat(r).as(question).isNotNull();
+        assertThat(r.get("intent")).as(question).isEqualTo(intent.trim());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0} denied without the page rule")
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "What was our revenue this month?", "How much did we spend last month?", "Show the ledger for this month",
+        "Any meetups coming up?", "Upcoming programs", "Which helpers are scheduled this week?", "Who are the donors this month?" })
+    void synonymsDoNotBypassPermissions(String question) {
+        Map<String, Object> r = svc.route(canon(question), nothing(), CID, TODAY);
+        assertThat(r).as(question).isNotNull();
+        assertThat(r.get("denied")).as(question).isEqualTo(true);
+        verifyNoInteractions(incomeRepo, expenseRepo, meetingRepo, eventRepo, assignmentRepo);
     }
 }

@@ -20,16 +20,17 @@ const { chromium } = require('playwright');
   d = await ask('Create a ' + typeName + ' meeting every Tuesday at 7pm'); show('recurring', d);
   // 3. missing category → ask → reply
   d = await ask('Create a meeting on 2027-01-20 at 7pm'); show('missing category', d);
-  d = await ask(typeName); show('reply category', d);
+  d = await ask(typeName); show('reply category (→ location asked)', d);
+  d = await ask('the fellowship hall'); show('reply location', d);
   const token = d.confirm && d.confirm.token;
   // 4. button confirm (API) → created; second use → expired
   d = await page.evaluate(t => fetch('/api/ai-search/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: t }) }).then(r => r.json()), token); show('confirm #1', d);
   d = await page.evaluate(t => fetch('/api/ai-search/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: t }) }).then(r => r.json()), token); show('confirm #2 (same token)', d);
   // 5. duplicate detection through spoken yes
-  d = await ask('Create a ' + typeName + ' meeting on January 20 2027 at 7 pm'); show('same slot again', d);
+  d = await ask('Create a ' + typeName + ' meeting on January 20 2027 at 7 pm in the fellowship hall'); show('same slot again', d);
   d = await ask('yes'); show('yes', d);
   // 6. ambiguous hour
-  d = await ask('Schedule a ' + typeName + ' meeting tomorrow at 7'); show('ambiguous hour', d);
+  d = await ask('Schedule a ' + typeName + ' meeting tomorrow at 7 in the hall'); show('ambiguous hour', d);
   d = await ask('cancel'); show('cancel', d);
   const after = await page.evaluate(() => fetch('/api/meetings').then(r => r.json()));
   console.log('meetings after:', after.length, '(expected +1)');
@@ -37,7 +38,7 @@ const { chromium } = require('playwright');
   console.log('created row:', created ? JSON.stringify({ type: created.meetingTypeName, date: created.meetingDate, start: created.startTime, occ: created.occurrence }) : 'NOT FOUND');
   // 7. UI: bar flow on Home with the Create button
   await page.goto('http://localhost:8080/home'); await page.waitForTimeout(2000);
-  await page.fill('#aiSearchInput', 'Create a ' + typeName + ' meeting on 2027-02-10 at 6:30pm'); await page.click('#aiSearchBtn'); await page.waitForTimeout(2500);
+  await page.fill('#aiSearchInput', 'Create a ' + typeName + ' meeting on 2027-02-10 at 6:30pm in the fellowship hall'); await page.click('#aiSearchBtn'); await page.waitForTimeout(2500);
   console.log('bar shows Create button:', await page.locator('.aa-confirm').count(), '| summary cells:', await page.locator('#aiResultsWrap .aa-sum').count());
   await page.locator('.aa-confirm').first().click(); await page.waitForTimeout(2500);
   console.log('bar after click:', (await page.locator('#aiResultsWrap .ai-answer').last().textContent()).slice(0, 140));
@@ -45,7 +46,7 @@ const { chromium } = require('playwright');
   console.log('meetings after UI:', after2.length, '(expected +2 total)');
   // 8. chat page flow
   await page.goto('http://localhost:8080/ai-assistant'); await page.waitForTimeout(2500);
-  await page.fill('#aiSearchInput', 'Create a ' + typeName + ' meeting on 2027-03-15 at 9am'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500);
+  await page.fill('#aiSearchInput', 'Create a ' + typeName + ' meeting on 2027-03-15 at 9am in the chapel'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500);
   console.log('chat shows Create button:', await page.locator('.aa-confirm').count());
   await page.locator('.aa-cancel').first().click(); await page.waitForTimeout(1500);
   console.log('chat after cancel, buttons left:', await page.locator('.aa-confirm').count());

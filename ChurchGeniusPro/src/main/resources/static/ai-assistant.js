@@ -499,7 +499,12 @@
     // Explicit "Go to / Open <page>" → navigate immediately (handles new-tab,
     // permissions, dynamic public links). Runs in every mode and pre-empts the
     // Converse follow-up trees so direct commands are never intercepted.
-    if (directNav(query)){ if(input) input.value=''; assistDone(g); return; }
+    //
+    // A specific DATA question ("Show Anson's donations this month", "Open expenses for
+    // September") is asked of the server first even when it starts with a command verb;
+    // only if the server does not handle it does the direct-navigation shortcut run.
+    var dataFirst = looksLikeDataQuestion(query) && looksSpecific(query);
+    if (!dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
 
     // ── Natural-language DATA questions ("When is Anson's birthday?",
     //    "What was the income for March?", "Who are the volunteers?").
@@ -523,6 +528,7 @@
           finishTiming(); assistDone(g); if(input) input.value='';
           return;
         }
+        if (dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
         assistFlow(query, input, g);   // not a data question after all → normal flow
       });
       return;
@@ -574,8 +580,18 @@
     _hintTimer=setTimeout(function(){ if (h.textContent===text) h.textContent=prev; }, 2500);
   }
   var _aaServerPending=false;
+  // Kept in step with the server's vocabulary (AiQueryLexicon): every synonym the server maps
+  // must also bring the question to the server, or the bar answers it as navigation instead.
   function looksLikeDataQuestion(q){
-    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
+    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
+  }
+  // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
+  // — i.e. asks for data rather than for a page.
+  function looksSpecific(q){
+    return /\b[A-Za-z]+(?:'|\u2019)s\b/.test(q)
+        || /\b(today|yesterday|tomorrow|this|last|next|past|previous|since|between|during|so far|year to date|ytd|weekly|monthly|quarter|q[1-4]|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|\d{4})\b/i.test(q)
+        || /^\s*(how much|how many|what|who|which|whose|did|has|have|does|do|is|are|was|were|when)\b/i.test(q)
+        || /\b(did|has|have)\s+[A-Z][a-z]+\s+(give|gave|given|donate|donated|contribute|contributed|tithe|tithed)\b/.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {
@@ -780,6 +796,21 @@
         d.rows.forEach(function(r){ html+='<tr>'; (r||[]).forEach(function(c){ html+='<td>'+esc(c==null?'':c)+'</td>'; }); html+='</tr>'; });
         html+='</tbody></table></div>';
         if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.rows.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open the page for the full list.</div>';
+      }
+      // Public screens: the screen's name is the link (its real public address from the server);
+      // only a same-site relative address is ever turned into a link.
+      if (Array.isArray(d.publicLinks) && d.publicLinks.length){
+        html+='<ul class="aa-publinks">';
+        d.publicLinks.forEach(function(l){
+          var url=String((l&&l.url)||'');
+          var safe=/^\/(?!\/)[^\s"'<>\\]*$/.test(url);
+          html+='<li>'+(safe ? '<a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(l.label||'Public screen')+'</a>' : '<span>'+esc(l.label||'Public screen')+'</span>')
+            +(l.description ? ' <span class="aa-pl-desc">\u2014 '+esc(l.description)+'</span>' : '')
+            +(l.expires ? ' <span class="aa-pl-exp">('+esc(l.expires==='No expiry' ? 'no expiry' : 'expires '+l.expires)+')</span>' : '')
+            +'</li>';
+        });
+        html+='</ul>';
+        if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.publicLinks.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open Public Screens for the full list.</div>';
       }
       // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
       // The token is single-use on the server, so a double click cannot create two meetings.
@@ -1206,6 +1237,11 @@
       '.aa-open{border:none;background:#673147;color:#fff;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;}',
       '.aa-open.alt{background:#fff;color:#673147;border:1.5px solid #c5a0b5;}',
       '.aa-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;}',
+      '.aa-publinks{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;}',
+      '.aa-publinks li{border:1px solid #eadfe6;background:#fbf7f9;border-radius:9px;padding:8px 11px;font-size:13.5px;line-height:1.4;}',
+      '.aa-publinks a{color:#673147;font-weight:700;text-decoration:underline;}',
+      '.aa-pl-desc{color:#555;}',
+      '.aa-pl-exp{color:#8a7a82;font-size:12px;}',
       '.aa-actions-note{font-size:11.5px;color:#9a7d8b;}',
       '#aiResultsWrap .aa-sum-v.aa-sum-sm{font-size:13.5px;}',
       '.aa-toast{margin-top:8px;font-size:12.5px;color:#a23;background:#fdeef0;border:1px solid #f3cfd5;border-radius:7px;padding:7px 10px;}',

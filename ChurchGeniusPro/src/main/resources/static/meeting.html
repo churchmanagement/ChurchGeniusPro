@@ -1025,6 +1025,17 @@
   ════════════════════════════════════ */
   (async function init() {
     await Promise.all([loadMeetingTypes(), loadLocations(), loadMeetings()]);
+    // /meetings?meetingId=<id> (the link the AI Search shows after it creates a meeting):
+    // open that meeting in the form with the page's own editMeeting(), which loads it from
+    // GET /api/meetings/{id} — tenant-scoped, and a clear message if it no longer exists.
+    try {
+      const wantId = new URLSearchParams(window.location.search).get('meetingId');
+      if (wantId && /^\d{1,10}$/.test(wantId)) {
+        await editMeeting(parseInt(wantId, 10));
+        const ft = document.getElementById('formTitle');
+        if (ft && ft.scrollIntoView) ft.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (e) { /* the list still loads normally */ }
     // Auto-purge is restricted to Admin/SuperAdmin with the meetings-delete
     // permission (backend RoleGuard.requireAdmin + general.meetings.delete).
     // Only call it when the user qualifies, so other roles don't trigger a 403.

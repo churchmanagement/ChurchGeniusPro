@@ -16,12 +16,19 @@ Maven build: run them by hand after `./scripts/build.sh` and a local start.
     node scripts/ai-search-checks/ai-data-check.cjs   # Phase B data intents
     node scripts/ai-search-checks/ai-report-check.cjs # Phase C period reports vs the report endpoints
     node scripts/ai-search-checks/ai-gate-check.cjs   # Phase A feature gate
+    node scripts/ai-search-checks/ai-synonym-meeting-links-check.cjs  # synonyms (API + bar), the 4-question meeting flow + link, public-link names (creates and deletes 1 meeting)
+    node scripts/ai-search-checks/ai-synonym-perm-check.cjs           # the new wordings stay denied for User / Member / Accountant without Income (needs the privilege rows below)
 
 `ai-e2e-roles2.cjs` expects these temporary privilege rows (restore afterwards):
 
     update family_member set member_privileges='{"more.aiassistant":true,"member.directory":true,"member.family":true}' where id=5;
     update family_member set member_privileges='{"more.aiassistant":true}' where id=27;
     update app_user set privileges='{"general.meetings":false}' where user_id='USRb480eaeb-121e-4cae-8dcc-a49f383056f7';
+
+`ai-synonym-perm-check.cjs` expects (restore afterwards):
+
+    update family_member set member_privileges='{"more.aiassistant":true,"member.directory":true}' where id=5;
+    update app_user set privileges='{"accounting.income":false}' where user_id='USR6072faa0-4ccc-416d-bc27-50d2a73b3820';
 
 The database-level tenant isolation test is a Maven integration test:
 `AiSearchTenantIsolationIT` (runs on `verify` with Docker, or against `CGP_IT_JDBC_URL`).

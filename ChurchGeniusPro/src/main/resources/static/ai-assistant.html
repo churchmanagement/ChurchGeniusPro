@@ -51,6 +51,10 @@
     .bubble .aa-suggest { background: #fff; }
     .bubble .aa-summary { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .bubble .aa-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .bubble .aa-publinks { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+    .bubble .aa-publinks li { border:1px solid #eadfe6; background:#fff; border-radius:9px; padding:8px 11px; }
+    .bubble .aa-publinks a { color:#673147; font-weight:700; text-decoration:underline; }
+    .bubble .aa-pl-desc { color:#555; } .bubble .aa-pl-exp { color:#8a7a82; font-size:12px; }
     .bubble .aa-actions-note { font-size:11.5px; color:#9a7d8b; }
     .bubble .aa-sum-v.aa-sum-sm { font-size:13.5px; }
     .bubble .aa-sum { flex:1 1 120px; min-width:110px; background:#fff; border:1px solid #eadfe6; border-radius:9px; padding:8px 10px; }
@@ -268,7 +272,7 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
         // Page suggestions (Open / New tab) and the Help Center link come across as-is;
         // the engine's own listeners are dropped (cloned) — the transcript wires them once.
         // Structured data answers (summary strip / bounded table) come across as-is too.
-        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-more, .aa-actions').forEach(function (el) { html += el.outerHTML; });
+        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-publinks, .aa-more, .aa-actions').forEach(function (el) { html += el.outerHTML; });
         card.querySelectorAll('.aa-suggest').forEach(function (sg) { sg.querySelectorAll('.aa-open').forEach(function (b) { b.parentNode.replaceChild(b.cloneNode(true), b); }); html += sg.outerHTML; });
         var more = card.querySelector('a[href="/helpCenter"]');
         if (more) html += '<div class="aa-more">Need more detail? <a href="/helpCenter">Open the full Help Center →</a></div>';
