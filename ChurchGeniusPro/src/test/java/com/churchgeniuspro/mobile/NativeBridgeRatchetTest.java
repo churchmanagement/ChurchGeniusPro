@@ -82,6 +82,31 @@ class NativeBridgeRatchetTest {
         assertThat(csp).contains("connect-src 'self' blob: data: https://api.stripe.com");
     }
     @Test
+    @DisplayName("after a deploy the app reloads on resume (or offers Reload when something was typed); browsers untouched, no logout side effect, no loop")
+    void reloadsAfterDeployOnResume() throws Exception {
+        String js = read("native-bridge.js");
+        int gate = js.indexOf("if (!isNative) return;");
+        assertThat(js.substring(0, gate)).doesNotContain("app-version").doesNotContain("checkForNewVersion");
+        int sec = js.indexOf("9. pick up a new deployment");
+        assertThat(sec).isGreaterThan(gate);
+        assertThat(js.indexOf("8. biometric sign-in")).as("kept before the biometric section").isGreaterThan(sec);
+        String s9 = js.substring(sec, js.indexOf("8. biometric sign-in"));
+        assertThat(s9).contains("x.open('GET', '/api/app-version?t='")               // XHR: bypasses session.js's fetch 401 → logout
+                      .doesNotContain("fetch('/api/app-version'")
+                      .contains("P.App.addListener('resume', checkForNewVersion)")
+                      .contains("document.visibilityState === 'visible'")
+                      .contains("VERSION_CHECK_MIN_MS = 60 * 1000")
+                      .contains("if (seen.indexOf(v) >= 0) return;")              // one reload per version → no loop
+                      .contains("if (pageDirty) showUpdateBar(); else location.reload();")
+                      .contains("document.addEventListener('input', function () { pageDirty = true; }, true);")
+                      .contains("if (x.status !== 200) return resolve(null);");   // signed out / error → nothing
+        // The server side that makes a reload fetch fresh code.
+        String web = Files.readString(Path.of("src/main/java/com/churchgeniuspro/config/WebConfig.java"), StandardCharsets.UTF_8);
+        assertThat(web).contains("registry.addResourceHandler(\"/*.js\", \"/*.css\")").contains(".setCacheControl(CacheControl.noCache());")
+                       .contains("registry.addResourceHandler(\"/*.html\")");
+    }
+
+    @Test
     @DisplayName("Phase 6: the device secret lives only in the OS secure store, is released by the OS prompt, and dies on logout")
     void biometricContract() throws Exception {
         String js = read("native-bridge.js");

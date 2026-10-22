@@ -26,6 +26,9 @@
  *                   opens its `url`. session.js / memberHome call
  *                   window.CGP_NATIVE.registerPush() where they would have
  *                   subscribed to Web Push.
+ *   9. UPDATES    — when the app returns to the foreground after a deploy, the
+ *                   page reloads (or, if the user has typed something, offers a
+ *                   "Reload" bar) so the WebView never keeps running old scripts.
  *
  * Nothing here touches sessions, permissions or data: those stay the server's.
  */
@@ -342,6 +345,106 @@
   }
   syncStatusBarStyle();
   window.CGP_NATIVE.syncStatusBarStyle = syncStatusBarStyle;
+
+  /* ── 9. pick up a new deployment when the app comes back to the foreground ──
+   *
+   * In a browser the service worker polls /api/app-version and reloads open tabs
+   * after a deploy (sw.js + session.js). The app has no service worker (section 4),
+   * and Android keeps the WebView alive in the background, so a page opened before
+   * a deploy kept running the old scripts until the next navigation.
+   *
+   * Here: the version the server reported when this page loaded is remembered; when
+   * the app returns to the foreground (App 'resume', or the page becoming visible)
+   * the version is asked again — at most once a minute — and if it changed:
+   *   - nothing typed on this page yet  → the page reloads (HTML is no-store and the
+   *     scripts are no-cache, so the reload fetches the new code);
+   *   - something typed or chosen       → nothing is lost: a small bar offers "Reload".
+   * At most one reload per version (remembered in sessionStorage), so a server answering
+   * with two different versions (two instances during a slot swap) can never loop.
+   * Signed-out pages (the endpoint answers 401) and network errors do nothing.
+   */
+  var VERSION_RELOADED_KEY = 'cgp_native_reloaded_for';
+  var VERSION_CHECK_MIN_MS = 60 * 1000;
+  var pageVersion = null, lastVersionCheck = 0, pageDirty = false, updateBarShown = false;
+
+  // XMLHttpRequest on purpose: session.js wraps window.fetch so that any 401 from
+  // /api/* logs the user out. A version check must never do that by itself — an
+  // expired session is handled by the page's own next request, exactly as before.
+  function fetchAppVersion() {
+    return new Promise(function (resolve) {
+      try {
+        var x = new XMLHttpRequest();
+        x.open('GET', '/api/app-version?t=' + Date.now(), true);
+        x.setRequestHeader('Accept', 'application/json');
+        x.timeout = 8000;
+        x.onload = function () {
+          if (x.status !== 200) return resolve(null);
+          try { var j = JSON.parse(x.responseText); resolve(j && j.version ? String(j.version) : null); }
+          catch (_) { resolve(null); }
+        };
+        x.onerror = x.ontimeout = function () { resolve(null); };
+        x.send();
+      } catch (_) { resolve(null); }
+    });
+  }
+  // Anything the user typed or picked on this page makes an automatic reload unsafe.
+  document.addEventListener('input', function () { pageDirty = true; }, true);
+  document.addEventListener('change', function () { pageDirty = true; }, true);
+
+  function showUpdateBar() {
+    if (updateBarShown || !document.body) return;
+    updateBarShown = true;
+    var bar = document.createElement('div');
+    bar.id = 'cgpUpdateBar';
+    bar.setAttribute('role', 'status');
+    bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483646;'
+      + 'display:flex;align-items:center;gap:10px;background:#673147;color:#fff;border-radius:12px;padding:10px 12px;'
+      + 'box-shadow:0 6px 20px rgba(0,0,0,.25);font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;';
+    var text = document.createElement('span');
+    text.style.flex = '1';
+    text.textContent = 'A new version of ChurchGeniusPro is available.';
+    var reload = document.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Reload';
+    reload.style.cssText = 'border:none;background:#fff;color:#673147;font-weight:700;border-radius:8px;padding:7px 14px;';
+    reload.addEventListener('click', function () { location.reload(); });
+    var later = document.createElement('button');
+    later.type = 'button';
+    later.setAttribute('aria-label', 'Dismiss');
+    later.textContent = '✕';
+    later.style.cssText = 'border:none;background:transparent;color:#fff;font-size:16px;padding:4px 6px;';
+    later.addEventListener('click', function () { bar.remove(); });
+    bar.appendChild(text); bar.appendChild(reload); bar.appendChild(later);
+    document.body.appendChild(bar);
+  }
+
+  function checkForNewVersion() {
+    var now = Date.now();
+    if (pageVersion == null || now - lastVersionCheck < VERSION_CHECK_MIN_MS) return;
+    lastVersionCheck = now;
+    fetchAppVersion().then(function (v) {
+      if (!v || v === pageVersion) return;
+      // Every version this app session has already reloaded for (newest last, at most 5):
+      // two instances answering alternately can each cause one reload, never a loop.
+      var seen = [];
+      try { seen = JSON.parse(sessionStorage.getItem(VERSION_RELOADED_KEY) || '[]'); } catch (_) { seen = []; }
+      if (!Array.isArray(seen)) seen = [];
+      if (seen.indexOf(v) >= 0) return;
+      seen.push(v); if (seen.length > 5) seen = seen.slice(-5);
+      try { sessionStorage.setItem(VERSION_RELOADED_KEY, JSON.stringify(seen)); } catch (_) {}
+      log('new deployment', pageVersion, '→', v, pageDirty ? '(offering reload)' : '(reloading)');
+      if (pageDirty) showUpdateBar(); else location.reload();
+    });
+  }
+
+  fetchAppVersion().then(function (v) { pageVersion = v; lastVersionCheck = Date.now(); });
+  if (P.App && typeof P.App.addListener === 'function') {
+    try { P.App.addListener('resume', checkForNewVersion); } catch (_) {}
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') checkForNewVersion();
+  });
+  window.CGP_NATIVE.checkForNewVersion = function () { lastVersionCheck = 0; checkForNewVersion(); };
 
   /* ── 8. biometric sign-in with a device-bound secret (Mobile Phase 6) ─── */
   // The app never stores a password. When Remember me is ticked in the app,
