@@ -20,6 +20,7 @@
   'use strict';
   if (!/^\/meetings(\b|\/|$)/.test(window.location.pathname)) return;
   if (window.__CGP_MEETING__) return; window.__CGP_MEETING__ = true;
+  var VC = window.VoiceCore || {};          // shared pure helpers (voice-core.js), optional
 
   /* ════════════════════════ Parsers (pure, unit-tested) ════════════════════════ */
   var MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
@@ -424,7 +425,7 @@
   }
   function isStopCmd(t){
     var s=normTxt(t);
-    return /^(stop|stop conversation|stop listening|cancel|cancel conversation|exit|exit converse|end|end conversation|quit|goodbye|bye|i m done|im done|that s all|thats all|done)$/.test(s)
+    return /^(stop|stop conversation|stop listening|cancel|cancel conversation|exit|exit converse|end|end conversation|quit|goodbye|bye|i m done|im done|that s all|thats all)$/.test(s)
         || /\bstop (the )?conversation\b|\bcancel (the )?conversation\b|\bend (the )?conversation\b|\bexit converse\b|\bstop listening\b|\bi m done\b/.test(s);
   }
   // The stage to advance to when the current field is skipped.
@@ -458,11 +459,22 @@
       if(dn===want) return list[i]; if(!hit && (dn.indexOf(want)!==-1 || want.indexOf(dn)!==-1)) hit=list[i]; }
     return hit;
   }
+  // Exact name vs. partial (one word of a name): a partial that fits SEVERAL people
+  // ("Benny" → Benny Peter / Benny Mathew) must be offered as choices, never auto-picked.
+  function findLocations(phrase){
+    var list=allLocs(), want=String(phrase||'').toLowerCase().trim(), out={exact:null, partials:[]};
+    if(!want) return out;
+    for(var i=0;i<list.length;i++){ var dn=String(list[i].displayName||'').toLowerCase().trim();
+      if(dn===want){ out.exact=list[i]; break; }
+      if(dn.indexOf(want)!==-1 || want.indexOf(dn)!==-1) out.partials.push(list[i]); }
+    return out;
+  }
   function parseSpelling(raw){ return String(raw||'').replace(/[^a-z0-9]/gi,'').toUpperCase(); }
 
   // Ask "I heard X. Is that correct?" and remember how to apply it on "yes".
   function askConfirm(c){
     c.stage = mstate.stage;                 // remember exactly which field this confirms
+    c.updating = mstate.updating||null;     // an update of an already-captured field?
     mstate.confirm=c; dbg.recognized=c.display; dbg.awaiting='Yes'; dbg.status='Waiting for Confirmation';
     renderYesNoOptions();                   // typed/text mode always gets clickable Yes/No
     return 'I ' + (c.verb||'heard') + ' ' + c.display + '. Is that correct?';
@@ -514,8 +526,13 @@
       dbg.awaiting='No'; dbg.status='Confirmed';
       dbg.confSaid=low; dbg.confDetected='YES'; dbg.confConfidence='99%';
       var r=c.onYes();   // onYes itself decides if a field was set (esp. Location, which may search)
-      var fld=({category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence'})[c.stage];
+      var fld=({category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence','location-pick':'location','location-spell':'location'})[c.stage];
       if(fld) markDone(fld);   // remember progress so a later resume skips it
+      // An UPDATE of one field must not re-ask the fields after it: return to the first
+      // missing field, or to "complete". (Occurrence sub-questions still run to the end.)
+      if(c.updating && (FIELD_ORDER.indexOf(mstate.stage)>=0 || mstate.stage==='notes' || mstate.stage==='complete')){
+        r=afterUpdate(FIELD_NAME[c.updating]||c.field);
+      }
       // Log generic "<field> set" for plain fields; Location logs itself only when truly set.
       if(c.field && (c.fieldLower!=='location')){ dbg.fieldUpdated=c.field; dbg.fieldStatus='Confirmed'; logConvo('System', c.field+' has been set.'); }
       dbg.nextStage=mstate.stage; updFlowDbg(); return r;
@@ -540,6 +557,83 @@
     return bs>=0.55 ? best : null;
   }
 
+  // ── Explicit field commands ("Set Location to Fellowship Hall", "Set Time", "Done") ──
+  // Field words accepted after set/change/update/edit/go to. Shared parser from voice-core.js;
+  // a minimal local fallback keeps the page working if that script failed to load.
+  var MEETING_FIELD_WORDS = {
+    category:['category','categories','type','kind'],
+    location:['location','place','venue','where'],
+    date:['date','day','when'],
+    time:['time','hour'],
+    occurrence:['occurrence','recurrence','repeat','frequency','schedule'],
+    notes:['note','notes','memo','remark','remarks']
+  };
+  var FIELD_STAGE = {category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence',notes:'notes'};
+  function isDoneCmd(low){ return /^(done|finished|finish|that s it|i m done|im done)$/.test(normTxt(low)); }
+  function parseSetCmd(raw){
+    var sc = (typeof VC.parseSetCommand==='function') ? VC.parseSetCommand(raw, MEETING_FIELD_WORDS) : null;
+    if(!sc || sc.kind!=='set' || !FIELD_STAGE[sc.field]) return null;
+    // Keep the user's own casing/punctuation for the value (notes, names): take the raw
+    // text after the field word instead of the lower-cased parser copy.
+    var val=sc.value||'';
+    if(val){
+      var words=MEETING_FIELD_WORDS[sc.field].join('|');
+      var m=raw.match(new RegExp('\\b(?:'+words+')\\b\\s*(?:(?:number|name|field|box)\\s+)?(?:to|as|is|equals|:)?\\s*(.+)$','i'));
+      if(m && m[1] && normTxt(m[1]).indexOf(normTxt(val).split(' ')[0])===0) val=m[1].trim();
+    }
+    return {field:sc.field, value:val};
+  }
+  // Move the conversation to one named field and remember whether this is an UPDATE of
+  // something already captured (the flow then returns to where it was instead of
+  // re-asking every later field).
+  function jumpTo(field){
+    var wasComplete = (mstate.stage==='complete');
+    // Also an update when we were already updating another field (the user changed course).
+    mstate.updating = (wasComplete || isCompleted(field) || !!mstate.updating) ? field : null;
+    mstate.stage=FIELD_STAGE[field]||field; mstate.confirm=null; mstate.retry=0; mstate.spelling=false; mstate.matches=null;
+    clearOptions(); updFlowDbg();
+    logConvo('System','Field selected by command: '+(FIELD_NAME[field]||field)+(mstate.updating?' (updating — other fields are kept)':''));
+  }
+  // After an updated field is confirmed: go back to the first missing field, or to
+  // "complete" when nothing is missing — never re-walk fields that already have values.
+  function afterUpdate(fieldLabel){
+    mstate.updating=null;
+    var fm=firstMissingStage();
+    // Outside a guided Converse session (Type / Voice), an update never starts the
+    // step-by-step questions: report what is still missing and stay on "complete".
+    if(fm==='notes' || mode!=='converse' || !conversationActive){
+      mstate.stage='complete'; updFlowDbg();
+      var miss=missingFields();
+      return 'Thank you. '+fieldLabel+' has been updated. '+(miss==='None' ? COMPLETION : ('Still needed: '+miss+'. Set them the same way, or say "Save Now" when you are ready.'));
+    }
+    mstate.stage=fm; updFlowDbg(); return 'Thank you. '+fieldLabel+' has been updated. '+stagePrompt(fm);
+  }
+  var FIELD_LABEL_LC = {category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence',notes:'notes',
+    'daily-end':'end date','weekly-days':'days of the week','weekly-end':'end date','monthly-months':'months','monthly-dom':'day of the month',
+    'monthly-week-ordinal':'week','monthly-week-day':'day of the week','location-pick':'location','location-spell':'location','location-failed':'location'};
+  function stageHasValue(stage){
+    if(stage==='notes') return !!(el('note') && String(el('note').value||'').trim());
+    if(stage==='occurrence') return !!(el('occurrence') && el('occurrence').value);
+    if(/^location/.test(stage)) return formHasValue('location');
+    if(stage==='daily-end'||stage==='weekly-end') return !!(el('endDate')&&el('endDate').value);
+    return formHasValue(stage);
+  }
+  // "Done": finish the CURRENT field (its value stays) and move on. Never a stop.
+  function handleDone(){
+    var st=mstate.stage;
+    if(mstate.confirm) return 'Please answer the question first — is '+mstate.confirm.display+' correct? Say "yes" or "no".';
+    if(!st || st==='complete') return COMPLETION;
+    if(st==='notes'){ mstate.stage='complete'; updFlowDbg(); logConvo('System','User Command: Done — notes finished'); return 'Notes done. '+COMPLETION; }
+    var label=FIELD_LABEL_LC[st]||st;
+    if(!stageHasValue(st)) return "I don't have the "+label+" yet. "+stagePrompt(st)+' Or say "skip" to leave it blank.';
+    var fld=({category:'category',location:'location',date:'date',time:'time',occurrence:'occurrence'})[st]; if(fld) markDone(fld);
+    logConvo('System','User Command: Done — '+label+' finished (value kept)');
+    if(mstate.updating) return afterUpdate(FIELD_NAME[mstate.updating]||label);
+    var nxt=skipNext(st); mstate.confirm=null; mstate.retry=0; mstate.spelling=false; mstate.matches=null; mstate.stage=nxt; updFlowDbg();
+    var cap=label.charAt(0).toUpperCase()+label.slice(1);
+    return cap+' done. '+(nxt==='complete' ? COMPLETION : stagePrompt(nxt));
+  }
+
   function matchUpdate(low){
     if (/\b(update|change|edit|set)\b.*\bdate\b/.test(low)) return 'date';
     if (/\b(update|change|edit|set)\b.*\blocation\b/.test(low)) return 'location';
@@ -561,6 +655,20 @@
       if(isNo(low)){ var back=mstate.stopReturn||'category'; mstate.stage=back; mstate.confirm=null; updFlowDbg();
         logConvo('System','Stop cancelled — resuming '+(FIELD_NAME[back]||back)); return "Great. Let's continue. "+stagePrompt(back); }
       return 'Please say "yes" to stop, or "no" to keep going.';
+    }
+    // ── Explicit field commands (checked before "stop": "done" finishes a field) ──
+    if (isDoneCmd(low)) return handleDone();
+    var setc=parseSetCmd(raw);
+    if (setc){
+      jumpTo(setc.field);
+      if(!setc.value) return reAsk(setc.field);
+      if(setc.field==='notes'){
+        // "Set Notes to …" REPLACES the notes (plain dictation in the Notes step appends).
+        return askConfirm({ field:'Notes', fieldLower:'note', verb:'will set the notes to', display:'"'+setc.value+'"',
+          onYes:(function(x){ return function(){ setVal('note', x); dbg.notes=x; mstate.stage='notes';
+            return "Thank you. The notes are set. Is there anything else for the notes? Say \"done\" when you're finished."; }; })(setc.value) });
+      }
+      return converseStep(setc.value);            // validate + confirm the value for THAT field only
     }
     if (isStopCmd(low)){
       logConvo('System','User Command: Stop — awaiting confirmation');
@@ -591,8 +699,11 @@
       if(skf) markDone(skf);
       logConvo('System','User Command: Skip'); logConvo('System',(FIELD_NAME[cur]||cur)+' skipped');
       logConvo('System','Moving to: '+(FIELD_NAME[nxt]||nxt));
-      mstate.confirm=null; mstate.retry=0; mstate.spelling=false; mstate.matches=null; mstate.stage=nxt; updFlowDbg();
+      mstate.confirm=null; mstate.retry=0; mstate.spelling=false; mstate.matches=null; updFlowDbg();
       var label=(FIELD_NAME[cur]||cur).toLowerCase();
+      if(mstate.updating){ var upd0=mstate.updating; mstate.updating=null; mstate.stage=(firstMissingStage()==='notes')?'complete':firstMissingStage(); updFlowDbg();
+        return "No problem. The "+(FIELD_NAME[upd0]||upd0).toLowerCase()+" stays as it is. "+(mstate.stage==='complete'?COMPLETION:stagePrompt(mstate.stage)); }
+      mstate.stage=nxt; updFlowDbg();
       if(nxt==='complete') return "No problem. We'll leave the "+label+" blank. "+COMPLETION;
       return "No problem. We'll leave the "+label+" blank. "+stagePrompt(nxt);
     }
@@ -602,7 +713,7 @@
 
     // ── Jump to a field on "update <field>" ──
     var upd=matchUpdate(low);
-    if (upd){ mstate.stage=upd; mstate.retry=0; mstate.spelling=false; updFlowDbg(); return reAsk(upd); }
+    if (upd){ jumpTo(upd); return reAsk(upd); }
 
     dbg.recognized=raw; updFlowDbg();
 
@@ -754,9 +865,17 @@
   }
   function locationInput(raw){
     dbg.field='Location'; dbg.recognized=raw;
-    var hit=findLocation(raw);
-    if(hit){ mstate.retry=0; dbg.matchType='Exact'; logConvo('System','Location Search: Exact match — '+hit.displayName);
-      return confirmLocation(hit, raw); }
+    var found=findLocations(raw);
+    if(found.exact){ mstate.retry=0; dbg.matchType='Exact'; logConvo('System','Location Search: Exact match — '+found.exact.displayName);
+      return confirmLocation(found.exact, found.exact.displayName); }
+    if(found.partials.length>1){
+      // Several names contain what was said → the user chooses; nothing is guessed.
+      mstate.retry=0; logConvo('System','Location Search: "'+raw+'" matches '+found.partials.length+' names — asking which one');
+      return presentMatches(found.partials.slice(0,6).map(function(l){ return {name:l.displayName, score:0.9, loc:l, method:'Name contains'}; }), 'Name contains');
+    }
+    if(found.partials.length===1){ var one=found.partials[0]; mstate.retry=0; dbg.matchType='Partial';
+      logConvo('System','Location Search: Partial match — '+one.displayName+' (said "'+raw+'")');
+      return confirmLocation(one, one.displayName, { verb:'found', noQuote:true }); }
     // No exact match → fuzzy + phonetic. Log all candidates but only PRESENT strong
     // (>=80%) or possible (70-79%) matches — discard weak/irrelevant ones (<70%).
     var all=fuzzyMatches(raw, null, 0, 6);
@@ -811,6 +930,7 @@
            + '. The meeting form is populated'
            + (missingFields()==='None' ? ' — say "Save Now" to save.' : ' — please review the remaining fields.');
     }
+    if(mstate.updating){ return afterUpdate('Location'); }
     mstate.stage='date'; updFlowDbg();
     return 'Thank you. Location has been set to '+(m.name||m.loc.displayName)+'. '+PROMPT.date;
   }
@@ -951,10 +1071,13 @@
     // ── Location: exact / single fuzzy → populate; multiple → present choices. ──
     var locNote='';
     if(p.location){
-      var hit=findLocation(p.location);
+      var fl=findLocations(p.location);
+      var hit=fl.exact || (fl.partials.length===1 ? fl.partials[0] : null);
       if(hit){ setLoc(hit); }
       else {
-        var all=fuzzyMatches(p.location, null, 0, 6);
+        // Several names contain the spoken word → ask; otherwise fuzzy/phonetic candidates.
+        var all = fl.partials.length>1 ? fl.partials.map(function(l){ return {name:l.displayName, score:0.9, loc:l, method:'Name contains'}; })
+                                       : fuzzyMatches(p.location, null, 0, 6);
         var matches=dedupeMatches(all.filter(function(m){ return m.score>=0.70; }));
         if(matches.length===1){ setLoc(matches[0].loc, matches[0].name, matches[0].score); }
         else if(matches.length>1){
@@ -1047,7 +1170,10 @@
     // A NEW full request typed/spoken outside an active Converse session is always
     // re-parsed and applied — updating fields even when they're already populated.
     // (A previous Send leaves stage 'complete', which used to swallow new requests.)
-    if (mode!=='converse' && !conversationActive){
+    if (mode!=='converse' && !conversationActive && (parseSetCmd(text) || isDoneCmd(text))){
+      if(!mstate.stage) mstate.stage='complete';     // field commands run through the guided handler
+    }
+    else if (mode!=='converse' && !conversationActive){
       var probe=parseMeetingRequest(text);
       var comps=(probe.category?1:0)+(probe.location?1:0)+(probe.time?1:0)+(probe.date?1:0)+((probe.days&&probe.days.length)?1:0);
       var createVerb=/\b(create|add|schedule|set\s?up|new)\b/i.test(text);
@@ -1101,6 +1227,11 @@
 
   /* ════════════════════════ UI ════════════════════════ */
   var mode='type', speaking=false, recorder=null;
+  // Speech-recognition accent preference (shared with the Income/Expense pages).
+  var LOCALES=[['en-US','English (US)'],['en-GB','English (UK)'],['en-IN','English (India)'],['en-AU','English (Australia)'],['en-CA','English (Canada)'],['en-NZ','English (New Zealand)'],['en-IE','English (Ireland)'],['en-ZA','English (South Africa)']];
+  function voiceLocale(){ try{ return localStorage.getItem('cgp.voice.locale')||'en-US'; }catch(e){ return 'en-US'; } }
+  function setVoiceLocale(v){ try{ localStorage.setItem('cgp.voice.locale', v); }catch(e){} logConvo('System','Speech accent: '+localeLabel(v)); }
+  function localeLabel(v){ for(var i=0;i<LOCALES.length;i++){ if(LOCALES[i][0]===v) return LOCALES[i][1]; } return v||'English (US)'; }
   // ── Dictation-to-input: when the user focuses #mvInput and then activates
   //    Voice/Converse, speech is TYPED into the field (editable) instead of being
   //    processed immediately; Send/Enter then runs the normal parsing. ──
@@ -1500,6 +1631,7 @@
     if(!recorder){
       recorder=window.VoiceOpenAI.createRecorder({
         context:'meeting',
+        getExtra:function(){ return { expecting: (mstate.stage||''), locale: voiceLocale() }; },
         onState:function(on){
           // Never show "listening" while the AI is speaking.
           var live = on && !ttsActive;
@@ -1517,7 +1649,7 @@
         onTranscript:function(t){
           // Drop anything captured after a Converse session has ended (no ghost restart).
           if(mode==='converse' && (ending || !conversationActive)){ return; }
-          dbg.recognitionLang='English (US)';
+          dbg.recognitionLang=localeLabel(voiceLocale());
           dbg.detectedLang = /[a-z]/i.test(String(t||'')) ? 'English' : 'Non-English (will normalize)';
           // Discard anything captured while the AI is speaking, or that matches what
           // the AI just said — the system must never process its own response.
@@ -1527,7 +1659,7 @@
             dbg.ignoreReason='Matched a recent AI prompt ('+dbg.echoSim+')';
             logConvo('System','Transcript ignored — echo of AI prompt ('+dbg.echoSim+'): "'+t+'"'); renderDebug(); return; }
           // Drop transcripts that are nothing but model-hallucinated filler (never spoken).
-          if(isStrongHallucination(t)){ dbg.ignored=t; dbg.ignoreReason='Hallucinated filler (not spoken)';
+          if(isStrongHallucination(t) || (typeof VC.isLikelyHallucination==='function' && VC.isLikelyHallucination(t))){ dbg.ignored=t; dbg.ignoreReason='Hallucinated filler (not spoken)';
             logConvo('System','Ignored hallucinated filler: "'+t+'"'); renderDebug(); return; }
           // ── Dictation: the input is the target → type ONLY the user's real words into
           //    #mvInput for review/editing; do NOT process. "Done"/"Stop" ends capture. ──
@@ -1590,7 +1722,7 @@
       +'<ul><li>Use relative dates freely — <b>next Thursday</b>, <b>tomorrow</b>, <b>next week</b>, or <b>this Sunday</b> — and the AI will work out and populate the correct date.</li>'
       +'<li>For recurring meetings, use phrases such as <b>every Monday</b>, <b>every first Saturday</b>, <b>monthly</b>, or <b>weekly</b> — the Occurrence field is filled automatically.</li>'
       +'<li>Include the category, place, date, and time in one sentence for the most complete result.</li>'
-      +'<li>If a detail is missed, just type it in the form directly, or say "update date", "update location", etc.</li>'
+      +'<li>If a detail is missed, just type it in the form directly, or name the field: <b>"Set Location to Fellowship Hall"</b>, <b>"Set Time to 7 pm"</b>, <b>"Set Date to next Thursday"</b>, "update location". Only that field changes — everything else you have entered is kept. Say <b>"Done"</b> to finish the field you are on.</li>'
       +'<li>When you’re happy with the form, click Save — or say "Save Now" in Converse mode.</li></ul>';
   }
   function modesHelpHtml(){
@@ -1638,6 +1770,8 @@
       + '<button id="mvSend" type="button" title="Extracts the details from your text and fills in the Add Meeting form">Fill Form</button>'
       + '<button id="mvHelpBtn" class="mv-help" type="button" title="Help — how to use the AI meeting input" aria-label="Help">?</button></div>'
       + '<div id="mvReply"></div><div id="mvOptions" class="mv-options" style="display:none;"></div>'
+      + '<div id="mvPrefs" style="margin-top:6px;font-size:12px;color:#666;">Speech accent: <select id="mvLocale" style="font-size:12px;padding:2px 4px;"></select>'
+      + ' <span title="Tells the speech-recognition service your English variety where it supports it. It can improve recognition of names and numbers but cannot guarantee a perfect transcription.">ⓘ</span></div>'
       + '<div id="mvDebug"></div>'
       + '<div id="mvDebugExtra" style="display:none;">'
       + '<div class="mv-h-title">Conversation History</div><div id="mvHistory" class="mv-history"></div>'
@@ -1656,6 +1790,10 @@
       main.insertBefore(host, main.firstChild);
     }
 
+    var locSel=el('mvLocale');
+    if(locSel){ LOCALES.forEach(function(l){ var o=document.createElement('option'); o.value=l[0]; o.textContent=l[1]; locSel.appendChild(o); });
+      locSel.value=voiceLocale(); if(locSel.value!==voiceLocale()) locSel.value='en-US';
+      locSel.addEventListener('change', function(){ setVoiceLocale(locSel.value); }); }
     el('mvSend').addEventListener('click', function(){ finishDictation(); var i=el('mvInput'); var v=i?i.value:''; if(i) i.value=''; handleUtterance(v); });
     el('mvInput').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); finishDictation(); var v=this.value; this.value=''; handleUtterance(v); } });
     // ── Dictation arming: focusing the input targets Voice/Converse speech at it.
@@ -1712,5 +1850,6 @@
     parseOccurrence:parseOccurrence, stripHouse:stripHouse, converseStep:converseStep, startConverse:startConverse,
     applyFields:applyFields, isSelfTranscript:isSelfTranscript, rememberSpoken:rememberSpoken,
     fuzzyMatches:fuzzyMatches, parseOption:parseOption, simRatio:simRatio,
+    matchUpdate:matchUpdate, parseSetCmd:parseSetCmd, isDoneCmd:isDoneCmd, isStopCmd:isStopCmd, handleUtterance:handleUtterance,
     _state:function(){ return mstate; }, _reset:resetFlow, setToday:function(d){ _today=d; } };
 })();

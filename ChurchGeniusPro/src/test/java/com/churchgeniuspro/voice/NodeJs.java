@@ -49,4 +49,19 @@ final class NodeJs {
             return M.readTree(out);
         } finally { Files.deleteIfExists(tmp); }
     }
+
+    /**
+     * Runs the Meetings Converse state machine (meeting-voice.js, as shipped) through the
+     * fake-DOM harness in src/test/resources/voice; {@code scenarioJson} is the harness input.
+     */
+    static JsonNode meetingScenario(String scenarioJson) throws Exception {
+        Process p = new ProcessBuilder(nodeBin(),
+                new File("src/test/resources/voice/meeting-harness.cjs").getAbsolutePath(),
+                new File("src/main/resources/static/voice-core.js").getAbsolutePath(),
+                new File("src/main/resources/static/meeting-voice.js").getAbsolutePath(),
+                scenarioJson).redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (!p.waitFor(30, TimeUnit.SECONDS) || p.exitValue() != 0) throw new IllegalStateException("node failed: " + out);
+        return M.readTree(out);
+    }
 }

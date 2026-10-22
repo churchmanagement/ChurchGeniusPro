@@ -61,6 +61,35 @@ class VoiceVocabularyAndLocaleTest {
         assertThat(v.promptFor(null, "income", "contributor")).isNull();
     }
 
+    @Test @DisplayName("Expense page: the hint names the expense categories for Expense and the Main Source funds for Fund — never the contributors")
+    void expensePrompt() {
+        com.churchgeniuspro.repository.PurposeRepository purposes = mock(com.churchgeniuspro.repository.PurposeRepository.class);
+        com.churchgeniuspro.repository.MainSourceRepository mains = mock(com.churchgeniuspro.repository.MainSourceRepository.class);
+        com.churchgeniuspro.hibernate.Purpose office = new com.churchgeniuspro.hibernate.Purpose(); office.setPurposeName("Office Supplies");
+        com.churchgeniuspro.hibernate.Purpose util = new com.churchgeniuspro.hibernate.Purpose(); util.setPurposeName("Utilities");
+        when(purposes.findActiveByAppUser("CHR-1")).thenReturn(List.of(office, util));
+        com.churchgeniuspro.hibernate.MainSource general = new com.churchgeniuspro.hibernate.MainSource(); general.setSourceName("General Fund");
+        when(mains.findActiveByAppUser("CHR-1")).thenReturn(List.of(general));
+        FamilyMemberRepository members = mock(FamilyMemberRepository.class);
+        when(members.findContributorsByAppUser("CHR-1")).thenReturn(List.of(member("Anson", "Mathew")));
+        SubSourceRepository subs = mock(SubSourceRepository.class);
+        SubSource youth = new SubSource(); youth.setSourceName("Youth Fund");
+        when(subs.findAllActiveByAppUser("CHR-1")).thenReturn(List.of(youth));
+        TransactionTypeRepository methods = mock(TransactionTypeRepository.class);
+        TransactionType check = new TransactionType(); check.setTypeName("Check");
+        when(methods.findActiveByAppUser("CHR-1")).thenReturn(List.of(check));
+        VoiceVocabularyService v = new VoiceVocabularyService(members, subs, methods, purposes, mains);
+
+        String e = v.promptFor("CHR-1", "expense", "expense");
+        assertThat(e).contains("Set Expense").contains("Office Supplies").contains("Utilities").doesNotContain("Anson").doesNotContain("General Fund");
+        String f = v.promptFor("CHR-1", "expense", "fund");
+        assertThat(f).contains("General Fund").doesNotContain("Youth Fund").doesNotContain("Office Supplies");
+        String all = v.promptFor("CHR-1", "expense", "");
+        assertThat(all).contains("Office Supplies").contains("General Fund").contains("Check").doesNotContain("Anson");
+        assertThat(v.promptFor("CHR-1", "income", "fund")).contains("Youth Fund").doesNotContain("General Fund");
+        assertThat(v.promptFor("CHR-1", "meeting", "location")).as("meetings have no server-side hint").isNull();
+    }
+
     @Test @DisplayName("the hint stays within the transcriber's budget for a large church")
     void promptIsBounded() {
         FamilyMemberRepository members = mock(FamilyMemberRepository.class);

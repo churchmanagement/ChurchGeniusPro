@@ -1,31 +1,33 @@
 /* ============================================================================
  * expense-voice.js — Voice input for the Expense entry form.
  *
- * Mirrors income-voice.js. Lets users dictate an expense ("Expense Office
- * Supplies, Fund General, Date May thirty-first twenty twenty-six, Method Bank
- * Transfer, Amount one hundred") and auto-populates the Expense (purpose)
- * combobox, Fund/Method selects, date and amount. Uses the browser Web Speech
- * API (Chrome/Edge desktop, Android Chrome, iOS Safari 14.5+).
+ * Mirrors income-voice.js (same Set/Done field discipline, amount validation,
+ * fuzzy matching with suggestions and confirmation, spoken + visible feedback,
+ * accent preference). Lets users dictate an expense ("Set Expense to Office
+ * Supplies, Set Fund to General, Set Date to May thirty-first twenty twenty-six,
+ * Set Method to Bank Transfer, Set Amount to one hundred") and auto-populates
+ * the Expense (purpose) combobox, Fund/Method selects, date and amount.
  *
  * Self-contained: injects its own UI + styles, fetches the purpose list, reads
  * the Fund/Method <select> options from the DOM, and reuses the page's global
- * selectExpense() to drive the purpose combobox. The parsing logic is identical
- * to the income module's (unit-tested, 41 cases).
+ * selectExpense() to drive the purpose combobox. Pure parsing/matching logic
+ * lives in voice-core.js (unit-tested).
  * ========================================================================== */
 (function () {
   'use strict';
 
   // ── Shared parser (voice-core.js) ─────────────────────────────────────────
   var VC = window.VoiceCore || {};
-  var parseAmount = VC.parseAmount,
-      parseDate   = VC.parseDate,
-      matchOption = VC.matchOption,
-      titleCase   = VC.titleCase;
+  var parseAmount      = VC.parseAmount,
+      parseDate        = VC.parseDate,
+      matchOption      = VC.matchOption,
+      matchContributor = VC.matchContributor,
+      titleCase        = VC.titleCase;
 
   // Field keywords for the expense form (passed to VoiceCore.segment).
   var KEYWORDS = {
-    expense:['expense','purpose','category'],
-    fund:['fund','source'],
+    expense:['expense','expenses','purpose','category'],
+    fund:['fund','funds','source'],
     date:['date','dated'],
     method:['method','payment','mode'],
     amount:['amount','value','total'],
@@ -38,13 +40,21 @@
   function $(id){ return document.getElementById(id); }
   function selectOptions(id){ var el=$(id); return el ? Array.prototype.slice.call(el.options).map(function(o){return {value:o.value,text:(o.textContent||'').trim()};}) : []; }
   function setSelect(id,val){ var el=$(id); if(!el) return; el.value=String(val); el.dispatchEvent(new Event('change',{bubbles:true})); }
-  function markField(id, state){ var el=$(id); if(!el) return; el.classList.remove('voice-ok','voice-confirm','voice-fail'); if(state) el.classList.add('voice-'+state); }
+  function markField(id, state){ // state: 'ok' | 'confirm' | 'fail' | ''
+    var el=$(id); if(!el) return;
+    el.classList.remove('voice-ok','voice-confirm','voice-fail');
+    if(state) el.classList.add('voice-'+state);
+  }
 
+  // Expense categories (purposes), shaped for VoiceCore.matchContributor — the same
+  // tokenised / phonetic / letter-overlap scorer used for names, so "office supply"
+  // finds "Office Supplies" and "utilitys" finds "Utilities".
   var purposesCache=null;
   function loadPurposes(){
     return fetch('/api/expense/purposes').then(function(r){return r.ok?r.json():[];})
       .then(function(data){ var arr=Array.isArray(data)?data:(data&&data.data)||[];
-        purposesCache = arr.map(function(p){ return {value:String(p.id), text:p.purposeName||p.name||''}; }); return purposesCache; })
+        purposesCache = arr.map(function(p){ var nm=p.purposeName||p.name||''; return {id:String(p.id), fullName:nm, value:String(p.id), text:nm}; }).filter(function(p){ return p.text; });
+        return purposesCache; })
       .catch(function(){ purposesCache=[]; return purposesCache; });
   }
 
@@ -56,7 +66,7 @@
       + '.btn-voice-mic:hover{background:#673147;color:#fff;border-color:#673147;}'
       + '.btn-voice-mic.recording{background:#e53935;color:#fff;border-color:#e53935;animation:voicePulse 1s infinite;}'
       + '.btn-voice-mic[disabled]{opacity:.5;cursor:not-allowed;}'
-      + '.btn-voice-guide{padding:7px 11px;border-radius:7px;border:1px solid #d7c9d0;background:#fff;color:#673147;font-size:12px;font-weight:600;cursor:pointer;}'
+      + '.btn-voice-guide{margin-left:6px;padding:7px 11px;border-radius:7px;border:1px solid #d7c9d0;background:#fff;color:#673147;font-size:12px;font-weight:600;cursor:pointer;}'
       + '@keyframes voicePulse{50%{opacity:.65;}}'
       + '#voicePanel{margin:0 0 14px;border:1px solid #e6dde2;border-radius:9px;background:#fbf7f9;padding:12px 14px;font-size:13px;color:#444;}'
       + '#voicePanel.hidden{display:none;}'
@@ -66,7 +76,8 @@
       + '.voice-chip{font-size:12px;padding:3px 9px;border-radius:999px;background:#eef1f6;color:#41506b;}'
       + '.voice-chip.ok{background:#e7f5ec;color:#1e7a44;} .voice-chip.confirm{background:#fff6e5;color:#9a6b00;} .voice-chip.fail{background:#fdeaea;color:#b42424;}'
       + '#voiceSuggest{margin-top:10px;display:flex;flex-direction:column;gap:8px;}'
-      + '.voice-sugg-row{font-size:12.5px;} .voice-sugg-row b{color:#673147;}'
+      + '.voice-sugg-row{font-size:12.5px;}'
+      + '.voice-sugg-row b{color:#673147;}'
       + '.voice-sugg-opt{display:inline-block;margin:3px 5px 0 0;padding:4px 10px;border:1px solid #c5a0b5;border-radius:6px;background:#fff;color:#673147;cursor:pointer;font-size:12px;}'
       + '.voice-sugg-opt:hover{background:#673147;color:#fff;}'
       + '#voiceGuide{margin-top:10px;border-top:1px dashed #e0d3da;padding-top:10px;font-size:12.5px;color:#555;line-height:1.6;}'
@@ -79,7 +90,8 @@
       + '#voiceCurrent .vc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#5c6bc0;margin-right:6px;animation:voicePulse 1s infinite;}'
       + '#voiceDebug{margin-top:10px;display:none;background:#11151c;color:#cfe3ff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;'
       +   'padding:10px 12px;border-radius:8px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;}'
-      + '#voiceDebug .vd-row{display:block;} #voiceDebug .vd-time{color:#6b7a90;} #voiceDebug .vd-tag{color:#7fd1ff;font-weight:700;}'
+      + '#voiceDebug .vd-row{display:block;}'
+      + '#voiceDebug .vd-time{color:#6b7a90;} #voiceDebug .vd-tag{color:#7fd1ff;font-weight:700;}'
       + '#voiceDebug .vd-warn{color:#ffcf6b;} #voiceDebug .vd-error{color:#ff8e8e;} #voiceDebug .vd-fill{color:#9ff0b0;}'
       + '#voiceDebugHead{margin-top:10px;display:none;font-size:11.5px;color:#41506b;background:#eef1f6;border:1px solid #dfe4ee;border-radius:8px 8px 0 0;padding:8px 12px;line-height:1.6;}'
       + '#voiceDebugHead b{color:#5c6bc0;}'
@@ -116,14 +128,14 @@
   function methodsHelpHtml(){
     return '<p>There are three ways to use AI on this page. Voice and Converse fill the Add Expense form for you; nothing is saved until you review and click Save.</p>'
       +'<h4>🔎 Type</h4>'
-      +'<p>Use the <b>AI Search box at the top of the page</b> to type requests in natural language — navigate ("Go to Expense Report"), find features ("Where do I see spending by fund?"), or ask how-to questions ("How do I record a check payment?"). Form fields can of course also be typed directly.</p>'
+      +'<p>Use the <b>AI Search box at the top of the page</b> to type requests in natural language — navigate ("Go to Expense Report"), find features ("Where do I see spending by fund?"), or ask how-to questions ("How do I add an expense category?"). Form fields can of course also be typed directly.</p>'
       +'<div class="vh-ex">"Show me the expense report" · "How do I add an expense category?"</div>'
       +'<h4>🎤 Voice</h4>'
       +'<p>Click the 🎤 microphone on the form and speak — one field at a time (just say the value and the AI finds the right field), or everything in one sentence naming each field.</p>'
-      +'<div class="vh-ex">"Expense Office Supplies, Fund General, Date May thirty-first twenty twenty-six, Method Bank Transfer, Amount one hundred"</div>'
+      +'<div class="vh-ex">"Set Expense to Office Supplies, Set Fund to General, Set Date to May thirty-first twenty twenty-six, Set Method to Bank Transfer, Set Amount to one hundred"</div>'
       +'<ul><li>Pause briefly between fields; amounts and dates work in words or digits ("one hundred", "5 31 2026").</li>'
       +'<li>For reference/check numbers with hyphens, say "dash": "Check Number TXN dash 2026 dash 001" → TXN-2026-001.</li>'
-      +'<li>Fix mistakes by voice: <b>"Clear Expense"</b>, <b>"Clear Amount"</b>, <b>"Reset Field"</b>, or <b>"Clear Form"</b>.</li>'
+      +'<li>Fix mistakes by voice: <b>"Clear Amount"</b>, <b>"Clear Expense"</b>, <b>"Reset Field"</b>, or <b>"Clear Form"</b>.</li>'
       +'<li>Auto-filled fields are outlined — <b>amber</b> means confirm before saving; if several categories or funds match, pick from the suggestions shown.</li>'
       +'<li>Requires microphone permission; speak at a normal pace in a quiet environment.</li></ul>'
       +'<h4>🗣 Converse</h4>'
@@ -144,15 +156,16 @@
       + 'Click the mic, then speak <b>one field at a time</b> — you can just say the value and it finds the right field. Pause between fields. Examples:<br>'
       + '<code>Office Supplies</code> … <code>General Fund</code> … <code>Bank Transfer</code> … <code>one hundred</code> … <code>May thirty-first twenty twenty-six</code><br>'
       + 'Or say it all at once, naming each field:<br>'
-      + '<code>Expense Office Supplies, Fund General, Date May thirty-first twenty twenty-six, Method Bank Transfer, Amount one hundred</code>'
+      + '<code>Set Expense to Office Supplies, Set Fund to General, Set Date to May thirty-first twenty twenty-six, Set Method to Bank Transfer, Set Amount to one hundred</code>'
       + '<ul style="margin:8px 0 0 18px;padding:0;">'
-      + '<li><b>Expense</b> — the expense category: <code>Expense Office Supplies</code> or <code>Purpose Utilities</code>.</li>'
-      + '<li><b>Fund</b> — the fund/source name: <code>Fund General</code> or <code>Fund Building</code>.</li>'
+      + '<li><b>Expense</b> — the expense category: <code>Set Expense to Office Supplies</code> or <code>Set Category to Utilities</code>. If the category is unclear you get the closest existing categories to pick from — nothing is guessed.</li>'
+      + '<li><b>Fund</b> — the fund/source name: <code>Set Fund to General</code> or <code>Fund Building</code>.</li>'
       + '<li><b>Date</b> — many formats: <code>Date May thirty-first twenty twenty-six</code>, <code>Date five thirty-one two zero two six</code>, or <code>Date 5 31 2026</code>.</li>'
       + '<li><b>Method</b> — payment method: <code>Method Bank Transfer</code>, <code>Method Cash</code>, <code>Method Check</code>.</li>'
       + '<li><b>Amount</b> — words or digits: <code>Amount one hundred</code> or <code>Amount 100</code> → 100.00.</li>'
       + '<li><b>Reference / Check No</b> — <code>Reference Number 12345</code>, <code>Ref No 987654</code>, <code>Check Number 4567</code>, <code>Check No 7890</code>, <code>Cheque No …</code>. Letters work too: <code>Reference Number ABC123</code>; for hyphens say “dash”: <code>Check Number TXN dash 2026 dash 001</code> → TXN-2026-001.</li>'
-      + '<li><b>Note</b>: <code>Note quarterly bill</code>.</li>'
+      + '<li><b>Note</b>: <code>Set Note to quarterly bill</code>.</li>'
+      + '<li><b>Set a field</b> — <code>Set Expense to Office Supplies</code>, <code>Set Fund to Building</code>, <code>Set Amount to 100</code>, <code>Set Date to October 21, 2026</code>. Or say just <code>Set Expense</code>, then the category; the next thing you say goes to that field only. Say <code>Done</code> to finish it. If a value is clear it is accepted without “Done”; if not, you are asked to repeat it.</li>'
       + '<li><b>Clear / Reset</b> — fix mistakes by voice: <code>Clear Expense</code>, <code>Clear Amount</code>, <code>Clear Date</code>, <code>Clear Method</code> (clears one field) · <code>Reset Field</code> (resets the field you changed last) · <code>Reset Fields</code> / <code>Clear Form</code> / <code>Reset Form</code> (clears the whole form).</li>'
       + '</ul>'
       + '<div style="margin-top:6px;color:#888;">Auto-filled fields are outlined; amber means please confirm before saving. If several categories or funds match, pick the right one from the suggestions.</div>'
@@ -164,22 +177,30 @@
     var card = $('expenseFormCard');
     var grid = card && card.querySelector('.form-grid');
     if(card && grid && !$('voiceMicBtn')){
-      var bar=document.createElement('div');
-      bar.style.cssText='display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:10px;';
-      bar.innerHTML='<button type="button" id="voiceMicBtn" class="btn-voice-mic" title="Voice — fill the form by voice" aria-label="Voice">🎤</button>'
+      var wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:10px;';
+      wrap.innerHTML = '<button type="button" id="voiceMicBtn" class="btn-voice-mic" title="Voice — fill the form by voice" aria-label="Voice">🎤</button>'
         + '<button type="button" id="voiceConverseBtn" class="btn-voice-mic" title="Converse — guided voice conversation" aria-label="Converse">🗣</button>'
         + '<button type="button" id="voiceGuideBtn" class="btn-voice-guide" title="Guide — voice command reference" aria-label="Guide">❔</button>'
         + '<button type="button" id="voiceHelpBtn" class="btn-voice-help" title="Help — Type, Voice &amp; Converse input methods" aria-label="Help">?</button>'
         + '<button type="button" id="voiceDebugBtn" class="btn-voice-debug" title="Debug — show the voice debug console" aria-label="Debug">🐞</button>';
-      grid.parentNode.insertBefore(bar, grid);
+      grid.parentNode.insertBefore(wrap, grid);
+    }
+    if(card && grid && !$('voicePanel')){
       var panel=document.createElement('div'); panel.id='voicePanel'; panel.className='hidden';
       panel.innerHTML = '<div id="voiceStatus"></div><div id="voiceTranscript"></div>'
         + '<div id="voiceCurrent"></div>'
         + '<div id="voiceResults"></div><div id="voiceSuggest"></div>'
+        + '<div id="voicePrefs" style="margin-top:6px;font-size:12px;color:#666;">Speech accent: <select id="voiceLocale" style="font-size:12px;padding:2px 4px;"></select>'
+        + ' <span title="Tells the speech-recognition service your English variety where it supports it. It can improve recognition of names and numbers but cannot guarantee a perfect transcription.">ⓘ</span></div>'
         + '<div id="voiceDebugHead"></div>'
         + '<div id="voiceDebug"></div>'
         + guideHTML();
       grid.parentNode.insertBefore(panel, grid);
+      var sel=$('voiceLocale');
+      if(sel){ LOCALES.forEach(function(l){ var o=document.createElement('option'); o.value=l[0]; o.textContent=l[1]; sel.appendChild(o); });
+        sel.value=voiceLocale(); if(sel.value!==voiceLocale()) sel.value='en-US';
+        sel.addEventListener('change', function(){ setVoiceLocale(sel.value); }); }
     }
   }
 
@@ -187,29 +208,22 @@
   function setStatus(html){ var s=$('voiceStatus'); if(s) s.innerHTML=html; showPanel(); }
   function setTranscript(t){ var s=$('voiceTranscript'); if(s) s.textContent = t?('You said: “'+t+'”'):''; }
   function chip(label,state){ return '<span class="voice-chip '+(state||'')+'">'+label+'</span>'; }
-  function usDate(iso){ var p=(iso||'').split('-'); return p.length===3 ? (p[1]+'/'+p[2]+'/'+p[0]) : iso; }
-
-  function applyExpense(id,name){
-    if(typeof window.selectExpense==='function'){ window.selectExpense(id, name); }
-    else { var h=$('fExpense'), d=$('fExpenseInput'); if(h) h.value=id; if(d) d.value=name; }
-  }
-  window.__voicePickExp = function(field, value, name){
-    if(field==='expense'){ applyExpense(value, name); markField('fExpenseInput','ok'); }
-    else { setSelect(field, value); markField(field,'ok'); }
-  };
-  function suggestRow(title, opts){
-    var html='<div class="voice-sugg-row"><b>'+title+'</b><br>';
-    opts.forEach(function(o){ html += '<span class="voice-sugg-opt" onclick="'+o.onpick.replace(/"/g,'&quot;')+'">'+o.label+'</span>'; });
-    return html+'</div>';
-  }
 
   // ── Field fillers (apply one value to the DOM, return {chip, suggest, confirm}) ──
   function fillExpense(value){
-    var po=matchOption(value, purposesCache||[]);
-    if(po.best && !po.ambiguous){ applyExpense(po.best.value, po.best.text); markField('fExpenseInput','ok'); return {chip:chip('Expense: '+po.best.text,'ok')}; }
-    if(po.candidates.length){ markField('fExpenseInput','confirm'); return {confirm:true, chip:chip('Expense: choose below','confirm'),
-      suggest:suggestRow('Expense — "'+value+'"', po.candidates.map(function(c){ return {label:c.text, onpick:"window.__voicePickExp('expense','"+c.value+"',"+JSON.stringify(c.text)+")"}; }))}; }
-    markField('fExpenseInput','fail'); return {confirm:true, chip:chip('Expense: not found','fail')};
+    var cm = matchContributor(value, purposesCache||[]);
+    if(!(purposesCache&&purposesCache.length)){ markField('fExpenseInput','fail'); return {confirm:true, chip:chip('Expense categories aren’t loaded yet — wait a second and try again','fail')}; }
+    if(cm.best && !cm.ambiguous && cm.best.score>=70){
+      applyExpense(cm.best.id, cm.best.fullName); markField('fExpenseInput','ok');
+      return {chip:chip('Expense: '+cm.best.fullName,'ok'), said:cm.best.fullName};
+    }
+    // Not sure → offer the closest existing categories. The selected category is
+    // NEVER replaced without a click; nothing is guessed from a weak match.
+    var cands=(cm.candidates||[]).slice(0,6);
+    var opts=cands.map(function(c){ return {label:c.fullName, onpick:"window.__voicePickExp('expense','"+c.id+"',"+JSON.stringify(c.fullName)+")"}; });
+    markField('fExpenseInput', cands.length ? 'confirm' : 'fail');
+    if(!cands.length) return {confirm:true, pending:true, chip:chip('Expense: "'+value+'" not found — try another name or type it','fail'), problem:'I couldn’t find an expense category like “'+value+'”. Please say it again, or type it.'};
+    return {confirm:true, pending:true, chip:chip('Expense: choose below','confirm'), suggest:suggestRow('Expense — I heard "'+value+'". Did you mean:', opts)};
   }
   function fillFund(value){
     var all=selectOptions('fFund');
@@ -231,19 +245,21 @@
   }
   function fillDate(value){
     var s=String(value==null?'':value).trim();
-    var d = resolveNaturalDate(s);
-    if(!d && /^\d{4}-\d{2}-\d{2}$/.test(s)) d = s;
-    if(!d) d = parseDate(s);
+    var d = resolveNaturalDate(s);                          // today / tomorrow / last Sunday …
+    if(!d && /^\d{4}-\d{2}-\d{2}$/.test(s)) d = s;          // ISO from the model
+    if(!d) d = parseDate(s);                                // month names / numeric
     if(d){ var de=$('fDate'); if(de){ de.value=d; de.dispatchEvent(new Event('change',{bubbles:true})); } markField('fDate','ok'); return {chip:chip('Date: '+usDate(d),'ok')}; }
     markField('fDate','fail'); return {confirm:true, chip:chip('Date: not understood','fail')};
   }
+
+  // Resolve common natural-language date expressions → "YYYY-MM-DD" (or null).
   function resolveNaturalDate(text){
     if(!text) return null;
     var t=String(text).toLowerCase().trim();
     var today=new Date(); today.setHours(0,0,0,0);
     function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
     function addDays(n){ var d=new Date(today); d.setDate(d.getDate()+n); return d; }
-    if(/\btoday\b/.test(t) || /\b(tonight|now)\b/.test(t)) return iso(today);
+    if(/^(date[:\s-]*)?(today|tonight|now)\b/.test(t) || /\btoday\b/.test(t)) return iso(today);
     if(/\btomorrow\b/.test(t))  return iso(addDays(1));
     if(/\byesterday\b/.test(t)) return iso(addDays(-1));
     var inN=t.match(/\bin\s+(\d+)\s+days?\b/);   if(inN)  return iso(addDays(parseInt(inN[1],10)));
@@ -255,16 +271,24 @@
       var rel=m[1], wd=WD[m[2]], cur=today.getDay();
       if(rel==='next'||rel==='coming'){ var f=(wd-cur+7)%7; return iso(addDays(f===0?7:f)); }
       if(rel==='last'||rel==='past'){ var b=(cur-wd+7)%7; return iso(addDays(b===0?-7:-b)); }
-      return iso(addDays((wd-cur+7)%7));
+      return iso(addDays((wd-cur+7)%7));   // this <weekday>
     }
     var bw=t.match(/^\s*([a-z]+)\s*$/);
     if(bw && WD[bw[1]]!=null){ var f2=(WD[bw[1]]-today.getDay()+7)%7; return iso(addDays(f2===0?7:f2)); }
     return null;
   }
+  function amountProblem(value){
+    // Why an amount was refused, for the status line / speech.
+    var groups=String(value||'').match(/\d+(?:\.\d+)?/g)||[];
+    if(groups.length>1) return 'I heard several numbers — please say the amount once, for example “Set Amount to 100”.';
+    var raw=parseFloat(String(value||'').replace(/[^0-9.]/g,''));
+    if(isFinite(raw) && raw>VC.AMOUNT_MAX) return 'That amount is larger than the ledger allows — please repeat it.';
+    return 'I couldn’t confidently identify that amount. Please repeat it.';
+  }
   function fillAmount(value){
-    var a=parseAmount(value);
-    if(a!=null && a>0){ var ae=$('fAmount'); if(ae){ ae.value=a.toFixed(2); ae.dispatchEvent(new Event('input',{bubbles:true})); } markField('fAmount','ok'); return {chip:chip('Amount: '+a.toFixed(2),'ok')}; }
-    markField('fAmount','fail'); return {confirm:true, chip:chip('Amount: not understood','fail')};
+    var a=parseAmount(value);          // null unless a valid, positive, in-range number
+    if(a!=null){ var ae=$('fAmount'); if(ae){ ae.value=a.toFixed(2); ae.dispatchEvent(new Event('input',{bubbles:true})); } markField('fAmount','ok'); return {chip:chip('Amount: '+a.toFixed(2),'ok'), said:a.toFixed(2)}; }
+    markField('fAmount','fail'); return {confirm:true, pending:true, chip:chip('Amount: not understood — please repeat','fail'), problem:amountProblem(value)};
   }
   // Normalize a spoken reference/check value: keep letters, digits, spaces and
   // hyphens; turn spoken "dash"/"hyphen" into "-"; uppercase (ref/check numbers
@@ -297,7 +321,7 @@
     function consider(field, score){ if(score>=0.6 && (!best || score>best.score)) best={field:field, score:score}; }
     if(/\d/.test(text) || NUMWORD.test(text)){ var a=parseAmount(text); if(a!=null && a>0) consider('amount', 0.9); }
     if(MONTHWORD.test(text) || /\b\d{1,2}[ \/.\-]\d{1,2}[ \/.\-]\d{2,4}\b/.test(text) || /\b(today|yesterday|tomorrow)\b/.test(text)){ if(parseDate(text)) consider('date', 0.95); }
-    var po=matchOption(text, purposesCache||[]); if(po.best) consider('expense', po.best.score/100);
+    var cm=matchContributor(text, purposesCache||[]); if(cm.best) consider('expense', cm.best.score/100);
     var fo=matchOption(text, selectOptions('fFund')); if(fo.best) consider('fund', fo.best.score/100);
     var mo=matchOption(text, selectOptions('fMethod')); if(mo.best) consider('method', mo.best.score/100);
     return best;
@@ -305,7 +329,7 @@
 
   // Per-session field state so the panel accumulates across utterances.
   var pendingField=null, sessionFields={};
-  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
+  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; if(typeof activeField!=='undefined') activeField=null; var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
   function renderSession(){
     var chips=[], sug='', confirm=false;
     Object.keys(sessionFields).forEach(function(f){ var r=sessionFields[f]; if(!r)return; if(r.chip)chips.push(r.chip); if(r.suggest)sug+=r.suggest; if(r.confirm)confirm=true; });
@@ -316,10 +340,10 @@
 
   // ── Clear / reset commands ────────────────────────────────────────────────
   var DISPLAY={expense:'Expense',fund:'Fund',method:'Method',date:'Date',amount:'Amount',ref:'Reference',note:'Note'};
-  // Field-name synonyms accepted in a "Clear <field>" command.
+  // Field-name synonyms accepted in "Clear <field>" / "Set <field>" commands.
   var FIELD_WORDS={
-    expense:['expense','expenses','purpose','category'],
-    fund:['fund','source'],
+    expense:['expense','expenses','purpose','category','categories'],
+    fund:['fund','funds','source'],
     date:['date','dated'],
     method:['method','payment','mode'],
     amount:['amount','value','total','money'],
@@ -328,7 +352,8 @@
   };
   // DOM ids cleared for each logical field (the first is the highlighted/primary one).
   var CLEAR_TARGETS={
-    expense:['fExpenseInput','fExpense'], fund:['fFund'], method:['fMethod'], date:['fDate'], amount:['fAmount'], ref:['fRefNo'], note:['fNote']
+    expense:['fExpenseInput','fExpense'],
+    fund:['fFund'], method:['fMethod'], date:['fDate'], amount:['fAmount'], ref:['fRefNo'], note:['fNote']
   };
   var lastField=null;
   function flash(id){ var el=$(id); if(!el) return; el.classList.add('voice-cleared'); setTimeout(function(){ el.classList.remove('voice-cleared'); }, 1300); }
@@ -341,7 +366,9 @@
     renderSession(); return true;
   }
   function resetAllFields(){
-    Object.keys(CLEAR_TARGETS).forEach(function(field){ CLEAR_TARGETS[field].forEach(function(id){ clearDom(id); markField(id,''); flash(id); }); });
+    Object.keys(CLEAR_TARGETS).forEach(function(field){
+      CLEAR_TARGETS[field].forEach(function(id){ clearDom(id); markField(id,''); flash(id); });
+    });
     sessionFields={}; lastField=null; pendingField=null; renderSession();
   }
   function fieldFromWords(text){
@@ -389,61 +416,155 @@
   }
 
   // ── Apply one recognized phrase to the form, in real time ─────────────────
+  // The backend returns a structured {fields} object per phrase, so each field
+  // is applied as soon as it is recognized (one phrase ≈ one field).
   var ORDER=['expense','fund','date','method','amount','ref','note'];
+  // Voice mode's ACTIVE field: set by "Set <field>" (or "Set <field> to <value>"),
+  // cleared by "Done", by a confidently applied value, or by another "Set …".
+  // While a field is active, speech goes to that field and nowhere else.
+  var activeField=null;
+  var MIN_CONF=0.6;   // below this the transcript is not trusted to overwrite a filled field
+  function lowConfidence(payload){ var c=(payload&&payload.confidence); return typeof c==='number' && c>=0 && c<MIN_CONF; }
+  function fieldLabel(f){ return DISPLAY[f]||f; }
+  // Spoken + visible feedback. Voice mode speaks only results and questions (the
+  // mic is muted while it talks, see speak()), never a running commentary.
+  function announce(text, spoken){ setStatus(text); if(spoken && speech){ speak(spoken); } }
+  function setActive(field, spokenToo){
+    activeField=field; setCurrentField(field);
+    if(field) announce('🎯 Setting '+fieldLabel(field)+' — say the value'+(field==='amount'?' (e.g. “100”)':'')+', or “Done”.', spokenToo ? 'Setting '+fieldLabel(field)+'.' : null);
+  }
   function applyPayload(payload){
     payload = payload || {};
     var transcript = payload.transcript || '';
     setTranscript(transcript);
     var fields = payload.fields || {};
     logEvent('entities', JSON.stringify(fields));
+    if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
+    if(VC.isLikelyHallucination(transcript)){ logEvent('ignored','speech model artefact — “'+transcript+'”'); setStatus('Didn’t catch that — please say it again.'); return; }
 
+    // 1. Explicit field selection — "Set Expense to Office Supplies", "Set Amount", "Done".
+    //    Checked on the raw transcript FIRST, so the extractor cannot re-route it.
+    var sc=VC.parseSetCommand(transcript, FIELD_WORDS);
+    if(sc){
+      if(sc.kind==='done'){
+        if(activeField){ logEvent('command','done — '+fieldLabel(activeField)+' finished'); var fin=activeField; activeField=null; setCurrentField(null); announce('✅ '+fieldLabel(fin)+' done. Say “Set” and the next field name.', fieldLabel(fin)+' done.'); }
+        else announce('Nothing is being set right now. Say “Set Amount”, “Set Expense”, …', null);
+        return;
+      }
+      // The extractor saw the same phrase; when it isolated this field's value, that is
+      // the cleaner form ("Set the Note field as Thank You" → "Thank You").
+      var setVal = (fields[sc.field]!=null && String(fields[sc.field]).trim()) ? String(fields[sc.field]).trim() : sc.value;
+      logEvent('command','set '+fieldLabel(sc.field)+(setVal?' = "'+setVal+'"':''));
+      if(!setVal){ setActive(sc.field, true); return; }
+      setActive(sc.field, false);
+      applyOne(sc.field, setVal, payload);
+      return;
+    }
+
+    // 2. Clear / reset commands (from the model or the transcript).
     if(payload.command){ logEvent('command', payload.command);
       if(handleCommand(payload.command)){ setCurrentField(null); return; } }
+    if(transcript && handleCommand(transcript)){ setCurrentField(null); return; }
+    if(!activeField && transcript && handleRefCommand(transcript)){ setCurrentField(null); return; }
 
-    var pairs=[];
-    ORDER.forEach(function(f){ if(fields[f]) pairs.push({field:f, value:String(fields[f])}); });
-    Object.keys(fields).forEach(function(f){ if(fields[f] && ORDER.indexOf(f)<0) pairs.push({field:f, value:String(fields[f])}); });
-    if(pairs.length){ applyPairs(pairs); return; }
+    // 3. Route the extractor's fields: the active field wins; otherwise only fields the
+    //    user NAMED in the phrase; otherwise a single returned field; several unnamed
+    //    fields → ask rather than guess.
+    var route=VC.routeFields(fields, transcript, activeField, KEYWORDS, ORDER);
+    if(route.reason==='ambiguous'){
+      logEvent('warn','several fields in one phrase, none named: '+route.fields.join(', '));
+      announce('I heard values for '+route.fields.map(fieldLabel).join(' and ')+'. Please set one at a time, e.g. “Set '+fieldLabel(route.fields[0])+' to …”.', 'I heard more than one field. Please set one at a time.');
+      return;
+    }
+    if(route.reason==='switch'){ logEvent('command','switched from '+fieldLabel(activeField)+' to '+fieldLabel(route.pairs[0].field)+' (named in the phrase)'); activeField=route.pairs[0].field; setCurrentField(activeField); }
+    if(route.pairs.length){ applyPairs(route.pairs, payload); return; }
 
+    // 4. Fallback: the deterministic segmenter on the raw transcript (keyword-led only).
     if(transcript){
-      if(handleCommand(transcript)){ setCurrentField(null); return; }
-      if(handleRefCommand(transcript)){ setCurrentField(null); return; }
       var seg=segment(transcript);
       var fb=[]; ORDER.forEach(function(f){ if(seg[f]) fb.push({field:f, value:seg[f]}); });
-      if(fb.length){ logEvent('warn','model returned no fields — used transcript segmenter'); applyPairs(fb); return; }
-      var c=classify(transcript); if(c){ applyPairs([{field:c.field, value:transcript}]); return; }
+      if(fb.length){ logEvent('warn','model returned no fields — used transcript segmenter'); applyPairs(fb, payload); return; }
+      // A bare value with no field named and no active field: only an unmistakable
+      // amount or date may be classified; words are never guessed into Expense.
+      var c=classify(transcript);
+      if(c && (c.field==='amount' || c.field==='date')){ applyPairs([{field:c.field, value:transcript}], payload); return; }
+      if(c){ announce('I heard “'+transcript+'” — which field is it for? Say “Set '+fieldLabel(c.field)+' to '+transcript+'”.', 'Which field is that for? Say Set, then the field name.'); return; }
     }
     setCurrentField(null);
     logEvent('warn','no field detected in this phrase');
-    setStatus('Didn’t catch a value in that phrase. Say e.g. “Expense Office Supplies”, then pause; then “Amount 100”, then pause.');
+    announce('Didn’t catch a value in that phrase. Say “Set Expense to Office Supplies”, then pause; then “Set Amount to 100”.', null);
   }
+  function applyOne(field, value, payload){ applyPairs([{field:field, value:value}], payload); }
+  // Entry points for automated page tests (Playwright feeds the JSON /api/voice/command
+  // returns straight in, so the routing rules run against the real form without a mic).
+  window.__expenseVoice = { applyPayload: applyPayload, convoTurn: function(p){ return convoTurn(p); }, startConvo: function(){ return startConvo(); }, endConvo: function(){ return endConvo(); },
+                           activeField: function(){ return activeField; }, convo: function(){ return convo; } };
 
-  function applyPairs(pairs){
-    var i=0;
+  // Apply field(s) from one phrase, with staged feedback: I heard → Processing →
+  // set / needs confirmation. A low-confidence transcript never overwrites a field
+  // that already has a value; an empty field takes it but is marked for review.
+  function applyPairs(pairs, payload){
+    var i=0, lowConf=lowConfidence(payload);
     function step(){
       if(i>=pairs.length){
-        setCurrentField(null);
-        var confirm = renderSession();
-        setStatus(confirm
-          ? '⚠️ Review the highlighted fields, fix anything in amber/red, then Save.'
-          : '✅ Field filled. Keep speaking the next field, or tap Stop.');
+        var confirm=renderSession();
+        if(!activeField) setCurrentField(null);
+        if(!confirm) setStatus(activeField ? '🎯 '+fieldLabel(activeField)+' is still active — say the value again, or “Done”.' : '✅ Field filled. Say “Set …” and the next field, e.g. “Set Amount to 100”, or tap Stop.');
         return;
       }
       var p=pairs[i++];
       setCurrentField(p.field);
-      logEvent('fill', (DISPLAY[p.field]||p.field)+' = "'+p.value+'"');
-      if(FILLERS[p.field]){
-        var res = FILLERS[p.field](p.value);
-        sessionFields[p.field]=res; lastField=p.field;
+      logEvent('fill', fieldLabel(p.field)+' = "'+p.value+'"');
+      setStatus('🎧 I heard “'+p.value+'” for '+fieldLabel(p.field)+' …');
+      if(lowConf && fieldPresent(p.field)){
+        logEvent('warn','low confidence — '+fieldLabel(p.field)+' already set, not overwritten');
+        sessionFields[p.field]={confirm:true, chip:chip(fieldLabel(p.field)+': heard “'+p.value+'” but not clearly — unchanged','confirm')};
         renderSession();
-        logEvent('result', (DISPLAY[p.field]||p.field)+': '+(res && res.confirm ? 'needs confirmation' : 'set'));
+        announce('🤔 I heard “'+p.value+'” for '+fieldLabel(p.field)+' but wasn’t sure, so I left it unchanged. Please repeat it.', 'I wasn’t sure I heard the '+fieldLabel(p.field)+' correctly. Please repeat it.');
+        setTimeout(step, 40); return;
+      }
+      setStatus('⏳ Processing '+fieldLabel(p.field)+' …');
+      if(FILLERS[p.field]){
+        var res=FILLERS[p.field](p.value) || {};
+        if(lowConf && !res.confirm){ markField((CLEAR_TARGETS[p.field]||[])[0],'confirm'); res.confirm=true; res.chip=chip(fieldLabel(p.field)+': '+(res.said||p.value)+' (heard unclearly — please check)','confirm'); }
+        sessionFields[p.field]=res; lastField=p.field; renderSession();
+        var ok = !res.confirm;
+        logEvent('result', fieldLabel(p.field)+': '+(ok ? 'set' : 'needs confirmation'));
+        if(ok){
+          if(activeField===p.field){ activeField=null; }            // value accepted → field finished
+          announce('✅ '+fieldLabel(p.field)+' set to '+(res.said||p.value)+'.', fieldLabel(p.field)+' set to '+(res.said||p.value)+'.');
+        } else if(res.problem){
+          announce('❌ '+res.problem, res.problem);                   // e.g. amount not a number → stays active
+        } else if(res.pending){
+          announce('⚠️ '+fieldLabel(p.field)+': please choose from the suggestions below.', 'I’m not sure about the '+fieldLabel(p.field)+'. Please choose from the suggestions.');
+        } else {
+          announce('⚠️ '+fieldLabel(p.field)+' needs a check — see the highlighted field.', null);
+        }
       }
       setTimeout(step, i<pairs.length ? 300 : 40);
     }
     step();
   }
 
-  // ── Voice engine (shared OpenAI recorder) ─────────────────────────────────
+  function suggestRow(title, opts){
+    var html='<div class="voice-sugg-row"><b>'+title+'</b><br>';
+    opts.forEach(function(o){ html += '<span class="voice-sugg-opt" onclick="'+o.onpick.replace(/"/g,'&quot;')+'">'+o.label+'</span>'; });
+    return html+'</div>';
+  }
+  function applyExpense(id,name){
+    if(typeof window.selectExpense==='function'){ window.selectExpense(id, name); }
+    else { var h=$('fExpense'), d=$('fExpenseInput'); if(h) h.value=id; if(d) d.value=name; }
+  }
+  function usDate(iso){ var p=(iso||'').split('-'); return p.length===3 ? (p[1]+'/'+p[2]+'/'+p[0]) : iso; }
+
+  // Suggestion picker (called from injected onclick)
+  window.__voicePickExp = function(field, value, name){
+    if(field==='expense'){ applyExpense(value, name); markField('fExpenseInput','ok'); sessionFields.expense={chip:chip('Expense: '+name,'ok')}; if(activeField==='expense') activeField=null; }
+    else { setSelect(field, value); markField(field,'ok'); if(field==='fFund') sessionFields.fund={chip:chip('Fund selected','ok')}; if(field==='fMethod') sessionFields.method={chip:chip('Method selected','ok')}; }
+    renderSession(); setStatus('✅ Selected.');
+  };
+
+  // ── Speech recognition (shared engine in voice-core.js) ───────────────────
   var recording=false;
   var SESSION_MS=300000, sessionTimer=null, ending=false;   // 5-minute Converse session
   function setRecording(on){
@@ -458,15 +579,19 @@
   }
   function dbgEsc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
   function clearDebug(){ var el=$('voiceDebug'); if(el){ el.innerHTML=''; } }
+  // Append a timestamped, colour-coded line to the debug console (visibility is
+  // controlled by the 🐞 Debug toggle; logging is always recorded).
   function logEvent(name, detail){
     var el=$('voiceDebug'); if(!el) return;
     var d=(detail!==undefined && detail!=='') ? (typeof detail==='object'?JSON.stringify(detail):String(detail)) : '';
     var n=String(name||'');
-    var cls = /error/i.test(n) ? 'vd-error' : /warn/i.test(n) ? 'vd-warn' : /fill|result|done/i.test(n) ? 'vd-fill' : '';
+    var cls = /error/i.test(n) ? 'vd-error' : /warn/i.test(n) ? 'vd-warn'
+            : /fill|result|done/i.test(n) ? 'vd-fill' : '';
     el.innerHTML += '<span class="vd-row"><span class="vd-time">'+dbgEsc((new Date()).toLocaleTimeString())+'</span> '
       + '<span class="vd-tag '+cls+'">'+dbgEsc(n)+'</span> '+(d?dbgEsc(d):'')+'</span>';
     el.scrollTop = el.scrollHeight;
   }
+  // Highlight the field currently being populated + show a status line.
   var _curEl=null;
   function setCurrentField(field){
     if(_curEl){ _curEl.classList.remove('voice-current'); _curEl=null; }
@@ -478,8 +603,15 @@
   }
   // OpenAI-powered voice (records audio → OpenAI transcription → normalized
   // command, applied by the same applyResult pipeline used before).
+  // Speech-recognition locale preference (per browser, like the other UI prefs).
+  // The transcription service today accepts only a language (English); the hint is
+  // sent along so it is applied wherever the service supports it.
+  var LOCALES=[['en-US','English (US)'],['en-GB','English (UK)'],['en-IN','English (India)'],['en-AU','English (Australia)'],['en-CA','English (Canada)'],['en-NZ','English (New Zealand)'],['en-IE','English (Ireland)'],['en-ZA','English (South Africa)']];
+  function voiceLocale(){ try{ return localStorage.getItem('cgp.voice.locale')||'en-US'; }catch(e){ return 'en-US'; } }
+  function setVoiceLocale(v){ try{ localStorage.setItem('cgp.voice.locale', v); }catch(e){} logEvent('locale', v); }
   var speech = (window.VoiceOpenAI) ? window.VoiceOpenAI.createRecorder({
     context:      'expense',
+    getExtra:     function(){ return { expecting: (convo && convo.active) ? (convo.focusField||convo.expecting||'') : (activeField||''), locale: voiceLocale() }; },
     onState:      setRecording,
     onStatus:     function(m){ setStatus(m); },
     onDebug:      function(label, detail){ logEvent(label, detail); },
@@ -520,6 +652,7 @@
                 options:null, methodAsked:false, lastPrompt:'', cpi:0, cci:0, uci:0 };
   // ── Ordered conversation script ───────────────────────────────────────────
   // expense → fund → date → method → (only if Method = Check: ref → note) → amount.
+  // Amount is LAST so the conversation continues right up to "Save Now".
   function methodText(){ var e=$('fMethod'); return (e&&e.selectedIndex>0)?(e.options[e.selectedIndex].text||''):''; }
   function isCheck(){ return /check|cheque/i.test(methodText()); }
   var SCRIPT = [
@@ -548,11 +681,12 @@
   function stepIndexOf(field){ for(var i=0;i<SCRIPT.length;i++){ if(SCRIPT[i].f===field) return i; } return -1; }
   function isSkip(t){ return /(^|\b)(skip|skip it|skip this|leave (it )?blank|not now|no thanks|move on|next field)(\b|$)/.test(t); }
 
-  function ttsSupported(){ return typeof window!=='undefined' && 'speechSynthesis' in window; }
+  function ttsSupported(){ return typeof window!=='undefined' && !!window.speechSynthesis && typeof window.speechSynthesis.speak==='function'; }
 
   // ── Self-echo guard ───────────────────────────────────────────────────────
-  // Drop a transcription that closely matches what the assistant just SAID (its
-  // own TTS leaking into the mic). The length guard keeps short answers safe.
+  // Defensive backstop: if a transcription comes back closely matching what the
+  // assistant just SAID (its own TTS leaking into the mic), drop it. The length
+  // guard makes sure a short real answer ("Check", "Option 4") is never filtered.
   var recentSpoken=[];
   function _norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim(); }
   function recordSpoken(t){ var n=_norm(t); if(n){ recentSpoken.push(n); if(recentSpoken.length>5) recentSpoken.shift(); } }
@@ -568,16 +702,17 @@
     var tw=t.split(' ').length;
     for(var i=0;i<recentSpoken.length;i++){
       var sp=recentSpoken[i], sw=sp.split(' ').length;
-      if(sw<3) continue;
-      if(tw < Math.max(3, Math.floor(sw*0.5))) continue;
-      if(_diceWords(t, sp) >= 0.6) return true;
+      if(sw<3) continue;                                    // short prompts can't shadow real answers
+      if(tw < Math.max(3, Math.floor(sw*0.5))) continue;    // a short answer is never a whole-prompt echo
+      if(_diceWords(t, sp) >= 0.6) return true;             // high whole-phrase overlap → our own voice
     }
     return false;
   }
 
-  // Mic muted BEFORE any audio; resumed ONLY after speechSynthesis is fully idle.
-  // The sequence token stops a finishing prompt from un-muting while a newer one
-  // is still speaking (the main self-capture bug).
+  // Speak a prompt. The mic is muted BEFORE any audio starts and is resumed ONLY
+  // after speechSynthesis reports it has fully finished — so the system never
+  // transcribes its own voice. A sequence token prevents a finishing prompt from
+  // un-muting while a NEWER prompt is already speaking (the main self-capture bug).
   // Warm, female English voice — the same profile used by Meetings Converse.
   var _voice=null;
   function pickVoice(){
@@ -601,13 +736,13 @@
     if(speech && speech.setMuted) speech.setMuted(true);
     logEvent('mic', 'paused — system speaking');
     function resumeAfterSpeech(){
-      if(mySeq!==speakSeq) return;
+      if(mySeq!==speakSeq) return;                          // superseded by a newer prompt
       var tries=0;
       (function settle(){
         if(mySeq!==speakSeq) return;
         var busy = ttsSupported() && (window.speechSynthesis.speaking || window.speechSynthesis.pending);
-        if(busy && tries++ < 300){ return setTimeout(settle, 100); }
-        setTimeout(function(){
+        if(busy && tries++ < 300){ return setTimeout(settle, 100); }   // wait until truly done
+        setTimeout(function(){                              // small cushion so the tail isn't captured
           if(mySeq!==speakSeq) return;
           logEvent('tts-end', '');
           if(speech && speech.setMuted) speech.setMuted(false);
@@ -624,17 +759,16 @@
       u.rate=0.98; u.pitch=1.12;          // calm, warm, friendly (same as Meetings)
       u.onend=resumeAfterSpeech; u.onerror=resumeAfterSpeech;
       window.speechSynthesis.speak(u);
-      setTimeout(resumeAfterSpeech, Math.min(30000, 2500 + text.length*90));
+      setTimeout(resumeAfterSpeech, Math.min(30000, 2500 + text.length*90));   // hard safety if onend never fires
     }catch(e){ resumeAfterSpeech(); }
   }
+  // Speak a prompt and remember it (so "repeat" can replay the last QUESTION).
+  // Pass ephemeral=true for acknowledgements that shouldn't be "repeated".
   function say(text, ephemeral){ if(!ephemeral) convo.lastPrompt=text; speak(text); }
-  function confirmYes(t){
-    var s=(t||'').toLowerCase();
-    return /(^|\b)(yes|yeah|yep|yup|sure|confirm|confirmed|correct|affirmative|go ahead|do it|save)(\b|$)/.test(s);
-  }
 
+  // ── Required-field presence (used to know what's still missing) ───────────
   function fieldPresent(field){
-    if(field==='expense'){ var i=$('fExpenseInput'),h=$('fExpense'); return !!((i&&i.value&&i.value.trim())||(h&&h.value)); }
+    if(field==='expense'){ var h=$('fExpense'),d=$('fExpenseInput'); return !!((h&&h.value)||(d&&d.value&&d.value.trim())); }
     if(field==='fund'){ var e=$('fFund'); return !!(e&&e.value); }
     if(field==='amount'){ var e=$('fAmount'); return !!(e&&e.value && parseFloat(e.value)>0); }
     if(field==='date'){ var e=$('fDate'); return !!(e&&e.value); }
@@ -643,10 +777,13 @@
     if(field==='note'){ var e=$('fNote'); return !!(e&&e.value && e.value.trim()); }
     return false;
   }
+  // Required fields still missing (used by Save Now). ref + note are never required.
   function nextMissing(){ for(var i=0;i<REQUIRED.length;i++){ if(!fieldPresent(REQUIRED[i])) return REQUIRED[i]; } return null; }
   function friendlyDate(iso){ var p=(iso||'').split('-'); if(p.length!==3) return iso; var d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d.getTime())?iso:d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}); }
+  // Speak "today" / "tomorrow" / "yesterday" when the date is one of those, else the full date.
   function _isoToday(off){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+(off||0)); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function datePhrase(iso){ if(iso===_isoToday(0)) return 'today'; if(iso===_isoToday(1)) return 'tomorrow'; if(iso===_isoToday(-1)) return 'yesterday'; return friendlyDate(iso); }
+  // "Keep the current value" vs "I want to change it" (used when confirming a pre-filled field).
   function isKeep(t){ return /(^|\b)(keep|keep it|leave it|leave as is|no change|don'?t change|that'?s? (fine|correct|right|good|okay|ok)|it'?s (fine|correct|right|good)|correct|no)(\b|$)/.test(t); }
   function wantsChange(t){ return /(^|\b)(yes|yeah|yep|change|change it|update|update it|edit|edit it|different|new date|wrong|incorrect)(\b|$)/.test(t); }
   function confirmFieldPrompt(f){
@@ -656,6 +793,11 @@
       return mt ? ('The payment method is set to '+mt+'. Do you want to change it? Say a new method, or say “keep” to leave it.')
                 : FIELD_PROMPT.method; }
     return FIELD_PROMPT[f];
+  }
+  // STRICT confirmation — only an explicit yes/confirm/save counts.
+  function confirmYes(t){
+    var s=(t||'').toLowerCase();
+    return /(^|\b)(yes|yeah|yep|yup|sure|confirm|confirmed|correct|affirmative|go ahead|do it|save)(\b|$)/.test(s);
   }
 
   // Rotating, natural prompts so the assistant never repeats the same line.
@@ -674,15 +816,15 @@
   function clarifyComplete(){ var p=CLARIFY_COMPLETE[(convo.cci||0)%CLARIFY_COMPLETE.length]; convo.cci=(convo.cci||0)+1; return p; }
   function unclearLine(){ var p=UNCLEAR[(convo.uci||0)%UNCLEAR.length]; convo.uci=(convo.uci||0)+1; return p; }
   function reviewValues(){
-    var parts=[];
-    var ex=$('fExpenseInput'); if(ex&&ex.value) parts.push('expense '+ex.value);
-    var fd=$('fFund'); if(fd&&fd.selectedIndex>0) parts.push('fund '+fd.options[fd.selectedIndex].text);
-    var am=$('fAmount'); if(am&&am.value) parts.push('amount '+am.value);
-    var dt=$('fDate'); if(dt&&dt.value) parts.push('date '+friendlyDate(dt.value));
-    var mt=$('fMethod'); if(mt&&mt.selectedIndex>0) parts.push('method '+mt.options[mt.selectedIndex].text);
-    var rf=$('fRefNo'); if(rf&&rf.value) parts.push('reference '+rf.value);
-    if(!parts.length) return 'Nothing has been entered yet. '+(FIELD_PROMPT[nextMissing()]||'');
-    return 'Here’s what I have. '+parts.join(', ')+'. You can update a field, add details, or say “Save Now” to save.';
+    var out=[];
+    var ex=$('fExpenseInput'); if(ex&&ex.value) out.push('expense '+ex.value);
+    var f=$('fFund'); if(f&&f.selectedIndex>0) out.push('fund '+f.options[f.selectedIndex].text);
+    var a=$('fAmount'); if(a&&a.value) out.push('amount '+parseFloat(a.value));
+    var d=$('fDate'); if(d&&d.value) out.push('date '+friendlyDate(d.value));
+    var m=$('fMethod'); if(m&&m.selectedIndex>0) out.push('method '+m.options[m.selectedIndex].text);
+    var r=$('fRefNo'); if(r&&r.value) out.push('reference '+r.value);
+    return out.length ? ('Here’s what I have. '+out.join(', ')+'. You can update a field, add details, or say “Save Now” to save.')
+                      : 'Nothing has been entered yet. '+(FIELD_PROMPT[nextMissing()]||'');
   }
 
   // ── Converse button + processing indicator (state always matches reality) ─
@@ -706,7 +848,8 @@
     for(var k2 in ORD_CARDINAL){ if(new RegExp('\\b'+k2+'\\b').test(s)) return ORD_CARDINAL[k2]; }
     return null;
   }
-  // Typo-tolerant option matching so a near-miss transcription still maps (issue 1).
+  // Typo-tolerant option matching so a near-miss transcription ("dead"→"date",
+  // "checked"→"Check") still maps to the right option (issue 1).
   function _lev(a,b){
     a=String(a); b=String(b); var m=a.length,n=b.length; if(!m) return n; if(!n) return m;
     var prev=[],cur=[],i,j; for(j=0;j<=n;j++) prev[j]=j;
@@ -719,6 +862,7 @@
     opts.forEach(function(o){
       var t=String(o.text||'').toLowerCase().trim(); if(!t) return;
       var d=_lev(v,t), norm=d/Math.max(v.length,t.length);
+      // also reward a whole-word containment (e.g. "by check" ⊇ "check")
       if((' '+v+' ').indexOf(' '+t+' ')>=0 || (' '+t+' ').indexOf(' '+v+' ')>=0) norm=Math.min(norm, 0.2);
       if(norm<bestNorm){ bestNorm=norm; best=o; }
     });
@@ -746,12 +890,12 @@
     setCurrentField(field); showOptionChips(field);
     say((head||'I found multiple matches.')+' '+optionsPhrase());
   }
-  // After repeated misses on a list field, read its options as a numbered menu.
+  // After repeated misses on a list field, read its options as a numbered menu
+  // ONCE. convo.menuShown guards against re-reading the same list every turn.
   function presentSelectMenu(field){
     var list;
-    if(field==='expense'){ list=(purposesCache||[]).filter(function(o){ return o.value; }); }
-    else { var id=(field==='fund')?'fFund':'fMethod'; list=selectOptions(id).filter(function(o){ return o.value!=='' && o.value!=null; }); }
-    list=list.slice(0,6);
+    if(field==='expense'){ list=(purposesCache||[]).slice(0,6); }
+    else { var id=(field==='fund')?'fFund':'fMethod'; list=selectOptions(id).filter(function(o){ return o.value!=='' && o.value!=null; }).slice(0,6); }
     if(!list.length){ say(FIELD_PROMPT[field]); return; }
     convo.options = list.map(function(o,i){ return {num:i+1, text:o.text,
       apply:(function(v,tx){ return function(){
@@ -771,16 +915,27 @@
     'If none of those fit, say “skip” to leave it, or you can type it in.'
   ];
   function menuNudge(){ var p=MENU_NUDGE[(convo.mni||0)%MENU_NUDGE.length]; convo.mni=(convo.mni||0)+1; return p; }
+  // Affirmative / negative detection for the "did you mean …?" question.
+  function isAffirmative(t){ return /(^|\b)(yes|yeah|yep|yup|sure|correct|right|that one|that's it)(\b|$)/.test(t); }
+  function isNegative(t){ return /(^|\b)(no|nope|nah|not that|try again|search again|wrong)(\b|$)/.test(t); }
 
   // ── Resolve a spoken value for a SPECIFIC field (validate before applying) ─
+  // Returns {status:'ok'|'multiple'|'none', apply, confirm, options, head}.
   function resolveField(f, val){
     val=String(val==null?'':val).trim();
     if(f==='expense'){
-      var po=matchOption(val, purposesCache||[]);
-      if(po.best && !po.ambiguous && po.best.score>=70){ return {status:'ok', apply:function(){ applyExpense(po.best.value, po.best.text); markField('fExpenseInput','ok'); }, confirm:'Expense '+po.best.text+'.'}; }
-      if(po.candidates && po.candidates.length>1){ return {status:'multiple', head:'I found multiple matching expense categories.',
-        options: po.candidates.map(function(c){ return {text:c.text, apply:(function(v,tx){ return function(){ applyExpense(v,tx); markField('fExpenseInput','ok'); }; })(c.value,c.text), confirm:'Expense '+c.text+'.'}; })}; }
-      if(po.candidates && po.candidates.length===1){ var c0=po.candidates[0]; return {status:'ok', apply:function(){ applyExpense(c0.value,c0.text); markField('fExpenseInput','ok'); }, confirm:'Expense '+c0.text+'.'}; }
+      var cm=matchContributor(val, purposesCache||[]);
+      function opt(c){ return {text:c.fullName, score:c.score,
+        apply:function(){ applyExpense(c.id,c.fullName); markField('fExpenseInput','ok'); },
+        confirm:'Expense '+c.fullName+'.'}; }
+      if(cm.best && !cm.ambiguous && cm.best.score>=70){ var o1=opt(cm.best); return {status:'ok', apply:o1.apply, confirm:o1.confirm}; }
+      if(cm.candidates && cm.candidates.length>1 && (cm.ambiguous || cm.best.score<70)){
+        return {status:'multiple', head:'I heard “'+titleCase(val)+'”. Did you mean one of these?', options: cm.candidates.slice(0,6).map(opt)};
+      }
+      // One plausible but unconfirmed category → ask "did you mean…?" rather than apply or reject.
+      if(cm.candidates && cm.candidates.length===1 && cm.best.score>=40){
+        return {status:'confirm', option: opt(cm.best), question:'I heard “'+titleCase(val)+'”. Did you mean '+cm.best.fullName+'?'};
+      }
       return {status:'none'};
     }
     if(f==='fund' || f==='method'){
@@ -792,7 +947,7 @@
       if(mo.best && !mo.ambiguous && mo.best.score>=70){ return {status:'ok', apply:function(){ setSelect(id,mo.best.value); markField(id,'ok'); }, confirm:(f==='fund'?'Fund ':'Method ')+mo.best.text+'.'}; }
       if(mo.candidates && mo.candidates.length>1){ return {status:'multiple', head:'I found more than one matching '+(f==='fund'?'fund':'payment method')+'.',
         options: mo.candidates.map(function(c){ return {text:c.text, apply:(function(v){ return function(){ setSelect(id,v); markField(id,'ok'); }; })(c.value), confirm:(f==='fund'?'Fund ':'Method ')+c.text+'.'}; })}; }
-      if(mo.candidates && mo.candidates.length===1){ var c1=mo.candidates[0]; return {status:'ok', apply:function(){ setSelect(id,c1.value); markField(id,'ok'); }, confirm:(f==='fund'?'Fund ':'Method ')+c1.text+'.'}; }
+      if(mo.candidates && mo.candidates.length===1){ var c0=mo.candidates[0]; return {status:'ok', apply:function(){ setSelect(id,c0.value); markField(id,'ok'); }, confirm:(f==='fund'?'Fund ':'Method ')+c0.text+'.'}; }
       var fz=fuzzyOption(val, opts);   // typo-tolerant last resort
       if(fz){ return {status:'ok', apply:function(){ setSelect(id,fz.value); markField(id,'ok'); }, confirm:(f==='fund'?'Fund ':'Method ')+fz.text+'.'}; }
       return {status:'none'};
@@ -818,18 +973,20 @@
     return {status:'none'};
   }
 
-  // Decide what to ask next: required fields first, then optional method, then
-  // the natural "complete" prompt. Only complete when EVERY required field is filled.
-  // Walk the SCRIPT forward; ref/note only when Method = Check; amount last; after
-  // the last step give the "complete" prompt and STAY active (issue 4).
+  // Walk the SCRIPT forward from `fromIdx`, asking the next applicable, not-yet-
+  // filled field. ref/note are skipped unless Method = Check. After the last step
+  // the conversation gives the "complete" prompt and STAYS active (issue 4).
   function advanceFrom(fromIdx, prefix){
     var start=(typeof fromIdx==='number'?fromIdx:-1)+1;
     for(var i=start; i<SCRIPT.length; i++){
       var s=SCRIPT[i];
-      if(!stepApplicable(s)) continue;
+      if(!stepApplicable(s)) continue;        // ref/note only when Check
       if(fieldPresent(s.f)){
-        if(s.confirm){   // Date pre-filled to today → confirm it, never silently skip
-          convo.step=i; convo.expecting=s.f; convo.confirmField=s.f; convo.fieldMisses=0; convo.options=null; convo.menuShown=false; convo.mni=0;
+        // A confirm-step (Date) is pre-filled (defaulted to today) → ask to confirm
+        // it rather than silently skipping it. Everything else: skip if filled.
+        if(s.confirm){
+          convo.step=i; convo.expecting=s.f; convo.confirmField=s.f; convo.fieldMisses=0; convo.options=null;
+          convo.menuShown=false; convo.mni=0;
           setCurrentField(s.f); logEvent('confirm-field', labelFor(s.f));
           say((prefix?prefix+' ':'')+confirmFieldPrompt(s.f));
           return;
@@ -843,16 +1000,19 @@
       say((prefix?prefix+' ':'')+FIELD_PROMPT[s.f]+extra);
       return;
     }
-    convo.step=SCRIPT.length; convo.expecting=null; convo.options=null; convo.confirmField=null; setCurrentField(null); convo.menuShown=false;
+    // Nothing left → complete; the conversation does NOT end.
+    convo.step=SCRIPT.length; convo.expecting=null; convo.options=null; convo.confirmField=null; setCurrentField(null);
+    convo.menuShown=false;
     logEvent('next-question', 'all fields collected — awaiting update / review / Save Now');
     say((prefix?prefix+' ':'')+completePrompt(), true);
   }
+  // After a field is filled or skipped, continue from the CURRENT step.
   // After a fill: in FIELD-FOCUS mode stay on the focused field (don't auto-advance);
   // otherwise continue the guided flow from the current step.
   var FOCUS_DONE = [
-    'You can change it, click another field, or say “continue” to go on.',
-    'Done. Click another field to jump there, or say “continue” to keep going.',
-    'Set. Say a new value to change it, click another field, or say “continue”.'
+    'You can change it, say “Set” and another field, or say “Done” to go on.',
+    'Say “Set” and a field name to jump there, or “Done” to keep going.',
+    'Set. Say a new value to change it, or say “Done”.'
   ];
   function focusDoneLine(){ var p=FOCUS_DONE[(convo.fdi||0)%FOCUS_DONE.length]; convo.fdi=(convo.fdi||0)+1; return p; }
   function respondAfterFill(confirmText){
@@ -864,11 +1024,30 @@
     }
     advanceFrom(convo.step, confirmText);
   }
+  // Re-evaluate from the current step (used after "clear" / a declined save).
+  function advance(prefix){ advanceFrom((typeof convo.step==='number'?convo.step:0)-1, prefix); }
+  function reAsk(){ if(convo.options) say(optionsPhrase()); else if(convo.expecting) say(FIELD_PROMPT[convo.expecting]); else say(completePrompt(), true); }
+
+  // Pause listening, show "Processing…", apply the field, then speak the result
+  // (which resumes listening when it finishes) — prevents overlapping input (issue 6).
+  function convoProcess(applyFn, confirmText){
+    if(speech && speech.setMuted) speech.setMuted(true);   // stop listening while we update
+    convo._ignoreFocusUntil = Date.now()+1200;             // ignore focus that our own apply() may trigger
+    showProcessing(true); setStatus('⏳ Processing…'); logEvent('processing', confirmText||'');
+    setTimeout(function(){
+      try{ applyFn(); }catch(e){}
+      logEvent('field-updated', confirmText||'');
+      respondAfterFill(confirmText);
+    }, 380);
+  }
+
   // ── Field-focus mode ───────────────────────────────────────────────────────
-  // Clicking / tabbing into a form field makes the assistant jump to that field.
+  // Clicking / tabbing into a form field makes the assistant jump to that field,
+  // ask its question, and route the next answer there — taking priority over the
+  // guided flow until the user says "continue" or focuses a different field.
   var FOCUS_MAP = { fExpenseInput:'expense', fExpense:'expense', fFund:'fund',
                     fDate:'date', fMethod:'method', fAmount:'amount', fRefNo:'ref', fNote:'note' };
-  var FIELD_SYNS = { expense:['expense','purpose','category'], fund:['fund','source'],
+  var FIELD_SYNS = { expense:['expense','purpose','category','expense category'], fund:['fund','source'],
                      date:['date'], method:['method','payment'], ref:['reference','ref','reference number','check number'],
                      note:['note','notes','memo'], amount:['amount','value','total'] };
   function attachFieldFocus(){
@@ -880,20 +1059,22 @@
     });
   }
   function onFieldFocus(f){
-    if(!convo.active) return;
-    if(convo._ignoreFocusUntil && Date.now()<convo._ignoreFocusUntil) return;
-    if(convo.focusField===f && convo.expecting===f) return;
+    if(!convo.active) return;                                          // only while the assistant is running
+    if(convo._ignoreFocusUntil && Date.now()<convo._ignoreFocusUntil) return;  // ignore programmatic focus
+    if(convo.focusField===f && convo.expecting===f) return;           // already focused here
     focusField(f);
   }
   function focusField(f){
-    speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+    speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}  // interrupt any current prompt
     convo.focusField=f; convo.expecting=f; convo.step=stepIndexOf(f);
-    convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.mni=0; convo.fieldMisses=0; convo.awaitingConfirm=false;
+    convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.mni=0; convo.fieldMisses=0;
+    convo.awaitingConfirm=false; convo.awaitingPick=null;
     clearOptionChips(); setCurrentField(f); logEvent('field-focus', labelFor(f)+' (selected by user)');
     var s=SCRIPT[stepIndexOf(f)];
     if(s && s.confirm && fieldPresent(f)){ convo.confirmField=f; say(confirmFieldPrompt(f)); }
     else say(FIELD_PROMPT[f]);
   }
+  // Recognize an explicit request to move to a NAMED field ("go to amount", "the date field", "amount").
   function explicitFieldSwitch(t){
     var m=t.match(/^\s*(?:go to|switch to|change|update|edit|move to|the)\s+(.+?)\s*(?:field)?\s*$/);
     var bare=t.match(/^\s*(expense|category|purpose|fund|date|method|reference|ref|note|notes|amount)\s*(?:field)?\s*$/);
@@ -912,38 +1093,30 @@
   function appendNoteWord(text){
     var add=String(text||'').trim(); if(!add) return;
     var cur=getNote().replace(/\s+$/,'');
-    if(!cur){ setNote(add.charAt(0).toUpperCase()+add.slice(1)); return; }
+    if(!cur){ setNote(add.charAt(0).toUpperCase()+add.slice(1)); return; }              // first word → capitalize
     var endsSentence=/[.!?]$/.test(cur);
-    var chunk = endsSentence ? (add.charAt(0).toUpperCase()+add.slice(1)) : add;
+    var chunk = endsSentence ? (add.charAt(0).toUpperCase()+add.slice(1)) : add;          // capitalize after a period
     setNote(cur+' '+chunk);
   }
+  // While the active field is Notes, append spoken text to the existing note;
+  // never overwrite. Returning WITHOUT speaking keeps the mic listening so the
+  // user can keep dictating phrase after phrase.
   function handleNoteEntry(transcript, tl, fields){
     var got=Object.keys(fields).filter(function(k){ return fields[k]; });
+    // Finish notes → continue the guided flow.
     if(!got.length && /\b(continue|resume|go on|keep going|carry on|next field|done here|that'?s all|that is all|no more|i'?m done|im done|finish notes?|end notes?|next)\b/.test(tl)){
       convo.focusField=null; advanceFrom(stepIndexOf('note'), 'Okay.'); return;
     }
     if(!got.length && isSkip(tl)){ convo.focusField=null; advanceFrom(stepIndexOf('note'), 'Notes skipped.'); return; }
+    // Explicit switch to another field.
     if(!got.length){ var sw=explicitFieldSwitch(tl); if(sw && sw!=='note'){ focusField(sw); return; } }
+    // Punctuation command ("period" → ".").
     if(!got.length && isPunctCommand(tl)){ appendPunct(punctFor(tl)); setStatus('📝 Notes: '+getNote()); logEvent('note', 'punctuation '+tl); return; }
+    // Append spoken content to the existing note (never overwrite).
     var noteText=(fields.note ? String(fields.note) : transcript).trim();
     if(!noteText){ say('Go ahead with the note, or say “continue” when you’re done.', true); return; }
     appendNoteWord(noteText); setStatus('📝 Notes: '+getNote()); logEvent('note', 'appended “'+noteText+'”');
-  }
-
-  function advance(prefix){ advanceFrom((typeof convo.step==='number'?convo.step:0)-1, prefix); }
-  function reAsk(){ if(convo.options) say(optionsPhrase()); else if(convo.expecting) say(FIELD_PROMPT[convo.expecting]); else say(completePrompt(), true); }
-
-  // Pause listening, show "Processing…", apply the field, then speak the result
-  // (which resumes listening when it finishes) — prevents overlapping input (issue 6).
-  function convoProcess(applyFn, confirmText){
-    if(speech && speech.setMuted) speech.setMuted(true);   // stop listening while we update
-    convo._ignoreFocusUntil = Date.now()+1200;             // ignore focus that our own apply() may trigger
-    showProcessing(true); setStatus('⏳ Processing…'); logEvent('processing', confirmText||'');
-    setTimeout(function(){
-      try{ applyFn(); }catch(e){}
-      logEvent('field-updated', confirmText||'');
-      respondAfterFill(confirmText);
-    }, 380);
+    // No spoken reply → keep listening for the next phrase.
   }
 
   function clearAllFields(){
@@ -957,7 +1130,9 @@
     if(!speech){ setStatus('Voice support did not load. Please hard-refresh.'); return; }
     if(speech.supported===false){ setStatus('Voice conversation needs Chrome, Edge, or Safari with a microphone.'); return; }
     if(convo.active){ endConvo('Conversation ended.'); return; }
-    convo={active:true, awaitingConfirm:false, expecting:null, step:-1, confirmField:null, focusField:null, awaitingClearNotes:false, fieldMisses:0, options:null, methodAsked:false, menuShown:false, mni:0, lastPrompt:'', cpi:0, cci:0, uci:0};
+    convo={active:true, awaitingConfirm:false, expecting:null, step:-1, confirmField:null, focusField:null, awaitingClearNotes:false, fieldMisses:0, options:null, methodAsked:false,
+           menuShown:false, mni:0, pendingName:'', awaitingPick:null, lowConf:false,
+           lastPrompt:'', cpi:0, cci:0, uci:0};
     showPanel(); clearDebug(); resetSession(); setCurrentField(null); clearOptionChips();
     ending=false; clearTimeout(sessionTimer);
     sessionTimer=setTimeout(function(){
@@ -990,65 +1165,98 @@
     } else if(msg){ setStatus(msg); }
   }
 
-  // Handle a spoken answer for the field we are currently expecting — routed to
-  // THAT field only, so it can never populate the wrong one (issue 2).
+  // Handle a spoken answer for the field we are currently expecting — the answer
+  // is routed to THAT field only, so it can never populate the wrong one (issue 2).
   function handleExpected(transcript, fields){
     var f=convo.expecting;
     var tl=transcript.toLowerCase();
 
     // CONFIRMING a pre-filled field (e.g. Date defaulted to today).
     if(convo.confirmField===f){
+      // A new value was given → use it.
       var cval = fields[f] ? String(fields[f]) : transcript;
       var cr = resolveField(f, cval);
       if(cr.status==='ok' && !isKeep(tl)){ convo.confirmField=null; convo.fieldMisses=0; convoProcess(cr.apply, cr.confirm); return; }
+      // Keep it as-is (keep / no / that's fine / skip).
       if(isKeep(tl) || isSkip(tl)){
         convo.confirmField=null; convo.fieldMisses=0;
         var keepMsg = (f==='date') ? ('Keeping the date as '+datePhrase(($('fDate')||{}).value)+'.') : (capitalize(labelFor(f))+' kept.');
         convoProcess(function(){}, keepMsg); return;
       }
+      // They want to change it but didn't give a value yet → ask plainly.
       if(wantsChange(tl)){ convo.confirmField=null; logEvent('next-question', labelFor(f)); say(FIELD_PROMPT[f]); return; }
+      // Unclear → re-ask the confirm.
       say(confirmFieldPrompt(f)); return;
     }
 
     // NOTES — append-accumulate mode (speech is added to the existing note text).
     if(f==='note'){ handleNoteEntry(transcript, tl, fields); return; }
 
-    // SKIP — leave this field blank and move on (issue 3).
+    // SKIP — leave this field blank and move on (issue 3). Optional fields skip
+    // freely; a skipped required field still advances, but Save Now re-asks it.
     if(isSkip(tl) && !fields[f]){
       logEvent('skip', f);
       convoProcess(function(){}, capitalize(labelFor(f))+' skipped.');
       return;
     }
 
-    var val = fields[f] ? String(fields[f]) : transcript;
+    var val = fields[f] ? String(fields[f]) : transcript;   // route the answer to THIS field only
     var r=resolveField(f, val);
+    // A transcript the engine itself was unsure of never silently replaces a value already there.
+    if(convo.lowConf && fieldPresent(f) && (r.status==='ok' || r.status==='confirm')){
+      logEvent('warn','low confidence — '+labelFor(f)+' already set, not overwritten');
+      say('I heard “'+titleCase(val)+'” for the '+labelFor(f)+' but wasn’t sure. Say it again, or say “keep it”.'); return;
+    }
     if(r.status==='ok'){ convo.fieldMisses=0; convoProcess(r.apply, r.confirm); return; }
     if(r.status==='multiple'){ presentOptions(f, r.options, r.head); return; }
+    if(r.status==='confirm'){ convo.awaitingPick=r.option; convo.pendingName=val; say(r.question); return; }
+
+    // ── status 'none' → field-specific re-ask ──
     convo.fieldMisses=(convo.fieldMisses||0)+1;
-    if(f==='expense'||f==='fund'||f==='method'){
+
+    if(f==='expense'){
+      convo.pendingName=val;
+      if(!convo.menuShown && convo.fieldMisses>=2){ presentSelectMenu('expense'); return; }
+      if(convo.menuShown){ say(menuNudge()); return; }
+      say('I couldn’t find an expense category like “' + titleCase(val) + '”. ' + FIELD_PROMPT.expense); return;
+    }
+    if(f==='amount'){
+      if(convo.fieldMisses>=3){ convo.fieldMisses=0; say('I’m having trouble with the amount. You can also type it. '+FIELD_PROMPT.amount); return; }
+      say(amountProblem(val)); return;
+    }
+    if(f==='fund' || f==='method'){
       if(!convo.menuShown && convo.fieldMisses>=2){ presentSelectMenu(f); return; }
       if(convo.menuShown){ say(menuNudge()); return; }
       say(unclearLine()+' '+FIELD_PROMPT[f]); return;
     }
+    // ref / note are free text — resolveField never returns 'none' for them, but
+    // guard anyway: just move on.
     if(f==='ref' || f==='note'){ convoProcess(function(){}, capitalize(labelFor(f))+' noted.'); return; }
+    // amount / date
     if(convo.fieldMisses>=3){ convo.fieldMisses=0; say('I’m having trouble with the '+labelFor(f)+'. You can also type it. '+FIELD_PROMPT[f]); return; }
     say(unclearLine()+' '+FIELD_PROMPT[f]);
   }
 
+  // Main turn handler — guided; validates field mapping before updating.
   function convoTurn(payload){
     if(!convo.active) return;
     var fields=(payload&&payload.fields)||{};
     var transcript=(payload&&payload.transcript||'').trim();
     var tl=transcript.toLowerCase();
     setTranscript(transcript); logEvent('entities', JSON.stringify(fields));
+    convo.lowConf=lowConfidence(payload);
+    if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
 
     // Backstop: never act on the system's own voice if it leaked into the mic.
     if(looksLikeSelfEcho(transcript)){ logEvent('ignored', 'system speech echo — “'+transcript+'”'); return; }
+    if(VC.isLikelyHallucination(transcript)){ logEvent('ignored', 'speech model artefact — “'+transcript+'”'); return; }
     if(transcript) logEvent('user-speech', transcript);
 
     var got=Object.keys(fields).filter(function(k){ return fields[k]; });
 
-    // ── Notes: clear-with-confirmation (precedes "cancel" so "cancel notes" isn't a quit) ──
+    // ── Notes: clear-with-confirmation ──
+    // Handle the confirmation reply first; and detect the clear-notes request
+    // BEFORE the generic "cancel" handler so "cancel notes" isn't treated as quit.
     if(convo.awaitingClearNotes){
       if(!/\bno\b/.test(tl) && /\b(yes|yeah|yep|yup|sure|confirm|confirmed|clear|remove|delete|erase|do it|go ahead|please)\b/.test(tl)){
         convo.awaitingClearNotes=false; setNote(''); setStatus('📝 Notes cleared.'); say('Notes cleared. You can continue adding notes.', true); return;
@@ -1065,8 +1273,10 @@
       say('Do you want to clear the notes?'); return;
     }
 
+    // Stop / cancel works at any time and ends immediately (but never confuse the
+    // notes punctuation "full stop" for a stop command).
     var isStop = !/\bfull stop\b/.test(tl) && (
-        /^\s*(stop|stop it|cancel|never ?mind|quit|exit|end|done)\s*[.!]?$/.test(tl)
+        /^\s*(stop|stop it|cancel|never ?mind|quit|exit|end)\s*[.!]?$/.test(tl)
         || /\b(stop|end|cancel|exit) (the )?conversation\b/.test(tl)
         || /\bstop listening\b/.test(tl));
     if(isStop){
@@ -1074,6 +1284,46 @@
       endConvo(null, { say:'Okay. The conversation has been stopped.' }); return;
     }
 
+    // ── "Did you mean <category>?" (one plausible match) → yes applies, no re-asks ──
+    if(convo.awaitingPick){
+      var pk=convo.awaitingPick;
+      if(isAffirmative(tl) && !/\bno\b/.test(tl)){ convo.awaitingPick=null; convo.fieldMisses=0; convoProcess(pk.apply, pk.confirm); return; }
+      if(isNegative(tl)){ convo.awaitingPick=null; convo.fieldMisses=(convo.fieldMisses||0)+1;
+        if(!convo.menuShown && convo.fieldMisses>=2){ presentSelectMenu('expense'); return; }
+        say('Okay. '+FIELD_PROMPT.expense); return; }
+      say('Did you mean '+pk.text+'? Please say yes or no.'); return;
+    }
+
+    // ── Explicit field commands: "Set Amount to 100", "Set Expense", "Done" ──
+    var sc=VC.parseSetCommand(transcript, FIELD_WORDS);
+    if(sc && sc.kind==='done'){
+      var cur=convo.focusField||convo.expecting;
+      if(!cur){ say(completePrompt(), true); return; }
+      if(!fieldPresent(cur)){ say('I don’t have the '+labelFor(cur)+' yet. '+FIELD_PROMPT[cur]); return; }
+      logEvent('command','done — '+labelFor(cur)+' finished');
+      var fromIdx=stepIndexOf(cur); convo.focusField=null; convo.confirmField=null; convo.options=null; clearOptionChips();
+      advanceFrom(fromIdx, capitalize(labelFor(cur))+' done.'); return;
+    }
+    if(sc && sc.kind==='set'){
+      var setVal = (fields[sc.field]!=null && String(fields[sc.field]).trim()) ? String(fields[sc.field]).trim() : sc.value;
+      logEvent('command','set '+labelFor(sc.field)+(setVal?' = "'+setVal+'"':''));
+      if(!setVal){ focusField(sc.field); return; }
+      if(sc.field==='note'){
+        // An explicit "Set Note …" REPLACES the note (plain dictation appends).
+        var nt=titleCase(setVal); convo.focusField='note'; convo.expecting='note'; convo.step=stepIndexOf('note'); setCurrentField('note');
+        convoProcess(function(){ setNote(nt); }, 'Notes set to '+nt+'.'); return;
+      }
+      sc.value=setVal;
+      // "Set <field> to <value>": select the field, then resolve the value for it.
+      speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+      convo.focusField=sc.field; convo.expecting=sc.field; convo.step=stepIndexOf(sc.field);
+      convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.fieldMisses=0; convo.awaitingConfirm=false; convo.awaitingPick=null;
+      clearOptionChips(); setCurrentField(sc.field); setStatus('🎯 Setting '+labelFor(sc.field)+' — I heard “'+sc.value+'”');
+      var setFields={}; setFields[sc.field]=sc.value;
+      handleExpected(sc.value, setFields); return;
+    }
+
+    // Conversation commands (only when no field value was extracted).
     if(!got.length){
       if(/\b(please wait|hold on|not ready|one moment|give me a (sec|second|minute)|pause)\b/.test(tl)){ convo.awaitingConfirm=false; say('Okay, I’ll wait. Say the value when you’re ready, or “Save Now” to save.', true); return; }
       if(/\b(repeat|say again|come again|pardon|what was that)\b/.test(tl)){ if(convo.lastPrompt) speak(convo.lastPrompt); else reAsk(); return; }
@@ -1081,11 +1331,13 @@
       if(/\b(clear form|reset form|reset fields|clear everything|start over|start again)\b/.test(tl)){ clearAllFields(); convo.step=-1; convo.methodAsked=false; advanceFrom(-1, 'Cleared. Let’s start over.'); return; }
     }
 
+    // Step 2: confirming a save the user already initiated.
     if(convo.awaitingConfirm){
       if(!got.length && confirmYes(tl)){ doSaveViaVoice(); return; }
       convo.awaitingConfirm=false; say('Okay, I won’t save yet.', true); advance(); return;
     }
 
+    // Step 1: explicit save request (two-step — confirm next).
     if(/\bsave now\b/.test(tl) || /\b(i'?m |i am )?ready to save\b/.test(tl)){
       var miss=nextMissing();
       if(miss){ convo.step=stepIndexOf(miss); convo.expecting=miss; convo.fieldMisses=0; convo.options=null; setCurrentField(miss); say('Before saving, I still need the '+labelFor(miss)+'. '+FIELD_PROMPT[miss]); return; }
@@ -1093,7 +1345,9 @@
     }
 
     // A numbered menu is showing → a spoken number selects that option, EVEN IF
-    // the speech engine mislabeled the bare number as another field (e.g. amount).
+    // the speech engine mislabeled the bare number as another field (e.g. it
+    // returns "4" as an amount). We check the number first, before field routing,
+    // so "four" / "4" / "option 4" reliably pick the option.
     if(convo.options){
       var pick=parseOptionNum(tl);
       if(pick!=null){
@@ -1106,18 +1360,25 @@
 
     // ── Field-focus mode: the manually-selected field takes priority ──
     if(convo.focusField && !got.length){
+      // Exit focus mode and resume the guided flow.
       if(/\b(continue|resume|go on|keep going|carry on|next field|done here|exit focus)\b/.test(tl)){
         var fc=convo.focusField; convo.focusField=null; logEvent('field-focus', 'exited — resuming guided flow');
         advanceFrom(stepIndexOf(fc), 'Okay, continuing.'); return;
       }
+      // Explicit switch to a different named field.
       var nf=explicitFieldSwitch(tl); if(nf && nf!==convo.focusField){ focusField(nf); return; }
     }
 
+    // We are expecting a specific field → route the answer there only.
     if(convo.expecting){ handleExpected(transcript, fields); return; }
 
+    // Form complete → the user is changing or adding something.
     if(got.length){
+      if(got.length>1){ say('I heard more than one field. Please say “Set”, the field name, and the value — for example “Set Amount to 100”.', true); return; }
       var f0=got[0]; var r0=resolveField(f0, String(fields[f0]));
+      if(convo.lowConf && fieldPresent(f0)){ say('I heard “'+titleCase(String(fields[f0]))+'” for the '+labelFor(f0)+' but wasn’t sure, so I left it unchanged. Say “Set '+labelFor(f0)+'” and repeat it.', true); return; }
       if(r0.status==='multiple'){ presentOptions(f0, r0.options, r0.head); return; }
+      if(r0.status==='confirm'){ convo.expecting=f0; convo.awaitingPick=r0.option; say(r0.question); return; }
       if(r0.status==='ok'){ convoProcess(r0.apply, r0.confirm); return; }
     }
     say(clarifyComplete(), true);
@@ -1144,22 +1405,24 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────
   function init(){
-    if(!$('expenseFormCard')) return;
+    if(!document.getElementById('expenseFormCard')) return;
     injectUI();
     var mic=$('voiceMicBtn'), guide=$('voiceGuideBtn'), conv=$('voiceConverseBtn');
-    if(mic){ if(speech && !speech.supported) mic.title='Voice input not supported in this browser'; mic.addEventListener('click', startRecognition); }
+    if(mic){ if(speech && !speech.supported){ mic.title='Voice input not supported in this browser'; }
+      mic.addEventListener('click', startRecognition); }
     if(conv){ if(speech && !speech.supported){ conv.disabled=true; conv.title='Voice not supported in this browser'; }
       conv.addEventListener('click', function(){ if(convo.active) endConvo('Conversation ended.'); else startConvo(); }); }
-    if(guide){ guide.addEventListener('click', function(){ var g=$('voiceGuide'); if(g){ g.classList.toggle('hidden'); showPanel(); } }); }
+    if(guide){ guide.addEventListener('click', function(){
+      var g=$('voiceGuide'); if(g){ g.classList.toggle('hidden'); showPanel(); } }); }
     var helpBtn=$('voiceHelpBtn');
     if(helpBtn){ helpBtn.addEventListener('click', function(){
       showHelpModal('AI Input Methods — Type, Voice & Converse', methodsHelpHtml()); }); }
     var dbgBtn=$('voiceDebugBtn');
     if(dbgBtn){ dbgBtn.addEventListener('click', function(){
       var el=$('voiceDebug'), hd=$('voiceDebugHead'); if(!el) return;
-      var show=(el.style.display==='none' || !el.style.display);
-      el.style.display=show?'block':'none';
-      if(hd) hd.style.display=show?'block':'none';
+      var show = (el.style.display==='none' || !el.style.display);
+      el.style.display = show ? 'block' : 'none';
+      if(hd) hd.style.display = show ? 'block' : 'none';
       dbgBtn.classList.toggle('recording', show);
       if(show){ showPanel(); populateDebugHead(); }
     }); }
@@ -1171,6 +1434,8 @@
           + ' · ' + (v.enabled ? 'enabled' : '<span style="color:#c62828">DISABLED — set OPENAI_API_KEY</span>');
       }).catch(function(){});
     }
+    // Disable the button up-front if this church is over its voice limit or
+    // voice has been turned off by a Service Admin.
     if(window.VoiceOpenAI){ window.VoiceOpenAI.getStatus().then(function(s){
       if(s && s.voiceAvailable === false){
         disableVoice(s.voiceEnabled === false

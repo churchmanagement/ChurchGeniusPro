@@ -1,9 +1,12 @@
 package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.repository.FamilyMemberRepository;
+import com.churchgeniuspro.repository.MainSourceRepository;
+import com.churchgeniuspro.repository.PurposeRepository;
 import com.churchgeniuspro.repository.SubSourceRepository;
 import com.churchgeniuspro.repository.TransactionTypeRepository;
 import com.churchgeniuspro.util.MemberNameUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,6 +24,8 @@ import java.util.Set;
  * so each request carries the words the page is about to match against: the church's
  * contributor names when the Contributor field is being filled, its fund names for
  * Fund, its payment methods for Method, and the field/command words in every case.
+ * The Expense page sends its expense-category (purpose) names for the Expense field and
+ * its Main Source names for Fund (the Expense form's Fund list is the main sources).
  *
  * <p>The hint is capped (the service reads at most ~224 tokens of it), so a large
  * church gets the first names in alphabetical order rather than all of them; the
@@ -38,12 +43,24 @@ public class VoiceVocabularyService {
     private final FamilyMemberRepository memberRepo;
     private final SubSourceRepository subSourceRepo;
     private final TransactionTypeRepository transactionTypeRepo;
+    private final PurposeRepository purposeRepo;        // may be null (tests)
+    private final MainSourceRepository mainSourceRepo;  // may be null (tests)
 
+    @Autowired
     public VoiceVocabularyService(FamilyMemberRepository memberRepo, SubSourceRepository subSourceRepo,
-                                  TransactionTypeRepository transactionTypeRepo) {
+                                  TransactionTypeRepository transactionTypeRepo,
+                                  PurposeRepository purposeRepo, MainSourceRepository mainSourceRepo) {
         this.memberRepo = memberRepo;
         this.subSourceRepo = subSourceRepo;
         this.transactionTypeRepo = transactionTypeRepo;
+        this.purposeRepo = purposeRepo;
+        this.mainSourceRepo = mainSourceRepo;
+    }
+
+    /** Income-only wiring (kept for existing tests). */
+    public VoiceVocabularyService(FamilyMemberRepository memberRepo, SubSourceRepository subSourceRepo,
+                                  TransactionTypeRepository transactionTypeRepo) {
+        this(memberRepo, subSourceRepo, transactionTypeRepo, null, null);
     }
 
     /**
@@ -63,7 +80,8 @@ public class VoiceVocabularyService {
 
         List<String> names = new ArrayList<>();
         if (ctx.equals("income") && (exp.isEmpty() || exp.equals("contributor"))) names.addAll(contributorNames(clientId));
-        if (exp.isEmpty() || exp.equals("fund"))   names.addAll(fundNames(clientId));
+        if (ctx.equals("expense") && (exp.isEmpty() || exp.equals("expense"))) names.addAll(expenseCategoryNames(clientId));
+        if (exp.isEmpty() || exp.equals("fund"))   names.addAll(ctx.equals("expense") ? mainFundNames(clientId) : fundNames(clientId));
         if (exp.isEmpty() || exp.equals("method")) names.addAll(methodNames(clientId));
         if (exp.equals("amount")) sb.append(" Amounts in dollars, e.g. 100, 250.50, one hundred fifty.");
 
@@ -92,6 +110,22 @@ public class VoiceVocabularyService {
     List<String> fundNames(String clientId) {
         Set<String> out = new LinkedHashSet<>();
         try { subSourceRepo.findAllActiveByAppUser(clientId).forEach(s -> add(out, s.getSourceName())); }
+        catch (RuntimeException ignored) { }
+        return new ArrayList<>(out);
+    }
+
+    List<String> expenseCategoryNames(String clientId) {
+        Set<String> out = new LinkedHashSet<>();
+        if (purposeRepo == null) return new ArrayList<>(out);
+        try { purposeRepo.findActiveByAppUser(clientId).forEach(p -> add(out, p.getPurposeName())); }
+        catch (RuntimeException ignored) { }
+        return new ArrayList<>(out);
+    }
+
+    List<String> mainFundNames(String clientId) {
+        Set<String> out = new LinkedHashSet<>();
+        if (mainSourceRepo == null) return new ArrayList<>(out);
+        try { mainSourceRepo.findActiveByAppUser(clientId).forEach(s -> add(out, s.getSourceName())); }
         catch (RuntimeException ignored) { }
         return new ArrayList<>(out);
     }
