@@ -6,9 +6,9 @@ import com.churchgeniuspro.hibernate.VolunteerProfile;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.IncomeRepository;
 import com.churchgeniuspro.repository.VolunteerProfileRepository;
-import com.churchgeniuspro.util.RoleGuard;
+import com.churchgeniuspro.service.AiAccessPolicy.AiAccess;
+import com.churchgeniuspro.util.AppClock;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +31,9 @@ import java.util.regex.Pattern;
  *
  * <p>Deterministic (no LLM call) so it works even when OpenAI is not
  * configured, is cheap to run on every query, and — critically — every answer
- * path is <b>permission-gated server-side</b> using the same session role +
- * privilege semantics as {@link RoleGuard}. A user who lacks access to a
- * module receives a denial message and NO data.
+ * path is <b>permission-gated server-side</b> by {@link AiAccessPolicy}, which mirrors
+ * each module's page rule (role guard + alias-aware page permission + subscription
+ * feature). A user who lacks access to a module receives a denial message and NO data.
  *
  * <p>Returned map: {@code handled} (did this look like a data question we
  * understand?), {@code answer}, {@code denied}, {@code intent}.
@@ -44,13 +44,24 @@ public class AiDataSearchService {
     private final FamilyMemberRepository memberRepo;
     private final IncomeRepository incomeRepo;
     private final VolunteerProfileRepository volunteerRepo;
+    private final AiAccessPolicy access;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchService(FamilyMemberRepository memberRepo,
                                IncomeRepository incomeRepo,
-                               VolunteerProfileRepository volunteerRepo) {
+                               VolunteerProfileRepository volunteerRepo,
+                               AiAccessPolicy access) {
         this.memberRepo = memberRepo;
         this.incomeRepo = incomeRepo;
         this.volunteerRepo = volunteerRepo;
+        this.access = access;
+    }
+
+    /** Without a subscription service (unit tests): plan features are assumed enabled. */
+    public AiDataSearchService(FamilyMemberRepository memberRepo,
+                               IncomeRepository incomeRepo,
+                               VolunteerProfileRepository volunteerRepo) {
+        this(memberRepo, incomeRepo, volunteerRepo, new AiAccessPolicy());
     }
 
     public static final String DENIED_MSG =
@@ -62,17 +73,20 @@ public class AiDataSearchService {
     @Transactional(readOnly = true)
     public Map<String, Object> answer(HttpServletRequest req, String clientId, String question) {
         String q = norm(question);
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();                    // the church calendar (America/Chicago), not the server's zone
+        AiAccess a = access.resolve(req, clientId);
+        if (a.kids()) return denied("kids");                   // Kids Portal: never any data
 
         // Order matters: volunteers first (unambiguous), then finance (tithe /
         // income), then people dates (birthday / anniversary).
-        if (q.matches(".*\\bvolunteers?\\b.*"))               return volunteers(req, clientId, q);
-        if (q.matches(".*\\b(tithe|tithes|contribut\\w*|donat\\w*|gave|give|giving|offering)\\b.*")
-                && findPersonName(clientId, q) != null)        return personGiving(req, clientId, q, today);
-        if (q.matches(".*\\b(income|revenue|collections?)\\b.*")) return incomeSummary(req, clientId, q, today);
+        if (q.matches(".*\\bvolunteers?\\b.*"))               return volunteers(a, clientId, q);
+        boolean giving = q.matches(".*\\b(tithe|tithes|contribut\\w*|donat\\w*|gave|give|giving|offering)\\b.*");
+        if (giving && !a.incomeRecords())                      return denied("contributions");   // never run a name search the user may not see
+        if (giving && findPersonName(clientId, q) != null)     return personGiving(a, clientId, q, today);
+        if (q.matches(".*\\b(income|revenue|collections?)\\b.*")) return incomeSummary(a, clientId, q, today);
         boolean bday = q.matches(".*\\bbirth\\s?days?\\b.*");
         boolean anni = q.matches(".*\\banniversar\\w*\\b.*");
-        if (bday || anni)                                      return datesLookup(req, clientId, q, today, bday, anni);
+        if (bday || anni)                                      return datesLookup(a, clientId, q, today, bday, anni);
 
         return notHandled();
     }
@@ -101,66 +115,12 @@ public class AiDataSearchService {
         return m;
     }
 
-    /* ════════════════════════ permissions ════════════════════════
-     * Same semantics as the page routes:
-     *  • Members data  — mirrors /viewfamily (Admin/Accountant/User staff +
-     *    admin.family perm); Member portal mirrors the Directory tab.
-     *  • Finance data  — mirrors the income reports (SuperAdmin/Admin/
-     *    Accountant + reports.income perm). Member portal: denied.
-     *  • Volunteers    — mirrors /volunteers (Admin/User staff +
-     *    general.volunteers perm). Member portal: denied.
-     * Church-owner sessions bypass granular permissions (as everywhere else).
-     */
-
-    private boolean isChurch(HttpServletRequest req) {
-        HttpSession s = req.getSession(false);
-        return s != null && Boolean.TRUE.equals(s.getAttribute("church"));
-    }
-
-    private String role(HttpServletRequest req) {
-        HttpSession s = req.getSession(false);
-        Object r = s == null ? null : s.getAttribute("role");
-        return r == null ? "" : String.valueOf(r);
-    }
-
-    private boolean isMemberSession(HttpServletRequest req) {
-        HttpSession s = req.getSession(false);
-        return s != null && "Member".equals(role(req)) && s.getAttribute("memberId") != null;
-    }
-
-    private boolean roleIn(HttpServletRequest req, String... roles) {
-        String r = role(req);
-        for (String x : roles) if (x.equals(r)) return true;
-        return false;
-    }
-
-    private boolean permOk(HttpServletRequest req, String key) {
-        return RoleGuard.requirePermission(req, key) == null;
-    }
-
-    boolean canSeeMembers(HttpServletRequest req) {
-        if (isChurch(req)) return true;
-        if (isMemberSession(req))
-            return RoleGuard.requireMemberPermission(req, "member.directory") == null;
-        return roleIn(req, "SuperAdmin", "Admin", "Accountant", "User") && permOk(req, "admin.family");
-    }
-
-    boolean canSeeFinance(HttpServletRequest req) {
-        if (isChurch(req)) return true;
-        if (isMemberSession(req)) return false;
-        return roleIn(req, "SuperAdmin", "Admin", "Accountant") && permOk(req, "reports.income");
-    }
-
-    boolean canSeeVolunteers(HttpServletRequest req) {
-        if (isChurch(req)) return true;
-        if (isMemberSession(req)) return false;
-        return roleIn(req, "SuperAdmin", "Admin", "User") && permOk(req, "general.volunteers");
-    }
+    /* Permissions: see AiAccessPolicy — one rule set shared by every AI endpoint. */
 
     /* ════════════════════════ intents ════════════════════════ */
 
-    private Map<String, Object> volunteers(HttpServletRequest req, String clientId, String q) {
-        if (!canSeeVolunteers(req)) return denied("volunteers");
+    private Map<String, Object> volunteers(AiAccess a, String clientId, String q) {
+        if (!a.volunteers()) return denied("volunteers");
         List<VolunteerProfile> profiles =
                 volunteerRepo.findByAppClientIdAndDeleteFlagFalseOrderByFamilyMemberIdAsc(clientId);
         if (profiles.isEmpty()) return ok("volunteers", "No volunteers have been registered yet.");
@@ -179,8 +139,8 @@ public class AiDataSearchService {
                 + ": " + String.join("; ", names) + ".");
     }
 
-    private Map<String, Object> incomeSummary(HttpServletRequest req, String clientId, String q, LocalDate today) {
-        if (!canSeeFinance(req)) return denied("income");
+    private Map<String, Object> incomeSummary(AiAccess a, String clientId, String q, LocalDate today) {
+        if (!a.reports()) return denied("income");            // a total is a report figure → the Reports page rule
         DateRange r = parsePeriod(q, today);
         if (r == null) r = DateRange.month(today, "this month");
         List<Income> list = incomeRepo.findRangeByAppClientId(clientId, r.from, r.to);
@@ -192,8 +152,8 @@ public class AiDataSearchService {
                 + " across " + list.size() + " transaction" + (list.size() == 1 ? "" : "s") + ".");
     }
 
-    private Map<String, Object> personGiving(HttpServletRequest req, String clientId, String q, LocalDate today) {
-        if (!canSeeFinance(req)) return denied("contributions");
+    private Map<String, Object> personGiving(AiAccess a, String clientId, String q, LocalDate today) {
+        if (!a.incomeRecords()) return denied("contributions"); // individual gifts → the Income page rule
         FamilyMember person = findPersonName(clientId, q);
         if (person == null) return notHandled();
         DateRange r = parsePeriod(q, today);
@@ -224,9 +184,9 @@ public class AiDataSearchService {
                 + String.join("; ", details) + (n > details.size() ? "; …" : "") + ".");
     }
 
-    private Map<String, Object> datesLookup(HttpServletRequest req, String clientId, String q,
+    private Map<String, Object> datesLookup(AiAccess a, String clientId, String q,
                                             LocalDate today, boolean bday, boolean anni) {
-        if (!canSeeMembers(req)) return denied(bday ? "birthdays" : "anniversaries");
+        if (!a.members()) return denied(bday ? "birthdays" : "anniversaries");
 
         // Person-specific: "When is Anson's birthday?"
         FamilyMember person = findPersonName(clientId, q);

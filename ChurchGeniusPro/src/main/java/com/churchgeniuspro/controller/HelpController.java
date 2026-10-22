@@ -68,6 +68,12 @@ public class HelpController {
         if (session == null || session.getAttribute("username") == null) {
             return ResponseEntity.status(401).build();
         }
+        // This endpoint is the AI Search bar's how-to fallback. It must apply the same
+        // AI Assistant rule as /api/ai-search (Kids Portal denied; Members opt-in) —
+        // otherwise a user without the feature still gets answers through the fallback.
+        if (com.churchgeniuspro.util.RoleGuard.requireFeature(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT) != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "You do not have access to the AI Assistant."));
+        }
         String query = body != null ? body.getOrDefault("query", "") : "";
         Map<String, Object> result = matchHelpEntry(query.toLowerCase().trim());
         return ResponseEntity.ok(result);

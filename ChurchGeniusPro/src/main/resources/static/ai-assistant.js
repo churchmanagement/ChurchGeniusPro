@@ -143,7 +143,7 @@
     'User':       ['general','more','members','activity'],
     'Member':     ['general','members','activity','more']
   };
-  var session = { role:(safeLS('role')||'User'), church:(safeLS('church')==='true'), ready:false };
+  var session = { role:(safeLS('role')||'User'), church:(safeLS('church')==='true'), ready:false, aiAssistant:null };
   function safeLS(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function allowedSections(){ if (session.church) return ['admin','accounting']; return ROLE_SECTIONS[session.role] || ['general','more','help']; }
 
@@ -1184,6 +1184,7 @@
       var main=document.querySelector('main.page-content')||document.querySelector('.page-content');
       if (!main) return false;                       // not an app content page → skip
       var host=document.createElement('div'); host.className='aa-host'; host.id='aaHost';
+      host.setAttribute('data-perm','more.aiassistant');   // session.js hides it the moment the permission is switched off
       var sb=document.createElement('div'); sb.className='aa-searchbar';
       sb.innerHTML='<span class="aa-ic">✨</span>'
         + '<input id="aiSearchInput" class="aa-input" type="text" placeholder="Ask anything — navigation, reports, how-to, help…">'
@@ -1237,20 +1238,29 @@
     return fetch('/api/session').then(function(r){ return r.ok?r.json():{}; }).then(function(s){
       session.role=s.role||safeLS('role')||'User';
       session.church=(s.church===true||s.church==='true');
+      // The server's own verdict (RoleGuard.requireFeature): false for a Kids Portal
+      // session, a Member without the opt-in, or staff with the permission off. Only
+      // an explicit true draws the assistant — an unknown answer is treated as "no".
+      session.aiAssistant=(s.aiAssistant===true);
       session.ready=true;
-    }).catch(function(){ session.role=safeLS('role')||'User'; session.ready=true; });
+    }).catch(function(){ session.role=safeLS('role')||'User'; session.aiAssistant=false; session.ready=true; });
   }
+  // Home carries its own search bar in the page; when the assistant is not allowed it
+  // must not stay as a dead input (the server would answer 403 anyway).
+  function hideHomeBar(){ var w=document.querySelector('.ai-search-wrap'); if(w) w.style.display='none'; }
 
   /* ════════════════════════ Bootstrap ════════════════════════ */
   function init(){
-    if(!injectUI()) return;
-    captureOriginal();
-    loadSession();
-    loadPublicLinks();
-    restoreState();
-    if (window.VoiceOpenAI && window.VoiceOpenAI.getStatus){
-      window.VoiceOpenAI.getStatus().then(function(st){ if(st && st.voiceAvailable===false){ /* voice gated — errors surfaced on use */ } }).catch(function(){});
-    }
+    loadSession().then(function(){
+      if (session.aiAssistant!==true){ hideHomeBar(); return; }   // nothing is injected for a session the server refuses
+      if(!injectUI()) return;
+      captureOriginal();
+      loadPublicLinks();
+      restoreState();
+      if (window.VoiceOpenAI && window.VoiceOpenAI.getStatus){
+        window.VoiceOpenAI.getStatus().then(function(st){ if(st && st.voiceAvailable===false){ /* voice gated — errors surfaced on use */ } }).catch(function(){});
+      }
+    });
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,300); });
   else setTimeout(init,200);

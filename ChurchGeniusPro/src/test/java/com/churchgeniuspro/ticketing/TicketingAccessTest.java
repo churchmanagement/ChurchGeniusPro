@@ -167,12 +167,12 @@ class TicketingAccessTest {
         }
         @Test void aiSearchApiEnforced() {
             AiSearchService svc = mock(AiSearchService.class);
-            when(svc.search(any(), any(), anyBoolean(), any())).thenReturn(Map.of("intent", "general"));
-            AiSearchController c = new AiSearchController(svc);
+            when(svc.search(any(), any(), any())).thenReturn(Map.of("intent", "general"));
+            AiSearchController c = new AiSearchController(svc, new com.churchgeniuspro.service.AiAccessPolicy());
             assertThat(c.search(Map.of("query", "hi"), staff("User", null)).getStatusCode().value()).isEqualTo(200);
             assertThat(c.search(Map.of("query", "hi"), staff("User", "{\"more.aiassistant\":false}")).getStatusCode().value()).isEqualTo(403);
             assertThat(c.search(Map.of("query", "hi"), new MockHttpServletRequest()).getStatusCode().value()).isEqualTo(401);
-            verify(svc, times(1)).search(any(), any(), anyBoolean(), any());
+            verify(svc, times(1)).search(any(), any(), any());
         }
         @Test void aiDataSearchApiEnforced() throws Exception {
             Constructor<?> ctor = AiDataSearchController.class.getDeclaredConstructors()[0];

@@ -3,6 +3,7 @@ package com.churchgeniuspro.ai;
 import com.churchgeniuspro.repository.ExpenseRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.IncomeRepository;
+import com.churchgeniuspro.service.AiAccessPolicy.AiAccess;
 import com.churchgeniuspro.service.AiSearchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -70,7 +71,7 @@ class AiSearchContributorsTest {
     })
     @DisplayName("lists the contributors for the category and period, never a person called Given/Who")
     void listsContributors(String question) {
-        Map<String, Object> r = service.search(question, "Accountant", false, CID);
+        Map<String, Object> r = service.search(question, acc("Accountant"), CID);
 
         assertThat(r.get("intent")).isEqualTo("income");
         String ans = String.valueOf(r.get("answer"));
@@ -84,7 +85,7 @@ class AiSearchContributorsTest {
     @Test
     @DisplayName("the category still narrows the query (tithe → 'tithe', offerings → 'offering')")
     void categoryIsPassed() {
-        service.search("Who gave offerings this month?", "Accountant", false, CID);
+        service.search("Who gave offerings this month?", acc("Accountant"), CID);
         ArgumentCaptor<String> cat = ArgumentCaptor.forClass(String.class);
         verify(incomeRepo).searchIncome(eq(CID), isNull(), cat.capture(), any(), any());
         assertThat(cat.getValue()).isEqualTo("offering");
@@ -94,7 +95,7 @@ class AiSearchContributorsTest {
     @DisplayName("nobody gave → says so for that category and month")
     void nobodyGave() {
         when(incomeRepo.searchIncome(eq(CID), isNull(), any(), any(), any())).thenReturn(List.of());
-        Map<String, Object> r = service.search("Who gave tithe this month?", "SuperAdmin", false, CID);
+        Map<String, Object> r = service.search("Who gave tithe this month?", acc("SuperAdmin"), CID);
         assertThat(String.valueOf(r.get("answer"))).startsWith("No one gave Tithe in ");
     }
 
@@ -103,20 +104,29 @@ class AiSearchContributorsTest {
     void personNameStillWorks() {
         when(incomeRepo.searchIncome(eq(CID), eq("anson"), any(), any(), any()))
                 .thenReturn(List.<Object[]>of(row("Anson", "Mathew", "10.00")));
-        Map<String, Object> r = service.search("Did Anson give tithe this month?", "Accountant", false, CID);
+        Map<String, Object> r = service.search("Did Anson give tithe this month?", acc("Accountant"), CID);
         assertThat(String.valueOf(r.get("answer"))).contains("Found 1 income record(s) for 'Anson'");
         verify(incomeRepo).searchIncome(eq(CID), eq("anson"), eq("tithe"), any(), any());
     }
 
+    /** Access as AiAccessPolicy resolves it for a staff session with no permission restrictions. */
+    static AiAccess acc(String role) {
+        boolean fin = List.of("SuperAdmin", "Admin", "Accountant").contains(role);
+        return new AiAccess(role, false, "Member".equals(role), false, fin, fin, fin, fin,
+                            List.of("SuperAdmin", "Admin", "User").contains(role));
+    }
+
     @Test
-    @DisplayName("financial authorization is unchanged: only Accountant and SuperAdmin see income")
-    void financialAccessUnchanged() {
-        for (String role : List.of("Admin", "User", "Member", "Limited")) {
-            Map<String, Object> r = service.search("Who gave tithe this month?", role, false, CID);
+    @DisplayName("financial authorization follows the Income page rule: SuperAdmin, Admin and Accountant; everyone else is denied")
+    void financialAccessFollowsThePageRule() {
+        for (String role : List.of("User", "Member", "Limited")) {
+            Map<String, Object> r = service.search("Who gave tithe this month?", acc(role), CID);
             assertThat(r.get("intent")).as(role).isEqualTo("denied");
         }
         verifyNoInteractions(incomeRepo);
-        assertThat(service.search("Who gave tithe this month?", "Accountant", false, CID).get("intent")).isEqualTo("income");
-        assertThat(service.search("Who gave tithe this month?", "SuperAdmin", false, CID).get("intent")).isEqualTo("income");
+        assertThat(service.search("Who gave tithe this month?", acc("Accountant"), CID).get("intent")).isEqualTo("income");
+        assertThat(service.search("Who gave tithe this month?", acc("SuperAdmin"), CID).get("intent")).isEqualTo("income");
+        assertThat(service.search("Who gave tithe this month?", acc("Admin"), CID).get("intent")).isEqualTo("income");
+        assertThat(service.search("Who gave tithe this month?", AiAccess.none("Member"), CID).get("intent")).as("Kids Portal").isEqualTo("denied");
     }
 }

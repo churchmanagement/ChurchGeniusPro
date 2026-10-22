@@ -1,6 +1,8 @@
 package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.hibernate.FamilyMember;
+import com.churchgeniuspro.service.AiAccessPolicy.AiAccess;
+import com.churchgeniuspro.util.AppClock;
 import com.churchgeniuspro.repository.ExpenseRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.IncomeRepository;
@@ -33,6 +35,11 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>No external AI API is required — intent is detected via keyword matching.
+ *
+ * <p>Every data intent is gated by the {@link AiAccess} the controller resolved from
+ * the session ({@link AiAccessPolicy}): income rows need the Income page rule, expense
+ * rows the Expense page rule, member counts / birthdays / anniversaries the Families
+ * page rule. Navigation links are filtered by role section as before.
  */
 @Service
 public class AiSearchService {
@@ -163,14 +170,16 @@ public class AiSearchService {
     // ── Main entry point ──────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public Map<String, Object> search(String query, String role,
-                                      boolean isChurch, String appClientId) {
+    public Map<String, Object> search(String query, AiAccess access, String appClientId) {
         if (query == null || query.isBlank()) {
             return mkResult("error", "Please enter a search query.", List.of(), null);
         }
+        if (access == null || access.kids()) return denied();     // Kids Portal: nothing, not even navigation
+        String role = access.role();
+        boolean isChurch = access.church();
 
         String q = query.toLowerCase().trim();
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();                       // church calendar (America/Chicago)
 
         // ── Detect topic keywords ────────────────────────────────────────
         boolean topicIncome  = has(q, "income","tithe","tithes","offering","offerings",
@@ -200,26 +209,32 @@ public class AiSearchService {
 
         // ── Route to handler ─────────────────────────────────────────────
         if (wantsData && topicIncome) {
-            if (!canAccessFinancials(role)) return denied();
+            if (!access.incomeRecords()) return denied();
             // "Who gave tithe this month?" — a contributor-list question, not a
             // search for a contributor called "Who"/"Given".
             if (name == null && asksWho(q)) return handleContributors(category, month, year, appClientId);
             return handleIncome(name, category, month, year, appClientId);
         }
         if (wantsData && topicExpense) {
-            if (!canAccessFinancials(role)) return denied();
+            if (!access.expenseRecords()) return denied();
             return handleExpense(name, month, year, appClientId);
         }
+        // Member data (names, dates, counts) follows the Families page rule — a
+        // Member-portal login with only My Profile, or a User, gets a denial, not a list.
         if (topicBday && topicAnniv) {
+            if (!access.members()) return denied();
             return handleBirthdayAndAnniversary(month, appClientId);
         }
         if (topicBday) {
+            if (!access.members()) return denied();
             return handleBirthday(name, month, appClientId);
         }
         if (topicAnniv) {
+            if (!access.members()) return denied();
             return handleAnniversary(name, month, appClientId);
         }
         if (topicCount && topicMembers) {
+            if (!access.members()) return denied();
             return handleMemberCount(topicNew, month, year, appClientId, role, isChurch);
         }
 
@@ -475,15 +490,11 @@ public class AiSearchService {
 
     // ── Permission helpers ────────────────────────────────────────────────
 
-    private boolean canAccessFinancials(String role) {
-        return "SuperAdmin".equals(role) || "Accountant".equals(role);
-    }
+    /** The one denial wording: never says what exists or who else may see it. */
+    public static final String DENIED_MSG = AiDataSearchService.DENIED_MSG;
 
     private Map<String, Object> denied() {
-        return mkResult("denied",
-            "You are not permitted to view income or expense data. " +
-            "Only Accountants and Super Admins can access financial records.",
-            List.of(), null);
+        return mkResult("denied", DENIED_MSG, List.of(), null);
     }
 
     // ── Row builders ──────────────────────────────────────────────────────

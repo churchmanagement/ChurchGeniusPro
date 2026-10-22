@@ -57,6 +57,7 @@ class ApiPermissionCheckRatchetTest {
         Map.entry("controller/FavoritesController.java", 1),
         Map.entry("controller/FilesController.java", 2),
         Map.entry("controller/GroupController.java", 3),
+        Map.entry("controller/HelpController.java", 1),            // POST /api/help/search — AI Assistant feature gate (2026-10-21, AI Search Phase A)
         Map.entry("controller/HomeController.java", 2),
         Map.entry("controller/IncomeController.java", 4),
         Map.entry("controller/MeetingController.java", 4),

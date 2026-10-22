@@ -20,9 +20,11 @@ import java.util.Map;
 public class AiSearchController {
 
     private final AiSearchService searchService;
+    private final com.churchgeniuspro.service.AiAccessPolicy accessPolicy;
 
-    public AiSearchController(AiSearchService searchService) {
+    public AiSearchController(AiSearchService searchService, com.churchgeniuspro.service.AiAccessPolicy accessPolicy) {
         this.searchService = searchService;
+        this.accessPolicy = accessPolicy;
     }
 
     @PostMapping("/api/ai-search")
@@ -40,12 +42,12 @@ public class AiSearchController {
             return ResponseEntity.status(403).body(Map.of("error", "You do not have access to the AI Assistant."));
         }
 
-        String  role      = (String) session.getAttribute("role");
-        boolean isChurch  = Boolean.TRUE.equals(session.getAttribute("church"));
-        String  clientId  = RoleGuard.clientId(request);
-
+        // The tenant and the access rights come from the session only — a clientId or
+        // role in the request body is ignored.
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null || clientId.isBlank()) return ResponseEntity.status(401).build();
         String query = body != null ? body.get("query") : null;
-        Map<String, Object> result = searchService.search(query, role, isChurch, clientId);
+        Map<String, Object> result = searchService.search(query, accessPolicy.resolve(request, clientId), clientId);
         return ResponseEntity.ok(result);
     }
 }

@@ -22,6 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 /**
  * Unit tests for the natural-language AI data search: intent routing, date
@@ -202,16 +204,37 @@ class AiDataSearchServiceTest {
     }
 
     @Test
-    void memberPortalAllowedBirthdays() {
-        asMemberPortal();   // directory allowed by default (no memberPrivileges)
+    void memberPortalAllowedBirthdaysOnlyWithDirectoryGranted() {
+        asMemberPortal();   // no memberPrivileges → the Directory tab is not explicitly granted → denied
         Map<String, Object> r = svc.answer(req, CID, "When is Anson's birthday?");
+        assertEquals(true, r.get("denied"));
+        when(session.getAttribute("memberPrivileges")).thenReturn("{\"more.aiassistant\":true,\"member.directory\":true}");
+        r = svc.answer(req, CID, "When is Anson's birthday?");
         assertEquals(false, r.get("denied"));
         assertTrue(String.valueOf(r.get("answer")).contains("May 31"));
     }
 
     @Test
+    void kidsPortalSessionGetsNothing() {
+        asMemberPortal();
+        when(session.getAttribute("memberRole")).thenReturn("Daughter");
+        when(session.getAttribute("memberPrivileges")).thenReturn("{\"more.aiassistant\":true,\"member.directory\":true}");
+        Map<String, Object> r = svc.answer(req, CID, "When is Anson's birthday?");
+        assertEquals(true, r.get("denied"));
+        assertEquals(AiDataSearchService.DENIED_MSG, r.get("answer"));
+    }
+
+    @Test
+    void userRoleDeniedMembers() {
+        asRole("User");     // /viewfamily denies the User role → so does the AI
+        Map<String, Object> r = svc.answer(req, CID, "List the birthdays in May");
+        assertEquals(true, r.get("denied"));
+        verify(memberRepo, never()).findAllWithFamilyByAppUser(anyString());
+    }
+
+    @Test
     void staffWithRevokedFamilyPermDenied() {
-        asRole("User");
+        asRole("Admin");
         when(session.getAttribute("privileges")).thenReturn("{\"admin.family\":false}");
         Map<String, Object> r = svc.answer(req, CID, "List the birthdays in May");
         assertEquals(true, r.get("denied"));

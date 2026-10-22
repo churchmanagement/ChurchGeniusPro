@@ -123,6 +123,10 @@ public class SessionController {
         res.put("memberRole",       nvl(session.getAttribute("memberRole")));       // FamilyMember role (e.g. Son, Daughter, Child)
         res.put("memberId",         session.getAttribute("memberId"));               // Integer or null
         res.put("memberPrivileges", session.getAttribute("memberPrivileges"));       // JSON string or null (Member portal only)
+        // Whether the AI Search / Assistant may be shown at all for this session — the
+        // server's own requireFeature verdict (Kids Portal never; Members opt-in; staff
+        // unless switched off), so the search bar is not drawn on the client's guess.
+        res.put("aiAssistant", com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT));
 
         // ── Plan state, for pages that do not load session.js ─────────────────
         // The Member and Kids portals render their own sidebar and never load

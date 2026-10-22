@@ -519,8 +519,10 @@ public final class RoleGuard {
         if (session == null) return false;
         if (!("Member".equals(role(session)) && session.getAttribute("memberId") != null)) return false;
         Object mr = session.getAttribute("memberRole");
-        String r = mr == null ? "" : mr.toString().trim().toLowerCase();
-        return r.equals("child") || r.equals("son") || r.equals("daughter");
+        // Same spelling set the Family page accepts for a child (child / son / daughter /
+        // kid… / minor) — see FamilyRoles.canonical — so no child spelling slips past.
+        return FamilyRoles.CHILD.equals(FamilyRoles.canonical(mr == null ? null : mr.toString()))
+               && mr != null && !mr.toString().isBlank();
     }
 
     /**
