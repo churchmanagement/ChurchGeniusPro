@@ -197,6 +197,8 @@ public class AiStructuredAnswerService {
         if (list ? !a.expenseRecords() : !a.reports()) return denied("expenses");
         DateRange r = period(q, today);
         Map<String, Object> narrow = tooWide(r, "expenses"); if (narrow != null) return narrow;
+        ExpenseCategory cat = expenseCategoryIn(cid, q);
+        if (cat != null) return expensesFor(cid, r, cat, list);
         Object[] t = first(expenseRepo.aiExpenseTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
         BigDecimal total = t == null ? BigDecimal.ZERO : num(t[0]); long n = t == null ? 0 : ((Number) t[1]).longValue(); BigDecimal fees = t == null ? BigDecimal.ZERO : num(t[2]);
         if (n == 0) return ok("expenses", "No expenses were recorded for " + r.label + " (" + range(r) + ").", r, "/expense-report", "Open Expense Report");
@@ -208,6 +210,61 @@ public class AiStructuredAnswerService {
             return m;
         }
         List<Object[]> rows = expenseRepo.aiExpenseRows(cid, Date.valueOf(r.from), Date.valueOf(r.to), maxRows + 1);
+        boolean truncated = rows.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] x : rows.subList(0, Math.min(rows.size(), maxRows)))
+            out.add(List.of(date(x[0]), str(x[1]), str(x[2]), money(x[3]), method(x[4], x[5])));
+        return table("expenses", answer + (truncated ? " Showing the first " + maxRows + "." : ""), List.of("Date", "Fund", "Purpose", "Amount", "Method"), out, n, truncated, r, "/expense", "Open Expense");
+    }
+
+    /** An expense purpose ('P') or category ('M') named in the question: display name + every id with that name. */
+    record ExpenseCategory(String kind, String name, List<Integer> ids) {}
+
+    /** Names that are the question's own words, never a filter (a purpose literally called "Expenses"). */
+    private static final Set<String> NOT_A_CATEGORY = Set.of("expense", "expenses", "expenditure", "expenditures", "spending", "spent", "cost", "costs", "transactions");
+
+    private static String normName(String s) {
+        return AiQueryLexicon.canonical(s == null ? "" : s).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    /**
+     * The church's own purpose or category the question names (whole words, longest name
+     * wins, a purpose before a category of the same name); null when none is named, so the
+     * question keeps meaning "all expenses".
+     */
+    ExpenseCategory expenseCategoryIn(String cid, String q) {
+        List<Object[]> names = expenseRepo.aiExpenseCategoryNames(cid);
+        if (names == null || names.isEmpty()) return null;
+        String hay = " " + normName(q) + " ";
+        String bestNorm = null, bestKind = null, bestName = null;
+        for (Object[] n : names) {
+            String kind = String.valueOf(n[0]), name = str(n[2]), nn = normName(name);
+            if (nn.length() < 3 || NOT_A_CATEGORY.contains(nn) || !hay.contains(" " + nn + " ")) continue;
+            boolean better = bestNorm == null || nn.length() > bestNorm.length()
+                    || nn.length() == bestNorm.length() && "P".equals(kind) && !"P".equals(bestKind);
+            if (better) { bestNorm = nn; bestKind = kind; bestName = name.trim(); }
+        }
+        if (bestNorm == null) return null;
+        List<Integer> ids = new ArrayList<>();
+        for (Object[] n : names)
+            if (bestKind.equals(String.valueOf(n[0])) && bestNorm.equals(normName(str(n[2])))) ids.add(((Number) n[1]).intValue());
+        return new ExpenseCategory(bestKind, bestName, ids);
+    }
+
+    /** Expenses for one named purpose / category only — never the church-wide total under that name. */
+    private Map<String, Object> expensesFor(String cid, DateRange r, ExpenseCategory cat, boolean list) {
+        Object[] t = first(expenseRepo.aiExpenseTotalsFor(cid, Date.valueOf(r.from), Date.valueOf(r.to), cat.kind(), cat.ids()));
+        BigDecimal total = t == null ? BigDecimal.ZERO : num(t[0]); long n = t == null ? 0 : ((Number) t[1]).longValue(); BigDecimal fees = t == null ? BigDecimal.ZERO : num(t[2]);
+        String url = "/expense-report?startDate=" + r.from + "&endDate=" + r.to;
+        if (n == 0) return ok("expenses", "No expenses for " + cat.name() + " were recorded for " + r.label + " (" + range(r) + ").", r, url, "Open Expense Report");
+        String answer = "Spent on " + cat.name() + " for " + r.label + " (" + range(r) + "): " + money(total) + " across " + n + " entr" + (n == 1 ? "y" : "ies")
+                + (fees.signum() > 0 ? ", including " + money(fees) + " of online-donation processing fees." : ".");
+        if (!list) {
+            Map<String, Object> m = ok("expenses", answer, r, url, "Open Expense Report");
+            m.put("summary", summary(cat.name(), money(total), "Entries", String.valueOf(n)));
+            return m;
+        }
+        List<Object[]> rows = expenseRepo.aiExpenseRowsFor(cid, Date.valueOf(r.from), Date.valueOf(r.to), cat.kind(), cat.ids(), maxRows + 1);
         boolean truncated = rows.size() > maxRows;
         List<List<String>> out = new ArrayList<>();
         for (Object[] x : rows.subList(0, Math.min(rows.size(), maxRows)))

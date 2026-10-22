@@ -85,8 +85,8 @@ class AiSearchQueryBudgetTest {
         Map<String, Integer> budget = Map.ofEntries(
             Map.entry("what was the income this month", 1),          // one aggregate
             Map.entry("who are the contributors this month", 2),     // rows (LIMIT) + aggregate
-            Map.entry("total expenses this month", 1),
-            Map.entry("list the expenses this month", 2),
+            Map.entry("total expenses this month", 2),               // purpose/category names + aggregate
+            Map.entry("list the expenses this month", 3),            // names + aggregate + page
             Map.entry("transactions this month", 2),                 // income + expense aggregates
             Map.entry("income report for last month", 1),
             Map.entry("expense report for last month", 1),

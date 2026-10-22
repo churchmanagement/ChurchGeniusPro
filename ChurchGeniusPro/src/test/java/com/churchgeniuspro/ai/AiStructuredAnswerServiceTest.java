@@ -160,6 +160,43 @@ class AiStructuredAnswerServiceTest {
         assertThat(svc.route("how much is the expense this month", only("expenseRecords"), CID, TODAY).get("denied")).isEqualTo(true);
     }
 
+    @Test @DisplayName("expenses for a named purpose / category: only that one is totalled, never the church-wide figure under its name")
+    void expensesForNamedPurpose() {
+        when(expenseRepo.aiExpenseCategoryNames(CID)).thenReturn(List.<Object[]>of(
+                new Object[] { "P", 7, "Charity" }, new Object[] { "P", 8, "Rent" }, new Object[] { "P", 9, "Expenses" },
+                new Object[] { "M", 3, "Tithes & Offerings" }, new Object[] { "M", 4, "Building Fund" }));
+        when(expenseRepo.aiExpenseTotals(eq(CID), any(), any())).thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("5475.50"), 6L, BigDecimal.ZERO }));
+        when(expenseRepo.aiExpenseTotalsFor(eq(CID), any(), any(), eq("P"), eq(List.of(7)))).thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("500"), 1L, BigDecimal.ZERO }));
+
+        // "spent" arrives as "expenses" (AiQueryLexicon); Charity filters to purpose 7.
+        Map<String, Object> r = svc.route("how much have we expenses on charity this year", all(), CID, TODAY);
+        assertThat(answer(r)).startsWith("Spent on Charity for this year").contains("$500.00").contains("1 entry").doesNotContain("5,475.50");
+        assertThat(((Map<?, ?>) r.get("summary")).get("Charity")).isEqualTo("$500.00");
+        verify(expenseRepo, never()).aiExpenseTotals(anyString(), any(), any());
+
+        // A category (main source) by its full name — synonyms inside the name still match.
+        when(expenseRepo.aiExpenseTotalsFor(eq(CID), any(), any(), eq("M"), eq(List.of(4)))).thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("120"), 2L, BigDecimal.ZERO }));
+        assertThat(answer(svc.route("how much expenses on the building fund this month", all(), CID, TODAY))).contains("Building Fund").contains("$120.00");
+
+        // Named but nothing recorded → says so for that purpose; never the overall total.
+        when(expenseRepo.aiExpenseTotalsFor(eq(CID), any(), any(), eq("P"), eq(List.of(8)))).thenReturn(List.<Object[]>of(new Object[] { BigDecimal.ZERO, 0L, BigDecimal.ZERO }));
+        assertThat(answer(svc.route("how much rent expenses this month", all(), CID, TODAY))).startsWith("No expenses for Rent were recorded");
+
+        // A purpose named like the question's own word is not a filter; no name → the church-wide total as before.
+        assertThat(answer(svc.route("how much is the expense this month", all(), CID, TODAY))).contains("$5,475.50");
+        // Partial words never match ("rental" is not "Rent").
+        assertThat(answer(svc.route("how much rental expenses this month", all(), CID, TODAY))).contains("$5,475.50");
+
+        // List form uses the filtered rows; the Expense page rule still applies.
+        when(expenseRepo.aiExpenseRowsFor(eq(CID), any(), any(), eq("P"), eq(List.of(7)), anyInt())).thenReturn(List.<Object[]>of(
+                new Object[] { Date.valueOf("2026-07-12"), "Tithes & Offerings", "Charity", new BigDecimal("500"), "Check", null }));
+        Map<String, Object> l = svc.route("list the charity expenses this year", all(), CID, TODAY);
+        assertThat(rows(l)).hasSize(1);
+        assertThat(rows(l).get(0).get(2)).isEqualTo("Charity");
+        assertThat(svc.route("list the charity expenses this year", only("reports"), CID, TODAY).get("denied")).isEqualTo(true);
+        assertThat(svc.route("how much have we expenses on charity this year", only("expenseRecords"), CID, TODAY).get("denied")).isEqualTo(true);
+    }
+
     @Test @DisplayName("transactions: income, expenses and net stay separate; Reports page rule")
     void transactions() {
         when(incomeRepo.aiIncomeTotals(eq(CID), any(), any())).thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("1000"), 2L, BigDecimal.ZERO }));

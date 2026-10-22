@@ -290,4 +290,50 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
                                  @Param("endDate") java.sql.Date endDate,
                                  @Param("limit") int limit);
 
+
+    /**
+     * AI Search: the church's expense purposes ('P') and categories ('M') — [kind, id, name] —
+     * so a question naming one ("spent on Charity") can be answered for that one only.
+     */
+    @Query(value =
+           "SELECT 'P', p.id, p.purpose_name FROM purpose p WHERE p.app_client_id = :appClientId AND p.delete_flag = false " +
+           "UNION ALL " +
+           "SELECT 'M', ms.id, ms.source_name FROM main_source ms WHERE ms.app_client_id = :appClientId AND ms.delete_flag = false",
+           nativeQuery = true)
+    List<Object[]> aiExpenseCategoryNames(@Param("appClientId") String appClientId);
+
+    /** {@link #aiExpenseTotals} limited to purposes (kind 'P') or categories (kind 'M') with the given ids. */
+    @Query(value =
+           "SELECT COALESCE(SUM(e.amount), 0), COUNT(*), " +
+           "       COALESCE(SUM(CASE WHEN e.import_ref LIKE '%:stripe-fee' THEN e.amount ELSE 0 END), 0) " +
+           "FROM   expense e " +
+           "WHERE  e.delete_flag = false AND e.app_client_id = :appClientId " +
+           "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
+           "  AND  ((:kind = 'P' AND e.purpose_id IN (:ids)) OR (:kind = 'M' AND e.main_source_id IN (:ids)))",
+           nativeQuery = true)
+    List<Object[]> aiExpenseTotalsFor(@Param("appClientId") String appClientId,
+                                      @Param("startDate") java.sql.Date startDate,
+                                      @Param("endDate") java.sql.Date endDate,
+                                      @Param("kind") String kind,
+                                      @Param("ids") java.util.Collection<Integer> ids);
+
+    /** {@link #aiExpenseRows} limited to purposes (kind 'P') or categories (kind 'M') with the given ids. */
+    @Query(value =
+           "SELECT e.expense_date, ms.source_name, p.purpose_name, e.amount, tt.type_name, e.import_ref " +
+           "FROM   expense e " +
+           "JOIN   main_source ms ON ms.id = e.main_source_id " +
+           "JOIN   purpose     p  ON p.id  = e.purpose_id " +
+           "LEFT JOIN transaction_type tt ON tt.id = e.transaction_type_id " +
+           "WHERE  e.delete_flag = false AND e.app_client_id = :appClientId " +
+           "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
+           "  AND  ((:kind = 'P' AND e.purpose_id IN (:ids)) OR (:kind = 'M' AND e.main_source_id IN (:ids))) " +
+           "ORDER  BY e.expense_date DESC, e.id DESC LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiExpenseRowsFor(@Param("appClientId") String appClientId,
+                                    @Param("startDate") java.sql.Date startDate,
+                                    @Param("endDate") java.sql.Date endDate,
+                                    @Param("kind") String kind,
+                                    @Param("ids") java.util.Collection<Integer> ids,
+                                    @Param("limit") int limit);
+
 }
