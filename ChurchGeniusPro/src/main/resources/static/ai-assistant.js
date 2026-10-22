@@ -515,7 +515,7 @@
   }
 
   function looksLikeDataQuestion(q){
-    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?))\b/i.test(q);
+    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {

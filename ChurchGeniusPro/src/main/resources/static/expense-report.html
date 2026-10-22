@@ -326,5 +326,22 @@ window.CGP_PAGE = { activePage: 'accounting/expense-report', pageTitle: '', open
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script>
+// Opened from the AI Search with ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD: pre-fill the
+// range and run the report. Only well-formed ISO dates are accepted; anything else is ignored.
+(function(){
+  try{
+    var p=new URLSearchParams(location.search), sd=p.get('startDate')||'', ed=p.get('endDate')||'';
+    var iso=/^\d{4}-\d{2}-\d{2}$/;
+    if(!iso.test(sd)||!iso.test(ed)||ed<sd) return;
+    var s=document.getElementById('startDate'), e=document.getElementById('endDate');
+    if(!s||!e) return;
+    s.value=sd; e.value=ed;
+    var q=document.getElementById('quickPeriod'); if(q) q.value='';
+    var run=function(){ if(typeof generateReport==='function') generateReport(); };
+    if(document.readyState==='complete') setTimeout(run,300); else window.addEventListener('load', function(){ setTimeout(run,300); });
+  }catch(err){}
+})();
+</script>
 </body>
 </html>

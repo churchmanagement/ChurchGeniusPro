@@ -246,5 +246,20 @@ window.CGP_PAGE = { activePage: 'accounting/financial-report', pageTitle: '', op
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script>
+// Opened from the AI Search with ?year=YYYY: select that year (if offered) and run the report.
+(function(){
+  try{
+    var y=new URLSearchParams(location.search).get('year')||'';
+    if(!/^\d{4}$/.test(y)) return;
+    var sel=document.getElementById('yearSelect'); if(!sel) return;
+    var has=false; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===y){ has=true; break; } }
+    if(!has) return;
+    sel.value=y;
+    var run=function(){ if(typeof generateReport==='function') generateReport(); };
+    if(document.readyState==='complete') setTimeout(run,300); else window.addEventListener('load', function(){ setTimeout(run,300); });
+  }catch(err){}
+})();
+</script>
 </body>
 </html>

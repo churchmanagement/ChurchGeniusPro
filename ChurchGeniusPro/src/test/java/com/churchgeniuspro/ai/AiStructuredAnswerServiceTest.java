@@ -96,7 +96,8 @@ class AiStructuredAnswerServiceTest {
         meetingRepo = mock(MeetingRepository.class); skipRepo = mock(MeetingSkipDateRepository.class); meetingService = mock(MeetingService.class);
         campaignRepo = mock(PledgeCampaignRepository.class); pledgeRepo = mock(PledgeMemberRepository.class);
         svc = new AiStructuredAnswerService(incomeRepo, expenseRepo, memberRepo, prayerRepo, followUpRepo, assignmentRepo, roleRepo, eventRepo, reminderService,
-                linkRepo, kmChildRepo, kmClassRepo, meetingRepo, skipRepo, meetingService, campaignRepo, new PledgeTotalsService(pledgeRepo, incomeRepo));
+                linkRepo, kmChildRepo, kmClassRepo, meetingRepo, skipRepo, meetingService, campaignRepo, new PledgeTotalsService(pledgeRepo, incomeRepo),
+                new com.churchgeniuspro.service.ReportQueryService(incomeRepo, expenseRepo));
         svc.maxRows = 3; svc.maxRangeDays = 400;
     }
 
@@ -187,6 +188,43 @@ class AiStructuredAnswerServiceTest {
         assertThat(r.from).isEqualTo(LocalDate.of(2026, 8, 21));
         assertThat(svc.period("income this month", TODAY).from).isEqualTo(LocalDate.of(2026, 10, 1));
         assertThat(svc.period("meetings in the next 30 days", TODAY).to).isEqualTo(LocalDate.of(2026, 11, 20));
+    }
+
+    /* ── period reports (Phase C) ──────────────────────────────────────────── */
+
+    @Test @DisplayName("income report: Reports page rule; grouped by fund with the page's half-open range (end + 1 day); link opens the report pre-filled")
+    void incomeReport() {
+        when(incomeRepo.reportFinancialIncomeInRange(eq(Date.valueOf("2026-10-01")), eq(Date.valueOf("2026-11-01")), eq(CID))).thenReturn(List.<Object[]>of(
+                new Object[] { "Tithes & Offerings", "Tithe", new BigDecimal("900") }, new Object[] { "Tithes & Offerings", "Offering", new BigDecimal("100.50") }));
+        Map<String, Object> r = svc.route("create an income report for this month", all(), CID, TODAY);
+        assertThat(r.get("intent")).isEqualTo("income-report");
+        assertThat(answer(r)).contains("$1,000.50").contains("2 funds");
+        assertThat(rows(r)).containsExactly(List.of("Tithes & Offerings", "Tithe", "$900.00"), List.of("Tithes & Offerings", "Offering", "$100.50"));
+        assertThat(((Map<?, ?>) r.get("link")).get("url")).isEqualTo("/income-report?startDate=2026-10-01&endDate=2026-10-31");
+        assertThat(svc.route("income report this month", only("incomeRecords"), CID, TODAY).get("denied")).as("a report needs the Reports page, not the Income page").isEqualTo(true);
+        when(incomeRepo.reportFinancialIncomeInRange(any(), any(), eq(CID))).thenReturn(List.of());
+        assertThat(answer(svc.route("income report for last month", all(), CID, TODAY))).startsWith("No income was recorded");
+        assertThat(svc.route("income report for the last ten years", all(), CID, TODAY).get("intent")).isEqualTo("narrow");
+    }
+
+    @Test @DisplayName("financial report: income, expenses and net kept separate; a whole year links to the Financial Report page, any other period to Transactions")
+    void financialReport() {
+        when(incomeRepo.reportFinancialIncomeInRange(any(), any(), eq(CID))).thenReturn(List.<Object[]>of(new Object[] { "Tithes", "Tithe", new BigDecimal("5000") }));
+        when(expenseRepo.reportFinancialExpenseWithPurposeInRange(any(), any(), eq(CID))).thenReturn(List.<Object[]>of(
+                new Object[] { "General", "Rent", new BigDecimal("1200") }, new Object[] { "General", "Processing Fees", new BigDecimal("30") }));
+        Map<String, Object> m = svc.route("show the financial report for this month", all(), CID, TODAY);
+        assertThat(answer(m)).contains("income $5,000.00").contains("expenses $1,230.00").contains("net $3,770.00");
+        assertThat(((Map<?, ?>) m.get("summary")).get("Net")).isEqualTo("$3,770.00");
+        assertThat(rows(m).get(0)).containsExactly("Income", "Tithes", "Tithe", "$5,000.00");
+        assertThat(((Map<?, ?>) m.get("link")).get("url")).isEqualTo("/transactions-report?startDate=2026-10-01&endDate=2026-10-31");
+        Map<String, Object> y = svc.route("financial report for 2025", all(), CID, TODAY);
+        assertThat(((Map<?, ?>) y.get("link")).get("url")).isEqualTo("/financial-report?year=2025");
+        verify(expenseRepo).reportFinancialExpenseWithPurposeInRange(eq(Date.valueOf("2025-01-01")), eq(Date.valueOf("2026-01-01")), eq(CID));
+        assertThat(svc.route("financial report this month", only("expenseRecords"), CID, TODAY).get("denied")).isEqualTo(true);
+        Map<String, Object> e = svc.route("expense report for this month", all(), CID, TODAY);
+        assertThat(e.get("intent")).isEqualTo("expense-report");
+        assertThat(answer(e)).contains("$1,230.00").contains("2 purposes");
+        assertThat(svc.route("tax report for 2025", all(), CID, TODAY)).as("the tax report is a navigation target, not a data answer").isNull();
     }
 
     /* ── campaigns ─────────────────────────────────────────────────────────── */

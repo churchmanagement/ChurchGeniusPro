@@ -82,6 +82,7 @@ public class AiStructuredAnswerService {
     private final MeetingService meetingService;
     private final PledgeCampaignRepository campaignRepo;
     private final PledgeTotalsService pledgeTotals;
+    private final ReportQueryService reports;
 
     @Value("${ai.search.max-rows:20}")        public int maxRows = 20;
     @Value("${ai.search.max-range-days:400}") public int maxRangeDays = 400;
@@ -92,14 +93,14 @@ public class AiStructuredAnswerService {
                                      ChurchEventRepository eventRepo, ReminderService reminderService,
                                      PublicScreenLinkRepository publicLinkRepo, KmChildRepository kmChildRepo, KmClassroomRepository kmClassroomRepo,
                                      MeetingRepository meetingRepo, MeetingSkipDateRepository skipRepo, MeetingService meetingService,
-                                     PledgeCampaignRepository campaignRepo, PledgeTotalsService pledgeTotals) {
+                                     PledgeCampaignRepository campaignRepo, PledgeTotalsService pledgeTotals, ReportQueryService reports) {
         this.incomeRepo = incomeRepo; this.expenseRepo = expenseRepo; this.memberRepo = memberRepo;
         this.prayerRepo = prayerRepo; this.followUpRepo = followUpRepo;
         this.assignmentRepo = assignmentRepo; this.volunteerRoleRepo = volunteerRoleRepo;
         this.eventRepo = eventRepo; this.reminderService = reminderService;
         this.publicLinkRepo = publicLinkRepo; this.kmChildRepo = kmChildRepo; this.kmClassroomRepo = kmClassroomRepo;
         this.meetingRepo = meetingRepo; this.skipRepo = skipRepo; this.meetingService = meetingService;
-        this.campaignRepo = campaignRepo; this.pledgeTotals = pledgeTotals;
+        this.campaignRepo = campaignRepo; this.pledgeTotals = pledgeTotals; this.reports = reports;
     }
 
     /* ════════════════════════ routing ════════════════════════ */
@@ -133,6 +134,13 @@ public class AiStructuredAnswerService {
         if (has(q, "volunteers?") && has(q, "assign\\w*|schedul\\w*|serving|roster|upcoming"))    return assignedVolunteers(a, clientId, today);
         if (has(q, "campaigns?|pledges?|pledge drives?"))                                         return campaigns(a, clientId, q);
         if (has(q, "members?") && has(q, "how many|count|number of|total|males?|females?|gender|men|women|male|female")) return memberCounts(a, clientId);
+        // Period reports (Phase C) — before the plain totals, so "income report" is a report.
+        if (has(q, "reports?|statements?") && !has(q, "tax report|contribution statements?|giving statements?")) {
+            if (has(q, "financial|finance|profit|net|income and expenses?|summary report"))    return financialReport(a, clientId, q, today);
+            if (has(q, "expenses?|spending|expenditures?"))                                    return expenseReport(a, clientId, q, today);
+            if (has(q, "income|contributions?|donations?|giving|revenue|offerings?|tithes?"))  return incomeReport(a, clientId, q, today);
+            if (has(q, "transactions?"))                                                       return transactions(a, clientId, q, today);
+        }
         if (has(q, "transactions?"))                                                              return transactions(a, clientId, q, today);
         if (has(q, "expenses?|spent|spending|expenditures?|costs?|paid out"))                     return expenses(a, clientId, q, today);
         if (has(q, "contributors?|donations?|donors?|givers?") || has(q, "who") && has(q, "gave|contributed|donated|tithed"))
@@ -244,6 +252,61 @@ public class AiStructuredAnswerService {
         String answer = shown.size() + (all ? "" : " active") + " campaign" + (shown.size() == 1 ? "" : "s") + ". “Amount” is shown three ways — pledged, collected so far, and still pending — because the application tracks each separately."
                 + (truncated ? " Showing the first " + maxRows + "." : "");
         return table("campaigns", answer, List.of("Campaign", "Status", "Target", "Pledged", "Collected", "Pending", "Pledgers"), out, (long) shown.size(), truncated, null, "/pledges", "Open Pledges");
+    }
+
+    /* ════════════════════════ period reports (Phase C) ════════════════════════ */
+
+    private Map<String, Object> incomeReport(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.reports()) return denied("income-report");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "income-report"); if (narrow != null) return narrow;
+        ReportQueryService.Report rep = reports.income(cid, r.from, r.to);
+        String url = "/income-report?startDate=" + r.from + "&endDate=" + r.to;
+        if (rep.income().isEmpty()) return ok("income-report", "No income was recorded for " + r.label + " (" + range(r) + "), so there is nothing to report.", r, url, "Open Income Report");
+        List<List<String>> out = new ArrayList<>();
+        for (ReportQueryService.Line l : rep.income().subList(0, Math.min(rep.income().size(), maxRows))) out.add(List.of(l.category(), l.item(), money(l.total())));
+        boolean truncated = rep.income().size() > maxRows;
+        Map<String, Object> m = table("income-report", "Income report for " + r.label + " (" + range(r) + "): " + money(rep.totalIncome()) + " across " + rep.income().size() + " fund" + (rep.income().size() == 1 ? "" : "s") + "." + (truncated ? " Showing the first " + maxRows + " funds." : "") + " Open the full report for every transaction, filters and PDF.",
+                List.of("Category", "Fund", "Total"), out, (long) rep.income().size(), truncated, r, url, "Open Income Report");
+        m.put("summary", summary("Total income", money(rep.totalIncome()), "Funds", String.valueOf(rep.income().size())));
+        return m;
+    }
+
+    private Map<String, Object> expenseReport(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.reports()) return denied("expense-report");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "expense-report"); if (narrow != null) return narrow;
+        ReportQueryService.Report rep = reports.expenses(cid, r.from, r.to);
+        String url = "/expense-report?startDate=" + r.from + "&endDate=" + r.to;
+        if (rep.expenses().isEmpty()) return ok("expense-report", "No expenses were recorded for " + r.label + " (" + range(r) + "), so there is nothing to report.", r, url, "Open Expense Report");
+        List<List<String>> out = new ArrayList<>();
+        for (ReportQueryService.Line l : rep.expenses().subList(0, Math.min(rep.expenses().size(), maxRows))) out.add(List.of(l.category(), l.item(), money(l.total())));
+        boolean truncated = rep.expenses().size() > maxRows;
+        Map<String, Object> m = table("expense-report", "Expense report for " + r.label + " (" + range(r) + "): " + money(rep.totalExpense()) + " across " + rep.expenses().size() + " purpose" + (rep.expenses().size() == 1 ? "" : "s") + "." + (truncated ? " Showing the first " + maxRows + "." : "") + " Open the full report for every entry and PDF.",
+                List.of("Category", "Purpose", "Total"), out, (long) rep.expenses().size(), truncated, r, url, "Open Expense Report");
+        m.put("summary", summary("Total expenses", money(rep.totalExpense()), "Purposes", String.valueOf(rep.expenses().size())));
+        return m;
+    }
+
+    private Map<String, Object> financialReport(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.reports()) return denied("financial-report");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "financial-report"); if (narrow != null) return narrow;
+        ReportQueryService.Report rep = reports.financial(cid, r.from, r.to);
+        // The Financial Report page is per calendar year; any other period opens the Transactions report for the same range.
+        boolean wholeYear = r.from.getDayOfYear() == 1 && r.to.equals(LocalDate.of(r.from.getYear(), 12, 31));
+        String url = wholeYear ? "/financial-report?year=" + r.from.getYear() : "/transactions-report?startDate=" + r.from + "&endDate=" + r.to;
+        String label = wholeYear ? "Open Financial Report" : "Open Transactions Report";
+        if (rep.income().isEmpty() && rep.expenses().isEmpty()) return ok("financial-report", "No income or expenses were recorded for " + r.label + " (" + range(r) + "), so there is nothing to report.", r, url, label);
+        List<List<String>> out = new ArrayList<>();
+        int half = Math.max(1, maxRows / 2);
+        for (ReportQueryService.Line l : rep.income().subList(0, Math.min(rep.income().size(), half))) out.add(List.of("Income", l.category(), l.item(), money(l.total())));
+        for (ReportQueryService.Line l : rep.expenses().subList(0, Math.min(rep.expenses().size(), half))) out.add(List.of("Expense", l.category(), l.item(), money(l.total())));
+        boolean truncated = rep.income().size() > half || rep.expenses().size() > half;
+        Map<String, Object> m = table("financial-report", "Financial report for " + r.label + " (" + range(r) + "): income " + money(rep.totalIncome()) + ", expenses " + money(rep.totalExpense()) + ", net " + money(rep.net()) + "." + (truncated ? " Showing the largest groups; open the report for the full breakdown." : ""),
+                List.of("Type", "Category", "Fund / Purpose", "Total"), out, (long) (rep.income().size() + rep.expenses().size()), truncated, r, url, label);
+        m.put("summary", summary("Income", money(rep.totalIncome()), "Expenses", money(rep.totalExpense()), "Net", money(rep.net())));
+        return m;
     }
 
     /* ════════════════════════ ministry ════════════════════════ */
