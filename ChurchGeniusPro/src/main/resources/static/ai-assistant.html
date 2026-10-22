@@ -50,6 +50,9 @@
     .bubble .ai-results-hdr, .bubble .ai-results-close { display: none; }
     .bubble .aa-suggest { background: #fff; }
     .bubble .aa-summary { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .bubble .aa-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .bubble .aa-actions-note { font-size:11.5px; color:#9a7d8b; }
+    .bubble .aa-sum-v.aa-sum-sm { font-size:13.5px; }
     .bubble .aa-sum { flex:1 1 120px; min-width:110px; background:#fff; border:1px solid #eadfe6; border-radius:9px; padding:8px 10px; }
     .bubble .aa-sum-k { font-size:11px; color:#7a6a72; text-transform:uppercase; letter-spacing:.03em; }
     .bubble .aa-sum-v { font-size:15px; font-weight:700; color:#673147; margin-top:2px; }
@@ -265,7 +268,7 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
         // Page suggestions (Open / New tab) and the Help Center link come across as-is;
         // the engine's own listeners are dropped (cloned) — the transcript wires them once.
         // Structured data answers (summary strip / bounded table) come across as-is too.
-        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-more').forEach(function (el) { html += el.outerHTML; });
+        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-more, .aa-actions').forEach(function (el) { html += el.outerHTML; });
         card.querySelectorAll('.aa-suggest').forEach(function (sg) { sg.querySelectorAll('.aa-open').forEach(function (b) { b.parentNode.replaceChild(b.cloneNode(true), b); }); html += sg.outerHTML; });
         var more = card.querySelector('a[href="/helpCenter"]');
         if (more) html += '<div class="aa-more">Need more detail? <a href="/helpCenter">Open the full Help Center →</a></div>';
@@ -296,6 +299,10 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
   log.addEventListener('click', function (e) {
     var chip = e.target.closest('.chip');
     if (chip) { input.value = chip.textContent.trim(); autosize(); send(); return; }
+    var cf = e.target.closest('.aa-confirm');
+    if (cf && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.confirmMeeting === 'function') { e.preventDefault(); window.CGP_ASSISTANT.confirmMeeting(cf.getAttribute('data-token'), cf); return; }
+    var cc = e.target.closest('.aa-cancel');
+    if (cc && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.cancelMeeting === 'function') { e.preventDefault(); window.CGP_ASSISTANT.cancelMeeting(cc); return; }
     var b = e.target.closest('.aa-open');
     if (b && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.open === 'function') {
       e.preventDefault();

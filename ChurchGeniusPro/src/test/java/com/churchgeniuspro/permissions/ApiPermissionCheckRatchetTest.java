@@ -76,6 +76,10 @@ class ApiPermissionCheckRatchetTest {
         Map.entry("controller/UnsubscribeController.java", 3),
         Map.entry("controller/WorshipPlanningController.java", 2),
         Map.entry("service/AiDataSearchService.java", 2),
+        // AI Search Phase E (approved 2026-10-22): AiAccessPolicy.meetingsEdit mirrors the guard POST
+        // /api/meetings already applies (general.meetings.edit) so the AI creates a meeting only for a
+        // login the Meetings page itself would let create one. Same check, same key — no new policy.
+        Map.entry("service/AiAccessPolicy.java", 1),
         // ── Approved exception (user request, 2026-10-01): Ticketing and the AI Assistant
         // are to be enforced "on the backend/API as well, so hiding the menu item is not
         // the only protection". These are the only requireFeature call sites:
@@ -96,7 +100,7 @@ class ApiPermissionCheckRatchetTest {
         // helper. GET /api/donations and the other donation reads stay role-only.
         Map.entry("controller/DonationPostingController.java", 1),
         Map.entry("controller/DonationSettingsController.java", 1),
-        Map.entry("controller/AiDataSearchController.java", 1),    // POST /api/ai-search/data
+        Map.entry("controller/AiDataSearchController.java", 2),    // POST /api/ai-search/data + POST /api/ai-search/confirm (AI feature gate, Phase E 2026-10-22)
         Map.entry("controller/VoiceCommandController.java", 1)     // POST /api/ai-assist
     ));
 

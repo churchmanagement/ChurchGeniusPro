@@ -99,4 +99,15 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
 
     java.util.Optional<Meeting> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
     java.util.List<Meeting> findByIdInAndAppClientIdAndDeleteFlagFalse(java.util.Collection<Integer> ids, String appClientId);
+
+    // ── AI Search (Phase E meeting creation) ───────────────────────────────
+
+    /**
+     * Same type + same date + same start time, not deleted — the duplicate check before the
+     * AI creates a meeting. {@code start} is never null ("" when no time was given).
+     */
+    @Query("SELECT COUNT(m) FROM Meeting m WHERE m.appClientId = :appClientId AND m.deleteFlag = false "
+         + "AND m.meetingType.id = :typeId AND m.meetingDate = :date AND COALESCE(m.startTime, '') = :start")
+    long aiCountSameSlot(@Param("appClientId") String appClientId, @Param("typeId") Integer typeId,
+                         @Param("date") LocalDate date, @Param("start") String start);
 }

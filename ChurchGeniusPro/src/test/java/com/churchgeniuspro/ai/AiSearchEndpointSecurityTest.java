@@ -188,6 +188,49 @@ class AiSearchEndpointSecurityTest {
     static MockHttpServletRequest staffWith(String role, String privs) {
         MockHttpServletRequest r = staff(role); r.getSession().setAttribute("privileges", privs); return r;
     }
+
+    @Test @DisplayName("meeting creation (Phase E): the data endpoint confirms before creating; Kids/Member/no-edit are denied; /confirm needs a session and the AI feature")
+    @SuppressWarnings("unchecked")
+    void meetingCreationEndpoints() {
+        com.churchgeniuspro.repository.MeetingTypeRepository typeRepo = mock(com.churchgeniuspro.repository.MeetingTypeRepository.class);
+        com.churchgeniuspro.repository.MeetingRepository meetingRepo = mock(com.churchgeniuspro.repository.MeetingRepository.class);
+        com.churchgeniuspro.service.MeetingService meetingService = mock(com.churchgeniuspro.service.MeetingService.class);
+        com.churchgeniuspro.hibernate.MeetingType t = new com.churchgeniuspro.hibernate.MeetingType(); t.setId(5); t.setTypeName("Bible Study"); t.setAppClientId(MINE);
+        when(typeRepo.findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(MINE)).thenReturn(List.of(t));
+        when(typeRepo.findByIdAndAppClientIdAndDeleteFlagFalse(5, MINE)).thenReturn(java.util.Optional.of(t));
+        when(meetingRepo.aiCountSameSlot(anyString(), any(), any(), anyString())).thenReturn(0L);
+        when(meetingService.save(any(), anyString())).thenAnswer(inv -> { com.churchgeniuspro.hibernate.Meeting m = new com.churchgeniuspro.hibernate.Meeting(); m.setId(1); return m; });
+        AiAccessPolicy policy = new AiAccessPolicy();
+        AiDataSearchController ctl = new AiDataSearchController(new AiDataSearchService(memberRepo, incomeRepo, volunteerRepo, policy),
+                new com.churchgeniuspro.service.AiMeetingCreateService(typeRepo, meetingRepo, meetingService, policy));
+        String ask = "Create a Bible Study meeting tomorrow at 7pm";
+
+        // Staff with the page + edit permission: parsed and shown back, nothing written yet.
+        MockHttpServletRequest admin = staff("Admin");
+        Map<String, Object> c = ctl.data(Map.of("query", ask, "clientId", OTHER), admin).getBody();
+        assertThat(c.get("intent")).isEqualTo("meeting.confirm");
+        verify(meetingService, never()).save(any(), anyString());
+        // The body's clientId is ignored: the type lookup and the creation use the session's church.
+        String token = String.valueOf(((Map<String, Object>) c.get("confirm")).get("token"));
+        MockHttpServletRequest again = new MockHttpServletRequest(); again.setSession(admin.getSession());
+        Map<String, Object> done = ctl.confirm(Map.of("token", token, "clientId", OTHER), again).getBody();
+        assertThat(done.get("intent")).isEqualTo("meeting.created");
+        verify(meetingService).save(any(), org.mockito.ArgumentMatchers.eq(MINE));
+        verify(typeRepo, never()).findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(OTHER);
+        // Second use of the same token: nothing.
+        assertThat(ctl.confirm(Map.of("token", token), again).getBody().get("intent")).isEqualTo("meeting.expired");
+
+        // Denied callers: Member (even with the AI feature), Kids, staff without general.meetings.edit, church login.
+        assertThat(ctl.data(Map.of("query", ask), member("Head", "{\"more.aiassistant\":true,\"member.directory\":true}")).getBody().get("denied")).isEqualTo(true);
+        assertThat(ctl.data(Map.of("query", ask), member("Son", "{\"more.aiassistant\":true}")).getStatusCode().value()).isEqualTo(403);
+        assertThat(ctl.data(Map.of("query", ask), staffWith("User", "{\"general.meetings.edit\":false}")).getBody().get("denied")).isEqualTo(true);
+        assertThat(ctl.data(Map.of("query", ask), churchReq()).getBody().get("denied")).isEqualTo(true);
+        // /confirm without a session → 401; Kids → 403; Member with a stray token → nothing created.
+        assertThat(ctl.confirm(Map.of("token", "x"), new MockHttpServletRequest()).getStatusCode().value()).isEqualTo(401);
+        assertThat(ctl.confirm(Map.of("token", "x"), member("Son", "{\"more.aiassistant\":true}")).getStatusCode().value()).isEqualTo(403);
+        assertThat(ctl.confirm(Map.of("token", "x"), member("Head", "{\"more.aiassistant\":true}")).getBody().get("denied")).isEqualTo(true);
+        verify(meetingService, org.mockito.Mockito.times(1)).save(any(), anyString());
+    }
     static MockHttpServletRequest churchReq() {
         MockHttpSession s = new MockHttpSession();
         s.setAttribute("username", "church"); s.setAttribute("role", "church"); s.setAttribute("church", Boolean.TRUE); s.setAttribute("clientId", MINE);

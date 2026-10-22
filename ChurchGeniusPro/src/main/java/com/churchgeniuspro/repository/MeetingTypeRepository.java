@@ -49,4 +49,7 @@ public interface MeetingTypeRepository extends JpaRepository<MeetingType, Intege
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
     java.util.Optional<MeetingType> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
+    /** Strictly tenant-scoped A–Z list for the AI Search (no nullable-parameter branch). */
+    java.util.List<MeetingType> findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(String appClientId);
 }

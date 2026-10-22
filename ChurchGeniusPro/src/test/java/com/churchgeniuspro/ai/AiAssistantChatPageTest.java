@@ -44,12 +44,14 @@ class AiAssistantChatPageTest {
     void engineHookOptional() throws IOException {
         String e = engine();
         assertThat(e).contains("function uiHook(){ var u=window.CGP_ASSISTANT_UI;")
-                .contains("uiCall('question', query, mode);")
+                .contains("reportQuestion(query, mode);")
                 .contains("uiCall('answer', holder.firstChild, a, lastQ);")
                 .contains("if (uiCall('notice', msg)) return;")
                 .contains("if (uiCall('busy', !!on)) return;");
-        // Exactly one place reports a question (runAssist) and one renders answers (renderCard).
+        // Exactly one place reports a question (reportQuestion, called by runAssist and by the Phase E
+        // confirm click — each a turn of its own) and one renders answers (renderCard).
         assertThat(e.split("uiCall\\('question'", -1)).hasSize(2);
+        assertThat(e.split("reportQuestion\\(", -1)).hasSize(4);
         assertThat(e.split("uiCall\\('answer'", -1)).hasSize(2);
         // Default path still writes the panel into #aiResultsWrap and wires its buttons.
         assertThat(e).contains("wrap.innerHTML=html; wrap.style.display='block';")

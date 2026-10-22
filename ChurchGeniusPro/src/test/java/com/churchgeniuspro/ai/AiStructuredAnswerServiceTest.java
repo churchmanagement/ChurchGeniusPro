@@ -74,17 +74,17 @@ class AiStructuredAnswerServiceTest {
 
     /** Everything allowed (an unrestricted Admin). */
     static AiAccess all() {
-        return new AiAccess("Admin", "anson", false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, java.util.Set.of());
+        return new AiAccess("Admin", "anson", false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, java.util.Set.of());
     }
     /** Nothing allowed, but not a Kids session (e.g. a User without any of the pages). */
     static AiAccess nothing() {
-        return new AiAccess("User", "pat", false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, java.util.Set.of());
+        return new AiAccess("User", "pat", false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, java.util.Set.of());
     }
     static AiAccess only(String flag) {
         boolean members = flag.equals("members"), inc = flag.equals("incomeRecords"), exp = flag.equals("expenseRecords"), rep = flag.equals("reports"),
                 vol = flag.equals("volunteers"), mtg = flag.equals("meetings"), pr = flag.equals("prayer"), fu = flag.equals("followUps"), ev = flag.equals("events"),
                 rem = flag.equals("reminders"), pl = flag.equals("pledges"), km = flag.equals("kidsMinistry"), pub = flag.equals("publicLinks");
-        return new AiAccess("User", "pat", false, false, false, members, inc, exp, rep, vol, mtg, pr, fu, false, ev, rem, pl, km, pub, java.util.Set.of());
+        return new AiAccess("User", "pat", false, false, false, members, inc, exp, rep, vol, mtg, false, pr, fu, false, ev, rem, pl, km, pub, java.util.Set.of());
     }
 
     @BeforeEach

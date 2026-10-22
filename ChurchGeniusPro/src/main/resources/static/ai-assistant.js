@@ -460,6 +460,8 @@
      turn, whatever the mode); answer(cardElement, card, question) — a finished
      answer card; busy(on) — a reply is in flight; notice(text) — a toast. */
   function uiHook(){ var u=window.CGP_ASSISTANT_UI; return (u && typeof u==='object') ? u : null; }
+  /* The only place a user turn is reported to the chat page (runAssist, and the Phase E confirm click). */
+  function reportQuestion(q, m){ uiCall('question', q, m); }
   function uiCall(fn){ var u=uiHook(); if(!u || typeof u[fn]!=='function') return false; try{ u[fn].apply(u, Array.prototype.slice.call(arguments,1)); }catch(e){} return true; }
   function runAssist(query){
     var input=document.getElementById('aiSearchInput');
@@ -479,7 +481,7 @@
     if (mode==='voice' || mode==='converse'){ _assistBusy=true; setPhase('processing'); }
 
     lastQ=query; _t0=Date.now();
-    uiCall('question', query, mode);          // exactly once per turn: Type, Voice and Converse all enter here
+    reportQuestion(query, mode);              // exactly once per turn: Type, Voice and Converse all enter here
     busy(true);
     setDebug({ page:location.pathname, mode:curMode(), input:query, transcript:(mode!=='type'?query:'—'),
                intent:'…', entity:'—', role:detectedRoleLabel(), source:'—', navTarget:'—', confidence:'—',
@@ -494,9 +496,12 @@
     //    "What was the income for March?", "Who are the volunteers?").
     //    Answered server-side with permission checks; runs in ALL modes.
     //    handled=false → fall through to the normal flow below.
-    if (looksLikeDataQuestion(query)){
+    if (looksLikeDataQuestion(query) || _aaServerPending){
       tryDataSearch(query).then(function(d){
         if (!aaLive(g)) return;                     // stopped, or superseded
+        // A meeting draft is open on the server (missing fields / awaiting "yes"): the next
+        // message goes to the server too, whatever it looks like (Phase E).
+        _aaServerPending = !!(d && d.handled && (d.intent==='meeting.ask' || d.intent==='meeting.confirm'));
         if (d && d.handled){
           busy(false);
           renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data',
@@ -527,6 +532,7 @@
     setPhase(listening ? 'listening' : 'done');
   }
 
+  var _aaServerPending=false;
   function looksLikeDataQuestion(q){
     return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
   }
@@ -734,6 +740,17 @@
         html+='</tbody></table></div>';
         if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.rows.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open the page for the full list.</div>';
       }
+      // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
+      // The token is single-use on the server, so a double click cannot create two meetings.
+      if (d.confirm && d.confirm.token){
+        var cs=d.confirm.summary||{};
+        html+='<div class="aa-summary">';
+        Object.keys(cs).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v aa-sum-sm">'+esc(cs[k])+'</div></div>'; });
+        html+='</div><div class="aa-actions">'
+          +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'">Create meeting</button>'
+          +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'">Cancel</button>'
+          +'<span class="aa-actions-note">Nothing is saved until you confirm.</span></div>';
+      }
     }
     if (pages.length){
       html+='<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">';
@@ -759,9 +776,40 @@
     }
     wrap.innerHTML=html; wrap.style.display='block';
     wrap.querySelectorAll('.aa-open').forEach(function(b){
+      if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
+      if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
       b.addEventListener('click', function(){ open(b.getAttribute('data-url'), b.getAttribute('data-label'), b.getAttribute('data-nt')==='1' || wantsNewTab(lastQ)); });
     });
     try{ wrap.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
+  }
+  /* Phase E: the "Create meeting" button. Disabled at once (client side), and the server consumes
+     the token on first use, so a repeat click or a stale transcript button creates nothing. */
+  function confirmMeeting(token, btn){
+    if (!token) return;
+    var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
+    if (row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=true; }); }
+    if (btn){ btn.textContent='Creating…'; }
+    lastQ='Create meeting (confirmed)';
+    reportQuestion('Yes, create it', 'type');  // the confirm click is its own turn
+    busy(true);
+    fetch('/api/ai-search/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) })
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){
+        busy(false); _aaServerPending=false;
+        if (!d || !d.handled){ d={ handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
+        if (row){ row.remove(); }
+        renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
+          pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
+        setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: d.created ? 'Meeting created' : (d.denied ? 'Permission denied' : 'Not created') });
+        if (speaking) speak(stripUrls(d.answer||''));
+      });
+  }
+  function cancelMeeting(btn){
+    var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
+    if (row){ row.remove(); }
+    _aaServerPending=false;
+    fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
+    toast('Okay — the meeting was not created.');
   }
   function toast(msg){
     if (uiCall('notice', msg)) return;
@@ -1111,6 +1159,9 @@
       '.aa-suggest-actions{display:flex;gap:6px;flex-shrink:0;}',
       '.aa-open{border:none;background:#673147;color:#fff;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;}',
       '.aa-open.alt{background:#fff;color:#673147;border:1.5px solid #c5a0b5;}',
+      '.aa-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;}',
+      '.aa-actions-note{font-size:11.5px;color:#9a7d8b;}',
+      '#aiResultsWrap .aa-sum-v.aa-sum-sm{font-size:13.5px;}',
       '.aa-toast{margin-top:8px;font-size:12.5px;color:#a23;background:#fdeef0;border:1px solid #f3cfd5;border-radius:7px;padding:7px 10px;}',
       '#aiResultsWrap .ai-results-panel{margin-top:10px;border:1px solid #eadfe6;border-radius:12px;background:#fff;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);}',
       '#aiResultsWrap .ai-results-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}',
@@ -1310,6 +1361,6 @@
   // Exposed for testing / external use.
   window.CGP_ASSISTANT = { matchDest:matchDest, matchReport:matchReport, isAvailable:isAvailable, reportAvailable:reportAvailable,
     resolveLocal:resolveLocal, classify:classify, buildContext:buildContext, converseStart:converseStart, converseStep:converseStep,
-    matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
+    matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
     _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); } };
 })();
