@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const ctx = await browser.newContext({ serviceWorkers: 'block' }); const page = await ctx.newPage();
+  page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
+  await page.goto('http://localhost:8080/login');
+  await page.fill('#username', 'grace.pastor_799791'); await page.fill('#password', 'd4Au6JsxN4');
+  await page.click('button[type=submit], #loginBtn'); await page.waitForURL(/home|dashboard/i, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(2500);
+  const s = await page.evaluate(() => fetch('/api/session').then(r => r.json()));
+  console.log('session role:', s.role, '| aiAssistant:', s.aiAssistant);
+  console.log('home bar visible:', await page.evaluate(() => { const w = document.querySelector('.ai-search-wrap'); return !!w && getComputedStyle(w).display !== 'none'; }), '| mode controls injected:', await page.evaluate(() => !!document.getElementById('aaBar')));
+  const r = await page.evaluate(() => fetch('/api/ai-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'how many members are in the church', clientId: 'CHR-OTHER' }) }).then(r => r.json()));
+  console.log('member count →', r.intent, '|', r.answer);
+  const d = await page.evaluate(() => fetch('/api/ai-search/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'What was the income this month?' }) }).then(r => r.json()));
+  console.log('income →', d.intent, '|', d.answer);
+  await page.goto('http://localhost:8080/meetings'); await page.waitForTimeout(2500);
+  console.log('injected bar on /meetings data-perm:', await page.evaluate(() => { const h = document.getElementById('aaHost'); return h ? h.getAttribute('data-perm') : null; }));
+  await browser.close();
+})().catch(e => { console.error('FAILED', e.message); process.exit(1); });

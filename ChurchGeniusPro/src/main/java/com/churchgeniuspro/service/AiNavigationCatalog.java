@@ -50,7 +50,7 @@ public final class AiNavigationCatalog {
         pg("Membership Requests","/membershipRequests",  "Admin",  "Applications from the public Membership Request page, reviewed before adding or renewing a family.", "membership requests,membership request,applications", staffOrChurch(ADMIN, "admin.membership")),
         pg("Unsubscribed List",  "/unsubscribed-list",   "Admin",  "People who unsubscribed from church emails.", "unsubscribed,unsubscribed list,opt out", staff(ADMIN, "admin.unsubscribed")),
         pg("Users",              "/viewusers",           "Admin",  "Staff logins, roles and the permission checkboxes that control which pages each login sees.", "users,view users,user management,manage users,permissions,staff logins", churchOnly()),
-        pg("Files & Notes",      "/filesUpload",         "Admin",  "Upload files and keep notes for the church office.", "files,files and notes,notes,upload file", staff(STAFF, null)),
+        pg("Files & Notes",      "/filesUpload",         "Admin",  "Upload files and keep notes for the church office.", "files,files and notes,notes,upload file", staff(STAFF, "admin.files")),
         pg("Stripe Integration", "/stripeIntegration",   "Admin",  "Connect the church's own Stripe account for online giving.", "stripe,stripe integration,online giving setup", churchOnly()),
         pg("WhatsApp Integration","/whatsappIntegration","Admin",  "Connect a WhatsApp sender for member messaging.", "whatsapp,whatsapp integration", churchOnly()),
         pg("Private Page Access","/private-access-settings","Admin","Restrict Kids Ministry, Event Check-in and Temporary Login to the church's own network.", "private page access,private pages,private access,private page", staff(ADMIN, null)),
