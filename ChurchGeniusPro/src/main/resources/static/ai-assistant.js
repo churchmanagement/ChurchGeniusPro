@@ -468,6 +468,11 @@
     query=(query!=null?query:(input?input.value:''))||''; query=String(query).trim();
     if(!query){ if(input) input.focus(); return; }
 
+    // Phase F: while an answer is in flight, Enter / Search / a new utterance does not
+    // start another turn (no double submissions, no overlapping requests). Stop (voice
+    // modes) or the 30 s watchdog releases the bar.
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); return; }
+
     // A new turn supersedes the previous one: abort its requests, orphan its
     // callbacks, and clear anything it left on a timer. `g` is this turn's
     // ticket - every callback below checks it before touching the UI, so a
@@ -478,6 +483,10 @@
     _timers.length=0;
     _stopped=false;
     var g = ++runGen;
+    _inFlight=true; setResultsBusy(true);
+    // Client-side timeout: if nothing has answered after AA_TIMEOUT_MS the requests are
+    // aborted and the user is told, instead of a spinner that never ends.
+    _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
     if (mode==='voice' || mode==='converse'){ _assistBusy=true; setPhase('processing'); }
 
     lastQ=query; _t0=Date.now();
@@ -526,12 +535,44 @@
   function assistDone(g){
     if (g != null && g !== runGen) return;
     _assistBusy = false;
+    endTurn();
     if (mode!=='voice' && mode!=='converse'){ aaPhase='idle'; refreshModeButtons(); return; }
     if (_stopped) return;                           // stopAll owns the UI now
     var listening = !!(recorder && recorder.isRecording && recorder.isRecording());
     setPhase(listening ? 'listening' : 'done');
   }
 
+  /* Phase F — one turn at a time, with a watchdog. */
+  var AA_TIMEOUT_MS = 30000;
+  var _inFlight=false, _turnTimer=null;
+  function endTurn(){
+    _inFlight=false; setResultsBusy(false);
+    if (_turnTimer!=null){ try{ clearTimeout(_turnTimer); }catch(e){} var ix=_timers.indexOf(_turnTimer); if(ix>=0) _timers.splice(ix,1); _turnTimer=null; }
+  }
+  function onTurnTimeout(g){
+    runGen++;                                        // orphan every callback of the timed-out turn
+    for (var i=0;i<_aborts.length;i++){ try{ _aborts[i].abort(); }catch(e){} } _aborts.length=0;
+    busy(false); endTurn();
+    var msg='The assistant took too long to respond ('+Math.round(AA_TIMEOUT_MS/1000)+' seconds). Please try again, or open the Help Center.';
+    renderCard({ intent:'timeout', category:'Assistant', source:'Assistant', confidence:0, answer:msg,
+                 pages:[{label:'Help Center', url:'/helpCenter', voiceCommand:'Go to Help Center'}], suggestedAction:'none' });
+    setDebug({ result:'Timed out after '+AA_TIMEOUT_MS+' ms', responseMs:'>'+AA_TIMEOUT_MS+' ms' });
+    if (speaking) speak('Sorry, that took too long. Please try again.');
+    _assistBusy=false;
+    if (mode==='voice' || mode==='converse'){ var listening=!!(recorder && recorder.isRecording && recorder.isRecording()); setPhase(listening?'listening':'done'); }
+    else { aaPhase='idle'; refreshModeButtons(); }
+  }
+  function setResultsBusy(on){
+    var w=document.getElementById('aiResultsWrap'); if (w) w.setAttribute('aria-busy', on?'true':'false');
+    var i=document.getElementById('aiSearchInput'); if (i) i.setAttribute('aria-busy', on?'true':'false');
+  }
+  var _hintTimer=null;
+  function flashHint(text){
+    var h=document.getElementById('aaHint'); if(!h){ toast(text); return; }
+    var prev=h.textContent; h.textContent=text;
+    if (_hintTimer) clearTimeout(_hintTimer);
+    _hintTimer=setTimeout(function(){ if (h.textContent===text) h.textContent=prev; }, 2500);
+  }
   var _aaServerPending=false;
   function looksLikeDataQuestion(q){
     return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
@@ -720,9 +761,9 @@
   function renderCard(a){
     var wrap=results(); if(!wrap && !uiHook()) return;
     var pages=a.pages||[];
-    var html='<div class="ai-results-panel">'
+    var html='<div class="ai-results-panel" role="group" aria-label="Assistant answer">'
       + '<div class="ai-results-hdr"><div class="ai-results-title">✨ Assistant <em style="font-size:12px;color:#aaa;font-weight:400;">for: '+esc(lastQ)+'</em></div>'
-      + '<button class="ai-results-close" onclick="document.getElementById(\'aiResultsWrap\').style.display=\'none\'" title="Close">✕</button></div>'
+      + '<button class="ai-results-close" type="button" onclick="document.getElementById(\'aiResultsWrap\').style.display=\'none\'" title="Close" aria-label="Close results">✕</button></div>'
       + '<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(a.answer||'')+'</div>';
     // Structured data answers (Phase B): a summary strip and/or a bounded table.
     if (a.data && !a.data.denied){
@@ -733,8 +774,8 @@
         html+='</div>';
       }
       if (Array.isArray(d.columns) && Array.isArray(d.rows) && d.rows.length){
-        html+='<div class="aa-tablewrap"><table class="aa-table"><thead><tr>';
-        d.columns.forEach(function(c){ html+='<th>'+esc(c)+'</th>'; });
+        html+='<div class="aa-tablewrap" tabindex="0" aria-label="Results table"><table class="aa-table"><thead><tr>';
+        d.columns.forEach(function(c){ html+='<th scope="col">'+esc(c)+'</th>'; });
         html+='</tr></thead><tbody>';
         d.rows.forEach(function(r){ html+='<tr>'; (r||[]).forEach(function(c){ html+='<td>'+esc(c==null?'':c)+'</td>'; }); html+='</tr>'; });
         html+='</tbody></table></div>';
@@ -789,13 +830,17 @@
     var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
     if (row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=true; }); }
     if (btn){ btn.textContent='Creating…'; }
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); if(row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=false; }); } if(btn) btn.textContent='Create meeting'; return; }
     lastQ='Create meeting (confirmed)';
     reportQuestion('Yes, create it', 'type');  // the confirm click is its own turn
+    var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true);
+    _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
     busy(true);
-    fetch('/api/ai-search/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) })
+    fetch('/api/ai-search/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }), signal:aaSignal() })
       .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){
-        busy(false); _aaServerPending=false;
+        if (!aaLive(g)) return;
+        busy(false); _aaServerPending=false; endTurn();
         if (!d || !d.handled){ d={ handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
         if (row){ row.remove(); }
         renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
@@ -916,6 +961,7 @@
   function stopAll(reason){
     runGen++;                       // orphan every callback already in flight
     _stopped = true;
+    endTurn();                      // the bar accepts a new question again
 
     // 1. Assistant HTTP requests (/api/ai-assist, /api/help/search, data search)
     for (var i = 0; i < _aborts.length; i++){ try{ _aborts[i].abort(); }catch(e){} }
@@ -1163,7 +1209,8 @@
       '.aa-actions-note{font-size:11.5px;color:#9a7d8b;}',
       '#aiResultsWrap .aa-sum-v.aa-sum-sm{font-size:13.5px;}',
       '.aa-toast{margin-top:8px;font-size:12.5px;color:#a23;background:#fdeef0;border:1px solid #f3cfd5;border-radius:7px;padding:7px 10px;}',
-      '#aiResultsWrap .ai-results-panel{margin-top:10px;border:1px solid #eadfe6;border-radius:12px;background:#fff;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);}',
+      '#aiResultsWrap .ai-results-panel{margin-top:10px;border:1px solid #eadfe6;border-radius:12px;background:#fff;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);max-height:min(65vh,560px);overflow:auto;}',
+      '#aiResultsWrap[aria-busy="true"] .ai-results-panel{opacity:.7;}',
       '#aiResultsWrap .ai-results-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}',
       '#aiResultsWrap .ai-results-title{font-weight:700;color:#673147;font-size:14px;}',
       '#aiResultsWrap .ai-results-close{border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;}',
@@ -1179,6 +1226,22 @@
       '#aiResultsWrap .aa-table td{padding:6px 9px;border-bottom:1px solid #f3edf0;color:#444;vertical-align:top;}',
       '#aiResultsWrap .aa-table tr:last-child td{border-bottom:none;}',
       '#aiResultsWrap .aa-more{margin-top:6px;font-size:12px;color:#888;}',
+      // Phase F — small screens: the input takes a full row, controls wrap under it,
+      // summary tiles and suggestion rows stack, the panel stays scrollable.
+      '@media (max-width:640px){'
+        +'.aa-host{padding:12px 12px 0;margin-bottom:12px;}'
+        +'.aa-searchbar{padding:8px 10px;gap:8px;}'
+        +'#aiSearchInput.aa-input,.ai-search-wrap .ai-search-input{flex:1 1 100%;min-width:0;font-size:16px;}'
+        +'.aa-searchbtn,.ai-search-wrap .ai-search-btn{flex:1 1 auto;padding:0 12px;}'
+        +'#aiResultsWrap .ai-results-panel{padding:10px 12px;max-height:70vh;}'
+        +'#aiResultsWrap .aa-sum{flex:1 1 100%;min-width:0;}'
+        +'#aiResultsWrap .aa-table{font-size:12px;}'
+        +'.aa-suggest{flex-direction:column;align-items:stretch;}'
+        +'.aa-suggest-actions{justify-content:flex-end;}'
+        +'.aa-actions{flex-direction:column;align-items:stretch;}'
+        +'.aa-actions .aa-open{width:100%;}'
+      +'}',
+      '@media (prefers-reduced-motion:reduce){.aa-searchbar,.aa-searchbtn,.ai-search-wrap .ai-search-btn{transition:none;}}',
       '#aaDebug{margin-top:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#11151c;color:#cfe3ff;border-radius:8px;padding:10px 12px;}',
       '#aaDebug.hidden{display:none;}',
       '#aaDebug .aa-drow{display:flex;gap:8px;padding:1px 0;}',
@@ -1216,27 +1279,39 @@
     document.body.appendChild(ov);
   }
   function searchHelpHtml(){
-    return '<p>AI Search understands plain English. Ask it to open a page, find a feature or report, '
-      +'explain how to do something, or look up help — it works the same on every page of the app.</p>'
-      +'<h4>What you can search for</h4>'
-      +'<ul><li><b>Navigation</b> — "Go to Payroll", "Open the event calendar", "Take me to Income".</li>'
-      +'<li><b>Feature locations</b> — "Where do I record a donation?", "Where are attendance reports?".</li>'
-      +'<li><b>How-to questions</b> — "How do I add a new member?", "How do I send SMS reminders?".</li>'
-      +'<li><b>Reports</b> — "Show me the donation report", "Monthly income report".</li>'
-      +'<li><b>Public page links</b> — "Member signup page", "Kids check-in link".</li></ul>'
+    return '<p>AI Search understands plain English. Ask it to open a page, look up your church\u2019s data, run a '
+      +'report for a period, create a meeting, explain how to do something, or find help \u2014 it works the same on every page.</p>'
+      +'<h4>What you can ask</h4>'
+      +'<ul><li><b>Navigation</b> \u2014 \u201cGo to Payroll\u201d, \u201cOpen the event calendar\u201d, \u201cWhere do I set the email display name?\u201d.</li>'
+      +'<li><b>Church data</b> \u2014 \u201cWho are the top contributors this year?\u201d, \u201cWhat were the expenses last month?\u201d, '
+      +'\u201cHow many members do we have?\u201d, \u201cWhat meetings are coming up?\u201d, \u201cPending prayer requests\u201d, \u201cOpen follow-ups\u201d, '
+      +'\u201cUpcoming events\u201d, \u201cActive reminders\u201d, \u201cCampaign totals\u201d, \u201cKids Ministry children\u201d, \u201cPublic links\u201d.</li>'
+      +'<li><b>Reports for a period</b> \u2014 \u201cIncome report for last quarter\u201d, \u201cExpense report for September\u201d, '
+      +'\u201cFinancial report for 2026\u201d \u2014 the totals appear here and a link opens the report page pre-filled.</li>'
+      +'<li><b>Create a meeting</b> \u2014 \u201cCreate a Bible Study meeting on Nov 3 at 7pm\u201d. The assistant asks for anything missing '
+      +'(category, date), shows the draft and creates the one-time meeting only after you click <b>Create meeting</b> or say \u201cyes\u201d. '
+      +'Recurring meetings, locations and images are set up on the Meetings page.</li>'
+      +'<li><b>How-to questions</b> \u2014 \u201cHow do I add a new member?\u201d, \u201cHow do I send SMS reminders?\u201d.</li>'
+      +'<li><b>Public page links</b> \u2014 \u201cMember signup page\u201d, \u201cKids check-in link\u201d.</li></ul>'
       +'<h4>Example searches</h4>'
-      +'<div class="aa-ex">"Go to Family"</div>'
-      +'<div class="aa-ex">"How do I create a pledge?"</div>'
-      +'<div class="aa-ex">"Where can I upload songs?"</div>'
-      +'<div class="aa-ex">"I need to send reminders" (Converse mode — the assistant asks follow-up questions)</div>'
-      +'<h4>🔎 Type · 🎤 Voice · 🗣 Converse</h4>'
-      +'<ul><li><b>Type</b> — enter your question in the box and press Enter or click Search.</li>'
-      +'<li><b>Voice</b> — click the microphone and speak naturally; your speech is converted to text and searched. Click again to stop. In Voice mode, saying a page name (e.g. "Go to Events") navigates immediately.</li>'
-      +'<li><b>Converse</b> — a back-and-forth conversation: describe what you want to do (e.g. "I need to send reminders") and the assistant asks follow-up questions to get you to the right place.</li></ul>'
+      +'<div class="aa-ex">\u201cGo to Family\u201d</div>'
+      +'<div class="aa-ex">\u201cWhat was the income last month?\u201d</div>'
+      +'<div class="aa-ex">\u201cExpense report for last quarter\u201d</div>'
+      +'<div class="aa-ex">\u201cCreate a Prayer Meeting tomorrow at 6:30 pm\u201d</div>'
+      +'<div class="aa-ex">\u201cI need to send reminders\u201d (Converse mode \u2014 the assistant asks follow-up questions)</div>'
+      +'<h4>\ud83d\udd0e Type \u00b7 \ud83c\udfa4 Voice \u00b7 \ud83d\udde3 Converse</h4>'
+      +'<ul><li><b>Type</b> \u2014 enter your question in the box and press Enter or click Search.</li>'
+      +'<li><b>Voice</b> \u2014 click the microphone and speak naturally; your speech is converted to text and searched. Click again to stop. In Voice mode, saying a page name (e.g. \u201cGo to Events\u201d) navigates immediately.</li>'
+      +'<li><b>Converse</b> \u2014 a back-and-forth conversation: describe what you want to do (e.g. \u201cI need to send reminders\u201d) and the assistant asks follow-up questions to get you to the right place.</li></ul>'
+      +'<h4>What you see depends on your access</h4>'
+      +'<ul><li>Answers follow the same permissions and plan as the pages themselves: data you cannot open on its page is not shown here either, and the assistant says so.</li>'
+      +'<li>Lists are kept short (the first 20 rows) with a link to the full page; very long date ranges are narrowed first.</li>'
+      +'<li>Figures come straight from your records \u2014 online donations show the gross amount, with processing fees listed separately under expenses.</li></ul>'
       +'<h4>Tips for better results</h4>'
-      +'<ul><li>Use full, natural sentences — no special syntax is needed.</li>'
+      +'<ul><li>Use full, natural sentences \u2014 no special syntax is needed.</li>'
       +'<li>Start with a verb (<b>Go to</b>, <b>Open</b>, <b>Show me</b>) when you want to navigate straight to a page.</li>'
-      +'<li>Click the ❔ Guide button to browse every available command for your account.</li>'
+      +'<li>One question at a time: while an answer is on its way, Enter waits; if nothing comes back within 30 seconds the assistant says so and you can try again.</li>'
+      +'<li>Click the \u2754 Guide button to browse every available command for your account.</li>'
       +'<li>Voice and Converse need microphone access; Type mode always works.</li></ul>';
   }
 
@@ -1260,6 +1335,7 @@
     // Hint goes on its own line BELOW the toolbar so it never affects alignment.
     var hintRow=document.createElement('div'); hintRow.className='aa-hintrow';
     hintRow.innerHTML='<span id="aaHint" class="aa-hint" role="status" aria-live="polite"></span>';
+    bar.setAttribute('role','toolbar'); bar.setAttribute('aria-label','Assistant modes');
     var guide=document.createElement('div'); guide.id='aaGuide'; guide.className='hidden';
 
     var homeWrap=document.querySelector('.ai-search-wrap');
@@ -1268,7 +1344,9 @@
       // + guide go beneath, above the results.
       var homeBar=homeWrap.querySelector('.ai-search-bar');
       if (homeBar){ homeBar.appendChild(bar); } else { homeWrap.appendChild(bar); }
+      var hi=document.getElementById('aiSearchInput'); if (hi){ hi.setAttribute('aria-label','Ask the AI assistant'); hi.setAttribute('autocomplete','off'); }
       var res=document.getElementById('aiResultsWrap');
+      if (res){ res.setAttribute('role','region'); res.setAttribute('aria-label','Assistant results'); res.setAttribute('aria-live','polite'); }
       if (res && res.parentNode===homeWrap){ homeWrap.insertBefore(hintRow,res); homeWrap.insertBefore(guide,res); }
       else { homeWrap.appendChild(hintRow); homeWrap.appendChild(guide); }
     } else {
@@ -1279,10 +1357,11 @@
       host.setAttribute('data-perm','more.aiassistant');   // session.js hides it the moment the permission is switched off
       var sb=document.createElement('div'); sb.className='aa-searchbar';
       sb.innerHTML='<span class="aa-ic">✨</span>'
-        + '<input id="aiSearchInput" class="aa-input" type="text" placeholder="Ask anything — navigation, reports, how-to, help…">'
-        + '<button id="aiSearchBtn" class="aa-searchbtn" type="button">Search</button>';
+        + '<input id="aiSearchInput" class="aa-input" type="text" autocomplete="off" aria-label="Ask the AI assistant" placeholder="Ask anything — navigation, reports, how-to, help…">'
+        + '<button id="aiSearchBtn" class="aa-searchbtn" type="button" aria-label="Search">Search</button>';
       sb.appendChild(bar);                           // mode buttons inside the bar → one row
       var resWrap=document.createElement('div'); resWrap.id='aiResultsWrap'; resWrap.style.display='none';
+      resWrap.setAttribute('role','region'); resWrap.setAttribute('aria-label','Assistant results'); resWrap.setAttribute('aria-live','polite');
       host.appendChild(sb); host.appendChild(hintRow); host.appendChild(guide); host.appendChild(resWrap);
       main.insertBefore(host, main.firstChild);
       // Wire the input + button we just created (the home page already has inline
@@ -1362,5 +1441,6 @@
   window.CGP_ASSISTANT = { matchDest:matchDest, matchReport:matchReport, isAvailable:isAvailable, reportAvailable:reportAvailable,
     resolveLocal:resolveLocal, classify:classify, buildContext:buildContext, converseStart:converseStart, converseStep:converseStep,
     matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
-    _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); } };
+    _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); },
+    _setTimeoutMs:function(ms){ AA_TIMEOUT_MS=ms; }, _inFlight:function(){ return _inFlight; } };
 })();
