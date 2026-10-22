@@ -425,4 +425,77 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
     java.util.Optional<Income> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
+    // ── AI Search (Phase B) — bounded, tenant-scoped, aggregated in the database ───
+
+    /**
+     * One row: [SUM(amount), COUNT(*), SUM(amount of posted online donations)] for the
+     * tenant and inclusive date range. Posted donations are recognised by the ledger
+     * reference DonationPostingService writes ("pi_…" or "donation:…"), so the online
+     * share can be reported separately from the gross total without a second table.
+     */
+    @Query(value =
+           "SELECT COALESCE(SUM(i.amount), 0), COUNT(*), " +
+           "       COALESCE(SUM(CASE WHEN i.import_ref LIKE 'pi\\_%' OR i.import_ref LIKE 'donation:%' THEN i.amount ELSE 0 END), 0) " +
+           "FROM   income i " +
+           "WHERE  i.delete_flag = false AND i.app_client_id = :appClientId " +
+           "  AND  i.income_date BETWEEN :startDate AND :endDate",
+           nativeQuery = true)
+    List<Object[]> aiIncomeTotals(@Param("appClientId") String appClientId,
+                                  @Param("startDate") java.sql.Date startDate,
+                                  @Param("endDate") java.sql.Date endDate);
+
+    /**
+     * Newest income entries in the range, at most {@code limit} rows (the caller asks for
+     * one more than it shows, to know whether more exist). Guests included (LEFT JOIN).
+     * Columns: [income_date, first_name, last_name, guest_name, sub_name, main_name, amount, method, import_ref].
+     */
+    @Query(value =
+           "SELECT i.income_date, fm.first_name, fm.last_name, i.guest_name, " +
+           "       ss.source_name AS sub_name, ms.source_name AS main_name, i.amount, tt.type_name, i.import_ref " +
+           "FROM   income i " +
+           "LEFT JOIN family_member fm ON fm.id = i.member_id " +
+           "JOIN   sub_source  ss ON ss.id = i.sub_source_id " +
+           "JOIN   main_source ms ON ms.id = ss.main_source_id " +
+           "LEFT JOIN transaction_type tt ON tt.id = i.transaction_type_id " +
+           "WHERE  i.delete_flag = false AND i.app_client_id = :appClientId " +
+           "  AND  i.income_date BETWEEN :startDate AND :endDate " +
+           "ORDER  BY i.income_date DESC, i.id DESC LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiIncomeRows(@Param("appClientId") String appClientId,
+                                @Param("startDate") java.sql.Date startDate,
+                                @Param("endDate") java.sql.Date endDate,
+                                @Param("limit") int limit);
+
+    /**
+     * Pledge campaign "collected": the gifts to the campaign's fund, inside its window,
+     * from the members who hold a pledge in it — the same rule PledgeController applies
+     * per pledge (sumMemberSubSourceTotal), summed in one statement.
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i " +
+           "WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId " +
+           "AND i.incomeDate >= :startDate AND i.incomeDate <= :endDate " +
+           "AND i.member.id IN (SELECT p.familyMemberId FROM PledgeMember p " +
+           "                    WHERE p.clientId = :appClientId AND p.campaignId = :campaignId " +
+           "                    AND p.deleteFlag = false AND p.familyMemberId IS NOT NULL)")
+    BigDecimal aiCampaignMemberCollected(@Param("appClientId") String appClientId,
+                                         @Param("campaignId") Integer campaignId,
+                                         @Param("subSourceId") Integer subSourceId,
+                                         @Param("startDate") LocalDate startDate,
+                                         @Param("endDate") LocalDate endDate);
+
+    /** Same, for a campaign with no end date (a nullable date parameter cannot be typed by the driver). */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i " +
+           "WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId " +
+           "AND i.incomeDate >= :startDate " +
+           "AND i.member.id IN (SELECT p.familyMemberId FROM PledgeMember p " +
+           "                    WHERE p.clientId = :appClientId AND p.campaignId = :campaignId " +
+           "                    AND p.deleteFlag = false AND p.familyMemberId IS NOT NULL)")
+    BigDecimal aiCampaignMemberCollectedOpenEnded(@Param("appClientId") String appClientId,
+                                                  @Param("campaignId") Integer campaignId,
+                                                  @Param("subSourceId") Integer subSourceId,
+                                                  @Param("startDate") LocalDate startDate);
+
 }

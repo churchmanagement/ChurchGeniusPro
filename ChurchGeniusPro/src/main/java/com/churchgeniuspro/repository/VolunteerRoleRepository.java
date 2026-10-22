@@ -11,4 +11,8 @@ public interface VolunteerRoleRepository extends JpaRepository<VolunteerRole, Lo
     Optional<VolunteerRole> findByIdAndAppClientId(Long id, String appClientId);
 
     List<VolunteerRole> findByAppClientIdAndDeleteFlagFalseOrderByMinistryAscRoleNameAsc(String appClientId);
+
+    /** Tenant-scoped batch lookup for the AI Search (roles of the listed assignments). */
+    List<VolunteerRole> findByAppClientIdAndIdIn(String appClientId, java.util.Collection<Long> ids);
+
 }

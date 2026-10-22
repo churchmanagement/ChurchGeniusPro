@@ -52,4 +52,28 @@ public interface FollowUpRepository extends JpaRepository<FollowUp, Long> {
 
     /** Count of PENDING follow-ups for an org (for dashboard widget). */
     long countByClientIdAndStatusAndDeleteFlagFalse(String clientId, String status);
+
+    // ── AI Search (Phase B): bounded "not completed" lists, the page's own visibility ──
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FollowUp f WHERE f.clientId = :clientId AND f.deleteFlag = false " +
+           "AND f.status IN :statuses ORDER BY f.dueDate ASC NULLS LAST, f.createdAt DESC")
+    List<FollowUp> aiFindByStatuses(@org.springframework.data.repository.query.Param("clientId") String clientId,
+                                    @org.springframework.data.repository.query.Param("statuses") java.util.Collection<String> statuses,
+                                    org.springframework.data.domain.Pageable page);
+
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FollowUp f WHERE f.clientId = :clientId AND f.deleteFlag = false " +
+           "AND f.assignedTo = :assignedTo AND f.status IN :statuses ORDER BY f.dueDate ASC NULLS LAST, f.createdAt DESC")
+    List<FollowUp> aiFindByAssigneeAndStatuses(@org.springframework.data.repository.query.Param("clientId") String clientId,
+                                               @org.springframework.data.repository.query.Param("assignedTo") String assignedTo,
+                                               @org.springframework.data.repository.query.Param("statuses") java.util.Collection<String> statuses,
+                                               org.springframework.data.domain.Pageable page);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(f) FROM FollowUp f WHERE f.clientId = :clientId AND f.deleteFlag = false AND f.status IN :statuses")
+    long aiCountByStatuses(@org.springframework.data.repository.query.Param("clientId") String clientId,
+                           @org.springframework.data.repository.query.Param("statuses") java.util.Collection<String> statuses);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(f) FROM FollowUp f WHERE f.clientId = :clientId AND f.deleteFlag = false AND f.assignedTo = :assignedTo AND f.status IN :statuses")
+    long aiCountByAssigneeAndStatuses(@org.springframework.data.repository.query.Param("clientId") String clientId,
+                                      @org.springframework.data.repository.query.Param("assignedTo") String assignedTo,
+                                      @org.springframework.data.repository.query.Param("statuses") java.util.Collection<String> statuses);
+
 }

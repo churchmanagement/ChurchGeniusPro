@@ -627,4 +627,40 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
            "AND m.deleteFlag = false AND m.inactive = false " +
            "AND COALESCE(f.appClientId, m.appClientId) = :appClientId")
     List<FamilyMember> findActiveWithPhoneByTenant(@Param("appClientId") String appClientId);
+
+    /**
+     * AI Search: active members grouped by gender — rows of [gender, count]; a null or
+     * blank gender is one group (reported as "not specified", never guessed).
+     */
+    @Query(value =
+           "SELECT COALESCE(NULLIF(TRIM(fm.gender), ''), '') AS g, COUNT(*) FROM family_member fm " +
+           "JOIN family f ON f.id = fm.family_id " +
+           "WHERE fm.delete_flag = false AND fm.inactive = false " +
+           "AND f.delete_flag = false AND f.inactive = false " +
+           "AND f.app_client_id = :appClientId " +
+           "GROUP BY g",
+           nativeQuery = true)
+    List<Object[]> aiCountActiveMembersByGender(@Param("appClientId") String appClientId);
+
+    /**
+     * AI Search: names of active family members with a child role, alphabetical, at most
+     * {@code limit} rows. Names only — no dates of birth or contact details are selected.
+     */
+    @Query(value =
+           "SELECT fm.first_name, fm.last_name FROM family_member fm " +
+           "JOIN family f ON f.id = fm.family_id " +
+           "WHERE fm.delete_flag = false AND fm.inactive = false " +
+           "AND f.delete_flag = false AND f.inactive = false " +
+           "AND LOWER(fm.role) IN ('child','son','daughter') " +
+           "AND f.app_client_id = :appClientId " +
+           "ORDER BY fm.last_name, fm.first_name LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiChildRoleMemberNames(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+
+    /** AI Search: names of the given members, restricted to the tenant (rows of [id, first_name, last_name]). */
+    @Query(value = "SELECT fm.id, fm.first_name, fm.last_name FROM family_member fm JOIN family f ON f.id = fm.family_id " +
+                   "WHERE fm.id IN (:ids) AND f.app_client_id = :appClientId", nativeQuery = true)
+    List<Object[]> aiMemberNames(@Param("appClientId") String appClientId, @Param("ids") java.util.Collection<Integer> ids);
+
 }

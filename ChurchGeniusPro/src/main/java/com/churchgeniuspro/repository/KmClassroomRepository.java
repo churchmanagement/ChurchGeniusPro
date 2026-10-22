@@ -11,4 +11,8 @@ public interface KmClassroomRepository extends JpaRepository<KmClassroom, Long> 
     Optional<KmClassroom> findByIdAndClientId(Long id, String clientId);
 
     List<KmClassroom> findByClientIdAndDeleteFlagFalseOrderByMinAgeAscClassNameAsc(String clientId);
+
+    /** Tenant-scoped batch lookup for the AI Search (classrooms of the listed children). */
+    List<KmClassroom> findByClientIdAndIdIn(String clientId, java.util.Collection<Long> ids);
+
 }

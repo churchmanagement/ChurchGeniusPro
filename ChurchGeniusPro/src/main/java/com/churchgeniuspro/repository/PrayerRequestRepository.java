@@ -29,4 +29,15 @@ public interface PrayerRequestRepository extends JpaRepository<PrayerRequest, Lo
         "SELECT r FROM PrayerRequest r WHERE r.clientId = :clientId " +
         "AND r.deleteFlag = false AND r.occurrence IS NOT NULL AND r.status = 'Active'")
     List<PrayerRequest> findScheduledByClientId(@org.springframework.data.repository.query.Param("clientId") String clientId);
+
+    /** AI Search: open requests (not Answered / Closed), oldest first, bounded by the page. */
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM PrayerRequest p WHERE p.clientId = :clientId AND p.deleteFlag = false " +
+           "AND (p.status IS NULL OR p.status NOT IN ('Answered','Closed')) ORDER BY p.createdAt ASC")
+    List<PrayerRequest> aiFindOpen(@org.springframework.data.repository.query.Param("clientId") String clientId,
+                                   org.springframework.data.domain.Pageable page);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(p) FROM PrayerRequest p WHERE p.clientId = :clientId AND p.deleteFlag = false " +
+           "AND (p.status IS NULL OR p.status NOT IN ('Answered','Closed'))")
+    long aiCountOpen(@org.springframework.data.repository.query.Param("clientId") String clientId);
+
 }

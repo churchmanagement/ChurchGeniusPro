@@ -45,23 +45,31 @@ public class AiDataSearchService {
     private final IncomeRepository incomeRepo;
     private final VolunteerProfileRepository volunteerRepo;
     private final AiAccessPolicy access;
+    private final AiStructuredAnswerService structured;   // Phase B intents; null in the legacy unit tests
 
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchService(FamilyMemberRepository memberRepo,
                                IncomeRepository incomeRepo,
                                VolunteerProfileRepository volunteerRepo,
-                               AiAccessPolicy access) {
+                               AiAccessPolicy access,
+                               AiStructuredAnswerService structured) {
         this.memberRepo = memberRepo;
         this.incomeRepo = incomeRepo;
         this.volunteerRepo = volunteerRepo;
         this.access = access;
+        this.structured = structured;
+    }
+
+    public AiDataSearchService(FamilyMemberRepository memberRepo, IncomeRepository incomeRepo,
+                               VolunteerProfileRepository volunteerRepo, AiAccessPolicy access) {
+        this(memberRepo, incomeRepo, volunteerRepo, access, null);
     }
 
     /** Without a subscription service (unit tests): plan features are assumed enabled. */
     public AiDataSearchService(FamilyMemberRepository memberRepo,
                                IncomeRepository incomeRepo,
                                VolunteerProfileRepository volunteerRepo) {
-        this(memberRepo, incomeRepo, volunteerRepo, new AiAccessPolicy());
+        this(memberRepo, incomeRepo, volunteerRepo, new AiAccessPolicy(), null);
     }
 
     public static final String DENIED_MSG =
@@ -77,12 +85,17 @@ public class AiDataSearchService {
         AiAccess a = access.resolve(req, clientId);
         if (a.kids()) return denied("kids");                   // Kids Portal: never any data
 
-        // Order matters: volunteers first (unambiguous), then finance (tithe /
-        // income), then people dates (birthday / anniversary).
-        if (q.matches(".*\\bvolunteers?\\b.*"))               return volunteers(a, clientId, q);
+        // Order matters: volunteers (profiles) first, then a named person's giving, then
+        // the Phase B structured intents, then the remaining legacy intents.
+        boolean assignments = q.matches(".*\\b(assign\\w*|schedul\\w*|serving|roster|upcoming)\\b.*");
+        if (q.matches(".*\\bvolunteers?\\b.*") && !assignments) return volunteers(a, clientId, q);
         boolean giving = q.matches(".*\\b(tithe|tithes|contribut\\w*|donat\\w*|gave|give|giving|offering)\\b.*");
-        if (giving && !a.incomeRecords())                      return denied("contributions");   // never run a name search the user may not see
-        if (giving && findPersonName(clientId, q) != null)     return personGiving(a, clientId, q, today);
+        if (giving && !a.incomeRecords() && !a.reports())      return denied("contributions");   // never run a name search the user may not see
+        if (giving && a.incomeRecords() && findPersonName(clientId, q) != null) return personGiving(a, clientId, q, today);
+        if (structured != null) {
+            Map<String, Object> s = structured.route(q, a, clientId, today);
+            if (s != null) return s;
+        }
         if (q.matches(".*\\b(income|revenue|collections?)\\b.*")) return incomeSummary(a, clientId, q, today);
         boolean bday = q.matches(".*\\bbirth\\s?days?\\b.*");
         boolean anni = q.matches(".*\\banniversar\\w*\\b.*");
@@ -121,9 +134,10 @@ public class AiDataSearchService {
 
     private Map<String, Object> volunteers(AiAccess a, String clientId, String q) {
         if (!a.volunteers()) return denied("volunteers");
-        List<VolunteerProfile> profiles =
-                volunteerRepo.findByAppClientIdAndDeleteFlagFalseOrderByFamilyMemberIdAsc(clientId);
-        if (profiles.isEmpty()) return ok("volunteers", "No volunteers have been registered yet.");
+        List<VolunteerProfile> profiles = new ArrayList<>();
+        for (VolunteerProfile p : volunteerRepo.findByAppClientIdAndDeleteFlagFalseOrderByFamilyMemberIdAsc(clientId))
+            if (p.getStatus() == null || "Active".equalsIgnoreCase(p.getStatus())) profiles.add(p);   // the page's active rule
+        if (profiles.isEmpty()) return ok("volunteers", "No active volunteers have been registered yet.");
         Map<Integer, FamilyMember> byId = new LinkedHashMap<>();
         for (FamilyMember m : members(clientId)) byId.put(intId(m.getId()), m);
         List<String> names = new ArrayList<>();
@@ -269,10 +283,11 @@ public class AiDataSearchService {
 
     /* ════════════════════════ date parsing ════════════════════════ */
 
-    static final class DateRange {
-        final LocalDate from, to; final String label;
-        DateRange(LocalDate from, LocalDate to, String label) { this.from = from; this.to = to; this.label = label; }
-        static DateRange month(LocalDate anchor, String label) {
+    public static final class DateRange {
+        public final LocalDate from, to; public final String label;
+        public DateRange(LocalDate from, LocalDate to, String label) { this.from = from; this.to = to; this.label = label; }
+        public long days() { return java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1; }
+        public static DateRange month(LocalDate anchor, String label) {
             LocalDate f = anchor.withDayOfMonth(1);
             return new DateRange(f, f.plusMonths(1).minusDays(1), label);
         }
@@ -290,7 +305,27 @@ public class AiDataSearchService {
     }
 
     /** "this month", "last month", "March", "March 2026", "2026", "today", "next sunday", … */
-    DateRange parsePeriod(String q, LocalDate today) {
+    public static DateRange parsePeriod(String q, LocalDate today) {
+        // Relative spans (Phase B): "last two months", "past 90 days", "next 30 days",
+        // optionally ending "through yesterday" / "until today".
+        Matcher span = Pattern.compile("\\b(last|past|previous|next|coming)\\s+(\\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\\s+(days?|weeks?|months?|years?)\\b").matcher(q);
+        if (span.find()) {
+            int n = numberWord(span.group(2));
+            String unit = span.group(3);
+            boolean forward = span.group(1).equals("next") || span.group(1).equals("coming");
+            LocalDate from, to;
+            if (forward) {
+                from = today.plusDays(1);
+                to = unit.startsWith("day") ? today.plusDays(n) : unit.startsWith("week") ? today.plusWeeks(n)
+                   : unit.startsWith("month") ? today.plusMonths(n) : today.plusYears(n);
+            } else {
+                to = today;
+                from = unit.startsWith("day") ? today.minusDays(n - 1) : unit.startsWith("week") ? today.minusWeeks(n).plusDays(1)
+                    : unit.startsWith("month") ? today.minusMonths(n).plusDays(1) : today.minusYears(n).plusDays(1);
+                if (q.matches(".*\\b(through|thru|until|till|up to|ending)\\s+yesterday\\b.*")) { to = today.minusDays(1); from = from.minusDays(1); }
+            }
+            return new DateRange(from, to, span.group(0));
+        }
         if (q.contains("today")) return new DateRange(today, today, "today");
         if (q.contains("yesterday")) { LocalDate d = today.minusDays(1); return new DateRange(d, d, "yesterday"); }
         if (q.contains("tomorrow"))  { LocalDate d = today.plusDays(1);  return new DateRange(d, d, "tomorrow"); }
@@ -338,6 +373,12 @@ public class AiDataSearchService {
             return new DateRange(LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), String.valueOf(year));
         }
         return null;
+    }
+
+    private static int numberWord(String w) {
+        String[] words = {"zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"};
+        for (int i = 0; i < words.length; i++) if (words[i].equals(w)) return i;
+        try { return Integer.parseInt(w); } catch (NumberFormatException e) { return 1; }
     }
 
     private boolean inRangeMonthDay(Integer month, Integer day, DateRange r) {

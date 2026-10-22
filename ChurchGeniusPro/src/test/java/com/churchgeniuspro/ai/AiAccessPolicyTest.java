@@ -107,6 +107,61 @@ class AiAccessPolicyTest {
         AiAccess none = policy.resolve(new MockHttpServletRequest(), CID);
         assertThat(none.kids()).isTrue();
         assertThat(none.members()).isFalse();
+        assertThat(c.meetings()).isFalse(); assertThat(c.pledges()).isFalse(); assertThat(c.publicLinks()).isFalse();
+    }
+
+    @Test @DisplayName("Phase B modules follow their pages: meetings/events for staff roles, prayer/follow-ups/reminders/kids/public links for Admin+User, pledges for finance roles")
+    void phaseBModules() {
+        AiAccess admin = policy.resolve(staff("Admin", null), CID);
+        assertThat(admin.meetings()).isTrue(); assertThat(admin.events()).isTrue(); assertThat(admin.prayer()).isTrue(); assertThat(admin.followUps()).isTrue();
+        assertThat(admin.followUpsAll()).isTrue(); assertThat(admin.reminders()).isTrue(); assertThat(admin.pledges()).isTrue(); assertThat(admin.kidsMinistry()).isTrue(); assertThat(admin.publicLinks()).isTrue();
+        AiAccess user = policy.resolve(staff("User", null), CID);
+        assertThat(user.meetings()).isTrue(); assertThat(user.events()).isTrue(); assertThat(user.prayer()).isTrue(); assertThat(user.followUps()).isTrue();
+        assertThat(user.followUpsAll()).as("a User sees only their own follow-ups").isFalse();
+        assertThat(user.pledges()).as("/pledges denies User").isFalse();
+        AiAccess acct = policy.resolve(staff("Accountant", null), CID);
+        assertThat(acct.pledges()).isTrue(); assertThat(acct.meetings()).isTrue(); assertThat(acct.events()).isTrue();
+        assertThat(acct.prayer()).isFalse(); assertThat(acct.followUps()).isFalse(); assertThat(acct.reminders()).isFalse(); assertThat(acct.kidsMinistry()).isFalse(); assertThat(acct.publicLinks()).isFalse();
+        assertThat(admin.username()).isEqualTo("staff");
+    }
+
+    @Test @DisplayName("decision 1: Member-portal sessions never get meetings (or any Phase B module) — no member key governs them")
+    void decision1MembersNoMeetings() {
+        AiAccess m = policy.resolve(member("Head", "{\"more.aiassistant\":true,\"member.directory\":true,\"general.meetings\":true}"), CID);
+        assertThat(m.members()).isTrue();
+        assertThat(m.meetings()).isFalse(); assertThat(m.events()).isFalse(); assertThat(m.prayer()).isFalse(); assertThat(m.followUps()).isFalse();
+        assertThat(m.reminders()).isFalse(); assertThat(m.pledges()).isFalse(); assertThat(m.kidsMinistry()).isFalse(); assertThat(m.publicLinks()).isFalse();
+    }
+
+    @Test @DisplayName("decision 2: events use general.events (alias general.event) and no plan feature; decision 4: prayer honours general.ministry.prayer AND the legacy general.prayer")
+    void decisions2And4() {
+        SubscriptionService subs = mock(SubscriptionService.class);
+        when(subs.isFeatureEnabled(eq(CID), anyString())).thenReturn(false);        // every plan feature off
+        AiAccessPolicy p = new AiAccessPolicy(subs);
+        AiAccess a = p.resolve(staff("Admin", null), CID);
+        assertThat(a.events()).as("events have no plan gate").isTrue();
+        assertThat(a.meetings()).isTrue();
+        assertThat(a.prayer()).as("prayer plan off").isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.event\":false}"), CID).events()).as("legacy alias").isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.events\":false}"), CID).events()).isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.ministry.prayer\":false}"), CID).prayer()).isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.prayer\":false}"), CID).prayer()).as("a restriction stored under the old key still denies").isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.prayerRequests\":false}"), CID).prayer()).isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.prayer\":true}"), CID).prayer()).isTrue();
+    }
+
+    @Test @DisplayName("decision 3: Kids Ministry children and family children are separate grants")
+    void decision3SeparateSources() {
+        AiAccess kmOnly = policy.resolve(staff("User", null), CID);          // User: Kids Ministry page yes, Families page no
+        assertThat(kmOnly.kidsMinistry()).isTrue(); assertThat(kmOnly.members()).isFalse();
+        AiAccess famOnly = policy.resolve(staff("Accountant", null), CID);   // Accountant: Families yes, Kids Ministry no
+        assertThat(famOnly.members()).isTrue(); assertThat(famOnly.kidsMinistry()).isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.ministry.kids\":false}"), CID).kidsMinistry()).isFalse();
+        assertThat(policy.resolve(staff("Admin", "{\"general.kidsministry\":false}"), CID).kidsMinistry()).as("legacy alias").isFalse();
+        SubscriptionService subs = mock(SubscriptionService.class);
+        when(subs.isFeatureEnabled(eq(CID), anyString())).thenReturn(true);
+        when(subs.isFeatureEnabled(CID, "kidsMinistry")).thenReturn(false);
+        assertThat(new AiAccessPolicy(subs).resolve(staff("Admin", null), CID).kidsMinistry()).as("plan without Kids Ministry").isFalse();
     }
 
     @Test @DisplayName("a module the church's plan does not include is denied even to an Admin; a failing plan lookup denies too")
@@ -120,6 +175,9 @@ class AiAccessPolicyTest {
         assertThat(a.members()).isTrue();
         assertThat(a.volunteers()).isTrue();
         when(subs.isFeatureEnabled(eq(CID), anyString())).thenThrow(new IllegalStateException("plan service down"));
-        assertThat(p.resolve(staff("Admin", null), CID).anyFinance()).as("unclear → deny").isFalse();
+        AiAccess down = p.resolve(staff("Admin", null), CID);
+        assertThat(down.anyFinance()).as("unclear → deny").isFalse();
+        assertThat(down.prayer()).isFalse(); assertThat(down.pledges()).isFalse(); assertThat(down.kidsMinistry()).isFalse(); assertThat(down.publicLinks()).isFalse();
+        assertThat(down.events()).as("no plan gate on events").isTrue();
     }
 }

@@ -584,6 +584,11 @@ public class MeetingService {
     }
 
     /** Resolves the display name for a meeting's location (member or family name). */
+    /** The meeting's location as the page shows it (member or family head name, else ""). */
+    public String locationNameFor(Meeting meeting) {
+        try { return resolveMeetingLocationNameInternal(meeting); } catch (RuntimeException e) { return ""; }
+    }
+
     private String resolveMeetingLocationNameInternal(Meeting meeting) {
         if (meeting.getLocationMemberId() != null) {
             return familyMemberRepository.findById(meeting.getLocationMemberId())

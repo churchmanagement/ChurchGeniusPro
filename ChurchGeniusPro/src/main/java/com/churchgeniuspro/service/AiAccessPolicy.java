@@ -30,21 +30,50 @@ import java.util.Set;
 @Service
 public class AiAccessPolicy {
 
-    /** Resolved access for one request. All flags are false for a Kids Portal session. */
-    public record AiAccess(String role, boolean church, boolean member, boolean kids,
-                           boolean members, boolean incomeRecords, boolean expenseRecords,
-                           boolean reports, boolean volunteers) {
+    /**
+     * Resolved access for one request. All data flags are false for a Kids Portal session.
+     * Each flag is one module, named after the page whose rule it mirrors (Phase B, 2026-10-21):
+     * <ul>
+     *   <li>members — /viewfamily: SuperAdmin/Admin/Accountant + admin.family; Member portal: member.directory explicitly true</li>
+     *   <li>incomeRecords / expenseRecords / reports — /income, /expense, the report pages: SuperAdmin/Admin/Accountant +
+     *       accounting.income / accounting.expense / accounting.reports + plan "accounting"</li>
+     *   <li>volunteers — /volunteers: SuperAdmin/Admin/User + general.volunteers + plan "volunteers"</li>
+     *   <li>meetings — /meetings: staff roles + general.meetings; Member portal DENIED (no member key exists for meetings)</li>
+     *   <li>prayer — /prayerRequest: SuperAdmin/Admin/User + general.ministry.prayer (alias general.prayer honoured) + plan "prayer"</li>
+     *   <li>followUps — /followups: SuperAdmin/Admin/User + more.followups + plan "followUps"; only SuperAdmin/Admin see
+     *       everyone's items ({@code followUpsAll}), others their own (the page's rule)</li>
+     *   <li>events — /events: staff roles + general.events (the page carries no plan feature)</li>
+     *   <li>reminders — /eventReminders: SuperAdmin/Admin/User + general.reminders + plan "reminders"</li>
+     *   <li>pledges — /pledges: SuperAdmin/Admin/Accountant + accounting.pledges + plan "pledges"</li>
+     *   <li>kidsMinistry — /kidsMinistry: SuperAdmin/Admin/User + general.ministry.kids + plan "kidsMinistry"</li>
+     *   <li>publicLinks — /publicScreens: SuperAdmin/Admin/User + more.publicscreens + plan "publicScreens"</li>
+     * </ul>
+     */
+    public record AiAccess(String role, String username, boolean church, boolean member, boolean kids,
+                           boolean members, boolean incomeRecords, boolean expenseRecords, boolean reports,
+                           boolean volunteers, boolean meetings, boolean prayer, boolean followUps, boolean followUpsAll,
+                           boolean events, boolean reminders, boolean pledges, boolean kidsMinistry, boolean publicLinks) {
         /** Any finance data at all (used for the generic denial wording). */
         public boolean anyFinance() { return incomeRecords || expenseRecords || reports; }
         /** Nothing may be answered except navigation/how-to. */
         public static AiAccess none(String role) {
-            return new AiAccess(role, false, false, true, false, false, false, false, false);
+            return new AiAccess(role, "", false, false, true, false, false, false, false, false,
+                                false, false, false, false, false, false, false, false, false);
+        }
+        /** Phase A shape (members / finance / volunteers only) — used by tests and the legacy intents. */
+        public static AiAccess of(String role, boolean church, boolean member, boolean kids, boolean members,
+                                  boolean incomeRecords, boolean expenseRecords, boolean reports, boolean volunteers) {
+            return new AiAccess(role, "", church, member, kids, members, incomeRecords, expenseRecords, reports, volunteers,
+                                false, false, false, false, false, false, false, false, false);
         }
     }
 
     private static final Set<String> FINANCE_ROLES = Set.of("SuperAdmin", "Admin", "Accountant");
     private static final Set<String> MEMBER_PAGE_ROLES = Set.of("SuperAdmin", "Admin", "Accountant");   // /viewfamily
     private static final Set<String> VOLUNTEER_ROLES = Set.of("SuperAdmin", "Admin", "User");          // /volunteers
+    private static final Set<String> ADMIN_OR_USER = Set.of("SuperAdmin", "Admin", "User");            // requireAdminOrUser pages
+    private static final Set<String> STAFF_ROLES = Set.of("SuperAdmin", "Admin", "Accountant", "User"); // requireAuth / requireStaffOrMember pages
+    private static final Set<String> ADMINS = Set.of("SuperAdmin", "Admin");
 
     private final SubscriptionService subscriptions;   // null in unit tests → features assumed enabled
 
@@ -63,25 +92,38 @@ public class AiAccessPolicy {
         boolean church = Boolean.TRUE.equals(ch) || "true".equalsIgnoreCase(String.valueOf(ch));
         if (!member && s.getAttribute("username") == null) return AiAccess.none(role);
 
-        boolean members, incomeRecords, expenseRecords, reports, volunteers;
+        String username = s.getAttribute("username") == null ? "" : String.valueOf(s.getAttribute("username"));
         if (member) {
-            // Member portal: only the Directory tab shows other members; no finance,
-            // no volunteer administration. Explicit true, like the member nav.
-            members = memberKeyTrue(s, "member.directory");
-            incomeRecords = expenseRecords = reports = volunteers = false;
-        } else if (church) {
-            // The church-owner login cannot open /income, /viewfamily or /volunteers
-            // (their role guards deny it) — the AI mirrors those pages.
-            members = incomeRecords = expenseRecords = reports = volunteers = false;
-        } else {
-            boolean fin = FINANCE_ROLES.contains(role) && feature(clientId, "accounting");
-            members        = MEMBER_PAGE_ROLES.contains(role) && page(req, "admin.family");
-            incomeRecords  = fin && page(req, "accounting.income");
-            expenseRecords = fin && page(req, "accounting.expense");
-            reports        = fin && page(req, "accounting.reports");
-            volunteers     = VOLUNTEER_ROLES.contains(role) && page(req, "general.volunteers") && feature(clientId, "volunteers");
+            // Member portal: only the Directory tab shows other members; no finance, no
+            // volunteer administration, and (decision 1, 2026-10-21) no meetings — the
+            // page admits members by role but no member.* key governs it. Explicit true,
+            // like the member nav.
+            boolean dir = memberKeyTrue(s, "member.directory");
+            return new AiAccess(role, username, false, true, false, dir, false, false, false, false,
+                                false, false, false, false, false, false, false, false, false);
         }
-        return new AiAccess(role, church, member, false, members, incomeRecords, expenseRecords, reports, volunteers);
+        if (church) {
+            // The church-owner login cannot open /income, /viewfamily, /volunteers, /prayerRequest,
+            // /followups … (their role guards deny it) — the AI mirrors those pages.
+            return new AiAccess(role, username, true, false, false, false, false, false, false, false,
+                                false, false, false, false, false, false, false, false, false);
+        }
+        boolean fin = FINANCE_ROLES.contains(role) && feature(clientId, "accounting");
+        boolean members        = MEMBER_PAGE_ROLES.contains(role) && page(req, "admin.family");
+        boolean incomeRecords  = fin && page(req, "accounting.income");
+        boolean expenseRecords = fin && page(req, "accounting.expense");
+        boolean reports        = fin && page(req, "accounting.reports");
+        boolean volunteers     = VOLUNTEER_ROLES.contains(role) && page(req, "general.volunteers") && feature(clientId, "volunteers");
+        boolean meetings       = STAFF_ROLES.contains(role) && page(req, "general.meetings");
+        boolean prayer         = ADMIN_OR_USER.contains(role) && page(req, "general.ministry.prayer") && feature(clientId, "prayer");
+        boolean followUps      = ADMIN_OR_USER.contains(role) && page(req, "more.followups") && feature(clientId, "followUps");
+        boolean events         = STAFF_ROLES.contains(role) && page(req, "general.events");
+        boolean reminders      = ADMIN_OR_USER.contains(role) && page(req, "general.reminders") && feature(clientId, "reminders");
+        boolean pledges        = FINANCE_ROLES.contains(role) && page(req, "accounting.pledges") && feature(clientId, "pledges");
+        boolean kidsMinistry   = ADMIN_OR_USER.contains(role) && page(req, "general.ministry.kids") && feature(clientId, "kidsMinistry");
+        boolean publicLinks    = ADMIN_OR_USER.contains(role) && page(req, "more.publicscreens") && feature(clientId, "publicScreens");
+        return new AiAccess(role, username, false, false, false, members, incomeRecords, expenseRecords, reports, volunteers,
+                            meetings, prayer, followUps, followUps && ADMINS.contains(role), events, reminders, pledges, kidsMinistry, publicLinks);
     }
 
     private static boolean page(HttpServletRequest req, String key) {

@@ -48,4 +48,16 @@ public interface VolunteerAssignmentRepository extends JpaRepository<VolunteerAs
 
     /** Find assignments that haven't had a notification sent yet. */
     List<VolunteerAssignment> findByAppClientIdAndNotificationSentFalseAndDeleteFlagFalse(String appClientId);
+
+    /** AI Search: upcoming assignments that are not declined (the page's "active" rule), soonest first, bounded. */
+    @Query("SELECT a FROM VolunteerAssignment a WHERE a.appClientId = :cid AND a.deleteFlag = false " +
+           "AND LOWER(a.assignmentStatus) <> 'declined' AND (a.eventDate IS NULL OR a.eventDate >= :today) " +
+           "ORDER BY a.eventDate ASC NULLS LAST, a.shiftTime ASC")
+    List<VolunteerAssignment> aiFindUpcomingActive(@Param("cid") String appClientId, @Param("today") java.time.LocalDate today,
+                                                   org.springframework.data.domain.Pageable page);
+
+    @Query("SELECT COUNT(a) FROM VolunteerAssignment a WHERE a.appClientId = :cid AND a.deleteFlag = false " +
+           "AND LOWER(a.assignmentStatus) <> 'declined' AND (a.eventDate IS NULL OR a.eventDate >= :today)")
+    long aiCountUpcomingActive(@Param("cid") String appClientId, @Param("today") java.time.LocalDate today);
+
 }

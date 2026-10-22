@@ -38,4 +38,16 @@ public interface PledgeMemberRepository extends JpaRepository<PledgeMember, Inte
             @Param("clientId") String clientId,
             @Param("campaignId") Integer campaignId,
             @Param("memberId") Integer memberId);
+
+    /**
+     * AI Search: one row [SUM(pledgeAmount), COUNT(*), SUM(amountCollected of pledges with no
+     * linked member)] for a campaign — the stored counter is what PledgeController uses for
+     * guest pledges (and for every pledge when the campaign has no fund).
+     */
+    @Query("SELECT COALESCE(SUM(p.pledgeAmount), 0), COUNT(p), " +
+           "COALESCE(SUM(CASE WHEN p.familyMemberId IS NULL THEN COALESCE(p.amountCollected, 0) ELSE 0 END), 0), " +
+           "COALESCE(SUM(COALESCE(p.amountCollected, 0)), 0) " +
+           "FROM PledgeMember p WHERE p.clientId = :clientId AND p.campaignId = :campaignId AND p.deleteFlag = false")
+    List<Object[]> aiCampaignPledgeTotals(@Param("clientId") String clientId, @Param("campaignId") Integer campaignId);
+
 }

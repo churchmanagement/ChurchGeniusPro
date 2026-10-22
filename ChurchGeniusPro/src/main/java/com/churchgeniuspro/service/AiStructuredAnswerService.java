@@ -1,0 +1,493 @@
+package com.churchgeniuspro.service;
+
+import com.churchgeniuspro.hibernate.FollowUp;
+import com.churchgeniuspro.hibernate.KmChild;
+import com.churchgeniuspro.hibernate.KmClassroom;
+import com.churchgeniuspro.hibernate.Meeting;
+import com.churchgeniuspro.hibernate.MeetingSkipDate;
+import com.churchgeniuspro.hibernate.PledgeCampaign;
+import com.churchgeniuspro.hibernate.PrayerRequest;
+import com.churchgeniuspro.hibernate.PublicScreenLink;
+import com.churchgeniuspro.hibernate.VolunteerAssignment;
+import com.churchgeniuspro.hibernate.VolunteerRole;
+import com.churchgeniuspro.repository.ChurchEventRepository;
+import com.churchgeniuspro.repository.ExpenseRepository;
+import com.churchgeniuspro.repository.FamilyMemberRepository;
+import com.churchgeniuspro.repository.FollowUpRepository;
+import com.churchgeniuspro.repository.IncomeRepository;
+import com.churchgeniuspro.repository.KmChildRepository;
+import com.churchgeniuspro.repository.KmClassroomRepository;
+import com.churchgeniuspro.repository.MeetingRepository;
+import com.churchgeniuspro.repository.MeetingSkipDateRepository;
+import com.churchgeniuspro.repository.PledgeCampaignRepository;
+import com.churchgeniuspro.repository.PrayerRequestRepository;
+import com.churchgeniuspro.repository.PublicScreenLinkRepository;
+import com.churchgeniuspro.repository.VolunteerAssignmentRepository;
+import com.churchgeniuspro.repository.VolunteerRoleRepository;
+import com.churchgeniuspro.service.AiAccessPolicy.AiAccess;
+import com.churchgeniuspro.service.AiDataSearchService.DateRange;
+import com.churchgeniuspro.util.MeetingRecurrence;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.text.NumberFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.regex.Pattern;
+
+/**
+ * AI Search Phase B — structured, bounded data answers.
+ *
+ * <p>Every intent here (a) is allowed only by the matching {@link AiAccess} flag — decided
+ * by {@link AiAccessPolicy} from the session before any repository is touched, (b) runs a
+ * tenant-scoped, parameterised repository query that is bounded by {@code ai.search.max-rows}
+ * (lists ask for one row more than they show, to say "more exist" without a second count
+ * unless an indexed COUNT is cheap) and {@code ai.search.max-range-days} (longer periods
+ * are refused with a request to narrow — never a partial or invented figure), and (c)
+ * returns only the fields the answer needs: no ids, tokens, medical notes, contact details
+ * or descriptions. Dates follow the church calendar ({@code AppClock}, America/Chicago).
+ *
+ * <p>Answers come back as {@code {handled, denied, intent, answer, columns, rows, total,
+ * shown, truncated, period, link}} so the search bar can draw a table or a summary card.
+ */
+@Service
+public class AiStructuredAnswerService {
+
+    private final IncomeRepository incomeRepo;
+    private final ExpenseRepository expenseRepo;
+    private final FamilyMemberRepository memberRepo;
+    private final PrayerRequestRepository prayerRepo;
+    private final FollowUpRepository followUpRepo;
+    private final VolunteerAssignmentRepository assignmentRepo;
+    private final VolunteerRoleRepository volunteerRoleRepo;
+    private final ChurchEventRepository eventRepo;
+    private final ReminderService reminderService;
+    private final PublicScreenLinkRepository publicLinkRepo;
+    private final KmChildRepository kmChildRepo;
+    private final KmClassroomRepository kmClassroomRepo;
+    private final MeetingRepository meetingRepo;
+    private final MeetingSkipDateRepository skipRepo;
+    private final MeetingService meetingService;
+    private final PledgeCampaignRepository campaignRepo;
+    private final PledgeTotalsService pledgeTotals;
+
+    @Value("${ai.search.max-rows:20}")        public int maxRows = 20;
+    @Value("${ai.search.max-range-days:400}") public int maxRangeDays = 400;
+
+    public AiStructuredAnswerService(IncomeRepository incomeRepo, ExpenseRepository expenseRepo, FamilyMemberRepository memberRepo,
+                                     PrayerRequestRepository prayerRepo, FollowUpRepository followUpRepo,
+                                     VolunteerAssignmentRepository assignmentRepo, VolunteerRoleRepository volunteerRoleRepo,
+                                     ChurchEventRepository eventRepo, ReminderService reminderService,
+                                     PublicScreenLinkRepository publicLinkRepo, KmChildRepository kmChildRepo, KmClassroomRepository kmClassroomRepo,
+                                     MeetingRepository meetingRepo, MeetingSkipDateRepository skipRepo, MeetingService meetingService,
+                                     PledgeCampaignRepository campaignRepo, PledgeTotalsService pledgeTotals) {
+        this.incomeRepo = incomeRepo; this.expenseRepo = expenseRepo; this.memberRepo = memberRepo;
+        this.prayerRepo = prayerRepo; this.followUpRepo = followUpRepo;
+        this.assignmentRepo = assignmentRepo; this.volunteerRoleRepo = volunteerRoleRepo;
+        this.eventRepo = eventRepo; this.reminderService = reminderService;
+        this.publicLinkRepo = publicLinkRepo; this.kmChildRepo = kmChildRepo; this.kmClassroomRepo = kmClassroomRepo;
+        this.meetingRepo = meetingRepo; this.skipRepo = skipRepo; this.meetingService = meetingService;
+        this.campaignRepo = campaignRepo; this.pledgeTotals = pledgeTotals;
+    }
+
+    /* ════════════════════════ routing ════════════════════════ */
+
+    private static boolean has(String q, String regex) { return Pattern.compile(".*\\b(?:" + regex + ")\\b.*").matcher(q).matches(); }
+    private static boolean wantsList(String q) { return has(q, "list|show|display|which|who|what are|all|give me|see"); }
+
+    /**
+     * Routes one normalised question; returns null when it is not one of the Phase B
+     * intents (the caller continues with the older intents / navigation).
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> route(String q, AiAccess a, String clientId, LocalDate today) {
+        if (a == null || a.kids()) return null;                       // the caller has already denied Kids sessions
+
+        // Children: two separate sources, never combined, never a fallback from one to the other (decision 3).
+        if (has(q, "kids?|children|child") && !has(q, "kids? portal|birthday|anniversar\\w*|checkin|check in")) {
+            boolean km  = has(q, "kids? ministry|classroom|classrooms|sunday school|registered|enrolled|ministry");
+            boolean fam = has(q, "famil(y|ies)|household|member records?|directory|family records?");
+            if (km && !fam)  return kidsMinistryChildren(a, clientId);
+            if (fam && !km)  return familyChildren(a, clientId);
+            return clarify("children", "Do you mean the children registered in Kids Ministry, or the children listed in your family records? "
+                    + "Please ask for “Kids Ministry children” or “children in family records”.");
+        }
+        if (has(q, "public (links?|screens?|pages?|urls?)|generated links?|shared links?"))        return publicLinks(a, clientId, today);
+        if (has(q, "reminders?"))                                                                return reminders(a, clientId);
+        if (has(q, "events?") && !has(q, "event reminders?"))                                     return events(a, clientId, today, q);
+        if (has(q, "meetings?"))                                                                  return meetings(a, clientId, today, q);
+        if (has(q, "prayers?|prayer requests?|intercessions?"))                                   return prayer(a, clientId);
+        if (has(q, "follow[- ]?ups?|tasks?|to-?dos?|action items?"))                              return followUps(a, clientId);
+        if (has(q, "volunteers?") && has(q, "assign\\w*|schedul\\w*|serving|roster|upcoming"))    return assignedVolunteers(a, clientId, today);
+        if (has(q, "campaigns?|pledges?|pledge drives?"))                                         return campaigns(a, clientId, q);
+        if (has(q, "members?") && has(q, "how many|count|number of|total|males?|females?|gender|men|women|male|female")) return memberCounts(a, clientId);
+        if (has(q, "transactions?"))                                                              return transactions(a, clientId, q, today);
+        if (has(q, "expenses?|spent|spending|expenditures?|costs?|paid out"))                     return expenses(a, clientId, q, today);
+        if (has(q, "contributors?|donations?|donors?|givers?") || has(q, "who") && has(q, "gave|contributed|donated|tithed"))
+            return contributors(a, clientId, q, today);
+        if (has(q, "income|revenue|collections?|offerings?|tithes?|giving|received"))             return incomeTotal(a, clientId, q, today);
+        return null;
+    }
+
+    /* ════════════════════════ finance ════════════════════════ */
+
+    private Map<String, Object> contributors(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.incomeRecords()) return denied("contributors");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "contributors"); if (narrow != null) return narrow;
+        List<Object[]> rows = incomeRepo.aiIncomeRows(cid, Date.valueOf(r.from), Date.valueOf(r.to), maxRows + 1);
+        Object[] tot = first(incomeRepo.aiIncomeTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
+        long count = tot == null ? rows.size() : ((Number) tot[1]).longValue();
+        if (rows.isEmpty()) return ok("contributors", "No contributions were recorded for " + r.label + " (" + range(r) + ").", r, "/income", "Open Income");
+        boolean truncated = rows.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] x : rows.subList(0, Math.min(rows.size(), maxRows))) {
+            String who = name(x[1], x[2]); if (who.isBlank()) who = x[3] == null ? "(guest)" : str(x[3]) + " (guest)";
+            out.add(List.of(date(x[0]), who, money(x[6]), fund(x[4], x[5]), method(x[7], x[8])));
+        }
+        String answer = "I found " + count + " contribution" + (count == 1 ? "" : "s") + " for " + r.label + " (" + range(r) + ")"
+                + (truncated ? ". Showing the first " + maxRows + "." : ".");
+        return table("contributors", answer, List.of("Date", "Contributor", "Amount", "Fund", "Method"), out, count, truncated, r, "/income", "Open Income");
+    }
+
+    private Map<String, Object> incomeTotal(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.reports()) return denied("income");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "income"); if (narrow != null) return narrow;
+        Object[] t = first(incomeRepo.aiIncomeTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
+        BigDecimal total = t == null ? BigDecimal.ZERO : num(t[0]); long n = t == null ? 0 : ((Number) t[1]).longValue(); BigDecimal online = t == null ? BigDecimal.ZERO : num(t[2]);
+        if (n == 0) return ok("income", "No income was recorded for " + r.label + " (" + range(r) + ").", r, "/income-report", "Open Income Report");
+        String answer = "Total income for " + r.label + " (" + range(r) + "): " + money(total) + " across " + n + " transaction" + (n == 1 ? "" : "s")
+                + (online.signum() > 0 ? ", of which " + money(online) + " came in as online donations (gross — processing fees are recorded separately as expenses)." : ".");
+        Map<String, Object> m = ok("income", answer, r, "/income-report", "Open Income Report");
+        m.put("summary", summary("Total income", money(total), "Transactions", String.valueOf(n), "Online donations (gross)", money(online)));
+        return m;
+    }
+
+    private Map<String, Object> expenses(AiAccess a, String cid, String q, LocalDate today) {
+        boolean list = wantsList(q) && !has(q, "how much|total");
+        if (list ? !a.expenseRecords() : !a.reports()) return denied("expenses");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "expenses"); if (narrow != null) return narrow;
+        Object[] t = first(expenseRepo.aiExpenseTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
+        BigDecimal total = t == null ? BigDecimal.ZERO : num(t[0]); long n = t == null ? 0 : ((Number) t[1]).longValue(); BigDecimal fees = t == null ? BigDecimal.ZERO : num(t[2]);
+        if (n == 0) return ok("expenses", "No expenses were recorded for " + r.label + " (" + range(r) + ").", r, "/expense-report", "Open Expense Report");
+        String answer = "Total expenses for " + r.label + " (" + range(r) + "): " + money(total) + " across " + n + " entr" + (n == 1 ? "y" : "ies")
+                + (fees.signum() > 0 ? ", including " + money(fees) + " of online-donation processing fees." : ".");
+        if (!list) {
+            Map<String, Object> m = ok("expenses", answer, r, "/expense-report", "Open Expense Report");
+            m.put("summary", summary("Total expenses", money(total), "Entries", String.valueOf(n), "Processing fees", money(fees)));
+            return m;
+        }
+        List<Object[]> rows = expenseRepo.aiExpenseRows(cid, Date.valueOf(r.from), Date.valueOf(r.to), maxRows + 1);
+        boolean truncated = rows.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] x : rows.subList(0, Math.min(rows.size(), maxRows)))
+            out.add(List.of(date(x[0]), str(x[1]), str(x[2]), money(x[3]), method(x[4], x[5])));
+        return table("expenses", answer + (truncated ? " Showing the first " + maxRows + "." : ""), List.of("Date", "Fund", "Purpose", "Amount", "Method"), out, n, truncated, r, "/expense", "Open Expense");
+    }
+
+    private Map<String, Object> transactions(AiAccess a, String cid, String q, LocalDate today) {
+        if (!a.reports()) return denied("transactions");
+        DateRange r = period(q, today);
+        Map<String, Object> narrow = tooWide(r, "transactions"); if (narrow != null) return narrow;
+        Object[] ti = first(incomeRepo.aiIncomeTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
+        Object[] te = first(expenseRepo.aiExpenseTotals(cid, Date.valueOf(r.from), Date.valueOf(r.to)));
+        BigDecimal inc = ti == null ? BigDecimal.ZERO : num(ti[0]), exp = te == null ? BigDecimal.ZERO : num(te[0]);
+        long ni = ti == null ? 0 : ((Number) ti[1]).longValue(), ne = te == null ? 0 : ((Number) te[1]).longValue();
+        if (ni + ne == 0) return ok("transactions", "No transactions were recorded for " + r.label + " (" + range(r) + ").", r, "/transactions-report", "Open Transactions Report");
+        int half = Math.max(1, maxRows / 2);
+        List<Object[]> inRows = incomeRepo.aiIncomeRows(cid, Date.valueOf(r.from), Date.valueOf(r.to), half + 1);
+        List<Object[]> exRows = expenseRepo.aiExpenseRows(cid, Date.valueOf(r.from), Date.valueOf(r.to), half + 1);
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] x : inRows.subList(0, Math.min(inRows.size(), half))) {
+            String who = name(x[1], x[2]); if (who.isBlank()) who = x[3] == null ? "" : str(x[3]) + " (guest)";
+            out.add(List.of(date(x[0]), "Income", (who.isBlank() ? "" : who + " — ") + fund(x[4], x[5]), money(x[6]), method(x[7], x[8])));
+        }
+        for (Object[] x : exRows.subList(0, Math.min(exRows.size(), half)))
+            out.add(List.of(date(x[0]), "Expense", str(x[1]) + " / " + str(x[2]), money(x[3]), method(x[4], x[5])));
+        out.sort((p1, p2) -> p2.get(0).compareTo(p1.get(0)));   // newest first across both kinds (ISO dates sort lexically)
+        boolean truncated = inRows.size() > half || exRows.size() > half;
+        String answer = ni + " income and " + ne + " expense transaction" + (ne == 1 ? "" : "s") + " for " + r.label + " (" + range(r) + "). "
+                + "Income " + money(inc) + ", expenses " + money(exp) + ", net " + money(inc.subtract(exp)) + "."
+                + (truncated ? " Showing the most recent " + out.size() + "." : "");
+        Map<String, Object> m = table("transactions", answer, List.of("Date", "Type", "Details", "Amount", "Method"), out, ni + ne, truncated, r, "/transactions-report", "Open Transactions Report");
+        m.put("summary", summary("Income", money(inc), "Expenses", money(exp), "Net", money(inc.subtract(exp))));
+        return m;
+    }
+
+    private Map<String, Object> campaigns(AiAccess a, String cid, String q) {
+        if (!a.pledges()) return denied("campaigns");
+        boolean all = has(q, "all|closed|every|including closed|past");
+        List<PledgeCampaign> cs = campaignRepo.findByClientId(cid);
+        List<PledgeCampaign> shown = new ArrayList<>();
+        for (PledgeCampaign c : cs) { if (all || "Active".equalsIgnoreCase(c.getStatus())) shown.add(c); }
+        if (shown.isEmpty()) return ok("campaigns", all ? "There are no pledge campaigns." : "There are no active pledge campaigns. Say “all campaigns” to include closed ones.", null, "/pledges", "Open Pledges");
+        boolean truncated = shown.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (PledgeCampaign c : shown.subList(0, Math.min(shown.size(), maxRows))) {
+            PledgeTotalsService.Totals t = pledgeTotals.totals(cid, c);
+            out.add(List.of(str(c.getName()), str(c.getStatus()), money(c.getTargetAmount()), money(t.pledged()), money(t.collected()), money(t.pending()), String.valueOf(t.pledgers())));
+        }
+        String answer = shown.size() + (all ? "" : " active") + " campaign" + (shown.size() == 1 ? "" : "s") + ". “Amount” is shown three ways — pledged, collected so far, and still pending — because the application tracks each separately."
+                + (truncated ? " Showing the first " + maxRows + "." : "");
+        return table("campaigns", answer, List.of("Campaign", "Status", "Target", "Pledged", "Collected", "Pending", "Pledgers"), out, (long) shown.size(), truncated, null, "/pledges", "Open Pledges");
+    }
+
+    /* ════════════════════════ ministry ════════════════════════ */
+
+    private Map<String, Object> meetings(AiAccess a, String cid, LocalDate today, String q) {
+        if (!a.meetings()) return denied("meetings");
+        int days = has(q, "today") ? 0 : has(q, "this week") ? 7 : 30;
+        LocalDate to = today.plusDays(days);
+        List<Meeting> all = meetingRepo.findByAppClientIdAndDeleteFlagFalse(cid);
+        List<Object[]> occ = new ArrayList<>();                       // [date, meeting]
+        List<Integer> ids = new ArrayList<>();
+        for (Meeting m : all) {
+            if (m.getMeetingDate() == null) continue;
+            if (m.getEndDate() != null && m.getEndDate().isBefore(today)) continue;   // expired series (the page's rule)
+            for (LocalDate d : MeetingRecurrence.listOccurrences(m, today, maxRows + 1, days + 1)) {
+                if (d.isAfter(to)) break;
+                occ.add(new Object[] {d, m}); if (!ids.contains(m.getId())) ids.add(m.getId());
+            }
+        }
+        Set<String> skipped = new java.util.HashSet<>();
+        if (!ids.isEmpty()) for (MeetingSkipDate s : skipRepo.findByMeetingIdIn(ids)) skipped.add(s.getMeetingId() + "@" + s.getSkipDate());
+        occ.removeIf(o -> skipped.contains(((Meeting) o[1]).getId() + "@" + o[0]));
+        occ.sort((x, y) -> { int c = ((LocalDate) x[0]).compareTo((LocalDate) y[0]); return c != 0 ? c : str(((Meeting) x[1]).getStartTime()).compareTo(str(((Meeting) y[1]).getStartTime())); });
+        String window = days == 0 ? "today" : "the next " + days + " days";
+        if (occ.isEmpty()) return ok("meetings", "No meetings are scheduled for " + window + ".", null, "/meetings", "Open Meetings");
+        boolean truncated = occ.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        Map<Integer, String> locs = new HashMap<>();
+        for (Object[] o : occ.subList(0, Math.min(occ.size(), maxRows))) {
+            Meeting m = (Meeting) o[1];
+            String loc = locs.computeIfAbsent(m.getId(), k -> meetingService.locationNameFor(m));
+            out.add(List.of(date(o[0]), m.getMeetingType() != null ? str(m.getMeetingType().getTypeName()) : "(no type)", time(m.getStartTime(), m.getEndTime()), loc, str(m.getOccurrence())));
+        }
+        return table("meetings", occ.size() + " meeting" + (occ.size() == 1 ? "" : "s") + " in " + window + (truncated ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Date", "Meeting", "Time", "Location", "Occurrence"), out, (long) occ.size(), truncated, null, "/meetings", "Open Meetings");
+    }
+
+    private Map<String, Object> prayer(AiAccess a, String cid) {
+        if (!a.prayer()) return denied("prayer");
+        long total = prayerRepo.aiCountOpen(cid);
+        if (total == 0) return ok("prayer", "There are no pending prayer requests.", null, "/prayerRequest", "Open Prayer Requests");
+        List<PrayerRequest> rows = prayerRepo.aiFindOpen(cid, PageRequest.of(0, maxRows));
+        List<List<String>> out = new ArrayList<>();
+        for (PrayerRequest p : rows)   // title + status only — the request text is private and stays on the page
+            out.add(List.of(str(p.getTitle()), str(p.getStatus()).isBlank() ? "New" : str(p.getStatus()), p.getCreatedAt() == null ? "" : date(new java.sql.Date(p.getCreatedAt().getTime()).toLocalDate()), p.getAssignedVolunteerId() == null ? "Unassigned" : "Assigned"));
+        return table("prayer", total + " pending prayer request" + (total == 1 ? "" : "s") + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Request", "Status", "Received", "Volunteer"), out, total, total > maxRows, null, "/prayerRequest", "Open Prayer Requests");
+    }
+
+    private Map<String, Object> followUps(AiAccess a, String cid) {
+        if (!a.followUps()) return denied("followups");
+        List<String> open = List.of("PENDING", "MISSED");
+        long total; List<FollowUp> rows;
+        if (a.followUpsAll()) { total = followUpRepo.aiCountByStatuses(cid, open); rows = followUpRepo.aiFindByStatuses(cid, open, PageRequest.of(0, maxRows)); }
+        else { total = followUpRepo.aiCountByAssigneeAndStatuses(cid, a.username(), open); rows = followUpRepo.aiFindByAssigneeAndStatuses(cid, a.username(), open, PageRequest.of(0, maxRows)); }
+        String scope = a.followUpsAll() ? "" : " assigned to you";
+        if (total == 0) return ok("followups", "There are no open follow-up tasks" + scope + ".", null, "/followups", "Open Follow-ups");
+        List<List<String>> out = new ArrayList<>();
+        for (FollowUp f : rows)
+            out.add(List.of(str(f.getTitle()), str(f.getStatus()), str(f.getPriority()), f.getDueDate() == null ? "" : date(new java.sql.Date(f.getDueDate().getTime()).toLocalDate()), str(f.getAssignedTo())));
+        return table("followups", total + " open follow-up task" + (total == 1 ? "" : "s") + scope + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Task", "Status", "Priority", "Due", "Assigned to"), out, total, total > maxRows, null, "/followups", "Open Follow-ups");
+    }
+
+    private Map<String, Object> assignedVolunteers(AiAccess a, String cid, LocalDate today) {
+        if (!a.volunteers()) return denied("volunteers");
+        long total = assignmentRepo.aiCountUpcomingActive(cid, today);
+        if (total == 0) return ok("volunteers", "There are no upcoming volunteer assignments.", null, "/volunteers", "Open Volunteers");
+        List<VolunteerAssignment> rows = assignmentRepo.aiFindUpcomingActive(cid, today, PageRequest.of(0, maxRows));
+        Map<Long, String> roles = new HashMap<>(); Map<Integer, String> people = new HashMap<>();
+        List<Long> roleIds = new ArrayList<>(); List<Integer> memberIds = new ArrayList<>();
+        for (VolunteerAssignment v : rows) { if (v.getRoleId() != null) roleIds.add(v.getRoleId()); if (v.getFamilyMemberId() != null) memberIds.add(v.getFamilyMemberId()); }
+        if (!roleIds.isEmpty()) for (VolunteerRole r : volunteerRoleRepo.findByAppClientIdAndIdIn(cid, roleIds)) roles.put(r.getId(), str(r.getRoleName()));
+        if (!memberIds.isEmpty()) for (Object[] m : memberRepo.aiMemberNames(cid, memberIds)) people.put(((Number) m[0]).intValue(), name(m[1], m[2]));
+        List<List<String>> out = new ArrayList<>();
+        for (VolunteerAssignment v : rows)
+            out.add(List.of(v.getEventDate() == null ? "" : date(v.getEventDate()), str(v.getEventLabel()), roles.getOrDefault(v.getRoleId(), ""), people.getOrDefault(v.getFamilyMemberId(), ""), str(v.getAssignmentStatus())));
+        return table("volunteers", total + " upcoming volunteer assignment" + (total == 1 ? "" : "s") + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Date", "Event", "Role", "Volunteer", "Status"), out, total, total > maxRows, null, "/volunteers", "Open Volunteers");
+    }
+
+    private Map<String, Object> events(AiAccess a, String cid, LocalDate today, String q) {
+        if (!a.events()) return denied("events");
+        int days = has(q, "today") ? 0 : has(q, "this week") ? 7 : has(q, "this month") ? 31 : 90;
+        LocalDate to = today.plusDays(days);
+        List<Object[]> rows = eventRepo.aiUpcomingEvents(cid, Date.valueOf(today), Date.valueOf(to), maxRows + 1);
+        String window = days == 0 ? "today" : "the next " + days + " days";
+        if (rows.isEmpty()) return ok("events", "No events are scheduled for " + window + ".", null, "/events", "Open Events");
+        boolean truncated = rows.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] x : rows.subList(0, Math.min(rows.size(), maxRows)))
+            out.add(List.of(date(x[3]), str(x[1]), str(x[2]), str(x[4])));
+        return table("events", (truncated ? "More than " + maxRows : String.valueOf(rows.size())) + " event" + (rows.size() == 1 ? "" : "s") + " in " + window + (truncated ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Date", "Event", "Type", "Start"), out, truncated ? null : (long) rows.size(), truncated, null, "/events", "Open Events");
+    }
+
+    private Map<String, Object> reminders(AiAccess a, String cid) {
+        if (!a.reminders()) return denied("reminders");
+        List<Map<String, Object>> all = reminderService.getAllEventReminders(cid);
+        List<Map<String, Object>> live = new ArrayList<>();
+        for (Map<String, Object> m : all) if (!Boolean.TRUE.equals(m.get("disabled"))) live.add(m);
+        if (live.isEmpty()) return ok("reminders", "There are no active event reminders.", null, "/eventReminders", "Open Reminders");
+        boolean truncated = live.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (Map<String, Object> m : live.subList(0, Math.min(live.size(), maxRows))) {
+            List<String> when = new ArrayList<>();
+            if (Boolean.TRUE.equals(m.get("sameDay"))) when.add("same day");
+            if (m.get("beforeDays") != null) when.add(m.get("beforeDays") + " day(s) before");
+            if (m.get("afterDays") != null) when.add(m.get("afterDays") + " day(s) after");
+            List<String> via = new ArrayList<>();
+            if (!Boolean.FALSE.equals(m.get("sendEmail"))) via.add("email");
+            if (Boolean.TRUE.equals(m.get("sendSms"))) via.add("SMS");
+            if (Boolean.TRUE.equals(m.get("sendWhatsApp"))) via.add("WhatsApp");
+            out.add(List.of(m.get("eventName") == null || str(m.get("eventName")).isBlank() ? "All events" : str(m.get("eventName")), String.join(", ", when), String.join(", ", via)));
+        }
+        return table("reminders", live.size() + " active event reminder" + (live.size() == 1 ? "" : "s") + (truncated ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Event", "When", "Channels"), out, (long) live.size(), truncated, null, "/eventReminders", "Open Reminders");
+    }
+
+    /* ════════════════════════ people ════════════════════════ */
+
+    private Map<String, Object> memberCounts(AiAccess a, String cid) {
+        if (!a.members()) return denied("members");
+        long male = 0, female = 0, unspecified = 0, total = 0;
+        for (Object[] r : memberRepo.aiCountActiveMembersByGender(cid)) {
+            String g = str(r[0]).toLowerCase(Locale.ROOT); long n = ((Number) r[1]).longValue(); total += n;
+            if (g.equals("male") || g.equals("m")) male += n; else if (g.equals("female") || g.equals("f")) female += n; else unspecified += n;
+        }
+        if (total == 0) return ok("members", "There are no active members on record.", null, "/viewfamily", "Open Families");
+        String answer = "There are " + total + " active member" + (total == 1 ? "" : "s") + ": " + male + " male, " + female + " female"
+                + (unspecified > 0 ? ", and " + unspecified + " with no gender recorded" : "") + ".";
+        Map<String, Object> m = ok("members", answer, null, "/viewfamily", "Open Families");
+        m.put("summary", summary("Active members", String.valueOf(total), "Male", String.valueOf(male), "Female", String.valueOf(female), "Not specified", String.valueOf(unspecified)));
+        return m;
+    }
+
+    private Map<String, Object> kidsMinistryChildren(AiAccess a, String cid) {
+        if (!a.kidsMinistry()) return denied("kids");
+        long total = kmChildRepo.countByClientIdAndDeleteFlagFalseAndInactiveFalse(cid);
+        if (total == 0) return ok("kids", "No children are registered in Kids Ministry.", null, "/kidsMinistry", "Open Kids Ministry");
+        List<KmChild> kids = kmChildRepo.findByClientIdAndDeleteFlagFalseAndInactiveFalseOrderByLastNameAscFirstNameAsc(cid, PageRequest.of(0, maxRows));
+        Map<Long, String> rooms = new HashMap<>(); List<Long> roomIds = new ArrayList<>();
+        for (KmChild k : kids) if (k.getClassroomId() != null) roomIds.add(k.getClassroomId());
+        if (!roomIds.isEmpty()) for (KmClassroom c : kmClassroomRepo.findByClientIdAndIdIn(cid, roomIds)) rooms.put(c.getId(), str(c.getClassName()));
+        List<List<String>> out = new ArrayList<>();
+        for (KmChild k : kids) out.add(List.of(name(k.getFirstName(), k.getLastName()), rooms.getOrDefault(k.getClassroomId(), "")));   // name + classroom only
+        return table("kids", total + " child" + (total == 1 ? "" : "ren") + " registered in Kids Ministry" + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Child", "Classroom"), out, total, total > maxRows, null, "/kidsMinistry", "Open Kids Ministry");
+    }
+
+    private Map<String, Object> familyChildren(AiAccess a, String cid) {
+        if (!a.members()) return denied("children");
+        long total = memberRepo.countChildRoleMembers(cid);
+        if (total == 0) return ok("children", "No children are listed in the family records.", null, "/viewfamily", "Open Families");
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] r : memberRepo.aiChildRoleMemberNames(cid, maxRows)) out.add(List.of(name(r[0], r[1])));   // names only
+        return table("children", total + " child" + (total == 1 ? "" : "ren") + " listed in the family records" + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Child"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
+    }
+
+    private Map<String, Object> publicLinks(AiAccess a, String cid, LocalDate today) {
+        if (!a.publicLinks()) return denied("publiclinks");
+        List<PublicScreenLink> all = publicLinkRepo.findByAppClientIdAndRevokedFalseOrderByCreatedDateDesc(cid);
+        List<PublicScreenLink> live = new ArrayList<>();
+        for (PublicScreenLink l : all) if (l.getExpirationDate() == null || !l.getExpirationDate().isBefore(today)) live.add(l);   // PublicLinkResolver.isActive
+        if (live.isEmpty()) return ok("publiclinks", "There are no active public links.", null, "/publicScreens", "Open Public Screens");
+        boolean truncated = live.size() > maxRows;
+        List<List<String>> out = new ArrayList<>();
+        for (PublicScreenLink l : live.subList(0, Math.min(live.size(), maxRows)))   // label + page + expiry; the token is the secret and is never returned
+            out.add(List.of(str(l.getPageLabel()), str(l.getPageUrl()), l.getExpirationDate() == null ? "No expiry" : date(l.getExpirationDate())));
+        return table("publiclinks", live.size() + " active public link" + (live.size() == 1 ? "" : "s") + ". Open Public Screens to copy or share a link." + (truncated ? " Showing the first " + maxRows + "." : ""),
+                List.of("Screen", "Page", "Expires"), out, (long) live.size(), truncated, null, "/publicScreens", "Open Public Screens");
+    }
+
+    /* ════════════════════════ helpers ════════════════════════ */
+
+    public DateRange period(String q, LocalDate today) {
+        DateRange r = AiDataSearchService.parsePeriod(q, today);
+        return r != null ? r : DateRange.month(today, "this month");
+    }
+
+    private Map<String, Object> tooWide(DateRange r, String intent) {
+        if (r.days() <= maxRangeDays) return null;
+        Map<String, Object> m = base("narrow", "That period covers " + r.days() + " days, which is more than this search can total at once ("
+                + maxRangeDays + " days). Which date range would you like — for example a month, a quarter, or one year?");
+        m.put("period", periodMap(r));
+        return m;
+    }
+
+    private static Map<String, Object> base(String intent, String answer) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("handled", true); m.put("denied", false); m.put("intent", intent); m.put("answer", answer);
+        return m;
+    }
+    private static Map<String, Object> ok(String intent, String answer, DateRange r, String url, String label) {
+        Map<String, Object> m = base(intent, answer);
+        if (r != null) m.put("period", periodMap(r));
+        m.put("link", Map.of("label", label, "url", url));
+        return m;
+    }
+    private static Map<String, Object> denied(String intent) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("handled", true); m.put("denied", true); m.put("intent", intent); m.put("answer", AiDataSearchService.DENIED_MSG);
+        return m;
+    }
+    private static Map<String, Object> clarify(String intent, String question) {
+        Map<String, Object> m = base("clarify", question); m.put("topic", intent); return m;
+    }
+    private static Map<String, Object> table(String intent, String answer, List<String> columns, List<List<String>> rows, Long total, boolean truncated, DateRange r, String url, String label) {
+        Map<String, Object> m = ok(intent, answer, r, url, label);
+        m.put("columns", columns); m.put("rows", rows); m.put("shown", rows.size()); m.put("truncated", truncated);
+        if (total != null) m.put("total", total);
+        return m;
+    }
+    private static Map<String, String> summary(String... kv) {
+        Map<String, String> m = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < kv.length; i += 2) m.put(kv[i], kv[i + 1]);
+        return m;
+    }
+    private static Map<String, Object> periodMap(DateRange r) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("label", r.label); p.put("from", r.from.toString()); p.put("to", r.to.toString());
+        return p;
+    }
+    private static Object[] first(List<Object[]> rows) { return rows == null || rows.isEmpty() ? null : rows.get(0); }
+    private static String str(Object o) { return o == null ? "" : String.valueOf(o).trim(); }
+    private static String name(Object first, Object last) { return (str(first) + " " + str(last)).trim(); }
+    private static BigDecimal num(Object o) { return o == null ? BigDecimal.ZERO : o instanceof BigDecimal b ? b : new BigDecimal(o.toString()); }
+    private static String money(Object o) { return NumberFormat.getCurrencyInstance(Locale.US).format(o == null ? BigDecimal.ZERO : num(o)); }
+    private static final DateTimeFormatter D = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US);
+    private static String date(Object o) {
+        if (o == null) return "";
+        if (o instanceof LocalDate d) return d.toString();                 // ISO for sortable table cells
+        if (o instanceof java.sql.Date d) return d.toLocalDate().toString();
+        if (o instanceof java.util.Date d) return new java.sql.Date(d.getTime()).toLocalDate().toString();
+        return str(o);
+    }
+    private static String range(DateRange r) { return r.from.equals(r.to) ? r.from.format(D) : r.from.format(D) + " – " + r.to.format(D); }
+    private static String fund(Object sub, Object main) { String s = str(sub), m = str(main); return s.isBlank() ? m : (m.isBlank() || m.equalsIgnoreCase(s) ? s : m + " / " + s); }
+    private static String method(Object method, Object importRef) {
+        String ref = str(importRef), m = str(method);
+        if (ref.endsWith(DonationPostingService.FEE_REF_SUFFIX)) return (m.isBlank() ? "Online" : m) + " (processing fee)";
+        if (ref.startsWith("pi_") || ref.startsWith("donation:")) return (m.isBlank() ? "Online" : m) + " (online donation)";
+        return m;
+    }
+    private static String time(String start, String end) { String s = str(start), e = str(end); return s.isBlank() ? "" : (e.isBlank() ? s : s + " – " + e); }
+}

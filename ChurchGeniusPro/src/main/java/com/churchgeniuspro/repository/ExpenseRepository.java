@@ -252,4 +252,42 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
     java.util.Optional<Expense> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
+    // ── AI Search (Phase B) — bounded, tenant-scoped, aggregated in the database ───
+
+    /**
+     * One row: [SUM(amount), COUNT(*), SUM(amount of posted processing-fee expenses)] for
+     * the tenant and inclusive range. Fee rows carry DonationPostingService.FEE_REF_SUFFIX
+     * in import_ref, so fees can be shown apart from the other expenses — never netted.
+     */
+    @Query(value =
+           "SELECT COALESCE(SUM(e.amount), 0), COUNT(*), " +
+           "       COALESCE(SUM(CASE WHEN e.import_ref LIKE '%:stripe-fee' THEN e.amount ELSE 0 END), 0) " +
+           "FROM   expense e " +
+           "WHERE  e.delete_flag = false AND e.app_client_id = :appClientId " +
+           "  AND  e.expense_date BETWEEN :startDate AND :endDate",
+           nativeQuery = true)
+    List<Object[]> aiExpenseTotals(@Param("appClientId") String appClientId,
+                                   @Param("startDate") java.sql.Date startDate,
+                                   @Param("endDate") java.sql.Date endDate);
+
+    /**
+     * Newest expense entries in the range, at most {@code limit} rows.
+     * Columns: [expense_date, main_name, purpose_name, amount, method, import_ref].
+     */
+    @Query(value =
+           "SELECT e.expense_date, ms.source_name, p.purpose_name, e.amount, tt.type_name, e.import_ref " +
+           "FROM   expense e " +
+           "JOIN   main_source ms ON ms.id = e.main_source_id " +
+           "JOIN   purpose     p  ON p.id  = e.purpose_id " +
+           "LEFT JOIN transaction_type tt ON tt.id = e.transaction_type_id " +
+           "WHERE  e.delete_flag = false AND e.app_client_id = :appClientId " +
+           "  AND  e.expense_date BETWEEN :startDate AND :endDate " +
+           "ORDER  BY e.expense_date DESC, e.id DESC LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiExpenseRows(@Param("appClientId") String appClientId,
+                                 @Param("startDate") java.sql.Date startDate,
+                                 @Param("endDate") java.sql.Date endDate,
+                                 @Param("limit") int limit);
+
 }

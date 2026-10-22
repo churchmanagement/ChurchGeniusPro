@@ -51,4 +51,10 @@ public interface KmChildRepository extends JpaRepository<KmChild, Long> {
 
     long countByClientIdAndClassroomIdAndDeleteFlagFalseAndInactiveFalse(
             String clientId, Long classroomId);
+
+    /** AI Search: active children, alphabetical, bounded by the page (names + classroom only are read by the caller). */
+    List<KmChild> findByClientIdAndDeleteFlagFalseAndInactiveFalseOrderByLastNameAscFirstNameAsc(String clientId, org.springframework.data.domain.Pageable page);
+
+    long countByClientIdAndDeleteFlagFalseAndInactiveFalse(String clientId);
+
 }

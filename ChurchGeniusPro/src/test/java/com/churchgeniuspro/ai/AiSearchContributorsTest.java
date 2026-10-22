@@ -112,7 +112,7 @@ class AiSearchContributorsTest {
     /** Access as AiAccessPolicy resolves it for a staff session with no permission restrictions. */
     static AiAccess acc(String role) {
         boolean fin = List.of("SuperAdmin", "Admin", "Accountant").contains(role);
-        return new AiAccess(role, false, "Member".equals(role), false, fin, fin, fin, fin,
+        return AiAccess.of(role, false, "Member".equals(role), false, fin, fin, fin, fin,
                             List.of("SuperAdmin", "Admin", "User").contains(role));
     }
 

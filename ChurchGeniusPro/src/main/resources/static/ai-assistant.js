@@ -487,8 +487,8 @@
         if (d && d.handled){
           busy(false);
           renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data',
-            confidence:1, answer:d.answer||'', pages:[],
-            suggestedAction:'none' });
+            confidence:1, answer:d.answer||'', pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [],
+            suggestedAction:'none', data:d });
           setDebug({ intent:'Data: '+(d.intent||'lookup'), source:'Church Data',
             result: d.denied ? 'Permission denied' : 'Answered (data)' });
           if (mode==='converse'){ _convLog.push('Assistant: '+(d.answer||'')); persistConv(); }
@@ -515,7 +515,7 @@
   }
 
   function looksLikeDataQuestion(q){
-    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithe|contribut\w*|donat\w*|gave|giving|volunteers?|offering)\b/i.test(q);
+    return /\b(birthday|anniversar\w*|income|revenue|collections?|tithes?|contribut\w*|donat\w*|donors?|gave|giving|volunteers?|offerings?|expenses?|spent|spending|transactions?|campaigns?|pledges?|meetings?|prayers?|follow[- ]?ups?|tasks?|events?|reminders?|members?|kids?|children|public (links?|screens?|pages?))\b/i.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {
@@ -704,7 +704,24 @@
     var html='<div class="ai-results-panel">'
       + '<div class="ai-results-hdr"><div class="ai-results-title">✨ Assistant <em style="font-size:12px;color:#aaa;font-weight:400;">for: '+esc(lastQ)+'</em></div>'
       + '<button class="ai-results-close" onclick="document.getElementById(\'aiResultsWrap\').style.display=\'none\'" title="Close">✕</button></div>'
-      + '<div class="ai-answer">'+esc(a.answer||'')+'</div>';
+      + '<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(a.answer||'')+'</div>';
+    // Structured data answers (Phase B): a summary strip and/or a bounded table.
+    if (a.data && !a.data.denied){
+      var d=a.data;
+      if (d.summary && typeof d.summary==='object'){
+        html+='<div class="aa-summary">';
+        Object.keys(d.summary).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v">'+esc(d.summary[k])+'</div></div>'; });
+        html+='</div>';
+      }
+      if (Array.isArray(d.columns) && Array.isArray(d.rows) && d.rows.length){
+        html+='<div class="aa-tablewrap"><table class="aa-table"><thead><tr>';
+        d.columns.forEach(function(c){ html+='<th>'+esc(c)+'</th>'; });
+        html+='</tr></thead><tbody>';
+        d.rows.forEach(function(r){ html+='<tr>'; (r||[]).forEach(function(c){ html+='<td>'+esc(c==null?'':c)+'</td>'; }); html+='</tr>'; });
+        html+='</tbody></table></div>';
+        if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.rows.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open the page for the full list.</div>';
+      }
+    }
     if (pages.length){
       html+='<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">';
       pages.forEach(function(p){
@@ -1087,6 +1104,17 @@
       '#aiResultsWrap .ai-results-title{font-weight:700;color:#673147;font-size:14px;}',
       '#aiResultsWrap .ai-results-close{border:none;background:none;cursor:pointer;color:#aaa;font-size:14px;}',
       '#aiResultsWrap .ai-answer{font-size:13.5px;color:#444;line-height:1.55;}',
+      '#aiResultsWrap .ai-answer.ai-denied{color:#b42424;}',
+      '#aiResultsWrap .aa-summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}',
+      '#aiResultsWrap .aa-sum{flex:1 1 120px;min-width:110px;background:#fbf7f9;border:1px solid #eadfe6;border-radius:9px;padding:8px 10px;}',
+      '#aiResultsWrap .aa-sum-k{font-size:11px;color:#7a6a72;text-transform:uppercase;letter-spacing:.03em;}',
+      '#aiResultsWrap .aa-sum-v{font-size:15px;font-weight:700;color:#673147;margin-top:2px;}',
+      '#aiResultsWrap .aa-tablewrap{margin-top:10px;max-height:320px;overflow:auto;border:1px solid #eadfe6;border-radius:9px;}',
+      '#aiResultsWrap .aa-table{width:100%;border-collapse:collapse;font-size:12.5px;}',
+      '#aiResultsWrap .aa-table th{position:sticky;top:0;background:#f6eef3;color:#673147;text-align:left;padding:7px 9px;font-weight:700;border-bottom:1px solid #eadfe6;white-space:nowrap;}',
+      '#aiResultsWrap .aa-table td{padding:6px 9px;border-bottom:1px solid #f3edf0;color:#444;vertical-align:top;}',
+      '#aiResultsWrap .aa-table tr:last-child td{border-bottom:none;}',
+      '#aiResultsWrap .aa-more{margin-top:6px;font-size:12px;color:#888;}',
       '#aaDebug{margin-top:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#11151c;color:#cfe3ff;border-radius:8px;padding:10px 12px;}',
       '#aaDebug.hidden{display:none;}',
       '#aaDebug .aa-drow{display:flex;gap:8px;padding:1px 0;}',

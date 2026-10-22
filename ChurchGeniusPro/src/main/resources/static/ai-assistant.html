@@ -49,6 +49,14 @@
     .bubble .ai-answer { font-size: 14px; color: inherit; line-height: 1.6; }
     .bubble .ai-results-hdr, .bubble .ai-results-close { display: none; }
     .bubble .aa-suggest { background: #fff; }
+    .bubble .aa-summary { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .bubble .aa-sum { flex:1 1 120px; min-width:110px; background:#fff; border:1px solid #eadfe6; border-radius:9px; padding:8px 10px; }
+    .bubble .aa-sum-k { font-size:11px; color:#7a6a72; text-transform:uppercase; letter-spacing:.03em; }
+    .bubble .aa-sum-v { font-size:15px; font-weight:700; color:#673147; margin-top:2px; }
+    .bubble .aa-tablewrap { margin-top:8px; max-height:320px; overflow:auto; border:1px solid #eadfe6; border-radius:9px; background:#fff; }
+    .bubble .aa-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .bubble .aa-table th { position:sticky; top:0; background:#f6eef3; color:#673147; text-align:left; padding:7px 9px; border-bottom:1px solid #eadfe6; white-space:nowrap; }
+    .bubble .aa-table td { padding:6px 9px; border-bottom:1px solid #f3edf0; vertical-align:top; }
     .bubble .aa-more { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e9dde4; font-size: 12px; color: #888; }
     .bubble .aa-more a { color: #673147; font-weight: 700; }
     .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
@@ -256,6 +264,8 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
       if (card && card.querySelectorAll) {
         // Page suggestions (Open / New tab) and the Help Center link come across as-is;
         // the engine's own listeners are dropped (cloned) — the transcript wires them once.
+        // Structured data answers (summary strip / bounded table) come across as-is too.
+        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-more').forEach(function (el) { html += el.outerHTML; });
         card.querySelectorAll('.aa-suggest').forEach(function (sg) { sg.querySelectorAll('.aa-open').forEach(function (b) { b.parentNode.replaceChild(b.cloneNode(true), b); }); html += sg.outerHTML; });
         var more = card.querySelector('a[href="/helpCenter"]');
         if (more) html += '<div class="aa-more">Need more detail? <a href="/helpCenter">Open the full Help Center →</a></div>';

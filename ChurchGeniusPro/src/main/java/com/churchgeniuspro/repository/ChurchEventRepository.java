@@ -41,4 +41,25 @@ public interface ChurchEventRepository extends JpaRepository<ChurchEvent, Intege
 
     java.util.Optional<ChurchEvent> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
     java.util.Optional<ChurchEvent> findByPublicTokenAndDeleteFlagFalse(String publicToken);
+
+    /**
+     * AI Search: events with a day inside the range — one-day events by event_date,
+     * multi-day events by any of their church_event_day rows. Rows of
+     * [id, event_name, event_type, first_date_in_range, start_time], soonest first, bounded.
+     */
+    @org.springframework.data.jpa.repository.Query(value =
+           "SELECT e.id, e.event_name, e.event_type, " +
+           "       COALESCE(MIN(d.event_date), e.event_date) AS first_date, e.start_time " +
+           "FROM   church_event e " +
+           "LEFT JOIN church_event_day d ON d.event_id = e.id AND d.event_date BETWEEN :fromDate AND :toDate " +
+           "WHERE  e.app_client_id = :appClientId AND e.delete_flag = false " +
+           "  AND  ((e.event_date BETWEEN :fromDate AND :toDate) OR d.event_date IS NOT NULL) " +
+           "GROUP  BY e.id, e.event_name, e.event_type, e.event_date, e.start_time " +
+           "ORDER  BY first_date ASC, e.id ASC LIMIT :limit",
+           nativeQuery = true)
+    List<Object[]> aiUpcomingEvents(@org.springframework.data.repository.query.Param("appClientId") String appClientId,
+                                    @org.springframework.data.repository.query.Param("fromDate") java.sql.Date fromDate,
+                                    @org.springframework.data.repository.query.Param("toDate") java.sql.Date toDate,
+                                    @org.springframework.data.repository.query.Param("limit") int limit);
+
 }
