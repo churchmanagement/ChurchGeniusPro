@@ -485,12 +485,40 @@ public class FamilyService {
                     row.put("disableAlerts",       m.isDisableAlerts());
                     row.put("includeContributions",m.isIncludeContributions());
                     row.put("deleted",             m.isDeleteFlag());
+                    // Effective status for display: a member of a deleted (or inactive)
+                    // family is shown as Deleted (Inactive) even when the member row
+                    // itself was never flagged. "deleted"/"inactive" above keep their
+                    // original member-only meaning for existing callers.
+                    boolean famDeleted  = m.getFamily() != null && m.getFamily().isDeleteFlag();
+                    boolean famInactive = m.getFamily() != null && m.getFamily().isInactive();
+                    row.put("familyDeleted",       famDeleted);
+                    row.put("familyInactive",      famInactive);
+                    row.put("status",              memberStatus(m.isDeleteFlag(), famDeleted, m.isInactive(), famInactive));
+                    row.put("statusReason",        memberStatusReason(m.isDeleteFlag(), famDeleted, m.isInactive(), famInactive));
                     row.put("familyId",            fid);
                     row.put("familyName",          fid != null ? familyDisplayName.getOrDefault(fid, "") : null);
                     row.put("memberRef",           m.getMemberRef());
                     return row;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /** Effective member status: Deleted wins over Inactive; otherwise Active. */
+    static String memberStatus(boolean memberDeleted, boolean familyDeleted,
+                               boolean memberInactive, boolean familyInactive) {
+        if (memberDeleted || familyDeleted)   return "Deleted";
+        if (memberInactive || familyInactive) return "Inactive";
+        return "Active";
+    }
+
+    /** "Family deleted" / "Family inactive" when the status comes only from the family; else null. */
+    static String memberStatusReason(boolean memberDeleted, boolean familyDeleted,
+                                     boolean memberInactive, boolean familyInactive) {
+        if (memberDeleted) return null;
+        if (familyDeleted) return "Family deleted";
+        if (memberInactive) return null;
+        if (familyInactive) return "Family inactive";
+        return null;
     }
 
     // ── Soft-Delete / Restore ─────────────────────────────────────────────

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Commit ChurchGeniusPro changes to feature1, merge into master, and push —
   the push to master is what deploys to Azure production (GitHub Actions).
@@ -27,8 +27,14 @@ Set-Location $repo
 
 function Run($cmd) {
     Write-Host ">> git $cmd" -ForegroundColor Cyan
-    $out = Invoke-Expression "git $cmd 2>&1"
-    if ($LASTEXITCODE -ne 0) { Write-Host $out -ForegroundColor Red; throw "git $cmd failed" }
+    # git writes normal progress ("Switched to...", "From ...", push output) to stderr; in
+    # Windows PowerShell 5.1 that becomes a terminating error under ErrorActionPreference=Stop.
+    # Judge success by git's exit code only.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try   { $out = Invoke-Expression "git $cmd 2>&1" | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $prev }
+    if ($LASTEXITCODE -ne 0) { Write-Host ($out -join "`n") -ForegroundColor Red; throw "git $cmd failed" }
     $out
 }
 

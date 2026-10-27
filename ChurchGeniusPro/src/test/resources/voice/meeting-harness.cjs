@@ -1,7 +1,7 @@
 /* Runs the Meetings page's own meeting-voice.js (plus voice-core.js) in Node with a
  * minimal fake DOM, so the Converse state machine can be exercised exactly as shipped.
  *
- *   node meeting-harness.cjs <voice-core.js> <meeting-voice.js> '<json scenario>'
+ *   node meeting-harness.cjs <voice-core.js> <meeting-voice.js> <scenario.json | '<json scenario>'>
  *
  * scenario: { form:{meetingType:"Bible Study", locationSearch:"", meetingDate:"", startTime:"", occurrence:"One-time", note:""},
  *             categories:["Bible Study","Prayer Meeting"], locations:[{id:1,locType:"H",displayName:"Fellowship Hall"}],
@@ -9,7 +9,10 @@
  * Prints JSON: { replies:[...], form:{...}, stage, confirm:bool, log:[...] }.
  */
 const vm = require('vm'); const fs = require('fs');
-const [,, corePath, meetingPath, scenarioJson] = process.argv;
+const [,, corePath, meetingPath, scenarioArg] = process.argv;
+// The scenario arrives as a path to a JSON file (NodeJs.meetingScenario — safe on Windows);
+// inline JSON is still accepted for running the harness by hand.
+const scenarioJson = scenarioArg && !scenarioArg.trim().startsWith('{') ? fs.readFileSync(scenarioArg, 'utf8') : scenarioArg;
 const sc = JSON.parse(scenarioJson || '{}');
 
 function mkEl(id, init){

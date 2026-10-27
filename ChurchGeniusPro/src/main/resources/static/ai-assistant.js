@@ -583,7 +583,7 @@
   // Kept in step with the server's vocabulary (AiQueryLexicon): every synonym the server maps
   // must also bring the question to the server, or the bar answers it as navigation instead.
   function looksLikeDataQuestion(q){
-    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?)\b/i.test(q);
+    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
   // — i.e. asks for data rather than for a page.
@@ -591,7 +591,9 @@
     return /\b[A-Za-z]+(?:'|\u2019)s\b/.test(q)
         || /\b(today|yesterday|tomorrow|this|last|next|past|previous|since|between|during|so far|year to date|ytd|weekly|monthly|quarter|q[1-4]|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|\d{4})\b/i.test(q)
         || /^\s*(how much|how many|what|who|which|whose|did|has|have|does|do|is|are|was|were|when)\b/i.test(q)
-        || /\b(did|has|have)\s+[A-Z][a-z]+\s+(give|gave|given|donate|donated|contribute|contributed|tithe|tithed)\b/.test(q);
+        || /\b(did|has|have)\s+[A-Z][a-z]+\s+(give|gave|given|donate|donated|contribute|contributed|tithe|tithed)\b/.test(q)
+        // A status filter ("deleted members", "inactive families", "unalert") asks for records, not a page.
+        || /\b(deleted|removed|in-?active|deactivated|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off)|disabled alerts?)\b/i.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {

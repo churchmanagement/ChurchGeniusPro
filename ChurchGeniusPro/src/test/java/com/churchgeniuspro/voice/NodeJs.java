@@ -55,13 +55,20 @@ final class NodeJs {
      * fake-DOM harness in src/test/resources/voice; {@code scenarioJson} is the harness input.
      */
     static JsonNode meetingScenario(String scenarioJson) throws Exception {
-        Process p = new ProcessBuilder(nodeBin(),
-                new File("src/test/resources/voice/meeting-harness.cjs").getAbsolutePath(),
-                new File("src/main/resources/static/voice-core.js").getAbsolutePath(),
-                new File("src/main/resources/static/meeting-voice.js").getAbsolutePath(),
-                scenarioJson).redirectErrorStream(true).start();
-        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        if (!p.waitFor(30, TimeUnit.SECONDS) || p.exitValue() != 0) throw new IllegalStateException("node failed: " + out);
-        return M.readTree(out);
+        // The scenario goes through a temp FILE, not a command-line argument: on Windows the
+        // JVM does not preserve double quotes inside an argument, so node received
+        // {form:{meetingType:Bible … and JSON.parse failed (Linux was unaffected).
+        Path tmp = Files.createTempFile("meeting-scenario-", ".json");
+        Files.writeString(tmp, scenarioJson, StandardCharsets.UTF_8);
+        try {
+            Process p = new ProcessBuilder(nodeBin(),
+                    new File("src/test/resources/voice/meeting-harness.cjs").getAbsolutePath(),
+                    new File("src/main/resources/static/voice-core.js").getAbsolutePath(),
+                    new File("src/main/resources/static/meeting-voice.js").getAbsolutePath(),
+                    tmp.toString()).redirectErrorStream(true).start();
+            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            if (!p.waitFor(30, TimeUnit.SECONDS) || p.exitValue() != 0) throw new IllegalStateException("node failed: " + out);
+            return M.readTree(out);
+        } finally { Files.deleteIfExists(tmp); }
     }
 }

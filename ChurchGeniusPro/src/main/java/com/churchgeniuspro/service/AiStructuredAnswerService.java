@@ -116,6 +116,10 @@ public class AiStructuredAnswerService {
     public Map<String, Object> route(String q, AiAccess a, String clientId, LocalDate today) {
         if (a == null || a.kids()) return null;                       // the caller has already denied Kids sessions
 
+        // Members / families by status (deleted, inactive, alerts disabled) — Families page records.
+        Map<String, Object> byStatus = peopleByStatus(q, a, clientId);
+        if (byStatus != null) return byStatus;
+
         // Children: two separate sources, never combined, never a fallback from one to the other (decision 3).
         if (has(q, "kids?|children|child") && !has(q, "kids? portal|birthday|anniversar\\w*|checkin|check in")) {
             boolean km  = has(q, "kids? ministry|classroom|classrooms|sunday school|registered|enrolled|ministry");
@@ -492,6 +496,104 @@ public class AiStructuredAnswerService {
     }
 
     /* ════════════════════════ people ════════════════════════ */
+
+    /** "Disable Alerts" members: the Family form's per-member switch (there is no family-level flag). */
+    static final String UNALERT_WORDS = "un ?alert\\w*|non ?alert\\w*|alerts? (?:are |is )?(?:disabled|off|turned off)"
+            + "|disabled alerts?|alerts? disabled|disable alerts?";
+
+    /**
+     * Routes "deleted members", "deleted families", "inactive families", "inactive members" and
+     * "unalert" (alerts disabled) questions; null when the question is not one of them.
+     * Ambiguous wording is answered with a question, never with a guess.
+     */
+    Map<String, Object> peopleByStatus(String q, AiAccess a, String cid) {
+        // How-to questions ("how do I restore a deleted family?") stay with Help / navigation.
+        if (has(q, "how (?:do|can|to|should|would)|why|restore|undelete|recover|reactivate|re activate")) return null;
+        if (has(q, UNALERT_WORDS)) return unalertMembers(a, cid);
+        boolean del   = has(q, "deleted|removed");
+        boolean inact = has(q, "in ?active|deactivated|not active");
+        if (!del && !inact) return null;
+        boolean familyMembers = has(q, "family members?");
+        boolean fam = has(q, "famil(?:y|ies)|households?") && !familyMembers;
+        boolean mem = familyMembers || has(q, "members?|people|persons?|individuals?");
+        if (!fam && !mem) return null;
+        if (del && inact) return clarify("status", "Do you want the deleted records or the inactive ones? Please ask for one at a time, "
+                + "for example “show deleted families” or “show inactive families”.");
+        if (fam && mem) return clarify("status", "Do you mean " + (del ? "deleted" : "inactive") + " families, or "
+                + (del ? "deleted" : "inactive") + " members? Please ask for one of them.");
+        if (fam) return del ? deletedFamilies(a, cid) : inactiveFamilies(a, cid);
+        return del ? deletedMembers(a, cid) : inactiveMembers(a, cid);
+    }
+
+    /**
+     * Status lists are Families-page records: the /viewfamily page rule (role guard + the
+     * admin.family permission, both resolved by AiAccessPolicy). Member-portal sessions are
+     * refused even with the Directory tab — the directory never shows deleted or inactive
+     * people — and church logins cannot open the Families page at all.
+     */
+    private static boolean mayListByStatus(AiAccess a) { return a.members() && !a.member() && !a.church(); }
+
+    private Map<String, Object> deletedMembers(AiAccess a, String cid) {
+        if (!mayListByStatus(a)) return denied("members.deleted");
+        long total = memberRepo.aiCountDeletedMembers(cid);
+        if (total == 0) return ok("members.deleted", "There are no deleted members.", null, "/viewfamily", "Open Families");
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] r : memberRepo.aiDeletedMembers(cid, maxRows))
+            out.add(List.of(name(r[0], r[1]), str(r[2]), truthy(r[3]) ? "Family deleted" : "Member deleted"));
+        return table("members.deleted", total + " deleted member" + (total == 1 ? "" : "s") + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Member", "Role", "Status"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
+    }
+
+    private Map<String, Object> inactiveMembers(AiAccess a, String cid) {
+        if (!mayListByStatus(a)) return denied("members.inactive");
+        long total = memberRepo.aiCountInactiveMembers(cid);
+        if (total == 0) return ok("members.inactive", "There are no inactive members.", null, "/viewfamily", "Open Families");
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] r : memberRepo.aiInactiveMembers(cid, maxRows))
+            out.add(List.of(name(r[0], r[1]), str(r[2]), truthy(r[3]) ? "Family inactive" : "Member inactive"));
+        return table("members.inactive", total + " inactive member" + (total == 1 ? "" : "s") + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Member", "Role", "Status"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
+    }
+
+    private Map<String, Object> unalertMembers(AiAccess a, String cid) {
+        if (!mayListByStatus(a)) return denied("members.unalert");
+        long total = memberRepo.aiCountUnalertMembers(cid);
+        if (total == 0) return ok("members.unalert", "No members have alerts disabled.", null, "/viewfamily", "Open Families");
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] r : memberRepo.aiUnalertMembers(cid, maxRows))
+            out.add(List.of(name(r[0], r[1]), str(r[2]), truthy(r[3]) ? "Inactive" : "Active"));
+        return table("members.unalert", total + " member" + (total == 1 ? " has" : "s have") + " alerts disabled (Disable Alerts is ticked on the family record)"
+                + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Member", "Role", "Status"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
+    }
+
+    private Map<String, Object> deletedFamilies(AiAccess a, String cid) {
+        if (!mayListByStatus(a)) return denied("families.deleted");
+        long total = memberRepo.aiCountDeletedFamilies(cid);
+        if (total == 0) return ok("families.deleted", "There are no deleted families.", null, "/viewfamily", "Open Families");
+        return familyTable("families.deleted", "deleted", total, memberRepo.aiDeletedFamilies(cid, maxRows));
+    }
+
+    private Map<String, Object> inactiveFamilies(AiAccess a, String cid) {
+        if (!mayListByStatus(a)) return denied("families.inactive");
+        long total = memberRepo.aiCountInactiveFamilies(cid);
+        if (total == 0) return ok("families.inactive", "There are no inactive families.", null, "/viewfamily", "Open Families");
+        return familyTable("families.inactive", "inactive", total, memberRepo.aiInactiveFamilies(cid, maxRows));
+    }
+
+    private Map<String, Object> familyTable(String intent, String status, long total, List<Object[]> rows) {
+        List<List<String>> out = new ArrayList<>();
+        for (Object[] r : rows) {
+            String nm = str(r[0]);
+            out.add(List.of(nm.isBlank() ? "(no members)" : nm, String.valueOf(r[1] == null ? 0 : ((Number) r[1]).longValue())));
+        }
+        return table(intent, total + " " + status + " famil" + (total == 1 ? "y" : "ies") + (total > maxRows ? ". Showing the first " + maxRows + "." : "."),
+                List.of("Family (primary member)", "Members"), out, total, total > maxRows, null, "/viewfamily", "Open Families");
+    }
+
+    private static boolean truthy(Object o) {
+        return o instanceof Boolean b ? b : o instanceof Number n ? n.intValue() != 0 : "true".equalsIgnoreCase(str(o)) || "t".equalsIgnoreCase(str(o));
+    }
 
     private Map<String, Object> memberCounts(AiAccess a, String cid) {
         if (!a.members()) return denied("members");

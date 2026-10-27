@@ -170,13 +170,33 @@ public class SessionConfig {
      */
     @Bean
     public SessionRepositoryCustomizer<JdbcIndexedSessionRepository> sessionAttributeUpsertCustomizer() {
-        return repository -> repository.setCreateSessionAttributeQuery(
+        return repository -> {
+            repository.setCreateSessionAttributeQuery(
                   "INSERT INTO %TABLE_NAME%_ATTRIBUTES "
                 + "(SESSION_PRIMARY_ID, ATTRIBUTE_NAME, ATTRIBUTE_BYTES)\n"
                 + "VALUES (?, ?, ?)\n"
                 + "ON CONFLICT (SESSION_PRIMARY_ID, ATTRIBUTE_NAME)\n"
                 + "DO UPDATE SET ATTRIBUTE_BYTES = EXCLUDED.ATTRIBUTE_BYTES\n");
+            repository.setDeleteSessionQuery(DELETE_SESSION_QUERY);
+        };
     }
+
+    /**
+     * {@code session.invalidate()} must remove the session whatever its timeout.
+     *
+     * <p>Spring Session's default is {@code DELETE … WHERE SESSION_ID = ? AND
+     * MAX_INACTIVE_INTERVAL >= 0}. {@code NoAutoLogoutFilter} gives every session whose
+     * user chose "Don't log out automatically" (the staff default) an interval of -1, so
+     * for those sessions invalidate() deleted nothing: Logout left the session usable by
+     * its old cookie, and Sign-in / Switch Account reloaded the previous session and wrote
+     * the new account on top of it — a Member session kept the SuperAdmin's appUserId and
+     * staff privileges, which is what stranded Switch Account in the Member role.
+     *
+     * <p>Only explicit invalidation and the expired-on-read path call this query, and an
+     * expired session always has a non-negative interval, so dropping the guard changes
+     * nothing except making invalidate() effective.
+     */
+    static final String DELETE_SESSION_QUERY = "DELETE FROM %TABLE_NAME% WHERE SESSION_ID = ?";
 
     /**
      * Creates the SPRING_SESSION / SPRING_SESSION_ATTRIBUTES tables on startup

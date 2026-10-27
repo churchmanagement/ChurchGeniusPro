@@ -657,6 +657,83 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
            nativeQuery = true)
     List<Object[]> aiChildRoleMemberNames(@Param("appClientId") String appClientId, @Param("limit") int limit);
 
+    /* ── AI Search: members and families by status (Families page records) ──────────────
+     * Every query is tenant-scoped through family.app_client_id, read-only, and bounded by
+     * :limit (callers ask for one row more than they show). Names, role and status only —
+     * no ids, contact details or dates. A member counts as deleted when the member row OR
+     * its family is soft-deleted, and as inactive when either is inactive (the same rule
+     * the Families page's Member Search shows in its Status column).
+     */
+
+    String AI_DELETED_MEMBER_WHERE =
+           "FROM family_member fm JOIN family f ON f.id = fm.family_id " +
+           "WHERE f.app_client_id = :appClientId AND (fm.delete_flag = true OR f.delete_flag = true) ";
+
+    /** AI Search: deleted members — rows of [first, last, role, deletedWithFamily]. */
+    @Query(value = "SELECT fm.first_name, fm.last_name, fm.role, " +
+           "CASE WHEN fm.delete_flag = true THEN false ELSE true END " + AI_DELETED_MEMBER_WHERE +
+           "ORDER BY fm.last_name, fm.first_name LIMIT :limit", nativeQuery = true)
+    List<Object[]> aiDeletedMembers(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+    @Query(value = "SELECT COUNT(*) " + AI_DELETED_MEMBER_WHERE, nativeQuery = true)
+    long aiCountDeletedMembers(@Param("appClientId") String appClientId);
+
+    String AI_INACTIVE_MEMBER_WHERE =
+           "FROM family_member fm JOIN family f ON f.id = fm.family_id " +
+           "WHERE f.app_client_id = :appClientId AND fm.delete_flag = false AND f.delete_flag = false " +
+           "AND (fm.inactive = true OR f.inactive = true) ";
+
+    /** AI Search: inactive (not deleted) members — rows of [first, last, role, inactiveWithFamily]. */
+    @Query(value = "SELECT fm.first_name, fm.last_name, fm.role, " +
+           "CASE WHEN fm.inactive = true THEN false ELSE true END " + AI_INACTIVE_MEMBER_WHERE +
+           "ORDER BY fm.last_name, fm.first_name LIMIT :limit", nativeQuery = true)
+    List<Object[]> aiInactiveMembers(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+    @Query(value = "SELECT COUNT(*) " + AI_INACTIVE_MEMBER_WHERE, nativeQuery = true)
+    long aiCountInactiveMembers(@Param("appClientId") String appClientId);
+
+    String AI_UNALERT_WHERE =
+           "FROM family_member fm JOIN family f ON f.id = fm.family_id " +
+           "WHERE f.app_client_id = :appClientId AND fm.delete_flag = false AND f.delete_flag = false " +
+           "AND fm.disable_alerts = true ";
+
+    /** AI Search: members with "Disable Alerts" ticked (not deleted) — rows of [first, last, role, inactive]. */
+    @Query(value = "SELECT fm.first_name, fm.last_name, fm.role, " +
+           "CASE WHEN fm.inactive = true OR f.inactive = true THEN true ELSE false END " + AI_UNALERT_WHERE +
+           "ORDER BY fm.last_name, fm.first_name LIMIT :limit", nativeQuery = true)
+    List<Object[]> aiUnalertMembers(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+    @Query(value = "SELECT COUNT(*) " + AI_UNALERT_WHERE, nativeQuery = true)
+    long aiCountUnalertMembers(@Param("appClientId") String appClientId);
+
+    /** The family's display member: head of household first, then a non-deleted member, then the oldest row. */
+    String AI_FAMILY_PRIMARY_NAME =
+           "(SELECT TRIM(COALESCE(h.first_name, '') || ' ' || COALESCE(h.last_name, '')) FROM family_member h " +
+           " WHERE h.family_id = f.id ORDER BY CASE WHEN LOWER(h.role) IN ('head', 'head of household') THEN 0 ELSE 1 END, " +
+           " h.delete_flag, h.id LIMIT 1)";
+    String AI_FAMILY_MEMBER_COUNT =
+           "(SELECT COUNT(*) FROM family_member c WHERE c.family_id = f.id AND c.delete_flag = false)";
+
+    /** AI Search: deleted families — rows of [primaryName, memberCount]. */
+    @Query(value = "SELECT " + AI_FAMILY_PRIMARY_NAME + " AS primary_name, " + AI_FAMILY_MEMBER_COUNT +
+           " FROM family f WHERE f.app_client_id = :appClientId AND f.delete_flag = true " +
+           "ORDER BY primary_name LIMIT :limit", nativeQuery = true)
+    List<Object[]> aiDeletedFamilies(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+    @Query(value = "SELECT COUNT(*) FROM family f WHERE f.app_client_id = :appClientId AND f.delete_flag = true",
+           nativeQuery = true)
+    long aiCountDeletedFamilies(@Param("appClientId") String appClientId);
+
+    /** AI Search: inactive families that are not deleted — rows of [primaryName, memberCount]. */
+    @Query(value = "SELECT " + AI_FAMILY_PRIMARY_NAME + " AS primary_name, " + AI_FAMILY_MEMBER_COUNT +
+           " FROM family f WHERE f.app_client_id = :appClientId AND f.delete_flag = false AND f.inactive = true " +
+           "ORDER BY primary_name LIMIT :limit", nativeQuery = true)
+    List<Object[]> aiInactiveFamilies(@Param("appClientId") String appClientId, @Param("limit") int limit);
+
+    @Query(value = "SELECT COUNT(*) FROM family f WHERE f.app_client_id = :appClientId AND f.delete_flag = false AND f.inactive = true",
+           nativeQuery = true)
+    long aiCountInactiveFamilies(@Param("appClientId") String appClientId);
+
 
     /** AI Search: names of the given members, restricted to the tenant (rows of [id, first_name, last_name]). */
     @Query(value = "SELECT fm.id, fm.first_name, fm.last_name FROM family_member fm JOIN family f ON f.id = fm.family_id " +

@@ -348,6 +348,14 @@
     .member-results-table tr:last-child td { border-bottom: none; }
     .member-results-table tr:hover td { background: #fafbff; }
     .badge-deleted-m { background: #ffebee; color: #c62828; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 8px; margin-left: 4px; }
+    /* Member Search — status column + disabled (read-only) deleted rows */
+    .member-results-table .ms-status-reason { display: block; font-size: 10px; color: #999; margin-top: 2px; white-space: nowrap; }
+    .member-results-table tr.ms-row-inactive td { color: #8a6d5a; }
+    .member-results-table tr.ms-row-deleted td { background: #f6f6f7; color: #9e9e9e; cursor: not-allowed; }
+    .member-results-table tr.ms-row-deleted:hover td { background: #f6f6f7; }
+    .member-results-table tr.ms-row-deleted .ms-name { text-decoration: line-through; font-weight: 600; }
+    .member-results-table tr.ms-row-deleted .role-badge { filter: grayscale(1); opacity: .6; }
+    .member-results-table tr.ms-row-deleted .badge { opacity: 1; }
 
     /* ── Bulk Report Button ── */
     .btn-bulk-report { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #fff; background: #673147; cursor: pointer; transition: background .18s; }
@@ -467,7 +475,7 @@
               <table class="member-results-table">
                 <thead>
                   <tr>
-                    <th>Name</th><th>Role</th><th>Type</th><th>Family</th><th>Phone</th><th>Email</th>
+                    <th>Name</th><th>Role</th><th>Type</th><th>Family</th><th>Phone</th><th>Email</th><th>Status</th>
                   </tr>
                 </thead>
                 <tbody id="memberSearchResults"></tbody>
@@ -1129,34 +1137,48 @@
     if (inclContrib)  params.set('includeInContributions', 'true');
 
     wrap.classList.add('has-results');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px;">Searching…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:20px;">Searching…</td></tr>';
 
     try {
       const res  = await fetch(`/api/members?${params}`);
       const list = await res.json();
       countEl.textContent = `${list.length} result${list.length !== 1 ? 's' : ''}`;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px;">No members found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:20px;">No members found.</td></tr>';
         return;
       }
       tbody.innerHTML = list.map(m => {
         const fullName  = [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ');
         const nickPart  = m.otherName ? ` <span style="color:#888;font-weight:400;">(${escHtml(m.otherName)})</span>` : '';
         const roleClass = ROLE_CLASS[m.role] || 'role-primary';
-        const delBadge  = m.deleted ? '<span class="badge-deleted-m">Deleted</span>' : '';
-        const inactBadge = m.inactive ? '<span style="font-size:10px;color:#e65100;font-weight:600;margin-left:4px;">Inactive</span>' : '';
-        return `<tr>
-          <td><strong>${escHtml(fullName)}${nickPart}</strong>${delBadge}${inactBadge}</td>
+        const status    = memberStatusOf(m);
+        const rowClass  = status === 'Deleted' ? 'ms-row-deleted' : status === 'Inactive' ? 'ms-row-inactive' : '';
+        const badgeCls  = status === 'Deleted' ? 'badge-deleted' : status === 'Inactive' ? 'badge-inactive' : 'badge-active';
+        const reason    = m.statusReason ? `<span class="ms-status-reason">${escHtml(m.statusReason)}</span>` : '';
+        const disabled  = status === 'Deleted' ? ' aria-disabled="true" title="Deleted member — read only"' : '';
+        return `<tr class="${rowClass}"${disabled}>
+          <td><strong class="ms-name">${escHtml(fullName)}${nickPart}</strong></td>
           <td><span class="role-badge ${roleClass}">${escHtml(m.role || '')}</span></td>
           <td>${escHtml(m.memberType || '')}</td>
           <td>${escHtml(m.familyName || '')}</td>
           <td>${formatPhone(m.phone || '')}</td>
           <td>${escHtml(m.email || '') || '<span style="color:#ccc">—</span>'}</td>
+          <td><span class="badge ${badgeCls}">${escHtml(status)}</span>${reason}</td>
         </tr>`;
       }).join('');
     } catch {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#e53935;padding:20px;">Failed to search members.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#e53935;padding:20px;">Failed to search members.</td></tr>';
     }
+  }
+
+  /* Effective status of a Member Search row. The server sends `status`
+     (member OR family deleted → Deleted; member OR family inactive → Inactive);
+     the fallback keeps the page working against an older server. */
+  function memberStatusOf(m) {
+    if (m.status) return m.status;
+    if (m.deleted || m.familyDeleted) return 'Deleted';
+    if (m.inactive || m.familyInactive) return 'Inactive';
+    return 'Active';
   }
 
   function clearMemberSearch() {
