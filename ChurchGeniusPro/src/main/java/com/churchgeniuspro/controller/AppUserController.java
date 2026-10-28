@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.AppUser;
 import com.churchgeniuspro.hibernate.UserPermissions;
 import com.churchgeniuspro.model.AppUserBO;
@@ -50,6 +51,8 @@ import java.util.stream.Collectors;
  */
 @Controller
 public class AppUserController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AppUserController.class);
 
     private final AppUserService             userService;
     private final UserPermissionsRepository  permissionsRepo;
@@ -158,8 +161,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to save user: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to save user", ex);
         }
     }
 
@@ -182,8 +184,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to update user: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to update user", ex);
         }
     }
 
@@ -240,8 +241,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to link users: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to link users", ex);
         }
     }
 
@@ -260,8 +260,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to unlink user: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to unlink user", ex);
         }
     }
 
@@ -373,8 +372,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to link accounts: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to link accounts", ex);
         }
     }
 
@@ -401,8 +399,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to unlink member: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to unlink member", ex);
         }
     }
 
@@ -435,8 +432,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to update privileges: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to update privileges", ex);
         }
     }
 
@@ -453,8 +449,7 @@ public class AppUserController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to send email: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to send email", ex);
         }
     }
 
@@ -740,14 +735,15 @@ public class AppUserController {
                 + "<p style='font-size:12px;color:#888;'>This link expires in 10 minutes. "
                 + "If you did not request this, you can ignore this email.</p></div>";
 
-            // Account recovery: delivered whatever the tenant's plan says.
-            emailService.sendAccountEmail(sendToEmail, "Password Reset — " + churchName, htmlBody);
+            // Account recovery: delivered whatever the tenant's plan says. Throwing variant
+            // (audit 2026-10-28, H1) so "Reset link sent" is only said when it was.
+            emailService.sendAccountEmailOrThrow(sendToEmail, "Password Reset — " + churchName, htmlBody, null);
             String successMsg = sentToHoh
                     ? "Reset link sent to Head of Household (" + sendToEmail + ") on behalf of " + fm.getFirstName()
                     : "Reset link sent to " + sendToEmail;
             return ResponseEntity.ok(Map.of("success", true, "message", successMsg));
         } catch (Exception ex) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to send reset email: " + ex.getMessage()));
+            return ResponseEntity.status(502).body(Map.of("error", ErrorResponses.message(log, "The reset email could not be sent", ex)));
         }
     }
 

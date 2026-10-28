@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
+
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.PolicyAcceptance;
 import com.churchgeniuspro.hibernate.ServiceClient;
@@ -229,14 +231,17 @@ public class ChurchRegistrationController {
             ServiceClient sc = registrant;
             String churchName = (sc != null && sc.getChurchName() != null && !sc.getChurchName().isBlank())
                     ? sc.getChurchName() : "Church Genius Pro";
-            emailService.sendGenericEmail(
+            // throwing variant (audit 2026-10-28, H1): this catch used to be unreachable
+            emailService.sendAccountEmailOrThrow(
                     approvedEmail,
                     "Your " + churchName + " Verification Code",
-                    buildOtpEmailHtml(code, churchName));
+                    buildOtpEmailHtml(code, churchName), null);
         } catch (Exception e) {
+            verificationStore.remove(clientId, "church");
+            log.warn("Church registration OTP send failed for {}: {}", clientId, LogSafe.exception(e));
             res.put("status",  "error");
-            res.put("message", "Failed to send verification email. Please try again.");
-            return ResponseEntity.status(500).body(res);
+            res.put("message", "We could not send the verification code. Please try again in a moment.");
+            return ResponseEntity.status(502).body(res);
         }
 
         res.put("status",      "success");

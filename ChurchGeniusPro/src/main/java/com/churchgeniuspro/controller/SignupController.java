@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
+
 import com.churchgeniuspro.hibernate.AppUser;
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.ServiceClient;
@@ -42,6 +44,8 @@ import java.util.Map;
  */
 @Controller
 public class SignupController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SignupController.class);
 
     private final SignupService                 signupService;
     private final LoginRepository               loginRepository;
@@ -201,10 +205,19 @@ public class SignupController {
 
         String code = verificationStore.generateAndStore(clientId, type, email);
         String churchName = resolveChurchName(clientId, type);
-        emailService.sendGenericEmail(
-                email,
-                "Your " + churchName + " Verification Code",
-                buildOtpEmailHtml(code, churchName));
+        try {
+            // throwing variant (audit 2026-10-28, H1): never answer "sent" for a failed send
+            emailService.sendAccountEmailOrThrow(
+                    email,
+                    "Your " + churchName + " Verification Code",
+                    buildOtpEmailHtml(code, churchName), null);
+        } catch (Exception e) {
+            verificationStore.remove(clientId, type);
+            log.warn("Signup OTP send failed for {}: {}", clientId, LogSafe.exception(e));
+            res.put("status",  "error");
+            res.put("message", "We could not send the verification code. Please try again in a moment.");
+            return ResponseEntity.status(502).body(res);
+        }
 
         res.put("status",      "success");
         res.put("message",     "Verification code sent.");

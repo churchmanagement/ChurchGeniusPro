@@ -109,6 +109,40 @@ public class StripeSettingsController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    /**
+     * Owner-only probe of the church's Stripe secret key (audit 2026-10-28, H5): until now a
+     * mistyped key was first discovered by a donor. Uses the key in the body when given (so it
+     * can be checked before saving), else the stored one. Never returns a key.
+     */
+    @PostMapping("/api/stripe-settings/test")
+    public ResponseEntity<?> test(@RequestBody(required = false) Map<String, Object> body,
+                                  HttpServletRequest request) {
+        String clientId = RoleGuard.clientId(request);
+        if (clientId == null) return ResponseEntity.status(401).build();
+        if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
+        String secretKey = body == null ? null : str(body.get("secretKey"));
+        if (secretKey == null || secretKey.isBlank()) {
+            secretKey = repo.findByClientId(clientId).map(StripeSettings::getSecretKey).orElse(null);
+        }
+        if (secretKey == null || secretKey.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No secret key to test."));
+        }
+        Map<String, Object> r = gateway().testConnection(secretKey);
+        if (r.containsKey("error")) {
+            return ResponseEntity.status(com.churchgeniuspro.service.ChurchStripeGateway.isTransient(r) ? 502 : 400)
+                    .body(Map.of("error", com.churchgeniuspro.service.ChurchStripeGateway.errorMessage(r)));
+        }
+        return ResponseEntity.ok(r);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ChurchStripeGateway stripeGateway;
+    public void setStripeGateway(com.churchgeniuspro.service.ChurchStripeGateway g) { this.stripeGateway = g; }
+    private com.churchgeniuspro.service.ChurchStripeGateway gateway() {
+        if (stripeGateway == null) stripeGateway = new com.churchgeniuspro.service.ChurchStripeGateway();
+        return stripeGateway;
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private static String str(Object o) {

@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.ChurchLogo;
 import com.churchgeniuspro.hibernate.KmChild;
 import com.churchgeniuspro.hibernate.ServiceClient;
@@ -34,6 +35,8 @@ import java.util.Map;
  */
 @Controller
 public class KmChildPrintController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(KmChildPrintController.class);
 
     private final KmChildFormPdfService pdfService;
     private final KmChildFormExtractor  extractor;
@@ -101,7 +104,7 @@ public class KmChildPrintController {
             String username = SessionUtil.getUsername(request);
             result = extractor.extract(file.getBytes(), file.getOriginalFilename(), file.getContentType(), clientId, username);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Could not read the file: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not read the file", e);
         }
 
         Map<String, Object> resp = new LinkedHashMap<>();

@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.service.NotifyEmailService;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +32,8 @@ import java.util.Map;
  */
 @Controller
 public class NotifyEmailController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NotifyEmailController.class);
 
     private final NotifyEmailService notifyEmailService;
 
@@ -124,8 +127,7 @@ public class NotifyEmailController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Unexpected error", e);
         }
     }
 }

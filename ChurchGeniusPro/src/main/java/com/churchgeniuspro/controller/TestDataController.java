@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.DemoDeletionAudit;
 import com.churchgeniuspro.repository.DemoDeletionAuditRepository;
 import com.churchgeniuspro.service.TestDataService;
@@ -104,7 +105,7 @@ public class TestDataController {
             log.error("TestDataController: load failed", e);
             return ResponseEntity.status(500).body(Map.of(
                     "status",  "error",
-                    "message", "Failed to load test data: " + e.getMessage()));
+                    "message", ErrorResponses.message(log, "Failed to load test data", e)));
         }
     }
 
@@ -142,7 +143,7 @@ public class TestDataController {
             log.error("TestDataController: subscription update failed for {}", clientId, e);
             return ResponseEntity.status(500).body(Map.of(
                     "status",  "error",
-                    "message", "Failed to update the demo subscription: " + e.getMessage()));
+                    "message", ErrorResponses.message(log, "Failed to update the demo subscription", e)));
         }
     }
 
@@ -238,7 +239,7 @@ public class TestDataController {
             log.error("TestDataController: clear failed for {}", clientId, e);
             return ResponseEntity.status(500).body(Map.of(
                     "status",  "error",
-                    "message", "Failed to clear test data: " + e.getMessage()));
+                    "message", ErrorResponses.message(log, "Failed to clear test data", e)));
         }
     }
 
@@ -286,7 +287,7 @@ public class TestDataController {
                 r.put("status", "skipped"); r.put("message", iae.getMessage());
             } catch (Exception e) {
                 log.error("TestDataController: trial backfill failed for {}", id, e);
-                r.put("status", "failed"); r.put("message", e.getMessage());
+                r.put("status", "failed"); r.put("message", ErrorResponses.message(log, "The request could not be completed", e));
                 failed++;
             }
             results.add(r);
@@ -354,7 +355,7 @@ public class TestDataController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
                     "status",  "error",
-                    "message", e.getMessage()));
+                    "message", ErrorResponses.message(log, "The request could not be completed", e)));
         }
     }
 
@@ -380,7 +381,7 @@ public class TestDataController {
         } catch (Exception e) {
             log.error("TestDataController: reset-password failed for {}", username, e);
             return ResponseEntity.status(500).body(Map.of(
-                    "status", "error", "message", "Failed to reset password: " + e.getMessage()));
+                    "status", "error", "message", ErrorResponses.message(log, "Failed to reset password", e)));
         }
     }
 

@@ -1,5 +1,6 @@
 package com.churchgeniuspro.payroll.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.payroll.controller.dto.AssignDeductionRequest;
 import com.churchgeniuspro.payroll.controller.dto.DeductionDefinitionRequest;
 import com.churchgeniuspro.payroll.controller.dto.EmployeeRequest;
@@ -29,6 +30,8 @@ import java.util.stream.Collectors;
  */
 @RestController
 public class PayrollSetupController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PayrollSetupController.class);
 
     private final PayrollSetupService setup;
     /** No longer used by this controller (SSN is not returned); kept so the constructor is unchanged. */
@@ -245,7 +248,7 @@ public class PayrollSetupController {
             int code = msg.toLowerCase().contains("not found") ? 404 : 400;
             return ResponseEntity.status(code).body(err(msg));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(err(e.getMessage()));
+            return ResponseEntity.status(500).body(err(ErrorResponses.message(log, "The payroll request could not be completed", e)));
         }
     }
 

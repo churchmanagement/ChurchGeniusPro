@@ -900,6 +900,41 @@ setInterval(pollMbrNotifications, 60000);
 
 /* This page does not load session.js, so it carries its own copy of the
    endpoint lookup (same contract: resolves the endpoint or null, never rejects). */
+/* ── Session expiry / access-ended handling (error-handling audit 2026-10-28, H2) ─────────
+   This page does not load session.js, so it had no answer to a 401: the first handler that
+   saw one showed "Your account is pending approval" (loadFamilyData) and the rest showed
+   "Network error" — for a member whose 30-minute session had simply expired. Same shape as
+   session.js patchFetch: a 401 on /api/* (except session/logout) returns to the login page
+   with a reason; a 403 carrying a subscription/demo/trial code explains itself. */
+(function patchFetchForMember() {
+  var _origFetch = window.fetch.bind(window);
+  var redirecting = false;
+  window.fetch = function (input, init) {
+    return _origFetch(input, init).then(function (response) {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (response.status === 401 && url.indexOf('/api/') !== -1
+          && url.indexOf('/api/session') === -1 && url.indexOf('/api/logout') === -1
+          && url.indexOf('/api/auth/logout') === -1 && !redirecting) {
+        redirecting = true;
+        try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
+        window.location.href = '/?reason=expired&next=' + encodeURIComponent('/memberHome');
+      }
+      if (response.status === 403 && url.indexOf('/api/') !== -1) {
+        response.clone().json().then(function (body) {
+          if (!body || !body.code) return;
+          if (body.code === 'SUBSCRIPTION_EXPIRED' || body.code === 'DEMO_ACCESS_ENDED' || body.code === 'TRIAL_STATUS') {
+            var wrap = document.querySelector('.page-wrap');
+            if (wrap) wrap.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#888;font-size:15px;">'
+              + (body.error || body.message || 'Access to this church\'s portal has ended.').replace(/</g, '&lt;')
+              + '<br/><br/><button onclick="doLogout()" style="padding:8px 16px;background:#673147;color:#fff;border:none;border-radius:6px;cursor:pointer;">Sign out</button></div>';
+          }
+        }).catch(function () {});
+      }
+      return response;
+    });
+  };
+})();
+
 function cgpPushEndpoint(timeoutMs) {
   return new Promise(function (resolve) {
     var done = false;
@@ -4225,7 +4260,7 @@ async function loadFamilyData() {
   try {
     var res = await fetch('/api/member/family');
     console.log('[memberHome] /api/member/family status:', res.status);
-    if (res.status === 401) { showPendingApproval(); return; }
+    if (res.status === 401) return;   // session gone — the fetch interceptor is already returning to login
     if (!res.ok) {
       var tbody = document.getElementById('familyCards');
       if (tbody) tbody.innerHTML = '<div class="empty-msg" style="padding:20px;text-align:center;">Could not load family data. <button onclick="loadFamilyData()" style="margin-left:8px;padding:4px 10px;background:#673147;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;">Retry</button></div>';
@@ -8086,4 +8121,4 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <!-- ══ VOLUNTEER PROFILE MODAL ═════════════════════════════════════════ -->
-<div class
+<div class

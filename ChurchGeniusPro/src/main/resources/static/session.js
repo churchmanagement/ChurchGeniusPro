@@ -355,9 +355,19 @@
      * Safe to call at any time (including when the server session is already
      * gone — the endpoint handles that gracefully).
      */
-    function logout() {
+    function logout(reason) {
         clearTimeout(idleTimer);
         clearTimeout(warnTimer);
+        // Error-handling audit 2026-10-28, H2: a session that expired mid-form used to land on
+        // a blank login page with no explanation. The reason and the page are carried along so
+        // login.html can say what happened and return the person to where they were.
+        var target = LOGIN_URL;
+        if (reason) {
+            try {
+                target = LOGIN_URL + '?reason=' + encodeURIComponent(reason)
+                       + '&next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            } catch (_) { target = LOGIN_URL; }
+        }
         // Signal to login.html that this is an explicit logout (skip auto-login)
         try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
         try { sessionStorage.removeItem('cgp_push_synced'); } catch (_) {}
@@ -383,10 +393,10 @@
             .catch(function () { /* ignore network errors on logout */ })
             .finally(function () {
                 localStorage.clear();
-                window.location.href = LOGIN_URL;
+                window.location.href = target;
             });
     }
-    window.logout = logout;   // expose globally so inline onclick="logout()" works
+    window.logout = function () { logout(); };   // exposed for inline onclick="logout()" — explicit, no reason
 
     /**
      * Resolves this browser's push endpoint (or null) within `timeoutMs`.
@@ -820,7 +830,7 @@
         }, IDLE_WARN_MS);
 
         idleTimer = setTimeout(function () {
-            logout();
+            logout('idle');
         }, IDLE_TIMEOUT_MS);
     }
 
@@ -858,7 +868,7 @@
                 if (response.status === 401 && url.indexOf('/api/') !== -1 &&
                         url.indexOf('/api/session') === -1 &&
                         url.indexOf('/api/logout')  === -1) {
-                    logout();
+                    logout('expired');
                 }
                 // The server can also end access mid-session: a subscription that
                 // lapses, or a demo login a Service Admin blocks. Without this the

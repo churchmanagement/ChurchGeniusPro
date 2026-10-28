@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.common.ImportRunStatus;
 import com.churchgeniuspro.hibernate.ImportAudit;
 import com.churchgeniuspro.hibernate.ImportBatch;
@@ -395,7 +396,7 @@ public class ImportEtlController {
         try {
             bytes = file.getBytes();
         } catch (Exception e) {
-            return ResponseEntity.status(400).body(err("Could not read upload: " + e.getMessage()));
+            return ResponseEntity.status(400).body(err(ErrorResponses.message(log, "Could not read upload", e)));
         }
         String fmt = SourceExtractService.detectFormat(format, name, bytes);
         String targetHint = (targetTable != null && EtlTargetSchema.isTable(targetTable)) ? targetTable : null;

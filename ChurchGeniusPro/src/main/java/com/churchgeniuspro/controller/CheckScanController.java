@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.IncomeCheckImage;
 import com.churchgeniuspro.repository.IncomeCheckImageRepository;
 import com.churchgeniuspro.repository.IncomeRepository;
@@ -30,6 +31,8 @@ import java.util.Map;
  */
 @Controller
 public class CheckScanController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CheckScanController.class);
 
     private final CheckExtractor extractor;
     private final IncomeService incomeService;
@@ -70,7 +73,7 @@ public class CheckScanController {
             bytes = file.getBytes();
             result = extractor.extract(bytes, file.getOriginalFilename(), file.getContentType());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Could not read the file: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not read the file", e);
         }
 
         // For photos, prefer the vision model (reads handwriting) when configured.
@@ -211,7 +214,7 @@ public class CheckScanController {
             imageRepo.save(img);
             return ResponseEntity.ok(Map.of("success", true, "id", img.getId()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Could not store the image: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not store the image", e);
         }
     }
 

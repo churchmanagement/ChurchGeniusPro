@@ -8,7 +8,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -22,6 +27,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 /**
@@ -40,6 +46,10 @@ import java.util.UUID;
 // advice also rewrote actuator failures into the app's generic 500 JSON, hiding their real status.
 @RestControllerAdvice(basePackages = "com.churchgeniuspro")
 public class GlobalExceptionHandler {
+
+    /** The per-file limit the 413 message quotes (was hard-coded "20 MB" while the limit was 15 MB). */
+    @Value("${spring.servlet.multipart.max-file-size:15MB}")
+    private String maxFileSize;
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
@@ -77,7 +87,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         log.warn("Upload rejected — file too large: {}", ex.getMessage());
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("error", "File is too large. Maximum allowed size is 20 MB.");
+        body.put("error", "File is too large. Maximum allowed size is " + maxFileSize + ".");
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
@@ -120,6 +130,104 @@ public class GlobalExceptionHandler {
                 request.getMethod(), requestPath(request), request.getHeader("Accept"),
                 ex.getSupportedMediaTypes());
         return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+    }
+
+    // ── Client errors that used to fall into the 500 catch-all (error-handling audit 2026-10-28, H3) ──
+    //
+    // Services throw IllegalArgumentException (273 sites) with messages written for the user
+    // ("Member not found", "Amount must be positive"), and Spring raises its
+    // own exceptions for malformed JSON, a non-numeric path variable or a missing parameter. None
+    // of those is a server fault; answering 500 + an ERROR stack trace for each hid real failures
+    // in the log and told users to "contact support" for a typo. Each gets its proper status now.
+
+    /** Malformed or empty JSON body, wrong-typed field (231 endpoints take a Map body). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.info("400 unreadable body for {} {}", request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.BAD_REQUEST, "The request body could not be read. Please check the values and try again.");
+    }
+
+    /** A path variable or query parameter of the wrong type ("/api/meetings/abc"). */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        log.info("400 type mismatch on '{}' for {} {}", ex.getName(), request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.BAD_REQUEST, "Invalid value for '" + ex.getName() + "'.");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParam(MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.info("400 missing parameter '{}' for {} {}", ex.getParameterName(), request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.BAD_REQUEST, "Missing required parameter '" + ex.getParameterName() + "'.");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.info("405 {} not supported for {}", request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed.");
+    }
+
+    /** Numbers and dates parsed by hand from a Map body or a query string. */
+    @ExceptionHandler({NumberFormatException.class, java.time.format.DateTimeParseException.class})
+    public ResponseEntity<Map<String, Object>> handleBadValue(RuntimeException ex, HttpServletRequest request) {
+        log.info("400 unparsable value ({}) for {} {}", ex.getClass().getSimpleName(), request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.BAD_REQUEST, ex instanceof NumberFormatException
+                ? "A number in the request is not valid." : "A date or time in the request is not valid.");
+    }
+
+    /**
+     * Validation and lookup failures thrown by the services with a user-facing message.
+     * "… not found" (93 of the 273 throw sites) answers 404, everything else 400. A message
+     * is passed through only when it looks authored (short, no stack-trace shapes).
+     * IllegalStateException is deliberately NOT mapped: services use it for configuration and
+     * state faults that really are the server's problem.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        String msg = safeMessage(ex, "The request could not be processed.");
+        boolean notFound = msg.toLowerCase().contains("not found") || msg.toLowerCase().contains("does not exist");
+        log.info("{} {} for {} {}: {}", notFound ? 404 : 400, ex.getClass().getSimpleName(),
+                request.getMethod(), requestPath(request), com.churchgeniuspro.util.LogSafe.text(msg));
+        return clientError(notFound ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST, msg);
+    }
+
+    /** {@code Optional.orElseThrow()} / {@code EntityNotFoundException}: the row is not there (or not this tenant's). */
+    @ExceptionHandler({NoSuchElementException.class, jakarta.persistence.EntityNotFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex, HttpServletRequest request) {
+        log.info("404 {} for {} {}", ex.getClass().getSimpleName(), request.getMethod(), requestPath(request));
+        return clientError(HttpStatus.NOT_FOUND, "Not found.");
+    }
+
+    /**
+     * A unique/foreign-key violation that no race-aware catch handled: 409, never the constraint
+     * text (it carries the failing row's values). Logged with a reference like a 500.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(DataIntegrityViolationException ex, HttpServletRequest request) {
+        String ref = UUID.randomUUID().toString().substring(0, 8);
+        log.warn("409 data conflict [ref={}] for {} {} | user={} | church={} : {}", ref, request.getMethod(),
+                requestPath(request), sessionAttr(request, "username"), sessionAttr(request, "clientId"),
+                com.churchgeniuspro.util.LogSafe.exception(ex));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "This record conflicts with an existing one. Reference " + ref + ".");
+        body.put("ref", ref);
+        return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON).body(body);
+    }
+
+    private static ResponseEntity<Map<String, Object>> clientError(HttpStatus status, String message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", message);
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(body);
+    }
+
+    /** The exception's own message when it reads like one written for a user; else the fallback. */
+    public static String safeMessage(Throwable ex, String fallback) {
+        String m = ex.getMessage();
+        if (m == null || m.isBlank() || m.length() > 300) return fallback;
+        String lower = m.toLowerCase();
+        if (lower.contains("exception") || lower.contains("sql") || lower.contains("select ")
+                || lower.contains("jdbc") || lower.contains("hibernate") || m.contains("\n")
+                || m.contains("com.churchgeniuspro") || m.contains("java.")) return fallback;
+        return m;
     }
 
     /**

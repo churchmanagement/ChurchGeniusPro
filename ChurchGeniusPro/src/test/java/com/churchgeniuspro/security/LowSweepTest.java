@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -111,7 +112,7 @@ class LowSweepTest {
                     .as("the old AES shape").isEqualTo(400);
         }
 
-        @Test void codeGoesToTheInviteesAddressAndTheHandleIsSpentOnSuccess() {
+        @Test void codeGoesToTheInviteesAddressAndTheHandleIsSpentOnSuccess() throws Exception {
             AppUser u = invitee();
             when(appUserRepo.findByInviteTokenAndDeleteFlagFalse("inv-3")).thenReturn(Optional.of(u));
             when(loginRepo.existsByUsername(anyString())).thenReturn(false);
@@ -122,7 +123,7 @@ class LowSweepTest {
             SignupController c = controller();
 
             c.sendCode(Map.of("clientId", "inv-3", "username", "new.user", "password", "Str0ng!Passw0rd"), new MockHttpServletRequest());
-            verify(email).sendGenericEmail(eq("new@ours.org"), anyString(), anyString());
+            verify(email).sendAccountEmailOrThrow(eq("new@ours.org"), anyString(), anyString(), isNull());
 
             ResponseEntity<?> res = c.verifyAndSignup(Map.of("clientId", "inv-3", "username", "new.user",
                     "password", "Str0ng!Passw0rd", "code", "123456"));

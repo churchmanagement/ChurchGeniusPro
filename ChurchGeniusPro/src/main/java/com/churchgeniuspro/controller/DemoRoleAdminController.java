@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.DemoClientSettings;
 import com.churchgeniuspro.hibernate.DemoRoleAccess;
 import com.churchgeniuspro.service.DemoAccessService;
@@ -122,7 +123,7 @@ public class DemoRoleAdminController {
             return bad(e.getMessage());
         } catch (Exception e) {
             log.error("Demo role add failed for {}", clientId, e);
-            return ResponseEntity.status(500).body(Map.of("error", "Could not add the role: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not add the role", e);
         }
     }
 
@@ -147,7 +148,7 @@ public class DemoRoleAdminController {
             return bad(e.getMessage());
         } catch (Exception e) {
             log.error("Demo login reset failed for access {}", accessId, e);
-            return ResponseEntity.status(500).body(Map.of("error", "Could not reset: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not reset", e);
         }
     }
 

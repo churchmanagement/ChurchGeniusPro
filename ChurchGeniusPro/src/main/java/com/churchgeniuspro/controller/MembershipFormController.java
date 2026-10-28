@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.util.LogSafe;
 import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.AppUser;
@@ -426,7 +427,14 @@ public class MembershipFormController {
                 + "<h2 style='letter-spacing:4px;color:#673147;'>" + otp + "</h2>"
                 + "<p>This code expires in <strong>10 minutes</strong>.</p>"
                 + "<p>If you did not request this, please ignore this email.</p>";
-        emailService.sendGenericEmail(targetEmail, "Your Membership Verification Code", html);
+        try {
+            // throwing variant (audit 2026-10-28, H1): a failed send must not say "otpSent"
+            emailService.sendAccountEmailOrThrow(targetEmail, "Your Membership Verification Code", html, null);
+        } catch (Exception e) {
+            verificationStore.remove(family.getId().toString(), "member-lookup");
+            log.warn("Membership OTP send failed for family {}: {}", family.getId(), LogSafe.exception(e));
+            return ResponseEntity.status(502).body(Map.of("error", "We could not send the verification code. Please try again in a moment."));
+        }
 
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("found",       true);
@@ -473,7 +481,13 @@ public class MembershipFormController {
                 + "<p>Your new verification code for the membership form is:</p>"
                 + "<h2 style='letter-spacing:4px;color:#673147;'>" + otp + "</h2>"
                 + "<p>This code expires in <strong>10 minutes</strong>.</p>";
-        emailService.sendGenericEmail(storedEmail, "Your Membership Verification Code (Resent)", html);
+        try {
+            emailService.sendAccountEmailOrThrow(storedEmail, "Your Membership Verification Code (Resent)", html, null);
+        } catch (Exception e) {
+            verificationStore.remove(familyId.toString(), "member-lookup");
+            log.warn("Membership OTP resend failed for family {}: {}", familyId, LogSafe.exception(e));
+            return ResponseEntity.status(502).body(Map.of("error", "We could not send the verification code. Please try again in a moment."));
+        }
 
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("success", true);
@@ -1628,7 +1642,7 @@ public class MembershipFormController {
             return refused(ex);
         } catch (RuntimeException ex) {
             log.error("Membership apply failed for request {} (rolled back): {}", id, ex.toString());
-            return ResponseEntity.status(500).body(Map.of("error", "The update could not be completed; nothing was changed. " + ex.getMessage()));
+            return ErrorResponses.internal(log, "The update could not be completed; nothing was changed.", ex);
         }
     }
 
@@ -2431,7 +2445,7 @@ public class MembershipFormController {
             whatsAppSenderService.sendSmsToPhone(target, senderName + ": " + msg, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to send SMS: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Failed to send SMS", e);
         }
     }
 
@@ -2466,7 +2480,7 @@ public class MembershipFormController {
             whatsAppSenderService.sendWhatsAppToPhone(target, senderName + ": " + msg, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to send WhatsApp: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Failed to send WhatsApp", e);
         }
     }
 

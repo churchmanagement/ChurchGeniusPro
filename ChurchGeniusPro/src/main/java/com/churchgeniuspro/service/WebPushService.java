@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+
 import com.churchgeniuspro.hibernate.PushNotificationLog;
 import com.churchgeniuspro.hibernate.PushSubscription;
 import com.churchgeniuspro.repository.PushNotificationLogRepository;
@@ -354,17 +356,21 @@ public class WebPushService {
                     sub.getAuth(),
                     payload
                 );
-                pushService.send(notification);
-                log.debug("[WebPush] Sent to endpoint {}", sub.getEndpoint().substring(0, Math.min(40, sub.getEndpoint().length())));
-            } catch (Exception e) {
-                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                if (msg.contains("410") || msg.contains("Gone") || msg.contains("404")) {
-                    // Subscription expired — deactivate it
+                // Error-handling audit 2026-10-28, H6: web-push's send() RETURNS the push service's
+                // response and never throws on 404/410, so the old exception-message check for
+                // "Gone" was dead code and expired browser subscriptions were pushed to forever.
+                org.apache.http.HttpResponse resp = pushService.send(notification);
+                int sc = resp != null && resp.getStatusLine() != null ? resp.getStatusLine().getStatusCode() : 0;
+                if (sc == 404 || sc == 410) {
                     pushSubRepo.deactivateByEndpoint(sub.getEndpoint());
-                    log.info("[WebPush] Deactivated expired subscription id={}", sub.getId());
+                    log.info("[WebPush] Deactivated expired subscription id={} (HTTP {})", sub.getId(), sc);
+                } else if (sc >= 400) {
+                    log.warn("[WebPush] Push service answered HTTP {} for sub id={}", sc, sub.getId());
                 } else {
-                    log.warn("[WebPush] Failed to deliver to sub id={}: {}", sub.getId(), msg);
+                    log.debug("[WebPush] Sent to endpoint {}", sub.getEndpoint().substring(0, Math.min(40, sub.getEndpoint().length())));
                 }
+            } catch (Exception e) {
+                log.warn("[WebPush] Failed to deliver to sub id={}: {}", sub.getId(), LogSafe.exception(e));
             }
         }
     }

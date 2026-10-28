@@ -1,5 +1,6 @@
 package com.churchgeniuspro.payroll.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.payroll.controller.dto.CreateRunRequest;
 import com.churchgeniuspro.payroll.controller.dto.EarningLineRequest;
 import com.churchgeniuspro.payroll.controller.dto.ProcessEmployeeRequest;
@@ -316,7 +317,7 @@ public class PayrollAdminController {
         return ResponseEntity.status(400).body(err(msg));
     }
     private static ResponseEntity<Map<String, Object>> serverError(Exception e) {
-        return ResponseEntity.status(500).body(err(e.getMessage()));
+        return ResponseEntity.status(500).body(err(ErrorResponses.message(log, "The payroll request could not be completed", e)));
     }
     private static Map<String, Object> err(String message) {
         Map<String, Object> m = new LinkedHashMap<>();

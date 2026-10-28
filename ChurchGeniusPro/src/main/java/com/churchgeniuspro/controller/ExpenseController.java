@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.model.PageSlice;
 import com.churchgeniuspro.service.DuplicateImportException;
 import com.churchgeniuspro.service.ExpenseService;
@@ -30,6 +31,8 @@ import java.util.Map;
  */
 @Controller
 public class ExpenseController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExpenseController.class);
 
     /** Largest amount the ledger column (numeric(15,2)) can hold. */
     static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999999.99");
@@ -162,8 +165,7 @@ public class ExpenseController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Unexpected error", ex);
         }
     }
 
@@ -203,8 +205,7 @@ public class ExpenseController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Unexpected error", ex);
         }
     }
 
@@ -242,8 +243,7 @@ public class ExpenseController {
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Unexpected error: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Unexpected error", ex);
         }
     }
 

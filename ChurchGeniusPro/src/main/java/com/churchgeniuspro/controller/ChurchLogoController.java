@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.ChurchLogo;
 import com.churchgeniuspro.repository.ChurchLogoRepository;
 import com.churchgeniuspro.util.RoleGuard;
@@ -32,6 +33,8 @@ import java.util.Optional;
  */
 @Controller
 public class ChurchLogoController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChurchLogoController.class);
 
     private final ChurchLogoRepository repo;
 
@@ -100,8 +103,7 @@ public class ChurchLogoController {
                     "size",     file.getSize()
             ));
         } catch (IOException ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to store logo: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to store logo", ex);
         }
     }
 

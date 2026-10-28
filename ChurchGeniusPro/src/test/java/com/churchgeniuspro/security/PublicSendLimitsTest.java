@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -419,7 +420,7 @@ class PublicSendLimitsTest {
 
         @Test
         @DisplayName("a fourth code for one family within ten minutes is refused and not e-mailed")
-        void resendPerFamily() {
+        void resendPerFamily() throws Exception {
             VerificationCode vc = new VerificationCode();
             vc.setClientId("77"); vc.setType("member-lookup"); vc.setCode("123456"); vc.setEmail("head@example.org");
             vc.setExpiresAt(LocalDateTime.now().plusMinutes(10));
@@ -432,7 +433,7 @@ class PublicSendLimitsTest {
             ResponseEntity<Map<String, Object>> fourth = controller.resendOtp(body, from("10.0.0.9"));
             assertThat(fourth.getStatusCode().value()).isEqualTo(429);
             assertThat(fourth.getBody()).containsEntry("error", PublicSendLimiter.TARGET_MSG);
-            verify(emailService, times(3)).sendGenericEmail(eq("head@example.org"), anyString(), anyString());
+            verify(emailService, times(3)).sendAccountEmailOrThrow(eq("head@example.org"), anyString(), anyString(), isNull());
         }
     }
 
@@ -474,7 +475,7 @@ class PublicSendLimitsTest {
 
         @Test
         @DisplayName("a fourth code for one member within ten minutes is refused")
-        void sendCodePerMember() {
+        void sendCodePerMember() throws Exception {
             ResponseEntity<Map<String, Object>> found = controller.lookup(lookupBody(), from("10.0.0.1"));
             assertThat(found.getStatusCode().value()).as("%s", found.getBody()).isEqualTo(200);
             String handle = String.valueOf(found.getBody().get("memberRef"));
@@ -486,7 +487,7 @@ class PublicSendLimitsTest {
             ResponseEntity<Map<String, Object>> fourth = controller.sendCode(send, from("10.0.0.9"));
             assertThat(fourth.getStatusCode().value()).isEqualTo(429);
             assertThat(fourth.getBody()).containsEntry("status", "error").containsEntry("message", PublicSendLimiter.TARGET_MSG);
-            verify(emailService, times(3)).sendAccountEmail(eq("ada@example.org"), anyString(), anyString(), eq(OURS));
+            verify(emailService, times(3)).sendAccountEmailOrThrow(eq("ada@example.org"), anyString(), anyString(), eq(OURS));
         }
 
         @Test
@@ -516,7 +517,7 @@ class PublicSendLimitsTest {
 
         @Test
         @DisplayName("a fourth code for one church within ten minutes is refused and not e-mailed")
-        void perChurch() {
+        void perChurch() throws Exception {
             ServiceClient sc = new ServiceClient();
             sc.setClientId(OURS); sc.setEmail("pastor@church-a.org"); sc.setChurchName("Church A");
             when(scRepo.findByRegistrationTokenAndStatusAndDeleteFlagFalse("tok-reg", "Active")).thenReturn(Optional.of(sc));
@@ -533,7 +534,7 @@ class PublicSendLimitsTest {
             }
             ResponseEntity<Map<String, Object>> fourth = c.initiate(body, from("10.0.0.9"));
             assertThat(fourth.getStatusCode().value()).isEqualTo(429);
-            verify(email, times(3)).sendGenericEmail(eq("pastor@church-a.org"), anyString(), anyString());
+            verify(email, times(3)).sendAccountEmailOrThrow(eq("pastor@church-a.org"), anyString(), anyString(), isNull());
         }
     }
 
@@ -550,7 +551,7 @@ class PublicSendLimitsTest {
 
         @Test
         @DisplayName("a fourth code for one invitation within ten minutes is refused and not e-mailed")
-        void perInvitation() {
+        void perInvitation() throws Exception {
             AppUser invitee = new AppUser();
             invitee.setUserId("USR-1"); invitee.setEmail("new@ours.org"); invitee.setClientId(OURS); invitee.setInviteToken("inv-3");
             when(appUserRepo.findByInviteTokenAndDeleteFlagFalse("inv-3")).thenReturn(Optional.of(invitee));
@@ -565,7 +566,7 @@ class PublicSendLimitsTest {
                 assertThat(c.sendCode(body, from("10.0.0." + i)).getStatusCode().value()).isEqualTo(200);
             }
             assertThat(c.sendCode(body, from("10.0.0.9")).getStatusCode().value()).isEqualTo(429);
-            verify(email, times(3)).sendGenericEmail(eq("new@ours.org"), anyString(), anyString());
+            verify(email, times(3)).sendAccountEmailOrThrow(eq("new@ours.org"), anyString(), anyString(), isNull());
         }
     }
 

@@ -401,8 +401,15 @@ public class NtagService {
                 + "<p style=\"font-size:30px;font-weight:800;letter-spacing:6px;color:#673147;\">" + otp + "</p>"
                 + "<p style=\"font-size:13px;color:#777;\">This code expires in " + OTP_TTL_MIN + " minutes. "
                 + "If you did not try to log in, you can ignore this email.</p></div>";
-        try { emailService.sendOrgEmail(c.getEmail(), subject, html, c.getClientId()); }
-        catch (Exception e) { LOG.warn("[NTAG] OTP email send failed for {}: {}", c.getClientId(), e.toString()); }
+        // Account mail, throwing (audit 2026-10-28, H1/A3): as congregation mail the code was dropped
+        // for Trial/Demo tenants, unsubscribed holders and spent allowances, and a failed send was
+        // swallowed while the challenge still advanced to AWAIT_OTP — the holder waited for a code
+        // that never came. Now a failure is an NtagLoginException and the stage does not advance.
+        try { emailService.sendAccountEmailOrThrow(c.getEmail(), subject, html, c.getClientId()); }
+        catch (Exception e) {
+            LOG.warn("[NTAG] OTP email send failed for {}: {}", c.getClientId(), com.churchgeniuspro.util.LogSafe.exception(e));
+            throw new NtagLoginException("We could not email your login code. Please try again or contact your church office.");
+        }
     }
 
     private void logHist(NtagCredential c, String ip, String device, String status, String reason) {

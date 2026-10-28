@@ -370,7 +370,13 @@
         localStorage.setItem('firstName',  data.firstName  || '');
         localStorage.setItem('role',       data.role       || '');
         localStorage.setItem('churchName', data.churchName || '');
-        var go = function () { window.location.href = data.redirect || (data.church ? '/viewusers' : '/home'); };
+        var go = function () {
+          var next = null;
+          try { next = sessionStorage.getItem('cgpNextAfterLogin'); sessionStorage.removeItem('cgpNextAfterLogin'); } catch (_) {}
+          // only a staff/church sign-in returns to a staff page; member and other logins keep their own landing
+          var useNext = next && !data.redirect && !data.church;
+          window.location.href = useNext ? next : (data.redirect || (data.church ? '/viewusers' : '/home'));
+        };
         /* Mobile Phase 6: the app shell keeps the device secret in the OS secure
            store (never localStorage); the redirect waits for that write. */
         if (data.deviceToken && window.CGP_NATIVE && typeof window.CGP_NATIVE.storeDeviceToken === 'function') {
@@ -468,6 +474,19 @@
           errorMsg.style.color = '#2e7d32';
           errorMsg.textContent = 'Your account has been deleted. Thank you for using ChurchGeniusPro.';
           try { localStorage.removeItem('rememberedUsername'); } catch (_) {}
+        }
+        /* Error-handling audit 2026-10-28, H2: say WHY the person is back here, and remember
+           where they were (same-origin path only) so a successful sign-in returns them. */
+        var reason = urlParams.get('reason');
+        if (reason === 'expired' || reason === 'idle') {
+          errorMsg.style.color = '#8a6d3b';
+          errorMsg.textContent = reason === 'idle'
+            ? 'You were signed out after a period of inactivity. Please sign in again.'
+            : 'Your session has expired. Please sign in again.';
+        }
+        var nextPath = urlParams.get('next');
+        if (nextPath && /^\/[A-Za-z0-9_\-./?=&%]*$/.test(nextPath) && nextPath.indexOf('//') !== 0) {
+          try { sessionStorage.setItem('cgpNextAfterLogin', nextPath); } catch (_) {}
         }
         const cidToken  = urlParams.get('clientId');
         if (cidToken) {
@@ -879,4 +898,4 @@
   </script>
   <script src="/legal-footer.js"></script>
   </body>
-</html>
+</html>

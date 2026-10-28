@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
 import com.churchgeniuspro.service.EmailService;
@@ -29,6 +30,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/kids-ministry")
 public class KidsMinistryController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(KidsMinistryController.class);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -1362,7 +1365,7 @@ public class KidsMinistryController {
             }
             return ResponseEntity.ok(Map.of("success", true, "sent", targets.size()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ErrorResponses.internal(log, "The request could not be completed", e);
         }
             }
     }
@@ -1388,7 +1391,7 @@ public class KidsMinistryController {
             for (String phone : targets) smsService.sendForClient(smsTenant, phone, msgBody);
             return ResponseEntity.ok(Map.of("success", true, "sent", targets.size()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ErrorResponses.internal(log, "The request could not be completed", e);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.Family;
 import com.churchgeniuspro.model.FamilyBO;
 import com.churchgeniuspro.service.FamilyService;
@@ -43,6 +44,8 @@ import java.util.Map;
  */
 @Controller
 public class FamilyController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FamilyController.class);
 
     private final FamilyService familyService;
     private final com.churchgeniuspro.repository.FamilyMemberRepository familyMemberRepository;
@@ -244,8 +247,7 @@ public class FamilyController {
                     "members",     saved.getMembers().size()
             ));
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to save family: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to save family", ex);
         }
     }
 
@@ -298,8 +300,7 @@ public class FamilyController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to load family: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to load family", ex);
         }
     }
 
@@ -362,8 +363,7 @@ public class FamilyController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to update family: " + ex.getMessage()));
+            return ErrorResponses.internal(log, "Failed to update family", ex);
         }
     }
 
@@ -493,8 +493,7 @@ public class FamilyController {
             int count = familyService.bulkAction(ids, action, appClientId);
             return ResponseEntity.ok(Map.of("count", count));
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", ex.getMessage()));
+            return ErrorResponses.internal(log, "The request could not be completed", ex);
         }
     }
 

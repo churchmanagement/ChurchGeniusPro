@@ -162,7 +162,7 @@ public class MemberContributionController {
         metadata.put("sub_source_id", String.valueOf(subSourceId));
         try {
             Map<String, Object> pi = stripe.createIntent(settings.getSecretKey(), cents, "usd", metadata);
-            if (pi.containsKey("error")) return ResponseEntity.badRequest().body(Map.of("error", ChurchStripeGateway.errorMessage(pi)));
+            if (pi.containsKey("error")) return ResponseEntity.status(ChurchStripeGateway.isTransient(pi) ? 502 : 400).body(Map.of("error", ChurchStripeGateway.errorMessage(pi)));
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("clientSecret",    pi.get("client_secret"));
             out.put("paymentIntentId", pi.get("id"));
@@ -205,7 +205,7 @@ public class MemberContributionController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Could not verify payment. Please contact the church office."));
         }
-        if (pi.containsKey("error")) return ResponseEntity.badRequest().body(Map.of("error", ChurchStripeGateway.errorMessage(pi)));
+        if (pi.containsKey("error")) return ResponseEntity.status(ChurchStripeGateway.isTransient(pi) ? 502 : 400).body(Map.of("error", ChurchStripeGateway.errorMessage(pi)));
 
         // The intent must be this member's, for this church, made through this flow.
         Map<?, ?> md = pi.get("metadata") instanceof Map<?, ?> m ? m : Map.of();

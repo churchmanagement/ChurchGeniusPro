@@ -60,7 +60,12 @@ public class PlaidClient {
         return clients.computeIfAbsent(PlaidProperties.normaliseEnv(env), e -> {
             String base = props.baseUrlFor(e);
             log.info("Plaid transport initialised for env={} ({})", e, base);
-            return RestClient.builder().baseUrl(base == null ? "" : base).build();
+            // Error-handling audit 2026-10-28, H5: the default factory had no timeouts, so a Plaid
+            // stall held /exchange, /sync-now and the hourly safety-net loop indefinitely.
+            org.springframework.http.client.SimpleClientHttpRequestFactory f = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            f.setConnectTimeout(10_000);
+            f.setReadTimeout(30_000);
+            return RestClient.builder().requestFactory(f).baseUrl(base == null ? "" : base).build();
         });
     }
 

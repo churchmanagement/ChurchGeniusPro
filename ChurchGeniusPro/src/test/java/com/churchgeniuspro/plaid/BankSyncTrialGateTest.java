@@ -105,13 +105,13 @@ class BankSyncTrialGateTest {
 
     @Test
     @DisplayName("Trial is sent no code and stores none")
-    void trialSendsNoCode() {
+    void trialSendsNoCode() throws Exception {
         subscription(true);
 
         boolean sent = gate.sendCode(staffRequest(), false);
 
         assertThat(sent).isFalse();
-        verify(emailService, never()).sendAccountEmail(anyString(), anyString(), anyString(), anyString());
+        verify(emailService, never()).sendAccountEmailOrThrow(anyString(), anyString(), anyString(), anyString());
         verify(verificationRepo, never()).save(any(BankSyncVerification.class));
     }
 
@@ -140,13 +140,13 @@ class BankSyncTrialGateTest {
 
     @Test
     @DisplayName("a paid subscription still gets a code emailed and stored")
-    void paidPlanStillSendsCode() {
+    void paidPlanStillSendsCode() throws Exception {
         subscription(false);
 
         boolean sent = gate.sendCode(staffRequest(), false);
 
         assertThat(sent).isTrue();
-        verify(emailService).sendAccountEmail(
+        verify(emailService).sendAccountEmailOrThrow(
                 org.mockito.ArgumentMatchers.eq("treasurer@example.org"),
                 anyString(), anyString(), org.mockito.ArgumentMatchers.eq(TENANT));
         verify(verificationRepo).save(any(BankSyncVerification.class));

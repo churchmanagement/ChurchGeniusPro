@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.Meeting;
 import com.churchgeniuspro.model.MeetingBO;
 import com.churchgeniuspro.service.MeetingService;
@@ -44,6 +45,8 @@ import java.util.Map;
  */
 @Controller
 public class MeetingController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MeetingController.class);
 
     private final MeetingService meetingService;
     private final com.churchgeniuspro.service.MeetingOccurrenceService occurrenceService;
@@ -362,7 +365,7 @@ public class MeetingController {
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to send notifications: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Failed to send notifications", e);
         }
     }
 
@@ -395,7 +398,7 @@ public class MeetingController {
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            return ErrorResponses.internal(log, "The request could not be completed", e);
         }
     }
 
@@ -432,7 +435,7 @@ public class MeetingController {
         } catch (IllegalArgumentException e) {
             return bad(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            return ErrorResponses.internal(log, "The request could not be completed", e);
         }
     }
 

@@ -295,7 +295,9 @@ public class DonationController {
         try {
             Map<String, Object> pi = stripeCreateIntent(settings.getSecretKey(), cents, currency);
             if (pi.containsKey("error")) {
-                return ResponseEntity.badRequest().body(Map.of("error", stripeErrorMsg(pi)));
+                // 502 for an outage/timeout so the page's retry applies; 400 for a real refusal
+                return ResponseEntity.status(ChurchStripeGateway.isTransient(pi) ? 502 : 400)
+                        .body(Map.of("error", stripeErrorMsg(pi)));
             }
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("clientSecret",    pi.get("client_secret"));
@@ -371,7 +373,8 @@ public class DonationController {
         }
 
         if (pi.containsKey("error")) {
-            return ResponseEntity.badRequest().body(Map.of("error", stripeErrorMsg(pi)));
+            return ResponseEntity.status(ChurchStripeGateway.isTransient(pi) ? 502 : 400)
+                    .body(Map.of("error", stripeErrorMsg(pi)));
         }
 
         String status = str(pi.get("status"));

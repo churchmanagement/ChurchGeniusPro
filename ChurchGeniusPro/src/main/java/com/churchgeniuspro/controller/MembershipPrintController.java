@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.ChurchLogo;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.ServiceClient;
@@ -33,6 +34,8 @@ import java.util.Map;
  */
 @Controller
 public class MembershipPrintController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MembershipPrintController.class);
 
     private final MembershipFormPdfService pdfService;
     private final MembershipFormExtractor  extractor;
@@ -122,7 +125,7 @@ public class MembershipPrintController {
             bytes = file.getBytes();
             result = extractor.extract(bytes, file.getOriginalFilename(), file.getContentType());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Could not read the file: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not read the file", e);
         }
 
         // Scanned photo / image with no readable text → use the vision model when

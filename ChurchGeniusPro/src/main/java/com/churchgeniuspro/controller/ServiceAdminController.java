@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.service.LoginProtectionService;
 import com.churchgeniuspro.hibernate.BackupConfig;
 import com.churchgeniuspro.hibernate.BackupLog;
@@ -286,7 +287,7 @@ public class ServiceAdminController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -317,7 +318,7 @@ public class ServiceAdminController {
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -350,7 +351,7 @@ public class ServiceAdminController {
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -385,7 +386,7 @@ public class ServiceAdminController {
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -409,7 +410,7 @@ public class ServiceAdminController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -458,7 +459,7 @@ public class ServiceAdminController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -504,7 +505,7 @@ public class ServiceAdminController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -557,7 +558,7 @@ public class ServiceAdminController {
             response.put("message", "New registration link sent. Previous link deactivated.");
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
         }
         return ResponseEntity.ok(response);
     }
@@ -574,7 +575,7 @@ public class ServiceAdminController {
             response.put("message", "Approved.");
         } catch (Exception e) {
             response.put("status",  "error");
-            response.put("message", e.getMessage());
+            response.put("message", ErrorResponses.message(log, "The request could not be completed", e));
         }
         return ResponseEntity.ok(response);
     }
@@ -616,7 +617,7 @@ public class ServiceAdminController {
             resp.put("retentionMonths", saved.getRetentionMonths());
         } catch (Exception e) {
             resp.put("status",  "error");
-            resp.put("message", e.getMessage());
+            resp.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(resp);
         }
         return ResponseEntity.ok(resp);
@@ -636,7 +637,7 @@ public class ServiceAdminController {
             resp.put("message", log.getMessage());
         } catch (Exception e) {
             resp.put("status",  "error");
-            resp.put("message", e.getMessage());
+            resp.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(resp);
         }
         return ResponseEntity.ok(resp);
@@ -682,7 +683,7 @@ public class ServiceAdminController {
             return ResponseEntity.status(400).body(resp);
         } catch (Exception e) {
             resp.put("status",  "error");
-            resp.put("message", e.getMessage());
+            resp.put("message", ErrorResponses.message(log, "The request could not be completed", e));
             return ResponseEntity.status(500).body(resp);
         }
         return ResponseEntity.ok(resp);

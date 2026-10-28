@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.service.EmailService;
 import com.churchgeniuspro.service.SmsService;
 import com.churchgeniuspro.util.PhoneNumbers;
@@ -240,9 +241,8 @@ public class ServiceAdminMessagingController {
         try {
             emailService.sendComposed(to, bcc, subject, html, from, body.get("fromName"));
         } catch (Exception e) {
-            log.error("ServiceAdmin email by {} failed — {}", actor(req), e.getMessage());
             return ResponseEntity.status(502).body(Map.of(
-                    "error", "The mail server rejected the message: " + e.getMessage()));
+                    "error", ErrorResponses.message(log, "The mail server rejected the message", e)));
         }
         int total = to.size() + bcc.size();
         log.info("ServiceAdmin email by {} — {} to, {} bcc, subject '{}'",

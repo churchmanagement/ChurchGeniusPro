@@ -1,5 +1,6 @@
 package com.churchgeniuspro.bankimport;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.Expense;
 import com.churchgeniuspro.hibernate.Income;
 import com.churchgeniuspro.repository.ExpenseRepository;
@@ -34,6 +35,8 @@ import java.util.Map;
  */
 @Controller
 public class BankImportController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BankImportController.class);
 
     private final BankStatementExtractor extractor;
     private final IncomeRepository incomeRepo;
@@ -126,7 +129,7 @@ public class BankImportController {
             }
             return ResponseEntity.ok(resp);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Could not read the file: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Could not read the file", e);
         }
     }
 
@@ -179,7 +182,7 @@ public class BankImportController {
             bytes = file.getBytes();
             r = extractor.extract(bytes, file.getOriginalFilename(), file.getContentType());
         }
-        catch (Exception e) { return ResponseEntity.internalServerError().body(Map.of("error", "Could not read the file: " + e.getMessage())); }
+        catch (Exception e) { return ErrorResponses.internal(log, "Could not read the file", e); }
 
         // Photos → vision model when configured (reads handwriting / screenshots);
         // otherwise the browser OCR path handles it (image-needs-ocr).

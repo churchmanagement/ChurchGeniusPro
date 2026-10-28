@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
+
 import com.churchgeniuspro.hibernate.FinalizedSection;
 import com.churchgeniuspro.hibernate.Song;
 import com.churchgeniuspro.hibernate.SongBookPublish;
@@ -253,8 +255,7 @@ public class SongBookController {
             return ResponseEntity.ok(out);
         } catch (Exception e) {
             LOG.error("Song Book /songs failed for clientId={}", c.clientId(), e);
-            return ResponseEntity.status(500).body(Map.of("error",
-                    "Song Book load failed: " + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage())));
+            return ErrorResponses.internal(LOG, "Song Book load failed", e);
         }
     }
 

@@ -164,6 +164,7 @@
 
           <div class="form-actions">
             <button class="btn-save" id="saveBtn" onclick="saveSettings()">Save Keys</button>
+            <button class="btn-save" id="testBtn" onclick="testConnection()" style="margin-left:8px;background:#555;">Test Connection</button>
           </div>
         </div>
       </div>
@@ -262,6 +263,27 @@ async function saveSettings() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save Keys';
+  }
+}
+
+/** Checks the secret key against Stripe (GET /v1/balance) — the typed key if any, else the saved one. */
+async function testConnection() {
+  const secretKey = document.getElementById('secretKey').value.trim();
+  if (!secretKey && !secretKeyIsSet) { showToast('Enter or save a Secret Key first.', true); return; }
+  const btn = document.getElementById('testBtn');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  try {
+    const res = await fetch('/api/stripe-settings/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secretKey })
+    });
+    let data = {}; try { data = await res.json(); } catch (_) {}
+    if (res.ok) showToast('Connected to Stripe (' + (data.livemode ? 'live' : 'test') + ' mode).', false);
+    else showToast(data.error || ('Stripe test failed (HTTP ' + res.status + ').'), true);
+  } catch (e) {
+    showToast('Network error. Please try again.', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Test Connection';
   }
 }
 

@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.ErrorResponses;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.PrayerNote;
 import com.churchgeniuspro.hibernate.PrayerRequest;
@@ -393,7 +394,7 @@ public class PrayerRequestController {
             mailSender.send(msg);
             return ResponseEntity.ok(Map.of("status", "sent", "count", emails.size()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to send email: " + e.getMessage()));
+            return ErrorResponses.internal(log, "Failed to send email", e);
         }
     }
 
@@ -619,10 +620,9 @@ public class PrayerRequestController {
         } catch (Exception ex) {
             // Surface DB constraint / schema errors to the UI so the operator
             // sees what went wrong instead of a bare 500.
-            log.error("addVolunteer failed for clientId={}, memberId={}", clientId, memberId, ex);
-            return ResponseEntity.status(500).body(Map.of(
-                "error",  "Could not save volunteer",
-                "detail", rootCauseMessage(ex)));
+            // The database detail stays in the log under the reference (audit 2026-10-28, H4):
+            // constraint names and failing-row values are not for the browser.
+            return ErrorResponses.internal(log, "Could not save volunteer", ex);
         }
     }
 

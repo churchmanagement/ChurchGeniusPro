@@ -512,7 +512,10 @@ class PublicSurfaceFollowupTest {
             t.addAndGet((PublicFormGuard.MIN_FORM_SECONDS + 1) * 1000L);
             assertThat(a.checkToken(token, "tok-cid")).as("own token").isNull();
             assertThat(b.checkToken(token, "tok-cid")).as("another process's key").isNotNull();
-            assertThat(a.checkToken(token.substring(0, token.length() - 2) + "AA", "tok-cid")).as("tampered signature").isNotNull();
+            // flip the last character to something it is not (a fixed "AA" suffix was a no-op ~1 run in 4,096)
+            char last = token.charAt(token.length() - 1);
+            String tampered = token.substring(0, token.length() - 1) + (last == 'A' ? 'B' : 'A');
+            assertThat(a.checkToken(tampered, "tok-cid")).as("tampered signature").isNotNull();
             assertThat(a.checkToken(token, "other-cid")).as("bound to the link").isNotNull();
             assertThat(token).doesNotContain("PFT");   // nothing legible, nothing AES under the legacy key
             assertThatThrownBy(() -> com.churchgeniuspro.util.EncryptionUtil.decrypt(token)).isInstanceOf(Exception.class);

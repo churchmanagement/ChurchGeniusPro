@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -39,8 +41,16 @@ public class ChurchStripeGateway {
         Map<String, Object> get(String url, HttpHeaders headers);
     }
 
+    /** Error-handling audit 2026-10-28, H5: the default RestTemplate had NO timeouts — a Stripe stall held the donor's request thread forever. */
+    static RestTemplate timedRestTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory f = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(10_000);
+        f.setReadTimeout(30_000);
+        return new RestTemplate(f);
+    }
+
     private Transport transport = new Transport() {
-        private final RestTemplate restTemplate = new RestTemplate();
+        private final RestTemplate restTemplate = timedRestTemplate();
         @Override public Map<String, Object> post(String url, HttpHeaders headers, MultiValueMap<String, String> params) {
             ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(params, headers), MAP_TYPE);
             return resp.getBody() != null ? resp.getBody() : Map.of();
@@ -82,9 +92,10 @@ public class ChurchStripeGateway {
         if (metadata != null) metadata.forEach((k, v) -> params.add("metadata[" + k + "]", v));
         try {
             return transport.post(STRIPE_API_BASE + "/payment_intents", headers, params);
-        } catch (HttpClientErrorException ex) {
-            // Stripe returns 4xx with a JSON error body — parse it via a fresh exchange on the error response
-            return Map.of("error", Map.of("message", ex.getStatusText()));
+        } catch (HttpStatusCodeException ex) {
+            return errorFrom(ex);
+        } catch (ResourceAccessException ex) {
+            return transientError(ex);
         }
     }
 
@@ -104,8 +115,10 @@ public class ChurchStripeGateway {
         try {
             return transport.get(STRIPE_API_BASE + "/payment_intents/" + piId
                     + "?expand[]=latest_charge&expand[]=latest_charge.balance_transaction", headers(secretKey));
-        } catch (HttpClientErrorException ex) {
-            return Map.of("error", Map.of("message", ex.getStatusText()));
+        } catch (HttpStatusCodeException ex) {
+            return errorFrom(ex);
+        } catch (ResourceAccessException ex) {
+            return transientError(ex);
         }
     }
 
@@ -125,11 +138,10 @@ public class ChurchStripeGateway {
         }
         try {
             return transport.get(STRIPE_API_BASE + "/charges/" + chargeId + "?expand[]=balance_transaction", headers(secretKey));
-        } catch (HttpClientErrorException ex) {
-            // The HTTP status is kept so the caller can tell "the key may not read
-            // charges / balance transactions" (401/403 — a restricted key) from "no such
-            // charge" (404). Stripe's own message is safe to surface; the key never is.
-            return Map.of("error", Map.of("message", ex.getStatusText(), "status", ex.getStatusCode().value()));
+        } catch (HttpStatusCodeException ex) {
+            return errorFrom(ex);
+        } catch (ResourceAccessException ex) {
+            return transientError(ex);
         }
     }
 
@@ -153,6 +165,92 @@ public class ChurchStripeGateway {
             if (msg != null) return msg.toString();
         }
         return "A payment error occurred.";
+    }
+
+    /** True when the error map came from a timeout / outage / Stripe 5xx — worth a retry, answer 502. */
+    public static boolean isTransient(Map<String, Object> pi) {
+        Object err = pi.get("error");
+        return err instanceof Map<?, ?> e && Boolean.TRUE.equals(e.get("transient"));
+    }
+
+    /** The user-facing message for a church's own Stripe setup fault (wrong/revoked key, account restricted). */
+    public static final String SETUP_MSG =
+            "Online giving is not set up correctly for this church. Please tell the church office.";
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChurchStripeGateway.class);
+
+    /**
+     * Error-handling audit 2026-10-28, H5. Stripe answers 4xx with a JSON body
+     * {@code {"error":{"type","code","message"}}}; the old code threw that away and showed the
+     * donor the HTTP reason phrase ("Unauthorized", "Bad Request"). Now: a {@code card_error}
+     * is Stripe's own sentence (authored for cardholders); a key/account/request fault is the
+     * church's problem, not the donor's, so a fixed sentence goes out and the real text goes to
+     * the log; 5xx is transient.
+     */
+    static Map<String, Object> errorFrom(HttpStatusCodeException ex) {
+        String type = null, code = null, message = null;
+        try {
+            Map<?, ?> body = new com.fasterxml.jackson.databind.ObjectMapper().readValue(ex.getResponseBodyAsString(), Map.class);
+            if (body.get("error") instanceof Map<?, ?> e) {
+                type = str(e.get("type")); code = str(e.get("code")); message = str(e.get("message"));
+            }
+        } catch (Exception ignored) { /* not JSON — fall through to the status */ }
+        int status = ex.getStatusCode().value();
+        Map<String, Object> out;
+        if (status >= 500) {
+            log.warn("Stripe {} {}: transient", status, type);
+            out = transientMap("Stripe is temporarily unavailable. Please try again in a moment.", type, code);
+        } else if ("card_error".equals(type) && message != null && !message.isBlank()) {
+            out = errorMap(message, type, code, false);
+        } else {
+            // authentication_error (bad key), invalid_request_error (account restricted, bad params),
+            // rate_limit_error, api_error — the donor cannot fix any of these.
+            log.warn("Stripe {} type={} code={}: {}", status, type, code, com.churchgeniuspro.util.LogSafe.text(message));
+            out = errorMap(SETUP_MSG, type, code, false);
+        }
+        // the HTTP status stays on the map: DonationFeeService.isPermissionError keys on 401/403
+        @SuppressWarnings("unchecked") Map<String, Object> e = (Map<String, Object>) out.get("error");
+        e.put("status", status);
+        return out;
+    }
+
+    static Map<String, Object> transientError(Exception ex) {
+        log.warn("Stripe unreachable: {}", com.churchgeniuspro.util.LogSafe.exception(ex));
+        return transientMap("Could not reach the payment service. Please try again in a moment.", "api_connection_error", null);
+    }
+
+    private static Map<String, Object> transientMap(String message, String type, String code) {
+        return errorMap(message, type, code, true);
+    }
+
+    private static Map<String, Object> errorMap(String message, String type, String code, boolean transientFlag) {
+        Map<String, Object> e = new java.util.LinkedHashMap<>();
+        e.put("message", message);
+        if (type != null) e.put("type", type);
+        if (code != null) e.put("code", code);
+        e.put("transient", transientFlag);
+        Map<String, Object> wrap = new java.util.LinkedHashMap<>();
+        wrap.put("error", e);
+        return wrap;
+    }
+
+    /**
+     * Read-only probe of a secret key — {@code GET /v1/balance} — so a church can check its keys
+     * before a donor does (audit 2026-10-28, H5). Returns {@code ok} plus {@code livemode}, or the
+     * same error map shape as the payment calls.
+     */
+    public Map<String, Object> testConnection(String secretKey) {
+        try {
+            Map<String, Object> bal = transport.get(STRIPE_API_BASE + "/balance", headers(secretKey));
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("ok", true);
+            out.put("livemode", Boolean.TRUE.equals(bal.get("livemode")));
+            return out;
+        } catch (HttpStatusCodeException ex) {
+            return errorFrom(ex);
+        } catch (ResourceAccessException ex) {
+            return transientError(ex);
+        }
     }
 
     /** Charge id and a display label such as "Visa •••• 4242", read off the expanded latest charge. */

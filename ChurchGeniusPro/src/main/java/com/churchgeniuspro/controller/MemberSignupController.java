@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
+
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.PublicScreenLink;
@@ -337,17 +339,19 @@ public class MemberSignupController {
             String churchName = emailService.getChurchName(appClientId);
             String html = buildOtpEmail(fm.getFirstName(), code, churchName);
             // Registration mail: reaches the member signing up even on a Trial plan.
-            emailService.sendAccountEmail(email,
+            // The THROWING variant (audit 2026-10-28, H1): sendAccountEmail swallows SMTP
+            // failures, so this catch was dead and the member was told "sent" with no code coming.
+            emailService.sendAccountEmailOrThrow(email,
                     "Your " + churchName + " Verification Code",
                     html,
                     appClientId);
             log.info("MemberSignup OTP sent to masked={} for memberRef={}", maskEmail(email), memberRef);
         } catch (Exception e) {
-            log.error("MemberSignup OTP send failed for memberRef={}: {}", memberRef, e.getMessage(), e);
+            log.error("MemberSignup OTP send failed for memberRef={}: {}", memberRef, LogSafe.exception(e));
             verificationStore.remove(memberRef, OTP_TYPE);
             res.put("status",  "error");
-            res.put("message", "Failed to send verification code. Please try again.");
-            return ResponseEntity.status(500).body(res);
+            res.put("message", "We could not send the verification code. Please try again in a moment.");
+            return ResponseEntity.status(502).body(res);
         }
 
         res.put("status",      "sent");

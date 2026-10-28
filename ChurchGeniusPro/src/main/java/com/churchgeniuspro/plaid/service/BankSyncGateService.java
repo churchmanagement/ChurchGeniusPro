@@ -217,9 +217,10 @@ public class BankSyncGateService {
                 + "<p>This code expires in " + CODE_TTL_MINUTES + " minutes and can be used once. "
                 + "If you did not request access to Bank Sync, you can ignore this email.</p>";
         try {
-            emailService.sendAccountEmail(user.getEmail(), "Your Bank Sync verification code", html, clientId);
+            // throwing variant (audit 2026-10-28, H1): the catch below was unreachable before
+            emailService.sendAccountEmailOrThrow(user.getEmail(), "Your Bank Sync verification code", html, clientId);
         } catch (Exception e) {
-            log.warn("Bank Sync verification email failed for user {}: {}", uid, e.getMessage());
+            log.warn("Bank Sync verification email failed for user {}: {}", uid, com.churchgeniuspro.util.LogSafe.exception(e));
             return false;
         }
         audit.record(clientId, SessionUtil.getUsername(req),
