@@ -72,4 +72,33 @@ class CsrfOriginFilterTest {
     void forwardedHeaderPresentOnGenuineRequest() throws Exception {
         assertThat(post(PROD, "churchgeniuspro.net", PROD, "churchgeniuspro.net")).isEqualTo(200);
     }
+
+    // ── Configuration audit 2026-10-28, L4: opaque origins ───────────────────
+
+    private static int postWith(String origin, String referer) throws Exception {
+        CsrfOriginFilter filter = new CsrfOriginFilter(PROD);
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/users");
+        req.setRequestURI("/api/users");
+        req.setServerName("churchgeniuspro.net");
+        if (origin != null) req.addHeader("Origin", origin);
+        if (referer != null) req.addHeader("Referer", referer);
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        filter.doFilter(req, res, chain);
+        return chain.getRequest() != null ? 200 : res.getStatus();
+    }
+
+    @Test @DisplayName("Origin: null is refused even with a same-site Referer or no Referer at all")
+    void nullOriginRefused() throws Exception {
+        assertThat(postWith("null", null)).isEqualTo(403);
+        assertThat(postWith("null", PROD + "/home")).isEqualTo(403);
+        assertThat(postWith("null", "https://evil.example/")).isEqualTo(403);
+    }
+
+    @Test @DisplayName("no Origin: a same-site Referer passes, a foreign Referer is refused, neither header = non-browser client")
+    void missingOriginFallsBackToReferer() throws Exception {
+        assertThat(postWith(null, PROD + "/home")).isEqualTo(200);
+        assertThat(postWith(null, "https://evil.example/page")).isEqualTo(403);
+        assertThat(postWith(null, null)).isEqualTo(200);
+    }
 }

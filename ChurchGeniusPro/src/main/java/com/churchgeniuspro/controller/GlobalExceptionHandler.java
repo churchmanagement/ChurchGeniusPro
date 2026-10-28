@@ -36,7 +36,9 @@ import java.util.UUID;
  * <p>Each 500 is stamped with a short reference that is both logged and returned to the
  * caller, so a user reporting "it said error a1b2c3d4" points straight at one log entry.
  */
-@RestControllerAdvice
+// Scoped to the application's own controllers (audit 2026-10-28): without basePackages this
+// advice also rewrote actuator failures into the app's generic 500 JSON, hiding their real status.
+@RestControllerAdvice(basePackages = "com.churchgeniuspro")
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);

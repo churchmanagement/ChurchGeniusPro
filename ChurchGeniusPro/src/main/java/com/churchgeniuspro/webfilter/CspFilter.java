@@ -45,6 +45,10 @@ public class CspFilter implements Filter {
             // reCAPTCHA renders its challenge in an iframe on www.google.com.
             "frame-src 'self' https://js.stripe.com https://cdn.plaid.com https://www.google.com; " +
             "worker-src 'self' blob:; " +
+            // base-uri is not covered by default-src; form-action keeps an injected <form> from
+            // posting session data off-site (shell.js only ever submits to same-origin paths).
+            "base-uri 'self'; " +
+            "form-action 'self'; " +
             "object-src 'none';";
 
     /**

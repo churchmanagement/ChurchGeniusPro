@@ -1579,10 +1579,12 @@ public class KidsMinistryController {
     /** A letter, a dash, four digits. I and O are left out — on a label they read as 1 and 0. */
     private String generateSecurityCode() {
         String letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        Random rnd = new Random();
+        java.security.SecureRandom rnd = SECURITY_CODE_RANDOM;   // audit 2026-10-28: pickup code must be unpredictable
         return String.valueOf(letters.charAt(rnd.nextInt(letters.length()))) + "-" +
                String.format("%04d", rnd.nextInt(10000));
     }
+
+    private static final java.security.SecureRandom SECURITY_CODE_RANDOM = new java.security.SecureRandom();
 
     private String str(Map<String, Object> m, String key) {
         Object v = m.get(key);

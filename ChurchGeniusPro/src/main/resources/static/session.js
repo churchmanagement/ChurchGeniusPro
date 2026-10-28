@@ -1638,10 +1638,9 @@
                     var permData = await permRes.json();
                     if (permData.permissions) {
                         var permMap = JSON.parse(permData.permissions);
-                        // _noAutoLogout defaults to true if not set (new users get no auto-logout by default)
-                        skipIdleTimer = permMap.hasOwnProperty('_noAutoLogout')
-                            ? permMap['_noAutoLogout'] === true
-                            : true;
+                        // _noAutoLogout is an explicit opt-in (2026-10-28): unset → idle timer runs,
+                        // matching NoAutoLogoutFilter's server-side default.
+                        skipIdleTimer = permMap['_noAutoLogout'] === true;
                     }
                 }
             } catch (_) { /* ignore — fall back to starting the timer */ }

@@ -67,7 +67,14 @@ public class CsrfOriginFilter implements Filter {
         }
 
         String source = req.getHeader("Origin");
-        if (source == null || source.isBlank() || "null".equals(source)) source = req.getHeader("Referer");
+        if ("null".equals(source)) {
+            // An opaque origin (sandboxed iframe, data:/file: page, redirect from a privacy-sensitive
+            // context) is a browser that would not tell us where the request came from — refuse it
+            // outright instead of falling back to Referer or treating it as a non-browser client.
+            refuse(req, res, "null");
+            return;
+        }
+        if (source == null || source.isBlank()) source = req.getHeader("Referer");
         if (source == null || source.isBlank()) {          // non-browser client
             chain.doFilter(request, response);
             return;
@@ -79,6 +86,10 @@ public class CsrfOriginFilter implements Filter {
             return;
         }
 
+        refuse(req, res, sourceHost);
+    }
+
+    private static void refuse(HttpServletRequest req, HttpServletResponse res, String sourceHost) throws IOException {
         log.warn("[CSRF] refused {} {} from origin host '{}'", req.getMethod(), req.getRequestURI(), sourceHost);
         res.setStatus(HttpServletResponse.SC_FORBIDDEN);
         res.setContentType("application/json;charset=UTF-8");

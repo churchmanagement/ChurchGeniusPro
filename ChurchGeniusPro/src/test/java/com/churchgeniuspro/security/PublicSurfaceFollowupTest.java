@@ -473,7 +473,8 @@ class PublicSurfaceFollowupTest {
         @DisplayName("application pages refuse to be framed and get nosniff / referrer / HSTS")
         void appPages() throws Exception {
             MockHttpServletResponse res = run("/viewusers", true);
-            assertThat(res.getHeader("Content-Security-Policy")).contains("frame-ancestors 'self'");
+            assertThat(res.getHeader("Content-Security-Policy")).contains("frame-ancestors 'self'")
+                    .contains("base-uri 'self'").contains("form-action 'self'");   // audit 2026-10-28, M2
             assertThat(res.getHeader("X-Frame-Options")).isEqualTo("SAMEORIGIN");
             assertThat(res.getHeader("X-Content-Type-Options")).isEqualTo("nosniff");
             assertThat(res.getHeader("Referrer-Policy")).isEqualTo("strict-origin-when-cross-origin");

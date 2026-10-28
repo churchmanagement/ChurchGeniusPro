@@ -36,13 +36,23 @@ import java.util.Optional;
  * Spring Session never expires due to inactivity.  Otherwise the default
  * 30-minute timeout is restored.
  *
+ * <p>Configuration audit 2026-10-28 (H1): "never expire" is an explicit opt-in.
+ * A staff session whose privileges JSON is missing, unparsable or has no
+ * {@code _noAutoLogout} key gets the 30-minute timeout (it used to get -1, which
+ * made every such session — and every Service Admin session — permanent, paired
+ * with a 30-day cookie). Service Admin sessions always use a fixed
+ * {@link #SERVICE_ADMIN_TIMEOUT_SECONDS} idle timeout and cannot opt out.
+ *
  * <p>Registered at order 0 (before {@link AuthFilter}) so the timeout is
  * adjusted on every request before authentication is checked.
  */
 public class NoAutoLogoutFilter implements Filter {
 
     /** 30 minutes — must match server.servlet.session.timeout in application.properties. */
-    private static final int DEFAULT_TIMEOUT_SECONDS = 30 * 60;
+    static final int DEFAULT_TIMEOUT_SECONDS = 30 * 60;
+
+    /** Service Admin console: fixed 60-minute idle timeout, no opt-out. */
+    static final int SERVICE_ADMIN_TIMEOUT_SECONDS = 60 * 60;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -67,7 +77,11 @@ public class NoAutoLogoutFilter implements Filter {
 
                 boolean noAutoLogout = false;
 
-                if ("Member".equals(role)) {
+                if ("ServiceAdmin".equals(role)) {
+                    session.setMaxInactiveInterval(SERVICE_ADMIN_TIMEOUT_SECONDS);
+                    chain.doFilter(request, response);
+                    return;
+                } else if ("Member".equals(role)) {
                     // Member sessions: read from member_preference table
                     Integer memberId = memberIdFrom(session);
                     if (memberId != null) {
@@ -107,23 +121,25 @@ public class NoAutoLogoutFilter implements Filter {
     /**
      * Returns the {@code _noAutoLogout} flag for a staff user by parsing the
      * {@code privileges} JSON string stored in the HTTP session.
-     * Defaults to {@code true} (no auto-logout) when the key is absent,
-     * matching the frontend's default in session.js.
+     * Defaults to {@code false} (auto-logout after 30 minutes) when the privileges
+     * are missing, unparsable or have no key — the same default session.js and the
+     * Permissions tab in viewUsers.html use. Only an explicit {@code true} keeps a
+     * session alive indefinitely.
      */
-    private boolean resolveStaffPreference(HttpSession session) {
+    static boolean resolveStaffPreference(HttpSession session) {
         try {
             Object privAttr = session.getAttribute("privileges");
-            if (privAttr == null) return true;  // no privileges saved → default no-auto-logout
+            if (privAttr == null) return false;
             String json = privAttr.toString().trim();
-            if (json.isEmpty() || json.equals("null")) return true;
+            if (json.isEmpty() || json.equals("null")) return false;
             Map<String, Object> perms = MAPPER.readValue(json,
                     new TypeReference<Map<String, Object>>() {});
             Object val = perms.get("_noAutoLogout");
-            if (val == null) return true;        // key absent → default no-auto-logout
+            if (val == null) return false;
             if (val instanceof Boolean b) return b;
             return Boolean.parseBoolean(val.toString());
         } catch (Exception e) {
-            return true;  // on parse error, keep session alive (safe default)
+            return false;  // unparsable privileges never grant a permanent session
         }
     }
 

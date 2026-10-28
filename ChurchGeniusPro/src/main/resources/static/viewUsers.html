@@ -1907,8 +1907,8 @@
                             document.getElementById('permNoAutoLogout')?.closest('div[style]');
     if (noAutoLogoutRow) noAutoLogoutRow.style.display = _permIsMember ? 'none' : '';
 
-    // Load the noAutoLogout flag — default true (checked) if not previously saved
-    const noAutoLogout = _permMap.hasOwnProperty('_noAutoLogout') ? _permMap['_noAutoLogout'] : true;
+    // Load the noAutoLogout flag — unchecked unless explicitly saved as true (opt-in, 2026-10-28)
+    const noAutoLogout = _permMap['_noAutoLogout'] === true;
     const noAutoLogoutChk = document.getElementById('permNoAutoLogout');
     if (noAutoLogoutChk && !_permIsMember) noAutoLogoutChk.checked = noAutoLogout;
 
@@ -2234,7 +2234,7 @@
     // For member portal users: hide the noAutoLogout row (irrelevant), skip merging it
     const noAutoLogoutChk = document.getElementById('permNoAutoLogout');
     if (!_permIsMember) {
-      _permMap['_noAutoLogout'] = noAutoLogoutChk ? noAutoLogoutChk.checked : true;
+      _permMap['_noAutoLogout'] = noAutoLogoutChk ? noAutoLogoutChk.checked : false;
     }
 
     // Legacy key names (earlier versions of this screen) are still honoured by the page
