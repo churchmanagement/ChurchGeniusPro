@@ -87,6 +87,13 @@
       background: transparent; border: 1px solid #c5a0b5; cursor: pointer; transition: background .18s, color .18s, border-color .18s;
     }
     .btn-add:hover { background: #673147; color: #fff; border-color: #673147; }
+    .page-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn-report {
+      padding: 10px 22px; border-radius: 7px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+      font-size: 14px; font-weight: 600; color: #fff; background: #673147; border: 1px solid #673147;
+      cursor: pointer; transition: background .18s;
+    }
+    .btn-report:hover { background: #4f2538; }
 
     /* ── Feedback ───────────────────────────────────────── */
     .feedback {
@@ -116,6 +123,12 @@
     .toolbar-filters { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
     .fam-filter-chk { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap; }
     .fam-filter-chk input[type="checkbox"]:not(.toggle-checkbox) { width: 15px; height: 15px; accent-color: #673147; cursor: pointer; }
+    .fam-type-filter { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; white-space: nowrap; }
+    .fam-type-filter select {
+      border: 1.5px solid #dde0ec; border-radius: 8px; padding: 6px 10px; font-size: 13px; color: #673147;
+      background: #fff; outline: none; cursor: pointer;
+    }
+    .fam-type-filter select:focus { border-color: #673147; }
     .chk-item {
       display: flex; align-items: center; gap: 7px;
       font-size: 13px; color: #555; cursor: pointer; user-select: none; white-space: nowrap;
@@ -190,6 +203,8 @@
     .badge-active   { background: #e8f5e9; color: #2e7d32; }
     .badge-inactive { background: #fff3e0; color: #e65100; }
     .badge-deleted  { background: #ffebee; color: #c62828; }
+    /* Family type (primary member's Member Type) — only shown for non-member families */
+    .badge-type { background: #ede7f6; color: #4527a0; margin-left: 4px; }
 
     /* ── Row actions ─────────────────────────────────────── */
     .actions { display: flex; gap: 6px; flex-wrap: nowrap; }
@@ -413,7 +428,10 @@
           <div class="page-title">Families</div>
           <div class="page-subtitle">Manage church family groups</div>
         </div>
-        <button class="btn-add" onclick="window.location.href='/family'">＋ Add Family</button>
+        <div class="page-header-actions">
+          <a class="btn-report" id="familyReportLink" href="/familySearchReport" title="Search, filter, print and download family and member reports">📊 Report</a>
+          <button class="btn-add" onclick="window.location.href='/family'">＋ Add Family</button>
+        </div>
       </div>
 
       <!-- Feedback -->
@@ -503,6 +521,16 @@
           <label class="fam-filter-chk toggle-row">
             <input type="checkbox" class="toggle-checkbox" id="filterUnalert" onchange="loadFamilies()" />
             <span class="toggle-label">Unalert</span>
+          </label>
+          <label class="fam-type-filter" title="Family type = the primary member's Member Type. Non-member families are those whose primary member is a Guest or Visitor.">
+            <span>Type</span>
+            <select id="filterFamilyType" onchange="loadFamilies()">
+              <option value="">All Families</option>
+              <option value="member">Member Families</option>
+              <option value="nonmember">Non-Member Families</option>
+              <option value="Guest">Guests only</option>
+              <option value="Visitor">Visitors only</option>
+            </select>
           </label>
         </div>
       </div>
@@ -638,13 +666,14 @@
     const showDeleted  = document.getElementById('filterDeleted')?.checked  || false;
     const showInactive = document.getElementById('filterInactive')?.checked || false;
     const showUnalert  = document.getElementById('filterUnalert')?.checked  || false;
+    const familyType   = document.getElementById('filterFamilyType')?.value || '';
 
     // Reset state for a fresh load
     allFamilies   = [];
     totalFamilies = 0;
     currentPage   = 0;
 
-    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, 0);
+    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, 0, familyType);
 
     /* rebuild lookup map */
     Object.keys(familyMap).forEach(k => delete familyMap[k]);
@@ -658,11 +687,12 @@
    * Fetches one page from /api/families and appends results to allFamilies.
    * Returns true if there are more pages available.
    */
-  async function fetchFamilyPage(search, showDeleted, showInactive, page) {
+  async function fetchFamilyPage(search, showDeleted, showInactive, page, familyType) {
     const params = new URLSearchParams({
       search,
       showDeleted,
       showInactive,
+      familyType: familyType || '',
       page,
       pageSize: PAGE_SIZE
     });
@@ -725,11 +755,13 @@
       const canSelect = !f.inactive && !f.deleted;
 
       /* status badge */
-      const badge = f.deleted
+      const badge = (f.deleted
         ? `<span class="badge badge-deleted">Deleted</span>`
         : f.inactive
           ? `<span class="badge badge-inactive">Inactive</span>`
-          : `<span class="badge badge-active">Active</span>`;
+          : `<span class="badge badge-active">Active</span>`)
+        /* non-member family (primary member is a Guest / Visitor) — status badge unchanged */
+        + (f.nonMember ? `<span class="badge badge-type" title="Non-member family: the primary member's Member Type is ${escHtml(f.familyType)}">${escHtml(f.familyType)}</span>` : '');
 
       return `
         <tr class="${f.deleted ? 'row-deleted' : ''}">
@@ -773,8 +805,9 @@
     const showDeleted  = document.getElementById('filterDeleted')?.checked  || false;
     const showInactive = document.getElementById('filterInactive')?.checked || false;
     const showUnalert  = document.getElementById('filterUnalert')?.checked  || false;
+    const familyType   = document.getElementById('filterFamilyType')?.value || '';
 
-    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, currentPage);
+    await fetchFamilyPage(search, showDeleted, showInactive || showUnalert, currentPage, familyType);
 
     // Update the lookup map with newly loaded families
     allFamilies.forEach(f => { familyMap[f.id] = f; });

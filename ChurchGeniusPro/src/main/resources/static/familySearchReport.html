@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#673147" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Family &amp; Member Report — Church Genius Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    /* Same global reset as the other app pages — shell.css relies on it for the sidebar / topbar buttons. */
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    .page-body { max-width: 1180px; margin: 0 auto; padding: 0 0 60px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+    .page-title  { font-size: 22px; font-weight: 700; color: #673147; }
+    .page-subtitle { font-size: 13px; color: #aaa; margin-top: 3px; }
+    .btn-back { padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; color: #673147; background: transparent; border: 1px solid #c5a0b5; text-decoration: none; white-space: nowrap; }
+    .btn-back:hover { background: #673147; color: #fff; border-color: #673147; }
+
+    /* ── Report type switch ── */
+    .type-switch { display: inline-flex; border: 1.5px solid #673147; border-radius: 9px; overflow: hidden; margin-bottom: 14px; }
+    .type-switch button { padding: 9px 20px; font-size: 14px; font-weight: 600; background: #fff; color: #673147; border: none; }
+    .type-switch button.active { background: #673147; color: #fff; }
+    .type-hint { font-size: 12.5px; color: #777; margin: 0 0 14px; }
+
+    /* ── Filters ── */
+    .filter-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 18px 22px 16px; margin-bottom: 22px; }
+    .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px 16px; }
+    .ff { display: flex; flex-direction: column; gap: 5px; }
+    .ff label { font-size: 12px; font-weight: 600; color: #673147; text-transform: uppercase; letter-spacing: .4px; }
+    .ff input, .ff select { border: 1.5px solid #dde0ec; border-radius: 8px; padding: 8px 11px; font-size: 14px; color: #333; background: #fff; outline: none; width: 100%; min-height: 40px; }
+    .ff input:focus, .ff select:focus { border-color: #673147; }
+    .ff-group { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding-top: 4px; }
+    .chk { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #555; cursor: pointer; user-select: none; }
+    .chk input { width: 16px; height: 16px; accent-color: #673147; cursor: pointer; }
+    .filter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+    .rpt-run { padding: 10px 26px; background: #673147; color: #fff; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; }
+    .rpt-run:hover { background: #4f2538; }
+    .rpt-run:disabled { opacity: .6; cursor: progress; }
+    .rpt-clear { padding: 10px 18px; background: #fff; color: #673147; font-size: 14px; font-weight: 600; border: 1.5px solid #c5a0b5; border-radius: 8px; }
+    .rpt-clear:hover { background: #f7f0f4; }
+    .filter-note { font-size: 12px; color: #999; margin-left: auto; }
+
+    /* ── Report ──  (class names deliberately avoid btn-action / btn-clear, which the shared
+       buttons.css restyles as square icon buttons on phones) */
+    .report-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); overflow: hidden; display: none; }
+    .report-card.visible { display: block; }
+    .report-title-bar { background: #673147; color: #fff; padding: 16px 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .report-title-bar h2 { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+    .report-meta { font-size: 12.5px; opacity: .88; line-height: 1.5; }
+    .report-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+    .report-actions .rpt-action { padding: 8px 14px; background: rgba(255,255,255,.12); color: #fff; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.5); border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; }
+    .report-actions .rpt-action:hover { background: rgba(255,255,255,.22); border-color: #fff; }
+    .report-actions .rpt-action:disabled { opacity: .5; cursor: not-allowed; }
+    .report-body { padding: 16px 22px 22px; }
+    .result-count { font-size: 13px; color: #777; margin-bottom: 10px; }
+
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.rt th { text-align: left; background: #f0ecef; color: #673147; font-weight: 700; padding: 9px 10px; border-bottom: 2px solid #e0d5db; white-space: nowrap; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    table.rt td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    table.rt tr:last-child td { border-bottom: none; }
+    table.rt tr.deleted td { color: #999; }
+    table.rt tr.deleted td.name { text-decoration: line-through; }
+    .muted { color: #bbb; }
+    .lock { color: #999; font-size: 12px; white-space: nowrap; }
+    .nowrap { white-space: nowrap; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-active   { background: #e8f5e9; color: #2e7d32; }
+    .badge-inactive { background: #fff3e0; color: #e65100; }
+    .badge-deleted  { background: #ffebee; color: #c62828; }
+    .badge-type     { background: #ede7f6; color: #4527a0; }
+    .badge-primary  { background: #673147; color: #fff; }
+    .status-reason  { font-size: 11px; color: #999; display: block; }
+
+    /* families layout */
+    .fam { border: 1.5px solid #e8e2e6; border-radius: 10px; margin-bottom: 14px; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+    .fam-hdr { background: #f7f2f5; padding: 11px 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; border-bottom: 1px solid #e8e2e6; }
+    .fam-name { font-size: 15px; font-weight: 700; color: #673147; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .fam-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 18px; padding: 10px 14px; font-size: 13px; background: #fff; border-bottom: 1px solid #f0f0f0; }
+    .fam-info .k { font-size: 11px; font-weight: 600; color: #673147; text-transform: uppercase; letter-spacing: .3px; display: block; }
+    .fam-info .v { color: #444; }
+    .fam .table-wrap { padding: 0; }
+    .fam table.rt th { background: #fbf9fa; }
+
+    .empty-state { text-align: center; padding: 50px 24px; color: #aaa; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+    .error-box { background: #ffebee; color: #c62828; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 14px; display: none; }
+
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #43a047; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: none; z-index: 2000; }
+    .toast.error { background: #e53935; }
+    .toast.show  { display: block; }
+
+    .print-only { display: none; }
+
+    @media (max-width: 768px) {
+      .filter-card { padding: 14px 14px 12px; }
+      .filter-grid { grid-template-columns: 1fr 1fr; }
+      .report-title-bar { padding: 14px; }
+      .report-body { padding: 12px; }
+      .type-switch { width: 100%; }
+      .type-switch button { flex: 1; }
+    }
+    @media (max-width: 480px) {
+      .filter-grid { grid-template-columns: 1fr; }
+      .filter-note { margin-left: 0; width: 100%; }
+    }
+
+    /* ── Print: only the report, no navigation or controls ── */
+    @media print {
+      @page { margin: 12mm; }
+      body { background: #fff; }
+      .sidebar, .topbar, .app-footer, .page-header, .type-switch, .type-hint, .filter-card,
+      .report-actions, .toast, .error-box, .no-print,
+      .aa-host, .ai-search-wrap, #cgpTrialNotice, #cgpDemoTrialOverlay { display: none !important; }   /* shell-injected AI search bar / notices */
+      .app, .main-area, .page-content { display: block !important; overflow: visible !important; height: auto !important; }
+      .page-content { padding: 0 !important; }
+      .page-body { max-width: 100%; padding: 0; }
+      .report-card { display: block !important; box-shadow: none; border-radius: 0; }
+      .report-title-bar { background: #fff !important; color: #000 !important; padding: 0 0 10px; border-bottom: 2px solid #673147; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .report-title-bar h2 { color: #673147; font-size: 20px; }
+      .report-meta { opacity: 1; color: #333; }
+      .report-body { padding: 10px 0 0; }
+      .table-wrap { overflow: visible; }
+      table.rt { font-size: 11.5px; }
+      table.rt th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      table.rt td, table.rt th { padding: 5px 6px; }
+      .badge { border: 1px solid #ccc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .fam { border-color: #bbb; }
+      .fam-hdr, .fam-info { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-only { display: block; font-size: 11px; color: #666; margin-top: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+
+    <main class="page-content">
+      <div class="page-body">
+
+        <div class="page-header">
+          <div>
+            <div class="page-title">Family &amp; Member Report</div>
+            <div class="page-subtitle">Search and filter your church's families and members, then print or download the results</div>
+          </div>
+          <a class="btn-back" href="/viewfamily">← Back to Families</a>
+        </div>
+
+        <!-- Report type -->
+        <div class="type-switch" role="tablist" aria-label="Report type">
+          <button type="button" id="typeMembers"  class="active" onclick="setReportType('members')"  role="tab">👤 Members</button>
+          <button type="button" id="typeFamilies" onclick="setReportType('families')" role="tab">👨‍👩‍👧 Families</button>
+        </div>
+        <p class="type-hint" id="typeHint"></p>
+
+        <!-- Filters -->
+        <form class="filter-card" id="filterForm" onsubmit="runReport(event)">
+          <div class="filter-grid">
+            <div class="ff">
+              <label for="fName" id="lblName">Name</label>
+              <input type="text" id="fName" placeholder="First, last or nickname…" maxlength="100" autocomplete="off" />
+            </div>
+            <div class="ff" data-for="members">
+              <label for="fBirthdayMonth">Birthday Month</label>
+              <select id="fBirthdayMonth"><option value="">Any month</option></select>
+            </div>
+            <div class="ff" data-for="families">
+              <label for="fAnniversaryMonth">Anniversary Month</label>
+              <select id="fAnniversaryMonth"><option value="">Any month</option></select>
+            </div>
+            <div class="ff">
+              <label for="fCity">City</label>
+              <input type="text" id="fCity" placeholder="City…" maxlength="100" autocomplete="off" />
+            </div>
+            <div class="ff">
+              <label for="fState">State</label>
+              <select id="fState"><option value="">Any state</option></select>
+            </div>
+            <div class="ff">
+              <label for="fZip">ZIP / Postal Code</label>
+              <input type="text" id="fZip" placeholder="ZIP or postal code…" maxlength="20" autocomplete="off" />
+            </div>
+            <div class="ff" data-for="members">
+              <label for="fGender">Gender</label>
+              <select id="fGender">
+                <option value="">Any</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div class="ff" data-for="members">
+              <label for="fRole">Family Role</label>
+              <select id="fRole">
+                <option value="">Any role</option>
+                <option value="Head of Household">Head of Household</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Adult">Adult</option>
+                <option value="Child">Child</option>
+              </select>
+            </div>
+            <div class="ff" data-for="members">
+              <label for="fMemberType">Member Type</label>
+              <select id="fMemberType">
+                <option value="">Any type</option>
+                <option value="Member">Member</option>
+                <option value="nonmember">Non-Members (Guests &amp; Visitors)</option>
+                <option value="Guest">Guest</option>
+                <option value="Visitor">Visitor</option>
+              </select>
+            </div>
+            <div class="ff" data-for="families">
+              <label for="fFamilyType">Family Type</label>
+              <select id="fFamilyType">
+                <option value="">All families</option>
+                <option value="member">Member families</option>
+                <option value="nonmember">Non-member families (Guests &amp; Visitors)</option>
+                <option value="Guest">Guest families</option>
+                <option value="Visitor">Visitor families</option>
+              </select>
+            </div>
+            <div class="ff-group">
+              <label class="chk"><input type="checkbox" id="fShowInactive" /> Include inactive</label>
+              <label class="chk"><input type="checkbox" id="fShowDeleted" /> Include deleted</label>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button type="submit" class="rpt-run" id="btnRun">🔍 Run Report</button>
+            <button type="button" class="rpt-clear" onclick="clearFilters()">Clear</button>
+            <span class="filter-note">Months match regardless of year. Leave every filter blank for the full directory.</span>
+          </div>
+        </form>
+
+        <div class="error-box" id="errorBox"></div>
+
+        <!-- Report -->
+        <div class="report-card" id="reportCard">
+          <div class="report-title-bar">
+            <div>
+              <h2 id="reportTitle">Report</h2>
+              <div class="report-meta" id="reportMeta"></div>
+            </div>
+            <div class="report-actions no-print">
+              <button type="button" class="rpt-action" id="btnPrint" onclick="printReport()">🖨 Print</button>
+              <button type="button" class="rpt-action" id="btnCsv" onclick="downloadCsv()">⬇ Download CSV</button>
+            </div>
+          </div>
+          <div class="report-body">
+            <div class="result-count" id="resultCount"></div>
+            <div id="reportBody"></div>
+            <div class="print-only" id="printFooter"></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+    <footer id="app-footer" class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Family & Member Report
+   Data comes only from GET /api/family-report, which is bound to the
+   signed-in church by the server; Print and Download CSV work from the
+   rows currently on screen, so they never contain anything else.
+   ═══════════════════════════════════════════════════════════════ */
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const STATES = [['1','AL – Alabama'],['2','AK – Alaska'],['3','AZ – Arizona'],['4','AR – Arkansas'],['5','CA – California'],['6','CO – Colorado'],['7','CT – Connecticut'],['8','DE – Delaware'],['9','FL – Florida'],['10','GA – Georgia'],['11','HI – Hawaii'],['12','ID – Idaho'],['13','IL – Illinois'],['14','IN – Indiana'],['15','IA – Iowa'],['16','KS – Kansas'],['17','KY – Kentucky'],['18','LA – Louisiana'],['19','ME – Maine'],['20','MD – Maryland'],['21','MA – Massachusetts'],['22','MI – Michigan'],['23','MN – Minnesota'],['24','MS – Mississippi'],['25','MO – Missouri'],['26','MT – Montana'],['27','NE – Nebraska'],['28','NV – Nevada'],['29','NH – New Hampshire'],['30','NJ – New Jersey'],['31','NM – New Mexico'],['32','NY – New York'],['33','NC – North Carolina'],['34','ND – North Dakota'],['35','OH – Ohio'],['36','OK – Oklahoma'],['37','OR – Oregon'],['38','PA – Pennsylvania'],['39','RI – Rhode Island'],['40','SC – South Carolina'],['41','SD – South Dakota'],['42','TN – Tennessee'],['43','TX – Texas'],['44','UT – Utah'],['45','VT – Vermont'],['46','VA – Virginia'],['47','WA – Washington'],['48','WV – West Virginia'],['49','WI – Wisconsin'],['50','WY – Wyoming']];
+
+let reportType = 'members';
+let current    = null;   // last server response (rows on screen)
+
+const $ = id => document.getElementById(id);
+
+/* ── Setup ── */
+(function initControls() {
+  MONTHS.forEach((m, i) => {
+    $('fBirthdayMonth').add(new Option(m, String(i + 1)));
+    $('fAnniversaryMonth').add(new Option(m, String(i + 1)));
+  });
+  STATES.forEach(([v, label]) => $('fState').add(new Option(label, v)));
+  restoreFromUrl();
+  setReportType(reportType, true);
+})();
+
+function setReportType(type, silent) {
+  reportType = type === 'families' ? 'families' : 'members';
+  $('typeMembers').classList.toggle('active',  reportType === 'members');
+  $('typeFamilies').classList.toggle('active', reportType === 'families');
+  $('typeMembers').setAttribute('aria-selected',  reportType === 'members');
+  $('typeFamilies').setAttribute('aria-selected', reportType === 'families');
+  document.querySelectorAll('.ff[data-for]').forEach(el => {
+    el.style.display = el.getAttribute('data-for') === reportType ? '' : 'none';
+  });
+  $('typeHint').textContent = reportType === 'members'
+    ? 'Members report: one row per person. City, State and ZIP use each member\'s own address.'
+    : 'Families report: one row per family (never duplicated), showing the primary member, spouse and all family members. City, State, ZIP and Family Type use the primary member; a name search matches any member of the family.';
+  $('lblName').textContent = reportType === 'members' ? 'Member Name' : 'Family / Member Name';
+  if (!silent) { current = null; $('reportCard').classList.remove('visible'); }
+}
+
+function criteria() {
+  const c = {
+    reportType,
+    name:  $('fName').value.trim(),
+    city:  $('fCity').value.trim(),
+    state: $('fState').value,
+    zip:   $('fZip').value.trim(),
+    showInactive: $('fShowInactive').checked,
+    showDeleted:  $('fShowDeleted').checked
+  };
+  if (reportType === 'members') {
+    c.birthdayMonth = $('fBirthdayMonth').value;
+    c.gender        = $('fGender').value;
+    c.role          = $('fRole').value;
+    c.memberType    = $('fMemberType').value;
+  } else {
+    c.anniversaryMonth = $('fAnniversaryMonth').value;
+    c.memberType       = $('fFamilyType').value;
+  }
+  return c;
+}
+
+function restoreFromUrl() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('reportType') === 'families') reportType = 'families';
+  const set = (id, key) => { if (q.has(key)) $(id).value = q.get(key); };
+  set('fName', 'name'); set('fCity', 'city'); set('fState', 'state'); set('fZip', 'zip');
+  set('fBirthdayMonth', 'birthdayMonth'); set('fAnniversaryMonth', 'anniversaryMonth');
+  set('fGender', 'gender'); set('fRole', 'role');
+  if (q.has('memberType')) { $('fMemberType').value = q.get('memberType'); $('fFamilyType').value = q.get('memberType'); }
+  $('fShowInactive').checked = q.get('showInactive') === 'true';
+  $('fShowDeleted').checked  = q.get('showDeleted')  === 'true';
+  if (q.get('run') === '1') setTimeout(() => runReport(), 0);
+}
+
+function clearFilters() {
+  ['fName','fCity','fZip'].forEach(id => $(id).value = '');
+  ['fState','fBirthdayMonth','fAnniversaryMonth','fGender','fRole','fMemberType','fFamilyType'].forEach(id => $(id).value = '');
+  $('fShowInactive').checked = false; $('fShowDeleted').checked = false;
+  current = null;
+  $('reportCard').classList.remove('visible');
+  $('errorBox').style.display = 'none';
+  history.replaceState(null, '', location.pathname);
+}
+
+/* ── Run ── */
+async function runReport(ev) {
+  if (ev) ev.preventDefault();
+  const c = criteria();
+  const params = new URLSearchParams();
+  Object.entries(c).forEach(([k, v]) => { if (v !== '' && v !== false && v != null) params.set(k, v); });
+  history.replaceState(null, '', location.pathname + '?' + params.toString());
+
+  const btn = $('btnRun');
+  btn.disabled = true; btn.textContent = 'Running…';
+  $('errorBox').style.display = 'none';
+  try {
+    const res = await fetch('/api/family-report?' + params.toString(), { cache: 'no-store' });
+    if (res.status === 401) { location.href = '/login.html'; return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('Server error (' + res.status + ')'));
+    current = data;
+    render(data);
+  } catch (e) {
+    current = null;
+    $('reportCard').classList.remove('visible');
+    $('errorBox').textContent = '❌ ' + (e.message || 'Could not run the report.');
+    $('errorBox').style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 Run Report';
+  }
+}
+
+/* ── Render ── */
+function render(data) {
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  $('reportTitle').textContent = data.title || 'Report';
+  $('reportMeta').innerHTML = 'Generated ' + esc(data.generatedAt || '') + '<br>Filters: ' + esc(data.filterSummary || 'All records');
+  $('resultCount').textContent = rows.length === 0 ? ''
+    : rows.length + (data.reportType === 'families' ? (rows.length === 1 ? ' family' : ' families') : (rows.length === 1 ? ' member' : ' members'));
+  $('printFooter').textContent = 'ChurchGeniusPro · ' + (data.title || '') + ' · ' + (data.generatedAt || '');
+  $('btnCsv').disabled = rows.length === 0;
+
+  if (rows.length === 0) {
+    $('reportBody').innerHTML = '<div class="empty-state"><div class="icon">🔎</div><p>No ' +
+      (data.reportType === 'families' ? 'families' : 'members') +
+      ' match the selected filters.<br><span style="font-size:12.5px">Try removing a filter, or tick “Include inactive” / “Include deleted”.</span></p></div>';
+  } else if (data.reportType === 'families') {
+    $('reportBody').innerHTML = rows.map(familyHtml).join('');
+  } else {
+    $('reportBody').innerHTML = membersTableHtml(rows, false);
+  }
+  $('reportCard').classList.add('visible');
+  $('reportCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function membersTableHtml(rows, inFamily) {
+  const head = inFamily
+    ? '<th>Name</th><th>Role</th><th>Type</th><th>Gender</th><th>Birthday</th><th>Phone</th><th>Email</th><th>Status</th>'
+    : '<th>Name</th><th>Role</th><th>Type</th><th>Gender</th><th>Birthday</th><th>Phone</th><th>Email</th><th>City</th><th>State</th><th>ZIP</th><th>Family</th><th>Status</th>';
+  const body = rows.map(m => {
+    const cls = m.status === 'Deleted' ? 'deleted' : '';
+    return '<tr class="' + cls + '">' +
+      '<td class="name">' + esc(m.name || '') + (inFamily && m.primary ? ' <span class="badge badge-primary">Primary</span>' : '') + '</td>' +
+      '<td class="nowrap">' + esc(m.role || '') + '</td>' +
+      '<td>' + typeHtml(m.memberType) + '</td>' +
+      '<td>' + valHtml(m.gender) + '</td>' +
+      '<td class="nowrap">' + valHtml(m.birthday) + '</td>' +
+      '<td class="nowrap">' + (m.phoneHidden ? lockHtml() : phoneHtml(m.phone)) + '</td>' +
+      '<td>' + (m.emailHidden ? lockHtml() : valHtml(m.email)) + '</td>' +
+      (inFamily ? '' :
+        '<td>' + (m.addressHidden ? lockHtml() : valHtml(m.city)) + '</td>' +
+        '<td>' + (m.addressHidden ? lockHtml() : valHtml(m.state)) + '</td>' +
+        '<td class="nowrap">' + (m.addressHidden ? lockHtml() : valHtml(m.zip)) + '</td>' +
+        '<td>' + valHtml(m.familyName) + '</td>') +
+      '<td>' + statusHtml(m.status, m.statusReason) + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="table-wrap"><table class="rt"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+}
+
+function familyHtml(f) {
+  const address = f.addressHidden ? lockHtml()
+    : esc([f.address1, f.address2, [f.city, f.state].filter(Boolean).join(', '), f.zip, f.country].filter(x => x && String(x).trim()).join(', ')) || '<span class="muted">—</span>';
+  return '<div class="fam">' +
+    '<div class="fam-hdr">' +
+      '<div class="fam-name">' + esc(f.familyName || '') +
+        (f.nonMember ? ' <span class="badge badge-type">' + esc(f.familyType) + '</span>' : '') +
+        ' ' + statusHtml(f.status) +
+      '</div>' +
+      '<div style="font-size:12.5px;color:#777;">' + f.memberCount + (f.memberCount === 1 ? ' member' : ' members') + '</div>' +
+    '</div>' +
+    '<div class="fam-info">' +
+      '<div><span class="k">Primary member</span><span class="v">' + esc(f.primaryName || '') + ' <span class="muted">(' + esc(f.primaryRole || '') + ')</span></span></div>' +
+      '<div><span class="k">Spouse</span><span class="v">' + valHtml(f.spouseName) + '</span></div>' +
+      '<div><span class="k">Wedding anniversary</span><span class="v">' + valHtml(f.anniversary) +
+        (f.anniversary && f.anniversaryFrom === 'spouse' ? ' <span class="muted">(from spouse)</span>' : '') + '</span></div>' +
+      '<div><span class="k">Phone</span><span class="v">' + (f.phoneHidden ? lockHtml() : phoneHtml(f.primaryPhone)) + '</span></div>' +
+      '<div><span class="k">Email</span><span class="v">' + (f.emailHidden ? lockHtml() : valHtml(f.primaryEmail)) + '</span></div>' +
+      '<div style="grid-column:1/-1"><span class="k">Address</span><span class="v">' + address + '</span></div>' +
+    '</div>' +
+    membersTableHtml(f.members || [], true) +
+  '</div>';
+}
+
+function statusHtml(status, reason) {
+  const cls = status === 'Deleted' ? 'badge-deleted' : status === 'Inactive' ? 'badge-inactive' : 'badge-active';
+  return '<span class="badge ' + cls + '">' + esc(status || 'Active') + '</span>' + (reason ? '<span class="status-reason">' + esc(reason) + '</span>' : '');
+}
+function typeHtml(t) {
+  t = t || 'Member';
+  return t === 'Member' ? esc(t) : '<span class="badge badge-type">' + esc(t) + '</span>';
+}
+function valHtml(v) { return v == null || String(v).trim() === '' ? '<span class="muted">—</span>' : esc(String(v)); }
+function lockHtml() { return '<span class="lock" title="Marked private by the member">🔒 Private</span>'; }
+function phoneHtml(p) {
+  if (!p) return '<span class="muted">—</span>';
+  return esc(formatPhone(p));
+}
+function formatPhone(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  const d10 = digits.length === 11 && digits.charAt(0) === '1' ? digits.slice(1) : digits;
+  if (d10.length === 10) return '(' + d10.slice(0, 3) + ')' + d10.slice(3, 6) + '-' + d10.slice(6);
+  return String(phone);
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Print ── */
+function printReport() {
+  if (!current) { toast('Run a report first.', true); return; }
+  window.print();
+}
+
+/* ── Download CSV (only the rows on screen) ── */
+function downloadCsv() {
+  if (!current || !Array.isArray(current.rows) || current.rows.length === 0) { toast('Nothing to download — the report is empty.', true); return; }
+  const text = v => v == null ? '' : String(v);
+  const priv = '(private)';
+  let header, lines;
+  if (current.reportType === 'families') {
+    header = ['Family','Family Type','Status','Primary Member','Primary Role','Spouse','Wedding Anniversary','Phone','Email','Address 1','Address 2','City','State','ZIP / Postal Code','Country','Member Count','Members'];
+    lines = current.rows.map(f => [
+      f.familyName, f.familyType, f.status, f.primaryName, f.primaryRole, f.spouseName, f.anniversary,
+      f.phoneHidden ? priv : formatPhoneCsv(f.primaryPhone), f.emailHidden ? priv : f.primaryEmail,
+      f.addressHidden ? priv : f.address1, f.addressHidden ? '' : f.address2, f.addressHidden ? '' : f.city,
+      f.addressHidden ? '' : f.state, f.addressHidden ? '' : f.zip, f.addressHidden ? '' : f.country,
+      f.memberCount,
+      (f.members || []).map(m => text(m.name) + ' (' + text(m.role) + (m.primary ? ', Primary' : '') + ')').join('; ')
+    ].map(text));
+  } else {
+    header = ['Last Name','First Name','Nickname','Family Role','Member Type','Gender','Birthday','Wedding Anniversary','Phone','Email','Address 1','Address 2','City','State','ZIP / Postal Code','Country','Family','Status'];
+    lines = current.rows.map(m => [
+      m.lastName, m.firstName, m.nickname, m.role, m.memberType, m.gender, m.birthday, m.anniversary,
+      m.phoneHidden ? priv : formatPhoneCsv(m.phone), m.emailHidden ? priv : m.email,
+      m.addressHidden ? priv : m.address1, m.addressHidden ? '' : m.address2, m.addressHidden ? '' : m.city,
+      m.addressHidden ? '' : m.state, m.addressHidden ? '' : m.zip, m.addressHidden ? '' : m.country,
+      m.familyName, m.status + (m.statusReason ? ' (' + m.statusReason + ')' : '')
+    ].map(text));
+  }
+  const q = v => '"' + (/^[=+\-@\t\r]/.test(v) ? "'" + v : v).replace(/"/g, '""') + '"';
+  const csv = '﻿' +
+    q(current.title || 'Report') + '\r\n' +
+    q('Generated: ' + (current.generatedAt || '')) + '\r\n' +
+    q('Filters: ' + (current.filterSummary || 'All records')) + '\r\n' +
+    q('Results: ' + current.rows.length) + '\r\n\r\n' +
+    header.map(q).join(',') + '\r\n' +
+    lines.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = csvFilename();
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function formatPhoneCsv(p) { return p ? formatPhone(p) : ''; }
+function csvFilename() {
+  const base = (current && current.title ? current.title : 'Family_Report').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_');
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  return base + '_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.csv';
+}
+
+function toast(msg, isError) {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2600);
+}
+</script>
+<script>
+window.CGP_PAGE = { activePage: 'admin/family', pageTitle: 'Family & Member Report', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

@@ -83,7 +83,8 @@ public interface FamilyRepository extends JpaRepository<Family, Integer> {
         "SELECT f.id AS familyId, f.inactive AS inactive, f.delete_flag AS deleteFlag, " +
         "       f.app_client_id AS appClientId, " +
         "       m.id AS memberId, m.first_name AS firstName, m.last_name AS lastName, " +
-        "       m.role AS role, m.inactive AS memberInactive, m.delete_flag AS memberDeleteFlag " +
+        "       m.role AS role, m.inactive AS memberInactive, m.delete_flag AS memberDeleteFlag, " +
+        "       m.member_type AS memberType " +
         "FROM family f " +
         "LEFT JOIN family_member m ON m.family_id = f.id " +
         "WHERE (:appClientId IS NULL OR f.app_client_id = :appClientId)",

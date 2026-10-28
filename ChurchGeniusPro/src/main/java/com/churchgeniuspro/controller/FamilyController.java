@@ -258,6 +258,8 @@ public class FamilyController {
      * @param search       substring match on family name (empty = no filter)
      * @param showDeleted  include soft-deleted families when {@code true}
      * @param showInactive include inactive families when {@code true}
+     * @param familyType   {@code ""} all · {@code member} · {@code nonmember} (Guest/Visitor
+     *                     primaries) · or one type such as {@code Guest} / {@code Visitor}
      * @param page         0-based page number (default 0); pass -1 to return all results
      * @param pageSize     items per page (default 25); ignored when page == -1
      * @return JSON object {@code {"items": [...], "total": N}}
@@ -268,12 +270,13 @@ public class FamilyController {
             @RequestParam(defaultValue = "")      String  search,
             @RequestParam(defaultValue = "false") boolean showDeleted,
             @RequestParam(defaultValue = "false") boolean showInactive,
+            @RequestParam(defaultValue = "")      String  familyType,
             @RequestParam(defaultValue = "0")     int     page,
             @RequestParam(defaultValue = "10")    int     pageSize,
             HttpServletRequest request) {
         String appClientId = SessionUtil.getAppClientId(request);
         return ResponseEntity.ok(
-                familyService.getFamilies(search, showDeleted, showInactive, appClientId, page, pageSize));
+                familyService.getFamilies(search, showDeleted, showInactive, familyType, appClientId, page, pageSize));
     }
 
     // ── Single-family detail ──────────────────────────────────────────────
@@ -502,7 +505,7 @@ public class FamilyController {
      * need the {@code admin.family} member permission; staff must be Admin /
      * Accountant / SuperAdmin with {@code admin.family} enabled.
      */
-    private static String familyPageGuard(HttpServletRequest request) {
+    static String familyPageGuard(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         boolean isMember = session != null
                 && "Member".equals(session.getAttribute("role"))

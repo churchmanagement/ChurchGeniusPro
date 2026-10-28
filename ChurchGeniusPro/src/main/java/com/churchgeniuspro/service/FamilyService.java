@@ -184,6 +184,61 @@ public class FamilyService {
                                            String appClientId,
                                            int page,
                                            int pageSize) {
+        return getFamilies(search, showDeleted, showInactive, FAMILY_TYPE_ALL, appClientId, page, pageSize);
+    }
+
+    /** {@code familyType} filter values accepted by {@link #getFamilies}. */
+    public static final String FAMILY_TYPE_ALL       = "";
+    public static final String FAMILY_TYPE_MEMBER    = "member";
+    public static final String FAMILY_TYPE_NONMEMBER = "nonmember";
+
+    /**
+     * The family's classification, derived from its primary member exactly like the
+     * family name is: the primary's {@code member_type} ({@code Member} when blank).
+     * A family whose primary is a {@code Guest} or {@code Visitor} is a non-member
+     * family. Independent of the inactive / deleted flags.
+     */
+    public static String familyTypeOf(String primaryMemberType) {
+        String t = primaryMemberType == null ? "" : primaryMemberType.trim();
+        return t.isEmpty() ? "Member" : t;
+    }
+
+    /** True when {@code familyType} (see {@link #familyTypeOf}) is anything other than Member. */
+    public static boolean isNonMemberFamilyType(String familyType) {
+        return !"Member".equalsIgnoreCase(familyTypeOf(familyType));
+    }
+
+    /**
+     * Does a family of type {@code familyType} pass the {@code filter}?
+     * {@code ""}/null = all; {@code member} = Member families; {@code nonmember} = every
+     * non-Member type (Guest, Visitor, …); any other value = that exact type
+     * (case-insensitive), e.g. {@code Guest} or {@code Visitor}.
+     */
+    public static boolean familyTypeMatches(String familyType, String filter) {
+        String f = filter == null ? "" : filter.trim();
+        if (f.isEmpty()) return true;
+        String t = familyTypeOf(familyType);
+        if (FAMILY_TYPE_MEMBER.equalsIgnoreCase(f))    return "Member".equalsIgnoreCase(t);
+        if (FAMILY_TYPE_NONMEMBER.equalsIgnoreCase(f)) return !"Member".equalsIgnoreCase(t);
+        return t.equalsIgnoreCase(f);
+    }
+
+    /**
+     * {@link #getFamilies(String, boolean, boolean, String, int, int)} plus the
+     * {@code familyType} filter (see {@link #familyTypeMatches}). The status filter
+     * (deleted / inactive) is applied first and unchanged; the type filter narrows the
+     * result further, so a deleted Guest family is listed only under Deleted + Non-Members
+     * and a deleted Member family is never shown as a non-member family. Every row carries
+     * {@code familyType} for display.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getFamilies(String search,
+                                           boolean showDeleted,
+                                           boolean showInactive,
+                                           String familyType,
+                                           String appClientId,
+                                           int page,
+                                           int pageSize) {
         final String s = (search == null || search.isBlank()) ? "" : search.trim().toLowerCase();
 
         // ── 1. Load scalar projection (no photo_data) ─────────────────────────
@@ -241,6 +296,10 @@ public class FamilyService {
             String firstName   = primary != null ? str(primary.get("firstName"))  : "";
             String lastName    = primary != null ? str(primary.get("lastName"))    : "";
             String derivedName = (lastName == null || lastName.isBlank()) ? firstName : lastName + " Family";
+            String famType     = familyTypeOf(primary != null ? str(primary.get("memberType")) : "");
+
+            // Family type filter (Members / Non-Members / one type) — after the status filter
+            if (!familyTypeMatches(famType, familyType)) continue;
 
             // Name-based search filter
             if (!s.isEmpty()) {
@@ -259,6 +318,8 @@ public class FamilyService {
             out.put("inactive",         inactive);
             out.put("deleted",          deleted);
             out.put("memberCount",      memberCount);
+            out.put("familyType",       famType);
+            out.put("nonMember",        isNonMemberFamilyType(famType));
             out.put("primaryFirstName", firstName);
             out.put("primaryLastName",  lastName);
             // Thumbnail pre-computed at save time (photo_thumbnail column).
