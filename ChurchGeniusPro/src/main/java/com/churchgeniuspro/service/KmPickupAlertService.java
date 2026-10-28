@@ -109,6 +109,14 @@ public class KmPickupAlertService {
 
             long overdueMins = ChronoUnit.MINUTES.between(deadline, now);
             String classroom = ci.getClassroomId() != null ? classNames.getOrDefault(ci.getClassroomId(), "") : "";
+
+            // Claim BEFORE sending (audit 2026-10-28 H1/H5): one atomic UPDATE of last_alert_sent_at.
+            // 0 rows = another run/instance already alerted inside the window, or the child was
+            // checked out meanwhile. This replaces the old checkinRepo.save(ci) after the send, which
+            // merged a detached entity and overwrote pickup_token (minted below) with NULL — every
+            // link in an alert e-mail/SMS was dead by the time it arrived.
+            if (checkinRepo.claimOverdueAlert(ci.getId(), clientId, now, now.minusMinutes(reAlertMinutes)) != 1) continue;
+            ci.setLastAlertSentAt(now);
             String url = pickupUrl(clientId, ci.getId());
 
             if (setup.isEmailAlertsEnabled()) {
@@ -128,8 +136,6 @@ public class KmPickupAlertService {
                         catch (Exception e) { log.warn("pickup SMS to {} failed: {}", PhoneMask.mask(r.phone()), LogSafe.exception(e)); }
                     }
             }
-            ci.setLastAlertSentAt(now);
-            checkinRepo.save(ci);
             log.info("KM overdue pickup alert sent for child {} (checkin {}), {} min overdue",
                 ci.getChildId(), ci.getId(), overdueMins);
         }
@@ -170,8 +176,11 @@ public class KmPickupAlertService {
         KmCheckin ci = clientId == null ? null : checkinRepo.findByIdAndClientId(checkinId, clientId).orElse(null);
         if (ci == null) return baseUrl + "/kidsPickup";
         if (ci.getPickupToken() == null || ci.getPickupToken().isBlank()) {
-            ci.setPickupToken(PublicLinkResolver.newToken());
-            checkinRepo.save(ci);
+            // Column-level conditional UPDATE, never a merge of the loaded row (audit 2026-10-28, H1):
+            // a concurrent minter loses and re-reads the winner's token.
+            String token = PublicLinkResolver.newToken();
+            if (checkinRepo.setPickupTokenIfAbsent(ci.getId(), clientId, token) == 1) ci.setPickupToken(token);
+            else ci = checkinRepo.findByIdAndClientId(checkinId, clientId).orElse(ci);
         }
         return baseUrl + "/kidsPickup?t=" + URLEncoder.encode(ci.getPickupToken(), StandardCharsets.UTF_8);
     }

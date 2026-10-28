@@ -146,8 +146,9 @@ class ActiveAccountGateTest {
         @DisplayName("unread-message push: active church notified, expired church skipped")
         void unread() {
             scheduler.notifyUnreadMessages();
-            verify(pushService).logAndSendToUser(eq("m-active"), eq(ACTIVE), anyString(), anyString(), anyString(), anyString(), anyString());
-            verify(pushService, never()).logAndSendToUser(eq("m-expired"), any(), any(), any(), any(), any(), any());
+            // once-per-window variant since the 2026-10-28 audit (H4): the unread condition persists, so the send is gated on the log
+            verify(pushService).logAndSendToUserOnce(eq("m-active"), eq(ACTIVE), anyString(), anyString(), anyString(), anyString(), anyString());
+            verify(pushService, never()).logAndSendToUserOnce(eq("m-expired"), any(), any(), any(), any(), any(), any());
         }
 
         @Test
@@ -163,7 +164,7 @@ class ActiveAccountGateTest {
         void renewal() {
             activeIds.add(EXPIRED);
             scheduler.notifyUnreadMessages();
-            verify(pushService).logAndSendToUser(eq("m-expired"), eq(EXPIRED), anyString(), anyString(), anyString(), anyString(), anyString());
+            verify(pushService).logAndSendToUserOnce(eq("m-expired"), eq(EXPIRED), anyString(), anyString(), anyString(), anyString(), anyString());
         }
 
         @Test
@@ -171,7 +172,7 @@ class ActiveAccountGateTest {
         void nullClientIdResolvedFromMember() {
             when(subRepo.findByUserTypeAndActiveTrue("member")).thenReturn(List.of(sub("m-expired", null)));
             scheduler.notifyUnreadMessages();
-            verify(pushService, never()).logAndSendToUser(any(), any(), any(), any(), any(), any(), any());
+            verify(pushService, never()).logAndSendToUserOnce(any(), any(), any(), any(), any(), any(), any());
         }
     }
 

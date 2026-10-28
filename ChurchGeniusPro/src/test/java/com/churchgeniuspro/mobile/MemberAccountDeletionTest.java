@@ -84,6 +84,8 @@ class MemberAccountDeletionTest {
         assertThat(login.getActive()).isFalse();
         assertThat(login.getPassword()).isEmpty();
         assertThat(login.getUsername()).startsWith("deleted-42-").isNotEqualTo("ann");
+        // audit 2026-10-28 H2: the member ref is released so a re-registration never shares the key
+        assertThat(login.getClientId()).isEqualTo(REF + "#deleted-42").isNotEqualTo(REF);
         assertThat(login.getLinkGroup()).isNull();
         verify(rememberMe).revokeAllFor(42);
         assertThat(sub.isActive()).isFalse();

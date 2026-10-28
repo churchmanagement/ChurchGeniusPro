@@ -153,4 +153,59 @@ class DonationSaveNotPostedTest {
         verify(donationRepo, org.mockito.Mockito.never()).save(any());
         assertThat(stripeUrls).isEmpty();
     }
+
+    // ── Data-integrity audit 2026-10-28, H3 ──────────────────────────────────
+
+    @Test
+    @DisplayName("H3: a concurrent save that loses the uq_donation_intent race answers 'already recorded', not 500")
+    void raceLoserIsAlreadyRecorded() {
+        Donation winner = new Donation(); winner.setId(9L); winner.setClientId(CLIENT_ID); winner.setStripePaymentIntentId(PI);
+        winner.setIntendedAmount(new java.math.BigDecimal("100.00"));
+        when(donationRepo.findByStripePaymentIntentId(PI)).thenReturn(Optional.empty(), Optional.of(winner));
+        when(donationRepo.save(any())).thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq_donation_intent"));
+
+        ResponseEntity<?> r = controller.saveDonation(TOKEN, Map.of("paymentIntentId", PI, "firstName", "Binny"));
+
+        assertThat(r.getStatusCode().value()).isEqualTo(200);
+        Map<?, ?> body = (Map<?, ?>) r.getBody();
+        assertThat(body.get("alreadyRecorded")).isEqualTo(true);
+        assertThat(body.get("amount")).isEqualTo(new java.math.BigDecimal("100.00"));
+        verify(subscriptionService, org.mockito.Mockito.never()).recordOnlineGiving(any());
+    }
+
+    @Test
+    @DisplayName("H3: after a redirect return the form is gone — donor name/e-mail/phone come from Stripe's billing details")
+    void billingDetailsFallback() {
+        Map<String, Object> pi = succeededIntent(true);
+        ((Map<String, Object>) pi.get("latest_charge")).put("billing_details",
+                Map.of("name", "Binny Varghese", "email", "binny@example.org", "phone", "+19135550100"));
+        stripeIntent = pi;
+
+        ResponseEntity<?> r = controller.saveDonation(TOKEN, Map.of("paymentIntentId", PI));
+        assertThat(r.getStatusCode().value()).isEqualTo(200);
+        assertThat((java.math.BigDecimal) ((Map<?, ?>) r.getBody()).get("amount")).isEqualByComparingTo("100.00");
+
+        ArgumentCaptor<Donation> saved = ArgumentCaptor.forClass(Donation.class);
+        verify(donationRepo).save(saved.capture());
+        assertThat(saved.getValue().getFirstName()).isEqualTo("Binny");
+        assertThat(saved.getValue().getLastName()).isEqualTo("Varghese");
+        assertThat(saved.getValue().getEmail()).isEqualTo("binny@example.org");
+        assertThat(saved.getValue().getPhone()).isEqualTo("+19135550100");
+    }
+
+    @Test
+    @DisplayName("H3: form fields win over billing details when both are present")
+    void formFieldsWin() {
+        Map<String, Object> pi = succeededIntent(true);
+        ((Map<String, Object>) pi.get("latest_charge")).put("billing_details", Map.of("name", "Someone Else", "email", "x@y.z"));
+        stripeIntent = pi;
+
+        controller.saveDonation(TOKEN, Map.of("paymentIntentId", PI, "firstName", "Binny", "lastName", "V", "email", "binny@example.org"));
+
+        ArgumentCaptor<Donation> saved = ArgumentCaptor.forClass(Donation.class);
+        verify(donationRepo).save(saved.capture());
+        assertThat(saved.getValue().getFirstName()).isEqualTo("Binny");
+        assertThat(saved.getValue().getLastName()).isEqualTo("V");
+        assertThat(saved.getValue().getEmail()).isEqualTo("binny@example.org");
+    }
 }

@@ -189,6 +189,22 @@ public class WebPushService {
     }
 
     /**
+     * Like {@link #logAndSendToUser} but the push is sent ONLY when the log row was written —
+     * i.e. at most once per user, tag and 23-hour window. For polling schedulers whose
+     * condition stays true until the user acts (unread messages): without this gate the
+     * 60-second poll re-pushed the same notification every minute to every device
+     * (data-integrity audit 2026-10-28, H4).
+     *
+     * @return true when a push was sent, false when the tag was already logged recently
+     */
+    public boolean logAndSendToUserOnce(String userKey, String appClientId, String userType,
+                                        String title, String body, String url, String tag) {
+        if (!writeLog(userKey, appClientId, userType, title, body, url, tag)) return false;
+        sendToUser(userKey, title, body, url, tag);
+        return true;
+    }
+
+    /**
      * Logs one row per unique user key for the given org + userType, then
      * sends the push to all their subscriptions.
      */
@@ -264,8 +280,9 @@ public class WebPushService {
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    private void writeLog(String userKey, String appClientId, String userType,
-                          String title, String body, String url, String tag) {
+    /** @return true when a row was written, false when the same tag was logged within 23 h (or on error). */
+    boolean writeLog(String userKey, String appClientId, String userType,
+                     String title, String body, String url, String tag) {
         try {
             // Dedup guard: skip if we already logged the exact same tag for this user
             // within the last 23 hours (covers daily digest re-runs, cluster restarts,
@@ -276,7 +293,7 @@ public class WebPushService {
                 long recent = logRepo.countRecentByTag(userKey, tag, cutoff);
                 if (recent > 0) {
                     log.debug("[WebPush] Skipping duplicate log entry for userKey={} tag={}", userKey, tag);
-                    return;
+                    return false;
                 }
             }
             PushNotificationLog entry = new PushNotificationLog();
@@ -289,8 +306,10 @@ public class WebPushService {
             entry.setTag(tag);
             entry.setSentAt(Instant.now());
             logRepo.save(entry);
+            return true;
         } catch (Exception e) {
             log.warn("[WebPush] Failed to write notification log: {}", e.getMessage());
+            return false;
         }
     }
 

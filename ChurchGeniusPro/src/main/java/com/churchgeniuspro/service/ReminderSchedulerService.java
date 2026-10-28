@@ -102,6 +102,12 @@ public class ReminderSchedulerService {
     private static final int TYPE_CELEBRANTS_MEMBERS       = 16;
 
     /** Scheduler-wide evaluation zone — must match the @Scheduled(zone=...) crons. */
+    /**
+     * Every "today" / "now" in this scheduler is taken in this zone (data-integrity audit
+     * 2026-10-28, M15): the crons run in America/Chicago, the church enters meeting times in
+     * local time, and on Azure the JVM default is UTC — so JVM-default clocks shifted the
+     * "hours before" windows by 5–6 h and put evening runs on the next day's sent-log key.
+     */
     private static final java.time.ZoneId SCHED_ZONE = java.time.ZoneId.of("America/Chicago");
 
     private static final org.slf4j.Logger LOGGER =
@@ -234,7 +240,7 @@ public class ReminderSchedulerService {
     public void runBirthdayReminders() {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:birthday-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SCHED_ZONE);
         int month = today.getMonthValue();
         int day   = today.getDayOfMonth();
 
@@ -318,7 +324,7 @@ public class ReminderSchedulerService {
     public void runAnniversaryReminders() {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:anniversary-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SCHED_ZONE);
         int month = today.getMonthValue();
         int day   = today.getDayOfMonth();
 
@@ -454,7 +460,7 @@ public class ReminderSchedulerService {
     public void runCelebrantsMembersReminders() {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:celebrants-members-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SCHED_ZONE);
         int month = today.getMonthValue();
         int day   = today.getDayOfMonth();
 
@@ -524,7 +530,7 @@ public class ReminderSchedulerService {
     private void runBirthdaysAndAnniversarySummary() {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:monthly-summary")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today   = LocalDate.now();
+        LocalDate today   = LocalDate.now(SCHED_ZONE);
         int       month   = today.getMonthValue();
         String    monthName = today.getMonth().getDisplayName(
                 java.time.format.TextStyle.FULL, java.util.Locale.US);
@@ -703,6 +709,11 @@ public class ReminderSchedulerService {
                             .toInstant().atZone(SCHED_ZONE).toLocalDate();
                     if (lastSent.equals(today)) continue;
                 }
+                // 3b. Claim today's digest BEFORE sending (audit 2026-10-28, H5): the stamp in
+                //     step 8 is written after the send, so two instances (or an overlapping run)
+                //     both passed the check above and both e-mailed the whole congregation. The
+                //     reminder_sent_log unique key makes exactly one caller the sender.
+                if (!markSent(clientId, "PRAYER_DIGEST", clientId, today)) continue;
 
                 // 4. Gather all active, non-deleted prayer requests for the digest.
                 List<PrayerRequest> allRequests =
@@ -938,7 +949,7 @@ public class ReminderSchedulerService {
     public void runWeeklyMeetingRemiznders() {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:weekly-meeting-reminders")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today    = LocalDate.now();                       // Monday
+        LocalDate today    = LocalDate.now(SCHED_ZONE);                       // Monday
         LocalDate weekEnd  = today.plusDays(6);                     // Sunday
 
         for (AutoReminder reminder : autoReminderRepo.findByReminderTypeIdAndDisabledFalse(TYPE_WEEKLY_MEETING_REMINDER)) {
@@ -1067,7 +1078,7 @@ public class ReminderSchedulerService {
     private void runMeetingReminders(LocalDate today) {
     	
         Set<String> activeClients = loadActiveClientIds();
-        LocalTime   now        = LocalTime.now();
+        LocalTime   now        = LocalTime.now(SCHED_ZONE);
         // Send exactly once: only when the meeting falls in the [now+2h, now+3h) window.
         // The job runs every hour at :30, so each hourly run covers a distinct 1-hour slice
         // and no meeting is matched by more than one consecutive run.
@@ -1660,7 +1671,7 @@ public class ReminderSchedulerService {
     private void sendHolidayReminder(int typeId, String subject, String heading) {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("scheduler:holiday-reminder")) {
         Set<String> activeClients = loadActiveClientIds();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SCHED_ZONE);
         for (AutoReminder reminder : autoReminderRepo.findByReminderTypeIdAndDisabledFalse(typeId)) {
             String clientId = reminder.getAppClientId();
             if (!isActiveClient(clientId, activeClients)) continue;
@@ -2991,7 +3002,7 @@ public class ReminderSchedulerService {
      */
     @Scheduled(cron = "0 0 1 * * *", zone = "America/Chicago")
     public void markOverdueFollowUps() {
-        java.util.Date today = java.sql.Date.valueOf(LocalDate.now());
+        java.util.Date today = java.sql.Date.valueOf(LocalDate.now(SCHED_ZONE));
         java.util.Date now   = new java.util.Date();
         int updated = followUpRepo.markOverdueMissed(today, now);
         if (updated > 0) {

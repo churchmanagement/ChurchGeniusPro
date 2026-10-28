@@ -2285,3 +2285,25 @@ ALTER TABLE group_member ADD COLUMN IF NOT EXISTS family_member_id INTEGER;
 -- Not yet executed in production — run only with explicit approval.
 ALTER TABLE import_file ADD COLUMN IF NOT EXISTS target_table    VARCHAR(32);
 ALTER TABLE import_file ADD COLUMN IF NOT EXISTS suggested_table VARCHAR(32);
+
+-- ── Data-integrity audit (2026-10-28) H2 — one live signup row per client-ID ──
+-- Mirrors Flyway V23. Partial unique index on signup(client_id) WHERE deleted IS NOT TRUE;
+-- skipped with a NOTICE when live duplicates exist (clean those first, then re-run).
+DO $$
+DECLARE dup_count integer;
+BEGIN
+    IF to_regclass('public.signup') IS NULL THEN
+        RAISE NOTICE 'V23: signup not created yet — index will be added on a later start';
+        RETURN;
+    END IF;
+    SELECT count(*) INTO dup_count FROM (
+        SELECT client_id FROM signup
+        WHERE deleted IS NOT TRUE AND client_id IS NOT NULL
+        GROUP BY client_id HAVING count(*) > 1) d;
+    IF dup_count > 0 THEN
+        RAISE NOTICE 'V23: % client_id value(s) have more than one live signup row — ux_signup_live_client_id NOT created', dup_count;
+        RETURN;
+    END IF;
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_signup_live_client_id
+        ON signup (client_id) WHERE deleted IS NOT TRUE AND client_id IS NOT NULL;
+END $$;

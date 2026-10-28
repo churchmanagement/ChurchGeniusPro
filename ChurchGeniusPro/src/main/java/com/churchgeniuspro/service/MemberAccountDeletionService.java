@@ -120,6 +120,10 @@ public class MemberAccountDeletionService {
         login.setActive(false);
         login.setPassword("");
         login.setUsername("deleted-" + login.getId() + "-" + hex(4));
+        // Release the member reference (audit 2026-10-28, H2): the client-ID is the login's
+        // key, and keeping it on the deleted row meant a later re-registration of the same
+        // member inserted a second row with the same key (partial unique index in V23).
+        login.setClientId(login.getClientId() + "#deleted-" + login.getId());
         login.setLinkGroup(null);
         login.setRemember(null);
         login.setUpdated(new Date());

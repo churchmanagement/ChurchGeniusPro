@@ -76,4 +76,26 @@ public interface KmCheckinRepository extends JpaRepository<KmCheckin, Long> {
     /** The open check-in behind a pickup-link token (checkout clears the token). */
     java.util.Optional<KmCheckin> findByPickupTokenAndCheckoutTimeIsNull(String pickupToken);
     java.util.Optional<KmCheckin> findByIdAndClientId(Long id, String clientId);
+
+    /**
+     * Claims this check-in for an overdue-pickup alert (data-integrity audit 2026-10-28, H1/H5).
+     * Atomic conditional UPDATE: returns 1 for exactly one caller per re-alert window, 0 for anyone
+     * else (a second instance, an overlapping run, a row alerted since it was listed). Touches only
+     * {@code last_alert_sent_at} — the previous code merged a detached entity, which rewrote every
+     * column and nulled the pickup token that had just been e-mailed.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE KmCheckin c SET c.lastAlertSentAt = :now " +
+           "WHERE c.id = :id AND c.clientId = :clientId AND c.checkoutTime IS NULL " +
+           "AND (c.lastAlertSentAt IS NULL OR c.lastAlertSentAt < :cutoff)")
+    int claimOverdueAlert(@Param("id") Long id, @Param("clientId") String clientId,
+                          @Param("now") LocalDateTime now, @Param("cutoff") LocalDateTime cutoff);
+
+    /** Mints the pickup-link token once: only the first caller writes it (audit 2026-10-28, H1). */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE KmCheckin c SET c.pickupToken = :token " +
+           "WHERE c.id = :id AND c.clientId = :clientId AND (c.pickupToken IS NULL OR c.pickupToken = '')")
+    int setPickupTokenIfAbsent(@Param("id") Long id, @Param("clientId") String clientId, @Param("token") String token);
 }

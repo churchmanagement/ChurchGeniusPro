@@ -101,7 +101,9 @@ public class PushNotificationScheduler {
             if (appClientId == null) appClientId = fm.get().getAppClientId();
             if (appClientId == null || !activeChurches.contains(appClientId)) continue;
 
-            pushService.logAndSendToUser(
+            // Once per 23 h per user (audit 2026-10-28, H4): the condition stays true until the
+            // member reads the message, so an ungated send repeated every minute on every device.
+            pushService.logAndSendToUserOnce(
                     userKey, appClientId, "member",
                     "📩 New Messages",
                     body,
@@ -124,11 +126,11 @@ public class PushNotificationScheduler {
      * <p>Uses distinct notification tags per type so OS notification centres
      * collapse duplicates correctly and users see one card per category.
      */
-    @Scheduled(cron = "0 0 7 * * *")
+    @Scheduled(cron = "0 0 7 * * *", zone = "America/Chicago")   // audit 2026-10-28, M15: was JVM zone (UTC on Azure = 2 AM Central)
     public void notifyDailyDigest() {
         if (!pushService.isEnabled()) return;
 
-        LocalDate today    = LocalDate.now();
+        LocalDate today    = LocalDate.now(java.time.ZoneId.of("America/Chicago"));   // audit 2026-10-28, M15
         LocalDate tomorrow = today.plusDays(1);
         LocalDate in7      = today.plusDays(7);
 

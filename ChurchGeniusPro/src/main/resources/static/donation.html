@@ -428,6 +428,9 @@ let givingDisabledMsg = 'Online giving is not configured for this church account
     document.getElementById('orgName').textContent     = 'Give Online';
   }
 
+  // A charged payment that still has to be recorded (redirect return / earlier failure)
+  if (await recordReturnedOrPending()) return;
+
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('donationForm').style.display  = 'block';
 
@@ -536,26 +539,26 @@ async function submitDonation() {
       resetBtn(); return;
     }
 
-    // Step 4: Save donation on server
-    const saveRes = await fetch('/api/public/donate/save?cid=' + encodeURIComponent(CID), {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        paymentIntentId: paymentIntentId,
-        firstName:       firstName,
-        lastName:        document.getElementById('lastName').value.trim()   || null,
-        email:           document.getElementById('donorEmail').value.trim() || null,
-        phone:           document.getElementById('donorPhone').value.trim() || null,
-        note:            document.getElementById('donorNote').value.trim()  || null
-      })
-    });
-    const saveData = await saveRes.json();
-    if (!saveRes.ok) {
-      // Payment succeeded but save failed — still show thank you
-      console.warn('Donation save failed:', saveData.error);
+    // Step 4: Record the donation on the server. The card is already charged at this
+    // point, so the record must not be lost to a dropped connection or a restarting
+    // server: the call is retried, remembered for the next page load, and an honest
+    // message replaces "Thank you" when it still could not be recorded.
+    const details = {
+      paymentIntentId: paymentIntentId,
+      firstName:       firstName,
+      lastName:        document.getElementById('lastName').value.trim()   || null,
+      email:           document.getElementById('donorEmail').value.trim() || null,
+      phone:           document.getElementById('donorPhone').value.trim() || null,
+      note:            document.getElementById('donorNote').value.trim()  || null
+    };
+    rememberPending(details);
+    const saved = await saveWithRetry(details);
+    if (saved.ok) {
+      forgetPending();
+      showThankyou(selectedAmount);
+    } else {
+      showRecordingProblem(paymentIntentId, saved.error);
     }
-
-    showThankyou(selectedAmount);
 
   } catch (err) {
     showFeedback('An unexpected error occurred. Please try again.');
@@ -567,6 +570,97 @@ function resetBtn() {
   const btn = document.getElementById('submitBtn');
   btn.disabled = false;
   updateSubmitLabel();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Recording a charged payment (never lose a gift the card already paid)
+═══════════════════════════════════════════════════════════════════ */
+const PENDING_KEY = 'cgp_pending_donation_' + CID;
+
+function rememberPending(details) {
+  try { sessionStorage.setItem(PENDING_KEY, JSON.stringify(details)); } catch (_) {}
+}
+function forgetPending() {
+  try { sessionStorage.removeItem(PENDING_KEY); } catch (_) {}
+}
+function readPending() {
+  try { const v = sessionStorage.getItem(PENDING_KEY); return v ? JSON.parse(v) : null; } catch (_) { return null; }
+}
+
+/** POST /save up to 4 times (0 / 1.5 / 4 / 8 s) on network errors and 5xx; 4xx is final. */
+async function saveWithRetry(details) {
+  const delays = [0, 1500, 4000, 8000];
+  let lastError = null;
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]) await new Promise(r => setTimeout(r, delays[i]));
+    try {
+      const res = await fetch('/api/public/donate/save?cid=' + encodeURIComponent(CID), {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(details)
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (res.ok) return { ok: true, data: data };
+      lastError = data.error || ('HTTP ' + res.status);
+      if (res.status < 500) return { ok: false, error: lastError };   // final answer from the server
+    } catch (err) {
+      lastError = 'network';
+    }
+  }
+  return { ok: false, error: lastError };
+}
+
+function showRecordingProblem(piId, why) {
+  console.warn('Donation save failed:', why);
+  document.getElementById('donationForm').style.display = 'none';
+  const el = document.getElementById('thankyouScreen');
+  const amt = document.getElementById('thankyouAmount');
+  if (amt) amt.textContent = '';
+  const title = el.querySelector('.thankyou-title');
+  if (title) title.textContent = 'Payment received';
+  const msg = el.querySelector('.thankyou-sub');
+  if (msg) msg.textContent = 'Your payment went through, but we could not confirm the record with the church just now. '
+    + 'It will be recorded automatically the next time this page opens; if you want to be sure, give the church this reference: ' + piId + '.';
+  el.classList.add('show');
+}
+
+/**
+ * Page load: (1) a return from a redirect-based payment method (Cash App, bank debit, …)
+ * carries ?payment_intent=…&redirect_status=…; (2) a save that failed on the previous
+ * visit is remembered in sessionStorage. Either way the PaymentIntent is recorded now —
+ * the server is idempotent on its id and reads the donor's details from Stripe when the
+ * form fields are gone.
+ */
+async function recordReturnedOrPending() {
+  const q = new URLSearchParams(window.location.search);
+  const returnedPi = q.get('payment_intent'), rs = q.get('redirect_status');
+  let details = null, fromUrl = false;
+  if (returnedPi && /^pi_[A-Za-z0-9]{1,64}$/.test(returnedPi) && rs !== 'failed') {
+    details = Object.assign({}, readPending() || {}, { paymentIntentId: returnedPi });
+    fromUrl = true;
+  } else {
+    details = readPending();
+  }
+  if (!details || !details.paymentIntentId) return false;
+  if (fromUrl) {
+    rememberPending(details);   // so a failed recording is retried on the next load too
+    try { history.replaceState(null, '', window.location.pathname + window.location.hash); } catch (_) {}
+  }
+  const saved = await saveWithRetry(details);
+  if (saved.ok) {
+    forgetPending();
+    const a = parseFloat(saved.data && saved.data.amount);
+    document.getElementById('loadingScreen').style.display = 'none';
+    showThankyou(isNaN(a) ? 0 : a);
+    return true;
+  }
+  if (fromUrl) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    showRecordingProblem(details.paymentIntentId, saved.error);
+    return true;
+  }
+  return false;   // pending from an earlier visit still not recordable — show the form
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -165,6 +165,22 @@ public class DemoReminderScheduler {
     }
 
     private boolean send(DemoRoleAccess role, DemoClientSettings cfg, int daysBefore, LocalDate end) {
+        // Claim the slot BEFORE sending (audit 2026-10-28, H5): the unique key on
+        // (role_access_id, days_before, for_end_date) makes exactly one run the sender; the
+        // delivery outcome is written onto the same row afterwards.
+        DemoReminderLog entry = new DemoReminderLog();
+        entry.setClientId(role.getClientId());
+        entry.setRoleAccessId(role.getId());
+        entry.setDaysBefore(daysBefore);
+        entry.setForEndDate(end);
+        entry.setSentAt(LocalDateTime.now());
+        entry.setDelivery("CLAIMED");
+        try {
+            DemoReminderLog claimed = logRepo.saveAndFlush(entry);
+            if (claimed != null) entry = claimed;
+        } catch (org.springframework.dao.DataIntegrityViolationException alreadyClaimed) {
+            return false;
+        }
         boolean smsOn   = cfg != null && Boolean.TRUE.equals(cfg.getAllowSms());
         boolean emailOn = cfg != null && Boolean.TRUE.equals(cfg.getAllowEmail());
 
@@ -213,11 +229,6 @@ public class DemoReminderScheduler {
         }
         delivery = delivery + notifyTenant(role.getClientId(), subject, body);
 
-        DemoReminderLog entry = new DemoReminderLog();
-        entry.setClientId(role.getClientId());
-        entry.setRoleAccessId(role.getId());
-        entry.setDaysBefore(daysBefore);
-        entry.setForEndDate(end);
         entry.setSentAt(LocalDateTime.now());
         entry.setDelivery(delivery);
         logRepo.save(entry);

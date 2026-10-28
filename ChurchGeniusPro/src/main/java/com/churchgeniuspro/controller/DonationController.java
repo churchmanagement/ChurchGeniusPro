@@ -355,9 +355,10 @@ public class DonationController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid paymentIntentId."));
         }
 
-        // Idempotency — skip if already saved
-        if (donationRepo.findByStripePaymentIntentId(piId).isPresent()) {
-            return ResponseEntity.ok(Map.of("success", true, "message", "Donation already recorded."));
+        // Idempotency — skip if already saved (the page retries this call; see H3 below)
+        java.util.Optional<Donation> already = donationRepo.findByStripePaymentIntentId(piId);
+        if (already.isPresent()) {
+            return ResponseEntity.ok(alreadyRecorded(already.get()));
         }
 
         // Verify payment with Stripe
@@ -420,12 +421,31 @@ public class DonationController {
             }
         } catch (Exception ignored) { /* keep default */ }
 
+        // Data-integrity audit 2026-10-28, H3: when the browser comes back from a redirect-based
+        // payment method (or retries after a reload) the form is gone, so the donor's name,
+        // e-mail and phone fall back to the billing details the page gave Stripe at confirm time.
+        String firstName = str(body.get("firstName")), lastName = str(body.get("lastName"));
+        String email = str(body.get("email")), phone = str(body.get("phone"));
+        if (firstName == null || firstName.isBlank()) {
+            Map<?, ?> billing = billingDetails(pi);
+            if (billing != null) {
+                String name = str(billing.get("name"));
+                if (name != null && !name.isBlank()) {
+                    String[] parts = name.trim().split("\\s+", 2);
+                    firstName = parts[0];
+                    if (lastName == null || lastName.isBlank()) lastName = parts.length > 1 ? parts[1] : null;
+                }
+                if (email == null || email.isBlank()) email = str(billing.get("email"));
+                if (phone == null || phone.isBlank()) phone = str(billing.get("phone"));
+            }
+        }
+
         Donation donation = new Donation();
         donation.setClientId(clientId);
-        donation.setFirstName(clip(str(body.get("firstName")), 100));
-        donation.setLastName(clip(str(body.get("lastName")), 100));
-        donation.setEmail(clip(str(body.get("email")), 200));
-        donation.setPhone(clip(str(body.get("phone")), 50));
+        donation.setFirstName(clip(firstName, 100));
+        donation.setLastName(clip(lastName, 100));
+        donation.setEmail(clip(email, 200));
+        donation.setPhone(clip(phone, 50));
         donation.setNote(clip(str(body.get("note")), 1000));
         donation.setPaymentMethod(paymentMethod);
         donation.setAmount(amount);
@@ -452,7 +472,14 @@ public class DonationController {
             donation.setFeeSource(Donation.FEE_SOURCE_STRIPE);
         });
 
-        donationRepo.save(donation);
+        try {
+            donationRepo.save(donation);
+        } catch (org.springframework.dao.DataIntegrityViolationException race) {
+            // uq_donation_intent: a concurrent save (page retry racing the first call, or the
+            // return-URL load racing the in-page save) won. Same answer as the idempotent path.
+            Donation winner = donationRepo.findByStripePaymentIntentId(piId).orElse(donation);
+            return ResponseEntity.ok(alreadyRecorded(winner));
+        }
         subscriptionService.recordOnlineGiving(clientId);
         // Donation Review (V14): this gift is NOT posted to income here any more. It
         // waits on the Donation Review page until an authorised user posts it — the
@@ -472,7 +499,7 @@ public class DonationController {
                         + (status != null && !"succeeded".equalsIgnoreCase(status) ? " (status: " + status + ")" : "") + ".",
                     donation.getId() == null ? null : donation.getId().longValue());
         }
-        return ResponseEntity.ok(Map.of("success", true));
+        return ResponseEntity.ok(Map.of("success", true, "amount", amount));
     }
 
     /** Phase D: the Member Portal sends the same thank-you for a member contribution. */
@@ -811,6 +838,23 @@ public class DonationController {
     // Phase D: the calls themselves live in ChurchStripeGateway (unchanged in substance).
     private Map<String, Object> stripeCreateIntent(String secretKey, long cents, String currency) {
         return gateway().createIntent(secretKey, cents, currency);
+    }
+
+    /** Response for a PaymentIntent that is already on file (idempotent save / lost race). */
+    private static Map<String, Object> alreadyRecorded(Donation d) {
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("success", true);
+        out.put("message", "Donation already recorded.");
+        out.put("alreadyRecorded", true);
+        if (d.getIntendedAmountOrCharge() != null) out.put("amount", d.getIntendedAmountOrCharge());
+        return out;
+    }
+
+    /** {@code latest_charge.billing_details} of a retrieved PaymentIntent, or null. */
+    private static Map<?, ?> billingDetails(Map<String, Object> pi) {
+        Object charge = pi.get("latest_charge");
+        if (charge instanceof Map<?, ?> c && c.get("billing_details") instanceof Map<?, ?> b) return b;
+        return null;
     }
 
     private Map<String, Object> stripeRetrieveIntent(String secretKey, String piId) {

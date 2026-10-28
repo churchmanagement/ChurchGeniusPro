@@ -40,8 +40,18 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
     @Query("SELECT s FROM SignUp s WHERE UPPER(s.username) = UPPER(:username) AND (s.deleted = false OR s.deleted IS NULL)")
     java.util.Optional<SignUp> findActiveByUsername(@Param("username") String username);
 
-    /** Find a signup record by the organization client-ID. */
-    java.util.Optional<SignUp> findByClientId(String clientId);
+    /**
+     * The LIVE signup row for a client-ID (member {@code MBR…}, staff {@code USR…} or church id).
+     *
+     * <p>Deleted rows are excluded (data-integrity audit 2026-10-28, H2): a member who deleted
+     * their portal account and registered again used to leave two rows with the same client-ID,
+     * and this finder — being {@code Optional} — then threw on every login, account switch and
+     * linked-accounts call for that member. Deletion now also releases the key
+     * ({@link com.churchgeniuspro.service.MemberAccountDeletionService}); this filter protects
+     * rows deleted before that change. {@link #findAllByClientId} still sees every row.
+     */
+    @Query("SELECT s FROM SignUp s WHERE s.clientId = :clientId AND (s.deleted = false OR s.deleted IS NULL)")
+    java.util.Optional<SignUp> findByClientId(@Param("clientId") String clientId);
 
     /**
      * Every signup row sharing a client-ID, including deleted ones.
