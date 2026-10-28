@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.TrialRegistrationLink;
 import com.churchgeniuspro.hibernate.TrialRequest;
 import com.churchgeniuspro.repository.TrialRequestRepository;
@@ -377,7 +379,7 @@ public class TrialRequestService {
             email.sendAccountEmailOrThrow(r.getEmail(), "Your ChurchGeniusPro verification code: " + code,
                     verificationEmailHtml(r, code), null);
         } catch (Exception e) {
-            log.warn("Trial request {}: verification email to {} failed — {}", r.getReference(), r.getEmail(), e.toString());
+            log.warn("Trial request {}: verification email to {} failed — {}", r.getReference(), EmailMask.mask(r.getEmail()), LogSafe.exception(e));
             throw new IllegalStateException("We could not send the verification email to " + r.getEmail()
                     + ". Please check the address and try again.");
         }
@@ -429,7 +431,7 @@ public class TrialRequestService {
         }
         r.setSupportEmailSent(sent);
         repo.save(r);
-        log.info("Trial request {} verified ({} / {}); support notified={}", r.getReference(), r.getChurchName(), r.getEmail(), sent);
+        log.info("Trial request {} verified ({} / {}); support notified={}", r.getReference(), r.getChurchName(), EmailMask.mask(r.getEmail()), sent);
         return new Verified(r, sent);
     }
 
@@ -489,7 +491,7 @@ public class TrialRequestService {
         } catch (Exception e) {
             err = "The trial was approved and the registration link created, but the email to "
                 + r.getEmail() + " could not be sent. Copy the link and send it to them directly.";
-            log.error("Trial request {}: approval email to {} failed — {}", r.getReference(), r.getEmail(), e.toString());
+            log.error("Trial request {}: approval email to {} failed — {}", r.getReference(), EmailMask.mask(r.getEmail()), LogSafe.exception(e));
         }
         r.setApprovalEmailSent(sent);
         repo.save(r);

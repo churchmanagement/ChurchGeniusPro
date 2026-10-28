@@ -8,10 +8,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.ToString;
 
 import java.util.Date;
 
 @Data
+@ToString(exclude = {"password", "demoPassword", "remember"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "signup")
 public class SignUp {

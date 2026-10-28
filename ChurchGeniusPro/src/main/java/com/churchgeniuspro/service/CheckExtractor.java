@@ -99,10 +99,12 @@ public class CheckExtractor {
     public Result extractFromText(String text, int ocrConfidence) {
         Result r = new Result();
         int base = Math.max(40, Math.min(95, ocrConfidence <= 0 ? 70 : ocrConfidence));
-        if (log.isInfoEnabled()) {
+        if (log.isDebugEnabled()) {
+            // Never the OCR text itself (2026-10-28 logging audit H1): a check image carries the
+            // payor's name and address, the amount, the memo and the MICR routing / account
+            // numbers. Length and confidence only.
             String raw = text == null ? "" : text;
-            log.info("[CheckScan] raw OCR text ({} chars, ocrConf={}):\n{}", raw.length(), ocrConfidence,
-                    raw.length() > 1500 ? raw.substring(0, 1500) + "…" : raw);
+            log.debug("[CheckScan] OCR text {} chars, ocrConf={}", raw.length(), ocrConfidence);
         }
         parse(text == null ? "" : text, base, r);
         r.method = "ocr-text";
@@ -175,15 +177,17 @@ public class CheckExtractor {
                   || r.fields.containsKey("payorName")
                   || r.fields.containsKey("memo");
 
-        if (log.isInfoEnabled()) {
-            log.info("[CheckScan] mapping (readable={}):\n  Detected Contributor: {}\n  Detected Amount: {}\n  Detected Date: {}\n  Detected Ref No: {}\n  Detected Notes: {}",
+        if (log.isDebugEnabled()) {
+            // Presence of each detected field, never its value (audit H1).
+            log.debug("[CheckScan] mapping readable={} contributor={} amount={} date={} refNo={} notes={}",
                     r.readable,
-                    nz(r.fields.get("payorName")), nz(r.fields.get("amount")),
-                    nz(r.fields.get("dateDisplay")), nz(r.fields.get("checkNo")), nz(r.fields.get("memo")));
+                    has(r.fields.get("payorName")), has(r.fields.get("amount")),
+                    has(r.fields.get("dateDisplay")), has(r.fields.get("checkNo")), has(r.fields.get("memo")));
         }
     }
 
-    private static String nz(String s) { return (s == null || s.isEmpty()) ? "(none)" : s; }
+    /** True when a detected field has a value — the log records presence, never the value. */
+    private static boolean has(String s) { return s != null && !s.isBlank(); }
 
     // ── field finders ──
 

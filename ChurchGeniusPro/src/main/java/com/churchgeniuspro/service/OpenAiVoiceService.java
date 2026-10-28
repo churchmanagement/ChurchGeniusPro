@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -131,7 +132,7 @@ public class OpenAiVoiceService {
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 log.warn("[Voice] transcription failed status={} body={}", resp.statusCode(),
-                        truncate(resp.body()));
+                        LogSafe.text(truncate(resp.body())));
                 return null;
             }
             JsonNode json = mapper.readTree(resp.body());
@@ -183,7 +184,7 @@ public class OpenAiVoiceService {
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 log.warn("[Voice] command model failed status={} body={}", resp.statusCode(),
-                        truncate(resp.body()));
+                        LogSafe.text(truncate(resp.body())));
                 return transcript;
             }
             JsonNode json = mapper.readTree(resp.body());
@@ -231,7 +232,7 @@ public class OpenAiVoiceService {
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("[Voice] extractFields failed status={} body={}", resp.statusCode(), truncate(resp.body()));
+                log.warn("[Voice] extractFields failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return out;
             }
             String content = mapper.readTree(resp.body())
@@ -312,7 +313,7 @@ public class OpenAiVoiceService {
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("[Assist] failed status={} body={}", resp.statusCode(), truncate(resp.body()));
+                log.warn("[Assist] failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return out;
             }
             String content = mapper.readTree(resp.body())
@@ -355,7 +356,7 @@ public class OpenAiVoiceService {
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("[chatJson] failed status={} body={}", resp.statusCode(), truncate(resp.body()));
+                log.warn("[chatJson] failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return null;
             }
             String content = mapper.readTree(resp.body())

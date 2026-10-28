@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.ServiceClient;
 import com.churchgeniuspro.hibernate.SignUp;
 import com.churchgeniuspro.model.ServiceClientBO;
@@ -425,7 +427,7 @@ public class ServiceClientService {
                 } catch (Exception e) {
                     err = "The subscription was converted, but the confirmation email to " + saved.getEmail()
                         + " could not be sent.";
-                    log.error("Conversion confirmation to {} failed — {}", saved.getEmail(), e.toString());
+                    log.error("Conversion confirmation to {} failed — {}", EmailMask.mask(saved.getEmail()), LogSafe.exception(e));
                 }
             }
         }

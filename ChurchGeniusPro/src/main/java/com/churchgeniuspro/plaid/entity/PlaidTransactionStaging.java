@@ -10,6 +10,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ import java.util.Date;
  * sandbox test institution, whose ids are deterministic, not random).
  */
 @Data
+@ToString(exclude = {"amount", "name", "merchantName", "description"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "plaid_transaction_staging",
         uniqueConstraints = @UniqueConstraint(name = "uq_plaid_txn_client_txn_id",

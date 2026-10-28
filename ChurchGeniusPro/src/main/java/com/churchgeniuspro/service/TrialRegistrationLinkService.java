@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.TrialRegistrationLink;
 import com.churchgeniuspro.repository.TrialRegistrationLinkRepository;
 import org.slf4j.Logger;
@@ -153,7 +154,7 @@ public class TrialRegistrationLinkService {
         TrialRegistrationLink saved = repo.save(link);
 
         log.info("Trial registration link issued by {} for '{}' — expires {} ({} prior link(s) revoked)",
-                 actor, saved.getProspectEmail(), saved.getExpiresAt(), revoked);
+                 actor, EmailMask.mask(saved.getProspectEmail()), saved.getExpiresAt(), revoked);
         return saved;
     }
 
@@ -234,7 +235,7 @@ public class TrialRegistrationLinkService {
             Validation again = validate(token);
             Outcome why = again.valid() ? Outcome.USED : again.outcome();
             log.warn("Trial registration link claim refused — prospect='{}' outcome={}",
-                     v.link().getProspectEmail(), why);
+                     EmailMask.mask(v.link().getProspectEmail()), why);
             return new Claim(new Validation(why, again.link()), null);
         }
         TrialRegistrationLink link = v.link();
@@ -252,12 +253,12 @@ public class TrialRegistrationLinkService {
         if (rows == 1) {
             claim.link().setUsedClientId(clientId);
             log.info("Trial registration link consumed — prospect='{}' clientId={}",
-                     claim.link().getProspectEmail(), clientId);
+                     EmailMask.mask(claim.link().getProspectEmail()), clientId);
         } else {
             // The row no longer carries our marker — it was released or re-claimed
             // underneath us. The tenant exists regardless; say so loudly.
             log.error("Trial registration link for prospect='{}' could not be completed with clientId={} "
-                    + "(marker no longer present)", claim.link().getProspectEmail(), clientId);
+                    + "(marker no longer present)", EmailMask.mask(claim.link().getProspectEmail()), clientId);
         }
     }
 
@@ -271,7 +272,7 @@ public class TrialRegistrationLinkService {
             claim.link().setUsedAt(null);
             claim.link().setUsedClientId(null);
             log.info("Trial registration link released after a failed registration — prospect='{}'",
-                     claim.link().getProspectEmail());
+                     EmailMask.mask(claim.link().getProspectEmail()));
         }
     }
 

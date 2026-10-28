@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.SubscriptionPlan;
 import com.churchgeniuspro.hibernate.SupportTicket;
@@ -128,7 +130,7 @@ public class SupportTicketService {
                     confirmationEmailHtml(t), null, SUPPORT_FROM_NAME);
             toSubmitter = true;
         } catch (Exception e) {
-            log.error("Ticket {}: confirmation email to {} failed — {}", t.getReference(), t.getSubmitterEmail(), e.toString());
+            log.error("Ticket {}: confirmation email to {} failed — {}", t.getReference(), EmailMask.mask(t.getSubmitterEmail()), LogSafe.exception(e));
             emailProblem.append("A confirmation email could not be sent to ").append(t.getSubmitterEmail()).append(".");
         }
         return new Submitted(t, toSupport, toSubmitter, emailProblem.length() == 0 ? null : emailProblem.toString().trim());

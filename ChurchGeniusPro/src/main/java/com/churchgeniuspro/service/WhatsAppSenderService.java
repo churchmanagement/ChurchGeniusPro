@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.hibernate.EmailSettings;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.WhatsAppSettings;
@@ -93,11 +95,11 @@ public class WhatsAppSenderService {
         if (normalized == null) {
             // Previously this returned silently with no log at any level, which is
             // the quietest way a recipient can vanish from a send.
-            log.warn("SMS skipped — '{}' is not a usable phone number (clientId={})", toPhone, clientId);
+            log.warn("SMS skipped — '{}' is not a usable PhoneMask.mask(phone) number (clientId={})", PhoneMask.mask(toPhone), clientId);
             return SmsService.SendOutcome.fail("Not a usable phone number: " + toPhone);
         }
         if (!smsService.isConfigured()) {
-            log.warn("SMS to {} skipped — SmsService not configured", normalized);
+            log.warn("SMS to {} skipped — SmsService not configured", PhoneMask.mask(normalized));
             return SmsService.SendOutcome.fail("SMS provider not configured");
         }
         // The allowance is enforced and recorded inside SmsService (see smsWithQuota);
@@ -121,7 +123,7 @@ public class WhatsAppSenderService {
     public boolean sendSingleSms(String phone, String body, String clientId) {
         String normalized = normalizePhone(phone);
         if (normalized == null) {
-            log.debug("sendSingleSms skipped — unrecognized phone format: {}", phone);
+            log.debug("sendSingleSms skipped — unrecognized PhoneMask.mask(phone) format: {}", PhoneMask.mask(phone));
             return false;
         }
         return smsWithQuota(normalized, body, clientId);
@@ -239,7 +241,7 @@ public class WhatsAppSenderService {
         if (smsService.isConfigured()) {
             smsWithQuota(normalized, resolveMessageNoSettings(message, clientId), clientId);
         } else {
-            log.debug("SMS to {} skipped — SmsService not configured", normalized);
+            log.debug("SMS to {} skipped — SmsService not configured", PhoneMask.mask(normalized));
         }
 
         /* WHATSAPP DISABLED — original multi-channel logic commented out
@@ -259,7 +261,7 @@ public class WhatsAppSenderService {
             if (doSms && smsService.isConfigured()) {
                 smsService.sendForClient(clientId, normalized, resolveMessageNoSettings(message, clientId));
             } else {
-                log.debug("WhatsApp/SMS to {} skipped — no credentials configured", normalized);
+                log.debug("WhatsApp/SMS to {} skipped — no credentials configured", PhoneMask.mask(normalized));
             }
         }
         */
@@ -339,7 +341,7 @@ public class WhatsAppSenderService {
                 String body = resolveMessageNoSettings(message, clientId);
                 smsWithQuota(normalized, body, clientId);
             } else {
-                log.debug("WhatsApp/SMS to {} skipped — no credentials configured", normalized);
+                log.debug("WhatsApp/SMS to {} skipped — no credentials configured", PhoneMask.mask(normalized));
             }
             return;
         }
@@ -370,13 +372,13 @@ public class WhatsAppSenderService {
             if (smsService.isConfigured()) {
                 smsWithQuota(toPhone, message, clientId);
             } else {
-                log.warn("SMS to {} skipped — SmsService not configured", toPhone);
+                log.warn("SMS to {} skipped — SmsService not configured", PhoneMask.mask(toPhone));
             }
             return;
         }
 
         // WHATSAPP DISABLED — skip the Twilio WhatsApp API call entirely
-        log.debug("WhatsApp (doSend) disabled — skipping send to {}", toPhone);
+        log.debug("WhatsApp (doSend) disabled — skipping send to {}", PhoneMask.mask(toPhone));
 
         /* WHATSAPP DISABLED — original Twilio WhatsApp call commented out
         try {
@@ -404,13 +406,13 @@ public class WhatsAppSenderService {
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
 
             if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-                log.info("WhatsApp sent to {} (clientId={})", toPhone, settings.getClientId());
+                log.info("WhatsApp sent to {} (clientId={})", PhoneMask.mask(toPhone), settings.getClientId());
             } else {
                 log.warn("WhatsApp to {} failed — status={} body={}",
-                         toPhone, resp.statusCode(), resp.body());
+                         PhoneMask.mask(toPhone), resp.statusCode(), LogSafe.text(resp.body()));
             }
         } catch (Exception e) {
-            log.error("Error sending WhatsApp to {}: {}", toPhone, e.getMessage(), e);
+            log.error("Error sending WhatsApp to {}: {}", PhoneMask.mask(toPhone), LogSafe.exception(e));
         }
         */
     }
@@ -476,7 +478,7 @@ public class WhatsAppSenderService {
 
         Optional<WhatsAppSettings> settingsOpt = settingsRepo.findByClientId(clientId);
         if (settingsOpt.isEmpty() || !credentialsValid(settingsOpt.get())) {
-            log.debug("Template send to {} skipped — no WhatsApp credentials", normalized);
+            log.debug("Template send to {} skipped — no WhatsApp credentials", PhoneMask.mask(normalized));
             return;
         }
 
@@ -501,7 +503,7 @@ public class WhatsAppSenderService {
                                  java.util.Map<String, String> variables,
                                  WhatsAppSettings settings) {
         // WHATSAPP DISABLED — skip the Twilio Content Template API call entirely
-        log.debug("WhatsApp template (doSendTemplate) disabled — skipping send to {}", toPhone);
+        log.debug("WhatsApp template (doSendTemplate) disabled — skipping send to {}", PhoneMask.mask(toPhone));
 
         /* WHATSAPP DISABLED — original Twilio Content Template call commented out
         if (toPhone == null || toPhone.isBlank() || !toPhone.startsWith("+")) return;
@@ -544,13 +546,13 @@ public class WhatsAppSenderService {
 
             if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                 log.info("WhatsApp template {} sent to {} (clientId={})",
-                         contentSid, toPhone, settings.getClientId());
+                         contentSid, PhoneMask.mask(toPhone), settings.getClientId());
             } else {
                 log.warn("WhatsApp template {} to {} failed — status={} body={}",
-                         contentSid, toPhone, resp.statusCode(), resp.body());
+                         contentSid, PhoneMask.mask(toPhone), resp.statusCode(), LogSafe.text(resp.body()));
             }
         } catch (Exception e) {
-            log.error("Error sending WhatsApp template {} to {}: {}", contentSid, toPhone, e.getMessage(), e);
+            log.error("Error sending WhatsApp template {} to {}: {}", contentSid, PhoneMask.mask(toPhone), LogSafe.exception(e));
         }
         */
     }

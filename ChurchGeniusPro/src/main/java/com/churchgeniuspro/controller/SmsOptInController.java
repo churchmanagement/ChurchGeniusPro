@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.PublicScreenLink;
@@ -242,7 +243,7 @@ public class SmsOptInController {
         }
 
         if (records.isEmpty()) {
-            log.debug("SmsWebhook: no opt-in record for {}", from);
+            log.debug("SmsWebhook: no opt-in record for {}", PhoneMask.mask(from));
             return "<Response/>";
         }
 
@@ -253,14 +254,14 @@ public class SmsOptInController {
                     record.setConsent(true);
                     record.setConfirmedAt(LocalDateTime.now());
                     smsOptInRepo.save(record);
-                    log.info("SmsWebhook: {} confirmed opt-in for church {}", from, record.getAppClientId());
+                    log.info("SmsWebhook: {} confirmed opt-in for church {}", PhoneMask.mask(from), record.getAppClientId());
                 }
                 case "STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT" -> {
                     record.setConsent(false);
                     record.setConfirmed(false);
                     record.setOptedOutAt(LocalDateTime.now());
                     smsOptInRepo.save(record);
-                    log.info("SmsWebhook: {} opted out from church {}", from, record.getAppClientId());
+                    log.info("SmsWebhook: {} opted out from church {}", PhoneMask.mask(from), record.getAppClientId());
                 }
                 case "START", "UNSTOP" -> {
                     record.setConsent(true);
@@ -268,9 +269,9 @@ public class SmsOptInController {
                     record.setOptedInAt(LocalDateTime.now());
                     record.setOptedOutAt(null);
                     smsOptInRepo.save(record);
-                    log.info("SmsWebhook: {} re-opted in for church {}", from, record.getAppClientId());
+                    log.info("SmsWebhook: {} re-opted in for church {}", PhoneMask.mask(from), record.getAppClientId());
                 }
-                default -> log.debug("SmsWebhook: unrecognized reply '{}' from {}", body.trim(), from);
+                default -> log.debug("SmsWebhook: unrecognized reply ({} chars) from {}", body.trim().length(), PhoneMask.mask(from));   // never the text itself
             }
         }
         return "<Response/>";
@@ -323,7 +324,7 @@ public class SmsOptInController {
                 ChurchRegistration church = churchRepo
                         .findByClientIdAndDeleteFlagFalse(appClientId).orElse(null);
                 if (church != null) churchName = church.getChurchName();
-                log.info("SmsGive: matched {} to church {} via family_member", from, appClientId);
+                log.info("SmsGive: matched {} to church {} via family_member", PhoneMask.mask(from), appClientId);
             }
         }
 
@@ -334,7 +335,7 @@ public class SmsOptInController {
                 ChurchRegistration church = allChurches.get(0);
                 appClientId = church.getClientId();
                 churchName  = church.getChurchName();
-                log.info("SmsGive: unknown sender {}, single-church fallback to {}", from, appClientId);
+                log.info("SmsGive: unknown sender {}, single-church fallback to {}", PhoneMask.mask(from), appClientId);
             }
         }
 
@@ -378,7 +379,7 @@ public class SmsOptInController {
         String church     = churchName != null ? churchName : "your church";
         String msg = "Give" + amountPart + " to " + church + ":\n" + url + "\nReply STOP to opt out.";
 
-        log.info("SmsGive: sending donation link to {} for church {} amount={}", from, appClientId, amount);
+        log.info("SmsGive: sending donation link to {} for church {}", PhoneMask.mask(from), appClientId);   // amount + number together would be personal financial data
         return buildTwiml(msg);
     }
 
@@ -532,7 +533,7 @@ public class SmsOptInController {
         com.twilio.security.RequestValidator validator = new com.twilio.security.RequestValidator(twilioAuthToken);
         boolean ok = validator.validate(canonical, params, signature)
                   || (!raw.equals(canonical) && validator.validate(raw, params, signature));
-        if (!ok) log.warn("SmsWebhook: refused — signature did not verify for {}", canonical);
+        if (!ok) log.warn("SmsWebhook: refused — signature did not verify for {}", request.getRequestURI());   // path only — the query string carries Twilio's From/Body
         return ok;
     }
 }

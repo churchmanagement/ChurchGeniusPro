@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.config.LoginProtectionProperties;
 import com.churchgeniuspro.hibernate.LoginAttemptLog;
 import com.churchgeniuspro.hibernate.LoginBlock;
@@ -548,8 +549,18 @@ public class LoginProtectionService {
         return (b != null && b.isAfter(a)) ? b : a;
     }
 
-    /** Usernames go to the audit log verbatim; {@code null} is rendered explicitly. */
-    private static String mask(String username) {
-        return username == null ? "-" : username;
+    /**
+     * The username as it appears on FAILURE / BLOCK / DENIED / RESET audit lines: masked
+     * (2026-10-28 logging audit H5). These lines carry whatever was typed into the username
+     * box — a password typed into the wrong field, a stranger's e-mail — so the file log gets
+     * {@code jo***@exa***.com} / {@code ab***}; the exact value stays only in the access-
+     * controlled, 30-day {@code login_attempt_log} row, which is what an investigation uses.
+     * Successful sign-ins are written in full by {@link SecurityAuditService}, where the
+     * username is a known account.
+     */
+    public static String mask(String username) {
+        if (username == null || username.isBlank()) return "-";
+        if (username.indexOf('@') > 0) return EmailMask.mask(username);
+        return username.length() <= 2 ? "***" : username.substring(0, 2) + "***";
     }
 }

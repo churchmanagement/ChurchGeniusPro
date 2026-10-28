@@ -2,6 +2,7 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Single Stripe API-key record per organization.
@@ -9,6 +10,7 @@ import lombok.Data;
  * the UI therefore only ever performs an upsert (create on first save, update thereafter).
  */
 @Data
+@ToString(exclude = {"secretKey", "publishableKey"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "stripe_settings",
        uniqueConstraints = @UniqueConstraint(name = "uq_stripe_settings_client", columnNames = {"client_id"}))

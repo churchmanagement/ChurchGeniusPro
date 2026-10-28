@@ -1,5 +1,8 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.hibernate.KmCheckin;
 import com.churchgeniuspro.hibernate.KmChild;
 import com.churchgeniuspro.hibernate.KmChildSetup;
@@ -114,7 +117,7 @@ public class KmPickupAlertService {
                 for (Recipient r : recipients)
                     if (notBlank(r.email())) {
                         try { emailService.sendOrgEmail(r.email().trim(), subject, html, clientId); }
-                        catch (Exception e) { log.warn("pickup email to {} failed: {}", r.email(), e.getMessage()); }
+                        catch (Exception e) { log.warn("pickup email to {} failed: {}", EmailMask.mask(r.email()), LogSafe.exception(e)); }
                     }
             }
             if (setup.isSmsAlertsEnabled() && smsService.isConfigured()) {
@@ -122,7 +125,7 @@ public class KmPickupAlertService {
                 for (Recipient r : recipients)
                     if (notBlank(r.phone())) {
                         try { smsService.sendForClient(clientId, r.phone().trim(), sms); }
-                        catch (Exception e) { log.warn("pickup SMS to {} failed: {}", r.phone(), e.getMessage()); }
+                        catch (Exception e) { log.warn("pickup SMS to {} failed: {}", PhoneMask.mask(r.phone()), LogSafe.exception(e)); }
                     }
             }
             ci.setLastAlertSentAt(now);

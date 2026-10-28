@@ -2,6 +2,7 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "service_client")
 @Data
+@ToString(exclude = {"registrationToken", "subscriptionRequestToken"})   // never in a log line, even by accident (2026-10-28 logging audit)
 public class ServiceClient {
 
     @Id

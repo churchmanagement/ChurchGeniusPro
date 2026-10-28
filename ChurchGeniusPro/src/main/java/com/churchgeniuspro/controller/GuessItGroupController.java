@@ -177,7 +177,7 @@ public class GuessItGroupController {
         if (secs != null) g.setTimerSecs(clampTimer(secs));   // else entity default: 60s
         groupRepo.save(g);
 
-        log.info("GuessIt: created group {} (code {}) for client {}", g.getId(), code, clientId);
+        log.info("GuessIt: created group {} for client {}", g.getId(), clientId);   // the join code is a credential
         return ResponseEntity.ok(groupSummary(g));
     }
 
@@ -346,8 +346,8 @@ public class GuessItGroupController {
             applied++;
         }
 
-        log.info("GuessIt: group {} (code {}) duration set to {}s; {} game(s) updated",
-                 group.getId(), group.getCode(), secs, applied);
+        log.info("GuessIt: group {} duration set to {}s; {} game(s) updated",
+                 group.getId(), secs, applied);
 
         Map<String, Object> out = groupSummary(group);
         out.put("timerSecs", secs);
@@ -751,7 +751,7 @@ public class GuessItGroupController {
         group.setStatus("ended");
         group.setEndedAt(Instant.now());
         groupRepo.save(group);
-        log.info("GuessIt: group {} (code {}) ended", group.getId(), group.getCode());
+        log.info("GuessIt: group {} ended", group.getId());
     }
 
     /** A group with published games, all of them finished, ends by itself. */

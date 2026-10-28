@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.model.TrialRegistrationBO;
 import com.churchgeniuspro.service.TrialRegistrationLinkService;
 import com.churchgeniuspro.service.TrialRegistrationService;
@@ -99,7 +100,7 @@ public class TrialRegistrationController {
             // was autofilling the honeypot, and nothing in the logs said who.
             log.warn("Trial registration honeypot tripped — no tenant created. "
                    + "ip={} email='{}' church='{}'",
-                     ip, str(body.get("email")), str(body.get("churchName")));
+                     ip, EmailMask.mask(str(body.get("email"))), str(body.get("churchName")));
             return ResponseEntity.ok(fakeSuccess());
         }
 

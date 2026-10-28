@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
 import com.churchgeniuspro.hibernate.ChurchLogo;
 import com.churchgeniuspro.hibernate.ChurchRegistration;
 import com.churchgeniuspro.hibernate.EmailSettings;
@@ -188,7 +189,7 @@ public class EmailService {
                     clientId, EmailMask.mask(toEmail));
             return true;
         } catch (Exception ex) {
-            log.warn("[EmailService] test email send failed for client {}", clientId, ex);
+            log.warn("[EmailService] test email send failed for client {} — {}", clientId, LogSafe.exception(ex));
             return false;
         }
     }
@@ -224,7 +225,7 @@ public class EmailService {
      * @param htmlBody pre-built HTML body
      */
     public void sendGenericEmail(String toEmail, String subject, String htmlBody) {
-        log.info("[EmailService] sending email to {} subject '{}'", EmailMask.mask(toEmail), subject);
+        log.info("[EmailService] sending email to {} ({} char subject)", EmailMask.mask(toEmail), subject == null ? 0 : subject.length());
         doSend(toEmail, subject, htmlBody, DEFAULT_FROM_NAME, null, null);
     }
 
@@ -244,7 +245,7 @@ public class EmailService {
      * @param appClientId organization identifier used to look up the display name
      */
     public void sendGenericEmail(String toEmail, String subject, String htmlBody, String appClientId) {
-        log.info("[EmailService] sending email to {} subject '{}' (appClientId={})", EmailMask.mask(toEmail), subject, appClientId);
+        log.info("[EmailService] sending email to {} ({} char subject, appClientId={})", EmailMask.mask(toEmail), subject == null ? 0 : subject.length(), appClientId);
         EmailSettings settings = (appClientId != null && !appClientId.isBlank())
                 ? emailSettingsRepository.findByClientId(appClientId).orElse(null)
                 : null;
@@ -447,7 +448,7 @@ public class EmailService {
             return;
         }
 
-        log.info("[EmailService] sending org email to {} subject '{}'", EmailMask.mask(toEmail), subject);
+        log.info("[EmailService] sending org email to {} ({} char subject)", EmailMask.mask(toEmail), subject == null ? 0 : subject.length());   // subjects name people (pickup alerts, exam results) — not logged
 
         EmailSettings settings = (clientId != null && !clientId.isBlank())
                 ? emailSettingsRepository.findByClientId(clientId).orElse(null)
@@ -626,7 +627,7 @@ public class EmailService {
             deliver(toEmail, subject, htmlBody, fromDisplayName, icsData);
             return true;
         } catch (Exception ex) {
-            log.warn("[EmailService] mail send failed \u2192 {}", EmailMask.mask(toEmail), ex);
+            log.warn("[EmailService] mail send failed \u2192 {} — {}", EmailMask.mask(toEmail), LogSafe.exception(ex));   // the throwable text repeats the address
             return false;
         }
     }

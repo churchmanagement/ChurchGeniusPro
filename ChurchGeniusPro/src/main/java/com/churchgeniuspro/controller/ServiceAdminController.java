@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.service.LoginProtectionService;
 import com.churchgeniuspro.hibernate.BackupConfig;
 import com.churchgeniuspro.hibernate.BackupLog;
 import com.churchgeniuspro.hibernate.ServiceAdmin;
@@ -106,7 +107,7 @@ public class ServiceAdminController {
         String username = body.get("username");
         String password = body.get("password");
 
-        log.info("ServiceAdmin login attempt for username='{}'", username);
+        log.info("ServiceAdmin login attempt for username='{}'", LoginProtectionService.mask(username));
 
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
             response.put("status",  "error");
@@ -118,14 +119,14 @@ public class ServiceAdminController {
                 serviceAdminRepository.findByUsernameAndDeletedFalse(username.trim());
 
         if (admin.isEmpty()) {
-            log.warn("ServiceAdmin login failed — no active account found for username='{}'", username);
+            log.warn("ServiceAdmin login failed — no active account found for username='{}'", LoginProtectionService.mask(username));
             response.put("status",  "error");
             response.put("message", "Invalid username or password.");
             return ResponseEntity.status(401).body(response);
         }
 
         if (!PasswordUtil.matches(password, admin.get().getPassword())) {
-            log.warn("ServiceAdmin login failed — wrong password for username='{}'", username);
+            log.warn("ServiceAdmin login failed — wrong password for username='{}'", LoginProtectionService.mask(username));
             response.put("status",  "error");
             response.put("message", "Invalid username or password.");
             return ResponseEntity.status(401).body(response);

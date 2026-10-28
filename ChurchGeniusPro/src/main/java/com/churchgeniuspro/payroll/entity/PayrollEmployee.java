@@ -4,6 +4,7 @@ import com.churchgeniuspro.payroll.model.PayFrequency;
 import com.churchgeniuspro.payroll.model.PayType;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ import java.util.Date;
  * <p>Multi-tenant: scoped by {@code app_client_id} like the rest of the app.
  */
 @Data
+@ToString(exclude = {"ssnLast4", "directDepositAccountLast4", "directDepositRoutingLast4", "hourlyRate", "annualSalary", "email", "phone"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "payroll_employee")
 public class PayrollEmployee {

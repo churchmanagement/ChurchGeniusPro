@@ -4,7 +4,13 @@ import com.churchgeniuspro.plaid.config.PlaidProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
@@ -141,7 +147,28 @@ public class PlaidClient {
                 .uri(path)
                 .body(body)
                 .retrieve()
+                // Spring's default RestClientResponseException message is the WHOLE response
+                // body, and a dozen callers log e.getMessage() (2026-10-28 logging audit M3).
+                // Keep the body on the exception (PlaidSyncService reads error_code from it)
+                // but make the message a short, log-safe summary.
+                .onStatus(HttpStatusCode::isError, (req, res) -> {
+                    byte[] raw = res.getBody().readAllBytes();
+                    throw new RestClientResponseException(errorSummary(path, res.getStatusCode().value(), raw),
+                            res.getStatusCode(), res.getStatusText(), res.getHeaders(), raw, StandardCharsets.UTF_8);
+                })
                 .body(Map.class);
+    }
+
+    private static final Pattern ERR_FIELD = Pattern.compile("\"(error_type|error_code|request_id)\"\\s*:\\s*\"([^\"]{0,80})\"");
+
+    /** "Plaid /accounts/get HTTP 400 error_type=INVALID_INPUT error_code=INVALID_ACCESS_TOKEN request_id=abc" — never the body. */
+    static String errorSummary(String path, int status, byte[] body) {
+        StringBuilder sb = new StringBuilder("Plaid ").append(path).append(" HTTP ").append(status);
+        if (body != null && body.length > 0) {
+            Matcher m = ERR_FIELD.matcher(new String(body, StandardCharsets.UTF_8));
+            while (m.find()) sb.append(' ').append(m.group(1)).append('=').append(m.group(2));
+        }
+        return sb.toString();
     }
 
     private List<String> csvToList(String csv) {

@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.TrialRequest;
 import com.churchgeniuspro.service.TrialRequestService;
 import com.churchgeniuspro.util.PublicFormGuard;
@@ -65,7 +67,7 @@ public class TrialRequestController {
         // Honeypot: answer like a success so a bot learns nothing; nothing is stored or sent.
         if (formGuard.isHoneypotTripped(body)) {
             log.warn("Trial request honeypot tripped — ignored. ip={} email='{}' church='{}'",
-                     ip, str(body.get("email")), str(body.get("churchName")));
+                     ip, EmailMask.mask(str(body.get("email"))), str(body.get("churchName")));
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("status", "success");
             m.put("reference", "TRQ-" + Long.toString(System.nanoTime() & 0xFFFFFFFFL, 36).toUpperCase());
@@ -113,7 +115,7 @@ public class TrialRequestController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(502).body(error(e.getMessage()));
         } catch (Exception e) {
-            log.error("Trial request submit failed", e);
+            log.error("Trial request submit failed — {}", LogSafe.exception(e), e);
             return ResponseEntity.status(500).body(error("We could not submit your request. Please try again."));
         }
     }
@@ -133,7 +135,7 @@ public class TrialRequestController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(error(e.getMessage()));
         } catch (Exception e) {
-            log.error("Trial request verify failed", e);
+            log.error("Trial request verify failed — {}", LogSafe.exception(e), e);
             return ResponseEntity.status(500).body(error("We could not verify your code. Please try again."));
         }
     }

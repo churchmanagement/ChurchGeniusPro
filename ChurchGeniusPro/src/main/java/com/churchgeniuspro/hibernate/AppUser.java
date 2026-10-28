@@ -10,6 +10,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
+import lombok.ToString;
 
 import java.util.Date;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import java.util.UUID;
  * Physical records are never removed — a {@code delete_flag} is used instead.
  */
 @Data
+@ToString(exclude = {"inviteToken"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "app_user", uniqueConstraints = {
         @UniqueConstraint(name = "uq_app_user_email_role_client",

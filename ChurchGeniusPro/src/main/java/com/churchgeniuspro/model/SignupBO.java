@@ -1,6 +1,7 @@
 package com.churchgeniuspro.model;
 
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Business Object for the sign-up form submitted from {@code signup.html}.
@@ -18,6 +19,7 @@ import lombok.Data;
  * sent to the backend.
  */
 @Data
+@ToString(exclude = {"password"})   // never in a log line, even by accident (2026-10-28 logging audit)
 public class SignupBO {
 
     /**

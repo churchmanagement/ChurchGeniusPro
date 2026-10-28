@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.common.States;
 import com.churchgeniuspro.hibernate.ChurchEvent;
 import com.churchgeniuspro.hibernate.ChurchEventImage;
@@ -715,7 +716,7 @@ public class ChurchEventService {
         if (to == null) {
             log.warn("Event registration SMS skipped — registrant {} gave '{}', which is not "
                    + "a usable phone number (event {}).",
-                    reg.getId(), reg.getPhone(), ev.getId());
+                    reg.getId(), PhoneMask.mask(reg.getPhone()), ev.getId());
             return;
         }
 
@@ -726,7 +727,7 @@ public class ChurchEventService {
         if (requireSmsOptIn && !smsOptInRepo.isOptedIn(to, ev.getAppClientId())) {
             log.info("Event registration SMS skipped for {} — no confirmed SMS opt-in for "
                    + "church {}. (Set sms.event-registration.require-opt-in=false to treat "
-                   + "submitting the form as consent.)", to, ev.getAppClientId());
+                   + "submitting the form as consent.)", PhoneMask.mask(to), ev.getAppClientId());
             return;
         }
 

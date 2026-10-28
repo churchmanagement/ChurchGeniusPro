@@ -192,7 +192,7 @@ public class LoginController {
             // non-existent username matches that of a real one.
             PasswordUtil.matches(password, DUMMY_HASH);
             // Server-side only — the client always gets the same generic message.
-            LOG.warn("Login 401 — no active signup row found for username='{}'", username);
+            LOG.warn("Login 401 — no active signup row found for username='{}'", LoginProtectionService.mask(username));   // typed value may be a password
             loginProtection.applyProgressiveDelay(loginProtection.recordFailure(
                     request, username, LoginProtectionService.REASON_UNKNOWN_USER, null, "/login"));
             res.put("status",  "error");
@@ -205,7 +205,7 @@ public class LoginController {
         if (!PasswordUtil.matches(password, user.getPassword())) {
             // NOTE: never log the submitted password or its length — the length alone
             // narrows a brute-force search and belongs nowhere near a log file.
-            LOG.warn("Login 401 — password mismatch for username='{}'", username);
+            LOG.warn("Login 401 — password mismatch for username='{}'", LoginProtectionService.mask(username));
             loginProtection.applyProgressiveDelay(loginProtection.recordFailure(
                     request, username, LoginProtectionService.REASON_BAD_PASSWORD,
                     user.getClientId(), "/login"));
@@ -1303,13 +1303,9 @@ public class LoginController {
             });
         }
 
-        // Log session details once at login — not repeated on every request.
-        LOG.info("[LOGIN] clientId={} | churchName={} | subscription={} | role={} | username={}",
-                session.getAttribute("clientId"),
-                session.getAttribute("churchName"),
-                session.getAttribute("subscription"),
-                session.getAttribute("role"),
-                session.getAttribute("username"));
+        // The sign-in itself is recorded once, by SecurityAuditService, in security-*.log and
+        // login_attempt_log; the former duplicate "[LOGIN] …" line here was removed (2026-10-28
+        // logging audit) so usernames are not written to application-*.log as well.
 
         res.put("status", "success");
     }

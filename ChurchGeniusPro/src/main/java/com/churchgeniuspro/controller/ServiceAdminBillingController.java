@@ -217,7 +217,7 @@ public class ServiceAdminBillingController {
         if (body.containsKey("clientEnabled")) {
             settings.set(PlatformSettingService.BILLING_REMINDER_CLIENT_ENABLED, String.valueOf(Boolean.TRUE.equals(body.get("clientEnabled"))), who);
         }
-        log.info("Billing reminder settings changed by {}: {}", who, body);
+        log.info("Billing reminder settings changed by {}: keys={}", who, body == null ? null : body.keySet());   // never a raw request body
         Map<String, Object> m = settingsMap();
         m.put("message", "Reminder settings saved.");
         return ok(m);

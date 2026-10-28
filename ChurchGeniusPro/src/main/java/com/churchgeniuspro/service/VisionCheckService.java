@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -93,7 +94,9 @@ public class VisionCheckService {
         putStr(out, "checkNo",   json, "checkNo");
         putStr(out, "memo",      json, "memo");
         putStr(out, "bank",      json, "bank");
-        if (log.isInfoEnabled()) log.info("[Vision] check fields: {}", out);
+        // Field NAMES only — the values are the payor's name, the amount, the memo and the bank
+        // (2026-10-28 logging audit H1).
+        if (log.isDebugEnabled()) log.debug("[Vision] check fields detected: {}", out.keySet());
         return out;
     }
 
@@ -339,7 +342,7 @@ public class VisionCheckService {
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("[Vision] OpenAI returned HTTP {}: {}", resp.statusCode(), truncate(resp.body(), 300));
+                log.warn("[Vision] OpenAI returned HTTP {}: {}", resp.statusCode(), LogSafe.text(truncate(resp.body(), 300)));
                 cr.error = "OpenAI HTTP " + resp.statusCode();
                 return cr;
             }
@@ -382,7 +385,7 @@ public class VisionCheckService {
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("[Vision] OpenAI (text) returned HTTP {}: {}", resp.statusCode(), truncate(resp.body(), 300));
+                log.warn("[Vision] OpenAI (text) returned HTTP {}: {}", resp.statusCode(), LogSafe.text(truncate(resp.body(), 300)));
                 return null;
             }
             JsonNode root = mapper.readTree(resp.body());

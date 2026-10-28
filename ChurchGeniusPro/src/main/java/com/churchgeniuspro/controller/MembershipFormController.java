@@ -1,5 +1,7 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.AppUser;
 import com.churchgeniuspro.hibernate.ChurchEvent;
 import com.churchgeniuspro.hibernate.ChurchLogo;
@@ -2386,7 +2388,7 @@ public class MembershipFormController {
                 emailService.sendOrgEmail(gmEmail, fullSubject, htmlBody, appClientId);
                 sent++;
             } catch (Exception e) {
-                log.warn("Group email failed to {}: {}", gmEmail, e.getMessage());
+                log.warn("Group email failed to {}: {}", EmailMask.mask(gmEmail), LogSafe.exception(e));
             }
         }
 

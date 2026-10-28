@@ -126,4 +126,45 @@ class SensitiveDataMaskerTest {
         assertFalse(masked.contains(SECRET), masked);
         assertTrue(masked.contains("Thing.java:42"), "the trace itself must stay readable");
     }
+
+    // ── 2026-10-28 logging audit additions ─────────────────────────────────────
+
+    @Test
+    @DisplayName("PostgreSQL constraint diagnostics: the rejected row and the duplicate key value are redacted")
+    void postgresDetailsAreRedacted() {
+        String failingRow = "ERROR: null value in column \"id\" violates not-null constraint\n"
+                + "  Detail: Failing row contains (null, 100 Grace Ave, Springfield, demo.admin@gracefellowship.org, 555-200-1000).";
+        String out = SensitiveDataMasker.mask(failingRow);
+        assertFalse(out.contains("Grace Ave"), out);
+        assertFalse(out.contains("gracefellowship"), out);
+        assertTrue(out.contains("Failing row contains (" + SensitiveDataMasker.REDACTED + ")."), out);
+
+        String dup = "ERROR: duplicate key value violates unique constraint \"uk_email\"\n  Detail: Key (email)=(ada@example.test) already exists.";
+        String out2 = SensitiveDataMasker.mask(dup);
+        assertFalse(out2.contains("ada@example.test"), out2);
+        assertTrue(out2.contains("Key (email)=(" + SensitiveDataMasker.REDACTED + ") already exists"), out2);
+    }
+
+    @Test
+    @DisplayName("Short link-token query parameters (?t=, ?k=, &code=, &otp=, &cid=) are redacted, other parameters kept")
+    void shortTokenParametersAreRedacted() {
+        String out = SensitiveDataMasker.mask("GET /api/invoice/view?t=AbC123xyz_-9&page=2 and /trialRequest.html?k=k9Lm2 and /pickup?id=7&code=482913&cid=CHR-1");
+        assertFalse(out.contains("AbC123xyz"), out);
+        assertFalse(out.contains("k9Lm2"), out);
+        assertFalse(out.contains("482913"), out);
+        assertFalse(out.contains("CHR-1"), out);
+        assertTrue(out.contains("?t=" + SensitiveDataMasker.REDACTED + "&page=2"), out);
+        assertTrue(out.contains("id=7&code=" + SensitiveDataMasker.REDACTED), out);
+    }
+
+    @Test
+    @DisplayName("Plaid link / public tokens and E.164 numbers are redacted by shape; masked phone forms are left alone")
+    void plaidTokensAndPhonesByShape() {
+        String out = SensitiveDataMasker.mask("exchange link-sandbox-1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d then public-production-abcdefabcdef1234567890 to +19135550100 ok");
+        assertFalse(out.contains("link-sandbox-1a2b"), out);
+        assertFalse(out.contains("public-production-abc"), out);
+        assertFalse(out.contains("+19135550100"), out);
+        assertEquals("sent to ***-***-0100 at 2026-10-28 00:25:11", SensitiveDataMasker.mask("sent to ***-***-0100 at 2026-10-28 00:25:11"));
+        assertEquals("order 12345 total 1234567", SensitiveDataMasker.mask("order 12345 total 1234567"));
+    }
 }

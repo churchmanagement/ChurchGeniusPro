@@ -2,6 +2,7 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.util.Date;
 
@@ -10,6 +11,7 @@ import java.util.Date;
  * Each token is a UUID valid for 10 minutes; it is marked {@code used} after consumption.
  */
 @Data
+@ToString(exclude = {"token"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "password_reset_token")
 public class PasswordResetToken {

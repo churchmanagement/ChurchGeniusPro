@@ -22,7 +22,15 @@ import java.util.regex.Pattern;
  *   <li>{@code Cookie} / {@code Set-Cookie} header values, {@code JSESSIONID}, {@code SESSION}</li>
  *   <li>BCrypt hashes ({@code $2a$…}) — a hash is still a credential</li>
  *   <li>Vendor key shapes: OpenAI {@code sk-…}, Twilio {@code SK…}/{@code AC…}, Plaid
- *       {@code access-sandbox-…}/{@code access-production-…}</li>
+ *       {@code access-…}/{@code link-…}/{@code public-…} tokens</li>
+ *   <li>Short link-token query parameters ({@code ?t=}, {@code ?k=}, {@code &code=},
+ *       {@code &otp=}, {@code &cid=}) — the invoice, trial-request, pickup and song-book
+ *       links use these names, which are too short for the field-name rules above</li>
+ *   <li>PostgreSQL constraint detail — {@code Detail: Failing row contains (…)} prints every
+ *       column of the rejected row and {@code Key (email)=(x@y) already exists} prints the
+ *       value; both arrive through exception messages and stack traces (2026-10-28 audit H4)</li>
+ *   <li>E.164 phone numbers ({@code +1XXXXXXXXXX}) — a backstop behind the explicit
+ *       {@code util.PhoneMask} call sites; the masked form has no leading {@code +}</li>
  * </ul>
  *
  * <p>Both {@code key=value} and {@code "key":"value"} forms are handled, so it works on
@@ -111,7 +119,24 @@ public final class SensitiveDataMasker {
             Pattern.compile("\\b(?:pi|seti)_[A-Za-z0-9]{8,}_secret_[A-Za-z0-9]{8,}"),
             // Stripe secret, restricted and publishable keys, and webhook signing secrets
             Pattern.compile("\\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{8,}"),
-            Pattern.compile("\\bwhsec_[A-Za-z0-9]{8,}")
+            Pattern.compile("\\bwhsec_[A-Za-z0-9]{8,}"),
+            // Plaid link / public tokens (the access-token shape is above)
+            Pattern.compile("\\b(?:link|public)-(?:sandbox|development|production)-[0-9a-zA-Z-]{16,}"),
+            // E.164 phone numbers — backstop; call sites use util.PhoneMask (no "+" in its output)
+            Pattern.compile("(?<![A-Za-z0-9])\\+[1-9]\\d{9,14}\\b")
+    );
+
+    /**
+     * Always run, keep the label and redact the value. PostgreSQL's constraint diagnostics and
+     * the short link-token query parameters: neither has a field name the rules above know.
+     */
+    private static final List<Pattern> VALUE_CONTEXT_PATTERNS = List.of(
+            // Detail: Failing row contains (col1, col2, …).   →  Detail: Failing row contains (***REDACTED***).
+            Pattern.compile("(?i)(Failing row contains\\s*\\()[^\\n]*?(?=\\)\\.?(?:\\s|$))"),
+            // Key (email)=(x@y) already exists  →  Key (email)=(***REDACTED***) already exists
+            Pattern.compile("(?i)(Key \\([^)]*\\)=\\()[^)]*(?=\\))"),
+            // ?t=…  &k=…  &code=…  &otp=…  &cid=…  in URLs / query strings
+            Pattern.compile("(?i)([?&](?:t|k|code|otp|cid)=)[^&\\s\"']+")
     );
 
     /**
@@ -126,6 +151,7 @@ public final class SensitiveDataMasker {
         if (mightContainSecret(text)) {
             result = applyAll(result, FIELD_NAME_PATTERNS);
         }
+        result = applyAll(result, VALUE_CONTEXT_PATTERNS);
         return applyAll(result, VALUE_SHAPE_PATTERNS);
     }
 

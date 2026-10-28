@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.ServiceClient;
 import com.churchgeniuspro.hibernate.SubscriptionRequest;
 import com.churchgeniuspro.service.SubscriptionRequestService;
@@ -67,7 +68,7 @@ public class SubscriptionRequestController {
     public ResponseEntity<Map<String, Object>> submit(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         String ip = PublicFormGuard.clientIp(req);
         if (formGuard.isHoneypotTripped(body)) {
-            log.warn("Subscription request honeypot tripped — ignored. ip={} email='{}'", ip, str(body.get("registeredEmail")));
+            log.warn("Subscription request honeypot tripped — ignored. ip={} email='{}'", ip, EmailMask.mask(str(body.get("registeredEmail"))));
             return ResponseEntity.ok(Map.of("status", "success"));
         }
         String rate = formGuard.checkRate(ip, FORM);

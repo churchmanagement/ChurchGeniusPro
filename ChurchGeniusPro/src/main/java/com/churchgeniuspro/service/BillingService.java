@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
 import com.churchgeniuspro.util.AppClock;
@@ -557,7 +559,7 @@ public class BillingService {
         try {
             deliver(p.invoice(), p.lines(), link, reminderNote);
         } catch (Exception e) {
-            log.error("Billing: invoice {} email to {} failed — {}", p.invoice().getInvoiceNumber(), p.invoice().getBillToEmail(), e.toString());
+            log.error("Billing: invoice {} email to {} failed — {}", p.invoice().getInvoiceNumber(), EmailMask.mask(p.invoice().getBillToEmail()), LogSafe.exception(e));
             // 3. One compensating transaction: SENT → DRAFT and its charges BILLED → UNBILLED.
             //    Conditional on the link this send minted, so an invoice voided or paid in the
             //    meantime is left as it is.
@@ -583,7 +585,7 @@ public class BillingService {
                     + "). The invoice is still a draft and its charges are unbilled; nothing was sent.");
         }
         log.info("Billing: invoice {} sent to {} by {} — total {}", p.invoice().getInvoiceNumber(),
-                p.invoice().getBillToEmail(), actor, p.invoice().getTotal());
+                EmailMask.mask(p.invoice().getBillToEmail()), actor, p.invoice().getTotal());
         return new Sent(p.invoice(), link);
     }
 
@@ -617,11 +619,11 @@ public class BillingService {
             deliver(now, lines.findByInvoiceIdOrderBySortOrderAscIdAsc(inv.getId()), link, reminderNote);
         } catch (Exception e) {
             invoices.rotateToken(inv.getId(), hash, oldHash, oldExpires, -1, oldAt, oldBy);
-            log.error("Billing: re-send of {} to {} failed — previous link kept. {}", inv.getInvoiceNumber(), inv.getBillToEmail(), e.toString());
+            log.error("Billing: re-send of {} to {} failed — previous link kept. {}", inv.getInvoiceNumber(), EmailMask.mask(inv.getBillToEmail()), LogSafe.exception(e));
             throw new IllegalStateException("The invoice email could not be sent (" + e.getMessage()
                     + "). The previous link still works.");
         }
-        log.info("Billing: invoice {} re-sent to {} by {}", inv.getInvoiceNumber(), inv.getBillToEmail(), actor);
+        log.info("Billing: invoice {} re-sent to {} by {}", inv.getInvoiceNumber(), EmailMask.mask(inv.getBillToEmail()), actor);
         return new Sent(now, link);
     }
 

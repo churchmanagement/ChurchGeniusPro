@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.LogSafe;
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
 import com.churchgeniuspro.service.EmailService;
@@ -1015,7 +1016,7 @@ public class SundaySchoolController {
                 sent++;
             } catch (Exception ex) {
                 errors.add("Student email failed: " + ex.getMessage());
-                log.error("Failed to send graded result to student email", ex);
+                log.error("Failed to send graded result to student email — {}", LogSafe.exception(ex));
             }
         }
 
@@ -1030,7 +1031,7 @@ public class SundaySchoolController {
                 }
             } catch (Exception ex) {
                 errors.add("HoH email failed: " + ex.getMessage());
-                log.error("Failed to send graded result to HoH", ex);
+                log.error("Failed to send graded result to HoH — {}", LogSafe.exception(ex));
             }
         }
 
@@ -1088,7 +1089,7 @@ public class SundaySchoolController {
         try {
             emailService.sendOrgEmail(teacher.getEmail(), subject, html, clientId);
         } catch (Exception e) {
-            log.error("Failed to send student alert email", e);
+            log.error("Failed to send student alert email — {}", LogSafe.exception(e));
         }
         return ResponseEntity.ok(Map.of("status", "sent"));
     }
@@ -1357,7 +1358,7 @@ public class SundaySchoolController {
                 try {
                     emailService.sendOrgEmail(teacher.getEmail(), subject, emailHtml, sub.getClientId());
                 } catch (Exception e) {
-                    log.error("Failed to send submission email to teacher", e);
+                    log.error("Failed to send submission email to teacher — {}", LogSafe.exception(e));
                 }
             }
 
@@ -1370,7 +1371,7 @@ public class SundaySchoolController {
                         emailService.sendOrgEmail(hohEmail, subject, hohHtml, sub.getClientId());
                     }
                 } catch (Exception e) {
-                    log.error("Failed to send HoH copy email for submission", e);
+                    log.error("Failed to send HoH copy email for submission — {}", LogSafe.exception(e));
                 }
             }
         }
@@ -2463,7 +2464,7 @@ public class SundaySchoolController {
                 sent++;
             } catch (Exception ex) {
                 errors.add("Student email failed: " + ex.getMessage());
-                log.error("Failed to send graded result to student email", ex);
+                log.error("Failed to send graded result to student email — {}", LogSafe.exception(ex));
             }
         }
 
@@ -2478,7 +2479,7 @@ public class SundaySchoolController {
                 }
             } catch (Exception ex) {
                 errors.add("HoH email failed: " + ex.getMessage());
-                log.error("Failed to send graded result to HoH", ex);
+                log.error("Failed to send graded result to HoH — {}", LogSafe.exception(ex));
             }
         }
 

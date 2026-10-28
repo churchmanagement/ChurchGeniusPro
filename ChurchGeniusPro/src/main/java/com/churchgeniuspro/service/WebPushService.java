@@ -225,14 +225,16 @@ public class WebPushService {
         sendToSubscriptions(subs, title, body, url, tag);
     }
 
-    // ── Key generation helper (call once at startup to generate keys) ─────────
+    // ── Key generation helper (operator use) ──────────────────────────────────
 
     /**
-     * Generates a new VAPID EC key pair on the P-256 curve using standard
-     * Java security APIs (BouncyCastle provider) and logs the Base64url-encoded
-     * keys ready to paste into application.properties.
+     * Generates a new VAPID EC key pair on the P-256 curve (BouncyCastle) and RETURNS the
+     * Base64url-encoded values ({@code publicKey}, {@code publicKeyRaw}, {@code privateKey})
+     * for the caller to put into the environment. Nothing in the app calls this; it used to
+     * write the private key through the logger, which no credential should ever reach, masked
+     * or not (2026-10-28 logging audit M5). Only the fact of generation is logged.
      */
-    public static void generateAndLogVapidKeys() {
+    public static Map<String, String> generateVapidKeys() {
         try {
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
                 Security.addProvider(new BouncyCastleProvider());
@@ -252,12 +254,11 @@ public class WebPushService {
             byte[] rawPoint = ecPub.getQ().getEncoded(false); // uncompressed
             String pubRaw = Base64.getUrlEncoder().withoutPadding().encodeToString(rawPoint);
 
-            log.info("[WebPush] Generated VAPID key pair:");
-            log.info("[WebPush]   push.vapid.public-key={}", pub);
-            log.info("[WebPush]   push.vapid.public-key-raw={}", pubRaw);
-            log.info("[WebPush]   push.vapid.private-key={}", priv);
+            log.info("[WebPush] VAPID key pair generated (values returned to the caller, not logged)");
+            return Map.of("publicKey", pub, "publicKeyRaw", pubRaw, "privateKey", priv);
         } catch (Exception e) {
             log.error("[WebPush] Key generation failed: {}", e.getMessage(), e);
+            return Map.of();
         }
     }
 

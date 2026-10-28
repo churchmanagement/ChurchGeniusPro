@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.PhoneMask;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
@@ -56,7 +58,7 @@ public class SmsService {
                 Twilio.init(accountSid, authToken);
                 log.info("SmsService: Twilio initialized (from={})", fromNumber);
             } catch (Exception e) {
-                log.error("SmsService: Twilio init failed — {}", e.getMessage());
+                log.error("SmsService: Twilio init failed — {}", LogSafe.exception(e));
             }
         } else {
             log.warn("SmsService: Twilio credentials not configured — SMS disabled. " +
@@ -255,22 +257,22 @@ public class SmsService {
         if (messagingPolicy != null) {
             String blocked = messagingPolicy.smsBlockReason(clientId);
             if (blocked != null) {
-                log.info("SmsService: blocked SMS to {} for client {} — {}", toNumber, clientId, blocked);
+                log.info("SmsService: blocked SMS to {} for client {} — {}", PhoneMask.mask(toNumber), clientId, blocked);
                 return SendOutcome.fail(blocked);
             }
         } else if (demoAccess != null && clientId != null && !demoAccess.sendingAllowed(clientId, true)) {
-            log.info("SmsService: blocked SMS to {} — demo/test client {} has SMS disabled", toNumber, clientId);
+            log.info("SmsService: blocked SMS to {} — demo/test client {} has SMS disabled", PhoneMask.mask(toNumber), clientId);
             return SendOutcome.fail("SMS sending is disabled for this demo/test account.");
         }
         boolean metered = subscriptionService != null && clientId != null && !clientId.isBlank();
         if (metered && !subscriptionService.canSendSms(clientId)) {
             log.warn("SmsService: skipping send to {} — monthly SMS allowance spent (clientId={})",
-                     toNumber, clientId);
+                     PhoneMask.mask(toNumber), clientId);
             return SendOutcome.fail(ALLOWANCE_SPENT_MSG);
         }
 
         if (!configured) {
-            log.warn("SmsService: skipping send to {} — Twilio not configured.", toNumber);
+            log.warn("SmsService: skipping send to {} — Twilio not configured.", PhoneMask.mask(toNumber));
             return SendOutcome.fail("SMS provider not configured");
         }
 
@@ -279,13 +281,13 @@ public class SmsService {
             // Refused deliberately: a number we cannot resolve is not one we should guess
             // at. Logged at WARN because this is a data problem someone has to fix at the
             // source, not a transient send failure.
-            log.warn("SmsService: skipping send — '{}' is not a usable phone number.", toNumber);
+            log.warn("SmsService: skipping send — '{}' is not a usable phone number.", PhoneMask.mask(toNumber));
             return SendOutcome.fail("Not a usable phone number: " + toNumber);
         }
 
         boolean tenant = clientId != null && !clientId.isBlank();
         if (tenant && !consentRequest && requireOptIn && optInRepo != null && !optInRepo.isOptedIn(e164, clientId)) {
-            log.info("SmsService: skipping send to {} for client {} — no confirmed SMS opt-in", e164, clientId);
+            log.info("SmsService: skipping send to {} for client {} — no confirmed SMS opt-in", PhoneMask.mask(e164), clientId);
             return SendOutcome.fail(NOT_OPTED_IN_MSG);
         }
         if (addSenderIdentity) {
@@ -298,17 +300,17 @@ public class SmsService {
                     new PhoneNumber(sendFrom),
                     body
             ).create();
-            log.info("SmsService: sent SID={} to={}", msg.getSid(), e164);
+            log.info("SmsService: sent SID={} to={}", msg.getSid(), PhoneMask.mask(e164));
             if (metered) subscriptionService.recordSmsSent(clientId);
             return SendOutcome.ok();
         } catch (com.twilio.exception.ApiException e) {
             // Keep the code: it is the difference between "fix this number",
             // "this person opted out", and "your whole campaign is unregistered".
             Integer code = e.getCode();
-            log.error("SmsService: failed to send to {} — Twilio {}: {}", e164, code, e.getMessage());
+            log.error("SmsService: failed to send to {} — Twilio {}: {}", PhoneMask.mask(e164), code, LogSafe.exception(e));
             return SendOutcome.fail(code, describe(code, e.getMessage()));
         } catch (Exception e) {
-            log.error("SmsService: failed to send to {} — {}", e164, e.getMessage());
+            log.error("SmsService: failed to send to {} — {}", PhoneMask.mask(e164), LogSafe.exception(e));
             return SendOutcome.fail(e.getMessage());
         }
     }

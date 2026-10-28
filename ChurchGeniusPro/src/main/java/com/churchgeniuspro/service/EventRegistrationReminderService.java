@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.EmailMask;
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.hibernate.ChurchEvent;
 import com.churchgeniuspro.hibernate.ChurchEventDay;
 import com.churchgeniuspro.hibernate.EventRegistration;
@@ -750,7 +752,8 @@ public class EventRegistrationReminderService {
             row.setAppClientId(event.getAppClientId());
             logRepo.save(row);
             LOGGER.info("Event {} [event={}] {} {} → {}{}",
-                    messageType, event.getId(), channel, recipient, status,
+                    messageType, event.getId(), channel,
+                    CHANNEL_EMAIL.equals(channel) ? EmailMask.mask(recipient) : PhoneMask.mask(recipient), status,
                     reason != null ? " (" + reason + ")" : "");
         } catch (Exception e) {
             LOGGER.error("Failed to write registration reminder log for event {} — {}",

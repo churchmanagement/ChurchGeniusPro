@@ -1,5 +1,7 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.hibernate.AppUser;
 import com.churchgeniuspro.hibernate.SignUp;
 import com.churchgeniuspro.hibernate.UserPermissions;
@@ -458,7 +460,7 @@ public class AppUserService {
                 whatsAppSender.sendWhatsAppToPhone(u.getPhone(), whatsAppMsg, u.getClientId());
             } catch (Exception ex) {
                 LOG.warn("Invitation WhatsApp to {} failed (email was sent) - {}",
-                         u.getPhone(), ex.getMessage());
+                         PhoneMask.mask(u.getPhone()), LogSafe.exception(ex));
             }
         }
     }

@@ -2,12 +2,14 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Stores Twilio / WhatsApp credentials for one organization.
  * One record per org is enforced by the unique constraint on {@code client_id}.
  */
 @Data
+@ToString(exclude = {"authToken"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "whatsapp_settings",
        uniqueConstraints = @UniqueConstraint(name = "uq_whatsapp_settings_client", columnNames = {"client_id"}))

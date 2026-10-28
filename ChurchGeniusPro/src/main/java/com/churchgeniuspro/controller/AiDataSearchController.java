@@ -66,7 +66,7 @@ public class AiDataSearchController {
             }
             return ResponseEntity.ok(service.answer(request, clientId, question));
         } catch (Exception e) {
-            LOG.error("AI data search failed for clientId={} q={}", clientId, question, e);
+            LOG.error("AI data search failed for clientId={} ({} char question)", clientId, question == null ? 0 : question.length(), e);   // the question can name members / amounts
             resp.put("handled", false);          // fail open into the normal search flow
             return ResponseEntity.ok(resp);
         }

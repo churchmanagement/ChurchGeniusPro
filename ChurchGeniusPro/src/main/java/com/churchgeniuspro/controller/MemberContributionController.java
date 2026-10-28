@@ -267,7 +267,7 @@ public class MemberContributionController {
         // is posted (gross Income + fee Expense) by DonationPostingService, with the
         // member and purpose the member chose pre-filled on the review screen.
         try { if (donationController != null) donationController.sendThankyou(d, clientId); } catch (Exception ignored) {}
-        log.info("Member contribution recorded: client={} member={} amount={} intent={}", clientId, w.memberId(), amount, piId);
+        log.info("Member contribution recorded: client={} donation={} intent={}", clientId, d.getId(), piId);   // member + amount together is personal financial data; both are on the donation row
         return ResponseEntity.ok(Map.of("success", true, "donationId", d.getId(), "amount", amount, "paymentMethod", charge.paymentMethod()));
     }
 

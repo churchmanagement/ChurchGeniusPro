@@ -1,5 +1,8 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.LogSafe;
+import com.churchgeniuspro.util.EmailMask;
+import com.churchgeniuspro.util.PhoneMask;
 import com.churchgeniuspro.common.States;
 import com.churchgeniuspro.hibernate.AutoReminder;
 import com.churchgeniuspro.hibernate.ChurchEvent;
@@ -739,7 +742,7 @@ public class ReminderSchedulerService {
                         try { emailService.sendOrgEmail(email, subject, html, clientId); sent++; }
                         catch (Exception ex) {
                             failed++;
-                            LOGGER.warn("[PrayerReminder] email failed to {} ({}): {}", email, clientId, ex.toString());
+                            LOGGER.warn("[PrayerReminder] email failed to {} ({}): {}", EmailMask.mask(email), clientId, LogSafe.exception(ex));
                         }
                     }
                     if (emails.isEmpty())
@@ -1438,7 +1441,7 @@ public class ReminderSchedulerService {
             } catch (Exception e) {
                 failed++;
                 LOGGER.error("Event reminders: email to {} failed for event {} — {}",
-                        email, event.getId(), e.getMessage());
+                        EmailMask.mask(email), event.getId(), LogSafe.exception(e));
                 recordEventAttempt(event, clientId, "EMAIL", occurrence, email.trim(), norm,
                         com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_FAILED,
                         e.getMessage(), days);
@@ -1493,7 +1496,7 @@ public class ReminderSchedulerService {
                 // it is invisible unless it is said out loud.
                 skipped++;
                 LOGGER.warn("Event reminders: registrant {} phone '{}' is not usable — skipped (event {})",
-                        reg.getId(), phone, event.getId());
+                        reg.getId(), PhoneMask.mask(phone), event.getId());
                 recordEventAttempt(event, clientId, "SMS", occurrence, phone, norm,
                         com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_SKIPPED,
                         "Not a usable phone number", days);
@@ -1519,7 +1522,7 @@ public class ReminderSchedulerService {
             } catch (Exception e) {
                 failed++;
                 LOGGER.error("Event reminders: SMS to {} failed for event {} — {}",
-                        e164, event.getId(), e.getMessage());
+                        PhoneMask.mask(e164), event.getId(), LogSafe.exception(e));
                 recordEventAttempt(event, clientId, "SMS", occurrence, e164, norm,
                         com.churchgeniuspro.hibernate.EventRegistrationReminderLog.STATUS_FAILED,
                         e.getMessage(), days);

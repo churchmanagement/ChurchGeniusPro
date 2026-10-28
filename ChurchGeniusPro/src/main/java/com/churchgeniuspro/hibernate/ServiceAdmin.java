@@ -2,6 +2,7 @@ package com.churchgeniuspro.hibernate;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Maps to the pre-existing {@code serviceadmin} table.
@@ -11,6 +12,7 @@ import lombok.Data;
 @Entity
 @Table(name = "serviceadmin")
 @Data
+@ToString(exclude = {"password"})   // never in a log line, even by accident (2026-10-28 logging audit)
 public class ServiceAdmin {
 
     @Id

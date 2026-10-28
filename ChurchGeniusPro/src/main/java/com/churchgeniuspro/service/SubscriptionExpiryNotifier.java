@@ -1,5 +1,6 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.ReminderSentLog;
 import com.churchgeniuspro.hibernate.ServiceClient;
 import com.churchgeniuspro.repository.ReminderSentLogRepository;
@@ -102,7 +103,7 @@ public class SubscriptionExpiryNotifier {
                 emailService.sendGenericEmail(sc.getEmail(), subject, body);
                 sent++;
                 log.info("Subscription expiry notice ({} day(s)) sent to {} for clientId={}",
-                        daysLeft, sc.getEmail(), sc.getClientId());
+                        daysLeft, EmailMask.mask(sc.getEmail()), sc.getClientId());
                 sendTrialTestCopy(sc, subject, body, daysLeft);
             } catch (Exception e) {
                 log.error("Subscription expiry notice failed for clientId={} — {}",

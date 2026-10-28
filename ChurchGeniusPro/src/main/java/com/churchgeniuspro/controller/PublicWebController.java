@@ -1,5 +1,6 @@
 package com.churchgeniuspro.controller;
 
+import com.churchgeniuspro.util.EmailMask;
 import com.churchgeniuspro.hibernate.PublicPageVisit;
 import com.churchgeniuspro.repository.PublicPageVisitRepository;
 import com.churchgeniuspro.service.EmailService;
@@ -194,7 +195,7 @@ public class PublicWebController {
             emailService.sendGenericEmail(CONTACT_INBOX,
                     "Website Contact Request" + (name != null ? " — " + name : ""),
                     html.toString());
-            LOGGER.info("Public contact form submitted by {} ({})", name, email);
+            LOGGER.info("Public contact form submitted ({})", EmailMask.mask(email));   // name + address are in the e-mail to the inbox, not the log
             return ResponseEntity.ok(Map.of("status", "success",
                     "message", "Thank you! Your request has been sent — we'll get back to you soon."));
         } catch (Exception e) {

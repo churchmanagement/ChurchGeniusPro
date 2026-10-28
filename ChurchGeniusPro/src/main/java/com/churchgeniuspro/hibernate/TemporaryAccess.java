@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
  * {@code RoleGuard.requirePermission} gates govern which pages are reachable.
  */
 @Data
+@ToString(exclude = {"accessCodeHash"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "temporary_access")
 public class TemporaryAccess {

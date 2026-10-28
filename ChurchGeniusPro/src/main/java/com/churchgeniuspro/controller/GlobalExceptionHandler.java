@@ -168,12 +168,18 @@ public class GlobalExceptionHandler {
         return value == null ? "-" : String.valueOf(value);
     }
 
-    /** Request path plus query string, for diagnostic logging. */
+    /**
+     * Request path for diagnostic logging — the URI only. The query string is deliberately
+     * left out (2026-10-28 logging audit H4): public links carry bearer-style tokens in
+     * short parameters ({@code ?t=} invoice, {@code ?k=} trial request, {@code ?t=} kids
+     * pickup) and search endpoints carry {@code email=} / {@code phone=} / {@code search=}
+     * values, none of which belong in error-*.log. Only whether a query string was present
+     * is kept, so "?…" in the line still tells the reader the request had parameters.
+     */
     private static String requestPath(HttpServletRequest request) {
         if (request == null) return "(unknown)";
         String uri = request.getRequestURI();
-        String qs  = request.getQueryString();
-        return qs == null ? uri : uri + "?" + qs;
+        return request.getQueryString() == null ? uri : uri + "?…";
     }
 
     /**
