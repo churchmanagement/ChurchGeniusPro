@@ -142,6 +142,9 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         // reach the same pages under More).
         { id: 'admin/ticketing',           label: 'Ticketing',           icon: '&#x1F3AB;', href: '/tickets',      churchOnly: true },
         { id: 'admin/ai-assistant',        label: 'AI Assistant',        icon: '&#x2728;',  href: '/ai-assistant', churchOnly: true },
+        // Help Center for church logins (staff reach it under More → Help Center). Opens the
+        // "Account & User Management" card, which covers the Users page step by step.
+        { id: 'admin/help-center',         label: 'Help Center',         icon: '&#x1F4DA;', href: '/helpCenter#account-management', churchOnly: true },
         { id: 'admin/ntag-access',         label: 'NTAG Login',          icon: '&#x1F511;', href: '/ntagAccess'          }
     ]},
     { id: 'accounting', label: 'Accounting', icon: '&#x1F4B0;', children: [

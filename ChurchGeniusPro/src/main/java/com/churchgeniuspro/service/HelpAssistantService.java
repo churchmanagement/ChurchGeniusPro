@@ -48,6 +48,10 @@ public class HelpAssistantService {
     /** Opt-in denial, mirroring RoleGuard.requirePermission. */
     boolean allowed(HelpArticle a, String privilegesJson, String role, boolean church) {
         if (a.adminOnly && !isAdmin(role, church)) return false;
+        if (!a.roles().isEmpty()) {
+            String effective = church ? "Church" : (role == null ? "" : role);
+            if (!a.roles().contains(effective)) return false;
+        }
         if (a.permKey == null || a.permKey.isBlank()) return true;
         if (church) return true;                                   // church bypass
         if (privilegesJson == null || privilegesJson.isBlank()) return true; // full access

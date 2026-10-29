@@ -58,7 +58,8 @@ class AssistantKnowledgeTest {
     }
 
     static Set<String> menuHrefs() throws IOException {
-        String shell = read("src/main/resources/static/shell.js");
+        // Commented-out menu items (e.g. the switched-off Files & Notes) are not menu pages.
+        String shell = read("src/main/resources/static/shell.js").replaceAll("(?m)^\\s*//.*$", "");
         Set<String> out = new LinkedHashSet<>();
         Matcher m = Pattern.compile("\\{ id: '[^']+',\\s*label: '[^']+',\\s*icon: '[^']+',\\s*href: '(/[^'#]*)'").matcher(shell);
         while (m.find()) out.add(m.group(1));
@@ -128,15 +129,15 @@ class AssistantKnowledgeTest {
         OpenAiVoiceService openAi = mock(OpenAiVoiceService.class);
         when(openAi.isEnabled()).thenReturn(true);
         when(openAi.chatJson(anyString(), anyString())).thenReturn(new ObjectMapper().readTree(
-                "{\"answer\":\"Ticketing sends a support request. It is not enabled for your account.\",\"steps\":[],\"troubleshooting\":[],\"articleIds\":[\"ticketing\",\"members\"],\"category\":\"Support\",\"followUpQuestion\":null,\"restricted\":true}"));
+                "{\"answer\":\"Ticketing sends a support request. It is not enabled for your account.\",\"steps\":[],\"troubleshooting\":[],\"articleIds\":[\"ticketing\",\"followups\"],\"category\":\"Support\",\"followUpQuestion\":null,\"restricted\":true}"));
         HelpAssistantService svc = new HelpAssistantService(new HelpContentCatalog(), openAi, mock(HelpAuditLogRepository.class));
         Map<String, Object> r = svc.assist("{\"more.ticketing\":false}", "User", false, "What is ticketing?", "", false, "C1", "u");
         ArgumentCaptor<String> sys = ArgumentCaptor.forClass(String.class);
         verify(openAi).chatJson(sys.capture(), anyString());
-        assertThat(sys.getValue()).contains("[accessible=false] ARTICLE id=ticketing", "[accessible=true] ARTICLE id=members", "[accessible=true] ARTICLE id=plans_trial")
+        assertThat(sys.getValue()).contains("[accessible=false] ARTICLE id=ticketing", "[accessible=true] ARTICLE id=followups", "[accessible=false] ARTICLE id=members", "[accessible=true] ARTICLE id=plans_trial")
                 .contains("never say such a feature does not exist").doesNotContain("reply that they do not have access to it");
         assertThat(r).containsEntry("restricted", true);
-        assertThat((List<Map<String, Object>>) r.get("articles")).extracting(a -> a.get("id")).containsExactly("members");   // ticketing link withheld
+        assertThat((List<Map<String, Object>>) r.get("articles")).extracting(a -> a.get("id")).containsExactly("followups");   // ticketing link withheld (User logins cannot open Families: members is [accessible=false])
     }
 
     @Test @DisplayName("Help Center page cards cover the newer features too")

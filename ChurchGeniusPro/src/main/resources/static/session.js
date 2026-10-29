@@ -727,7 +727,9 @@
             // Ticketing and the AI Assistant are available to the Church role (2026-10-01).
             var isTickets  = onclick.indexOf('/tickets') !== -1;
             var isAi       = onclick.indexOf('/ai-assistant') !== -1;
-            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi;
+            // Help Center (Admin → Help Center) is available to the Church role (2026-10-29).
+            var isHelp     = onclick.indexOf('/helpCenter') !== -1;
+            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isHelp;
             btn.style.display = show ? '' : 'none';
         });
     }

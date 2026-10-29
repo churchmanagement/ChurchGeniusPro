@@ -43,6 +43,24 @@ public class HelpArticle {
         this.keywords = keywords == null ? List.of() : keywords;
     }
 
+    /**
+     * Roles that can actually use the feature (SuperAdmin, Admin, Accountant, User, Limited,
+     * Member, Church). Empty = every role. The permission key alone cannot express this: a
+     * Member Portal session carries no staff permission map, so without a role list every
+     * staff article was listed for members too.
+     */
+    private java.util.Set<String> roles = java.util.Set.of();
+
+    /** Restricts the article to these roles (comma-separated). Returns this for chaining. */
+    public HelpArticle roles(String csv) {
+        java.util.Set<String> s = new java.util.LinkedHashSet<>();
+        if (csv != null) for (String r : csv.split(",")) if (!r.isBlank()) s.add(r.trim());
+        this.roles = java.util.Collections.unmodifiableSet(s);
+        return this;
+    }
+
+    public java.util.Set<String> roles() { return roles; }
+
     /** Compact entry for the article list / search results. */
     public Map<String, Object> toListItem() {
         Map<String, Object> m = new LinkedHashMap<>();
