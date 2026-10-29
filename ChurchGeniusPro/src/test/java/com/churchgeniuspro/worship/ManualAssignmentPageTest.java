@@ -56,7 +56,10 @@ class ManualAssignmentPageTest {
 
     private static final String AUTO_JS2_START = "/* ── Skip-dates picker helpers ── */";
     private static final String AUTO_JS2_END   = "async function loadInlineSongs(";
-    private static final String AUTO_JS2_SHA   = "be0b9b1966d01d35";
+    // Updated 2026-10-29 (approved by the user, error-handling audit M5): generateAutoAssignments()
+    // now stops before saving new rows when deleting the old ones is refused (was: failed DELETE
+    // swallowed, new rows saved anyway -> duplicate assignments). Nothing else in the region changed.
+    private static final String AUTO_JS2_SHA   = "c4d9720157dedf1e";
 
     @Test
     @DisplayName("Automatic Assignment markup and JavaScript are byte-identical to the pre-work file")

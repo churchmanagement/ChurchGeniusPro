@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -455,14 +456,13 @@
         .then(function(out){
           URL.revokeObjectURL(url);
           var text=(out&&out.data&&out.data.text)||''; var conf=(out&&out.data&&out.data.confidence)||0;
-          fetch('/api/bank-import/scan-parse',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:text, ocrConfidence:conf, fileName:f.name}) })
-            .then(function(r){ return r.json(); })
+          CGP_api('/api/bank-import/scan-parse',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:text, ocrConfidence:conf, fileName:f.name}) })
             .then(function(j){
               $('btnParse').disabled=false;
               if(!j || !(j.data && j.data.length)){ $('status').innerHTML='<span style="color:#b42424;">Couldn’t read transactions from this image. Please retake the photo or enter values manually.</span>'; return; }
               ingest(j);
             })
-            .catch(function(){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">OCR parsing failed — please try again.</span>'; });
+            .catch(function(e){ $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;"></span>'; $('status').firstChild.textContent=CGP_errorMessage(e, 'OCR parsing failed — please try again.'); });
         })
         .catch(function(){ URL.revokeObjectURL(url); $('btnParse').disabled=false; $('status').innerHTML='<span style="color:#b42424;">Could not read the image.</span>'; });
     });
@@ -733,7 +733,7 @@
     var saveBtn=$('mSave'); saveBtn.disabled=true; saveBtn.textContent='Checking…';
     fetch('/api/bank-import/check-duplicate', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:spec.label.toLowerCase(), date:spec.date, amount:spec.amount, refNo:spec.refNo, checkNo:(t.checkNo||null) }) })
-      .then(function(r){ return r.json(); })
+      .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(dup){
         saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>';
         if(dup && dup.found){ showDup(spec, dup); } else { doSave(spec, null); }

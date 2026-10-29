@@ -93,7 +93,7 @@ public class CsrfOriginFilter implements Filter {
         log.warn("[CSRF] refused {} {} from origin host '{}'", req.getMethod(), req.getRequestURI(), sourceHost);
         res.setStatus(HttpServletResponse.SC_FORBIDDEN);
         res.setContentType("application/json;charset=UTF-8");
-        res.getWriter().write("{\"status\":\"error\",\"message\":\"Cross-site request refused.\"}");
+        res.getWriter().write("{\"status\":\"error\",\"message\":\"Cross-site request refused.\",\"error\":\"Cross-site request refused.\"}");
     }
 
     private boolean isOurs(String host, HttpServletRequest req) {

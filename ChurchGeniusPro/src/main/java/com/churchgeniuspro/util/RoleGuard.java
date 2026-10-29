@@ -581,6 +581,48 @@ public final class RoleGuard {
         return Boolean.TRUE.equals(val) || "true".equalsIgnoreCase(String.valueOf(val));
     }
 
+    // ── API denial responses (error-handling audit 2026-10-28, L3) ───────────
+
+    /** {@code code} on a denial answered 401: nobody is signed in on this session. */
+    public static final String CODE_LOGIN_REQUIRED = "LOGIN_REQUIRED";
+    /** {@code code} on a denial answered 403: signed in, but not allowed here. */
+    public static final String CODE_ACCESS_DENIED  = "ACCESS_DENIED";
+
+    /**
+     * HTTP status for a guard result on a JSON endpoint: 401 only when the guard asked
+     * for a login AND the session really carries no signed-in identity (no username,
+     * member, Service Admin or temporary-access id) — so a signed-in member or Service
+     * Admin who reaches a staff endpoint gets 403 and is never sent to the login page.
+     */
+    public static int denyStatus(HttpServletRequest request, String deny) {
+        if (!REDIRECT_LOGIN.equals(deny)) return 403;
+        HttpSession session = request == null ? null : request.getSession(false);
+        if (session == null) return 401;
+        boolean someone = session.getAttribute("username") != null
+                || session.getAttribute("memberId") != null
+                || session.getAttribute("serviceAdminId") != null
+                || session.getAttribute("tempAccessId") != null;
+        return someone ? 403 : 401;
+    }
+
+    /**
+     * JSON denial for an API endpoint: status from {@link #denyStatus}; a Map body is
+     * kept as written (same keys and text) and gains {@code code} (LOGIN_REQUIRED /
+     * ACCESS_DENIED) unless it already has one. The response advice adds the missing
+     * one of {@code error}/{@code message}.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <T> org.springframework.http.ResponseEntity<T> denied(HttpServletRequest request, String deny, T body) {
+        int status = denyStatus(request, deny);
+        Object out = body;
+        if (body instanceof java.util.Map<?, ?> m) {
+            java.util.Map copy = new java.util.LinkedHashMap(m);
+            copy.putIfAbsent("code", status == 401 ? CODE_LOGIN_REQUIRED : CODE_ACCESS_DENIED);
+            out = copy;
+        }
+        return (org.springframework.http.ResponseEntity<T>) org.springframework.http.ResponseEntity.status(status).body(out);
+    }
+
     private static String role(HttpSession session) {
         Object val = session.getAttribute("role");
         return val instanceof String s ? s : null;

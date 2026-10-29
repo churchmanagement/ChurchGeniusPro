@@ -134,7 +134,7 @@ public class AuthFilter implements Filter {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             res.setContentType("application/json;charset=UTF-8");
             res.getWriter().write(
-                    "{\"status\":\"error\",\"message\":\"Session expired. Please log in.\"}");
+                    "{\"status\":\"error\",\"message\":\"Session expired. Please log in.\",\"error\":\"Session expired. Please log in.\"}");
             return;
         }
 
@@ -157,20 +157,32 @@ public class AuthFilter implements Filter {
 
         if (appUserIdAttr instanceof Integer appUserId) {
             // ── Staff account: validate against app_user table ────────────
-            AppUser appUser = appUserRepository.findById(appUserId).orElse(null);
+            AppUser appUser;
+            try {
+                appUser = appUserRepository.findById(appUserId).orElse(null);
+            } catch (RuntimeException e) {
+                unavailable(res, e);
+                return;
+            }
             if (appUser == null || appUser.isDeleteFlag() || !appUser.isEnabled()) {
                 session.invalidate();
                 res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 res.setContentType("application/json;charset=UTF-8");
                 res.getWriter().write(
-                        "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
+                        "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\",\"error\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
                 return;
             }
         } else if (clientId != null && !clientId.isBlank() && !"null".equals(clientId)) {
             // ── Church / Member account: validate against signup table ─────
             // Skip the re-validation for non-staff accounts that have no app_user row.
             // We only check signup.active and signup.deleted here.
-            SignUp signup = loginRepository.findByClientId(clientId).orElse(null);
+            SignUp signup;
+            try {
+                signup = loginRepository.findByClientId(clientId).orElse(null);
+            } catch (RuntimeException e) {
+                unavailable(res, e);
+                return;
+            }
             if (signup == null
                     || Boolean.TRUE.equals(signup.getDeleted())
                     || Boolean.FALSE.equals(signup.getActive())) {
@@ -178,7 +190,7 @@ public class AuthFilter implements Filter {
                 res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 res.setContentType("application/json;charset=UTF-8");
                 res.getWriter().write(
-                        "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
+                        "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\",\"error\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
                 return;
             }
         }
@@ -190,5 +202,27 @@ public class AuthFilter implements Filter {
         com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
 
         chain.doFilter(request, response);
+    }
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthFilter.class);
+
+    /** Message for a request refused because the account re-check could not run. */
+    static final String UNAVAILABLE_MSG =
+            "We could not verify your session right now. Please try again in a moment.";
+
+    /**
+     * Error-handling audit 2026-10-28, L10: the per-request account re-check reads the
+     * database; when that read fails the request is refused with a JSON 503 and a
+     * reference (logged with the stack trace) instead of the container's HTML 500. The
+     * session is kept — the user is not signed out because of an outage.
+     */
+    private static void unavailable(HttpServletResponse res, RuntimeException e) throws IOException {
+        String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+        log.error("Account re-check failed [ref={}]: {}", ref, com.churchgeniuspro.util.LogSafe.exception(e), e);
+        res.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        res.setContentType("application/json;charset=UTF-8");
+        String text = UNAVAILABLE_MSG + " Reference " + ref + ".";
+        res.getWriter().write("{\"status\":\"error\",\"error\":\"" + text + "\",\"message\":\"" + text
+                + "\",\"code\":\"SESSION_CHECK_UNAVAILABLE\",\"ref\":\"" + ref + "\"}");
     }
 }

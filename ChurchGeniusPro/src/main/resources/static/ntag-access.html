@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -130,8 +131,8 @@
   function val(id){ return document.getElementById(id).value.trim(); }
 
   async function init() {
-    try { CATALOG = await (await fetch('/api/temp-access/catalog')).json(); } catch { CATALOG = []; }
-    try { PEOPLE  = await (await fetch('/api/temp-access/people')).json(); } catch { PEOPLE = []; }
+    try { const c = await CGP_api('/api/temp-access/catalog'); CATALOG = Array.isArray(c) ? c : []; } catch (e) { CATALOG = []; fb(CGP_errorMessage(e, 'Could not load the page list.'), false); }
+    try { const pp = await CGP_api('/api/temp-access/people'); PEOPLE = Array.isArray(pp) ? pp : []; } catch (e) { PEOPLE = []; fb(CGP_errorMessage(e, 'Could not load people.'), false); }
     renderPerms(); renderPeople(); loadList(); loadHistory();
   }
   function renderPerms(selected) {
@@ -204,7 +205,7 @@
 
   let LIST = [];
   async function loadList() {
-    try { LIST = await (await fetch('/api/ntag')).json(); } catch { LIST = []; }
+    try { const l = await CGP_api('/api/ntag'); LIST = Array.isArray(l) ? l : []; } catch (e) { LIST = []; fb(CGP_errorMessage(e, 'Could not load the tags.'), false); }
     const tb = document.getElementById('rows');
     if (!LIST.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No tags registered yet.</td></tr>'; return; }
     tb.innerHTML = LIST.map(c => {
@@ -252,7 +253,7 @@
 
   async function loadHistory() { renderHistory(await fetchHist('/api/ntag/history?limit=150')); }
   async function viewHistory(id) { renderHistory(await fetchHist('/api/ntag/'+id+'/history?limit=100')); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
-  async function fetchHist(url){ try { return await (await fetch(url)).json(); } catch { return []; } }
+  async function fetchHist(url){ try { const h = await CGP_api(url); return Array.isArray(h) ? h : []; } catch (e) { fb(CGP_errorMessage(e, 'Could not load the login history.'), false); return []; } }
   function renderHistory(rows) {
     const tb = document.getElementById('histRows');
     if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No NTAG logins yet.</td></tr>'; return; }

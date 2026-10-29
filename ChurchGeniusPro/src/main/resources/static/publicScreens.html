@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -283,10 +284,10 @@
   /* ════ LOAD LINKS ════ */
   async function loadLinks() {
     try {
-      const res = await fetch('/api/public-screens');
-      allLinks  = await res.json();
+      const links = await CGP_api('/api/public-screens');
+      allLinks  = Array.isArray(links) ? links : [];
       renderLinksTable(allLinks);
-    } catch { showFeedback('❌ Could not load generated links.', 'error'); }
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load generated links.'), 'error'); }
   }
 
   function renderLinksTable(links) {

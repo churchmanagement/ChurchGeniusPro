@@ -88,7 +88,7 @@ public class EventRegistrationReminderController {
                                         @RequestBody Map<String, Object> body,
                                         HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "general.events.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
 
         ChurchEvent event = findOwnedEvent(id, request);
         if (event == null) return ResponseEntity.status(404).body(Map.of("error", "Event not found"));
@@ -155,7 +155,7 @@ public class EventRegistrationReminderController {
                                     @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean force,
                                     HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "general.events.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
 
         ChurchEvent event = findOwnedEvent(id, request);
         if (event == null) return ResponseEntity.status(404).body(Map.of("error", "Event not found"));
@@ -187,7 +187,7 @@ public class EventRegistrationReminderController {
     @org.springframework.web.bind.annotation.PostMapping("/api/events/{id}/registration-reminder/invite")
     public ResponseEntity<?> sendInvite(@PathVariable Integer id, HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "general.events.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
 
         ChurchEvent event = findOwnedEvent(id, request);
         if (event == null) return ResponseEntity.status(404).body(Map.of("error", "Event not found"));

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -521,23 +522,22 @@
   /* ─────────── LOAD REGISTRATIONS ─────────── */
   async function loadRegistrations() {
     try {
-      const res = await fetch(`/api/events/${currentEventId}/registrations`);
-      allRegs = await res.json();
+      const regs = await CGP_api(`/api/events/${currentEventId}/registrations`);
+      allRegs = Array.isArray(regs) ? regs : [];
       applyFilters();
-    } catch {
-      showFeedback('❌ Could not load registrations.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load registrations.'), 'error');
     }
   }
 
   /* ─────────── LOAD SUMMARY ─────────── */
   async function loadSummary() {
     try {
-      const res  = await fetch(`/api/events/${currentEventId}/checkin-summary`);
-      const data = await res.json();
+      const data = await CGP_api(`/api/events/${currentEventId}/checkin-summary`) || {};
       document.getElementById('sumTotal').textContent        = data.totalRegistered    || 0;
       document.getElementById('sumCheckedIn').textContent    = data.totalCheckedIn     || 0;
       document.getElementById('sumNotCheckedIn').textContent = data.totalNotCheckedIn  || 0;
-    } catch {}
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load the check-in summary.'), 'error'); }
   }
 
   /* ─────────── FILTER / SEARCH ─────────── */

@@ -111,6 +111,7 @@ public class DemoTrialAgreementFilter implements Filter {
         res.setContentType("application/json;charset=UTF-8");
         res.getWriter().write(
                 "{\"error\":\"Trial account agreement not accepted.\","
+              + "\"message\":\"Trial account agreement not accepted.\","
               + "\"code\":\"DEMO_AGREEMENT_REQUIRED\","
               + "\"endDate\":\"" + (endDate == null ? "" : escape(String.valueOf(endDate))) + "\"}");
     }

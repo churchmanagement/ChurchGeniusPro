@@ -176,11 +176,21 @@ public class ForgotPasswordController {
                         log.info("[ForgotPassword] sending reset email to {}", EmailMask.mask(sendToEmail));
                         // Email is sent AFTER the transaction commits (token is already in DB)
                         // Account recovery: delivered whatever the tenant's plan says.
-                        emailService.sendAccountEmail(
-                                sendToEmail,
-                                "Password Reset — " + churchName,
-                                buildResetEmail(username, resetLink, churchName));
-                        log.info("[ForgotPassword] reset email sent");
+                        // L9 (error-handling audit 2026-10-28): the throwing variant, so a failed
+                        // send RELEASES the cooldown — otherwise the user, who never got a link,
+                        // would be refused a new one for the whole cooldown window. The answer to
+                        // the browser stays the same generic 200 either way (no account oracle).
+                        try {
+                            emailService.sendAccountEmailOrThrow(
+                                    sendToEmail,
+                                    "Password Reset — " + churchName,
+                                    buildResetEmail(username, resetLink, churchName), null);
+                            log.info("[ForgotPassword] reset email sent");
+                        } catch (Exception sendFailure) {
+                            passwordResetService.releaseToken(username, token);
+                            log.warn("[ForgotPassword] reset email failed; cooldown released: {}",
+                                    com.churchgeniuspro.util.LogSafe.exception(sendFailure));
+                        }
                     } else {
                         log.info("[ForgotPassword] suppressed duplicate reset email (cooldown active)");
                     }

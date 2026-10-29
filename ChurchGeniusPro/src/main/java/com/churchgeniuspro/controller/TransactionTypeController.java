@@ -70,7 +70,7 @@ public class TransactionTypeController {
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         String name = body.get("typeName");
@@ -92,7 +92,7 @@ public class TransactionTypeController {
             @RequestBody Map<String, String> body,
             HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         String name = body.get("typeName");
@@ -112,7 +112,7 @@ public class TransactionTypeController {
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {

@@ -144,7 +144,7 @@ public class ChurchEventController {
         // Same pair as the /event page: requireAdminOrUser + general.events.edit.
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return unauthorized();
         String username    = SessionUtil.getUsername(request);
@@ -165,7 +165,7 @@ public class ChurchEventController {
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrUser(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return unauthorized();
         String username = SessionUtil.getUsername(request);
@@ -187,7 +187,7 @@ public class ChurchEventController {
         // accountant and member sessions included), so requireAuth is the common guard.
         String deny = RoleGuard.requireAuth(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "general.events.delete");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return unauthorized();
         try {

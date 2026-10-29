@@ -121,7 +121,7 @@ public class HelpController {
     @ResponseBody
     public ResponseEntity<?> audit(@RequestParam(defaultValue = "100") int limit, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Administrators only."));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Administrators only."));
         return ResponseEntity.ok(helpAssistant.recentAudit(clientId(req), limit));
     }
 

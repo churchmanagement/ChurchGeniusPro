@@ -52,7 +52,7 @@ public class DonationReviewController {
                                              HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.donation");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Access denied."));
 
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in again."));

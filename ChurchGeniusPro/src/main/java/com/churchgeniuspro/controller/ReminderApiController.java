@@ -239,7 +239,7 @@ public class ReminderApiController {
     private static ResponseEntity<Map<String, Object>> guard(HttpServletRequest req, String permKey) {
         String deny = RoleGuard.requireAdminOrUser(req);
         if (deny == null && permKey != null) deny = RoleGuard.requirePermission(req, permKey);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Permission denied"));
         if (SessionUtil.getAppClientId(req) == null)
             return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         return null;

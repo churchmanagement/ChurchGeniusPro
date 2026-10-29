@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <!--OG_META--><!-- Open Graph / link-preview tags injected server-side by EventRegisterPageController -->
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
@@ -993,12 +994,13 @@
 
   async function loadRegistrations() {
     try {
-      const res = await fetch(`/api/event-register/${eventId}/registrations`);
-      regsData  = await res.json();
+      const regs = await CGP_api(`/api/event-register/${eventId}/registrations`);
+      regsData  = Array.isArray(regs) ? regs : [];
       renderRegTable(regsData);
-    } catch {
+    } catch (e) {
       document.getElementById('regTableBody').innerHTML =
-        `<tr><td class="empty-row" colspan="5">Could not load registrations.</td></tr>`;
+        `<tr><td class="empty-row" colspan="5"></td></tr>`;
+      document.querySelector('#regTableBody td').textContent = CGP_errorMessage(e, 'Could not load registrations.');
     }
   }
 

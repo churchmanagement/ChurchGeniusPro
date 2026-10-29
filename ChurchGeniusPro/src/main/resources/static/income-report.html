@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8"/>
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -350,10 +351,9 @@ async function generateReport(){
   if (subSourceId) url += `&subSourceId=${subSourceId}`;
 
   try {
-    const res  = await fetch(url);
-    const data = await res.json();
+    const data = await CGP_api(url);
     renderReport(data, sd, ed);
-  } catch(e){ alert('Failed to load report data.'); console.error(e); }
+  } catch(e){ alert(CGP_errorMessage(e, 'Failed to load report data.')); console.error(e); }
 }
 
 function truncate(s, n){ s = s || ''; return s.length > n ? s.slice(0, n) + '…' : s; }

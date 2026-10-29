@@ -97,6 +97,7 @@ public class SubscriptionFeatureFilter implements Filter {
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"This feature is not included in your church's "
                     + "subscription plan. Please contact your administrator about upgrading.\","
+                    + "\"message\":\"This feature is not included in your church's subscription plan. Please contact your administrator about upgrading.\","
                     + "\"code\":\"SUBSCRIPTION_FEATURE_DISABLED\",\"feature\":\"" + featureKey + "\"}");
         } else {
             response.setContentType("text/html;charset=UTF-8");

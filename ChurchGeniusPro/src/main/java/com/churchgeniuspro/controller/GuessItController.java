@@ -439,7 +439,7 @@ public class GuessItController {
         if (staffAction) {
             Object mid = session.getAttribute("memberId");
             memberId = (mid instanceof Number n) ? n.intValue() : null;
-            if (memberId == null) return ResponseEntity.ok(Map.of("success", false, "error", "Not a member account"));
+            if (memberId == null) return ResponseEntity.status(403).body(Map.of("success", false, "error", "Not a member account"));
             Object cid = session.getAttribute("appClientId");
             clientId = (cid instanceof String s && !s.isBlank()) ? s : null;
         } else {
@@ -464,18 +464,18 @@ public class GuessItController {
             return ResponseEntity.ok(Map.of("success", false,
                     "error", "This game is part of a group. Join the group to play it."));
         if (!"active".equals(g.getStatus()))
-            return ResponseEntity.ok(Map.of("success", false, "error", "Game is not active.", "gameEnded", true));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Game is not active.", "gameEnded", true, "reason", "GAME_ENDED"));
 
         // Timer-expiry guard: reject submissions after timer runs out (server-side enforcement)
         if (isTimerExpired(g)) {
-            return ResponseEntity.ok(Map.of("success", false, "error", "Time is up! Wait for the next clue.", "timerExpired", true));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Time is up! Wait for the next clue.", "timerExpired", true, "reason", "TIMER_EXPIRED"));
         }
 
         // Race-condition guard: if a winner already exists, reject late correct submissions
         boolean winnerExists = participantRepo.findByGameId(gameId)
                 .stream().anyMatch(GuessItParticipant::isWinner);
         if (winnerExists)
-            return ResponseEntity.ok(Map.of("success", false, "error", "Another participant already answered correctly.", "alreadyWon", true));
+            return ResponseEntity.ok(Map.of("success", false, "error", "Another participant already answered correctly.", "alreadyWon", true, "reason", "ALREADY_WON"));
 
         // Validate option exists in the game's option list
         List<String> validOptions = parseJsonArray(g.getOptions());
@@ -507,13 +507,13 @@ public class GuessItController {
 
         // Guard: eliminated or winner participants cannot submit again
         if (p.isEliminated())
-            return ResponseEntity.ok(Map.of("success", false, "error", "You have been eliminated from this game.", "eliminated", true));
+            return ResponseEntity.ok(Map.of("success", false, "error", "You have been eliminated from this game.", "eliminated", true, "reason", "ELIMINATED"));
         if (p.isWinner())
             return ResponseEntity.ok(buildMemberState(g, p));
 
         // Guard: already submitted an answer for this game
         if (p.getActionsJson() != null && !p.getActionsJson().isBlank() && !p.getActionsJson().equals("{}"))
-            return ResponseEntity.ok(Map.of("success", false, "error", "You have already submitted an answer.", "eliminated", p.isEliminated()));
+            return ResponseEntity.ok(Map.of("success", false, "error", "You have already submitted an answer.", "eliminated", p.isEliminated(), "reason", "ALREADY_SUBMITTED"));
 
         // Evaluate the answer
         boolean isCorrect = option.equals(g.getCorrectAnswer());
@@ -526,7 +526,7 @@ public class GuessItController {
             boolean stillNoWinner = participantRepo.findByGameId(gameId)
                     .stream().noneMatch(GuessItParticipant::isWinner);
             if (!stillNoWinner) {
-                return ResponseEntity.ok(Map.of("success", false, "error", "Another participant already answered correctly.", "alreadyWon", true));
+                return ResponseEntity.ok(Map.of("success", false, "error", "Another participant already answered correctly.", "alreadyWon", true, "reason", "ALREADY_WON"));
             }
             p.setWinner(true);
             participantRepo.save(p);

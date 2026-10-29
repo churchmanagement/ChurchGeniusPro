@@ -55,7 +55,7 @@ public class ServiceAdminAuthFilter implements Filter {
             log.warn("[ServiceAdminAuth] refused {} {} — no service-admin session", req.getMethod(), req.getRequestURI());
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().write("{\"status\":\"error\",\"message\":\"Service admin login required.\"}");
+            res.getWriter().write("{\"status\":\"error\",\"message\":\"Service admin login required.\",\"error\":\"Service admin login required.\"}");
             return;
         }
         chain.doFilter(request, response);

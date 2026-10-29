@@ -138,6 +138,11 @@ public class VoiceCommandController {
             String prompt = vocabulary == null ? null : vocabulary.promptFor(clientId, context, expecting);
             String language = VoiceVocabularyService.languageFor(locale);
             tr = voiceService.transcribe(audio.getBytes(), audio.getOriginalFilename(), audio.getContentType(), prompt, language);
+        } catch (OpenAiVoiceService.ProviderLimitException over) {
+            // L12 (error-handling audit 2026-10-28): OpenAI 429 is "over its limit", not a glitch.
+            resp.put("error", OpenAiVoiceService.OVER_LIMIT_MSG);
+            resp.put("reason", "PROVIDER_LIMIT");
+            return ResponseEntity.status(503).body(resp);
         } catch (Exception e) {
             resp.put("error", "Could not read the audio.");
             return ResponseEntity.status(500).body(resp);

@@ -36,8 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * message (and reference) on any non-2xx answer, or test {@code res.ok} yourself.
  *
  * <p>The pages migrated in this phase must have none (two documented Guess It sites
- * excepted); every other page may not get worse than {@link #UNMIGRATED_CEILING}.
- * Lower the ceiling when you migrate a page — never raise it.
+ * excepted); every other page has none beyond {@link #UNMIGRATED_ALLOWED}.
  */
 @DisplayName("Ratchet — pages check the status before using a response; failures are reported")
 class PageFetchRatchetTest {
@@ -59,15 +58,19 @@ class PageFetchRatchetTest {
         MIGRATED.put("memberHome.html", 2);
     }
 
-    /** Unchecked parses left on every page not in {@link #MIGRATED} (was 179 site-wide before this phase). */
-    static final int UNMIGRATED_CEILING = 57;
-
     /**
-     * Swallowed mutations still allowed: memberWorship.html generateAutoAssignments() deletes the
-     * old rows with {@code .catch(() => {})} — that code sits in the Automatic Assignment region
-     * pinned by SHA-256 in worship/ManualAssignmentPageTest and needs its own approved change.
+     * Unchecked parses still allowed on pages outside {@link #MIGRATED} (2026-10-29: every other
+     * page migrated; was 57 after the Mediums phase, 179 before it). Each entry is a documented exception:
+     * <ul>
+     *   <li>guessIt.html (2) — Guess It state/admin reads; the game-state answers are the data
+     *       (audit L1), and the page already treats {@code d.error} as "nothing to show".</li>
+     *   <li>access-denied.html (1) — owned by the L3 denial-code work; it may only go down.</li>
+     * </ul>
      */
-    static final Map<String, Integer> SWALLOWED_MUTATION_ALLOWED = Map.of("memberWorship.html", 1);
+    static final Map<String, Integer> UNMIGRATED_ALLOWED = Map.of("guessIt.html", 2, "access-denied.html", 1);
+
+    /** Swallowed mutations still allowed (none: memberWorship generateAutoAssignments fixed 2026-10-29). */
+    static final Map<String, Integer> SWALLOWED_MUTATION_ALLOWED = Map.of();
 
     static final Pattern JSON_THEN = Pattern.compile(
             "\\.then\\(\\s*(?:function\\s*\\(\\s*(\\w+)\\s*\\)\\s*\\{\\s*return\\s+\\1\\.json\\(\\)\\s*;?\\s*\\}"
@@ -153,6 +156,22 @@ class PageFetchRatchetTest {
     }
 
     @Test
+    @DisplayName("any page that calls the helper loads cgp-api.js in <head> (session.js injection is too late for load-time calls)")
+    void pagesUsingTheHelperLoadIt() throws IOException {
+        List<String> problems = new ArrayList<>();
+        try (Stream<Path> files = Files.walk(STATIC)) {
+            for (Path p : (Iterable<Path>) files.filter(f -> f.toString().endsWith(".html"))::iterator) {
+                String s = read(p);
+                if (!Pattern.compile("\\bCGP_(api|apiJson|errorMessage|showError|sendOutcome)\\(").matcher(s).find()) continue;
+                int tag = s.indexOf("<script src=\"/cgp-api.js\"></script>");
+                int head = s.indexOf("</head>");
+                if (tag < 0 || head < 0 || tag > head) problems.add(STATIC.relativize(p).toString());
+            }
+        }
+        assertThat(problems).as("pages calling CGP_* without <script src=\"/cgp-api.js\"> in <head>").isEmpty();
+    }
+
+    @Test
     @DisplayName("migrated pages: no hard-coded alert('Network error') and no swallowed mutation")
     void failuresAreReported() throws IOException {
         List<String> problems = new ArrayList<>();
@@ -167,7 +186,7 @@ class PageFetchRatchetTest {
     }
 
     @Test
-    @DisplayName("every other page: unchecked parses may only go down")
+    @DisplayName("every other page: no unchecked parses beyond the documented exceptions")
     void unmigratedPagesDoNotGetWorse() throws IOException {
         int total = 0;
         List<String> where = new ArrayList<>();
@@ -182,10 +201,15 @@ class PageFetchRatchetTest {
                 if (n > 0) { total += n; where.add(rel + "=" + n); }
             }
         }
-        assertThat(total)
-                .as("unchecked parses outside the migrated pages (ceiling " + UNMIGRATED_CEILING
-                        + "; lower it when you migrate a page, never raise it): " + where)
-                .isLessThanOrEqualTo(UNMIGRATED_CEILING);
+        List<String> over = new ArrayList<>();
+        for (String w : where) {
+            String page = w.substring(0, w.lastIndexOf('='));
+            int n = Integer.parseInt(w.substring(w.lastIndexOf('=') + 1));
+            if (n > UNMIGRATED_ALLOWED.getOrDefault(page, 0)) over.add(w + " (allowed " + UNMIGRATED_ALLOWED.getOrDefault(page, 0) + ")");
+        }
+        assertThat(over)
+                .as("unchecked parses outside the migrated pages — use CGP_api or test res.ok (total " + total + "): " + where)
+                .isEmpty();
     }
 
     @Test
@@ -228,7 +252,10 @@ class PageFetchRatchetTest {
                 .contains("CGP_api('/api/volunteers/roles/' + id, { method:'DELETE' })")
                 .doesNotContain("fetch('/api/volunteers/roles/' + id, { method:'DELETE' })");
         assertThat(read("memberWorship.html"))
-                .contains("manualRows = manualRows.filter(r => !deleted.has(r));");
+                .contains("manualRows = manualRows.filter(r => !deleted.has(r));")
+                // approved 2026-10-29: regenerate stops before saving when the old rows can't be deleted
+                .contains("await CGP_api('/api/worship/assignments/' + r.id, { method: 'DELETE' });")
+                .doesNotContain("{ method: 'DELETE' }).catch(() => {});");
         assertThat(read("meeting.html"))
                 .contains("return CGP_errorMessage(e, 'The image could not be saved.');")
                 .contains("but the image was not: ${imgProblem}");

@@ -741,7 +741,7 @@ public class MembershipFormController {
     public ResponseEntity<?> linkSignup(@RequestBody Map<String, Object> body,
                                          HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Access denied"));
         Integer signupId      = body.get("signupId")      instanceof Number n ? n.intValue() : null;
         Integer familyMemberId = body.get("familyMemberId") instanceof Number n ? n.intValue() : null;
         if (signupId == null || familyMemberId == null)
@@ -1473,7 +1473,7 @@ public class MembershipFormController {
     @PostMapping("/api/membership-requests/{id}/approve-signup")
     public ResponseEntity<?> approveSignup(@PathVariable Integer id, HttpServletRequest request) {
         String deny = RoleGuard.requireAdminOrChurch(request);
-        if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error","Access denied"));
         MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, SessionUtil.getAppClientId(request)).orElse(null);
         if (mf==null) return ResponseEntity.notFound().build();
         if (mf.getSignupId()==null) return ResponseEntity.badRequest().body(Map.of("error","No signup account."));
@@ -1507,9 +1507,9 @@ public class MembershipFormController {
         boolean _isMbr = _s != null && "Member".equals(_s.getAttribute("role")) && _s.getAttribute("memberId") != null;
         if (_isMbr) {
             String deny = RoleGuard.requireMemberPermission(request, "admin.membership");
-            if (deny != null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
+            if (deny != null) return RoleGuard.denied(request, deny, Map.of("error","Access denied"));
         } else {
-            String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
+            String deny = RoleGuard.requireAdminOrChurch(request); if (deny != null) return RoleGuard.denied(request, deny, Map.of("error","Access denied"));
         }
         String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
         List<MembershipFamily> families = mfRepo.findByAppClientIdAndDeleteFlagFalseOrderByCreatedDateDesc(appClientId);
@@ -1524,9 +1524,9 @@ public class MembershipFormController {
         boolean _isMbr = _s != null && "Member".equals(_s.getAttribute("role")) && _s.getAttribute("memberId") != null;
         if (_isMbr) {
             String deny = RoleGuard.requireMemberPermission(request, "admin.membership");
-            if (deny != null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
+            if (deny != null) return RoleGuard.denied(request, deny, Map.of("error","Access denied"));
         } else {
-            String deny = RoleGuard.requireAdminOrChurch(request); if (deny!=null) return ResponseEntity.status(403).body(Map.of("error","Access denied"));
+            String deny = RoleGuard.requireAdminOrChurch(request); if (deny != null) return RoleGuard.denied(request, deny, Map.of("error","Access denied"));
         }
         String appClientId = _isMbr ? resolveAppClientId(_s) : SessionUtil.getAppClientId(request);
         MembershipFamily mf = mfRepo.findByIdAndAppClientIdAndDeleteFlagFalse(id, appClientId).orElse(null);
@@ -1670,7 +1670,7 @@ public class MembershipFormController {
     public ResponseEntity<?> deleteRequest(@PathVariable Integer id, HttpServletRequest request) {
         ResponseEntity<?> g = requestsGuard(request); if (g != null) return g;
         String deny = RoleGuard.requirePermission(request, "admin.membership.delete");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         try {
             membershipRequestService().delete(id, requestsTenant(request), actor(request));
             return ResponseEntity.ok(Map.of("success", true));

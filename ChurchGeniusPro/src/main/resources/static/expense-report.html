@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8"/>
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -187,15 +188,14 @@ function toggleMenu(id){if (openMenus.has(id)) { openMenus.delete(id); } else { 
 
   // Load purpose dropdown
   try{
-    const res=await fetch(`/api/reports/purposes?clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
-    const purposes=await res.json();
+    const purposes=await CGP_api(`/api/reports/purposes?clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
     const sel=document.getElementById('purposeFilter');
     (purposes||[]).forEach(p=>{
       const opt=document.createElement('option');
       opt.value=p.id; opt.textContent=p.name||'';
       sel.appendChild(opt);
     });
-  }catch(e){console.warn('Could not load purposes:',e);}
+  }catch(e){console.warn('Could not load purposes:',e);CGP_showError(e,'Could not load the purposes list.');}
 })();
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -229,10 +229,9 @@ async function generateReport(){
   let url=`/api/reports/expense?startDate=${sd}&endDate=${ed}&clientId=${encodeURIComponent(clientId)}`;
   if(purposeId) url+=`&purposeId=${purposeId}`;
   try{
-    const res=await fetch(url);
-    const data=await res.json();
+    const data=await CGP_api(url);
     renderReport(data,sd,ed);
-  }catch(e){alert('Failed to load report data.');console.error(e);}
+  }catch(e){alert(CGP_errorMessage(e,'Failed to load report data.'));console.error(e);}
 }
 
 function renderReport(data,sd,ed){

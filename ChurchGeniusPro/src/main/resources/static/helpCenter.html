@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1906,13 +1907,16 @@ window.addEventListener('DOMContentLoaded', openFromHash);
     addMsg('user', esc(q));
     historyLines.push('User: ' + q);
     typing(true);
-    fetch('/api/help/assist', {
+    CGP_api('/api/help/assist', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ query:q, history: historyLines.slice(-8).join('\n'), voice: !!(opts && opts.voice) })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       typing(false);
       renderAnswer(d || {});
-    }).catch(function(){ typing(false); addMsg('bot','Sorry, I had trouble answering. Please try again.'); });
+    }).catch(function(e){
+      typing(false);
+      addMsg('bot', e && e.cgp && e.status ? CGP_errorMessage(e) : 'Sorry, I had trouble answering. Please try again.');
+    });
   };
 
   function renderAnswer(d) {

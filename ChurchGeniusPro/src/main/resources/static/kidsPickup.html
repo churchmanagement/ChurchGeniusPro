@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#673147" />
@@ -138,12 +139,12 @@ function msg(text, isErr) {
 }
 
 function snooze(minutes) {
-  fetch('/api/public/kids-pickup/snooze', {
+  CGP_api('/api/public/kids-pickup/snooze', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t: T, minutes: minutes })
-  }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.success) { msg('Alerts snoozed for ' + minutes + ' minutes.'); setTimeout(load, 600); }
-    else msg(d.error || 'Could not snooze.', true);
-  }).catch(function(){ msg('Server error.', true); });
+  }).then(function(d){
+    if (d && d.success) { msg('Alerts snoozed for ' + minutes + ' minutes.'); setTimeout(load, 600); }
+    else msg((d && d.error) || 'Could not snooze.', true);
+  }).catch(function(e){ msg(CGP_errorMessage(e, 'Could not snooze.'), true); });
 }
 function snoozeCustom() {
   var v = parseInt(document.getElementById('customMin').value, 10);

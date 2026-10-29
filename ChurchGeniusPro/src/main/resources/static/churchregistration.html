@@ -782,7 +782,7 @@
       // Step B: check if church has already been registered
       const statusRes  = await fetch('/public/churchregistration/status?clientId=' +
                                      encodeURIComponent(decryptedClientId));
-      const statusData = await statusRes.json().catch(() => ({}));
+      const statusData = statusRes.ok ? await statusRes.json().catch(() => ({})) : {};
 
       if (statusData.registered === true) {
         alreadyRegistered.style.display = 'block';
@@ -793,7 +793,7 @@
       try {
         const prefillRes  = await fetch('/public/churchregistration/prefill?clientId=' +
                                         encodeURIComponent(decryptedClientId));
-        const prefillData = await prefillRes.json().catch(() => ({}));
+        const prefillData = prefillRes.ok ? await prefillRes.json().catch(() => ({})) : {};
         if (prefillData.found) {
           const set = (id, val) => {
             const el = document.getElementById(id);

@@ -274,7 +274,7 @@ class DonationReviewStatusTest {
                 assertThat(res.getStatusCode().value()).as(role).isEqualTo(403);
             }
             assertThat(reviewController.setReviewStatus(req("COMPLETED", 5), new MockHttpServletRequest())
-                    .getStatusCode().value()).isEqualTo(403);
+                    .getStatusCode().value()).isEqualTo(401);   // no session: 401 (error-handling L3)
             verifyNoInteractions(donationRepo);
         }
 

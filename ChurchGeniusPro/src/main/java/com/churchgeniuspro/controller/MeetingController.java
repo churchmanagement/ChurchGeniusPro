@@ -189,7 +189,7 @@ public class MeetingController {
             HttpServletRequest request) {
         String deny = RoleGuard.requireStaffOrMember(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "general.meetings");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return unauthorized();
         try {
@@ -302,7 +302,7 @@ public class MeetingController {
             @RequestBody List<Integer> ids,
             HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Forbidden"));
         if (RoleGuard.requirePermission(request, "general.meetings.delete") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
         if (ids == null || ids.isEmpty())
@@ -319,7 +319,7 @@ public class MeetingController {
     @PostMapping("/api/meetings/auto-purge")
     public ResponseEntity<Map<String, Object>> autoPurge(HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Forbidden"));
         if (RoleGuard.requirePermission(request, "general.meetings.delete") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
         String appClientId = SessionUtil.getAppClientId(request);

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -544,8 +545,8 @@
 
   async function loadEvents() {
     try {
-      const res = await fetch('/api/notify/events');
-      const events = await res.json();
+      const ev = await CGP_api('/api/notify/events');
+      const events = Array.isArray(ev) ? ev : [];
       const sel = document.getElementById('eventSelector');
       events.forEach(e => {
         const opt = document.createElement('option');
@@ -553,7 +554,7 @@
         opt.textContent = e.label;
         sel.appendChild(opt);
       });
-    } catch { /* no events yet */ }
+    } catch (e) { CGP_showError(e, 'Could not load events.'); }
   }
 
   /* ════════════════════════════════════
@@ -595,11 +596,13 @@
   async function refreshRecipientPill(type, eventId) {
     try {
       const url = `/api/notify/recipients?type=${type}` + (eventId ? `&eventId=${eventId}` : '');
-      const res  = await fetch(url);
-      resolvedRecipients = await res.json();
+      const list = await CGP_api(url);
+      resolvedRecipients = Array.isArray(list) ? list : [];
       showPill(resolvedRecipients.length);
-    } catch {
+    } catch (e) {
+      resolvedRecipients = [];
       showPill(0);
+      CGP_showError(e, 'Could not load the recipients.');
     }
   }
 
@@ -814,10 +817,10 @@
       // Re-fetch if not yet cached
       try {
         const url = `/api/notify/recipients?type=${recipientType}` + (selectedEventId ? `&eventId=${selectedEventId}` : '');
-        const res = await fetch(url);
-        recipients = await res.json();
+        const list = await CGP_api(url);
+        recipients = Array.isArray(list) ? list : [];
         resolvedRecipients = recipients;
-      } catch { recipients = []; }
+      } catch (e) { recipients = []; CGP_showError(e, 'Could not load the recipients.'); }
     }
 
     buildPreviewModal(recipients);

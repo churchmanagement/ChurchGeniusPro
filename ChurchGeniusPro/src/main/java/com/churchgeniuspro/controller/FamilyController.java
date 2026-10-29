@@ -210,7 +210,7 @@ public class FamilyController {
                                                           HttpServletRequest request) {
         // Add and Edit are combined under admin.family.edit
         String deny = RoleGuard.requirePermission(request, "admin.family.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         if (bo.getMembers() == null || bo.getMembers().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "At least one family member is required."));
@@ -323,7 +323,7 @@ public class FamilyController {
                                                             @RequestBody FamilyBO bo,
                                                             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         if (bo.getMembers() == null || bo.getMembers().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "At least one family member is required."));
@@ -385,7 +385,7 @@ public class FamilyController {
     public ResponseEntity<Map<String, Object>> deleteFamily(@PathVariable Integer id,
                                                             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.delete");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
@@ -409,7 +409,7 @@ public class FamilyController {
                                                             @PathVariable Integer memberId,
                                                             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.delete");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
@@ -455,7 +455,7 @@ public class FamilyController {
             @RequestParam  boolean value,
             HttpServletRequest request) {
         String deny = RoleGuard.requirePermission(request, "admin.family.inactive");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
@@ -486,7 +486,7 @@ public class FamilyController {
                        : "inactive".equalsIgnoreCase(action0) ? "admin.family.inactive"
                        : "admin.family";
         String deny = RoleGuard.requirePermission(request, permKey);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {

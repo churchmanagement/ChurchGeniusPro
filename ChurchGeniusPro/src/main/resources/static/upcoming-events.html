@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#673147" />
@@ -729,10 +730,12 @@
 
       if (!PUBLIC_CID) { body.innerHTML = '<div class="state">This page link is invalid.</div>'; return; }
 
-      fetch('/api/public/upcoming-events?cid=' + encodeURIComponent(PUBLIC_CID))
-        .then(function (r) { return r.json(); })
+      CGP_api('/api/public/upcoming-events?cid=' + encodeURIComponent(PUBLIC_CID))
         .then(render)
-        .catch(function () { body.innerHTML = '<div class="state">Could not load events.</div>'; });
+        .catch(function (e) {
+          var m = CGP_errorMessage(e, 'Could not load events.');
+          body.innerHTML = '<div class="state">' + String(m).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>';
+        });
 
       function fmtDate(iso) {
         if (!iso) return '';

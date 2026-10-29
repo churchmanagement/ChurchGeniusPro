@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -121,12 +122,11 @@
 
   async function load() {
     try {
-      const r = await fetch('/api/private-access/config');
-      CFG = await r.json();
+      CFG = await CGP_api('/api/private-access/config');
       document.getElementById('masterEnabled').checked = !!CFG.enabled;
       document.getElementById('trustProxy').checked = CFG.trustProxy !== false;
       renderNetworks(); renderPages(); loadAudit();
-    } catch { fb('Could not load configuration.', false); }
+    } catch (e) { fb(CGP_errorMessage(e, 'Could not load configuration.'), false); }
   }
 
   async function saveSetting() {
@@ -175,8 +175,9 @@
   }
 
   async function detectMyIp() {
-    const r = await fetch('/api/private-access/my-ip');
-    const d = await r.json();
+    let d;
+    try { d = await CGP_api('/api/private-access/my-ip'); }
+    catch (e) { fb(CGP_errorMessage(e, 'Could not detect your IP address.'), false); return; }
     document.getElementById('myIpHint').textContent = 'Your current IP: ' + (d.ip || 'unknown') + ' — paste it into a network above.';
   }
 
@@ -222,8 +223,7 @@
 
   async function loadAudit() {
     try {
-      const r = await fetch('/api/private-access/audit?limit=150');
-      const d = await r.json();
+      const d = await CGP_api('/api/private-access/audit?limit=150') || {};
       const s = d.summary || {};
       document.getElementById('auditSummary').innerHTML =
         `<span class="pill off">Blocked: ${s.blocked||0}</span> <span class="pill on">Allowed: ${s.allowed||0}</span> <span class="pill" style="background:#fff8e1;color:#8a6d00;">Overrides: ${s.override||0}</span>`;
@@ -237,7 +237,7 @@
         <td>${esc(x.page||'—')}</td>
         <td class="st-${esc(x.status)}">${esc(x.status)}</td>
         <td class="muted">${esc(x.reason||'')}</td></tr>`).join('');
-    } catch { /* ignore */ }
+    } catch (e) { fb(CGP_errorMessage(e, 'Could not load the access log.'), false); }
   }
 
   load();

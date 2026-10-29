@@ -37,6 +37,9 @@ import java.util.Optional;
 @RequestMapping("/api/temp-access")
 public class TemporaryAccessController {
 
+    private static final org.slf4j.Logger TA_LOG = org.slf4j.LoggerFactory.getLogger(TemporaryAccessController.class);
+
+
     private final TemporaryAccessService    svc;
     private final EmailService              emailService;
     private final ChurchRegistrationRepository churchRepo;
@@ -117,13 +120,24 @@ public class TemporaryAccessController {
         String createdBy = String.valueOf(getSessionAttr(request, "username"));
         CreateResult r = svc.create(clientId, createdBy, holderName, email, phone, role, holderPhoto, badgeFields, start, end, pages);
 
+        // Error-handling audit 2026-10-28, L8: branded account mail for this church (was an
+        // unbranded tenant-less generic send whose failure was swallowed). A failed send never
+        // blocks creation — the admin still gets the code below — but the response says so.
+        Boolean emailSent = null;   // null = no address given
         if (email != null && !email.isBlank()) {
-            try { emailService.sendGenericEmail(email.trim(), "Your Temporary Access Code",
-                    buildCodeEmail(r.access(), r.plainCode(), churchName(clientId))); }
-            catch (Exception ignore) { /* email failures never block creation */ }
+            try {
+                emailService.sendOrgEmailOrThrow(email.trim(), "Your Temporary Access Code",
+                        buildCodeEmail(r.access(), r.plainCode(), churchName(clientId)), clientId);
+                emailSent = true;
+            } catch (Exception e) {
+                emailSent = false;
+                TA_LOG.warn("Temporary access code email failed: tenant={} accessId={}: {}",
+                        clientId, r.access().getId(), com.churchgeniuspro.util.LogSafe.exception(e));
+            }
         }
 
         Map<String, Object> out = toMap(r.access());
+        if (emailSent != null) out.put("emailSent", emailSent);
         out.put("accessCode", r.plainCode());     // returned ONCE so the admin can print the badge
         out.put("churchName", churchName(clientId));
         return ResponseEntity.ok(out);

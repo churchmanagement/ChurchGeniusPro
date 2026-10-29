@@ -68,7 +68,7 @@ public class AccountantDashboardController {
             HttpServletRequest request) {
 
         String deny = RoleGuard.requireAccountantOrAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         Map<String, Object> res = new LinkedHashMap<>();
@@ -409,7 +409,7 @@ public class AccountantDashboardController {
     @PostMapping("/api/accountant/ledger-summary/rebuild")
     public ResponseEntity<Map<String, Object>> rebuildLedgerSummary(HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         int rows = summary.rebuild(appClientId);

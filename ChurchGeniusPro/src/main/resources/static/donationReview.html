@@ -801,7 +801,7 @@ async function postOne(id) {
 function handlePostResponse(res, data) {
   if (!res.ok) {
     if (data.code === 'SETTINGS_INCOMPLETE') { settingsComplete = false; applySettingsUi(); }
-    showError(data.error || 'The donation could not be saved. Nothing was changed.');
+    showError((data.error || data.message || 'The donation could not be saved. Nothing was changed.') + (data.ref ? ' (ref ' + data.ref + ')' : ''));
     return false;
   }
   if (data.status === 'POSTED') {
@@ -984,7 +984,7 @@ async function postFromReview() {
   postBusy = true; document.getElementById('rvSave').disabled = true;
   try {
     const res = await fetch('/api/donations/' + id + '/post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
-    const data = await res.json().catch(function() { return {}; });
+    const data = await res.json().catch(function() { return {}; });   // handlePostResponse checks res.ok first
     if (handlePostResponse(res, data)) closeReview();
     else document.getElementById('rvSave').disabled = false;
   } catch { showError('Network error — nothing was saved. Please try again.'); document.getElementById('rvSave').disabled = false; }

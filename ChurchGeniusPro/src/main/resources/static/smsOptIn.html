@@ -320,7 +320,8 @@
 
     try {
       var res  = await fetch('/api/public/sms-opt-in/church-name?token=' + encodeURIComponent(token));
-      var data = await res.json();
+      if (res.status >= 500 || res.status === 0) throw new Error('HTTP ' + res.status);
+      var data = res.ok ? await res.json() : {};
       if (!data.found) { renderError(); return; }
       churchName = data.churchName || 'Our Church';
       document.title = churchName + ' – SMS Opt-In';

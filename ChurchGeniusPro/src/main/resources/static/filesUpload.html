@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -461,10 +462,9 @@
   /* ════ LOAD FILES ════ */
   async function loadFiles() {
     try {
-      const res  = await fetch('/api/files');
-      const data = await res.json();
-      renderTable(data);
-    } catch { showFeedback('❌ Could not load files.', 'error'); }
+      const data = await CGP_api('/api/files');
+      renderTable(Array.isArray(data) ? data : []);
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load files.'), 'error'); }
   }
 
   function renderTable(files) {
@@ -501,9 +501,8 @@
   /* ════ VIEW / DOWNLOAD / DELETE FILE ════ */
   async function viewFile(id, name) {
     try {
-      const res  = await fetch(`/api/files/${id}`);
-      const data = await res.json();
-      if (!data.fileData) { alert('No file data available.'); return; }
+      const data = await CGP_api(`/api/files/${id}`);
+      if (!data || !data.fileData) { alert('No file data available.'); return; }
       const parts  = data.fileData.split(',');
       const mime   = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
       const binary = atob(parts[1]);
@@ -513,19 +512,18 @@
       const blobUrl = URL.createObjectURL(blob);
       window.open(blobUrl, '_blank');
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-    } catch { showFeedback('❌ Could not load file.', 'error'); }
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load file.'), 'error'); }
   }
 
   async function downloadFile(id, name) {
     try {
-      const res  = await fetch(`/api/files/${id}`);
-      const data = await res.json();
-      if (!data.fileData) { alert('No file data available.'); return; }
+      const data = await CGP_api(`/api/files/${id}`);
+      if (!data || !data.fileData) { alert('No file data available.'); return; }
       const a   = document.createElement('a');
       a.href     = data.fileData;
       a.download = name;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch { showFeedback('❌ Could not download file.', 'error'); }
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not download file.'), 'error'); }
   }
 
   async function deleteFile(id, name) {
@@ -533,8 +531,8 @@
     try {
       const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
       if (res.ok) { showFeedback('File deleted.', 'success'); await loadFiles(); }
-      else { const d = await res.json(); showFeedback(`❌ ${d.error || 'Failed to delete.'}`, 'error'); }
-    } catch { showFeedback('❌ Network error.', 'error'); }
+      else { const d = await res.json().catch(() => ({})); showFeedback(`❌ ${d.error || d.message || 'Failed to delete.'}${d.ref ? ' (ref ' + d.ref + ')' : ''}`, 'error'); }
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error'); }
   }
 
   /* ════ NOTES STATE ════ */
@@ -546,12 +544,12 @@
   /* ════ LOAD NOTES ════ */
   async function loadNotes() {
     try {
-      const res = await fetch('/api/notes');
-      allNotes  = await res.json();
+      const notes = await CGP_api('/api/notes');
+      allNotes  = Array.isArray(notes) ? notes : [];
       const mine = allNotes.find(n => n.isOwner);
       if (mine) currentUserId = mine.createdById;
       renderNotes();
-    } catch { showNotesFeedback('❌ Could not load notes.', 'error'); }
+    } catch (e) { showNotesFeedback('❌ ' + CGP_errorMessage(e, 'Could not load notes.'), 'error'); }
   }
 
   /* ════ NOTES FILTER ════ */
@@ -709,7 +707,6 @@
     el.textContent = msg; el.className = 'notes-feedback ' + type;
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     setTimeout(() => { el.className = 'notes-feedback'; }, 5000);
-  }
   }
 </script>
 <script>

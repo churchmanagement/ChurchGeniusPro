@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -105,12 +106,17 @@
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function setSrc(s,btn){ SRC=s; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); load(); }
 
-  async function init(){ try { VOLS = await (await fetch('/api/ppr/volunteers')).json(); } catch { VOLS=[]; } load(); }
+  async function init(){ try { const v = await CGP_api('/api/ppr/volunteers'); VOLS = Array.isArray(v) ? v : []; } catch (e) { VOLS=[]; fb(CGP_errorMessage(e, 'Could not load volunteers.'), false); } load(); }
 
   async function load() {
     var tb = document.getElementById('rows');
     tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:18px;">Loading…</td></tr>';
-    try { LIST = await (await fetch('/api/ppr?source=' + SRC)).json(); } catch { LIST=[]; }
+    try { const l = await CGP_api('/api/ppr?source=' + SRC); LIST = Array.isArray(l) ? l : []; }
+    catch (e) {
+      LIST=[];
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#b42424;padding:18px;">'+esc(CGP_errorMessage(e, 'Could not load the prayer requests.'))+'</td></tr>';
+      return;
+    }
     if (!LIST.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:18px;">No public prayer requests.</td></tr>'; return; }
     tb.innerHTML = LIST.map(function (p) {
       var name = (esc(p.firstName||'')+' '+esc(p.lastName||'')).trim() || '—';
@@ -135,11 +141,13 @@
 
   async function assign(id, vid) {
     var r = await fetch('/api/ppr/'+id+'/assign', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({volunteerId:vid||null}) });
-    if (r.ok) { fb('Assignment updated.', true); load(); } else fb('Could not assign.', false);
+    if (r.ok) { fb('Assignment updated.', true); load(); }
+    else { const d = await r.json().catch(() => ({})); fb(d.error || d.message || 'Could not assign.', false); load(); }
   }
   async function setStatus(id, status) {
     var r = await fetch('/api/ppr/'+id+'/status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
-    if (r.ok) fb('Status updated.', true); else fb('Could not update status.', false);
+    if (r.ok) fb('Status updated.', true);
+    else { const d = await r.json().catch(() => ({})); fb(d.error || d.message || 'Could not update status.', false); load(); }   // put the select back
   }
   async function del(id) {
     if (!confirm('Delete this public prayer request?')) return;
@@ -155,7 +163,7 @@
     renderNotes(await fetchNotes());
   }
   function closeNotes(){ document.getElementById('notesModal').classList.remove('open'); notesId=null; }
-  async function fetchNotes(){ try { return await (await fetch('/api/ppr/'+notesId+'/notes')).json(); } catch { return []; } }
+  async function fetchNotes(){ try { const n = await CGP_api('/api/ppr/'+notesId+'/notes'); return Array.isArray(n) ? n : []; } catch (e) { fb(CGP_errorMessage(e, 'Could not load the notes.'), false); return []; } }
   function renderNotes(notes) {
     var box = document.getElementById('notesList');
     if (!notes || !notes.length) { box.innerHTML = '<div class="muted">No activity recorded yet.</div>'; return; }

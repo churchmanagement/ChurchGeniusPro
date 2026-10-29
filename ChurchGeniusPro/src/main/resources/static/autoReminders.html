@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -436,8 +437,8 @@
   async function loadGroups() {
     const container = document.getElementById('groupsContainer');
     try {
-      const res = await fetch('/api/groups');
-      groups = await res.json() || [];
+      const gl = await CGP_api('/api/groups');
+      groups = Array.isArray(gl) ? gl : [];
       if (!groups.length) {
         container.innerHTML = '<span class="field-hint">No groups defined. Create groups on the Groups page.</span>';
         return;
@@ -466,8 +467,7 @@
 
   async function loadReminderTypes() {
     try {
-      const res   = await fetch('/api/reminders/auto-types');
-      const types = await res.json();
+      const types = await CGP_api('/api/reminders/auto-types');
       const sel   = document.getElementById('reminderName');
       sel.innerHTML = '<option value="">— Select Reminder Type —</option>';
       (types || []).forEach(t => {
@@ -476,15 +476,15 @@
         opt.textContent = t.name;
         sel.appendChild(opt);
       });
-    } catch (e) { console.warn('Could not load reminder types', e); }
+    } catch (e) { console.warn('Could not load reminder types', e); showFeedback(CGP_errorMessage(e, 'Could not load reminder types.'), 'error'); }
   }
 
   async function loadReminders() {
     try {
-      const res = await fetch('/api/reminders/auto');
-      reminders = await res.json();
+      const list = await CGP_api('/api/reminders/auto');
+      reminders = Array.isArray(list) ? list : [];
       renderTable();
-    } catch (e) { showFeedback('Failed to load reminders.', 'error'); }
+    } catch (e) { showFeedback(CGP_errorMessage(e, 'Failed to load reminders.'), 'error'); }
   }
 
   function onImageChange(e) {

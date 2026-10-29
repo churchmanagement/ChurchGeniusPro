@@ -2018,8 +2018,19 @@ async function generateAutoAssignments() {
   if (mergedRows.length > 0) {
     // Delete old DB rows for this group
     const toDelete = autoPreview.filter(r => Number(r.groupId) === Number(groupId) && r.id);
+    // Approved change 2026-10-29 (error-handling audit M5): a refused DELETE stops the
+    // regenerate BEFORE any new row is saved — otherwise old and new rows both survive.
+    const removed = new Set();
     for (const r of toDelete) {
-      await fetch('/api/worship/assignments/' + r.id, { method: 'DELETE' }).catch(() => {});
+      try {
+        await CGP_api('/api/worship/assignments/' + r.id, { method: 'DELETE' });
+        removed.add(r);
+      } catch (e) {
+        autoPreview = autoPreview.filter(x => !removed.has(x));
+        renderAutoPreview();
+        toast('Nothing new was saved — the old assignments could not be removed: ' + CGP_errorMessage(e, 'please try again.'), true);
+        return;
+      }
     }
     autoPreview = autoPreview.filter(r => Number(r.groupId) !== Number(groupId));
 

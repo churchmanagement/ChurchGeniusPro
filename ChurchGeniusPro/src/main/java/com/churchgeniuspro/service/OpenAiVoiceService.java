@@ -89,6 +89,20 @@ public class OpenAiVoiceService {
     /** Transcription result: recognized text, audio duration, rough confidence (0..1, -1 if unknown). */
     public record Transcription(String text, double durationSeconds, double confidence) {}
 
+    /** Message for an OpenAI 429 (rate limit / insufficient_quota) — error-handling audit L12. */
+    public static final String OVER_LIMIT_MSG =
+            "The AI service is over its usage limit right now. Please try again later.";
+
+    /**
+     * Thrown by {@link #transcribe} when OpenAI answers 429 (rate limit or
+     * {@code insufficient_quota}), so the caller can answer 503 with {@link #OVER_LIMIT_MSG}
+     * instead of the generic "Transcription failed" — an exhausted platform quota is not a
+     * transient glitch the user can retry through.
+     */
+    public static class ProviderLimitException extends RuntimeException {
+        public ProviderLimitException() { super("OpenAI 429"); }
+    }
+
     /**
      * Sends the recorded audio to OpenAI's transcription endpoint.
      * Returns {@code null} on error / when disabled.
@@ -133,6 +147,7 @@ public class OpenAiVoiceService {
             if (resp.statusCode() / 100 != 2) {
                 log.warn("[Voice] transcription failed status={} body={}", resp.statusCode(),
                         LogSafe.text(truncate(resp.body())));
+                if (resp.statusCode() == 429) throw new ProviderLimitException();
                 return null;
             }
             JsonNode json = mapper.readTree(resp.body());
@@ -149,6 +164,8 @@ public class OpenAiVoiceService {
                 if (n > 0) conf = Math.max(0, Math.min(1, sum / n));
             }
             return new Transcription(text, dur, conf);
+        } catch (ProviderLimitException over) {
+            throw over;
         } catch (Exception e) {
             log.warn("[Voice] transcription error: {}", e.getMessage());
             return null;

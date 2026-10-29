@@ -97,6 +97,20 @@ public class PasswordResetService {
     }
 
     /**
+     * Removes the token {@link #createToken} just issued when its email could not be sent
+     * (error-handling audit 2026-10-28, L9): the link never reached anyone, so it must not
+     * hold the cooldown against the user's next request. Only that exact token is removed,
+     * and only while it is unused.
+     */
+    @Transactional
+    public void releaseToken(String username, String token) {
+        if (username == null || token == null) return;
+        tokenRepo.findByToken(token)
+                .filter(t -> username.equals(t.getUsername()) && !t.isUsed())
+                .ifPresent(tokenRepo::delete);
+    }
+
+    /**
      * 256 bits of cryptographically secure randomness, URL-safe and unpadded so it can
      * be dropped straight into the reset link.
      */

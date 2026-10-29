@@ -119,7 +119,7 @@ public class PledgeController {
     @GetMapping("/api/pledges/campaigns")
     public ResponseEntity<?> listCampaigns(HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         List<Map<String, Object>> out = new ArrayList<>();
         for (PledgeCampaign c : campaignRepo.findByClientId(cid)) {
@@ -134,7 +134,7 @@ public class PledgeController {
     public ResponseEntity<?> createCampaign(@RequestBody Map<String, Object> body,
                                             HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
@@ -155,7 +155,7 @@ public class PledgeController {
                                             @RequestBody Map<String, Object> body,
                                             HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
@@ -171,7 +171,7 @@ public class PledgeController {
     @Transactional
     public ResponseEntity<?> deleteCampaign(@PathVariable Integer id, HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.delete") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
@@ -188,7 +188,7 @@ public class PledgeController {
     @GetMapping("/api/pledges/campaigns/{id}/members")
     public ResponseEntity<?> listPledges(@PathVariable Integer id, HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         if (campaignRepo.findByIdAndClientId(id, cid).isEmpty()) {
             return ResponseEntity.status(404).body(Map.of("error", "Campaign not found"));
@@ -207,7 +207,7 @@ public class PledgeController {
                                        @RequestBody Map<String, Object> body,
                                        HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
@@ -233,7 +233,7 @@ public class PledgeController {
                                           @RequestBody Map<String, Object> body,
                                           HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.edit") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
@@ -249,7 +249,7 @@ public class PledgeController {
     @Transactional
     public ResponseEntity<?> deletePledge(@PathVariable Integer id, HttpServletRequest req) {
         String deny = RoleGuard.requireAccountantOrAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         if (RoleGuard.requirePermission(req, "accounting.pledges.delete") != null)
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);

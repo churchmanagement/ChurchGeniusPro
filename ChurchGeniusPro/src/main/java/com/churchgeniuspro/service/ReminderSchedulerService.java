@@ -1814,32 +1814,23 @@ public class ReminderSchedulerService {
     }
 
     /**
-     * Writes a sent-log row to prevent this reminder from firing again today.
-     * The unique DB constraint is the final safety net; this call is intentionally
-     * made <em>before</em> sending so that a duplicate scheduler invocation that
-     * races past the {@link #alreadySent} check still only sends once.
+     * Claims today's slot for this reminder BEFORE it is sent (claim-before-send).
+     * Delegates to {@link ReminderClaimService}, whose insert runs in its own transaction.
      *
-     * <p>Runs in its own transaction so a constraint violation does NOT roll back
-     * the surrounding scheduler transaction.
-     *
-     * @return {@code true} if the row was inserted (first send); {@code false} if
-     *         a duplicate constraint violation was caught (already sent — skip).
+     * @return {@code true} only when this run inserted the row (send now). {@code false}
+     *         when someone already claimed it (unique key) — or when the claim itself failed
+     *         (database error): that case is logged at ERROR by the claim service and the
+     *         reminder is skipped this run without being recorded as sent (L5, audit
+     *         2026-10-28 — it used to be swallowed as "already sent").
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     private boolean markSent(String clientId, String reminderType, String referenceKey, LocalDate today) {
-        try {
-            com.churchgeniuspro.hibernate.ReminderSentLog log = new com.churchgeniuspro.hibernate.ReminderSentLog();
-            log.setAppClientId(clientId);
-            log.setReminderType(reminderType);
-            log.setReferenceKey(referenceKey);
-            log.setSentDate(today);
-            sentLogRepo.saveAndFlush(log);
-            return true;
-        } catch (Exception e) {
-            // Unique constraint violation — another thread already claimed this slot
-            return false;
-        }
+        ReminderClaimService c = claims != null ? claims : new ReminderClaimService(sentLogRepo);
+        return c.claim(clientId, reminderType, referenceKey, today) == ReminderClaimService.Claim.CLAIMED;
     }
+
+    /** Field-injected so the existing constructor (and every test that calls it) stays as is. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ReminderClaimService claims;
 
     private String fullName(FamilyMember m) {
         return ((m.getFirstName() != null ? m.getFirstName() : "") + " "

@@ -229,7 +229,7 @@ class ReminderTenantIsolationTest {
         assertThat(controller.updateAutoReminder(7, autoBo(), accountant).getStatusCode().value()).isEqualTo(403);
         assertThat(controller.deleteOneTimeReminder(7, accountant).getStatusCode().value()).isEqualTo(403);
         assertThat(controller.deleteMeetingReminder(7, accountant).getStatusCode().value()).isEqualTo(403);
-        assertThat(controller.deleteEventReminder(7, new MockHttpServletRequest()).getStatusCode().value()).isEqualTo(403);
+        assertThat(controller.deleteEventReminder(7, new MockHttpServletRequest()).getStatusCode().value()).isEqualTo(401);   // no session: 401 (error-handling L3)
         verify(eventReminderRepo, never()).save(any(EventReminder.class));
         verify(autoReminderRepo, never()).save(any(AutoReminder.class));
         verify(oneTimeReminderRepo, never()).delete(any(OneTimeReminder.class));

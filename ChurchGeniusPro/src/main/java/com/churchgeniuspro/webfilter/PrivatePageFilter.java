@@ -107,6 +107,7 @@ public class PrivatePageFilter implements Filter {
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().write(
                     "{\"error\":\"Network access could not be verified. Please try again or contact support quoting reference "
+                    + ref + ".\",\"message\":\"Network access could not be verified. Please try again or contact support quoting reference "
                     + ref + ".\",\"code\":\"NETWORK_CHECK_FAILED\",\"ref\":\"" + ref + "\"}");
                 return;
             }
@@ -178,6 +179,7 @@ public class PrivatePageFilter implements Filter {
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(
                 "{\"error\":\"This page is only available while connected to an authorized church network.\"," +
+                "\"message\":\"This page is only available while connected to an authorized church network.\"," +
                 "\"code\":\"NETWORK_RESTRICTED\"}");
             return;
         }

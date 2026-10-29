@@ -446,7 +446,7 @@
         } else {
           try {
             const res  = await fetch('/api/auth/check-remember');
-            const data = await res.json();
+            const data = res.ok ? await res.json() : {};
             if (data.status === 'success') {
               applyLoginData(data);
               return;
@@ -492,7 +492,7 @@
         if (cidToken) {
           try {
             const cidRes  = await fetch('/api/auth/resolve-client-id?token=' + encodeURIComponent(cidToken));
-            const cidData = await cidRes.json();
+            const cidData = cidRes.ok ? await cidRes.json() : {};
             if (cidData.found && cidData.username) {
               document.getElementById('username').value = cidData.username;
               document.getElementById('password').focus();
@@ -776,6 +776,7 @@
         var url = '/api/public/forgot-username/status';
         if (identifier) url += '?identifier=' + encodeURIComponent(identifier);
         var res  = await fetch(url);
+        if (!res.ok) return;
         var data = await res.json();
         fuAttempts   = data.attempts   || 0;
         fuBlocked    = data.blocked    || false;
@@ -898,4 +899,4 @@
   </script>
   <script src="/legal-footer.js"></script>
   </body>
-</html>
+</html>

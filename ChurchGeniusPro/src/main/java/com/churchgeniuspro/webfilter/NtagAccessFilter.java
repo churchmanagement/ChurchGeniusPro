@@ -58,7 +58,7 @@ public class NtagAccessFilter implements Filter {
         if (uri.startsWith("/api/")) {            // (kept for safety; APIs are normally allowed above)
             res.setStatus(HttpServletResponse.SC_FORBIDDEN);
             res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().write("{\"status\":\"error\",\"message\":\"Access denied for this page.\"}");
+            res.getWriter().write("{\"status\":\"error\",\"message\":\"Access denied for this page.\",\"error\":\"Access denied for this page.\"}");
             return;
         }
         // Forward (not redirect) so the access-denied message shows at the attempted URL.

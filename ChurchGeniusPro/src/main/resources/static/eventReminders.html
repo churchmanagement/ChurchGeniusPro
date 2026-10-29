@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -621,10 +622,10 @@
   /* ── LOAD REMINDERS ── */
   async function loadReminders() {
     try {
-      const res  = await fetch('/api/reminders/event');
-      reminders  = await res.json();
+      const list = await CGP_api('/api/reminders/event');
+      reminders  = Array.isArray(list) ? list : [];
       renderTable();
-    } catch (e) { showFeedback('Failed to load reminders.', 'error'); }
+    } catch (e) { showFeedback(CGP_errorMessage(e, 'Failed to load reminders.'), 'error'); }
   }
 
   /* ── OCCURRENCE TOGGLE ── */

@@ -82,6 +82,7 @@ public class AccountStatusFilter implements Filter {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"error\":\"" + escape(block.message()) + "\","
+                    + "\"message\":\"" + escape(block.message()) + "\","
                     + "\"code\":\"" + block.code() + "\"}");
             // Phase C: a trial set to Pending / Disabled / Deleted is signed out as soon as
             // it is detected — the message above is the last thing this session gets;

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -237,20 +238,20 @@
 
   async function loadMeetingOptions() {
     try {
-      const res  = await fetch('/api/meetings');
-      meetings   = await res.json();
+      const list = await CGP_api('/api/meetings');
+      meetings   = Array.isArray(list) ? list : [];
       const sel  = document.getElementById('meetingId');
       sel.innerHTML = '<option value="">— Select a meeting —</option>' +
         meetings.map(m => `<option value="${m.id}">${escHtml(m.meetingTypeName)} — ${fmtDate(m.meetingDate)}</option>`).join('');
-    } catch (e) { showFeedback('Failed to load meetings.', 'error'); }
+    } catch (e) { showFeedback(CGP_errorMessage(e, 'Failed to load meetings.'), 'error'); }
   }
 
   async function loadReminders() {
     try {
-      const res = await fetch('/api/reminders/meeting');
-      reminders = await res.json();
+      const list = await CGP_api('/api/reminders/meeting');
+      reminders = Array.isArray(list) ? list : [];
       renderTable();
-    } catch (e) { showFeedback('Failed to load reminders.', 'error'); }
+    } catch (e) { showFeedback(CGP_errorMessage(e, 'Failed to load reminders.'), 'error'); }
   }
 
   function buildRecipients() {

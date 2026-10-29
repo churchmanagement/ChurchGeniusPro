@@ -100,7 +100,7 @@ public class EventVolunteerController {
     public ResponseEntity<?> list(@PathVariable Integer eventId,
                                   HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         List<EventVolunteer> volunteers = evRepo
@@ -128,7 +128,7 @@ public class EventVolunteerController {
                                     @RequestBody Map<String, Object> body,
                                     HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         if (cid == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         // The path's eventId must be one of this church's events.
@@ -188,7 +188,7 @@ public class EventVolunteerController {
                                     @RequestBody Map<String, Object> body,
                                     HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         EventVolunteer ev = evRepo.findById(id).orElse(null);
@@ -230,7 +230,7 @@ public class EventVolunteerController {
                                     @PathVariable Long id,
                                     HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         EventVolunteer ev = evRepo.findById(id).orElse(null);
@@ -256,7 +256,7 @@ public class EventVolunteerController {
                                        @RequestBody Map<String, Object> body,
                                        HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         @SuppressWarnings("unchecked")
@@ -304,7 +304,7 @@ public class EventVolunteerController {
                                      @RequestBody Map<String, Object> body,
                                      HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
 
         if (!smsService.isConfigured())
             return ResponseEntity.status(409).body(Map.of("success", false, "error", "SMS is not configured for this church."));
@@ -336,7 +336,7 @@ public class EventVolunteerController {
     public ResponseEntity<?> listOrgRoles(@PathVariable Integer eventId,
                                           HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         List<Map<String, Object>> roles = roleRepo

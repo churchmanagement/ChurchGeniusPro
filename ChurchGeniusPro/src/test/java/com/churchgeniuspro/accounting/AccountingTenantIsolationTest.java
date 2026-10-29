@@ -442,7 +442,7 @@ class AccountingTenantIsolationTest {
             assertThat(status(sourceController.getAllMainSources(plainUser()))).isEqualTo(403);
             assertThat(status(sourceController.deleteMainSource(1, plainUser()))).isEqualTo(403);
             assertThat(status(sourceController.updateSubSource(1, Map.of("sourceName", "X"), plainUser()))).isEqualTo(403);
-            assertThat(status(sourceController.deleteSubSource(1, anonymous()))).isEqualTo(403);
+            assertThat(status(sourceController.deleteSubSource(1, anonymous()))).isEqualTo(401);   // no session: RoleGuard.denied answers 401 (error-handling L3)
             verify(mainSourceRepo, never()).findActiveByAppUser(anyString());
         }
     }

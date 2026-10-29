@@ -72,7 +72,7 @@ public class FollowUpController {
     @GetMapping("/api/followups/assignees")
     public ResponseEntity<?> assignees(HttpServletRequest req) {
         String deny = RoleGuard.requireAdminOrUser(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Permission denied"));
         String cid = resolveClientId(req);
         if (cid == null) return ResponseEntity.status(403).body(Map.of("error", "Not authenticated"));
 
@@ -127,7 +127,7 @@ public class FollowUpController {
     @PostMapping("/api/followups/volunteers")
     public ResponseEntity<?> addVolunteer(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         String deny = RoleGuard.requireAdminOrUser(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Permission denied"));
         String cid = resolveClientId(req);
         if (cid == null) return ResponseEntity.status(403).body(Map.of("error", "Not authenticated"));
 

@@ -68,7 +68,7 @@ public class MemberTypeController {
     public ResponseEntity<Map<String, Object>> create(@RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);   // same gate as the /membertype page
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Member type name is required.");
@@ -91,7 +91,7 @@ public class MemberTypeController {
                                                       @RequestBody Map<String, String> body,
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String typeName = body.get("typeName");
         if (typeName == null || typeName.isBlank()) {
             return bad("Member type name is required.");
@@ -113,7 +113,7 @@ public class MemberTypeController {
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id,
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {

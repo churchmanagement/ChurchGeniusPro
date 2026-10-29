@@ -72,7 +72,7 @@ public class VolunteerController {
     @GetMapping("/roles")
     public ResponseEntity<?> listRoles(HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         return ResponseEntity.ok(roleRepo
                 .findByAppClientIdAndDeleteFlagFalseOrderByMinistryAscRoleNameAsc(cid)
@@ -82,7 +82,7 @@ public class VolunteerController {
     @PostMapping("/roles")
     public ResponseEntity<?> saveRole(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = toLong(body.get("id"));
@@ -105,7 +105,7 @@ public class VolunteerController {
     @DeleteMapping("/roles/{id}")
     public ResponseEntity<?> deleteRole(@PathVariable Long id, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         VolunteerRole role = roleRepo.findById(id).orElse(null);
         if (role == null || !cid.equals(role.getAppClientId()))
@@ -122,7 +122,7 @@ public class VolunteerController {
     @GetMapping("/profiles")
     public ResponseEntity<?> listProfiles(HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         List<VolunteerProfile> profiles = profileRepo
                 .findByAppClientIdAndDeleteFlagFalseOrderByFamilyMemberIdAsc(cid);
@@ -147,7 +147,7 @@ public class VolunteerController {
     @GetMapping("/profiles/{profileId}/roles")
     public ResponseEntity<?> listProfileRoles(@PathVariable Long profileId, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         VolunteerProfile profile = profileRepo.findById(profileId).orElse(null);
@@ -174,7 +174,7 @@ public class VolunteerController {
                                             @RequestBody Map<String, Object> body,
                                             HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         VolunteerProfile profile = profileRepo.findById(profileId).orElse(null);
@@ -210,7 +210,7 @@ public class VolunteerController {
                                                @PathVariable Long linkId,
                                                HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         VolunteerProfileRole link = profileRoleRepo.findById(linkId).orElse(null);
@@ -228,7 +228,7 @@ public class VolunteerController {
                                               @RequestBody Map<String, Object> body,
                                               HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         VolunteerProfile profile = profileRepo.findById(profileId).orElse(null);
@@ -280,7 +280,7 @@ public class VolunteerController {
     public ResponseEntity<?> addMemberAsVolunteer(@RequestBody Map<String, Object> body,
                                                    HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Integer memberId = toInt(body.get("familyMemberId"));
@@ -312,7 +312,7 @@ public class VolunteerController {
     public ResponseEntity<?> addManualVolunteer(@RequestBody Map<String, Object> body,
                                                  HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         String firstName = str(body, "firstName");
@@ -356,7 +356,7 @@ public class VolunteerController {
                                            @RequestBody Map<String, Object> body,
                                            HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         VolunteerProfile p = profileRepo.findById(id).orElse(null);
         if (p == null || !cid.equals(p.getAppClientId()))
@@ -378,7 +378,7 @@ public class VolunteerController {
                                                      @RequestBody Map<String, Object> body,
                                                      HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         VolunteerAssignment a = assignmentRepo.findById(id).orElse(null);
         if (a == null || !cid.equals(a.getAppClientId()))
@@ -400,7 +400,7 @@ public class VolunteerController {
                                              @RequestParam(required = false) String eventLabel,
                                              HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         List<VolunteerAssignment> list;
@@ -445,7 +445,7 @@ public class VolunteerController {
     @PostMapping("/assignments")
     public ResponseEntity<?> saveAssignment(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Long id = toLong(body.get("id"));
@@ -498,7 +498,7 @@ public class VolunteerController {
     @DeleteMapping("/assignments/{id}")
     public ResponseEntity<?> deleteAssignment(@PathVariable Long id, HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         VolunteerAssignment a = assignmentRepo.findById(id).orElse(null);
         if (a == null || !cid.equals(a.getAppClientId()))
@@ -513,7 +513,7 @@ public class VolunteerController {
     public ResponseEntity<?> notifyVolunteers(@RequestBody Map<String, Object> body,
                                               HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Integer eventId = toInt(body.get("eventId"));
@@ -623,7 +623,7 @@ public class VolunteerController {
     public ResponseEntity<?> sendEmail(@RequestBody Map<String, Object> body,
                                        HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Object toRaw = body.get("to");
@@ -678,7 +678,7 @@ public class VolunteerController {
     public ResponseEntity<?> sendSms(@RequestBody Map<String, Object> body,
                                      HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
 
         if (!smsService.isConfigured()) {
             return ResponseEntity.status(503).body(Map.of(
@@ -725,7 +725,7 @@ public class VolunteerController {
     public ResponseEntity<?> markAttendance(@RequestBody Map<String, Object> body,
                                             HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         Long assignmentId = toLong(body.get("assignmentId"));
@@ -757,7 +757,7 @@ public class VolunteerController {
     @GetMapping("/summary")
     public ResponseEntity<?> summary(HttpServletRequest req) {
         String deny = RoleGuard.requireAdmin(req);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        if (deny != null) return RoleGuard.denied(req, deny, Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
         long totalProfiles   = profileRepo.findByAppClientIdAndDeleteFlagFalseOrderByFamilyMemberIdAsc(cid).size();

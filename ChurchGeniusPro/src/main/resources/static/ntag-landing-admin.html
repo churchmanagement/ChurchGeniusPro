@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -163,8 +164,8 @@
   function markDirty(){ dirty = true; }
 
   async function reload() {
-    const r = await fetch('/api/ntag-landing/config');
-    CFG = await r.json();
+    try { CFG = await CGP_api('/api/ntag-landing/config'); }
+    catch (e) { fb(CGP_errorMessage(e, 'Could not load the landing page settings.'), false); return; }
     document.getElementById('enabled').checked = CFG.enabled !== false;
     document.getElementById('showLogo').checked = CFG.showLogo !== false;
     document.getElementById('themeColor').value = CFG.themeColor || '#673147';
@@ -300,7 +301,7 @@
 
   async function loadReport() {
     try {
-      const d = await (await fetch('/api/ntag-landing/report?limit=100')).json();
+      const d = await CGP_api('/api/ntag-landing/report?limit=100');
       document.getElementById('statBar').innerHTML =
         '<div class="b"><div class="n">'+(d.views||0)+'</div><div class="l">Page Views</div></div>'
         + '<div class="b"><div class="n">'+(d.clicks||0)+'</div><div class="l">Button Clicks</div></div>';
@@ -312,7 +313,7 @@
       document.getElementById('recent').innerHTML = rc.length
         ? rc.map(r=>'<tr><td>'+(r.time?esc(new Date(r.time).toLocaleString()):'—')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.buttonLabel||'')+'</td></tr>').join('')
         : '<tr><td class="muted">No activity yet.</td></tr>';
-    } catch {}
+    } catch (e) { fb(CGP_errorMessage(e, 'Could not load the click report.'), false); }
   }
 
   reload();

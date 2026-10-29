@@ -1054,7 +1054,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("success", false, "error", "Not a member account"));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("success", false, "error", "Not a member account"));
         String memberRef = ssId[0];
         String clientId  = ssId[1];
 
@@ -1158,7 +1158,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("error", "Not a member account"));
         String clientId = ssId[1];
 
         SsStudent student = resolveStudent(session);
@@ -1230,7 +1230,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("error", "Not a member account"));
 
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
         if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
@@ -1259,7 +1259,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("extraTimeMinutes", 0));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("extraTimeMinutes", 0));
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
         if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
         return ResponseEntity.ok(Map.of("extraTimeMinutes", sub.getExtraTimeMinutes()));
@@ -1273,7 +1273,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("error", "Not a member account"));
 
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
         if (sub == null || !sameTenant(ssId[1], sub.getClientId())) return ResponseEntity.status(404).build();
@@ -1400,7 +1400,7 @@ public class SundaySchoolController {
         HttpSession session = req.getSession(false);
         if (session == null) return ResponseEntity.status(401).build();
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of("error", "Not a member account"));
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of("error", "Not a member account"));
         String clientId  = ssId[1];
 
         SsSubmission sub = submissionRepo.findById(submissionId).orElse(null);
@@ -2089,7 +2089,7 @@ public class SundaySchoolController {
         // Return empty map (not 401/403) for non-member sessions so the browser
         // doesn't log a noisy network error when staff visit /memberHome.
         String[] ssId = resolveSsIdentity(session);
-        if (ssId == null) return ResponseEntity.ok(Map.of());
+        if (ssId == null) return ResponseEntity.status(403).body(Map.of());
         String memberRef = ssId[0];
         String clientId  = ssId[1];
 

@@ -376,8 +376,8 @@ class DailyVerseSetupTest {
         @DisplayName("an anonymous caller is refused")
         void anonymousIsRefused() {
             MockHttpServletRequest anon = new MockHttpServletRequest();
-            assertThat(status(controller.coverage(2026, anon))).isEqualTo(403);
-            assertThat(status(controller.populate(Map.of(), anon))).isEqualTo(403);
+            assertThat(status(controller.coverage(2026, anon))).isEqualTo(401);   // no session: 401 (error-handling L3)
+            assertThat(status(controller.populate(Map.of(), anon))).isEqualTo(401);   // no session: 401 (error-handling L3)
             verify(repo, never()).saveAll(any());
         }
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -212,13 +213,13 @@
   /* ════ LOAD ════ */
   async function loadNotes() {
     try {
-      const res  = await fetch('/api/notes');
-      allNotes   = await res.json();
+      const notes = await CGP_api('/api/notes');
+      allNotes   = Array.isArray(notes) ? notes : [];
       // Identify current user from first "isOwner" note or from session.js globals
       const mine = allNotes.find(n => n.isOwner);
       if (mine) currentUserId = mine.createdById;
       renderNotes();
-    } catch { showFeedback('❌ Could not load notes.', 'error'); }
+    } catch (e) { showFeedback('❌ ' + CGP_errorMessage(e, 'Could not load notes.'), 'error'); }
   }
 
   /* ════ FILTER ════ */

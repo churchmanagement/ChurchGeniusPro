@@ -526,7 +526,10 @@
         return fetch('/api/auth/device-login', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: token })
-        }).then(function (r) { return r.json(); }).then(function (data) {
+        }).then(function (r) {
+          // A throttled (429) or failed answer is not a verdict on the token: keep it.
+          return r.ok ? r.json() : null;
+        }).then(function (data) {
           if (data && data.status === 'success') {
             return (data.deviceToken ? writeDeviceToken(data.deviceToken) : Promise.resolve()).then(function () { return data; });
           }

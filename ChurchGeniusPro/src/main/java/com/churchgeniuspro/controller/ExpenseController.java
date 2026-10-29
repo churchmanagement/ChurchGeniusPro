@@ -129,7 +129,7 @@ public class ExpenseController {
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
@@ -177,7 +177,7 @@ public class ExpenseController {
                                                        HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
@@ -216,7 +216,7 @@ public class ExpenseController {
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.edit");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
@@ -234,7 +234,7 @@ public class ExpenseController {
                                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAccountantOrAdmin(request);
         if (deny == null) deny = RoleGuard.requirePermission(request, "accounting.expense.delete");
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {

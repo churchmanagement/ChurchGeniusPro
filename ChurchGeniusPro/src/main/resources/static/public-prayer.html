@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
@@ -67,14 +68,18 @@
         var s = document.createElement('script'); s.src = 'https://www.google.com/recaptcha/api.js'; s.async = true;
         document.head.appendChild(s);
       }
-      if (cid) fetch('/api/public/engage-info?cid=' + encodeURIComponent(cid)).then(r=>r.json()).then(function (d) {
+      if (cid) CGP_api('/api/public/engage-info?cid=' + encodeURIComponent(cid)).then(function (d) {
         if (d.themeColor) document.documentElement.style.setProperty('--brand', d.themeColor);
         formToken = d.formToken || '';
         setupCaptcha(d.captchaSiteKey);
         document.getElementById('hero').innerHTML =
           (d.logo ? '<img class="logo" src="'+esc(d.logo)+'" alt="" />' : '')
           + '<h1>🙏 Prayer Request</h1><p>'+esc(d.churchName||'')+'</p>';
-      }).catch(function(){});
+      }).catch(function(e){
+        var hero = document.getElementById('hero');
+        hero.innerHTML = '<h1>🙏 Prayer Request</h1><p></p>';
+        hero.querySelector('p').textContent = CGP_errorMessage(e, 'This page could not be loaded.');
+      });
 
       document.getElementById('f').addEventListener('submit', function (e) {
         e.preventDefault();

@@ -189,7 +189,7 @@
   function offerCardPayment() {
     if ($('invoice').hidden || $('state').textContent === 'Paid') return;
     return fetch('/api/invoice/pay/config?t=' + encodeURIComponent(t), { credentials: 'same-origin', cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+      .then(function (r) { return r.ok ? r.json() : null; })   // no card option when the config is refused
       .then(function (d) {
         if (!d || d.status !== 'success' || !d.available) return;
         TOTAL = $('total').textContent;

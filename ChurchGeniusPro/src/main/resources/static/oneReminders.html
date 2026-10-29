@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -302,8 +303,8 @@
   async function loadGroups() {
     const container = document.getElementById('groupsContainer');
     try {
-      const res = await fetch('/api/groups');
-      groups = await res.json() || [];
+      const gl = await CGP_api('/api/groups');
+      groups = Array.isArray(gl) ? gl : [];
       if (!groups.length) {
         container.innerHTML = '<span class="field-hint">No groups defined. Create groups on the Groups page.</span>';
         return;
@@ -332,10 +333,10 @@
 
   async function loadReminders() {
     try {
-      const res = await fetch('/api/reminders/onetime');
-      reminders = await res.json();
+      const list = await CGP_api('/api/reminders/onetime');
+      reminders = Array.isArray(list) ? list : [];
       renderTable();
-    } catch (e) { showFeedback('Failed to load reminders.', 'error'); }
+    } catch (e) { showFeedback(CGP_errorMessage(e, 'Failed to load reminders.'), 'error'); }
   }
 
   function onImageChange(e) {

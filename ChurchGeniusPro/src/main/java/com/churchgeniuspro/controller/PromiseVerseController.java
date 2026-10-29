@@ -154,7 +154,7 @@ public class PromiseVerseController {
     public ResponseEntity<?> coverage(@RequestParam(required = false) Integer year,
                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         if (setupService == null) {
@@ -178,7 +178,7 @@ public class PromiseVerseController {
     public ResponseEntity<?> populate(@RequestBody(required = false) Map<String, Object> body,
                                       HttpServletRequest request) {
         String deny = RoleGuard.requireAdmin(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        if (deny != null) return RoleGuard.denied(request, deny, Map.of("error", "Permission denied"));
         String clientId = RoleGuard.clientId(request);
         if (clientId == null) return ResponseEntity.status(401).build();
         if (setupService == null) {

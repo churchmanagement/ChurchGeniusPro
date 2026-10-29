@@ -234,7 +234,9 @@ async function generateReport(){
       return;
     }
     const res=await fetch(`/api/reports/transactions?startDate=${sd}&endDate=${ed}&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
-    renderReport(await res.json(),sd,ed);
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){alert((data.error||data.message||'Failed to load report.')+(data.ref?' (ref '+data.ref+')':''));return;}
+    renderReport(data,sd,ed);
   }catch(e){alert('Failed to load report.');console.error(e);}
 }
 

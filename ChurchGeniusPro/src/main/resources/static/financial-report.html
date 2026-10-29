@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8"/>
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -166,9 +167,9 @@ function fmt(n){return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigit
 async function generateReport(){
   const year=document.getElementById('yearSelect').value;
   try{
-    const res=await fetch(`/api/reports/financial?year=${year}&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
-    renderReport(await res.json(),year);
-  }catch(e){alert('Failed to load report.');console.error(e);}
+    const data=await CGP_api(`/api/reports/financial?year=${year}&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
+    renderReport(data,year);
+  }catch(e){alert(CGP_errorMessage(e,'Failed to load report.'));console.error(e);}
 }
 
 function renderReport(data,year){
