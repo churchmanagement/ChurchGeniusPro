@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/shell.css" />
   <title>Member Home – Church Genius Pro</title>
   <script src="/native-bridge.js"></script>
+  <script src="/cgp-api.js"></script>
   <script src="/devices.js" defer></script>
 <script>
     /* Tell shell.js this is the member portal — no active page in staff nav */
@@ -2817,7 +2818,8 @@ async function submitReportMsg() {
     var data = await res.json().catch(function () { return {}; });
     if (!res.ok) { err.textContent = data.error || 'Could not send the report.'; btn.disabled = false; return; }
     if (document.getElementById('reportMsgBlock').checked && reportMsgTarget.senderMemberId) {
-      await fetch('/api/member/blocks/' + Number(reportMsgTarget.senderMemberId), { method: 'POST' }).catch(function () {});
+      try { await CGP_api('/api/member/blocks/' + Number(reportMsgTarget.senderMemberId), { method: 'POST' }); }
+      catch (be) { showToastMH('Report sent, but blocking failed: ' + CGP_errorMessage(be, 'please try again.'), true); }
       loadMessages('inbox');
     }
     closeReportMsgModal(); closeModal('threadModal');
@@ -2866,10 +2868,12 @@ function saveSettings() {
     if (cb.checked) {
       localStorage.setItem(SETTINGS_NO_AUTO_LOGOUT_KEY, '1');
       // Tell NoAutoLogoutFilter to suppress timeout for this session
-      fetch('/api/session/no-auto-logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: true }) }).catch(function(){});
+      CGP_api('/api/session/no-auto-logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: true }) })
+        .catch(function(e){ showToastMH(CGP_errorMessage(e, 'The setting was not saved.'), true); });
     } else {
       localStorage.removeItem(SETTINGS_NO_AUTO_LOGOUT_KEY);
-      fetch('/api/session/no-auto-logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false }) }).catch(function(){});
+      CGP_api('/api/session/no-auto-logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false }) })
+        .catch(function(e){ showToastMH(CGP_errorMessage(e, 'The setting was not saved.'), true); });
     }
   }
   closeSettingsModal();
@@ -3219,7 +3223,7 @@ async function doMemberAccountSwitch(entry) {
   } catch(e) {
     var menu = document.getElementById('memberSwitcherMenu');
     if (menu) menu.style.display = 'none';
-    alert('Network error switching accounts. Please try again.');
+    alert(CGP_errorMessage(e, 'Network error switching accounts. Please try again.'));
   }
 }
 
@@ -3536,23 +3540,27 @@ async function saveTeacherExam() {
   var method = id ? 'PUT' : 'POST';
   var res = await fetch(url, { method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) { closeTeacherExamModal(); await loadTeacherExams(); }
-  else alert('Failed to save exam.');
+  else { var eb = await res.json().catch(function(){ return null; }); alert((eb && (eb.error || eb.message)) || 'Failed to save exam.'); }
 }
 
 async function publishTeacherExam(examId) {
-  await fetch('/api/member/ss/teacher/exams/' + examId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Published'}) });
+  try {
+    await CGP_api('/api/member/ss/teacher/exams/' + examId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Published'}) });
+  } catch (e) { showToastMH(CGP_errorMessage(e, 'The exam was not published.'), true); }
   await loadTeacherExams();
 }
 
 async function closeTeacherExam(examId) {
-  await fetch('/api/member/ss/teacher/exams/' + examId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Closed'}) });
+  try {
+    await CGP_api('/api/member/ss/teacher/exams/' + examId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Closed'}) });
+  } catch (e) { showToastMH(CGP_errorMessage(e, 'The exam was not closed.'), true); }
   await loadTeacherExams();
 }
 
 async function republishTeacherExam(examId) {
   if (!confirm('Republish this exam for retakes?\n\nThis will clear ALL existing submissions and scores so every student can start fresh. This cannot be undone.')) return;
   var res = await fetch('/api/member/ss/teacher/exams/' + examId + '/republish', { method: 'POST' });
-  if (!res.ok) { showToastMH('Failed to republish exam.', true); return; }
+  if (!res.ok) { var rb = await res.json().catch(function(){ return null; }); showToastMH((rb && (rb.error || rb.message)) || 'Failed to republish exam.', true); return; }
   var d = await res.json();
   showToastMH('Exam republished. ' + d.clearedSubmissions + ' submission(s) cleared.');
   await loadTeacherExams();
@@ -3875,16 +3883,18 @@ async function teacherSendToParent() {
     var json = await res.json().catch(function(){ return {}; });
     if (res.ok) {
       var sent = json.emailsSent || 0;
+      var errs = Array.isArray(json.errors) ? json.errors : [];
+      if (errs.length) { showToastMH('📧 Result sent (' + sent + ' email' + (sent !== 1 ? 's' : '') + '), but: ' + errs.join('; '), true); return; }
       var toast = document.createElement('div');
       toast.textContent = '📧 Result sent (' + sent + ' email' + (sent !== 1 ? 's' : '') + ')';
       toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1565c0;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;z-index:9999;';
       document.body.appendChild(toast);
       setTimeout(function(){ toast.remove(); }, 3500);
     } else {
-      alert('Failed to send: ' + (json.error || res.status));
+      alert('Failed to send: ' + (json.error || json.message || ('HTTP ' + res.status)) + (json.ref ? ' (ref ' + json.ref + ')' : ''));
     }
   } catch(e) {
-    alert('Error sending result: ' + e.message);
+    alert(CGP_errorMessage(e, 'Network error — the result was not sent.'));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📧 Send to Parent'; }
   }
@@ -4684,7 +4694,16 @@ function feRemoveMember(idx) {
   var m = feMembers[idx];
   if (!confirm('Remove ' + ((m.firstName||'')+' '+(m.lastName||'')).trim() + ' from your family?')) return;
   if (m.id && currentFamilyId) {
-    fetch('/api/families/' + currentFamilyId + '/members/' + m.id, { method:'DELETE' }).catch(function(){});
+    // Saved members are removed on the server first; the row leaves the list only
+    // when the server agreed (it used to be spliced away whatever the DELETE said).
+    CGP_api('/api/families/' + currentFamilyId + '/members/' + m.id, { method:'DELETE' })
+      .then(function(){
+        var i = feMembers.indexOf(m);
+        if (i >= 0) feMembers.splice(i, 1);
+        feRenderMembersList();
+      })
+      .catch(function(e){ showToastMH(CGP_errorMessage(e, 'The member could not be removed.'), true); });
+    return;
   }
   feMembers.splice(idx, 1);
   feRenderMembersList();
@@ -4771,7 +4790,7 @@ async function saveFamilyEdit() {
       await loadFamilyData();
       setTimeout(function(){ closeFamilyEditModal(); }, 1500);
     } else { feFeedback(data.error||'Failed to save family.','error'); btn.disabled=false; btn.textContent='Save Family'; }
-  } catch(e) { feFeedback('Network error.','error'); btn.disabled=false; btn.textContent='Save Family'; }
+  } catch(e) { feFeedback(CGP_errorMessage(e, 'Network error.'),'error'); btn.disabled=false; btn.textContent='Save Family'; }
 }
 
 /* UPCOMING */
@@ -5630,10 +5649,13 @@ async function sendReply() {
     });
     if (res.ok) {
       input.value = '';
-      var msgs = await fetch('/api/member/messages/thread/' + currentThreadId).then(function(r){ return r.json(); });
+      var msgs = await CGP_api('/api/member/messages/thread/' + currentThreadId);
       renderThread(msgs);
+    } else {
+      var rb = await res.json().catch(function(){ return null; });
+      showToastMH((rb && (rb.error || rb.message)) || 'Your reply was not sent.', true);
     }
-  } catch(e) {}
+  } catch(e) { showToastMH(CGP_errorMessage(e, 'Your reply was not sent.'), true); }
   btn.disabled = false; btn.textContent = 'Reply';
 }
 
@@ -6472,11 +6494,13 @@ function saveCurrentAnswer() {
   }
   // Auto-save to server (non-blocking)
   if (examState.answers[q.id] !== undefined) {
-    fetch('/api/member/ss/submissions/' + examState.submissionId + '/answer', {
+    // Still non-blocking, but a refused or lost auto-save is said out loud — the
+    // student would otherwise only find out when the answer is missing at marking.
+    CGP_api('/api/member/ss/submissions/' + examState.submissionId + '/answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ questionId: q.id, answerText: examState.answers[q.id] })
-    }).catch(function(){});
+    }).catch(function(e){ showToastMH('Your answer was not saved: ' + CGP_errorMessage(e, 'check your connection.'), true); });
   }
 }
 
@@ -6748,6 +6772,7 @@ async function sendAlert() {
       body: JSON.stringify({ type: type, message: message, examId: examId })
     });
     var d = await res.json().catch(function(){ return {}; });
+    if (!res.ok) { alert(d.error || d.message || 'Failed to send. Please try again.'); return; }
     closeAlertModal();
     if (document.getElementById('alertMsg')) document.getElementById('alertMsg').value = '';
     alert(d.status === 'no_teacher_email'
@@ -7074,12 +7099,11 @@ function loadEventVolAssignments() {
 }
 
 function evVolRespond(volId, eventId, status) {
-  fetch('/api/events/' + eventId + '/volunteers/' + volId + '/member-respond', {
+  CGP_api('/api/events/' + eventId + '/volunteers/' + volId + '/member-respond', {
     method: 'PUT',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({status: status})
   })
-  .then(function(r){ return r.json(); })
   .then(function(d){
     if (d.success) {
       showToastMH('Status updated to ' + status + '!');
@@ -7091,7 +7115,7 @@ function evVolRespond(volId, eventId, status) {
       showToastMH('Could not update status.', true);
     }
   })
-  .catch(function(){ showToastMH('Network error.', true); });
+  .catch(function(e){ showToastMH(CGP_errorMessage(e, 'Network error.'), true); });
 }
 
 function fmt12h(t) {
@@ -7141,15 +7165,15 @@ function saveVolProfile() {
     availability: document.getElementById('volAvailability').value.trim() || null,
     notes:        document.getElementById('volNotes').value.trim() || null
   };
-  fetch('/api/volunteers/my/profile', { method:'POST',
+  CGP_api('/api/volunteers/my/profile', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) {
       document.getElementById('volProfileModal').classList.remove('open');
       loadVolProfile();
       showToastMH('Volunteer profile saved!');
     } else showToastMH(d.error || 'Error saving', true);
-  }).catch(function(){ showToastMH('Server error', true); });
+  }).catch(function(e){ showToastMH(CGP_errorMessage(e, 'Server error'), true); });
 }
 
 /* Event volunteer assignments (accepted via the Event Assignments tab) live in a
@@ -7227,12 +7251,12 @@ function loadVolAssignments() {
 }
 
 function respondVol(assignmentId, status) {
-  fetch('/api/volunteers/my/assignments/' + assignmentId + '/respond', { method:'POST',
+  CGP_api('/api/volunteers/my/assignments/' + assignmentId + '/respond', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: status }) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) { loadVolAssignments(); showToastMH('Response saved!'); }
     else showToastMH(d.error || 'Error', true);
-  }).catch(function(){ showToastMH('Server error', true); });
+  }).catch(function(e){ showToastMH(CGP_errorMessage(e, 'Server error'), true); });
 }
 
 function loadVolHistory() {
@@ -7284,6 +7308,8 @@ function escMH(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// cgp-api.js: CGP_showError() uses the portal's own toast
+window.CGP_notify = function (msg) { showToastMH(msg, true); };
 function showToastMH(msg, isErr) {
   // Reuse existing toast if present, otherwise console.log
   var el = document.getElementById('toast');
@@ -7294,7 +7320,21 @@ function showToastMH(msg, isErr) {
     clearTimeout(el._t2);
     el._t2 = setTimeout(function(){ el.style.display = 'none'; }, 3000);
   } else {
-    console.log('[Volunteer]', msg);
+    // The portal has no #toast element, so these messages used to go to the console
+    // only (every error routed here was invisible). Show a small fixed toast instead.
+    var t = document.getElementById('toastMH');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toastMH';
+      t.setAttribute('role', isErr ? 'alert' : 'status');
+      t.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100000;max-width:min(92vw,560px);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);display:none;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.background = isErr ? '#c62828' : '#323232';
+    t.style.display = 'block';
+    clearTimeout(t._t2);
+    t._t2 = setTimeout(function(){ t.style.display = 'none'; }, isErr ? 6000 : 3000);
   }
 }
 
@@ -7401,7 +7441,7 @@ async function giRefresh() {
       }
     }
   } catch(e) {
-    if (!giSubmitting) giRenderNoGame('Network error.');
+    if (!giSubmitting) giRenderNoGame(CGP_errorMessage(e, 'Network error.'));
     giErrBackoff = Math.min(giErrBackoff + 1, 3);
     giPollInterval = 2000 * Math.pow(2, giErrBackoff - 1);
   }
@@ -7664,7 +7704,7 @@ async function giSubmit(gameId, option) {
   } catch(e) {
     giSubmitting = false;
     document.querySelectorAll('.gi-opt-btn').forEach(function(b) { b.disabled = false; b.style.opacity = ''; });
-    alert('Network error. Please try again.');
+    alert(CGP_errorMessage(e, 'Network error. Please try again.'));
   }
 }
 

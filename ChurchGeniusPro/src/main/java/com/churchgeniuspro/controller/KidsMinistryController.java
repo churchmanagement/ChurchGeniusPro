@@ -1388,8 +1388,10 @@ public class KidsMinistryController {
                 String why = messagingPolicy.smsBlockReason(smsTenant);
                 if (why != null) return ResponseEntity.status(403).body(Map.of("error", why));
             }
-            for (String phone : targets) smsService.sendForClient(smsTenant, phone, msgBody);
-            return ResponseEntity.ok(Map.of("success", true, "sent", targets.size()));
+            com.churchgeniuspro.util.SmsOutcomes.Batch batch = new com.churchgeniuspro.util.SmsOutcomes.Batch();
+            for (String phone : targets) batch.record(null, phone, smsService.sendForClient(smsTenant, phone, msgBody));
+            if (batch.noneSentForProviderReason()) return ResponseEntity.status(502).body(batch.body());
+            return ResponseEntity.ok(batch.body());
         } catch (Exception e) {
             return ErrorResponses.internal(log, "The request could not be completed", e);
         }

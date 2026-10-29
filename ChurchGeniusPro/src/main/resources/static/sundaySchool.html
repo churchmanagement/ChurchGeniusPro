@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -721,7 +722,7 @@ async function saveClass() {
 
 async function deleteClass(id) {
   if (!confirm('Delete this class? This cannot be undone.')) return;
-  await fetch(`/api/ss/classes/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/classes/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   if (selectedClassId === id) { document.getElementById('classDetail').style.display = 'none'; selectedClassId = null; }
   await loadClasses(); toast('Class deleted.');
 }
@@ -866,7 +867,7 @@ async function saveTeacher() {
 
 async function deleteTeacher(id) {
   if (!confirm('Remove this teacher?')) return;
-  await fetch(`/api/ss/teachers/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/teachers/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadTeachers(); toast('Teacher removed.');
 }
 
@@ -896,7 +897,7 @@ async function addNote() {
 }
 
 async function deleteNote(id) {
-  await fetch(`/api/ss/notes/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/notes/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadNotes();
 }
 
@@ -931,7 +932,7 @@ async function uploadFile() {
 
 async function deleteFile(id) {
   if (!confirm('Delete this file?')) return;
-  await fetch(`/api/ss/files/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/files/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadFiles(); toast('File deleted.');
 }
 
@@ -1065,10 +1066,10 @@ function openStudentModal() {
   // Populate teacher dropdown
   const tSel = document.getElementById('studentTeacherSel');
   tSel.innerHTML = '<option value="">-- Select Teacher --</option>';
-  fetch(`/api/ss/classes/${classId}/teachers`).then(r => r.json()).then(teachers => {
+  CGP_api(`/api/ss/classes/${classId}/teachers`).then(teachers => {
     tSel.innerHTML += teachers.filter(t => !t.deleteFlag)
       .map(t => `<option value="${t.id}">${esc(t.teacherName)}</option>`).join('');
-  });
+  }).catch(e => CGP_showError(e, 'Could not load the teachers'));
   // Reset searchable child member picker
   clearMemberSelection();
   document.getElementById('memberSearchInput').value = '';
@@ -1117,7 +1118,7 @@ async function saveStudent() {
 
 async function deleteStudent(id, classId) {
   if (!confirm('Remove this student?')) return;
-  await fetch(`/api/ss/students/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/students/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadStudents(classId);
   if (selectedStudentId === id) document.getElementById('lessonSection').style.display = 'none';
   toast('Student removed.');
@@ -1309,14 +1310,14 @@ async function saveLesson() {
 }
 
 async function updateLessonStatus(id, status) {
-  await fetch(`/api/ss/lessons/${id}`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+  try { await CGP_api(`/api/ss/lessons/${id}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadLessons(); toast('Status updated.');
 }
 
 async function deleteLesson(id) {
   if (!confirm('Delete this lesson?')) return;
-  await fetch(`/api/ss/lessons/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/lessons/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadLessons(); toast('Lesson deleted.');
 }
 
@@ -1450,7 +1451,7 @@ async function saveExamSettings() {
 async function deleteExam(id) {
   if (!confirm('Delete this exam?')) return;
   const classId = document.getElementById('examClassSel').value;
-  await fetch(`/api/ss/exams/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/exams/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   if (selectedExamId === id) { document.getElementById('questionSection').style.display='none'; selectedExamId=null; }
   await loadExams(classId); toast('Exam deleted.');
 }
@@ -1653,7 +1654,7 @@ async function saveQuestion() {
 
 async function deleteQuestion(id) {
   if (!confirm('Delete this question?')) return;
-  await fetch(`/api/ss/questions/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/questions/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadQuestions(selectedExamId); toast('Question deleted.');
 }
 
@@ -1726,10 +1727,10 @@ function renderSubmissions(subs) {
 
 async function saveTotalMarks(submissionId, val) {
   const marks = parseInt(val) || 0;
-  await fetch(`/api/ss/submissions/${submissionId}/marks`, {
+  try { await CGP_api(`/api/ss/submissions/${submissionId}/marks`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ totalMarks: marks })
-  });
+  }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   toast('Marks updated!');
 }
 
@@ -1815,9 +1816,9 @@ async function saveAllManualMarks() {
     const inp = document.getElementById(`manualMarks_${q.answerId}`);
     if (!inp) continue;
     const marks = parseInt(inp.value) || 0;
-    await fetch(`/api/ss/answers/${q.answerId}/marks`, {
+    try { await CGP_api(`/api/ss/answers/${q.answerId}/marks`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ manualMarks: marks }) });
+      body: JSON.stringify({ manualMarks: marks }) }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   }
   closeModal('answerModal');
   await loadSubmissions();

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -299,6 +300,7 @@
     if (isNaN(n)) return '—';
     return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
   }
+  window.CGP_notify = function (msg) { flash(msg, 'error'); };
   function flash(msg, kind) {
     var el = $('feedbackMsg');
     el.className = 'feedback ' + (kind || 'success');
@@ -310,9 +312,9 @@
   /* ── Initial data load ─────────────────────────────────────────────── */
   function loadAll() {
     return Promise.all([
-      fetch('/api/income/sub-sources').then(function (r) { return r.json(); }),
-      fetch('/api/income/contributors').then(function (r) { return r.json(); }),
-      fetch('/api/pledges/campaigns').then(function (r) { return r.json(); }),
+      CGP_api('/api/income/sub-sources'),
+      CGP_api('/api/income/contributors'),
+      CGP_api('/api/pledges/campaigns'),
     ]).then(function (out) {
       ALL_SUBSOURCES = out[0] || [];
       ALL_MEMBERS    = out[1] || [];
@@ -320,7 +322,7 @@
       populateSubSourceSelect();
       renderCampaigns();
     }).catch(function (e) {
-      flash('Failed to load campaigns: ' + e, 'error');
+      flash(CGP_errorMessage(e, 'Failed to load campaigns.'), 'error');
     });
   }
 
@@ -470,8 +472,7 @@
 
   function loadPledges() {
     if (!CURRENT_CAMPAIGN) return Promise.resolve();
-    return fetch('/api/pledges/campaigns/' + CURRENT_CAMPAIGN.id + '/members')
-      .then(function (r) { return r.json(); })
+    return CGP_api('/api/pledges/campaigns/' + CURRENT_CAMPAIGN.id + '/members')
       .then(function (rows) {
         CURRENT_PLEDGES = Array.isArray(rows) ? rows : [];
         renderPledges();

@@ -7,6 +7,7 @@ import com.churchgeniuspro.plaid.repository.PlaidItemRepository;
 import com.churchgeniuspro.plaid.service.PlaidLinkService;
 import com.churchgeniuspro.plaid.service.PlaidSyncService;
 import com.churchgeniuspro.plaid.util.PlaidGuard;
+import com.churchgeniuspro.util.LogSafe;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -65,7 +66,7 @@ public class PlaidLinkController {
         } catch (PlaidLinkService.AccountLimitExceeded e) {
             return error(e.getMessage());     // the plan limit, in the user's words
         } catch (Exception e) {
-            log.warn("createLinkToken failed: {}", e.getMessage());
+            log.warn("createLinkToken failed: {}", LogSafe.exception(e));
             return error("Could not start bank connection. Please try again.");
         }
     }
@@ -83,6 +84,9 @@ public class PlaidLinkController {
             return error("Missing public token.");
         }
         try {
+            // The service persists the item BEFORE the first sync and reports that
+            // sync's outcome in the map (firstSync ok|failed, errorCode, message) —
+            // a failure there is still a successful connection (audit M8).
             Map<String, Object> result = linkService.exchangePublicToken(
                     clientId, appUserId(req), publicToken, SessionUtil.getUsername(req));
             Map<String, Object> resp = new LinkedHashMap<>(result);
@@ -91,8 +95,10 @@ public class PlaidLinkController {
         } catch (PlaidLinkService.AccountLimitExceeded e) {
             return error(e.getMessage());     // nothing was stored; see PlaidLinkService
         } catch (Exception e) {
-            log.warn("exchange failed: {}", e.getMessage());
-            return error("Could not complete bank connection.");
+            // Only reachable before the item is saved (token exchange / accounts
+            // lookup / persistence) — nothing exists for this bank yet.
+            log.warn("exchange failed before the connection was stored: {}", LogSafe.exception(e));
+            return error("Could not complete bank connection. Please try again.");
         }
     }
 
@@ -151,12 +157,26 @@ public class PlaidLinkController {
             return forbidden("Transaction sync is disabled for your organization.");
         }
         try {
-            int staged = syncService.syncByItemId(clientId, id, SessionUtil.getUsername(req));
-            return ResponseEntity.ok(ok("stagedTransactions", staged));
+            PlaidSyncService.SyncResult r = syncService.syncByItemIdWithResult(clientId, id, SessionUtil.getUsername(req));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("outcome", r.outcome().name());
+            body.put("stagedTransactions", r.staged());
+            if (r.ok()) {
+                body.put("status", "success");
+                return ResponseEntity.ok(body);
+            }
+            // Honest answers (audit M8): a transient provider condition is a 502 the
+            // page may retry; a connection-level fault (sign-in needed, revoked) is a
+            // 409 — the item now carries that state and the list explains it.
+            body.put("status", "error");
+            body.put("errorCode", r.errorCode());
+            body.put("message", r.message());
+            body.put("retryable", r.retryLater());
+            return ResponseEntity.status(r.retryLater() ? 502 : 409).body(body);
         } catch (IllegalArgumentException e) {
             return error(e.getMessage());
         } catch (Exception e) {
-            log.warn("syncNow failed for item {}: {}", id, e.getMessage());
+            log.warn("syncNow failed for item {}: {}", id, LogSafe.exception(e));
             return error("Sync failed. Please try again.");
         }
     }

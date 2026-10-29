@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -573,11 +574,10 @@
       roles:     []
     };
     try {
-      const res = await fetch('/api/events/' + currentEventId + '/volunteers', {
+      const d = await CGP_api('/api/events/' + currentEventId + '/volunteers', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      const d = await res.json();
       if (d.success) {
         evVolunteers.push(d.volunteer);
         evRenderTable();
@@ -585,7 +585,7 @@
         evRenderSummary();
         evToast('✅ Volunteer added!', '#2e7d32');
       } else alert(d.error || 'Failed to add volunteer.');
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ════ MANUAL ADD MODAL ════ */
@@ -681,20 +681,19 @@
 
     const payload = { firstName, lastName, email, phone, status, notes, roles: selectedRoles };
     try {
-      let res, d;
+      let d;
       if (_evEditId) {
-        res = await fetch('/api/events/' + currentEventId + '/volunteers/' + _evEditId, {
+        d = await CGP_api('/api/events/' + currentEventId + '/volunteers/' + _evEditId, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
         payload.isManual = true;
-        res = await fetch('/api/events/' + currentEventId + '/volunteers', {
+        d = await CGP_api('/api/events/' + currentEventId + '/volunteers', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       }
-      d = await res.json();
       if (d.success) {
         if (_evEditId) {
           const idx = evVolunteers.findIndex(v => v.id === _evEditId);
@@ -710,7 +709,7 @@
       } else {
         alert(d.error || 'Failed to save volunteer.');
       }
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ════ VOLUNTEER TABLE ════ */
@@ -761,23 +760,29 @@
   async function evUpdateStatus(sel) {
     const id     = Number(sel.dataset.vid);
     const status = sel.value;
-    sel.className = 'vol-status-sel ' + status;
     const v = evVolunteers.find(x => x.id === id);
+    const previous = v ? v.status : null;
+    sel.className = 'vol-status-sel ' + status;
     if (v) v.status = status;
     evRenderSummary();
     try {
-      await fetch('/api/events/' + currentEventId + '/volunteers/' + id, {
+      await CGP_api('/api/events/' + currentEventId + '/volunteers/' + id, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-    } catch (e) { console.warn('Status update failed', e); }
+    } catch (e) {
+      // the server refused: put the row back the way it was and say why
+      if (v) v.status = previous;
+      if (previous) { sel.value = previous; sel.className = 'vol-status-sel ' + previous; }
+      evRenderSummary();
+      alert(CGP_errorMessage(e, 'The status was not saved.'));
+    }
   }
 
   async function evDeleteVolunteer(id) {
     if (!confirm('Remove this volunteer from the event?')) return;
     try {
-      const res = await fetch('/api/events/' + currentEventId + '/volunteers/' + id, { method: 'DELETE' });
-      const d   = await res.json();
+      const d = await CGP_api('/api/events/' + currentEventId + '/volunteers/' + id, { method: 'DELETE' });
       if (d.success) {
         evVolunteers = evVolunteers.filter(v => v.id !== id);
         evRenderTable();
@@ -785,7 +790,7 @@
         evRenderSummary();
         evToast('Volunteer removed.', '#555');
       } else alert(d.error || 'Failed to delete volunteer.');
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ════ GROUP ACTIONS ════ */
@@ -863,30 +868,30 @@
       if (!targets.length) { alert('No email addresses available.'); return; }
       const sendBtn = document.querySelector('#evtComposeModal .btn-save');
       if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
-      fetch(eventBase + '/send-email', {
+      CGP_api(eventBase + '/send-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: targets.map(r => r.email), subject, body })
-      }).then(r => r.json()).then(d => {
+      }).then(d => {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
         if (d.success && d.testEmail) { evtCmpClose(); evToast('🧪 Trial/Demo test: ' + d.testEmailsSent + ' test email sent to ' + d.testEmail + ' — ' + d.simulated + ' volunteer(s) simulated'); }
         else if (d.success && d.blocked > 0 && !d.sent) { evtCmpClose(); alert('No email was sent — ' + (d.blockReason || 'email sending is blocked for this account.')); }
-        else if (d.success) { evtCmpClose(); evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
+        else if (d.success) { evtCmpClose(); const oe = CGP_sendOutcome(d, 'Email', 'volunteer'); evToast(oe.message, oe.partial ? '#b45309' : undefined); }
         else alert(d.error || 'Failed to send email.');
-      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+      }).catch(e => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert(CGP_errorMessage(e, 'Network error.')); });
     } else {
       const msg     = document.getElementById('evtCmpSmsBody').value.trim();
       const targets = _evtCmpRecipients.filter(r => r.phone);
       if (!targets.length) { alert('No phone numbers available.'); return; }
       const sendBtn = document.querySelector('#evtComposeModal .btn-save');
       if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
-      fetch(eventBase + '/send-sms', {
+      CGP_api(eventBase + '/send-sms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: targets.map(r => r.phone), body: msg })
-      }).then(r => r.json()).then(d => {
+      }).then(d => {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
-        if (d.success) { evtCmpClose(); evToast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓'); }
+        if (d.success) { evtCmpClose(); const os = CGP_sendOutcome(d, 'SMS', 'volunteer'); evToast(os.message, os.partial ? '#b45309' : undefined); }
         else alert(d.error || 'Failed to send SMS.');
-      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+      }).catch(e => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert(CGP_errorMessage(e, 'Network error.')); });
     }
   }
 

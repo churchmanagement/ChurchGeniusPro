@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -849,15 +850,16 @@
         const verb = editingId !== null ? 'updated' : 'saved';
         showFeedback(`✅ Income record ${verb} successfully.`, 'success');
         if (window.CHECKSCAN && data && data.id) {
-          try { await CHECKSCAN.afterSave(data.id); } catch (e) { /* image is best-effort */ }
+          try { await CHECKSCAN.afterSave(data.id); }
+          catch (e) { showFeedback('⚠️ Income record saved, but the check image was not: ' + CGP_errorMessage(e, 'upload failed.'), 'error'); }
         }
         clearForm();
         await loadTransactions();
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save income record.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not reach the server.'), 'error');
     } finally {
       btn.disabled    = false;
       btn.textContent = 'Save';
@@ -916,8 +918,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to delete income record.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not delete the record.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not delete the record.'), 'error');
     }
   }
 
@@ -1318,9 +1320,9 @@ window.CHECKSCAN = (function () {
           if (!best || !best.text.trim()){ showUnreadable(); return; }
           try { console.log('[CHECKSCAN] chosen orientation ' + best.angle + '° (conf ' + Math.round(best.conf) + ', hints ' + best.hints + ')'); } catch(e){}
           spinner('Reading check details…');
-          fetch('/api/income/check-parse', { method:'POST', headers:{'Content-Type':'application/json'},
+          CGP_api('/api/income/check-parse', { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ text:best.text, ocrConfidence:best.conf }) })
-            .then(function(r){ return r.json(); })
+            
             .then(function(d){
               var hasFields = d && d.fields && Object.keys(d.fields).length > 0;
               var hasMatch  = d && d.contributor && d.contributor.matches && d.contributor.matches.length > 0;
@@ -1571,9 +1573,11 @@ window.CHECKSCAN = (function () {
   function afterSave(incomeId){
     if (!state.file || !incomeId) { state.file = null; return Promise.resolve(); }
     var fd = new FormData(); fd.append('file', state.file);
-    return fetch('/api/income/'+incomeId+'/check-image', { method:'POST', body:fd })
-      .catch(function(){ /* best-effort */ })
-      .then(function(){ state.file = null; });
+    // The record is already saved; a failed image upload is reported (the caller
+    // shows the message) instead of being swallowed as "best-effort".
+    return CGP_api('/api/income/'+incomeId+'/check-image', { method:'POST', body:fd })
+      .then(function(){ state.file = null; })
+      .catch(function(e){ state.file = null; throw e; });
   }
 
   return { open:open, close:close, pick:pick, onFile:onFile, manual:manual, apply:apply, pickMatch:pickMatch, afterSave:afterSave,

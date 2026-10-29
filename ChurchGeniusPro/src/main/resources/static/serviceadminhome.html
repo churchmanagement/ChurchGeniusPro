@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1565,7 +1566,7 @@
         .then(function (res) {
           if (!res.ok) { fb('tkFeedback', res.j.message || 'Could not load tickets.', false); return; }
           ROWS = res.j.tickets || []; render();
-        }).catch(function () { fb('tkFeedback', 'Network error — please try again.', false); });
+        }).catch(function(e) { fb('tkFeedback', CGP_errorMessage(e, 'Network error — please try again.'), false); });
     }
     function render() {
       var body = document.getElementById('tkBody');
@@ -1587,8 +1588,7 @@
 
     window.tkOpen = function (id) {
       fb('tkModalFeedback', '', true);
-      fetch('/api/serviceadmin/tickets/' + id, { cache: 'no-store' })
-        .then(function (r) { return r.json(); })
+      CGP_api('/api/serviceadmin/tickets/' + id, { cache: 'no-store' })
         .then(function (j) {
           var t = j.ticket; if (!t) { fb('tkFeedback', 'Ticket not found.', false); return; }
           CUR = t;
@@ -1607,12 +1607,11 @@
           document.getElementById('tkSendEmail').checked = true;
           document.getElementById('tkEmailBox').style.display = '';
           document.getElementById('tkEmailSubject').value = ''; document.getElementById('tkEmailBody').value = '';
-          fetch('/api/serviceadmin/tickets/' + id + '/email-draft?status=' + target, { cache: 'no-store' })
-            .then(function (r) { return r.json(); })
+          CGP_api('/api/serviceadmin/tickets/' + id + '/email-draft?status=' + target, { cache: 'no-store' })
             .then(function (d) { if (d.draft) { document.getElementById('tkEmailSubject').value = d.draft.subject || ''; document.getElementById('tkEmailBody').value = d.draft.body || ''; } })
             .catch(function () {});
           document.getElementById('tkOverlay').style.display = 'flex';
-        }).catch(function () { fb('tkFeedback', 'Could not load the ticket.', false); });
+        }).catch(function (e) { fb('tkFeedback', CGP_errorMessage(e, 'Could not load the ticket.'), false); });
     };
     window.tkClose = function () { document.getElementById('tkOverlay').style.display = 'none'; CUR = null; };
     document.getElementById('tkSendEmail').addEventListener('change', function () {
@@ -1635,7 +1634,7 @@
           fb('tkFeedback', msg, !res.j.emailError);
           tkClose(); load();
         })
-        .catch(function () { btn.disabled = false; btn.textContent = 'Save status'; fb('tkModalFeedback', 'Network error — please try again.', false); });
+        .catch(function(e) { btn.disabled = false; btn.textContent = 'Save status'; fb('tkModalFeedback', CGP_errorMessage(e, 'Network error — please try again.'), false); });
     };
     document.getElementById('tkRefreshBtn').addEventListener('click', load);
     document.getElementById('tkStatusFilter').addEventListener('change', load);
@@ -1714,7 +1713,7 @@
           rows = res.j.trials || []; fb('', true);
           document.getElementById('tbWrap').style.display = ''; render();
         })
-        .catch(function () { fb('Network error — please try again.', false); });
+        .catch(function(e) { fb(CGP_errorMessage(e, 'Network error — please try again.'), false); });
     });
     document.getElementById('tbAll').addEventListener('change', function () {
       var on = this.checked;
@@ -1746,7 +1745,7 @@
           fb(res.j.done + ' account(s) filled' + (res.j.failed ? ', ' + res.j.failed + ' failed (see Result)' : '') + '. Click Preview to refresh.',
              !res.j.failed);
         })
-        .catch(function () { btn.disabled = false; btn.textContent = 'Fill selected'; fb('Network error — please try again.', false); });
+        .catch(function(e) { btn.disabled = false; btn.textContent = 'Fill selected'; fb(CGP_errorMessage(e, 'Network error — please try again.'), false); });
     });
   })();
   </script>
@@ -2208,6 +2207,7 @@
 
   /* ── Toast helper ───────────────────────────────────── */
   let toastTimer;
+  function escHtmlSa(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function showToast(msg, type = 'success') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -2784,14 +2784,13 @@
     document.getElementById('tableWrap').innerHTML =
       '<div class="loading">Loading clients…</div>';
     try {
-      const res  = await fetch('/api/serviceadmin/clients');
-      const data = await res.json();
+      const data = await CGP_api('/api/serviceadmin/clients');
       allClients = data.data || [];
       renderTable(allClients);
       if (typeof window.ahLoad === 'function') window.ahLoad();   // renewals/edits reflect in Account Health
     } catch (err) {
       document.getElementById('tableWrap').innerHTML =
-        '<div class="loading" style="color:#e53935;">Failed to load clients.</div>';
+        '<div class="loading" style="color:#e53935;">' + escHtmlSa(CGP_errorMessage(err, 'Failed to load clients.')) + '</div>';
     }
   }
 
@@ -3313,8 +3312,7 @@
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:12px;">Loading…</td></tr>';
     try {
-      const res  = await fetch('/api/serviceadmin/backup/logs');
-      const data = await res.json();
+      const data = await CGP_api('/api/serviceadmin/backup/logs');
       const logs = data.data || [];
       if (logs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:12px;">No backup runs recorded yet.</td></tr>';
@@ -3335,7 +3333,7 @@
         </tr>`;
       }).join('');
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#e53935;padding:12px;">Failed to load backup history.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#e53935;padding:12px;">' + escHtmlSa(CGP_errorMessage(err, 'Failed to load backup history.')) + '</td></tr>';
     }
   }
 
@@ -3362,8 +3360,7 @@
     document.getElementById('restoreOverlay').classList.add('open');
 
     try {
-      const res  = await fetch('/api/serviceadmin/backup/snapshots');
-      const data = await res.json();
+      const data = await CGP_api('/api/serviceadmin/backup/snapshots');
       const dates = data.data || [];
       if (dates.length === 0) {
         sel.innerHTML = '<option value="">— No backup snapshots found —</option>';
@@ -3532,8 +3529,7 @@
 
   async function tdLoadPlans() {
     try {
-      var res  = await fetch('/api/serviceadmin/subscription-plans');
-      var json = await res.json();
+      var json = await CGP_api('/api/serviceadmin/subscription-plans');
       TD_PLANS = ((json && json.plans) || []).filter(function(p){ return p.active; });
     } catch (e) {
       TD_PLANS = [];
@@ -3723,8 +3719,7 @@
     var sel = document.getElementById('tdClearTarget');
     var btn = document.getElementById('btnClearTestData');
     try {
-      var res = await fetch('/api/serviceadmin/test-data/list');
-      var data = await res.json();
+      var data = await CGP_api('/api/serviceadmin/test-data/list');
       var demos = (data && data.demoClients) || [];
       // Dropdown
       sel.innerHTML = demos.length
@@ -3741,7 +3736,7 @@
     } catch (err) {
       console.warn('tdRefreshList error', err);
       document.getElementById('tdHistoryBody').innerHTML =
-        '<div style="font-size:13px;color:#c62828;padding:14px;background:#ffebee;border-radius:6px;">Failed to load demo tenants from the server.</div>';
+        '<div style="font-size:13px;color:#c62828;padding:14px;background:#ffebee;border-radius:6px;">' + escHtmlSa(CGP_errorMessage(err, 'Failed to load demo tenants from the server.')) + '</div>';
     }
   }
 
@@ -3875,8 +3870,7 @@
     var body = document.getElementById('tdAuditBody');
     if (!body) return;
     try {
-      var res  = await fetch('/api/serviceadmin/test-data/deletion-audit');
-      var json = await res.json();
+      var json = await CGP_api('/api/serviceadmin/test-data/deletion-audit');
       var rows = (json && json.audits) || [];
       if (!rows.length) {
         body.innerHTML = '<div style="font-size:13px;color:#888;padding:16px;text-align:center;background:#faf6f8;border-radius:8px;">'
@@ -3999,15 +3993,14 @@
     document.getElementById('aiModalMsg').textContent = 'Loading…';
     document.getElementById('aiModalBody').style.opacity = '0.4';
     document.getElementById('aiModalOverlay').style.display = 'flex';
-    fetch('/api/serviceadmin/clients/' + id + '/openai')
-      .then(r => r.json())
+    CGP_api('/api/serviceadmin/clients/' + id + '/openai')
       .then(res => {
         if (res.status !== 'success') { document.getElementById('aiModalMsg').textContent = res.message || 'Failed to load.'; return; }
         fillAiModal(res.data);
         document.getElementById('aiModalMsg').textContent = '';
         document.getElementById('aiModalBody').style.opacity = '1';
       })
-      .catch(() => { document.getElementById('aiModalMsg').textContent = 'Failed to load.'; });
+      .catch(e => { document.getElementById('aiModalMsg').textContent = CGP_errorMessage(e, 'Failed to load.'); });
   }
 
   function closeAiSettings() {
@@ -4045,23 +4038,23 @@
     };
     const btn = document.getElementById('aiSaveBtn');
     btn.disabled = true; btn.textContent = 'Saving…';
-    fetch('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai', {
+    CGP_api('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }).then(r => r.json()).then(res => {
+    }).then(res => {
       if (res.status === 'success') { fillAiModal(res.data); showToast('OpenAI settings saved.'); }
       else showToast(res.message || 'Save failed.', true);
-    }).catch(() => showToast('Save failed.', true))
+    }).catch(e => showToast(CGP_errorMessage(e, 'Save failed.'), true))
       .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
   }
 
   function resetAiUsage(kind) {
     if (aiSettingsClientId == null) return;
     if (!confirm('Reset ' + kind + ' usage for this church to zero?')) return;
-    fetch('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai/reset-' + kind, { method: 'POST' })
-      .then(r => r.json()).then(res => {
+    CGP_api('/api/serviceadmin/clients/' + aiSettingsClientId + '/openai/reset-' + kind, { method: 'POST' })
+      .then(res => {
         if (res.status === 'success') { fillAiModal(res.data); showToast(kind.charAt(0).toUpperCase() + kind.slice(1) + ' usage reset.'); }
         else showToast(res.message || 'Reset failed.', true);
-      }).catch(() => showToast('Reset failed.', true));
+      }).catch(e => showToast(CGP_errorMessage(e, 'Reset failed.'), true));
   }
 
   window.openAiSettings = openAiSettings;
@@ -4079,15 +4072,14 @@
     document.getElementById('vfModalMsg').textContent = 'Loading…';
     document.getElementById('vfModalBody').style.opacity = '0.4';
     document.getElementById('voiceModalOverlay').style.display = 'flex';
-    fetch('/api/serviceadmin/clients/' + id + '/voice')
-      .then(r => r.json())
+    CGP_api('/api/serviceadmin/clients/' + id + '/voice')
       .then(res => {
         if (res.status !== 'success') { document.getElementById('vfModalMsg').textContent = res.message || 'Failed to load.'; return; }
         fillVoiceModal(res.data);
         document.getElementById('vfModalMsg').textContent = '';
         document.getElementById('vfModalBody').style.opacity = '1';
       })
-      .catch(() => { document.getElementById('vfModalMsg').textContent = 'Failed to load.'; });
+      .catch(e => { document.getElementById('vfModalMsg').textContent = CGP_errorMessage(e, 'Failed to load.'); });
   }
 
   function closeVoiceSettings() {
@@ -4139,12 +4131,12 @@
     };
     const btn = document.getElementById('vfSaveBtn');
     btn.disabled = true; btn.textContent = 'Saving…';
-    fetch('/api/serviceadmin/clients/' + voiceSettingsClientId + '/voice', {
+    CGP_api('/api/serviceadmin/clients/' + voiceSettingsClientId + '/voice', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }).then(r => r.json()).then(res => {
+    }).then(res => {
       if (res.status === 'success') { fillVoiceModal(res.data); showToast('Voice settings saved.'); }
       else showToast(res.message || 'Save failed.', true);
-    }).catch(() => showToast('Save failed.', true))
+    }).catch(e => showToast(CGP_errorMessage(e, 'Save failed.'), true))
       .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
   }
 
@@ -4165,8 +4157,7 @@
       // The Registered Clients list may not have loaded yet, or the account was
       // created after it loaded — refresh once from the same endpoint.
       try {
-        const res  = await fetch('/api/serviceadmin/clients');
-        const data = await res.json();
+        const data = await CGP_api('/api/serviceadmin/clients');
         if (data && Array.isArray(data.data)) allClients = data.data;
       } catch (e) { /* fall through to "not found" */ }
       c = allClients.find(x => x.clientId === clientId);
@@ -4301,10 +4292,9 @@
     document.getElementById('plaidModalMsg').textContent = 'Loading…';
     document.getElementById('plaidAccounts').innerHTML = '';
     document.getElementById('plaidModalOverlay').style.display = 'flex';
-    fetch('/api/serviceadmin/clients/' + id + '/plaid')
-      .then(r => r.json())
+    CGP_api('/api/serviceadmin/clients/' + id + '/plaid')
       .then(d => { if (d.status === 'success') fillPlaidModal(d); else document.getElementById('plaidModalMsg').textContent = d.message || 'Load failed.'; })
-      .catch(() => { document.getElementById('plaidModalMsg').textContent = 'Load failed.'; });
+      .catch(e => { document.getElementById('plaidModalMsg').textContent = CGP_errorMessage(e, 'Load failed.'); });
   }
   function closePlaidSettings() {
     document.getElementById('plaidModalOverlay').style.display = 'none';
@@ -4342,22 +4332,22 @@
       plaidEnabled: document.getElementById('plaidEnabled').checked,
       syncEnabled: document.getElementById('plaidSyncEnabled').checked
     };
-    fetch('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid', {
+    CGP_api('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }).then(r => r.json()).then(res => {
+    }).then(res => {
       if (res.status === 'success') showToast('Bank sync settings saved.');
       else showToast(res.message || 'Save failed.', true);
-    }).catch(() => showToast('Save failed.', true))
+    }).catch(e => showToast(CGP_errorMessage(e, 'Save failed.'), true))
       .finally(() => { btn.disabled = false; btn.textContent = '💾 Save Settings'; });
   }
   function forceDisconnect(itemId) {
     if (plaidClientDbId == null) return;
     if (!confirm('Force-disconnect this bank connection? Imported transactions already in review are kept.')) return;
-    fetch('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid/items/' + itemId + '/disconnect', { method: 'POST' })
-      .then(r => r.json()).then(res => {
+    CGP_api('/api/serviceadmin/clients/' + plaidClientDbId + '/plaid/items/' + itemId + '/disconnect', { method: 'POST' })
+      .then(res => {
         if (res.status === 'success') { showToast('Bank disconnected.'); openPlaidSettings(plaidClientDbId); }
         else showToast(res.message || 'Disconnect failed.', true);
-      }).catch(() => showToast('Disconnect failed.', true));
+      }).catch(e => showToast(CGP_errorMessage(e, 'Disconnect failed.'), true));
   }
 
   window.openPlaidSettings  = openPlaidSettings;
@@ -4958,10 +4948,9 @@
     var fb    = document.getElementById('psFeedback');
     if (!input) return;
     function say(text, err) { fb.textContent = text || ''; fb.style.color = err ? '#b91c1c' : '#256b38'; }
-    fetch('/api/serviceadmin/platform-settings')
-      .then(function (r) { return r.json(); })
+    CGP_api('/api/serviceadmin/platform-settings')
       .then(function (d) { if (d && d.supportEmail) input.value = d.supportEmail; })
-      .catch(function () { say('Could not load platform settings.', true); });
+      .catch(function (e) { say(CGP_errorMessage(e, 'Could not load platform settings.'), true); });
     document.getElementById('btnSaveSupportEmail').addEventListener('click', function () {
       var v = input.value.trim();
       if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { say('Enter a valid email address.', true); return; }
@@ -4975,7 +4964,7 @@
           input.value = x.d.supportEmail || '';
           say('Saved. Support Email is now ' + (x.d.supportEmail || '') + '.');
         })
-        .catch(function () { say('Save failed — check your connection.', true); });
+        .catch(function (e) { say(CGP_errorMessage(e, 'Save failed — check your connection.'), true); });
     });
   })();
 
@@ -5793,8 +5782,7 @@
         var url = TL_DELETED_VIEW
             ? '/api/serviceadmin/trial-links/deleted'
             : '/api/serviceadmin/trial-links';
-        var r = await fetch(url);
-        var d = await r.json();
+        var d = await CGP_api(url);
         var rows = (d && d.data) || [];
         tlSyncToolbar();
         if (!rows.length) {
@@ -5910,7 +5898,7 @@
         if (sa) sa.checked = false;
         await tlLoad();
       } catch (e) {
-        tlSay('Network error — nothing was deleted.', 'err');
+        tlSay(CGP_errorMessage(e, 'Network error — nothing was deleted.'), 'err');
       }
     }
 
@@ -5956,7 +5944,7 @@
           tlSay(d.message || 'Could not create a registration link.', 'err');
         }
       } catch (e) {
-        tlSay('Network error — could not create a registration link.', 'err');
+        tlSay(CGP_errorMessage(e, 'Network error — could not create a registration link.'), 'err');
       }
       btn.disabled = false;
     }
@@ -5970,7 +5958,7 @@
         tlSay(d.message || (r.ok ? 'Revoked.' : 'Could not revoke.'), r.ok ? 'ok' : 'err');
         await tlLoad();
       } catch (e) {
-        tlSay('Network error — could not revoke the link.', 'err');
+        tlSay(CGP_errorMessage(e, 'Network error — could not revoke the link.'), 'err');
       }
     }
 

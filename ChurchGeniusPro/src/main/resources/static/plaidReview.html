@@ -152,7 +152,35 @@ var PAGE_SIZE = 10;
 function toast(msg, ok){ var t=document.getElementById('toast'); t.textContent=msg; t.style.background=ok?'#2e7d32':'#333'; t.style.display='block'; setTimeout(function(){t.style.display='none';},3500); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function money(v){ var n=Number(v||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-async function api(url, opts){ var r=await fetch(url, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{})); var d=await r.json().catch(function(){return{};}); return {ok:r.ok, d:d}; }
+async function api(url, opts){ var r=await fetch(url, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{})); var d=await r.json().catch(function(){return{};}); return {ok:r.ok, status:r.status, d:d}; }
+
+// ── Human labels for connection states and Plaid error codes ─────────────
+// (error-handling audit 2026-10-28, M8). Mirrors PlaidSyncService.describe();
+// the raw code is kept in a title attribute for support, never as the headline.
+var STATUS_LABEL = { ACTIVE:'Connected', LOGIN_REQUIRED:'Needs sign-in', ERROR:'Connection problem', DEGRADED:'Partially working', DISCONNECTED:'Disconnected' };
+var CODE_LABEL = {
+  ITEM_LOGIN_REQUIRED:'Your bank needs you to sign in again. Delete this bank and connect it again.',
+  INVALID_CREDENTIALS:'Your bank needs you to sign in again. Delete this bank and connect it again.',
+  INVALID_MFA:'Your bank needs you to sign in again. Delete this bank and connect it again.',
+  ITEM_LOCKED:'Your bank has locked the account login. Delete this bank and connect it again.',
+  USER_SETUP_REQUIRED:'Your bank needs you to finish setting up online access, then connect again.',
+  RATE_LIMIT_EXCEEDED:'The bank service is busy. Please try again in a few minutes.',
+  TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION:'The bank updated its records while we were reading them. Please try again in a moment.',
+  INSTITUTION_DOWN:'Your bank is not responding right now. We will try again later.',
+  INSTITUTION_NOT_RESPONDING:'Your bank is not responding right now. We will try again later.',
+  INSTITUTION_NOT_AVAILABLE:'Your bank is not responding right now. We will try again later.',
+  INTERNAL_SERVER_ERROR:'The bank service is temporarily unavailable. We will try again later.',
+  PLANNED_MAINTENANCE:'The bank service is temporarily unavailable. We will try again later.',
+  TIMEOUT:'The bank service did not answer in time. We will try again later.',
+  ITEM_NOT_FOUND:'This bank connection is no longer valid. Delete it and connect the bank again.',
+  INVALID_ACCESS_TOKEN:'This bank connection is no longer valid. Delete it and connect the bank again.',
+  ACCESS_NOT_GRANTED:'This bank connection is no longer valid. Delete it and connect the bank again.',
+  USER_PERMISSION_REVOKED:'Access was revoked at the bank. Delete this connection and connect the bank again.',
+  PRODUCTS_NOT_SUPPORTED:'This bank does not support transaction sync for the selected accounts.',
+  NO_ACCOUNTS:'This bank does not support transaction sync for the selected accounts.'
+};
+function statusLabel(s){ return STATUS_LABEL[s] || (s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g,' ') : ''); }
+function codeLabel(code){ if(!code) return ''; if(CODE_LABEL[code]) return CODE_LABEL[code]; if(/^HTTP_5\d\d$/.test(code)) return CODE_LABEL.INTERNAL_SERVER_ERROR; return 'The last sync did not complete ('+code+'). Please try again later or contact support.'; }
 
 // ── Connect a bank (Plaid Link) ──────────────────────────────────────────
 async function verifyEmailFlow(){
@@ -180,7 +208,13 @@ async function connectBank(){
     onSuccess: async function(public_token){
       try { localStorage.removeItem('cgp_plaid_link_token'); } catch(e) {}
       var ex = await api('/api/plaid/exchange', {method:'POST', body:JSON.stringify({publicToken:public_token})});
-      if(ex.ok){ toast('Bank connected — '+(ex.d.stagedTransactions||0)+' transactions imported for review.', true); await loadItems(); loadTxns(true); }
+      if(ex.ok && ex.d.firstSync === 'failed'){
+        // The bank IS connected (the server saved it); only the first pull failed.
+        // Say so, so nobody connects the same bank a second time.
+        toast(ex.d.message || 'Bank connected. The first transaction sync did not complete — it will be retried.');
+        await loadItems(); loadTxns(true);
+      }
+      else if(ex.ok){ toast('Bank connected — '+(ex.d.stagedTransactions||0)+' transactions imported for review.', true); await loadItems(); loadTxns(true); }
       else { toast(ex.d.message||'Could not complete connection.'); }
     },
     onExit: function(err, metadata){
@@ -189,7 +223,7 @@ async function connectBank(){
         // Surface Plaid's real error so OAuth/config problems are diagnosable
         // instead of a generic "cancelled" (details also land in the console).
         console.error('Plaid Link exit', err, metadata);
-        toast(err.display_message || (err.error_code ? 'Connection failed ('+err.error_code+'). Please try again.' : 'Connection cancelled.'));
+        toast(err.display_message || (err.error_code ? codeLabel(err.error_code) : 'Connection cancelled.'));
       }
     }
   });
@@ -251,7 +285,8 @@ async function loadItems(){
     var accts=(it.accounts||[]).map(function(a){return esc(a.name||'')+' ••'+esc(a.mask||'');}).join(', ');
     return '<div class="bank"><strong>'+esc(it.institutionName||it.institutionId||'Bank')+'</strong>'
       +'<div class="muted">'+esc(accts||'—')+'</div>'
-      +'<span class="st st-'+esc(it.status)+'">'+esc(it.status||'')+'</span> '
+      +'<span class="st st-'+esc(it.status)+'" title="'+esc(it.status||'')+'">'+esc(statusLabel(it.status))+'</span> '
+      +(it.errorCode ? '<div class="muted" style="margin:4px 0 6px;" title="'+esc(it.errorCode)+'">'+esc(codeLabel(it.errorCode))+'</div>' : '')
       +(it.plaidEnv === 'sandbox'
           ? '<span class="st" style="background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa;">SANDBOX</span> '
           : '')
@@ -262,7 +297,12 @@ async function loadItems(){
 async function syncNow(id){
   var res = await api('/api/plaid/items/'+id+'/sync', {method:'POST'});
   if(res.ok){ toast('Synced — '+(res.d.stagedTransactions||0)+' new transaction(s).', true); await loadItems(); loadTxns(); }
-  else { toast(res.d.message||'Sync failed.'); }
+  else {
+    // 502 = the bank service was busy/unavailable (retry later, connection intact);
+    // 409 = the connection itself needs attention — the list below explains it.
+    toast(res.d.message || codeLabel(res.d.errorCode) || 'Sync failed.');
+    if(res.status === 502 || res.status === 409){ await loadItems(); if((res.d.stagedTransactions||0) > 0) loadTxns(); }
+  }
 }
 
 // ── Delete a connected bank (OTP-confirmed) ──────────────────────────────

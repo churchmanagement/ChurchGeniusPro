@@ -81,6 +81,7 @@ public class CheckScanController {
         // quota, or on error. The per-church Vision quota + size/page/resize limits
         // are applied here; they never affect the browser-OCR fallback.
         boolean visionPaused = false;
+        String visionError = null;
         if ("image-needs-ocr".equals(result.method) && vision.isEnabled()) {
             if (!visionUpload.available(clientId)) {
                 visionPaused = true;   // quota used up or Vision disabled for this church
@@ -89,14 +90,25 @@ public class CheckScanController {
                     VisionUploadService.Prepared prep =
                             visionUpload.prepare(clientId, bytes, file.getContentType(), file.getOriginalFilename());
                     Map<String, String> vf = vision.extractCheck(prep.bytes, prep.contentType);
-                    visionUpload.recordUse(clientId);
-                    if (vf != null && !vf.isEmpty()) result = visionToResult(vf);
+                    // Error-handling audit 2026-10-28, M9: a call that returned nothing (429,
+                    // 5xx, timeout) is not charged to the church's quota, and the page is told.
+                    if (vf != null && !vf.isEmpty()) {
+                        visionUpload.recordUse(clientId);
+                        result = visionToResult(vf);
+                    } else {
+                        visionError = "AI scanning did not answer this time; the image will be read in your browser instead.";
+                    }
                 } catch (VisionUploadService.VisionRejectedException re) {
                     return ResponseEntity.badRequest().body(Map.of("error", re.getMessage()));
-                } catch (Exception ignore) { /* keep the fallback result */ }
+                } catch (Exception e) {
+                    visionError = "AI scanning failed; the image will be read in your browser instead.";
+                    log.warn("[CheckScan] vision extraction failed for client {} — {}", clientId,
+                            com.churchgeniuspro.util.LogSafe.exception(e));
+                }
             }
         }
         Map<String, Object> resp = buildResponse(result, clientId);
+        if (visionError != null) resp.put("visionError", visionError);
         if (visionPaused) {
             resp.put("visionDisabled", true);
             resp.put("visionMessage", "AI scanning is paused — your OpenAI Vision quota is used up or has been "

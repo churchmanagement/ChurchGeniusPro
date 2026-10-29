@@ -27,6 +27,7 @@ import java.util.function.Function;
 @RestController
 @RequestMapping("/api/volunteers")
 public class VolunteerController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VolunteerController.class);
 
     private final VolunteerRoleRepository        roleRepo;
     private final VolunteerProfileRepository     profileRepo;
@@ -533,6 +534,7 @@ public class VolunteerController {
                 .stream().collect(Collectors.toMap(VolunteerRole::getId, VolunteerRole::getRoleName));
 
         int sent = 0;
+        List<Map<String, Object>> failed = new ArrayList<>();
         for (VolunteerAssignment a : targets) {
             FamilyMember fm = a.getFamilyMemberId() != null
                     ? memberRepo.findByIdAndTenant(a.getFamilyMemberId(), cid).orElse(null) : null;
@@ -541,8 +543,16 @@ public class VolunteerController {
             String eventLabel = a.getEventLabel() != null ? a.getEventLabel() : "upcoming event";
             String dateLabel  = a.getEventDate() != null ? a.getEventDate().toString() : "";
             String shiftLabel = a.getShiftTime() != null ? a.getShiftTime() : "";
+            String memberName = ((fm.getFirstName() == null ? "" : fm.getFirstName()) + " "
+                    + (fm.getLastName() == null ? "" : fm.getLastName())).trim();
 
-            // Email
+            // Error-handling audit 2026-10-28, M1: the row is flagged "notified" only when a
+            // channel actually reported success; failures are returned by name and reason.
+            boolean emailOk = false, pushOk = false;
+            String reason = null;
+
+            // Email — the throwing org variant, so "unsubscribed" / "allowance used up" /
+            // an SMTP failure are reported instead of counted as sent.
             if (fm.getEmail() != null && !fm.getEmail().isBlank()) {
                 String subject = "You're scheduled to volunteer – " + eventLabel;
                 String html = "<p>Hi " + (fm.getFirstName() != null ? fm.getFirstName() : "there") + ",</p>"
@@ -556,11 +566,20 @@ public class VolunteerController {
                         + "<p>Please log in to your member portal to confirm or decline this assignment.</p>"
                         + "<p>Thank you for serving!</p>";
                 try {
-                    emailService.sendGenericEmail(fm.getEmail(), subject, html, cid);
-                } catch (Exception ignored) {}
+                    emailService.sendOrgEmailOrThrow(fm.getEmail(), subject, html, cid);
+                    emailOk = true;
+                } catch (IllegalStateException refused) {
+                    reason = refused.getMessage();
+                } catch (Exception e) {
+                    reason = "Email could not be sent";
+                    log.warn("[Volunteers] assignment email failed for assignment {} — {}", a.getId(),
+                            com.churchgeniuspro.util.LogSafe.exception(e));
+                }
+            } else {
+                reason = "No email address on file";
             }
 
-            // Push notification
+            // Push + in-app notification (the log row is what the member portal's bell shows)
             try {
                 String userKey = fm.getEmail() != null ? fm.getEmail() : "";
                 if (!userKey.isBlank()) {
@@ -568,14 +587,30 @@ public class VolunteerController {
                             "Volunteer Assignment",
                             "You're scheduled for " + roleName + " at " + eventLabel,
                             "/memberHome", "volunteer-assignment");
+                    pushOk = true;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("[Volunteers] assignment push failed for assignment {} — {}", a.getId(),
+                        com.churchgeniuspro.util.LogSafe.exception(e));
+            }
 
-            a.setNotificationSent(true);
-            assignmentRepo.save(a);
-            sent++;
+            if (emailOk || pushOk) {
+                a.setNotificationSent(true);
+                assignmentRepo.save(a);
+                sent++;
+            } else {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("assignmentId", a.getId());
+                f.put("name", memberName);
+                f.put("reason", reason != null ? reason : "Could not be notified");
+                failed.add(f);
+            }
         }
-        return ResponseEntity.ok(Map.of("success", true, "sent", sent));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("sent", sent);
+        if (!failed.isEmpty()) result.put("failed", failed);
+        return ResponseEntity.ok(result);
     }
 
     /**

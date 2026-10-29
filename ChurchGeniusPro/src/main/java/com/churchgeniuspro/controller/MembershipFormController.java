@@ -1630,7 +1630,11 @@ public class MembershipFormController {
                     if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
                 }
             }
-        } catch (Exception ignored) { /* fail-open: never block an approval on a limit-check error */ }
+        } catch (Exception e) {
+            // fail-open by design (a counting error must not block an approval) — but logged (audit 2026-10-28, M3)
+            log.warn("[PeopleLimit] limit check failed for client {} on membership approval {}; allowing — {}",
+                    appClientId, id, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
 
         try {
             MembershipRequestService.Applied a = membershipRequestService().apply(id, appClientId, actor(request));
@@ -2812,7 +2816,14 @@ public class MembershipFormController {
                 return ResponseEntity.status(403)
                         .body(Map.of("error", "Access denied by privileges."));
             }
-        } catch (Exception ignored) { /* malformed JSON → allow */ }
+        } catch (Exception e) {
+            // Error-handling audit 2026-10-28, M3: a privilege map that cannot be read is
+            // refused, like RoleGuard — never silently treated as "full access".
+            log.warn("[MemberPrivileges] member {} (client {}) has an unreadable privilege map; refusing {} — {}",
+                    memberId, fm.getAppClientId(), privKey, com.churchgeniuspro.util.LogSafe.exception(e));
+            return ResponseEntity.status(403)
+                    .body(Map.of("error", "Access denied by privileges."));
+        }
         return null;
     }
 

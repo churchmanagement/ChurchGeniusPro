@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -802,12 +803,12 @@
   /* ── Reported Content (mobile Phase 2, M5) ── */
   var REPS=[];
   function loadReports(){
-    fetch('/api/content-reports?status=All').then(function(r){return r.json();}).then(function(d){
+    CGP_api('/api/content-reports?status=All').then(function(d){
       REPS = (d && Array.isArray(d.reports)) ? d.reports : []; REPS._loaded=true;
       var open = d && d.counts ? Number(d.counts.OPEN||0) : 0;
       var c=document.getElementById('fuCntReports'); if(c) c.textContent = open ? '('+open+')' : '';
       renderReports();
-    }).catch(function(){ document.getElementById('repBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+    }).catch(function(e){ document.getElementById('repBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">'+E(CGP_errorMessage(e, 'Failed to load.'))+'</td></tr>'; });
   }
   window.renderReports = function(){
     var st=document.getElementById('repStatusFilter').value;
@@ -850,21 +851,28 @@
   };
 
   function loadAssignees(){
-    fetch('/api/followups/assignees').then(function(r){return r.json();}).then(function(d){
+    CGP_api('/api/followups/assignees').then(function(d){
       ASSIGNEES = Array.isArray(d) ? d : (d.assignees||[]);
     }).catch(function(){});
-    fetch('/api/ppr/volunteers').then(function(r){return r.json();}).then(function(d){
+    CGP_api('/api/ppr/volunteers').then(function(d){
       PVOLS = Array.isArray(d) ? d : [];
     }).catch(function(){});
   }
 
   /* ── Connect ── */
   function loadConnect(){
-    fetch('/api/connect-admin').then(function(r){return r.json();}).then(function(d){
+    // fetch + an explicit status check (CGP_api would do the same; this call is pinned
+    // by followups/ConnectAdminRetiredTest): an error body never becomes the list.
+    fetch('/api/connect-admin').then(function(r){
+      if (r.ok) return r.json();
+      return r.json().catch(function(){ return {}; }).then(function(b){
+        throw { cgp: true, status: r.status, message: (b && (b.error || b.message)) || ('Failed to load (HTTP ' + r.status + ').') };
+      });
+    }).then(function(d){
       CONN = Array.isArray(d)?d:[]; CONN._loaded=true;
       connRefreshCounts();
       renderConnect();
-    }).catch(function(){ document.getElementById('connBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+    }).catch(function(e){ document.getElementById('connBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">'+E(CGP_errorMessage(e, 'Failed to load.'))+'</td></tr>'; });
   }
   /* Tab badge + per-status counts in the filter (as the old Connect Submissions page showed). */
   function connRefreshCounts(){
@@ -900,11 +908,11 @@
 
   /* ── Prayer ── */
   function loadPrayer(){
-    fetch('/api/ppr').then(function(r){return r.json();}).then(function(d){
+    CGP_api('/api/ppr').then(function(d){
       PRAY = Array.isArray(d)?d:[]; PRAY._loaded=true;
       document.getElementById('fuCntPrayer').textContent = PRAY.length ? '('+PRAY.length+')' : '';
       renderPrayer();
-    }).catch(function(){ document.getElementById('prayBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">Failed to load.</td></tr>'; });
+    }).catch(function(e){ document.getElementById('prayBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#c62828;padding:18px;">'+E(CGP_errorMessage(e, 'Failed to load.'))+'</td></tr>'; });
   }
   window.renderPrayer = function(){
     var st=document.getElementById('prayStatusFilter').value;
@@ -1045,21 +1053,21 @@
   function mgLoadHist(){
     var el=document.getElementById('mgHist'); if(!mgCur||!el) return;
     if (mgKind==='connect'){
-      fetch('/api/followups/linked?linkedType=CONNECT&linkedId='+mgCur.id).then(function(r){return r.json();}).then(function(d){
+      CGP_api('/api/followups/linked?linkedType=CONNECT&linkedId='+mgCur.id).then(function(d){
         var list=Array.isArray(d)?d:(d.followUps||[]);
         el.innerHTML = list.length ? list.map(function(f){
           return '<div class="mg-fu"><b>'+E(f.title||'')+'</b>'+(f.description?'<div>'+E(f.description)+'</div>':'')
             +'<div class="meta">'+E(f.status||'')+(f.dueDate?' · due '+E(f.dueDate):'')+(f.assignedTo?' · '+E(f.assignedTo):'')+'</div></div>';
         }).join('') : '<span style="color:#999;font-size:12px;">No follow-ups yet.</span>';
-      }).catch(function(){ el.innerHTML='<span style="color:#c62828;font-size:12px;">Failed to load.</span>'; });
+      }).catch(function(e){ el.innerHTML='<span style="color:#c62828;font-size:12px;">'+E(CGP_errorMessage(e, 'Failed to load.'))+'</span>'; });
     } else {
-      fetch('/api/ppr/'+mgCur.id+'/notes').then(function(r){return r.json();}).then(function(d){
+      CGP_api('/api/ppr/'+mgCur.id+'/notes').then(function(d){
         var list=Array.isArray(d)?d:[];
         el.innerHTML = list.length ? list.map(function(n){
           return '<div class="mg-fu"><b>'+E(n.type||'NOTE')+'</b><div>'+E(n.text||'')+'</div>'
             +'<div class="meta">'+(n.author?E(n.author)+' · ':'')+(n.time?E(fdt(n.time)):'')+'</div></div>';
         }).join('') : '<span style="color:#999;font-size:12px;">No activity yet.</span>';
-      }).catch(function(){ el.innerHTML='<span style="color:#c62828;font-size:12px;">Failed to load.</span>'; });
+      }).catch(function(e){ el.innerHTML='<span style="color:#c62828;font-size:12px;">'+E(CGP_errorMessage(e, 'Failed to load.'))+'</span>'; });
     }
   }
 
@@ -1080,7 +1088,7 @@
     if(!mgCur || mgKind!=='connect') return;
     post('/api/connect-admin/'+mgCur.id+'/assign', {})
       .then(function(res){ if(res.ok){ note('Unassigned.', true); mgClose(); loadConnect(); } else note(res.j.error||'Failed.', false); })
-      .catch(function(){ note('Network error.', false); });
+      .catch(function(e){ note(CGP_errorMessage(e, 'Network error.'), false); });
   };
   window.mgStatus = function(){
     if(!mgCur) return;

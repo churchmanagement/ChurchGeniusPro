@@ -84,7 +84,9 @@ public class DemoTrialAgreementFilter implements Filter {
         try {
             isTrial = resolveTrialFlag(session);
         } catch (Exception e) {                      // fail open, as the login path does
-            LOG.warn("Demo trial gate skipped — {}", e.getMessage());
+            String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+            LOG.warn("Demo trial gate skipped (failed open) [ref={}] — {}", ref,
+                    com.churchgeniuspro.util.LogSafe.exception(e), e);
             chain.doFilter(request, response);
             return;
         }

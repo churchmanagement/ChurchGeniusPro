@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -231,12 +232,12 @@
     return f(s) + ' → ' + f(e);
   }
 
-  fetch('/api/temp-access/catalog').then(function(r){ return r.json(); }).then(function(c){
+  CGP_api('/api/temp-access/catalog').then(function(c){
     catalog = c || [];
     el('pages').innerHTML = catalog.map(function(p){
       return '<label><input type="checkbox" value="'+esc(p.key)+'"> '+esc(p.label)+'</label>';
     }).join('');
-  });
+  }).catch(function(e){ el('pages').innerHTML = '<span class="ta-msg err">'+esc(CGP_errorMessage(e, 'Could not load the page list.'))+'</span>'; });
   el('startDateTime').value = nowLocal(0);
   el('endDateTime').value   = nowLocal(240);
 
@@ -377,7 +378,7 @@
   el('printNewBtn').addEventListener('click', function(){ if (lastCreated) printById(lastCreated.id); });
 
   function loadList() {
-    fetch('/api/temp-access').then(function(r){ return r.json(); }).then(function(rows){
+    CGP_api('/api/temp-access').then(function(rows){
       if (!rows || !rows.length) { el('passList').innerHTML = '<tr><td colspan="6" class="ta-muted">No passes yet.</td></tr>'; return; }
       el('passList').innerHTML = rows.map(function(a){
         var labels = (a.permissions||[]).map(function(k){ var p = catalog.find(function(x){return x.key===k;}); return p ? p.label : k; }).join(', ');
@@ -395,23 +396,26 @@
           + '<button class="ta-btn sm danger" title="Delete pass" aria-label="Delete" onclick="deletePass('+a.id+')">🗑️</button>'
           + '</div></td></tr>';
       }).join('');
-    });
+    }).catch(function(e){ el('passList').innerHTML = '<tr><td colspan="6" class="ta-msg err">'+esc(CGP_errorMessage(e, 'Could not load the passes.'))+'</td></tr>'; });
   }
 
   window.extendPass = function(id){
-    fetch('/api/temp-access/'+id+'/extend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ addMinutes: 60 }) })
-      .then(function(r){ return r.json(); }).then(function(){ loadList(); });
+    CGP_api('/api/temp-access/'+id+'/extend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ addMinutes: 60 }) })
+      .then(function(){ loadList(); })
+      .catch(function(e){ CGP_showError(e, 'Could not extend the pass.'); });
   };
   window.revokePass = function(id){
     if (!confirm('Revoke this access now? Any active session ends immediately.')) return;
-    fetch('/api/temp-access/'+id+'/revoke', { method:'POST' }).then(function(){ loadList(); });
+    CGP_api('/api/temp-access/'+id+'/revoke', { method:'POST' }).then(function(){ loadList(); })
+      .catch(function(e){ CGP_showError(e, 'Could not revoke the pass.'); });
   };
   window.deletePass = function(id){
     if (!confirm('Delete this holder/pass? This removes it from the list and ends any active session.')) return;
-    fetch('/api/temp-access/'+id, { method:'DELETE' }).then(function(){ loadList(); });
+    CGP_api('/api/temp-access/'+id, { method:'DELETE' }).then(function(){ loadList(); })
+      .catch(function(e){ CGP_showError(e, 'Could not delete the pass.'); });
   };
   window.auditPass = function(id){
-    fetch('/api/temp-access/'+id+'/audit').then(function(r){ return r.json(); }).then(function(rows){
+    CGP_api('/api/temp-access/'+id+'/audit').then(function(rows){
       el('auditBody').innerHTML = (rows && rows.length)
         ? rows.map(function(a){
             function f(x){ return x ? new Date(x).toLocaleString() : '—'; }
@@ -419,10 +423,11 @@
           }).join('')
         : '<tr><td colspan="4" class="ta-muted" style="padding:8px;">No logins yet.</td></tr>';
       el('auditModal').style.display = 'flex';
-    });
+    }).catch(function(e){ CGP_showError(e, 'Could not load the login history.'); });
   };
   window.printById = function(id){
-    fetch('/api/temp-access/'+id+'/badge').then(function(r){ return r.json(); }).then(function(a){ printBadge(a, null); });
+    CGP_api('/api/temp-access/'+id+'/badge').then(function(a){ printBadge(a, null); })
+      .catch(function(e){ CGP_showError(e, 'Could not load the badge.'); });
   };
 
   function fmtDateTime(x){ if(!x) return ''; var d=new Date(x); return d.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); }

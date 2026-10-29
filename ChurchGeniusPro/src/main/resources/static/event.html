@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -899,18 +900,18 @@
       .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Save failed.','error'); return; }
         var after=(id && payload.makeDefault)? fetch('/api/event-email-templates/'+id+'/default',{method:'POST'}) : Promise.resolve();
         after.then(function(){ feedback('✅ Template saved.','success'); load(); }); })
-      .catch(function(){ feedback('Network error.','error'); });
+      .catch(function(e){ feedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
   function del(id){
     if(!window.confirm('Delete this template?')) return;
     fetch('/api/event-email-templates/'+id,{method:'DELETE'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
       .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Delete failed.','error'); return; } load().then(newTpl); })
-      .catch(function(){ feedback('Network error.','error'); });
+      .catch(function(e){ feedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
   function setDefault(id){
     fetch('/api/event-email-templates/'+id+'/default',{method:'POST'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
       .then(function(res){ if(!res.ok||res.j.error){ feedback(res.j.error||'Failed.','error'); return; } load(); })
-      .catch(function(){ feedback('Network error.','error'); });
+      .catch(function(e){ feedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
   function open(){ buildPlaceholders(); feedback(''); $('evtTplModal').classList.add('open');
     load().then(function(){ var d=TPLS.filter(function(t){return t.isDefault;})[0]; if(d && !d.builtIn) editTpl(d.id); else newTpl(); }); }
@@ -1068,14 +1069,13 @@
       roles:     []
     };
     try {
-      const res = await fetch('/api/events/' + editingId + '/volunteers', {
+      const d = await CGP_api('/api/events/' + editingId + '/volunteers', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      const d = await res.json();
       if (d.success) { evVolunteers.push(d.volunteer); evRenderTable(); evRenderRoleChips(); }
       else alert(d.error || 'Failed to add volunteer.');
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ── Manual add modal ── */
@@ -1177,20 +1177,19 @@
 
     const payload = { firstName, lastName, email, phone, status, notes, roles: selectedRoles };
     try {
-      let res, d;
+      let d;
       if (_evEditId) {
-        res = await fetch('/api/events/' + editingId + '/volunteers/' + _evEditId, {
+        d = await CGP_api('/api/events/' + editingId + '/volunteers/' + _evEditId, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
         payload.isManual = true;
-        res = await fetch('/api/events/' + editingId + '/volunteers', {
+        d = await CGP_api('/api/events/' + editingId + '/volunteers', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       }
-      d = await res.json();
       if (d.success) {
         if (_evEditId) {
           const idx = evVolunteers.findIndex(v => v.id === _evEditId);
@@ -1204,7 +1203,7 @@
       } else {
         alert(d.error || 'Failed to save volunteer.');
       }
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ── Volunteer table ── */
@@ -1255,28 +1254,33 @@
   async function evUpdateStatus(sel) {
     const id     = Number(sel.dataset.vid);
     const status = sel.value;
-    sel.className = 'vol-status-sel ' + status;
     const v = evVolunteers.find(x => x.id === id);
+    const previous = v ? v.status : null;
+    sel.className = 'vol-status-sel ' + status;
     if (v) v.status = status;
     try {
-      await fetch('/api/events/' + editingId + '/volunteers/' + id, {
+      await CGP_api('/api/events/' + editingId + '/volunteers/' + id, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-    } catch (e) { console.warn('Status update failed', e); }
+    } catch (e) {
+      // the server refused: put the row back the way it was and say why
+      if (v) v.status = previous;
+      if (previous) { sel.value = previous; sel.className = 'vol-status-sel ' + previous; }
+      alert(CGP_errorMessage(e, 'The status was not saved.'));
+    }
   }
 
   async function evDeleteVolunteer(id) {
     if (!confirm('Remove this volunteer from the event?')) return;
     try {
-      const res = await fetch('/api/events/' + editingId + '/volunteers/' + id, { method: 'DELETE' });
-      const d = await res.json();
+      const d = await CGP_api('/api/events/' + editingId + '/volunteers/' + id, { method: 'DELETE' });
       if (d.success) {
         evVolunteers = evVolunteers.filter(v => v.id !== id);
         evRenderTable();
         evRenderRoleChips();
       } else alert(d.error || 'Failed to delete volunteer.');
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* ── Group actions ── */
@@ -1363,32 +1367,32 @@
       if (!targets.length) { alert('No email addresses available.'); return; }
       const sendBtn = document.querySelector('#evtComposeModal .btn-save');
       if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
-      fetch(eventBase + '/send-email', {
+      CGP_api(eventBase + '/send-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: targets.map(r => r.email), subject, body })
-      }).then(r => r.json()).then(d => {
+      }).then(d => {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
         if (d.success) {
           evtCmpClose();
-          evToast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+          const oe = CGP_sendOutcome(d, 'Email', 'volunteer'); evToast(oe.message, oe.partial ? '#b45309' : undefined);
         } else { alert(d.error || 'Failed to send email.'); }
-      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+      }).catch(e => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert(CGP_errorMessage(e, 'Network error.')); });
     } else {
       const msg     = document.getElementById('evtCmpSmsBody').value.trim();
       const targets = _evtCmpRecipients.filter(r => r.phone);
       if (!targets.length) { alert('No phone numbers available.'); return; }
       const sendBtn = document.querySelector('#evtComposeModal .btn-save');
       if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
-      fetch(eventBase + '/send-sms', {
+      CGP_api(eventBase + '/send-sms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: targets.map(r => r.phone), body: msg })
-      }).then(r => r.json()).then(d => {
+      }).then(d => {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
         if (d.success) {
           evtCmpClose();
-          evToast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+          const os = CGP_sendOutcome(d, 'SMS', 'volunteer'); evToast(os.message, os.partial ? '#b45309' : undefined);
         } else { alert(d.error || 'Failed to send SMS.'); }
-      }).catch(() => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert('Network error.'); });
+      }).catch(e => { if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; } alert(CGP_errorMessage(e, 'Network error.')); });
     }
   }
 
@@ -1816,10 +1820,9 @@
     const method = editingId ? 'PUT' : 'POST';
     const url    = editingId ? '/api/events/' + editingId : '/api/events';
     try {
-      const res = await fetch(url, {
+      const d = await CGP_api(url, {
         method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
       });
-      const d = await res.json();
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }
       if (d.id) {
         const isNew = !editingId || editingId !== d.id;
@@ -1846,7 +1849,14 @@
       }
     } catch (e) {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Event'; }
-      showFeedback('Network error.', 'error');
+      // A duplicate Event ID / Code is a correctable mistake in one field, so
+      // it is shown against that field rather than as a generic save failure.
+      if (e && e.body && e.body.errorField === 'eventCode') {
+        flagDuplicateCode(e.body.error);
+        showFeedback(e.body.error || 'That Event ID / Code is already in use.', 'error');
+      } else {
+        showFeedback(CGP_errorMessage(e, 'Failed to save event.'), 'error');
+      }
     }
   }
 
@@ -1908,13 +1918,12 @@
   async function deleteEvent(id) {
     if (!confirm('Delete this event? This cannot be undone.')) return;
     try {
-      const res = await fetch('/api/events/' + id, { method: 'DELETE' });
-      const d = await res.json();
+      const d = await CGP_api('/api/events/' + id, { method: 'DELETE' });
       if (d.success) {
         if (editingId === id) resetForm();
         await loadEvents();
       } else { alert(d.error || 'Failed to delete.'); }
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* REGISTRATIONS MODAL */
@@ -1960,11 +1969,10 @@
   async function deleteReg(regId) {
     if (!confirm('Remove this registration?')) return;
     try {
-      const res = await fetch('/api/events/' + currentRegEventId + '/registrations/' + regId, { method: 'DELETE' });
-      const d = await res.json();
+      const d = await CGP_api('/api/events/' + currentRegEventId + '/registrations/' + regId, { method: 'DELETE' });
       if (d.success) loadRegistrations(currentRegEventId);
       else alert(d.error || 'Failed to remove.');
-    } catch (e) { alert('Network error.'); }
+    } catch (e) { alert(CGP_errorMessage(e, 'Network error.')); }
   }
 
   /* FEEDBACK */

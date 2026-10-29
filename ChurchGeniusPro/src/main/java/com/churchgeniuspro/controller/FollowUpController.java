@@ -35,6 +35,7 @@ import java.util.*;
  */
 @Controller
 public class FollowUpController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FollowUpController.class);
 
     private final FollowUpRepository followUpRepo;
     private final FamilyService familyService;
@@ -146,7 +147,10 @@ public class FollowUpController {
                 Long current = familyMemberRepo.countActiveMembers(cid);
                 String limitMsg = subscriptionService.checkPeopleLimit(cid, current == null ? 0 : current, 1);
                 if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
-            } catch (Exception ignored) { /* fail-open: never block on a limit-check error */ }
+            } catch (Exception e) {
+                log.warn("[PeopleLimit] limit check failed for client {} on manual volunteer; allowing — {}",
+                        cid, com.churchgeniuspro.util.LogSafe.exception(e));
+            }
         }
 
         // Shell family to hold the volunteer (family_member.family_id is NOT NULL).

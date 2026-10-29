@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.churchgeniuspro.util.LogSafe;
+
 import java.util.Map;
 
 /**
@@ -188,13 +190,35 @@ public class PlaidLinkService {
         audit.record(clientId, actor, "ITEM_LINKED", itemId,
                 (isNew ? "Bank connected" : "Bank re-linked") + " (" + env + ")");
 
-        // Initial pull → accounts + transactions into the review queue.
-        int staged = syncService.sync(item, actor);
+        // Initial pull → accounts + transactions into the review queue. The item is
+        // already persisted above: whatever happens here, the connection EXISTS and
+        // the caller must be told so (error-handling audit 2026-10-28, M8) — a
+        // "could not connect" answer here made people re-link and create a second
+        // item for the same bank. A first-sync failure is reported, never thrown.
+        PlaidSyncService.SyncResult first;
+        try {
+            first = syncService.syncWithResult(item, actor);
+            if (first == null) first = PlaidSyncService.SyncResult.ok(0);   // a stubbed sync (tests) = nothing staged
+        } catch (RuntimeException e) {
+            log.warn("First sync after link failed for item {}: {}", itemId, LogSafe.exception(e));
+            first = new PlaidSyncService.SyncResult(PlaidSyncService.Outcome.RETRY_LATER, 0, "SYNC_FAILED",
+                    "The first transaction sync could not be completed. It will be retried automatically.");
+        }
 
-        return Map.of(
-                "itemId", itemId,
-                "status", item.getStatus(),
-                "stagedTransactions", staged);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("itemId", itemId);
+        out.put("connected", true);
+        out.put("status", item.getStatus());
+        out.put("itemStatus", item.getStatus());
+        out.put("firstSync", first.ok() ? "ok" : "failed");
+        out.put("stagedTransactions", first.staged());
+        if (!first.ok()) {
+            out.put("syncOutcome", first.outcome().name());
+            out.put("errorCode", first.errorCode());
+            out.put("message", "Bank connected. The first transaction sync did not complete: " + first.message()
+                    + (first.retryLater() ? " It will be retried automatically." : ""));
+        }
+        return out;
     }
 
     /**

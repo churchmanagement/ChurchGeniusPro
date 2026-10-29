@@ -307,25 +307,26 @@ public class EventVolunteerController {
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
 
         if (!smsService.isConfigured())
-            return ResponseEntity.ok(Map.of("success", false, "error", "SMS not configured"));
+            return ResponseEntity.status(409).body(Map.of("success", false, "error", "SMS is not configured for this church."));
 
         @SuppressWarnings("unchecked")
         List<String> to = (List<String>) body.getOrDefault("to", List.of());
         String message  = str(body, "body");
         if (message == null) message = "";
 
-        int sent = 0;
+        // Error-handling audit 2026-10-28, M7: count real acceptances, name the failures.
+        com.churchgeniuspro.util.SmsOutcomes.Batch batch = new com.churchgeniuspro.util.SmsOutcomes.Batch();
+        String cid = com.churchgeniuspro.util.SessionUtil.getAppClientId(req);
         for (String phone : to) {
             if (phone == null || phone.isBlank()) continue;
             try {
-                boolean ok = smsService.sendForClient(
-                        com.churchgeniuspro.util.SessionUtil.getAppClientId(req), phone, message).sent();
-                if (ok) sent++;
+                batch.record(null, phone, smsService.sendForClient(cid, phone, message));
             } catch (Exception e) {
-                // log and continue
+                batch.record(null, phone, com.churchgeniuspro.service.SmsService.SendOutcome.fail("Could not be sent"));
             }
         }
-        return ResponseEntity.ok(Map.of("success", true, "sent", sent));
+        if (batch.noneSentForProviderReason()) return ResponseEntity.status(502).body(batch.body());
+        return ResponseEntity.ok(batch.body());
     }
 
     // ── GET /api/events/{eventId}/volunteers/roles ───────────────────────────

@@ -226,7 +226,11 @@ public class FamilyController {
             if (limitMsg != null) {
                 return ResponseEntity.status(403).body(Map.of("error", limitMsg));
             }
-        } catch (Exception ignored) { /* fail-open: never block saves on a limit-check error */ }
+        } catch (Exception e) {
+            // fail-open by design (a counting error must not block a save) — but logged (audit 2026-10-28, M3)
+            log.warn("[PeopleLimit] limit check failed for client {} on family create; allowing — {}",
+                    appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
 
         try {
             Family saved = familyService.save(bo, appClientId);
@@ -340,7 +344,10 @@ public class FamilyController {
                 String limitMsg = subscriptionService.checkPeopleLimit(appClientId, current, adding);
                 if (limitMsg != null) return ResponseEntity.status(403).body(Map.of("error", limitMsg));
             }
-        } catch (Exception ignored) { /* fail-open: never block an edit on a limit-check error */ }
+        } catch (Exception e) {
+            log.warn("[PeopleLimit] limit check failed for client {} on family edit; allowing — {}",
+                    appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
 
         try {
             Family saved = familyService.update(id, bo, appClientId);

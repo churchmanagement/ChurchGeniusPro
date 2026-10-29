@@ -458,7 +458,10 @@ public class MemberSignupController {
                     }
                 }
             }
-        } catch (Exception ignored) { /* fail-open on limit-check errors */ }
+        } catch (Exception e) {
+            log.warn("[PortalLimit] member-portal limit check failed for member {}; allowing — {}",
+                    fm.getId(), com.churchgeniuspro.util.LogSafe.exception(e));
+        }
 
         // Persist SignUp record
         Date now = new Date();

@@ -90,7 +90,9 @@ public class AccountStatusFilter implements Filter {
                 try { session.invalidate(); } catch (IllegalStateException ignored) { /* already gone */ }
             }
         } catch (Exception e) {
-            log.warn("AccountStatusFilter failed open — {}", e.getMessage());
+            String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+            log.warn("AccountStatusFilter failed open on {} [ref={}] — {}", RequestPathsSafe.of(req), ref,
+                    com.churchgeniuspro.util.LogSafe.exception(e), e);
             chain.doFilter(req, res);
         }
     }

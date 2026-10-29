@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -730,15 +731,16 @@
       if (res.ok) {
         showFeedback(`✅ ${data.message}`, 'success');
         if (window.CHECKSCAN && data && data.id) {
-          try { await CHECKSCAN.afterSave(data.id); } catch (e) { /* image is best-effort */ }
+          try { await CHECKSCAN.afterSave(data.id); }
+          catch (e) { showFeedback('⚠️ Expense record saved, but the check image was not: ' + CGP_errorMessage(e, 'upload failed.'), 'error'); }
         }
         clearForm();
         await loadExpenses();
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save expense.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not reach the server.'), 'error');
     } finally {
       btn.disabled    = false;
       btn.textContent = 'Save';
@@ -859,8 +861,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to delete expense.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not delete expense.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not delete expense.'), 'error');
     }
   }
 
@@ -1134,8 +1136,7 @@ window.CHECKSCAN = (function () {
         function finish(){
           if (!best || !best.text.trim()){ showUnreadable(); return; }
           spinner('Reading check details…');
-          fetch('/api/expense/check-parse', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text:best.text, ocrConfidence:best.conf }) })
-            .then(function(r){ return r.json(); })
+          CGP_api('/api/expense/check-parse', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text:best.text, ocrConfidence:best.conf }) })
             .then(function(d){ if (d && d.fields && Object.keys(d.fields).length > 0){ state.data = d; renderReview(d); } else { showUnreadable(); } })
             .catch(function(){ showUnreadable(); });
         }
@@ -1281,9 +1282,11 @@ window.CHECKSCAN = (function () {
   function afterSave(expenseId){
     if (!state.file || !expenseId) { state.file = null; return Promise.resolve(); }
     var fd = new FormData(); fd.append('file', state.file);
-    return fetch('/api/expense/'+expenseId+'/check-image', { method:'POST', body:fd })
-      .catch(function(){ })
-      .then(function(){ state.file = null; });
+    // The record is already saved; a failed image upload is reported (the caller
+    // shows the message) instead of being swallowed.
+    return CGP_api('/api/expense/'+expenseId+'/check-image', { method:'POST', body:fd })
+      .then(function(){ state.file = null; })
+      .catch(function(e){ state.file = null; throw e; });
   }
 
   return { open:open, close:close, pick:pick, onFile:onFile, manual:manual, apply:apply, afterSave:afterSave,

@@ -50,17 +50,31 @@ public class PlaidReviewService {
     private final ExpenseService expenseService;
     private final TransactionTypeRepository transactionTypeRepo;
     private final PlaidAuditService audit;
+    /** Transactional proxy of this bean, for per-row commits in {@link #bulk} (null outside Spring = same-transaction fallback). */
+    private final PlaidReviewService self;
 
+    /** Kept for the unit tests that construct the service directly: no proxy, rows share the caller's transaction. */
     public PlaidReviewService(PlaidTransactionStagingRepository stagingRepo,
                               IncomeService incomeService,
                               ExpenseService expenseService,
                               TransactionTypeRepository transactionTypeRepo,
                               PlaidAuditService audit) {
+        this(stagingRepo, incomeService, expenseService, transactionTypeRepo, audit, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PlaidReviewService(PlaidTransactionStagingRepository stagingRepo,
+                              IncomeService incomeService,
+                              ExpenseService expenseService,
+                              TransactionTypeRepository transactionTypeRepo,
+                              PlaidAuditService audit,
+                              @org.springframework.context.annotation.Lazy PlaidReviewService self) {
         this.stagingRepo = stagingRepo;
         this.incomeService = incomeService;
         this.expenseService = expenseService;
         this.transactionTypeRepo = transactionTypeRepo;
         this.audit = audit;
+        this.self = self;
     }
 
     // ── List ─────────────────────────────────────────────────────────────────
@@ -220,21 +234,29 @@ public class PlaidReviewService {
         r.setReviewedDate(reviewedDate);
     }
 
-    /** Bulk approve/reject. Returns per-row outcome so partial success is visible. */
-    @Transactional
+    /**
+     * Bulk approve/reject. Returns per-row outcome so partial success is visible.
+     *
+     * <p>Each row is processed in its OWN transaction through the {@code self} proxy
+     * (error-handling audit 2026-10-28, M11): the old self-invoked {@code approve} ran
+     * inside this method's transaction, so one row whose ledger insert failed after a
+     * repository call marked the whole batch rollback-only — every "processed" row was
+     * silently undone at commit while the response still reported them done.
+     */
     public Map<String, Object> bulk(String clientId, List<Integer> ids, String action, String actor) {
         int done = 0;
         List<Map<String, Object>> skipped = new ArrayList<>();
         boolean approving = "approve".equalsIgnoreCase(action);
         for (Integer id : ids) {
             try {
-                if (approving) approve(clientId, id, actor);
+                if (self != null) self.bulkOne(clientId, id, approving, actor);
+                else if (approving) approve(clientId, id, actor);
                 else reject(clientId, id, actor);
                 done++;
             } catch (Exception e) {
                 Map<String, Object> s = new LinkedHashMap<>();
                 s.put("id", id);
-                s.put("reason", e.getMessage());
+                s.put("reason", reasonFor(e));
                 skipped.add(s);
             }
         }
@@ -244,6 +266,23 @@ public class PlaidReviewService {
         out.put("processed", done);
         out.put("skipped", skipped);
         return out;
+    }
+
+    /** One bulk row in its own transaction (see {@link #bulk}). Public so the proxy can intercept it. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void bulkOne(String clientId, Integer id, boolean approving, String actor) {
+        if (approving) approve(clientId, id, actor);
+        else reject(clientId, id, actor);
+    }
+
+    /** An authored refusal passes through; anything else (SQL, mapping) becomes a generic sentence. */
+    private static String reasonFor(Exception e) {
+        if (e instanceof IllegalArgumentException || e instanceof IllegalStateException
+                || e instanceof com.churchgeniuspro.service.DuplicateImportException) {
+            String m = e.getMessage();
+            if (m != null && !m.isBlank()) return m;
+        }
+        return "Could not be processed — please try this transaction on its own.";
     }
 
     // ── Promotion to ledger ────────────────────────────────────────────────────

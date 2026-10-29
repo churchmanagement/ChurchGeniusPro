@@ -55,7 +55,7 @@ public class NtagLoginController {
         try {
             return ResponseEntity.ok(svc.verifyPin(str(body, "token"), str(body, "pin"), clientIp(request), device(request)));
         } catch (NtagService.NtagLoginException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return refused(e);
         }
     }
 
@@ -64,8 +64,20 @@ public class NtagLoginController {
         try {
             return ResponseEntity.ok(svc.verifyOtp(str(body, "token"), str(body, "otp"), clientIp(request), device(request)));
         } catch (NtagService.NtagLoginException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return refused(e);
         }
+    }
+
+    /**
+     * A wrong PIN / code answers 401 with the same message (error-handling audit 2026-10-28,
+     * M10): {@code LoginThrottleFilter} counts only 401/403 towards the per-IP brute-force
+     * block, and the per-challenge attempt cap is reset by every re-scan. Other refusals
+     * (bad token, missing field, too many attempts) stay 400.
+     */
+    static ResponseEntity<?> refused(Exception e) {
+        String msg = e.getMessage() == null ? "" : e.getMessage();
+        boolean credential = msg.startsWith("Incorrect PIN") || msg.startsWith("Incorrect verification code");
+        return ResponseEntity.status(credential ? 401 : 400).body(Map.of("message", msg));
     }
 
     @PostMapping("/finalize")

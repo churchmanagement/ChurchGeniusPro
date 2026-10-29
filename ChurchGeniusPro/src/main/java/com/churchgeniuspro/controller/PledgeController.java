@@ -280,8 +280,15 @@ public class PledgeController {
      * @param familyMemberId  contributor
      * @param amount        contribution amount (positive)
      * @param incomeDate    date of the income transaction
+     *
+     * <p>Runs in its OWN transaction (error-handling audit 2026-10-28, M2): the caller is
+     * {@code IncomeService} inside its income-save transaction, and a failure here used to
+     * mark that transaction rollback-only — the income "saved" and then the commit threw
+     * ({@code UnexpectedRollbackException} → 500) — or, before any repository call, was
+     * swallowed with the pledge balance silently drifting. Now a pledge failure rolls back
+     * only the pledge credit and is logged by the caller with the income id.
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void applyIncomeToPledge(String clientId, Integer subSourceId,
                                     Integer familyMemberId, BigDecimal amount,
                                     LocalDate incomeDate) {
@@ -306,7 +313,7 @@ public class PledgeController {
      * — including after the income row's date has since been changed, when
      * the caller passes the date as it was *before* that edit.
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void adjustPledgeByDelta(String clientId, Integer subSourceId,
                                     Integer familyMemberId, BigDecimal delta,
                                     LocalDate incomeDate) {

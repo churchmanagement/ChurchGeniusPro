@@ -74,7 +74,9 @@ public class SubscriptionFeatureFilter implements Filter {
                     clientId, featureKey, path);
             writeBlocked(path, response, featureKey);
         } catch (Exception e) {
-            log.warn("SubscriptionFeatureFilter failed open — {}", e.getMessage());
+            String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+            log.warn("SubscriptionFeatureFilter failed open on {} [ref={}] — {}", RequestPathsSafe.of(req), ref,
+                    com.churchgeniuspro.util.LogSafe.exception(e), e);
             chain.doFilter(req, res);
         }
     }

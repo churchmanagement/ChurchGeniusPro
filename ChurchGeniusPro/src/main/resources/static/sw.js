@@ -6,7 +6,11 @@
  *  - API calls   → Network-only  (never cache)
  *  - JS / CSS    → Network-first with 3s timeout (serve cache on slow/offline,
  *                   but always try network first so deployments land immediately)
- *  - Images/icons → Cache-first (background refresh)
+ *  - Images/fonts → Cache-first
+ *  - Everything else (e.g. JSON from /public/...) → network only, never cached
+ *    (error-handling audit 2026-10-28, M12: cache-first used to apply to ANY
+ *    other GET, so /public/churchregistration/validate|status|prefill JSON was
+ *    served from cache until the next CACHE_VERSION bump)
  *
  * Auto-update on deployment
  * ─────────────────────────
@@ -19,7 +23,7 @@
  * session.js's controllerchange listener reloads all open tabs.
  */
 
-const CACHE_VERSION = 'cgp-v51';   // <- bump on every deployment
+const CACHE_VERSION = 'cgp-v52';   // <- bump on every deployment
 const CACHE_NAME    = CACHE_VERSION;
 
 const NETWORK_TIMEOUT_MS      = 3000;
@@ -63,7 +67,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(req).catch(() => new Response(
-        '{"status":"error","message":"Network unavailable"}',
+        '{"status":"error","message":"You appear to be offline. Please reconnect and try again."}',
         { status: 503, headers: { 'Content-Type': 'application/json' } }
       ))
     );
@@ -89,8 +93,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(cacheFirst(req));
+  // Cache-first ONLY for images and fonts — content that is the same for every
+  // visitor and safe to serve stale. Anything else (JSON, text, downloads) goes to
+  // the network untouched, so an answer is never replayed from the cache.
+  if (isCacheableAsset(req, url)) {
+    event.respondWith(cacheFirst(req));
+  }
+  // no respondWith → the browser's own network handling
 });
+
+const CACHEABLE_EXT = /\.(png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|eot)$/i;
+
+function isCacheableAsset(req, url) {
+  if (url.search) return false;                       // /api-like query answers are never assets
+  if (req.destination === 'image' || req.destination === 'font') return true;
+  return CACHEABLE_EXT.test(url.pathname);
+}
 
 /* ── Strategy helpers ── */
 

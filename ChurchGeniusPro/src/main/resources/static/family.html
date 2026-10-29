@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -855,8 +856,8 @@
     dd.innerHTML = '<div class="msd-empty">Searching…</div>';
     dd.style.display = 'block';
     try {
-      const res  = await fetch(`/api/members?search=${encodeURIComponent(q)}`);
-      const list = await res.json();
+      const list = await CGP_api(`/api/members?search=${encodeURIComponent(q)}`);
+      if (!Array.isArray(list)) throw new Error('unexpected reply');
       if (!list.length) { dd.innerHTML = '<div class="msd-empty">No members found.</div>'; return; }
       memberSearchResults = list.slice(0, 12);
       dd.innerHTML = memberSearchResults.map((m, i) => {
@@ -867,8 +868,8 @@
                   ${sub ? `<div class="msd-sub">${escHtml(sub)}</div>` : ''}
                 </div>`;
       }).join('');
-    } catch {
-      dd.innerHTML = '<div class="msd-empty">Search failed.</div>';
+    } catch (e) {
+      dd.innerHTML = '<div class="msd-empty">' + escHtml(CGP_errorMessage(e, 'Search failed.')) + '</div>';
     }
   }
 
@@ -1078,8 +1079,19 @@
     if (!confirm('Are you sure you want to remove this family member?')) return;
     const m = familyMembers[index];
     if (m.id && familyId) {
-      fetch(`/api/families/${familyId}/members/${m.id}`, { method: 'DELETE' }).catch(() => {});
+      // A saved member is removed on the server FIRST; the row leaves the page only
+      // when the server agreed (it used to be spliced away whatever the DELETE said).
+      CGP_api(`/api/families/${familyId}/members/${m.id}`, { method: 'DELETE' })
+        .then(() => removeFamilyMemberRow(index, m))
+        .catch(e => showFeedback('❌ ' + CGP_errorMessage(e, 'The member could not be removed.'), 'error'));
+      return;
     }
+    removeFamilyMemberRow(index, m);
+  }
+
+  function removeFamilyMemberRow(index, m) {
+    if (familyMembers[index] !== m) index = familyMembers.indexOf(m);
+    if (index < 0) return;
     if (editingMemberIndex === index) cancelEditMember();
     else if (editingMemberIndex !== null && editingMemberIndex > index) editingMemberIndex--;
     familyMembers.splice(index, 1);
@@ -1368,8 +1380,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save family.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not reach the server.'), 'error');
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = familyId ? 'Update Family' : 'Save Family';

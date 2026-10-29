@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -507,13 +508,15 @@
   };
   window.saveEdit = function(){
     var id = el('eId').value;
-    fetch('/api/attendance/records/'+id, { method:'PUT', headers:{'Content-Type':'application/json'},
+    CGP_api('/api/attendance/records/'+id, { method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ attendanceDate:el('eDate').value, serviceType:el('eService').value, status:el('eStatus').value, ministry:el('eMinistry').value.trim() }) })
-      .then(function(){ el('editModal').classList.remove('open'); applyRecords(); });
+      .then(function(){ el('editModal').classList.remove('open'); applyRecords(); })
+      .catch(function(e){ CGP_showError(e, 'The record was not saved.'); });
   };
   window.delRec = function(id){
     if(!confirm('Delete this attendance record?')) return;
-    fetch('/api/attendance/records/'+id, { method:'DELETE' }).then(function(){ applyRecords(); });
+    CGP_api('/api/attendance/records/'+id, { method:'DELETE' }).then(function(){ applyRecords(); })
+      .catch(function(e){ CGP_showError(e, 'The record was not deleted.'); });
   };
   window.exportRecords = function(fmt){ window.open('/api/attendance/records/export?format='+fmt+'&'+recParams(), '_blank'); };
 
@@ -631,7 +634,7 @@
     post('/api/attendance/volunteers/notify', { memberIds: ids, email: viaEmail, sms: viaSms, subject: el('vnSubject').value, body: el('vnBody').value })
       .then(function(res){
         btn.disabled = false; btn.textContent = 'Send';
-        if (!res.ok) return vnMsg((res.j && res.j.message) || 'Could not send.', 'err');
+        if (!res.ok) return vnMsg((res.j && (res.j.error || res.j.message)) || 'Could not send.', 'err');
         var j = res.j || {};
         if (j.testEmail) vnMsg('🧪 Trial/Demo test: ' + (j.testEmailsSent||0) + ' test email sent to ' + j.testEmail + ' — ' + (j.recipients||0) + ' volunteer' + (j.recipients===1?'':'s') + ' simulated, none emailed' + ((j.sentSms||0) ? '; ' + j.sentSms + ' SMS sent' : '') + '.', 'ok');
         else vnMsg('Done — ' + (j.sentEmail||0) + ' email' + (j.sentEmail===1?'':'s') + ', ' + (j.sentSms||0) + ' SMS sent to ' + (j.recipients||0) + ' volunteer' + (j.recipients===1?'':'s') + '.', 'ok');
@@ -640,7 +643,7 @@
           return '<div class="' + esc(r.status) + '">' + (r.channel==='sms' ? '💬' : '✉️') + ' ' + esc(r.name) + ' — ' + esc(r.status) + (r.reason ? ' (' + esc(r.reason) + ')' : '') + '</div>';
         }).join('');
       })
-      .catch(function(){ btn.disabled = false; btn.textContent = 'Send'; vnMsg('Network error.', 'err'); });
+      .catch(function(e){ btn.disabled = false; btn.textContent = 'Send'; vnMsg(CGP_errorMessage(e, 'Network error.'), 'err'); });
   }
 </script>
 </body>

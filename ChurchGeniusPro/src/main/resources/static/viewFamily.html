@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -699,9 +700,7 @@
     try {
       // no-store: never let the browser serve a cached page — deletions and
       // edits must be visible immediately on the next reload of the list.
-      const res = await fetch(`/api/families?${params}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error('Server error');
-      const data = await res.json();
+      const data = await CGP_api(`/api/families?${params}`, { cache: 'no-store' });
       const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
       totalFamilies = (typeof data.total === 'number') ? data.total : items.length;
       // Apply client-side sort direction (server returns asc; client reverses for desc)
@@ -709,8 +708,8 @@
       allFamilies = allFamilies.concat(items);
       currentPage = page + 1;
       return allFamilies.length < totalFamilies;
-    } catch {
-      showFeedback('❌ Failed to load families from the server.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Failed to load families from the server.'), 'error');
       return false;
     }
   }
@@ -874,8 +873,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not delete family.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not delete family.'), 'error');
     }
   }
 
@@ -890,8 +889,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to restore.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not restore family.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not restore family.'), 'error');
     }
   }
 
@@ -955,8 +954,8 @@
         const verb = action === 'delete' ? 'deleted' : 'updated';
         showFeedback(`❌ ${data.error ? 'Could not be ' + verb + ': ' + data.error : 'Bulk action failed. Please try again.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — bulk action failed. Please check your connection and try again.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error — bulk action failed. Please check your connection and try again.'), 'error');
     }
   }
 
@@ -1070,9 +1069,8 @@
       btn.textContent = '−';
       inner.innerHTML = '<em style="color:#bbb;font-size: 13px;">Loading…</em>';
       try {
-        const res  = await fetch(`/api/families/${id}`);
-        const data = await res.json();
-        const members = data.members || [];
+        const data = await CGP_api(`/api/families/${id}`);
+        const members = (data && data.members) || [];
         if (!members.length) {
           inner.innerHTML = '<em style="color:#bbb;font-size: 13px;">No members found.</em>';
           return;
@@ -1173,8 +1171,8 @@
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:20px;">Searching…</td></tr>';
 
     try {
-      const res  = await fetch(`/api/members?${params}`);
-      const list = await res.json();
+      const list = await CGP_api(`/api/members?${params}`);
+      if (!Array.isArray(list)) throw new Error('unexpected reply');
       countEl.textContent = `${list.length} result${list.length !== 1 ? 's' : ''}`;
       if (!list.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:20px;">No members found.</td></tr>';
@@ -1199,8 +1197,9 @@
           <td><span class="badge ${badgeCls}">${escHtml(status)}</span>${reason}</td>
         </tr>`;
       }).join('');
-    } catch {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#e53935;padding:20px;">Failed to search members.</td></tr>';
+    } catch (e) {
+      countEl.textContent = '';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#e53935;padding:20px;">' + escHtml(CGP_errorMessage(e, 'Failed to search members.')) + '</td></tr>';
     }
   }
 

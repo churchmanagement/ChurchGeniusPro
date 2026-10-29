@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -516,7 +517,7 @@ function volCmpSend() {
     if (!targets.length) { toast('No email addresses available', true); return; }
     var sendBtn = document.querySelector('#volCmpModal .btn-primary');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
-    fetch('/api/volunteers/send-email', {
+    CGP_api('/api/volunteers/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -524,17 +525,17 @@ function volCmpSend() {
         subject: subject,
         body: body
       })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
       if (d.success) {
         volCmpClose();
-        toast('Email sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+        var oe = CGP_sendOutcome(d, 'Email', 'volunteer'); toast(oe.message, oe.partial);
       } else {
         toast(d.error || 'Failed to send email', true);
       }
-    }).catch(function(){
+    }).catch(function(e){
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
-      toast('Network error — could not send email', true);
+      toast(CGP_errorMessage(e, 'Network error — could not send email'), true);
     });
   } else {
     var msg     = document.getElementById('volCmpSmsBody').value.trim();
@@ -542,24 +543,24 @@ function volCmpSend() {
     if (!targets.length) { toast('No phone numbers available', true); return; }
     var sendBtn = document.querySelector('#volCmpModal .btn-primary');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
-    fetch('/api/volunteers/send-sms', {
+    CGP_api('/api/volunteers/send-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to: targets.map(function(r){ return r.phone; }),
         body: msg
       })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
       if (d.success) {
         volCmpClose();
-        toast('SMS sent to ' + d.sent + ' volunteer' + (d.sent !== 1 ? 's' : '') + ' ✓');
+        var os = CGP_sendOutcome(d, 'SMS', 'volunteer'); toast(os.message, os.partial);
       } else {
         toast(d.error || 'Failed to send SMS', true);
       }
-    }).catch(function(){
+    }).catch(function(e){
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
-      toast('Network error — could not send SMS', true);
+      toast(CGP_errorMessage(e, 'Network error — could not send SMS'), true);
     });
   }
 }
@@ -602,14 +603,14 @@ function volAssignGroupSms() {
    OVERVIEW
 =================================================================== */
 function loadOverview() {
-  fetch('/api/volunteers/summary').then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/summary').then(function(d){
     document.getElementById('statVolunteers').textContent  = d.totalVolunteers   != null ? d.totalVolunteers   : '—';
     document.getElementById('statRoles').textContent       = d.totalRoles        != null ? d.totalRoles        : '—';
     document.getElementById('statAssignments').textContent = d.totalAssignments  != null ? d.totalAssignments  : '—';
     document.getElementById('statPending').textContent     = d.pendingConfirmations != null ? d.pendingConfirmations : '—';
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 
-  fetch('/api/volunteers/assignments').then(function(r){ return r.json(); }).then(function(list){
+  CGP_api('/api/volunteers/assignments').then(function(list){
     var recent = list.slice(0, 10);
     var tbody = document.getElementById('recentBody');
     if (recent.length === 0) {
@@ -632,17 +633,17 @@ function loadOverview() {
         + '</select></td>'
         + '</tr>';
     }).join('');
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 /* ===================================================================
    ROLES
 =================================================================== */
 function loadRoles() {
-  return fetch('/api/volunteers/roles').then(function(r){ return r.json(); }).then(function(d){
+  return CGP_api('/api/volunteers/roles').then(function(d){
     allRoles = d;
     renderRoles();
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 function renderRoles() {
@@ -695,18 +696,18 @@ function saveRole() {
     maxCapacity: document.getElementById('rMaxCap').value || null,
     description: document.getElementById('rDesc').value.trim() || null
   };
-  fetch('/api/volunteers/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+  .then(function(d){
     if (d.success) { closeModal('roleModal'); toast('Role saved!'); loadRoles(); }
     else toast(d.error || 'Error', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function deleteRole(id) {
   if (!confirm('Delete this role?')) return;
-  fetch('/api/volunteers/roles/' + id, { method:'DELETE' })
+  CGP_api('/api/volunteers/roles/' + id, { method:'DELETE' })
   .then(function(){ toast('Role deleted'); loadRoles(); })
-  .catch(function(){ toast('Error', true); });
+  .catch(function(e){ CGP_showError(e, 'Error'); });
 }
 
 /* ===================================================================
@@ -718,7 +719,7 @@ function loadMembersTab() {
   if (allMembersFlat.length > 0) { filterMemberList(); return; }
   var resultsEl = document.getElementById('memberSearchResults');
   resultsEl.innerHTML = '<div style="color:#aaa;font-size:13px;padding:10px 0;">Loading members…</div>';
-  fetch('/api/members').then(function(r){ return r.json(); }).then(function(data){
+  CGP_api('/api/members').then(function(data){
     allMembersFlat = Array.isArray(data) ? data.filter(function(m){ return m.id; }) : [];
     filterMemberList();
   }).catch(function(){ resultsEl.innerHTML = '<div style="color:#c62828;font-size:13px;">Could not load members.</div>'; });
@@ -760,18 +761,18 @@ function filterMemberList() {
 
 function addMemberAsVolunteer(memberId, memberName) {
   if (!confirm('Add ' + memberName + ' as a volunteer?')) return;
-  fetch('/api/volunteers/profiles/from-member', {
+  CGP_api('/api/volunteers/profiles/from-member', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ familyMemberId: memberId })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success || d.id) {
       toast('✅ ' + memberName + ' added as volunteer!');
       loadProfiles().then(function(){ filterMemberList(); loadOverview(); });
     } else {
       toast(d.error || 'Error adding volunteer', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function saveManualVolunteer() {
@@ -785,11 +786,11 @@ function saveManualVolunteer() {
     skills:       document.getElementById('nfSkills').value.trim()       || null,
     availability: document.getElementById('nfAvailability').value.trim() || null
   };
-  fetch('/api/volunteers/profiles/manual', {
+  CGP_api('/api/volunteers/profiles/manual', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success || d.id) {
       toast('✅ Volunteer added!');
       ['nfFirstName','nfLastName','nfEmail','nfPhone','nfSkills','nfAvailability'].forEach(function(id){
@@ -800,17 +801,17 @@ function saveManualVolunteer() {
     } else {
       toast(d.error || 'Error adding volunteer', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* ===================================================================
    SCHEDULE  (roster)
 =================================================================== */
 function loadProfiles() {
-  return fetch('/api/volunteers/profiles').then(function(r){ return r.json(); }).then(function(d){
+  return CGP_api('/api/volunteers/profiles').then(function(d){
     allProfiles = d;
     renderRoster();
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 function renderRoster() {
@@ -907,8 +908,8 @@ function renderVrCurrentRoles() {
 
 function vrRemoveRole(linkId) {
   if (!_vrProfileId) return;
-  fetch('/api/volunteers/profiles/' + _vrProfileId + '/roles/' + linkId, { method: 'DELETE' })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/profiles/' + _vrProfileId + '/roles/' + linkId, { method: 'DELETE' })
+  .then(function(d){
     if (d.success) {
       _vrAssigned = _vrAssigned.filter(function(r){ return r.id !== linkId; });
       renderVrCurrentRoles();
@@ -921,7 +922,7 @@ function vrRemoveRole(linkId) {
     } else {
       toast(d.error || 'Error', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function vrAddRole(roleId, roleName) {
@@ -930,11 +931,11 @@ function vrAddRole(roleId, roleName) {
   var alreadyAssigned = _vrAssigned.some(function(r){ return r.roleId === roleId || r.roleId === String(roleId); });
   if (alreadyAssigned) { toast('Role already assigned', true); return; }
 
-  fetch('/api/volunteers/profiles/' + _vrProfileId + '/roles', {
+  CGP_api('/api/volunteers/profiles/' + _vrProfileId + '/roles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ roleId: roleId })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) {
       var newLink = { id: d.id, roleId: roleId, roleName: roleName };
       _vrAssigned.push(newLink);
@@ -948,7 +949,7 @@ function vrAddRole(roleId, roleName) {
     } else {
       toast(d.error || 'Error', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function openVrDropdown() {
@@ -996,8 +997,8 @@ document.addEventListener('click', function(e) {
 =================================================================== */
 function removeProfileRole(profileId, linkId, roleName) {
   if (!confirm('Remove role "' + roleName + '" from this volunteer?')) return;
-  fetch('/api/volunteers/profiles/' + profileId + '/roles/' + linkId, { method: 'DELETE' })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/profiles/' + profileId + '/roles/' + linkId, { method: 'DELETE' })
+  .then(function(d){
     if (d.success) {
       var p = allProfiles.find(function(x){ return x.id === profileId || x.id === String(profileId); });
       if (p && p.roles) {
@@ -1008,7 +1009,7 @@ function removeProfileRole(profileId, linkId, roleName) {
     } else {
       toast(d.error || 'Error', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* ===================================================================
@@ -1035,11 +1036,11 @@ function saveProfile() {
     status:       document.getElementById('epStatus').value              || 'Active',
     notes:        document.getElementById('epNotes').value.trim()        || null
   };
-  fetch('/api/volunteers/profiles/' + profileId, {
+  CGP_api('/api/volunteers/profiles/' + profileId, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success || d.id) {
       toast('Profile updated!');
       closeModal('editProfileModal');
@@ -1047,13 +1048,13 @@ function saveProfile() {
     } else {
       toast(d.error || 'Error updating profile', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function deleteProfile(profileId, name) {
   if (!confirm('Remove ' + name + ' from volunteers? This cannot be undone.')) return;
-  fetch('/api/volunteers/profiles/' + profileId, { method: 'DELETE' })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/profiles/' + profileId, { method: 'DELETE' })
+  .then(function(d){
     if (d.success) {
       toast('Volunteer removed');
       loadProfiles();
@@ -1061,17 +1062,17 @@ function deleteProfile(profileId, name) {
     } else {
       toast(d.error || 'Error', true);
     }
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* =========================================================================
    ASSIGNMENTS
 ========================================================================= */
 function loadAssignments() {
-  fetch('/api/volunteers/assignments').then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/volunteers/assignments').then(function(d){
     allAssignments = d;
     renderAssignments();
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 function renderAssignments() {
@@ -1109,21 +1110,21 @@ function renderAssignments() {
 function updateAssignStatus(sel) {
   var id     = sel.dataset.id;
   var status = sel.value;
-  fetch('/api/volunteers/assignments/' + id + '/status', {
+  CGP_api('/api/volunteers/assignments/' + id + '/status', {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ status: status })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) toast('Status updated');
     else toast(d.error || 'Error', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function deleteAssignment(id) {
   if (!confirm('Remove this assignment?')) return;
-  fetch('/api/volunteers/assignments/' + id, { method: 'DELETE' })
+  CGP_api('/api/volunteers/assignments/' + id, { method: 'DELETE' })
   .then(function(){ toast('Assignment removed'); loadAssignments(); loadOverview(); })
-  .catch(function(){ toast('Error', true); });
+  .catch(function(e){ CGP_showError(e, 'Error'); });
 }
 
 /* -- INIT ----------------------------------------------------------------- */

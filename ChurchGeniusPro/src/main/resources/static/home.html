@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1866,11 +1867,11 @@ function _lpBeginDrag(state, downEvent) {
 /* ════════ Reset ════════ */
 function resetDashPrefs() {
   localStorage.removeItem(prefsKey());
-  fetch('/api/dashboard/preferences', {
+  CGP_api('/api/dashboard/preferences', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ hiddenSections: '[]', sectionOrder: '[]' })
-  }).catch(() => {});
+  }).catch(e => CGP_showError(e, 'The reset layout was not saved to your account.'));
   applyDashPrefs(_custRole(), _custIsChurch());
   _refreshHiddenTray();
 }
@@ -1881,8 +1882,7 @@ function resetDashPrefs() {
 async function loadDashboard() {
   const clientId = localStorage.getItem('clientId') || '';
   try {
-    const res  = await fetch(`/api/admin/dashboard?clientId=${encodeURIComponent(clientId)}`);
-    const data = await res.json();
+    const data = await CGP_api(`/api/admin/dashboard?clientId=${encodeURIComponent(clientId)}`);
     renderBanner(data);
     renderStatCards(data);
     renderGrowthChart(data.membersByMonth || []);
@@ -1891,6 +1891,7 @@ async function loadDashboard() {
     renderUpcoming(data.upcomingMeetings || []);
   } catch (e) {
     console.error('Dashboard load failed', e);
+    CGP_showError(e, 'The dashboard could not be loaded.');
   }
 }
 
@@ -2067,8 +2068,7 @@ function shiftCal(delta) {
 
 async function loadCalEvents() {
   try {
-    const res  = await fetch(`/api/event-calendar/events?year=${calYear}&month=${calMonth}`);
-    const data = await res.json();
+    const data = await CGP_api(`/api/event-calendar/events?year=${calYear}&month=${calMonth}`);
     calEvMap = {};
     (Array.isArray(data) ? data : []).forEach(ev => {
       const key = ev.date ? ev.date.slice(0, 10) : null;
@@ -2156,9 +2156,8 @@ async function shiftStatMonth(delta) {
 async function fetchDashDataForYear(year) {
   const clientId = localStorage.getItem('clientId') || '';
   try {
-    const res = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
-    return await res.json();
-  } catch (e) { console.error('Stat pie year fetch error', e); return null; }
+    return await CGP_api(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
+  } catch (e) { console.error('Stat pie year fetch error', e); CGP_showError(e, 'Could not load that year.'); return null; }
 }
 
 function shiftBarYear(delta) {
@@ -2171,10 +2170,9 @@ function shiftBarYear(delta) {
 async function fetchAndRenderBarForYear(year) {
   const clientId = localStorage.getItem('clientId') || '';
   try {
-    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
-    const data = await res.json();
+    const data = await CGP_api(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}&year=${year}`);
     renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
-  } catch(e) { console.error('Bar chart year fetch error', e); }
+  } catch(e) { console.error('Bar chart year fetch error', e); CGP_showError(e, 'Could not load that year.'); }
 }
 
 function renderStatPiesForMonth(data) {
@@ -2211,8 +2209,7 @@ const CAT_ACCENTS = ['#673147','#42a5f5','#26c6da','#26a69a','#7986cb','#66bb6a'
 async function loadAccountantDashboard() {
   const clientId = localStorage.getItem('clientId') || '';
   try {
-    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
-    const data = await res.json();
+    const data = await CGP_api(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
     _cachedDashData = data;
     renderAcctBanner(data);
     renderAcctSummary(data);
@@ -2226,7 +2223,7 @@ async function loadAccountantDashboard() {
     document.getElementById('acctBarYearLabel').textContent = String(_barYear);
     document.getElementById('acctBarTitle').textContent = `${_barYear} Transactions`;
     renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
-  } catch(e) { console.error('Accountant dashboard error', e); }
+  } catch(e) { console.error('Accountant dashboard error', e); CGP_showError(e, 'The dashboard could not be loaded.'); }
 }
 
 function renderAcctBanner(data) {
@@ -2490,26 +2487,22 @@ async function submitQuickAddIncome(templateId) {
   if (!confirm('Do you want to add this contribution?')) return;
   btn.disabled = true; btn.textContent = '…';
   try {
-    const res = await fetch('/api/income', {
+    await CGP_api('/api/income', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ memberId: template.memberId, subSourceId: template.subSourceId,
         incomeDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
     });
-    const data = await res.json();
-    if (res.ok) {
+    {
       btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
       if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
       if (refEl)  refEl.value  = '';
       if (noteEl) noteEl.value = template.note || '';
       if (msg) msg.style.display = '';
       await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
-    } else {
-      alert(data.error || 'Failed to save income.');
-      btn.disabled = false; btn.textContent = 'Add';
     }
   } catch(e) {
-    alert('Network error. Please try again.');
+    alert(CGP_errorMessage(e, 'Failed to save income.'));
     btn.disabled = false; btn.textContent = 'Add';
   }
 }
@@ -2520,8 +2513,8 @@ async function removeQuickAddIncome(incomeId) {
   const rmBtn = document.getElementById(`qai-rm-${rowIdx}`);
   if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
   try {
-    const res = await fetch(`/api/income/${incomeId}/unstar`, { method: 'PATCH' });
-    if (res.ok) {
+    await CGP_api(`/api/income/${incomeId}/unstar`, { method: 'PATCH' });
+    {
       // Remove row from DOM
       const row = rmBtn ? rmBtn.closest('tr') : null;
       if (row) row.remove();
@@ -2531,13 +2524,10 @@ async function removeQuickAddIncome(incomeId) {
         document.getElementById('quickAddIncomePanel').innerHTML =
           '<div class="qa-empty">No recurring income record yet. Set an income record on the <a href="/income" style="color:#673147;">Income page</a>.</div>';
       }
-    } else {
-      if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
-      alert('Failed to remove. Please try again.');
     }
   } catch(e) {
     if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
-    alert('Network error. Please try again.');
+    alert(CGP_errorMessage(e, 'Failed to remove. Please try again.'));
   }
 }
 
@@ -2626,26 +2616,22 @@ async function submitQuickAddExpense(templateId) {
   if (!confirm('Do you want to add this expense?')) return;
   btn.disabled = true; btn.textContent = '…';
   try {
-    const res = await fetch('/api/expense', {
+    await CGP_api('/api/expense', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ purposeId: template.purposeId, mainSourceId: template.mainSourceId,
         expenseDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
     });
-    const data = await res.json();
-    if (res.ok) {
+    {
       btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
       if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
       if (refEl)  refEl.value  = '';
       if (noteEl) noteEl.value = template.note || '';
       if (msg) msg.style.display = '';
       await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
-    } else {
-      alert(data.error || 'Failed to save expense.');
-      btn.disabled = false; btn.textContent = 'Add';
     }
   } catch(e) {
-    alert('Network error. Please try again.');
+    alert(CGP_errorMessage(e, 'Failed to save expense.'));
     btn.disabled = false; btn.textContent = 'Add';
   }
 }
@@ -2656,8 +2642,8 @@ async function removeQuickAddExpense(expenseId) {
   const rmBtn = document.getElementById(`qae-rm-${rowIdx}`);
   if (rmBtn) { rmBtn.disabled = true; rmBtn.textContent = '…'; }
   try {
-    const res = await fetch(`/api/expense/${expenseId}/unstar`, { method: 'PATCH' });
-    if (res.ok) {
+    await CGP_api(`/api/expense/${expenseId}/unstar`, { method: 'PATCH' });
+    {
       // Remove row from DOM
       const row = rmBtn ? rmBtn.closest('tr') : null;
       if (row) row.remove();
@@ -2667,13 +2653,10 @@ async function removeQuickAddExpense(expenseId) {
         document.getElementById('quickAddExpensePanel').innerHTML =
           '<div class="qa-empty">No recurring expense record yet. Set an expense record on the <a href="/expense" style="color:#673147;">Expense page</a>.</div>';
       }
-    } else {
-      if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
-      alert('Failed to remove. Please try again.');
     }
   } catch(e) {
     if (rmBtn) { rmBtn.disabled = false; rmBtn.textContent = '✕'; }
-    alert('Network error. Please try again.');
+    alert(CGP_errorMessage(e, 'Failed to remove. Please try again.'));
   }
 }
 
@@ -2750,8 +2733,7 @@ function drawRecentTxns() {
 async function refreshRecentTxns() {
   try {
     const clientId = localStorage.getItem('clientId') || '';
-    const res  = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
-    const data = await res.json();
+    const data = await CGP_api(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
     renderRecentTxns(data.recentActivity || []);   // resets to page 0
   } catch(e) { /* non-critical */ }
 }
@@ -2809,11 +2791,11 @@ async function runAiSearch() {
   try {
     // Route help/how-to queries to the help search API; data queries to AI search.
     const endpoint = _isHelpQuery(query) ? '/api/help/search' : '/api/ai-search';
-    const fetchPromise = fetch(endpoint, {
+    const fetchPromise = CGP_api(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query })
-    }).then(r => r.json());
+    });
     const data = await Promise.race([fetchPromise, timeoutPromise]);
     clearTimeout(_aiTimer);
     renderAiResults(data, query);
@@ -2821,7 +2803,7 @@ async function runAiSearch() {
     clearTimeout(_aiTimer);
     const msg = err.message === 'timeout'
       ? 'Unable to fetch the results. Please try again.'
-      : 'An error occurred. Please try again.';
+      : CGP_errorMessage(err, 'An error occurred. Please try again.');
     renderAiResults({ intent: 'error', answer: msg, results: [], links: [] }, query);
   } finally {
     btn.disabled = false; btn.textContent = 'Search';
@@ -2980,8 +2962,7 @@ function fmtCurrency(num) {
     const logoWrap = document.querySelector('.topbar-logo-wrap');
     if (!inner) return;
     try {
-      const res  = await fetch('/api/logo/meta');
-      const meta = await res.json();
+      const meta = await CGP_api('/api/logo/meta');
       if (meta.exists) {
         inner.innerHTML = `<img src="/api/logo/image?t=${Date.now()}" alt="${cn}" />`;
       } else {

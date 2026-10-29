@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class IncomeService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(IncomeService.class);
 
     private final IncomeRepository          incomeRepo;
     private final FamilyMemberRepository    memberRepo;
@@ -227,15 +228,20 @@ public class IncomeService {
             // statement line between our check above and this insert.
             throw duplicateFromRace("income", appClientId, ref, incomeDate, amount);
         }
-        // Auto-credit pledge balance when the contributor matches a member
-        // with an active pledge against this fund. Silent on failure.
+        // Auto-credit pledge balance when the contributor matches a member with an
+        // active pledge against this fund. The hook runs in its own transaction
+        // (REQUIRES_NEW), so a failure never rolls back the income; it is logged with
+        // the income id so a drifted pledge balance can be found (audit 2026-10-28, M2).
         try {
             if (member != null && saved.getSubSource() != null) {
                 pledgeController.applyIncomeToPledge(appClientId,
                         saved.getSubSource().getId(), member.getId(), saved.getAmount(),
                         saved.getIncomeDate());
             }
-        } catch (Exception ignored) { /* pledge module is optional */ }
+        } catch (Exception e) {
+            log.warn("[Income] pledge auto-credit failed for income {} (client {}); the income is saved, the pledge balance was not credited — {}",
+                    saved.getId(), appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
         return saved;
     }
 
@@ -324,7 +330,10 @@ public class IncomeService {
                         saved.getSubSource().getId(), saved.getMember().getId(), saved.getAmount(),
                         saved.getIncomeDate());
             }
-        } catch (Exception ignored) { /* pledge module is optional */ }
+        } catch (Exception e) {
+            log.warn("[Income] pledge re-allocation failed for income {} (client {}); the income is saved, check the pledge balance — {}",
+                    saved.getId(), appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
         return saved;
     }
 
@@ -360,7 +369,10 @@ public class IncomeService {
                 pledgeController.adjustPledgeByDelta(origClientId,
                         origSubSourceId, origMemberId, origAmount.negate(), origIncomeDate);
             }
-        } catch (Exception ignored) { /* pledge module is optional */ }
+        } catch (Exception e) {
+            log.warn("[Income] pledge credit-back failed for deleted income {} (client {}); check the pledge balance — {}",
+                    id, appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

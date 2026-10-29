@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1982,11 +1983,11 @@ function saveKmSetup() {
     dedupeEmail:             document.getElementById('suDedupeEmail').checked,
     dedupeMemberId:          document.getElementById('suDedupeMemberId').checked
   };
-  fetch('/api/kids-ministry/child-setup', {
+  CGP_api('/api/kids-ministry/child-setup', {
     method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-  }).then(function(r){ return r.json(); }).then(function(s){
+  }).then(function(s){
     KM_SETUP = s; kmApplyChildSetup(); closeModal('kmSetupModal'); toast('Setup saved');
-  }).catch(function(){ toast('Could not save setup', true); });
+  }).catch(function(e){ CGP_showError(e, 'Could not save setup'); });
 }
 
 // ── Full-screen register mode ──
@@ -2097,8 +2098,7 @@ function kmRenderAuditLine(c) {
 var _kmActive = [];
 function kmLoadActive() {
   var today = new Date().toISOString().slice(0, 10);
-  fetch('/api/kids-ministry/checkins/history?from=' + today + '&to=' + today)
-    .then(function(r){ return r.json(); })
+  CGP_api('/api/kids-ministry/checkins/history?from=' + today + '&to=' + today)
     .then(function(data){ _kmActive = Array.isArray(data) ? data : []; kmRenderActive(); })
     .catch(function(){ /* ignore */ });
 }
@@ -2167,8 +2167,7 @@ function kmConfirmManualCheckout() {
 ═══════════════════════════════════════════════════════════════════ */
 var _kmDash = [];
 function kmLoadDashboard() {
-  fetch('/api/kids-ministry/pickup-dashboard')
-    .then(function(r){ return r.json(); })
+  CGP_api('/api/kids-ministry/pickup-dashboard')
     .then(function(d){
       _kmDash = (d && d.children) || [];
       var def = [];
@@ -2267,12 +2266,12 @@ function kmDashSnooze(checkinId) {
   if (v == null) return;
   var mins = parseInt(v, 10);
   if (!mins || mins < 1) { toast('Enter a number of minutes', true); return; }
-  fetch('/api/kids-ministry/checkins/' + checkinId + '/snooze', {
+  CGP_api('/api/kids-ministry/checkins/' + checkinId + '/snooze', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ minutes: mins })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) { toast('Snoozed ' + mins + ' min'); kmLoadDashboard(); }
     else toast(d.error || 'Could not snooze', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 function kmConfirmExtend(minutes) { _kmExtend({ minutes: minutes }); }
 function kmConfirmExtendTime() {
@@ -2294,7 +2293,7 @@ function coLookup() {
       if (!res.ok) { box.innerHTML = '<div style="color:#c62828;font-size:13px;padding:6px 0;">' + esc(res.d.error || 'Not found') + '</div>'; return; }
       coRenderResults(res.d.code, res.d.entries || []);
     })
-    .catch(function(){ toast('Lookup error', true); });
+    .catch(function(e){ CGP_showError(e, 'Lookup error'); });
 }
 
 function coRenderResults(code, entries) {
@@ -2320,11 +2319,11 @@ function coRenderResults(code, entries) {
 
 // Guardian-only rows (no child) check out directly by row id.
 function coCheckoutRow(id) {
-  fetch('/api/kids-ministry/checkins/' + id + '/checkout', {
+  CGP_api('/api/kids-ministry/checkins/' + id + '/checkout', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) { toast('Checked out'); coLookup(); if (typeof kmLoadActive==='function') kmLoadActive(); } else toast(d.error || 'Failed', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 // Child rows require guardian verification before check-out.
@@ -2333,7 +2332,7 @@ function coStartVerify(code, childId) {
   document.getElementById('coPickupName').value = '';
   document.getElementById('coPickupPhone').value = '';
   document.getElementById('coVerifyMsg').textContent = '';
-  fetch('/api/kids-ministry/children/' + childId).then(function(r){ return r.json(); }).then(function(c){
+  CGP_api('/api/kids-ministry/children/' + childId).then(function(c){
     document.getElementById('coVerifyChild').textContent = 'Picking up: ' + (c.firstName || '') + ' ' + (c.lastName || '');
     var auth = [];
     if (c.parentName) auth.push(esc(c.parentName) + ' <span style="color:#999;">(parent' + (c.parentPhone ? ' · ' + esc(c.parentPhone) : '') + ')</span>');
@@ -2344,7 +2343,7 @@ function coStartVerify(code, childId) {
       '<div style="font-weight:600;margin-bottom:4px;">Authorized to pick up:</div>' +
       (auth.length ? auth.map(function(a){ return '• ' + a; }).join('<br>') : '<em>None on file</em>');
     openModal('coVerifyModal');
-  }).catch(function(){ toast('Could not load child', true); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load child'); });
 }
 
 function coConfirmCheckout() {
@@ -2416,7 +2415,7 @@ function kmLoadCheckinFrame(force) {
     frame.src = '/kidsCheckin?cid=' + encodeURIComponent(cid);
   };
   if (_kmCheckinCid) { go(_kmCheckinCid); return; }
-  fetch('/api/kids-ministry/checkin-cid').then(function(r){ return r.json(); })
+  CGP_api('/api/kids-ministry/checkin-cid')
     .then(function(d){ _kmCheckinCid = d.cid; go(d.cid); })
     .catch(function(){ if (loading) loading.textContent = 'Check-in is unavailable.'; });
 }
@@ -2429,7 +2428,7 @@ function kmReloadCheckinFrame() {
 }
 function kmCheckinFullScreen() {
   if (_kmCheckinCid) window.open('/kidsCheckin?cid=' + encodeURIComponent(_kmCheckinCid), '_blank', 'noopener');
-  else fetch('/api/kids-ministry/checkin-cid').then(function(r){ return r.json(); })
+  else CGP_api('/api/kids-ministry/checkin-cid')
         .then(function(d){ _kmCheckinCid = d.cid; if (d.cid) window.open('/kidsCheckin?cid=' + encodeURIComponent(d.cid), '_blank', 'noopener'); });
 }
 
@@ -2447,14 +2446,14 @@ function kmOpenRegisteredPanel(items) {
   openModal('kmRegisteredModal');
 }
 function kmCheckInOneRegistered(childId, name, btn) {
-  fetch('/api/kids-ministry/checkins', { method:'POST',
+  CGP_api('/api/kids-ministry/checkins', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ childId: childId }) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) {
       printSecurityCode(d.childName || name, d.securityCode, d.classroomName || '');
       if (btn) { btn.textContent = '✓ ' + d.securityCode; btn.disabled = true; btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); }
     } else toast(d.error || 'Check-in failed', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 function kmCheckInAllRegistered() {
   var rows = Array.prototype.slice.call(document.querySelectorAll('#kmRegisteredList .checkin-child-row'));
@@ -2487,7 +2486,7 @@ function esc(s) {
    OVERVIEW / SUMMARY
 ═══════════════════════════════════════════════════════════════════ */
 function loadSummary() {
-  fetch('/api/kids-ministry/summary').then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/kids-ministry/summary').then(function(d){
     document.getElementById('statChildren').textContent   = d.totalChildren   != null ? d.totalChildren   : '—';
     document.getElementById('statCheckedIn').textContent  = d.checkedInToday  != null ? d.checkedInToday  : '—';
     document.getElementById('statClassrooms').textContent = d.totalClassrooms != null ? d.totalClassrooms : '—';
@@ -2513,18 +2512,18 @@ function loadSummary() {
         + '<td>' + (s.capacity || '—') + (pct !== null ? ' <small style="color:#888">(' + pct + '% full)</small>' : '') + '</td>'
         + '<td>' + statusChip + '</td></tr>';
     }).join('');
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    CLASSROOMS
 ═══════════════════════════════════════════════════════════════════ */
 function loadClassrooms() {
-  return fetch('/api/kids-ministry/classrooms').then(function(r){ return r.json(); }).then(function(d){
+  return CGP_api('/api/kids-ministry/classrooms').then(function(d){
     allClassrooms = d;
     renderClassrooms();
     populateClassroomDropdowns();
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 function renderClassrooms() {
@@ -2581,19 +2580,19 @@ function saveClassroom() {
     roomNumber:  document.getElementById('rRoom').value.trim() || null,
     description: document.getElementById('rDesc').value.trim() || null
   };
-  fetch('/api/kids-ministry/classrooms', { method:'POST',
+  CGP_api('/api/kids-ministry/classrooms', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) { closeModal('classroomModal'); toast('Classroom saved!'); loadClassrooms(); }
     else toast(d.error || 'Error saving', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function deleteClassroom(id) {
   if (!confirm('Delete this classroom?')) return;
-  fetch('/api/kids-ministry/classrooms/' + id, { method:'DELETE' })
+  CGP_api('/api/kids-ministry/classrooms/' + id, { method:'DELETE' })
   .then(function(){ toast('Classroom deleted'); loadClassrooms(); })
-  .catch(function(){ toast('Error deleting', true); });
+  .catch(function(e){ CGP_showError(e, 'Error deleting'); });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2601,11 +2600,11 @@ function deleteClassroom(id) {
 ═══════════════════════════════════════════════════════════════════ */
 function loadChildren() {
   var inc = document.getElementById('chkInactive') && document.getElementById('chkInactive').checked;
-  return fetch('/api/kids-ministry/children?includeInactive=' + inc)
-  .then(function(r){ return r.json(); }).then(function(d){
+  return CGP_api('/api/kids-ministry/children?includeInactive=' + inc)
+  .then(function(d){
     allChildren = d;
     renderChildren();
-  }).catch(function(e){ console.error(e); });
+  }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
 }
 
 function renderChildren() {
@@ -3390,7 +3389,7 @@ function openChildModal(id, fullscreen) {
     kmLoadMemberList();
 
     if (id) {
-      fetch('/api/kids-ministry/children/' + id).then(function(r){ return r.json(); }).then(function(c){
+      CGP_api('/api/kids-ministry/children/' + id).then(function(c){
         document.getElementById('cFirstName').value   = c.firstName || '';
         document.getElementById('cLastName').value    = c.lastName  || '';
         document.getElementById('cDob').value         = c.dob       || '';
@@ -3423,7 +3422,7 @@ function openChildModal(id, fullscreen) {
           kmResetMemberSearch();
         }
         openModal('childModal');
-      }).catch(function(){ toast('Error loading child', true); });
+      }).catch(function(e){ CGP_showError(e, 'Error loading child'); });
     } else {
       ['cFirstName','cLastName','cDob','cParentName','cParentPhone','cParentEmail',
        'cEmergName','cEmergPhone','cAllergies','cMedical'].forEach(function(f){ document.getElementById(f).value = ''; });
@@ -3464,11 +3463,11 @@ function populateClassroomDropdowns() {
 function autoAssignClassroom() {
   var id = document.getElementById('childId').value;
   if (!id) { toast('Save the child first, then auto-assign', true); return; }
-  fetch('/api/kids-ministry/children/' + id + '/auto-assign-classroom', { method:'POST' })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api('/api/kids-ministry/children/' + id + '/auto-assign-classroom', { method:'POST' })
+  .then(function(d){
     if (d.success) { document.getElementById('cClassroom').value = d.classroomId; toast('Assigned to: ' + d.className); }
     else toast(d.error || 'Cannot auto-assign', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function saveChild() {
@@ -3605,11 +3604,11 @@ function saveChild() {
           body:    JSON.stringify(batch[i])
         });
         var data = await res.json().catch(function(){ return {}; });
-        if (data.success) {
+        if (res.ok && data.success) {
           savedCount++;
           savedItems.push({ id: data.id, name: (batch[i].firstName + ' ' + batch[i].lastName).trim() });
         } else {
-          failed.push((batch[i].firstName + ' ' + batch[i].lastName).trim() + ': ' + (data.error || 'failed'));
+          failed.push((batch[i].firstName + ' ' + batch[i].lastName).trim() + ': ' + (data.error || data.message || ('HTTP ' + res.status)) + (data.ref ? ' (ref ' + data.ref + ')' : ''));
         }
       } catch (e) {
         failed.push((batch[i].firstName + ' ' + batch[i].lastName).trim() + ': network error');
@@ -3636,9 +3635,9 @@ function saveChild() {
 
 function deleteChild(id) {
   if (!confirm('Remove this child from Kids Ministry?')) return;
-  fetch('/api/kids-ministry/children/' + id, { method:'DELETE' })
+  CGP_api('/api/kids-ministry/children/' + id, { method:'DELETE' })
   .then(function(){ toast('Child removed'); loadChildren(); })
-  .catch(function(){ toast('Error deleting', true); });
+  .catch(function(e){ CGP_showError(e, 'Error deleting'); });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3778,7 +3777,7 @@ var KMSCAN = (function(){
           toast(data.note ? data.note : 'Form read — review and save.');
         }
       })
-      .catch(function(){ toast('Upload failed', true); });
+      .catch(function(e){ CGP_showError(e, 'Upload failed'); });
   }
 
   function openCompare(){
@@ -3834,10 +3833,10 @@ var KMSCAN = (function(){
 function loadActiveCheckins() {
   var p = allClassrooms.length === 0 ? loadClassrooms() : Promise.resolve();
   p.then(function(){
-    fetch('/api/kids-ministry/checkins/active').then(function(r){ return r.json(); }).then(function(d){
+    CGP_api('/api/kids-ministry/checkins/active').then(function(d){
       activeCheckins = Array.isArray(d) ? d : [];
       renderCheckinBoard();
-    }).catch(function(e){ console.error(e); });
+    }).catch(function(e){ CGP_showError(e, 'Could not load data'); });
   });
 }
 
@@ -3954,17 +3953,17 @@ function buildCheckinRow(ci, roomName) {
 /* Check out a single check-in row by id. Used for both kid and guardian
    rows so the same endpoint handles both shapes. */
 function checkoutByCheckinId(id) {
-  fetch('/api/kids-ministry/checkins/' + id + '/checkout', {
+  CGP_api('/api/kids-ministry/checkins/' + id + '/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
   })
-  .then(function(r){ return r.json(); })
+  
   .then(function(d){
     if (d.success) { toast('✅ Checked out'); loadActiveCheckins(); }
     else toast(d.error || 'Check-out failed', true);
   })
-  .catch(function(){ toast('Server error', true); });
+  .catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* Close every active row sharing the same familyCheckinCode (kid + parent
@@ -3972,12 +3971,12 @@ function checkoutByCheckinId(id) {
 function checkoutFamilyByCode(code) {
   if (!code) return;
   if (!confirm('Check out everyone with code ' + code + '?')) return;
-  fetch('/api/kids-ministry/checkins/checkout-family', {
+  CGP_api('/api/kids-ministry/checkins/checkout-family', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ familyCheckinCode: code })
   })
-  .then(function(r){ return r.json(); })
+  
   .then(function(d){
     if (d.success) {
       var n = d.closed != null ? d.closed : 1;
@@ -3985,7 +3984,7 @@ function checkoutFamilyByCode(code) {
       loadActiveCheckins();
     } else toast(d.error || 'Family check-out failed', true);
   })
-  .catch(function(){ toast('Server error', true); });
+  .catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 // Formats a Date (or ISO string) like "May 27, 2026 7:30 PM" — matches the
@@ -4010,19 +4009,19 @@ function kmChildCheckIn(childId, childName) {
 function kmChildCheckOut(childId, childName) {
   if (!confirm('Check out ' + childName + '?')) return;
   var by = prompt('Picked up by (name) — optional:', '');
-  fetch('/api/kids-ministry/checkins/checkout-by-child', {
+  CGP_api('/api/kids-ministry/checkins/checkout-by-child', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ childId: childId, method: 'List', checkedOutBy: (by || '').trim() || null })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) { toast('✅ ' + childName + ' checked out'); loadChildren(); if (typeof kmLoadActive==='function') kmLoadActive(); }
     else toast(d.error || 'Check-out failed', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function checkInChild(childId, childName) {
-  fetch('/api/kids-ministry/checkins', { method:'POST',
+  CGP_api('/api/kids-ministry/checkins', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ childId: childId }) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) {
       document.getElementById('successChildName').textContent = d.childName || childName;
       document.getElementById('successCode').textContent = d.securityCode;
@@ -4035,7 +4034,7 @@ function checkInChild(childId, childName) {
       }
       openModal('checkinSuccessModal');
     } else toast(d.error || 'Check-in failed', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function printSecurityCode(childName, code, roomName) {
@@ -4074,8 +4073,8 @@ function printSecurityCode(childName, code, roomName) {
 function lookupByPhone() {
   var phone = document.getElementById('phoneSearch').value.trim();
   if (!phone) return;
-  fetch('/api/kids-ministry/children/lookup?phone=' + encodeURIComponent(phone))
-  .then(function(r){ return r.json(); }).then(function(children){
+  CGP_api('/api/kids-ministry/children/lookup?phone=' + encodeURIComponent(phone))
+  .then(function(children){
     var div = document.getElementById('phoneResults');
     if (children.length === 0) {
       div.innerHTML = '<div style="color:#888;font-size:13px;padding:8px 0;">No children found for this phone number.</div>';
@@ -4089,18 +4088,18 @@ function lookupByPhone() {
         + '<button class="btn btn-primary btn-sm" onclick="checkInChild(' + c.id + ',\'' + esc(c.firstName + ' ' + c.lastName) + '\');setTimeout(loadActiveCheckins,500);">Check In</button>'
         + '</div>';
     }).join('');
-  }).catch(function(){ toast('Lookup error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Lookup error'); });
 }
 
 function checkoutByCode() {
   var code = document.getElementById('codeInput').value.trim().toUpperCase();
   if (!code) { toast('Enter a security code', true); return; }
-  fetch('/api/kids-ministry/checkins/checkout', { method:'POST',
+  CGP_api('/api/kids-ministry/checkins/checkout', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ securityCode: code }) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) { toast('✅ Child checked out!'); document.getElementById('codeInput').value = ''; loadActiveCheckins(); }
     else toast(d.error || 'Not found', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* ── Barcode scan → look up the check-in group → check out (staff only) ──
@@ -4122,7 +4121,7 @@ function scanLookup() {
   .then(function(res){
     if (!res.ok) { wrap.innerHTML = ''; toast(res.d.error || 'Not found', true); return; }
     renderScanResults(res.d);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function renderScanResults(data) {
@@ -4195,12 +4194,12 @@ function scanCheckoutAll(btn) {
 
 function checkoutByChildId(childId) {
   if (!confirm('Check out this child?')) return;
-  fetch('/api/kids-ministry/checkins/checkout-by-child', { method:'POST',
+  CGP_api('/api/kids-ministry/checkins/checkout-by-child', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ childId: childId }) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  .then(function(d){
     if (d.success) { toast('✅ Checked out'); loadActiveCheckins(); }
     else toast(d.error || 'Error', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -4211,8 +4210,8 @@ var kmRoles      = [];   // KmVolunteerRole definitions [{id, roleName}]
 var kmAllMembers = [];   // FamilyMember typeahead cache
 
 function loadVolunteers() {
-  var volsP  = fetch('/api/kids-ministry/volunteers').then(function(r){ return r.json(); });
-  var rolesP = fetch('/api/kids-ministry/volunteer-roles').then(function(r){ return r.json(); });
+  var volsP  = CGP_api('/api/kids-ministry/volunteers');
+  var rolesP = CGP_api('/api/kids-ministry/volunteer-roles');
   Promise.all([volsP, rolesP]).then(function(results){
     kmVols  = Array.isArray(results[0]) ? results[0] : [];
     kmRoles = Array.isArray(results[1]) ? results[1] : [];
@@ -4241,25 +4240,25 @@ function kmAddRole() {
   var inp = document.getElementById('kmVolRoleInput');
   var name = (inp.value||'').trim();
   if (!name) return;
-  fetch('/api/kids-ministry/volunteer-roles', { method:'POST',
+  CGP_api('/api/kids-ministry/volunteer-roles', { method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ roleName: name })
-  }).then(function(r){ return r.json(); }).then(function(d){
+  }).then(function(d){
     if (d.success) { inp.value=''; loadVolunteers(); }
     else toast(d.error||'Error', true);
-  }).catch(function(){ toast('Server error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Server error'); });
 }
 
 function kmDeleteRole(id) {
   if (!confirm('Remove this role?')) return;
-  fetch('/api/kids-ministry/volunteer-roles/' + id, { method:'DELETE' })
+  CGP_api('/api/kids-ministry/volunteer-roles/' + id, { method:'DELETE' })
   .then(function(){ loadVolunteers(); })
-  .catch(function(){ toast('Error', true); });
+  .catch(function(e){ CGP_showError(e, 'Error'); });
 }
 
 /* ── Member search dropdown ──────────────────────────────── */
 function kmOpenMemberDd() {
   if (kmAllMembers.length === 0) {
-    fetch('/api/members?search=').then(function(r){ return r.json(); }).then(function(d){
+    CGP_api('/api/members?search=').then(function(d){
       kmAllMembers = d || [];
       kmFilterMemberDd();
     }).catch(function(){});
@@ -4418,11 +4417,11 @@ function kmSaveEditModal() {
   };
   var url  = id ? '/api/kids-ministry/volunteers/' + id : '/api/kids-ministry/volunteers';
   var meth = id ? 'PUT' : 'POST';
-  fetch(url, { method: meth, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
-  .then(function(r){ return r.json(); }).then(function(d){
+  CGP_api(url, { method: meth, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+  .then(function(d){
     if (d && d.error) { toast(d.error, true); return; }
     kmCloseEditModal(); loadVolunteers(); toast('Saved!');
-  }).catch(function(){ toast('Save error', true); });
+  }).catch(function(e){ CGP_showError(e, 'Save error'); });
 }
 
 /* ── Volunteer table ─────────────────────────────────────── */
@@ -4471,19 +4470,19 @@ function kmRenderTable() {
 }
 
 function kmUpdateStatus(sel, id) {
-  fetch('/api/kids-ministry/volunteers/' + id, { method:'PUT',
+  CGP_api('/api/kids-ministry/volunteers/' + id, { method:'PUT',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: sel.value })
   }).then(function(){
     sel.className = 'vol-status-sel vol-status-' + sel.value;
     toast('Status updated');
-  }).catch(function(){ toast('Error updating status', true); });
+  }).catch(function(e){ CGP_showError(e, 'Error updating status'); });
 }
 
 function kmDeleteVol(id) {
   if (!confirm('Remove this volunteer?')) return;
-  fetch('/api/kids-ministry/volunteers/' + id, { method:'DELETE' })
+  CGP_api('/api/kids-ministry/volunteers/' + id, { method:'DELETE' })
   .then(function(){ toast('Removed'); loadVolunteers(); })
-  .catch(function(){ toast('Error', true); });
+  .catch(function(e){ CGP_showError(e, 'Error'); });
 }
 
 /* ── Individual messaging ────────────────────────────────── */
@@ -4584,16 +4583,25 @@ function kmCmpSend() {
     }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){
       if (!r.ok) { toast(d.error || 'Send error', true); return; }
       kmCmpClose(); toast(d.message ? '🧪 ' + d.message : 'Email sent!'); }); })
-    .catch(function(){ toast('Send error', true); })
+    .catch(function(e){ CGP_showError(e, 'Send error'); })
     ['finally'](function(){ btn.disabled=false; btn.textContent='Send'; });
   } else {
     var to = _kmCmpRecipients.filter(function(r){ return r.phone; }).map(function(r){ return r.phone; });
     var body = document.getElementById('kmCmpSmsBody').value.trim();
     if (!to.length || !body) { toast('Enter message', true); btn.disabled=false; btn.textContent='Send'; return; }
-    fetch('/api/kids-ministry/volunteers/send-sms', { method:'POST',
+    CGP_api('/api/kids-ministry/volunteers/send-sms', { method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({ to: to, body: body })
-    }).then(function(){ kmCmpClose(); toast('SMS sent!'); })
-    .catch(function(){ toast('Send error', true); })
+    }).then(function(d){
+      var failed = (d && Array.isArray(d.failed)) ? d.failed : [];
+      // nothing went out (a 502 is already a rejection; this covers a 200 with sent:0)
+      if (!(d && d.sent > 0) && (failed.length || (d && d.error))) {
+        toast((d && d.error) || (failed[0] && failed[0].reason) || 'SMS could not be sent', true); return;
+      }
+      kmCmpClose();
+      if (d && d.message && !failed.length) { toast(d.message); return; }
+      var os = CGP_sendOutcome(d, 'SMS', 'volunteer'); toast(os.message, os.partial);
+    })
+    .catch(function(e){ CGP_showError(e, 'Send error'); })
     ['finally'](function(){ btn.disabled=false; btn.textContent='Send'; });
   }
 }
@@ -4642,28 +4650,28 @@ function cmpSend() {
     if (!targets.length) { toast('No email addresses available', true); return; }
     var sendBtn = document.getElementById('cmpSendBtn');
     sendBtn.disabled = true; sendBtn.textContent = 'Sending…';
-    fetch('/api/volunteers/send-email', {
+    CGP_api('/api/volunteers/send-email', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to: targets.map(function(r){ return r.email; }), subject: subject, body: body })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       sendBtn.disabled = false; sendBtn.textContent = 'Send';
-      if (d.success) { closeCmpModal(); toast(d.message ? '🧪 ' + d.message : 'Email sent ✓'); }
+      if (d.success) { closeCmpModal(); if (d.message) toast('🧪 ' + d.message); else { var oe = CGP_sendOutcome(d, 'Email', 'recipient'); toast(oe.message, oe.partial); } }
       else toast(d.error || 'Failed to send email', true);
-    }).catch(function(){ sendBtn.disabled = false; sendBtn.textContent = 'Send'; toast('Network error', true); });
+    }).catch(function(e){ sendBtn.disabled = false; sendBtn.textContent = 'Send'; toast(CGP_errorMessage(e, 'Network error'), true); });
   } else {
     var msg     = document.getElementById('cmpSmsBody').value.trim();
     var targets = _cmpRecipients.filter(function(r){ return r.phone; });
     if (!targets.length) { toast('No phone numbers available', true); return; }
     var sendBtn = document.getElementById('cmpSendBtn');
     sendBtn.disabled = true; sendBtn.textContent = 'Sending…';
-    fetch('/api/volunteers/send-sms', {
+    CGP_api('/api/volunteers/send-sms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to: targets.map(function(r){ return r.phone; }), body: msg })
-    }).then(function(r){ return r.json(); }).then(function(d){
+    }).then(function(d){
       sendBtn.disabled = false; sendBtn.textContent = 'Send';
-      if (d.success) { closeCmpModal(); toast('SMS sent ✓'); }
+      if (d.success) { closeCmpModal(); var os = CGP_sendOutcome(d, 'SMS', 'recipient'); toast(os.message, os.partial); }
       else toast(d.error || 'Failed to send SMS', true);
-    }).catch(function(){ sendBtn.disabled = false; sendBtn.textContent = 'Send'; toast('Network error', true); });
+    }).catch(function(e){ sendBtn.disabled = false; sendBtn.textContent = 'Send'; toast(CGP_errorMessage(e, 'Network error'), true); });
   }
 }
 
@@ -4682,8 +4690,7 @@ function loadHistory() {
   var qs = (from || to)
     ? '?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '')
     : '?days=30';   // sensible default window when no range is set
-  fetch('/api/kids-ministry/checkins/history' + qs)
-    .then(function(r){ return r.json(); })
+  CGP_api('/api/kids-ministry/checkins/history' + qs)
     .then(function(data) {
       _kmHistory = Array.isArray(data) ? data : [];
       renderHistory();
@@ -4960,7 +4967,7 @@ async function saveClass() {
 
 async function deleteClass(id) {
   if (!confirm('Delete this class? This cannot be undone.')) return;
-  await fetch(`/api/ss/classes/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/classes/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   if (selectedClassId === id) { document.getElementById('classDetail').style.display = 'none'; selectedClassId = null; }
   // Clear the shared selection if the deleted class was the selected one.
   if (String(ssGlobalClassId) === String(id)) ssSyncClass('');
@@ -5107,7 +5114,7 @@ async function saveTeacher() {
 
 async function deleteTeacher(id) {
   if (!confirm('Remove this teacher?')) return;
-  await fetch(`/api/ss/teachers/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/teachers/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadTeachers(); ssToast('Teacher removed.');
 }
 
@@ -5137,7 +5144,7 @@ async function addNote() {
 }
 
 async function deleteNote(id) {
-  await fetch(`/api/ss/notes/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/notes/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadNotes();
 }
 
@@ -5202,7 +5209,7 @@ async function uploadFile() {
 
 async function deleteFile(id) {
   if (!confirm('Delete this file?')) return;
-  await fetch(`/api/ss/files/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/files/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadFiles(); ssToast('File deleted.');
 }
 
@@ -5336,10 +5343,10 @@ function openStudentModal() {
   // Populate teacher dropdown
   const tSel = document.getElementById('studentTeacherSel');
   tSel.innerHTML = '<option value="">-- Select Teacher --</option>';
-  fetch(`/api/ss/classes/${classId}/teachers`).then(r => r.json()).then(teachers => {
+  CGP_api(`/api/ss/classes/${classId}/teachers`).then(teachers => {
     tSel.innerHTML += teachers.filter(t => !t.deleteFlag)
       .map(t => `<option value="${t.id}">${ssEsc(t.teacherName)}</option>`).join('');
-  });
+  }).catch(e => CGP_showError(e, 'Could not load the teachers'));
   // Reset searchable child member picker
   clearMemberSelection();
   document.getElementById('memberSearchInput').value = '';
@@ -5388,7 +5395,7 @@ async function saveStudent() {
 
 async function deleteStudent(id, classId) {
   if (!confirm('Remove this student?')) return;
-  await fetch(`/api/ss/students/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/students/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadStudents(classId);
   if (selectedStudentId === id) document.getElementById('lessonSection').style.display = 'none';
   ssToast('Student removed.');
@@ -5578,14 +5585,14 @@ async function saveLesson() {
 }
 
 async function updateLessonStatus(id, status) {
-  await fetch(`/api/ss/lessons/${id}`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+  try { await CGP_api(`/api/ss/lessons/${id}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadLessons(); ssToast('Status updated.');
 }
 
 async function deleteLesson(id) {
   if (!confirm('Delete this lesson?')) return;
-  await fetch(`/api/ss/lessons/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/lessons/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadLessons(); ssToast('Lesson deleted.');
 }
 
@@ -5719,7 +5726,7 @@ async function saveExamSettings() {
 async function deleteExam(id) {
   if (!confirm('Delete this exam?')) return;
   const classId = document.getElementById('examClassSel').value;
-  await fetch(`/api/ss/exams/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/exams/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   if (selectedExamId === id) { document.getElementById('questionSection').style.display='none'; selectedExamId=null; }
   await loadExams(classId); ssToast('Exam deleted.');
 }
@@ -5922,7 +5929,7 @@ async function saveQuestion() {
 
 async function deleteQuestion(id) {
   if (!confirm('Delete this question?')) return;
-  await fetch(`/api/ss/questions/${id}`, { method:'DELETE' });
+  try { await CGP_api(`/api/ss/questions/${id}`, { method:'DELETE' }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   await loadQuestions(selectedExamId); ssToast('Question deleted.');
 }
 
@@ -5995,10 +6002,10 @@ function renderSubmissions(subs) {
 
 async function saveTotalMarks(submissionId, val) {
   const marks = parseInt(val) || 0;
-  await fetch(`/api/ss/submissions/${submissionId}/marks`, {
+  try { await CGP_api(`/api/ss/submissions/${submissionId}/marks`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ totalMarks: marks })
-  });
+  }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   ssToast('Marks updated!');
 }
 
@@ -6084,9 +6091,9 @@ async function saveAllManualMarks() {
     const inp = document.getElementById(`manualMarks_${q.answerId}`);
     if (!inp) continue;
     const marks = parseInt(inp.value) || 0;
-    await fetch(`/api/ss/answers/${q.answerId}/marks`, {
+    try { await CGP_api(`/api/ss/answers/${q.answerId}/marks`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ manualMarks: marks }) });
+      body: JSON.stringify({ manualMarks: marks }) }); } catch (e) { CGP_showError(e, 'The change was not saved.'); return; }
   }
   ssCloseModal('answerModal');
   await loadSubmissions();
@@ -6162,12 +6169,15 @@ async function adminSendToParent() {
     const json = await res.json().catch(() => ({}));
     if (res.ok) {
       const sent = json.emailsSent || 0;
-      ssToast('📧 Result sent (' + sent + ' email' + (sent !== 1 ? 's' : '') + ')');
+      const errs = Array.isArray(json.errors) ? json.errors : [];
+      // "partial": some addresses were not reached — say so instead of "sent"
+      if (errs.length) ssToast('📧 Result sent (' + sent + ' email' + (sent !== 1 ? 's' : '') + '), but: ' + errs.join('; '), true);
+      else ssToast('📧 Result sent (' + sent + ' email' + (sent !== 1 ? 's' : '') + ')');
     } else {
-      ssToast('Failed to send: ' + (json.error || res.status), true);
+      ssToast('Failed to send: ' + (json.error || json.message || ('HTTP ' + res.status)) + (json.ref ? ' (ref ' + json.ref + ')' : ''), true);
     }
   } catch(e) {
-    ssToast('Error: ' + e.message, true);
+    ssToast(CGP_errorMessage(e, 'Network error — the result was not sent.'), true);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📧 Send to Parent'; }
   }

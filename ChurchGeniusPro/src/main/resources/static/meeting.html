@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1060,8 +1061,7 @@
   ════════════════════════════════════ */
   async function loadMeetingTypes() {
     try {
-      const res  = await fetch('/api/meeting-types');
-      allMeetingTypes = await res.json();
+      allMeetingTypes = await CGP_api('/api/meeting-types');
       const sel  = document.getElementById('meetingType');
       allMeetingTypes.forEach(mt => {
         const opt = document.createElement('option');
@@ -1073,19 +1073,17 @@
 
   async function loadLocations() {
     try {
-      const res  = await fetch('/api/meetings/locations');
-      allLocations = await res.json();
+      allLocations = await CGP_api('/api/meetings/locations');
       window.allLocations = allLocations;   // expose to the AI assistant (meeting-voice.js)
     } catch { /* ignore */ }
   }
 
   async function loadMeetings() {
     try {
-      const res = await fetch('/api/meetings');
-      allMeetings = await res.json();
+      allMeetings = await CGP_api('/api/meetings');
       renderMeetingsTable();
-    } catch {
-      showFeedback('Could not load meetings.', 'error');
+    } catch (e) {
+      showFeedback(CGP_errorMessage(e, 'Could not load meetings.'), 'error');
     }
   }
 
@@ -1168,8 +1166,7 @@
     // clobber the detected start time or inject an unwanted end time.
     if (opts.fromAssistant) return;
     try {
-      const res  = await fetch(`/api/meetings/type/${typeId}/last-times`);
-      const data = await res.json();
+      const data = await CGP_api(`/api/meetings/type/${typeId}/last-times`);
       const st = document.getElementById('startTime');
       const et = document.getElementById('endTime');
       // Only suggest last-used times into fields the user hasn't already filled.
@@ -1543,14 +1540,23 @@
     document.getElementById('imgPreview').src = '';
   }
 
-  /** After saving a meeting, upload the image (or delete it if removed). */
+  /**
+   * After saving a meeting, upload the image (or delete it if removed).
+   * Returns null when nothing went wrong, else the sentence to show: the meeting
+   * itself IS saved at this point, so an image failure must be reported, not swallowed.
+   */
   async function handleImgAfterSave(meetingId) {
-    if (_imgFile) {
-      const fd = new FormData();
-      fd.append('file', _imgFile);
-      await fetch(`/api/meetings/${meetingId}/image`, { method: 'POST', body: fd });
-    } else if (_imgRemoved && _imgEditingId === meetingId) {
-      await fetch(`/api/meetings/${meetingId}/image`, { method: 'DELETE' });
+    try {
+      if (_imgFile) {
+        const fd = new FormData();
+        fd.append('file', _imgFile);
+        await CGP_api(`/api/meetings/${meetingId}/image`, { method: 'POST', body: fd });
+      } else if (_imgRemoved && _imgEditingId === meetingId) {
+        await CGP_api(`/api/meetings/${meetingId}/image`, { method: 'DELETE' });
+      }
+      return null;
+    } catch (e) {
+      return CGP_errorMessage(e, 'The image could not be saved.');
     }
   }
 
@@ -1580,23 +1586,21 @@
     const wasEditing = editingId;          // resetForm() clears editingId below
 
     try {
-      const res  = await fetch(url, {
+      const data = await CGP_api(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(readForm())
       });
-      const data = await res.json();
-      if (res.ok) {
-        await handleImgAfterSave(data.id || editingId);
-        showFeedback(`✅ Meeting ${editingId ? 'updated' : 'saved'} successfully.`, 'success');
+      {
+        const imgProblem = await handleImgAfterSave(data.id || editingId);
+        if (imgProblem) showFeedback(`⚠️ Meeting ${editingId ? 'updated' : 'saved'}, but the image was not: ${imgProblem}`, 'error');
+        else showFeedback(`✅ Meeting ${editingId ? 'updated' : 'saved'} successfully.`, 'success');
         resetForm();
         await loadMeetings();
         showSavedMeeting(data.id || wasEditing, !!wasEditing);
-      } else {
-        showFeedback(`❌ ${data.error || 'Failed to save meeting.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error — could not reach the server.', 'error');
+    } catch (e) {
+      showFeedback(`❌ ${CGP_errorMessage(e, 'Failed to save meeting.')}`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = editingId ? 'Update' : 'Save';
@@ -1744,8 +1748,8 @@
         const data = await res.json();
         showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error');
     }
   }
 
@@ -1914,8 +1918,8 @@
       } else {
         showFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error');
       }
-    } catch {
-      showFeedback('❌ Network error.', 'error');
+    } catch (e) {
+      showFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error');
     }
   }
 
@@ -2159,8 +2163,7 @@
   async function loadCategories() {
     const tbody = document.getElementById('catTableBody');
     try {
-      const res  = await fetch('/api/meeting-types');
-      const list = await res.json();
+      const list = await CGP_api('/api/meeting-types');
       Object.keys(catTypeMap).forEach(k => delete catTypeMap[k]);
       list.forEach(t => { catTypeMap[t.id] = t; });
 
@@ -2189,8 +2192,8 @@
             <button class="btn-cat-del"  onclick="deleteCat(${t.id})" title="Delete">🗑️</button>
           </div></td>
         </tr>`).join('');
-    } catch {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e53935;padding:24px;">Failed to load categories.</td></tr>';
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e53935;padding:24px;">' + escHtml(CGP_errorMessage(e, 'Failed to load categories.')) + '</td></tr>';
     }
   }
 
@@ -2207,7 +2210,7 @@
       const data = await res.json();
       if (res.ok) { input.value = ''; showCatFeedback(`✅ "${escHtml(name)}" added.`, 'success'); await loadCategories(); }
       else { showCatFeedback(`❌ ${data.error || 'Failed to add.'}`, 'error'); }
-    } catch { showCatFeedback('❌ Network error.', 'error'); }
+    } catch (e) { showCatFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error'); }
     finally { btn.disabled = false; btn.textContent = '＋ Add'; }
   }
 
@@ -2239,7 +2242,7 @@
       const data = await res.json();
       if (res.ok) { closeCatModal(); showCatFeedback(`✅ Updated to "${escHtml(name)}".`, 'success'); await loadCategories(); }
       else { showCatFeedback(`❌ ${data.error || 'Failed to update.'}`, 'error'); }
-    } catch { showCatFeedback('❌ Network error.', 'error'); }
+    } catch (e) { showCatFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Update'; }
   }
 
@@ -2251,7 +2254,7 @@
       const data = await res.json();
       if (res.ok) { showCatFeedback(`Deleted.`, 'success'); await loadCategories(); }
       else { showCatFeedback(`❌ ${data.error || 'Failed to delete.'}`, 'error'); }
-    } catch { showCatFeedback('❌ Network error.', 'error'); }
+    } catch (e) { showCatFeedback('❌ ' + CGP_errorMessage(e, 'Network error.'), 'error'); }
   }
 
   function showCatFeedback(msg, type) {
@@ -2352,8 +2355,8 @@
       } else {
         showNotifyFeedback('❌ ' + (data.error || 'Failed to send notifications.'), 'error');
       }
-    } catch {
-      showNotifyFeedback('❌ Network error — could not reach the server.', 'error');
+    } catch (e) {
+      showNotifyFeedback('❌ ' + CGP_errorMessage(e, 'Network error — could not reach the server.'), 'error');
     } finally {
       btn.disabled    = false;
       btn.textContent = 'Send Now';
@@ -2589,7 +2592,7 @@ window.CGP_PAGE = { activePage: 'general/meetings', pageTitle: 'Meetings', openS
         var after = (id && payload.makeDefault) ? fetch('/api/meeting-templates/'+id+'/default',{method:'POST'}) : Promise.resolve();
         after.then(function(){ tplFeedback('✅ Template saved.','success'); loadTemplates().then(renderTplList); });
       })
-      .catch(function(){ tplFeedback('Network error.','error'); });
+      .catch(function(e){ tplFeedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
   function delTpl(id){
     if(!window.confirm('Delete this template?')) return;
@@ -2597,14 +2600,14 @@ window.CGP_PAGE = { activePage: 'general/meetings', pageTitle: 'Meetings', openS
       .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
       .then(function(res){ if(!res.ok||res.j.error){ tplFeedback(res.j.error||'Delete failed.','error'); return; }
         loadTemplates().then(function(){ renderTplList(); newTpl(); }); })
-      .catch(function(){ tplFeedback('Network error.','error'); });
+      .catch(function(e){ tplFeedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
   function setDefaultTpl(id){
     fetch('/api/meeting-templates/'+id+'/default',{method:'POST'})
       .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
       .then(function(res){ if(!res.ok||res.j.error){ tplFeedback(res.j.error||'Failed.','error'); return; }
         loadTemplates().then(renderTplList); })
-      .catch(function(){ tplFeedback('Network error.','error'); });
+      .catch(function(e){ tplFeedback(CGP_errorMessage(e, 'Network error.'),'error'); });
   }
 
   // expose only the handlers referenced from markup

@@ -193,7 +193,7 @@ class PublicSendLimitsTest {
         void setUp() {
             when(linkRepo.findByToken("tok-sms")).thenReturn(Optional.of(link("tok-sms", OURS, "/smsOptIn")));
             when(optInRepo.findByPhoneNumberAndAppClientId(anyString(), anyString())).thenReturn(Optional.empty());
-            when(smsService.sendConfirmationRequest(anyString(), anyString(), anyString())).thenReturn(true);
+            when(smsService.sendConfirmationRequestWithOutcome(anyString(), anyString(), anyString())).thenReturn(com.churchgeniuspro.service.SmsService.SendOutcome.ok());
             controller = new SmsOptInController(optInRepo, churchRepo, memberRepo, linkRepo, stripeRepo, smsService,
                     new PublicLinkResolver(linkRepo, new PublicPagePolicy(subscriptions, messagingPolicy)), limiter);
         }
@@ -213,7 +213,7 @@ class PublicSendLimitsTest {
             ResponseEntity<Map<String, Object>> third = controller.submitOptIn(body("9135550100"), from("10.0.0.3"));
             assertThat(third.getStatusCode().value()).isEqualTo(429);
             assertThat(third.getBody()).containsEntry("status", "error").containsEntry("message", PublicSendLimiter.TARGET_MSG);
-            verify(smsService, times(2)).sendConfirmationRequest(anyString(), anyString(), anyString());
+            verify(smsService, times(2)).sendConfirmationRequestWithOutcome(anyString(), anyString(), anyString());
             verify(optInRepo, times(2)).save(any(SmsOptIn.class));
         }
 
@@ -226,7 +226,7 @@ class PublicSendLimitsTest {
             }
             assertThat(controller.submitOptIn(body("9135550199"), from("10.0.0.1")).getStatusCode().value()).isEqualTo(429);
             assertThat(controller.submitOptIn(body("9135550199"), from("10.0.0.2")).getStatusCode().value()).isEqualTo(200);
-            verify(smsService, times(11)).sendConfirmationRequest(anyString(), anyString(), anyString());
+            verify(smsService, times(11)).sendConfirmationRequestWithOutcome(anyString(), anyString(), anyString());
         }
 
         @Test
@@ -247,7 +247,7 @@ class PublicSendLimitsTest {
             assertThat(existing.isConfirmed()).isTrue();
             assertThat(existing.getFirstName()).isEqualTo("Real");
             verify(optInRepo, never()).save(any());
-            verify(smsService, never()).sendConfirmationRequest(anyString(), anyString(), anyString());
+            verify(smsService, never()).sendConfirmationRequestWithOutcome(anyString(), anyString(), anyString());
         }
 
         @Test
@@ -263,7 +263,7 @@ class PublicSendLimitsTest {
             assertThat(res.getStatusCode().value()).isEqualTo(200);
             assertThat(pending.isConsent()).isTrue();
             verify(optInRepo).save(pending);
-            verify(smsService).sendConfirmationRequest(eq("+19135550100"), anyString(), eq(OURS));
+            verify(smsService).sendConfirmationRequestWithOutcome(eq("+19135550100"), anyString(), eq(OURS));
         }
     }
 

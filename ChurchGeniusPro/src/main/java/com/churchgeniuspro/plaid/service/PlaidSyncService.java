@@ -9,6 +9,7 @@ import com.churchgeniuspro.plaid.repository.PlaidTransactionStagingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
@@ -54,12 +55,76 @@ public class PlaidSyncService {
         this.audit = audit;
     }
 
+    // ── outcomes ────────────────────────────────────────────────────────────
+
+    /** What a sync run came to. {@code OK} is the only outcome that moves the cursor. */
+    public enum Outcome { OK, RETRY_LATER, LOGIN_REQUIRED, ERROR }
+
+    /**
+     * Result of one sync run. {@code staged} = added + modified transactions staged
+     * before the run ended (an OK run, or the pages that completed before a
+     * failure — staging is idempotent, so they are kept). {@code errorCode} is the
+     * Plaid {@code error_code} (or {@code TIMEOUT} / {@code HTTP_5xx}); {@code message}
+     * is a sentence for the person who asked, never provider text.
+     */
+    public record SyncResult(Outcome outcome, int staged, String errorCode, String message) {
+        public boolean ok()        { return outcome == Outcome.OK; }
+        public boolean retryLater(){ return outcome == Outcome.RETRY_LATER; }
+        public static SyncResult ok(int staged) { return new SyncResult(Outcome.OK, staged, null, null); }
+    }
+
+    /**
+     * Plaid conditions that say nothing about the connection itself (error-handling
+     * audit 2026-10-28, M8): the run is simply retried later. The item's status is
+     * never changed for these. {@code TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION}
+     * and {@code RATE_LIMIT_EXCEEDED} are retried once within the run first, as
+     * Plaid documents.
+     */
+    static final java.util.Set<String> TRANSIENT_CODES = java.util.Set.of(
+            "RATE_LIMIT_EXCEEDED", "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION",
+            "INSTITUTION_DOWN", "INSTITUTION_NOT_RESPONDING", "INSTITUTION_NOT_AVAILABLE",
+            "INTERNAL_SERVER_ERROR", "PLANNED_MAINTENANCE", "TIMEOUT");
+
+    /** Human sentence per code — mirrored by {@code plaidReview.html}'s label map. */
+    public static String describe(String errorCode) {
+        if (errorCode == null) return "The bank sync failed. Please try again later.";
+        if (errorCode.startsWith("HTTP_5")) return "The bank service is temporarily unavailable. We will try again later.";
+        return switch (errorCode) {
+            case "ITEM_LOGIN_REQUIRED", "INVALID_CREDENTIALS", "INVALID_MFA", "ITEM_LOCKED", "USER_SETUP_REQUIRED"
+                    -> "Your bank needs you to sign in again. Disconnect this bank and connect it again.";
+            case "RATE_LIMIT_EXCEEDED" -> "The bank service is busy. Please try again in a few minutes.";
+            case "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION"
+                    -> "The bank updated its records while we were reading them. Please try again in a moment.";
+            case "INSTITUTION_DOWN", "INSTITUTION_NOT_RESPONDING", "INSTITUTION_NOT_AVAILABLE"
+                    -> "Your bank is not responding right now. We will try again later.";
+            case "INTERNAL_SERVER_ERROR", "PLANNED_MAINTENANCE"
+                    -> "The bank service is temporarily unavailable. We will try again later.";
+            case "TIMEOUT" -> "The bank service did not answer in time. We will try again later.";
+            case "ITEM_NOT_FOUND", "INVALID_ACCESS_TOKEN", "ACCESS_NOT_GRANTED", "USER_PERMISSION_REVOKED", "ITEM_NOT_SUPPORTED"
+                    -> "This bank connection is no longer valid. Disconnect it and connect the bank again.";
+            case "PRODUCTS_NOT_SUPPORTED", "NO_ACCOUNTS" -> "This bank does not support transaction sync for the selected accounts.";
+            default -> "The bank sync failed (" + errorCode + "). Please try again later or contact support.";
+        };
+    }
+
+    /** Seam for the in-run rate-limit pause (tests replace it); bounded to a few seconds. */
+    @FunctionalInterface public interface Sleeper { void pause(long millis) throws InterruptedException; }
+    private Sleeper sleeper = Thread::sleep;
+    void setSleeper(Sleeper s) { this.sleeper = s; }
+    static final long RATE_LIMIT_PAUSE_MS = 2_000;
+
     /**
      * Sync a single item to the latest cursor. Returns the number of added +
-     * modified transactions staged in this run.
+     * modified transactions staged in this run (callers that only count keep
+     * this signature; see {@link #syncWithResult} for the outcome).
      */
     public int sync(PlaidItem item, String actor) {
-        if (item == null || item.isDeleteFlag()) return 0;
+        return syncWithResult(item, actor).staged();
+    }
+
+    /** Sync a single item and report how it went. Never throws for a Plaid-side failure. */
+    public SyncResult syncWithResult(PlaidItem item, String actor) {
+        if (item == null || item.isDeleteFlag()) return SyncResult.ok(0);
         String token = cipher.decrypt(item.getAccessTokenEnc());
         // The item's own stamp, never the tenant's current plan: an access token is
         // only valid in the environment that issued it. This also keeps the
@@ -67,12 +132,39 @@ public class PlaidSyncService {
         // Trial tenant's sandbox items from being pointed at production if they
         // later upgrade.
         String env = plaidEnv.envForItem(item);
-        String cursor = item.getSyncCursor();
+        String startCursor = item.getSyncCursor();
+        String cursor = startCursor;
         int changed = 0;
+        boolean retriedMutation = false, retriedRateLimit = false;
         try {
             boolean hasMore = true;
             while (hasMore) {
-                Map<String, Object> resp = client.transactionsSync(env, token, cursor);
+                Map<String, Object> resp;
+                try {
+                    resp = client.transactionsSync(env, token, cursor);
+                } catch (RestClientResponseException e) {
+                    String code = errorCodeOf(e);
+                    // Plaid: restart pagination from the last SAVED cursor once; the
+                    // pages already staged are idempotent upserts, so nothing is lost.
+                    if ("TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION".equals(code) && !retriedMutation) {
+                        retriedMutation = true;
+                        cursor = startCursor;
+                        continue;
+                    }
+                    if ("RATE_LIMIT_EXCEEDED".equals(code) && !retriedRateLimit) {
+                        retriedRateLimit = true;
+                        try { sleeper.pause(RATE_LIMIT_PAUSE_MS); }
+                        catch (InterruptedException ie) { Thread.currentThread().interrupt(); return deferred(item, actor, code, changed); }
+                        continue;
+                    }
+                    if (TRANSIENT_CODES.contains(code) || e.getStatusCode().is5xxServerError()) {
+                        return deferred(item, actor, TRANSIENT_CODES.contains(code) ? code : "HTTP_" + e.getStatusCode().value(), changed);
+                    }
+                    return failed(item, actor, code, changed);
+                } catch (ResourceAccessException e) {
+                    // connect/read timeout or network — the connection is not at fault
+                    return deferred(item, actor, "TIMEOUT", changed);
+                }
 
                 upsertAccounts(item, asMapList(resp.get("accounts")));
 
@@ -96,23 +188,52 @@ public class PlaidSyncService {
             itemRepo.save(item);
             audit.record(item.getClientId(), actor, "SYNC_RUN", item.getItemId(),
                     "Synced " + changed + " transaction(s)");
+            return SyncResult.ok(changed);
         } catch (RestClientResponseException e) {
-            String errCode = extractErrorCode(e.getResponseBodyAsString());
-            item.setStatus("ITEM_LOGIN_REQUIRED".equals(errCode) ? "LOGIN_REQUIRED" : "ERROR");
-            item.setErrorCode(errCode);
-            itemRepo.save(item);
-            audit.record(item.getClientId(), actor, "SYNC_RUN", item.getItemId(),
-                    "Sync failed: " + errCode);
-            log.warn("Plaid sync failed for item {}: {}", item.getItemId(), errCode);
+            // defensive: nothing inside the loop should let one escape any more
+            return failed(item, actor, errorCodeOf(e), changed);
         }
-        return changed;
+    }
+
+    /** A connection-level failure: the item is marked so the page can say what to do. */
+    private SyncResult failed(PlaidItem item, String actor, String errCode, int staged) {
+        Outcome outcome = "ITEM_LOGIN_REQUIRED".equals(errCode) ? Outcome.LOGIN_REQUIRED : Outcome.ERROR;
+        item.setStatus(outcome == Outcome.LOGIN_REQUIRED ? "LOGIN_REQUIRED" : "ERROR");
+        item.setErrorCode(errCode);
+        itemRepo.save(item);
+        audit.record(item.getClientId(), actor, "SYNC_RUN", item.getItemId(), "Sync failed: " + errCode);
+        log.warn("Plaid sync failed for item {}: {}", item.getItemId(), errCode);
+        return new SyncResult(outcome, staged, errCode, describe(errCode));
+    }
+
+    /**
+     * A transient condition: status and cursor are left exactly as they were, so
+     * the next scheduled/webhook run simply tries again. The code is recorded on
+     * the item (cleared by the next successful run) so the page can explain why
+     * the last sync did not complete.
+     */
+    private SyncResult deferred(PlaidItem item, String actor, String errCode, int staged) {
+        item.setErrorCode(errCode);
+        itemRepo.save(item);
+        audit.record(item.getClientId(), actor, "SYNC_DEFERRED", item.getItemId(), "Sync deferred: " + errCode);
+        log.warn("Plaid sync deferred for item {} (transient): {}", item.getItemId(), errCode);
+        return new SyncResult(Outcome.RETRY_LATER, staged, errCode, describe(errCode));
+    }
+
+    private String errorCodeOf(RestClientResponseException e) {
+        return extractErrorCode(e.getResponseBodyAsString());
     }
 
     /** Manual "sync now" for one item, tenant-scoped. */
     public int syncByItemId(String clientId, Integer itemId, String actor) {
+        return syncByItemIdWithResult(clientId, itemId, actor).staged();
+    }
+
+    /** Manual "sync now" with the outcome, tenant-scoped. */
+    public SyncResult syncByItemIdWithResult(String clientId, Integer itemId, String actor) {
         PlaidItem item = itemRepo.findByIdAndClientId(itemId, clientId).orElse(null);
         if (item == null) throw new IllegalArgumentException("Bank connection not found.");
-        return sync(item, actor);
+        return syncWithResult(item, actor);
     }
 
     // ── transaction upsert ──────────────────────────────────────────────────

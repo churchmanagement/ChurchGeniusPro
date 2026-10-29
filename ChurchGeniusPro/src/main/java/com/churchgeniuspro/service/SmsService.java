@@ -216,7 +216,12 @@ public class SmsService {
      * is subject to the same block as everything else that church sends.
      */
     public boolean sendConfirmationRequest(String toNumber, String churchName, String clientId) {
-        return doSend(toNumber, confirmationBody(churchName), fromNumber, clientId, true).sent();
+        return sendConfirmationRequestWithOutcome(toNumber, churchName, clientId).sent();
+    }
+
+    /** {@link #sendConfirmationRequest} keeping the provider's code (opt-in page tells the truth — audit 2026-10-28, M7). */
+    public SendOutcome sendConfirmationRequestWithOutcome(String toNumber, String churchName, String clientId) {
+        return doSend(toNumber, confirmationBody(churchName), fromNumber, clientId, true);
     }
 
     /** The Twilio number this service sends from — shown as the default in admin tools. */

@@ -190,18 +190,24 @@
   }
 
   // ── Render success ────────────────────────────────────────────────────────
-  function renderSuccess() {
+  function renderSuccess(data) {
+    // The confirmation text may not have gone out (smsSent:false) — say so instead of
+    // promising a text that will not come (error-handling audit 2026-10-28, M7).
+    var smsSent = !data || data.smsSent !== false;
     document.getElementById('mainCard').innerHTML =
       '<div class="card-header"><h1>' + escHtml(churchName) + '</h1><p>SMS Notifications</p></div>' +
       '<div class="success-state">' +
         '<div class="success-icon">📱</div>' +
-        '<h2>Almost There!</h2>' +
-        '<p>Thank you for signing up. We\'ve sent a confirmation text to your phone number.</p>' +
-        '<div class="reply-box">' +
-          '<strong>One more step:</strong>' +
-          'Reply <strong>YES</strong> to the text message to confirm your subscription.' +
-          '<br><br>To stop receiving messages at any time, reply <strong>STOP</strong>.' +
-        '</div>' +
+        (smsSent
+          ? '<h2>Almost There!</h2>' +
+            '<p>Thank you for signing up. We\'ve sent a confirmation text to your phone number.</p>' +
+            '<div class="reply-box">' +
+              '<strong>One more step:</strong>' +
+              'Reply <strong>YES</strong> to the text message to confirm your subscription.' +
+              '<br><br>To stop receiving messages at any time, reply <strong>STOP</strong>.' +
+            '</div>'
+          : '<h2>Sign-up recorded</h2>' +
+            '<p>' + escHtml((data && data.message) || 'Your opt-in has been recorded, but the confirmation text could not be sent right now. Please contact the church office to complete your sign-up.') + '</p>') +
       '</div>';
   }
 
@@ -281,7 +287,7 @@
       });
       var data = await res.json();
       if (res.ok && data.status === 'success') {
-        renderSuccess();
+        renderSuccess(data);
       } else {
         showFeedback('error', data.message || 'Something went wrong. Please try again.');
         btn.disabled    = false;

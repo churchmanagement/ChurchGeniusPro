@@ -30,6 +30,19 @@
  *   <script src="/session.js"></script>
  */
 
+/* ── Shared /api helper (cgp-api.js: CGP_api / CGP_apiJson / CGP_showError) ────
+ * Pages migrated by the error-handling audit (2026-10-28, M4–M6) load it with a
+ * <script> tag in <head> so it exists before their own code runs. Every other
+ * page that loads session.js gets it here too (asynchronously), so new code can
+ * rely on it without remembering the tag.
+ */
+(function () {
+    if (window.CGP_api || document.querySelector('script[src="/cgp-api.js"]')) return;
+    var s = document.createElement('script');
+    s.src = '/cgp-api.js';
+    (document.head || document.documentElement).appendChild(s);
+})();
+
 /* ── Immediate brand-name init (synchronous, before async session fetch) ──────
  * session.js is placed at the bottom of <body>, so the DOM is already built
  * when this runs.  Reading churchName from localStorage is instant and ensures

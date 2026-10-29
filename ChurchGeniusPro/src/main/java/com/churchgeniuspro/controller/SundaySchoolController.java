@@ -974,7 +974,9 @@ public class SundaySchoolController {
      *   { "includeAnswerSheet": true }   — default true, sends full Q&A breakdown
      */
     @PostMapping("/api/ss/submissions/{submissionId}/send-result")
-    @Transactional
+    // Not @Transactional (error-handling audit 2026-10-28, M14): the one save commits on its
+    // own and the e-mails are sent outside any transaction, so SMTP never holds the
+    // connection/row locks and a failed send is still reported in errors[].
     public ResponseEntity<?> adminSendResult(@PathVariable Long submissionId,
                                               @RequestBody(required = false) Map<String,Object> body,
                                               HttpServletRequest req) {
@@ -1351,28 +1353,32 @@ public class SundaySchoolController {
         if (student != null && exam != null) {
             String emailHtml = buildSubmissionEmail(student, exam, questions, ansMap, autoMarks);
             String subject   = "📋 Exam Submitted: " + exam.getExamTitle() + " — " + student.getStudentName();
-
-            // Email teacher
+            // Everything the mails need is read inside the transaction; the sends run only
+            // after it commits (audit 2026-10-28, M14) — no SMTP wait while rows are locked,
+            // and no "submitted" mail for a submission that was rolled back.
             SsTeacher teacher = teacherRepo.findById(student.getTeacherId()).orElse(null);
-            if (teacher != null && teacher.getEmail() != null && !teacher.getEmail().isBlank()) {
-                try {
-                    emailService.sendOrgEmail(teacher.getEmail(), subject, emailHtml, sub.getClientId());
-                } catch (Exception e) {
-                    log.error("Failed to send submission email to teacher — {}", LogSafe.exception(e));
-                }
-            }
-
-            // Email Head of Household copy (if exam has copyToHoh enabled)
+            final String teacherEmail = teacher != null && teacher.getEmail() != null && !teacher.getEmail().isBlank()
+                    ? teacher.getEmail() : null;
+            String hohEmail = null;
             if (exam.isCopyToHoh() && student.getFamilyMemberId() != null) {
-                try {
-                    String hohEmail = familyMemberRepo.findHohEmailByFamilyMemberId(student.getFamilyMemberId());
-                    if (hohEmail != null && !hohEmail.isBlank()) {
-                        String hohHtml = buildSubmissionEmail(student, exam, questions, ansMap, autoMarks);
-                        emailService.sendOrgEmail(hohEmail, subject, hohHtml, sub.getClientId());
+                try { hohEmail = familyMemberRepo.findHohEmailByFamilyMemberId(student.getFamilyMemberId()); }
+                catch (Exception e) { log.error("Failed to resolve HoH email for submission — {}", LogSafe.exception(e)); }
+            }
+            final String hohTo = hohEmail != null && !hohEmail.isBlank() ? hohEmail : null;
+            final String clientId = sub.getClientId();
+            if (teacherEmail != null || hohTo != null) {
+                com.churchgeniuspro.util.AfterCommit.run("exam submission e-mails", () -> {
+                    try (com.churchgeniuspro.util.EmailActionScope __mail = com.churchgeniuspro.util.EmailActionScope.begin("ss-submit-exam")) {
+                        if (teacherEmail != null) {
+                            try { emailService.sendOrgEmail(teacherEmail, subject, emailHtml, clientId); }
+                            catch (Exception e) { log.error("Failed to send submission email to teacher — {}", LogSafe.exception(e)); }
+                        }
+                        if (hohTo != null) {
+                            try { emailService.sendOrgEmail(hohTo, subject, emailHtml, clientId); }
+                            catch (Exception e) { log.error("Failed to send HoH copy email for submission — {}", LogSafe.exception(e)); }
+                        }
                     }
-                } catch (Exception e) {
-                    log.error("Failed to send HoH copy email for submission — {}", LogSafe.exception(e));
-                }
+                });
             }
         }
 
@@ -2424,7 +2430,7 @@ public class SundaySchoolController {
      * Also marks the submission as reviewed so the student portal shows the final result.
      */
     @PostMapping("/api/member/ss/teacher/submissions/{submissionId}/send-result")
-    @Transactional
+    // Not @Transactional — see adminSendResult (audit 2026-10-28, M14).
     public ResponseEntity<?> teacherSendResult(@PathVariable Long submissionId,
                                                 HttpServletRequest req) {
         try (com.churchgeniuspro.util.EmailActionScope __scope = com.churchgeniuspro.util.EmailActionScope.begin("ss-teacher-send-result")) {

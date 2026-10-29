@@ -94,7 +94,24 @@ public class PrivatePageFilter implements Filter {
             if (d.allowed) { chain.doFilter(req, res); return; }
             writeBlocked(request, response, ip);
         } catch (Exception e) {
-            LOG.error("[PrivateAccess] filter error (allowing request): {}", e.toString(), e);
+            // Error-handling audit 2026-10-28, M3: a gated API request fails CLOSED when the
+            // network rules cannot be evaluated (the page would otherwise be served to any
+            // network while the lookup is broken); gated pages keep failing open so a database
+            // hiccup never locks staff out of the screens, and the error is logged either way.
+            String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+            String path = RequestPaths.path(request);
+            if (path.startsWith("/api/") && !response.isCommitted()) {
+                LOG.error("[PrivateAccess] filter error on {} [ref={}] — refusing the API request: {}",
+                        path, ref, com.churchgeniuspro.util.LogSafe.exception(e), e);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write(
+                    "{\"error\":\"Network access could not be verified. Please try again or contact support quoting reference "
+                    + ref + ".\",\"code\":\"NETWORK_CHECK_FAILED\",\"ref\":\"" + ref + "\"}");
+                return;
+            }
+            LOG.error("[PrivateAccess] filter error on {} [ref={}] (allowing the page request): {}",
+                    path, ref, com.churchgeniuspro.util.LogSafe.exception(e), e);
             chain.doFilter(req, res);
         }
     }

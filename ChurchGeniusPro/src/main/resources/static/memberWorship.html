@@ -1,6 +1,7 @@
 <!DOCTYPE html><!-- v9 -->
 <html lang="en">
 <head>
+  <script src="/cgp-api.js"></script>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1220,16 +1221,22 @@ async function deleteManualGroup(groupId) {
   const rows = manualRows.filter(r => Number(r.groupId) === Number(groupId));
   if (!rows.length) return;
   if (!confirm('Delete all manual assignments for this group?')) return;
-  let ok = true;
+  // Only rows the server actually deleted leave the page; a refused delete keeps
+  // its row (it used to vanish until the next reload, then come back).
+  const deleted = new Set();
+  let firstError = null;
   for (const row of rows) {
-    if (row.id) {
-      const res = await fetch('/api/worship/assignments/' + row.id, { method: 'DELETE' });
-      if (!res.ok) ok = false;
-    }
+    if (!row.id) { deleted.add(row); continue; }
+    const res = await fetch('/api/worship/assignments/' + row.id, { method: 'DELETE' });
+    if (res.ok) deleted.add(row);
+    else if (!firstError) firstError = await res.json().catch(() => null);
   }
-  manualRows = manualRows.filter(r => Number(r.groupId) !== Number(groupId));
+  manualRows = manualRows.filter(r => !deleted.has(r));
   renderManualSchedule();
-  toast(ok ? 'Deleted.' : 'Some rows failed to delete.', !ok);
+  const failed = rows.length - deleted.size;
+  if (!failed) toast('Deleted.');
+  else toast(failed + ' date' + (failed === 1 ? '' : 's') + ' could not be deleted'
+           + (firstError && (firstError.error || firstError.message) ? ': ' + (firstError.error || firstError.message) : '.'), true);
 }
 
 function toggleManualGroup(groupId) {

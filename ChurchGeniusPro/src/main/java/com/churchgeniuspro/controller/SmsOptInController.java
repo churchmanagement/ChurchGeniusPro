@@ -32,6 +32,14 @@ public class SmsOptInController {
 
     private static final Logger log = LoggerFactory.getLogger(SmsOptInController.class);
 
+    /**
+     * Shown whenever no text goes out — a send failure AND the already-confirmed case
+     * (security audit P2: the two must read the same so the page never reveals who is
+     * subscribed). Honest either way: no promise of a text that may not come (M7).
+     */
+    public static final String NO_TEXT_MSG =
+            "Thank you! Your opt-in has been recorded. If you do not receive a confirmation text within a few minutes, please contact the church office.";
+
     private final SmsOptInRepository            smsOptInRepo;
     private final ChurchRegistrationRepository  churchRepo;
     private final FamilyMemberRepository        familyMemberRepo;
@@ -170,7 +178,7 @@ public class SmsOptInController {
         if (record.getId() != null && record.isConfirmed() && record.isConsent()) {
             res.put("status",  "success");
             res.put("smsSent", false);
-            res.put("message", "Thank you! Your opt-in has been recorded. You will receive a confirmation shortly.");
+            res.put("message", NO_TEXT_MSG);
             return ResponseEntity.ok(res);
         }
 
@@ -195,13 +203,26 @@ public class SmsOptInController {
 
         // The tenant is known here, so the opt-in text is subject to the same
         // Trial / demo block as everything else this church sends.
-        boolean smsSent = smsService.sendConfirmationRequest(phone, churchName, appClientId);
+        com.churchgeniuspro.service.SmsService.SendOutcome outcome =
+                smsService.sendConfirmationRequestWithOutcome(phone, churchName, appClientId);
+        if (outcome == null) outcome = com.churchgeniuspro.service.SmsService.SendOutcome.fail("No outcome");
+        boolean smsSent = outcome.sent();
+
+        // Error-handling audit 2026-10-28, M7: an invalid number is the visitor's to fix (400);
+        // any other failure is reported honestly instead of promising a text that will not come.
+        if (!smsSent && outcome.errorCode() != null
+                && (outcome.errorCode() == 21211 || outcome.errorCode() == 21614)) {
+            res.put("status",  "error");
+            res.put("smsSent", false);
+            res.put("message", "That phone number cannot receive text messages. Please check the number and try again.");
+            return ResponseEntity.badRequest().body(res);
+        }
 
         res.put("status",  "success");
         res.put("smsSent", smsSent);
         res.put("message", smsSent
                 ? "Thank you! A confirmation text has been sent to your phone. Please reply YES to confirm."
-                : "Thank you! Your opt-in has been recorded. You will receive a confirmation shortly.");
+                : NO_TEXT_MSG);
         return ResponseEntity.ok(res);
     }
 
