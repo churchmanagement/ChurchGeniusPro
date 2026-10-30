@@ -49,8 +49,9 @@ public class FamilyReportController {
                 && "Member".equals(session.getAttribute("role"))
                 && session.getAttribute("memberId") != null;
         if (isMember) {
-            String deny = RoleGuard.requireMemberPagePermission(request, "admin.family");
-            return deny != null ? deny : "forward:/familySearchReport.html";
+            // Same rule as /viewfamily: only with the church's explicit Family grant.
+            return FamilyController.memberHasFamilyGrant(session)
+                    ? "forward:/familySearchReport.html" : RoleGuard.FORWARD_ACCESS_DENIED;
         }
         String deny = RoleGuard.requireAdminOrAccountant(request);
         if (deny != null) return deny;

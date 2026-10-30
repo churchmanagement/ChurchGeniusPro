@@ -44,6 +44,8 @@ public class NotesController {
     public String notesPage(HttpServletRequest request) {
         String deny = RoleGuard.requireAuth(request);
         if (deny != null) return deny;
+        // Staff notes — not for Member Portal logins (security audit 2026-10-29).
+        if (RoleGuard.isMemberPortalSession(request.getSession(false))) return RoleGuard.FORWARD_ACCESS_DENIED;
         return "forward:/notes.html";
     }
 

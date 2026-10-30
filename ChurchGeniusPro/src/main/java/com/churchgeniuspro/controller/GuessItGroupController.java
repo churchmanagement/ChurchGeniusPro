@@ -857,6 +857,10 @@ public class GuessItGroupController {
     private String requireAdmin(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("username") == null) return null;
+        // Host controls (create/run/delete games and groups, see answers) are for staff
+        // logins only — never a Member Portal / Kids portal session or the church login
+        // (security audit 2026-10-29: members could read every game's correct answers).
+        if (RoleGuard.isMemberPortalSession(session) || RoleGuard.isChurch(request)) return null;
         String clientId = RoleGuard.clientId(request);
         return (clientId != null && !clientId.isBlank()) ? clientId : null;
     }

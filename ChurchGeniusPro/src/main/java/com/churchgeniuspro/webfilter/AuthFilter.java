@@ -97,6 +97,14 @@ public class AuthFilter implements Filter {
             "/api/trial-registration"       // public self-service trial signup — the registrant has no account yet, which is the point. Rate-limited per IP in its controller.
     };
 
+    /** True for a canonical path on the public whitelist (exact or a segment under it). */
+    static boolean isPublicPath(String uri) {
+        for (String prefix : PUBLIC_PREFIXES) {
+            if (uri.equals(prefix) || uri.startsWith(prefix + "/")) return true;
+        }
+        return false;
+    }
+
     @Override
     public void doFilter(ServletRequest request,
                          ServletResponse response,
@@ -120,11 +128,9 @@ public class AuthFilter implements Filter {
         // to be the fourth condition here; it made "/api/public" also exempt
         // "/api/public-screens", which is the admin API for minting public links.
         // Whitelisting is by segment only — never by string prefix.
-        for (String prefix : PUBLIC_PREFIXES) {
-            if (uri.equals(prefix) || uri.startsWith(prefix + "/")) {
-                chain.doFilter(request, response);
-                return;
-            }
+        if (isPublicPath(uri)) {
+            chain.doFilter(request, response);
+            return;
         }
 
         // ── Session presence check ────────────────────────────────────────

@@ -196,6 +196,59 @@ public final class RoleGuard {
         return FORWARD_ACCESS_DENIED;
     }
 
+    // ── Member Portal defaults (2026-10-29) ─────────────────────────────────
+
+    /**
+     * The keys a Member Portal login has when its permissions were never saved — the same
+     * as the Permissions screen's MemberPortal defaults: the My Profile tabs ({@code member},
+     * {@code member.*}) and {@code favorites}. Every staff key is OFF until the church ticks it.
+     */
+    public static boolean isMemberDefaultKey(String key) {
+        if (key == null) return false;
+        return key.equals("member") || key.startsWith("member.") || key.equals("favorites");
+    }
+
+    /** A Member Portal (or Kids portal) session: role Member with a member id. */
+    public static boolean isMemberPortalSession(HttpSession session) {
+        return session != null && "Member".equals(role(session)) && session.getAttribute("memberId") != null;
+    }
+
+    /**
+     * True when the church explicitly ticked {@code key} (or one of its sub-keys) for this
+     * Member Portal login. Never-saved permissions grant nothing on the staff side.
+     */
+    public static boolean memberHasExplicitGrant(HttpSession session, String key) {
+        if (!isMemberPortalSession(session) || key == null) return false;
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
+        Object privAttr = session.getAttribute("memberPrivileges");
+        if (privAttr == null) return false;
+        try {
+            java.util.Map<?, ?> map = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(String.valueOf(privAttr), java.util.Map.class);
+            for (java.util.Map.Entry<?, ?> e : map.entrySet()) {
+                String k = String.valueOf(e.getKey());
+                if ((k.equals(key) || k.startsWith(key + ".")) && Boolean.TRUE.equals(e.getValue())) return true;
+            }
+        } catch (Exception ignored) { /* unreadable map: no grant */ }
+        return false;
+    }
+
+    /**
+     * {@link #requireAdminOrUser} for DATA endpoints: SuperAdmin, Admin or User only.
+     *
+     * <p>{@code requireAdminOrUser} deliberately lets a Member Portal session through so a
+     * PAGE route can answer with Access Denied instead of bouncing the member home. On an
+     * API that pass-through handed staff data to members (2026-10-29: any member could read
+     * the Kids Ministry children list with allergies and parent phones). A Member Portal or
+     * Kids portal session is never accepted here. Temporary-access and NTAG sessions run as
+     * User/Admin and are unaffected.
+     */
+    public static String requireStaffAdminOrUser(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null && "Member".equals(role(session))) return FORWARD_ACCESS_DENIED;
+        return requireAdminOrUser(request);
+    }
+
     /**
      * Requires SuperAdmin role only.
      */
@@ -287,7 +340,12 @@ public final class RoleGuard {
         // change made in viewUsers applies without a new sign-in.
         com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         Object privAttr = session.getAttribute(isMember ? "memberPrivileges" : "privileges");
-        if (privAttr == null) return null;
+        if (privAttr == null) {
+            // A Member Portal login whose permissions were never saved is treated exactly
+            // like one saved with the Permissions screen's defaults (My Profile + Favorites
+            // on, every staff key off) — not as "everything allowed" (2026-10-29).
+            return (isMember && !isMemberDefaultKey(permKey)) ? FORWARD_ACCESS_DENIED : null;
+        }
         return permissionAllows(String.valueOf(privAttr), permKey) ? null : FORWARD_ACCESS_DENIED;
     }
 
@@ -412,8 +470,9 @@ public final class RoleGuard {
         if (!("Member".equals(role(session)) && session.getAttribute("memberId") != null)) return null;
         com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         Object privAttr = session.getAttribute("memberPrivileges");
-        // No stored privileges → all tabs allowed by default
-        if (privAttr == null) return null;
+        // No stored privileges → the saved defaults: My Profile tabs (member.*) and
+        // Favorites are allowed, staff keys (admin.*, general.* …) are not (2026-10-29).
+        if (privAttr == null) return isMemberDefaultKey(memberPermKey) ? null : FORWARD_ACCESS_DENIED;
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper =
                     new com.fasterxml.jackson.databind.ObjectMapper();

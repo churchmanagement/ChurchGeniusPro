@@ -38,7 +38,7 @@ public class PublicEngagementController {
     // ── Staff admin pages ──
     @GetMapping("/publicPrayerAdmin")
     public String adminPage(HttpServletRequest request) {
-        String deny = RoleGuard.requireAdminOrUser(request);
+        String deny = RoleGuard.requireStaffAdminOrUser(request);   // staff page — never a Member Portal login
         if (deny != null) return deny;
         return "forward:/public-prayer-admin.html";
     }

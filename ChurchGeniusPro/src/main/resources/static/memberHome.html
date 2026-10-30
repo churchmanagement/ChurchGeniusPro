@@ -3042,6 +3042,23 @@ function urlBase64ToUint8Array(base64String) {
   setupMemberRoleSwitcher();
   // Fetch live privileges and apply to sidebar nav filter.
   // Falls back to window._mbrDefaultPrivs (members-only) when no permissions saved yet.
+  // The defaults are the Permissions screen's Member Portal defaults — My Profile tabs and
+  // Favorites on, every staff section off — the same rule the server applies to a member
+  // whose permissions were never saved (security audit 2026-10-29). It was referenced but
+  // never defined, so such a member's menu showed every staff section.
+  if (!window._mbrDefaultPrivs) {
+    window._mbrDefaultPrivs = (function () {
+      var d = { 'favorites': true, 'member': true, 'member.family': true, 'member.contributions': true,
+                'member.groups': true, 'member.classes': true, 'member.volunteer': true, 'member.directory': true };
+      ['admin', 'admin.family', 'admin.groups', 'admin.email', 'admin.membership', 'admin.unsubscribed',
+       'admin.stripe', 'admin.whatsapp', 'accounting', 'general', 'general.meetings', 'general.attendance',
+       'general.events', 'general.events.edit', 'general.ministry', 'general.email', 'general.emailsettings',
+       'general.reminders', 'more', 'more.certificates', 'more.publicscreens', 'more.followups',
+       'more.helpcenter', 'more.help', 'more.ticketing', 'more.aiassistant', 'activity', 'activity.guessit'
+      ].forEach(function (k) { d[k] = false; });
+      return d;
+    })();
+  }
   try {
     var privRes = await fetch('/api/member/my-permissions');
     if (privRes.ok) {

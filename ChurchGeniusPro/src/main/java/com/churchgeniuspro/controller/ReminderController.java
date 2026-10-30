@@ -50,7 +50,7 @@ public class ReminderController {
 
     @GetMapping("/meetingReminders")
     public String meetingReminders(HttpServletRequest request) {
-        String deny = RoleGuard.requireAdminOrUser(request);
+        String deny = RoleGuard.requireStaffAdminOrUser(request);   // staff page — never a Member Portal login
         if (deny != null) return deny;
         return "forward:/meetingReminders.html";
     }

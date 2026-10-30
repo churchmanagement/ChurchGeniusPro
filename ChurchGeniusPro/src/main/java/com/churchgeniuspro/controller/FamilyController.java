@@ -51,6 +51,11 @@ public class FamilyController {
     private final com.churchgeniuspro.repository.FamilyMemberRepository familyMemberRepository;
     private final com.churchgeniuspro.service.SubscriptionService subscriptionService;
 
+    /** Optional: lets a staff login that uses the Member Portal be matched to its own family. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.AppUserRepository appUserRepository;
+    private com.churchgeniuspro.service.MemberSessionResolver memberSessionResolver;
+
     public FamilyController(FamilyService familyService,
                             com.churchgeniuspro.repository.FamilyMemberRepository familyMemberRepository,
                             com.churchgeniuspro.service.SubscriptionService subscriptionService) {
@@ -64,14 +69,10 @@ public class FamilyController {
     /** Serves the add/edit family page. */
     @GetMapping("/family")
     public String familyPage(HttpServletRequest request) {
-        // Members with admin.family permission may view (but not edit) family records
+        // Member Portal logins only when the church explicitly granted Family access
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        boolean isMember = session != null
-                && "Member".equals(session.getAttribute("role"))
-                && session.getAttribute("memberId") != null;
-        if (isMember) {
-            String deny = RoleGuard.requireMemberPermission(request, "admin.family");
-            return deny != null ? deny : "forward:/family.html";
+        if (com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)) {
+            return memberHasFamilyGrant(session) ? "forward:/family.html" : RoleGuard.FORWARD_ACCESS_DENIED;
         }
         String deny = RoleGuard.requireAdminOrAccountant(request);
         if (deny != null) return deny;
@@ -126,13 +127,10 @@ public class FamilyController {
     /** Serves the family list page. */
     @GetMapping("/viewfamily")
     public String viewFamilyPage(HttpServletRequest request) {
-        // Members with admin.family permission are allowed through
+        // Member Portal logins only when the church explicitly granted Family access
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        boolean isMember = session != null
-                && "Member".equals(session.getAttribute("role"))
-                && session.getAttribute("memberId") != null;
-        if (isMember) {
-            String deny = RoleGuard.requireMemberPermission(request, "admin.family");
+        if (com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)) {
+            String deny = memberHasFamilyGrant(session) ? null : RoleGuard.FORWARD_ACCESS_DENIED;
             // NOTE: the static file is viewFamily.html (capital F). The forward target
             // must match exactly — classpath (jar) resource lookup is case-sensitive,
             // so "viewfamily.html" 404s when running the packaged JAR even though it
@@ -191,6 +189,13 @@ public class FamilyController {
             @RequestParam(defaultValue = "false") boolean includeInContributions,
             HttpServletRequest request) {
         String appClientId = SessionUtil.getAppClientId(request);
+        if (memberWithoutFamilyGrant(request.getSession(false))) {
+            // Member Portal pages (e.g. Worship pick-lists) need names only: never another
+            // person's contact details, birthday or status, and never deleted/inactive people.
+            List<Map<String, Object>> rows = familyService.getAllMembers(search, role, memberType, "", "",
+                    false, false, includeInContributions, appClientId);
+            return ResponseEntity.ok(rows.stream().map(FamilyController::namesOnly).toList());
+        }
         return ResponseEntity.ok(familyService.getAllMembers(search, role, memberType, phone, email,
                 showDeleted, showInactive, includeInContributions, appClientId));
     }
@@ -208,8 +213,9 @@ public class FamilyController {
     @PostMapping("/api/family")
     public ResponseEntity<Map<String, Object>> saveFamily(@RequestBody FamilyBO bo,
                                                           HttpServletRequest request) {
-        // Add and Edit are combined under admin.family.edit
-        String deny = RoleGuard.requirePermission(request, "admin.family.edit");
+        // Add and Edit are combined under admin.family.edit. Creating a family is for
+        // family managers (and members granted Family access) only.
+        String deny = changeGuard(request, "admin.family.edit", null);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (bo.getMembers() == null || bo.getMembers().isEmpty()) {
             return ResponseEntity.badRequest()
@@ -280,6 +286,11 @@ public class FamilyController {
             @RequestParam(defaultValue = "0")     int     page,
             @RequestParam(defaultValue = "10")    int     pageSize,
             HttpServletRequest request) {
+        // The church-wide family list is staff data: a Member Portal login needs the
+        // explicit Family grant (it was readable by any signed-in login before 2026-10-29).
+        if (memberWithoutFamilyGrant(request.getSession(false))) {
+            return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        }
         String appClientId = SessionUtil.getAppClientId(request);
         return ResponseEntity.ok(
                 familyService.getFamilies(search, showDeleted, showInactive, familyType, appClientId, page, pageSize));
@@ -296,7 +307,10 @@ public class FamilyController {
     public ResponseEntity<Map<String, Object>> getFamilyById(@PathVariable Integer id,
                                                              HttpServletRequest request) {
         String deny = familyPageGuard(request);
-        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        // Anyone may read their OWN family (Member Portal → Family); other families need the staff rule.
+        if (deny != null && !isOwnFamily(request, id)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        }
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
@@ -322,7 +336,8 @@ public class FamilyController {
     public ResponseEntity<Map<String, Object>> updateFamily(@PathVariable Integer id,
                                                             @RequestBody FamilyBO bo,
                                                             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.family.edit");
+        // Family managers / granted members: admin.family.edit. Everyone else: own family only.
+        String deny = changeGuard(request, "admin.family.edit", id);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         if (bo.getMembers() == null || bo.getMembers().isEmpty()) {
             return ResponseEntity.badRequest()
@@ -384,7 +399,7 @@ public class FamilyController {
     @DeleteMapping("/api/families/{id}")
     public ResponseEntity<Map<String, Object>> deleteFamily(@PathVariable Integer id,
                                                             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.family.delete");
+        String deny = changeGuard(request, "admin.family.delete", null);   // never via "own family"
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
@@ -408,7 +423,8 @@ public class FamilyController {
     public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable Integer familyId,
                                                             @PathVariable Integer memberId,
                                                             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.family.delete");
+        // Member Portal → Family can remove a person from the user's OWN family.
+        String deny = changeGuard(request, "admin.family.delete", familyId);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
@@ -454,7 +470,7 @@ public class FamilyController {
             @PathVariable Integer id,
             @RequestParam  boolean value,
             HttpServletRequest request) {
-        String deny = RoleGuard.requirePermission(request, "admin.family.inactive");
+        String deny = changeGuard(request, "admin.family.inactive", null);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
@@ -485,7 +501,7 @@ public class FamilyController {
         String permKey = "delete".equalsIgnoreCase(action0)   ? "admin.family.delete"
                        : "inactive".equalsIgnoreCase(action0) ? "admin.family.inactive"
                        : "admin.family";
-        String deny = RoleGuard.requirePermission(request, permKey);
+        String deny = changeGuard(request, permKey, null);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
@@ -507,18 +523,123 @@ public class FamilyController {
     // ── Guards ────────────────────────────────────────────────────────────
 
     /**
-     * Same role gate as the {@code /viewfamily} page route: member-portal sessions
-     * need the {@code admin.family} member permission; staff must be Admin /
+     * Same role gate as the {@code /viewfamily} page route: a member-portal session
+     * needs the Family grant ({@link #memberHasFamilyGrant}); staff must be Admin /
      * Accountant / SuperAdmin with {@code admin.family} enabled.
      */
     static String familyPageGuard(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        boolean isMember = session != null
-                && "Member".equals(session.getAttribute("role"))
-                && session.getAttribute("memberId") != null;
-        if (isMember) return RoleGuard.requireMemberPermission(request, "admin.family");
+        if (com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)) {
+            return memberHasFamilyGrant(session) ? null : RoleGuard.FORWARD_ACCESS_DENIED;
+        }
         String deny = RoleGuard.requireAdminOrAccountant(request);
         if (deny != null) return deny;
         return RoleGuard.requirePermission(request, "admin.family");
+    }
+
+    // ── Who may see and change families (security fix 2026-10-29) ─────────
+    //
+    // Before: GET /api/families and GET /api/members had no check at all, every change
+    // endpoint checked only a permission key (a Member Portal login carries no staff
+    // permission map, so a missing key read as "allowed"), and GET /api/families/{id}
+    // let any member through. A member could read and overwrite any family of the church.
+    //
+    // Now:
+    //  - family managers = SuperAdmin / Admin / Accountant staff logins (the /viewfamily
+    //    roles), plus Member Portal logins the church explicitly granted Family access,
+    //    keep the permission-key checks they had;
+    //  - everyone else may read and update only their OWN family and remove a person
+    //    from it (Member Portal → Family), resolved by MemberSessionResolver — the same
+    //    rule the portal uses to show "my family";
+    //  - church-wide lists are refused to Member Portal logins without the grant, and
+    //    /api/members returns names only to them.
+
+    private static final java.util.Set<String> FAMILY_MANAGER_ROLES = java.util.Set.of("SuperAdmin", "Admin", "Accountant");
+
+    /** A staff login with a family-manager role (not a church login, not a Member Portal login). */
+    static boolean isFamilyManager(HttpSession session) {
+        if (session == null || session.getAttribute("username") == null) return false;
+        if (com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)) return false;
+        Object church = session.getAttribute("church");
+        if (Boolean.TRUE.equals(church) || "true".equalsIgnoreCase(String.valueOf(church))) return false;
+        return FAMILY_MANAGER_ROLES.contains(String.valueOf(session.getAttribute("role")));
+    }
+
+    /**
+     * A Member Portal login the church owner explicitly granted the staff Families pages
+     * ("Family", {@code admin.family} or one of its actions, ticked). Opt-in: a member whose
+     * permissions were never saved does NOT have it — the Permissions screen saves it off
+     * by default for Member Portal logins.
+     */
+    static boolean memberHasFamilyGrant(HttpSession session) {
+        if (!com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)) return false;
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
+        Object privileges = session.getAttribute("memberPrivileges");
+        if (privileges == null) return false;
+        try {
+            Map<?, ?> map = new com.fasterxml.jackson.databind.ObjectMapper().readValue(String.valueOf(privileges), Map.class);
+            for (Map.Entry<?, ?> e : map.entrySet()) {
+                String key = String.valueOf(e.getKey());
+                if ((key.equals("admin.family") || key.startsWith("admin.family.")) && Boolean.TRUE.equals(e.getValue())) return true;
+            }
+        } catch (Exception ignored) { /* unreadable map: no grant */ }
+        return false;
+    }
+
+    /** A Member Portal login without the Family grant: names-only lists, no church-wide family data. */
+    static boolean memberWithoutFamilyGrant(HttpSession session) {
+        return com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session) && !memberHasFamilyGrant(session);
+    }
+
+    /**
+     * Gate for every change. Family managers and granted members keep the permission-key
+     * check ({@code permKey}). Anyone else is allowed only when {@code ownFamilyId} is the
+     * family being changed and it is the session's own family; pass {@code null} for actions
+     * that are never allowed on the strength of "own family" (create, delete family,
+     * inactive, bulk).
+     */
+    String changeGuard(HttpServletRequest request, String permKey, Integer ownFamilyId) {
+        HttpSession session = request.getSession(false);
+        if (session == null) return RoleGuard.REDIRECT_LOGIN;
+        if (isFamilyManager(session) || memberHasFamilyGrant(session)) return RoleGuard.requirePermission(request, permKey);
+        if (ownFamilyId != null && isOwnFamily(request, ownFamilyId)) return null;
+        return RoleGuard.FORWARD_ACCESS_DENIED;
+    }
+
+    /**
+     * True when {@code familyId} is the family of the person this session belongs to
+     * (member login, member token, or a staff login matched to its own member record) —
+     * and, for a Member Portal login, the church has not switched its Family tab off.
+     */
+    boolean isOwnFamily(HttpServletRequest request, Integer familyId) {
+        HttpSession session = request.getSession(false);
+        if (session == null || familyId == null) return false;
+        if (com.churchgeniuspro.service.MemberSessionResolver.isMemberSession(session)
+                && RoleGuard.requireMemberPermission(request, "member.family") != null) return false;
+        try {
+            Integer own = memberResolver().resolve(session)
+                    .map(r -> r.member().getFamily() != null ? r.member().getFamily().getId() : null)
+                    .orElse(null);
+            return familyId.equals(own);
+        } catch (Exception e) {
+            log.warn("[FamilyAccess] own-family check failed — refusing: {}", com.churchgeniuspro.util.LogSafe.exception(e));
+            return false;
+        }
+    }
+
+    private com.churchgeniuspro.service.MemberSessionResolver memberResolver() {
+        if (memberSessionResolver == null) {
+            memberSessionResolver = new com.churchgeniuspro.service.MemberSessionResolver(familyMemberRepository, appUserRepository);
+        }
+        return memberSessionResolver;
+    }
+
+    /** The fields a Member Portal page may see about other people: names and household only. */
+    static Map<String, Object> namesOnly(Map<String, Object> row) {
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        for (String k : List.of("id", "firstName", "middleName", "lastName", "nickname", "displayName", "familyId", "familyName", "role")) {
+            if (row.containsKey(k)) out.put(k, row.get(k));
+        }
+        return out;
     }
 }

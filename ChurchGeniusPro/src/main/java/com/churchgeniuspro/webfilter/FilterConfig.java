@@ -187,6 +187,22 @@ public class FilterConfig {
     }
 
     /**
+     * Default-deny API scope for Member Portal / Kids portal sessions (security audit
+     * 2026-10-29): only the portal's own APIs, public endpoints, and staff areas the church
+     * explicitly granted to that member. Runs right after {@link AuthFilter}; staff, church,
+     * temporary-access and NTAG sessions pass untouched.
+     */
+    @Bean
+    public FilterRegistrationBean<MemberApiScopeFilter> memberApiScopeFilter() {
+        FilterRegistrationBean<MemberApiScopeFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new MemberApiScopeFilter());
+        registration.addUrlPatterns("/api/*");
+        registration.setName("memberApiScopeFilter");
+        registration.setOrder(2);
+        return registration;
+    }
+
+    /**
      * Refuses state-changing requests whose Origin/Referer is another site. Order 0,
      * ahead of authentication: a forged request should never reach a handler at all.
      * Mapped to the API and the login endpoint; page GETs are unaffected.

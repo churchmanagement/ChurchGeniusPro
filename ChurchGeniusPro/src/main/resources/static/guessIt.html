@@ -761,10 +761,16 @@ function giApplyStaffPermission() {
     fetch('/api/session', { credentials: 'include', cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (s) {
-        if (!s || !s.authenticated || s.church === true || s.church === 'true' || s.temporary || s.ntag) return;
-        if (!s.privileges) return;                       // no saved permissions → full access
-        var p = typeof s.privileges === 'string' ? JSON.parse(s.privileges) : s.privileges;
-        if (!p || (p['activity.guessit'] !== false && p['activity'] !== false)) return;
+        if (!s || !s.authenticated) return;
+        // Member Portal / Kids portal logins play; hosting is staff-only (the server refuses
+        // the host endpoints for them too — security audit 2026-10-29).
+        var isMember = s.role === 'Member';
+        if (!isMember) {
+          if (s.church === true || s.church === 'true' || s.temporary || s.ntag) return;
+          if (!s.privileges) return;                       // no saved permissions → full access
+          var p = typeof s.privileges === 'string' ? JSON.parse(s.privileges) : s.privileges;
+          if (!p || (p['activity.guessit'] !== false && p['activity'] !== false)) return;
+        }
         giMasterControlsDenied = true;
         document.querySelectorAll('.admin-toggle-btn').forEach(function (b) { b.style.setProperty('display', 'none', 'important'); });
         var panel = document.getElementById('adminPanel');

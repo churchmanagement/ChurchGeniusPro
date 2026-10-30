@@ -111,7 +111,7 @@ public class KidsMinistryController {
 
     @GetMapping("/child-setup")
     public ResponseEntity<?> getChildSetup(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         KmChildSetup s = setupRepo.findByClientId(cid).orElseGet(() -> KmChildSetup.defaults(cid));
@@ -188,7 +188,7 @@ public class KidsMinistryController {
     /** Encrypted cid for the logged-in tenant, to embed the standalone /kidsCheckin page in-app. */
     @GetMapping("/checkin-cid")
     public ResponseEntity<?> checkinCid(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         if (cid == null) return ResponseEntity.status(401).body(Map.of("error", "Not logged in"));
@@ -205,7 +205,7 @@ public class KidsMinistryController {
      */
     @GetMapping("/alert-directory")
     public ResponseEntity<?> alertDirectory(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
@@ -242,7 +242,7 @@ public class KidsMinistryController {
 
     @GetMapping("/classrooms")
     public ResponseEntity<?> listClassrooms(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         List<KmClassroom> rooms = classroomRepo.findByClientIdAndDeleteFlagFalseOrderByMinAgeAscClassNameAsc(cid);
@@ -293,7 +293,7 @@ public class KidsMinistryController {
     @GetMapping("/children")
     public ResponseEntity<?> listChildren(@RequestParam(defaultValue = "false") boolean includeInactive,
                                           HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         List<KmChild> children = includeInactive
@@ -312,7 +312,7 @@ public class KidsMinistryController {
 
     @GetMapping("/children/{id}")
     public ResponseEntity<?> getChild(@PathVariable Long id, HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         KmChild child = childRepo.findById(id).orElse(null);
@@ -545,7 +545,7 @@ public class KidsMinistryController {
     /** Lookup children by parent phone for check-in */
     @GetMapping("/children/lookup")
     public ResponseEntity<?> lookupByPhone(@RequestParam String phone, HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         String digits = phone.replaceAll("[^0-9]", "");
@@ -567,7 +567,7 @@ public class KidsMinistryController {
     /** Get today's active check-ins */
     @GetMapping("/checkins/active")
     public ResponseEntity<?> activeCheckins(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
@@ -581,7 +581,7 @@ public class KidsMinistryController {
                                             @RequestParam(value = "from", required = false) String fromStr,
                                             @RequestParam(value = "to", required = false) String toStr,
                                             HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
@@ -621,7 +621,7 @@ public class KidsMinistryController {
     @GetMapping("/children/{childId}/checkin-detail")
     public ResponseEntity<?> childCheckinDetail(@PathVariable Long childId,
                                                 HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
@@ -766,7 +766,7 @@ public class KidsMinistryController {
      */
     @PostMapping("/checkins/checkout-secure")
     public ResponseEntity<?> checkOutSecure(@RequestBody Map<String, Object> body, HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
@@ -1018,7 +1018,7 @@ public class KidsMinistryController {
     public ResponseEntity<?> snoozePickup(@PathVariable Long id,
                                           @RequestBody Map<String, Object> body,
                                           HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         KmCheckin row = checkinRepo.findById(id).orElse(null);
@@ -1039,7 +1039,7 @@ public class KidsMinistryController {
      */
     @GetMapping("/pickup-dashboard")
     public ResponseEntity<?> pickupDashboard(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         KmChildSetup setup = setupRepo.findByClientId(cid).orElse(null);
@@ -1125,7 +1125,7 @@ public class KidsMinistryController {
     @GetMapping("/checkins/lookup")
     public ResponseEntity<?> lookupByCode(@RequestParam(value = "code", defaultValue = "") String code,
                                           HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
 
@@ -1154,7 +1154,7 @@ public class KidsMinistryController {
 
     @GetMapping("/volunteers")
     public ResponseEntity<?> listVolunteers(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         List<KmVolunteer> vols = volunteerRepo.findByClientIdAndDeleteFlagFalseOrderByNameAsc(cid);
@@ -1298,7 +1298,7 @@ public class KidsMinistryController {
 
     @GetMapping("/volunteer-roles")
     public ResponseEntity<?> listVolunteerRoles(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         return ResponseEntity.ok(kmVolRoleRepo.findByClientIdAndDeleteFlagFalseOrderByRoleNameAsc(cid)
@@ -1403,7 +1403,7 @@ public class KidsMinistryController {
 
     @GetMapping("/summary")
     public ResponseEntity<?> summary(HttpServletRequest req) {
-        String deny = RoleGuard.requireAdminOrUser(req);
+        String deny = RoleGuard.requireStaffAdminOrUser(req);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
         String cid = SessionUtil.getAppClientId(req);
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();

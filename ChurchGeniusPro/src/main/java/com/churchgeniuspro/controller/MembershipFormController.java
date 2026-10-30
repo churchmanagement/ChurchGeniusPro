@@ -907,6 +907,8 @@ public class MembershipFormController {
         boolean isStaffSess = session != null && session.getAttribute("username") != null;
         if (session == null || (!isMemberSession && !isStaffSess))
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        ResponseEntity<?> dirDeny = directoryDeny(request);
+        if (dirDeny != null) return dirDeny;
         String appClientId = resolveAppClientId(session);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "No org"));
 
@@ -2283,6 +2285,8 @@ public class MembershipFormController {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         ResponseEntity<?> guard = guardMemberApi(session, Map.of("success", false, "error", "Not a member account"));
         if (guard != null) return guard;
+        ResponseEntity<?> dirDeny = directoryDeny(request);   // emailing people = using the Directory
+        if (dirDeny != null) return dirDeny;
         String appClientId = resolveAppClientId(session);
         Integer selfId = memberIdFromSession(session);
         if (selfId == null) return ResponseEntity.status(401).body(Map.of("error", "Member not found"));
@@ -2687,6 +2691,17 @@ public class MembershipFormController {
      * @param session  the current HTTP session (may be null)
      * @param emptyBody  the body to return in the 200-empty case (e.g. an empty list)
      */
+    /**
+     * The member Directory lists other people, so for a Member Portal login it honours the
+     * church's Directory switch ({@code member.directory}) on the server too — before
+     * 2026-10-29 only the tab was hidden and the API still answered. Staff are unaffected.
+     */
+    private static ResponseEntity<?> directoryDeny(HttpServletRequest request) {
+        if (!com.churchgeniuspro.util.RoleGuard.isMemberPortalSession(request.getSession(false))) return null;
+        return com.churchgeniuspro.util.RoleGuard.requireMemberPermission(request, "member.directory") == null ? null
+                : ResponseEntity.status(403).body(Map.of("error", "The Directory is not available for your account."));
+    }
+
     private ResponseEntity<?> guardMemberApi(jakarta.servlet.http.HttpSession session, Object emptyBody) {
         if (session == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         // Allow Member portal users with a memberId
