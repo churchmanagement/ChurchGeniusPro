@@ -387,16 +387,9 @@ public class ServiceClientService {
         entity.setSubscriptionType(newPlan);
         entity.setStartDate(start);
         entity.setEndDate(end);
-        long months = java.time.temporal.ChronoUnit.MONTHS.between(start, end);
-        long years  = java.time.temporal.ChronoUnit.YEARS.between(start, end);
-        if (years > 0 && start.plusYears(years).equals(end)) {
-            entity.setActivePeriod((int) years);  entity.setActivePeriodUnit("YEARS");
-        } else if (months > 0 && start.plusMonths(months).equals(end)) {
-            entity.setActivePeriod((int) months); entity.setActivePeriodUnit("MONTHS");
-        } else {
-            entity.setActivePeriod((int) java.time.temporal.ChronoUnit.DAYS.between(start, end));
-            entity.setActivePeriodUnit("DAYS");
-        }
+        Period p = periodBetween(start, end);
+        entity.setActivePeriod(p.amount());
+        entity.setActivePeriodUnit(p.unit());
         entity.setStatus("Active");
         entity.setPaymentStatus(payment);
         lifecycle.validatePlanChange(before, entity);
@@ -462,6 +455,28 @@ public class ServiceClientService {
              + (c.getEndDate() != null ? c.getEndDate().format(day) : "—") + "</td></tr>"
              + "</table>"
              + "<p>Thank you for choosing ChurchGeniusPro.<br/>— The ChurchGeniusPro team</p></div>";
+    }
+
+    /** A subscription term: amount + unit (YEARS, MONTHS or DAYS). */
+    public record Period(int amount, String unit) {}
+
+    /**
+     * The term that runs from {@code start} to {@code end}: whole years, else whole months, else days.
+     * Month-end aware: Oct 31 -> Nov 30 is 1 month and Feb 29 -> Feb 28 next year is 1 year, because
+     * adding one month to Oct 31 clamps to the last day of the shorter month while
+     * {@code ChronoUnit.MONTHS.between} counts it as 0. Each candidate is therefore checked against
+     * {@link #endDateFor}, so the stored term always reproduces the stored end date.
+     */
+    public static Period periodBetween(LocalDate start, LocalDate end) {
+        long years = java.time.temporal.ChronoUnit.YEARS.between(start, end);
+        for (long y = Math.max(1, years); y <= years + 1; y++) {
+            if (start.plusYears(y).equals(end)) return new Period((int) y, "YEARS");
+        }
+        long months = java.time.temporal.ChronoUnit.MONTHS.between(start, end);
+        for (long m = Math.max(1, months); m <= months + 1; m++) {
+            if (start.plusMonths(m).equals(end)) return new Period((int) m, "MONTHS");
+        }
+        return new Period((int) java.time.temporal.ChronoUnit.DAYS.between(start, end), "DAYS");
     }
 
     /** End date for a period; DAYS is supported alongside MONTHS (default) and YEARS. */
