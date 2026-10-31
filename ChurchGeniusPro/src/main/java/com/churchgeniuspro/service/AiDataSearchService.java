@@ -47,6 +47,13 @@ public class AiDataSearchService {
     private final AiAccessPolicy access;
     private final AiStructuredAnswerService structured;   // Phase B intents; null in the legacy unit tests
 
+    /** Phase 1 cross-referenced questions; field-injected so every existing constructor (and test) stays unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AiCrossReferenceService crossRef;
+
+    /** Test seam. */
+    public void setCrossReference(AiCrossReferenceService crossRef) { this.crossRef = crossRef; }
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchService(FamilyMemberRepository memberRepo,
                                IncomeRepository incomeRepo,
@@ -89,6 +96,15 @@ public class AiDataSearchService {
         // to the router's own words once, here, for every category (AiQueryLexicon). Names are
         // still matched on the original question; the period words are never rewritten.
         String qc = AiQueryLexicon.canonical(q);
+
+        // Phase 1 (2026-10-31): cross-referenced questions that combine two modules. First, so
+        // "regular attenders who aren't serving" or "who gave last year but not this year" is not
+        // read as the single-module volunteer / giving intents below. Every module involved is
+        // checked; any one missing refuses the whole question.
+        if (crossRef != null) {
+            Map<String, Object> x = crossRef.route(qc, a, access.crossAccess(req, clientId), clientId, today);
+            if (x != null) return x;
+        }
 
         // Order matters: volunteers (profiles) first, then a named person's giving, then
         // the Phase B structured intents, then the remaining legacy intents.

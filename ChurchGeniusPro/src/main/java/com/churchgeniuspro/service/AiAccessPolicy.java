@@ -135,6 +135,34 @@ public class AiAccessPolicy {
     }
 
     /**
+     * Access to the two modules the cross-referenced questions add (AI Search Phase 1, 2026-10-31).
+     * Kept out of {@link AiAccess} so its positional constructor (used across the tests) stays as it is;
+     * the rules live here, next to the others, so there is still one place for AI permissions.
+     * <ul>
+     *   <li>attendance — /attendance: SuperAdmin/Admin/User + general.attendance + plan "attendance"</li>
+     *   <li>groups — /groups: SuperAdmin/Admin (requireAdmin) + admin.groups + plan "groups"</li>
+     * </ul>
+     * Member-portal, church-owner and Kids Portal sessions get neither: cross-referenced answers are
+     * staff answers about the whole church.
+     */
+    public record CrossAccess(boolean attendance, boolean groups) {
+        public static CrossAccess none() { return new CrossAccess(false, false); }
+    }
+
+    public CrossAccess crossAccess(HttpServletRequest req, String clientId) {
+        HttpSession s = req == null ? null : req.getSession(false);
+        if (s == null || s.getAttribute("username") == null) return CrossAccess.none();
+        if (RoleGuard.isKidsPortalSession(s)) return CrossAccess.none();
+        String role = s.getAttribute("role") == null ? "" : String.valueOf(s.getAttribute("role"));
+        if ("Member".equals(role)) return CrossAccess.none();
+        Object ch = s.getAttribute("church");
+        if (Boolean.TRUE.equals(ch) || "true".equalsIgnoreCase(String.valueOf(ch))) return CrossAccess.none();
+        boolean attendance = ADMIN_OR_USER.contains(role) && page(req, "general.attendance") && feature(clientId, "attendance");
+        boolean groups     = ADMINS.contains(role) && page(req, "admin.groups") && feature(clientId, "groups");
+        return new CrossAccess(attendance, groups);
+    }
+
+    /**
      * The catalogue pages this session may open — each page's own route rule (role guard,
      * alias-aware page key, member tab key or opt-in key) plus the plan feature the
      * subscription filter would apply to its path. Evaluated once per request.

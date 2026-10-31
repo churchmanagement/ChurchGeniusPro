@@ -583,7 +583,7 @@
   // Kept in step with the server's vocabulary (AiQueryLexicon): every synonym the server maps
   // must also bring the question to the server, or the bar answers it as navigation instead.
   function looksLikeDataQuestion(q){
-    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?)\b/i.test(q);
+    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?|attend\w*|attenders?|attendees?|lapsed|regulars|visitors?|first[- ]time\w*|newcomers?|groups?)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
   // — i.e. asks for data rather than for a page.
@@ -593,7 +593,9 @@
         || /^\s*(how much|how many|what|who|which|whose|did|has|have|does|do|is|are|was|were|when)\b/i.test(q)
         || /\b(did|has|have)\s+[A-Z][a-z]+\s+(give|gave|given|donate|donated|contribute|contributed|tithe|tithed)\b/.test(q)
         // A status filter ("deleted members", "inactive families", "unalert") asks for records, not a page.
-        || /\b(deleted|removed|in-?active|deactivated|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off)|disabled alerts?)\b/i.test(q);
+        || /\b(deleted|removed|in-?active|deactivated|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off)|disabled alerts?)\b/i.test(q)
+        // A cross-referenced question (Phase 1) asks for people, not a page: "regulars we haven't seen", "not in any group".
+        || /\b(attend\w*|attenders?|lapsed|regulars|haven'?t seen|not seen|not in (?:a|any) (?:small )?groups?|not serving|first[- ]time visitors?|followed[- ]up)\b/i.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {
@@ -798,6 +800,15 @@
         d.rows.forEach(function(r){ html+='<tr>'; (r||[]).forEach(function(c){ html+='<td>'+esc(c==null?'':c)+'</td>'; }); html+='</tr>'; });
         html+='</tbody></table></div>';
         if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.rows.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open the page for the full list.</div>';
+      }
+      // Cross-referenced answers (Phase 1): which modules were read, and what the words mean.
+      if (Array.isArray(d.sources) && d.sources.length){
+        html+='<div class="aa-sources"><strong>Read from:</strong> '+d.sources.map(esc).join(' \u00b7 ')+'</div>';
+      }
+      if (Array.isArray(d.definitions) && d.definitions.length){
+        html+='<details class="aa-defs"><summary>How this was worked out</summary><ul>';
+        d.definitions.forEach(function(t){ html+='<li>'+esc(t)+'</li>'; });
+        html+='</ul></details>';
       }
       // Public screens: the screen's name is the link (its real public address from the server);
       // only a same-site relative address is ever turned into a link.
@@ -1264,6 +1275,11 @@
       '#aiResultsWrap .aa-table td{padding:6px 9px;border-bottom:1px solid #f3edf0;color:#444;vertical-align:top;}',
       '#aiResultsWrap .aa-table tr:last-child td{border-bottom:none;}',
       '#aiResultsWrap .aa-more{margin-top:6px;font-size:12px;color:#888;}',
+      '#aiResultsWrap .aa-sources{margin-top:8px;font-size:12px;color:#555;}',
+      '#aiResultsWrap .aa-defs{margin-top:6px;font-size:12px;color:#555;}',
+      '#aiResultsWrap .aa-defs summary{cursor:pointer;color:#673147;font-weight:600;}',
+      '#aiResultsWrap .aa-defs ul{margin:6px 0 0 18px;padding:0;}',
+      '#aiResultsWrap .aa-defs li{margin:2px 0;}',
       // Phase F — small screens: the input takes a full row, controls wrap under it,
       // summary tiles and suggestion rows stack, the panel stays scrollable.
       '@media (max-width:640px){'
