@@ -574,35 +574,49 @@
     }, 200);
   }
 
-  function selectExpense(id, name) {
+  // opts.voice — the pick came from Voice / Converse: the auto-fill then copies
+  // everything EXCEPT Ref No (a check number belongs to one payment only).
+  function selectExpense(id, name, skipAutoFill, opts) {
     document.getElementById('fExpense').value      = id;
     document.getElementById('fExpenseInput').value = name;
     document.getElementById('fExpenseHint').textContent = '';
     document.getElementById('fExpenseInput').classList.remove('invalid');
     document.getElementById('expenseDropdown').classList.remove('open');
-    autoFillFromLastExpense(id);
+    // The pending auto-fill is exposed so Voice / Converse can wait for it before
+    // moving on (otherwise a late reply could overwrite a value just spoken).
+    window.__expenseAutoFill = null;
+    window.__expenseAutoFillPending = skipAutoFill ? null : autoFillFromLastExpense(id, opts || {});
   }
 
   /* ════════════════════════════════════
      AUTO-FILL FROM LAST EXPENSE
   ════════════════════════════════════ */
-  async function autoFillFromLastExpense(purposeId) {
+  // Resolves to {fund, method, amount, note, refNo} — the values it put in the
+  // form — or null when nothing was filled. A reply that arrives after the
+  // expense category has changed is ignored.
+  async function autoFillFromLastExpense(purposeId, opts) {
+    opts = opts || {};
     try {
       const res = await fetch(`/api/expense/purpose/${purposeId}/last`);
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
-      if (!data || Object.keys(data).length === 0) return;
+      if (!data || Object.keys(data).length === 0) return null;
 
       // Only auto-fill if not currently editing an existing record
-      if (document.getElementById('editingId').value) return;
+      if (document.getElementById('editingId').value) return null;
+      if (String(document.getElementById('fExpense').value) !== String(purposeId)) return null;
 
-      if (data.mainSourceId) document.getElementById('fFund').value   = data.mainSourceId;
-      if (data.transactionTypeId) document.getElementById('fMethod').value = data.transactionTypeId;
-      if (data.refNo)        document.getElementById('fRefNo').value  = data.refNo;
-      if (data.amount)       document.getElementById('fAmount').value = data.amount;
-      if (data.note)         document.getElementById('fNote').value   = data.note;
+      const filled = { memberId: String(purposeId) };   // memberId = the selected category (same shape as Income)
+      if (data.mainSourceId)      { document.getElementById('fFund').value   = data.mainSourceId;      filled.fund   = document.getElementById('fFund').value; }
+      if (data.transactionTypeId) { document.getElementById('fMethod').value = data.transactionTypeId; filled.method = document.getElementById('fMethod').value; }
+      if (data.refNo && !opts.voice) { document.getElementById('fRefNo').value = data.refNo;         filled.refNo  = document.getElementById('fRefNo').value; }
+      if (data.amount)            { document.getElementById('fAmount').value = data.amount;            filled.amount = document.getElementById('fAmount').value; }
+      if (data.note)              { document.getElementById('fNote').value   = data.note;              filled.note   = document.getElementById('fNote').value; }
       // Date stays as today
+      window.__expenseAutoFill = filled;
+      return filled;
     } catch { /* silent */ }
+    return null;
   }
 
   /* ════════════════════════════════════

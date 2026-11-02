@@ -119,6 +119,18 @@
        for requests still in flight so cancel() can tear the sockets down
        rather than merely ignoring the replies. */
     var gen = 0, pending = [], cancelled = false;
+    /* opts.ordered: replies are handed to the page in the order the phrases were
+       spoken, even when a later phrase's request finishes first ("Anson Mathew" …
+       "next" must never be applied as "next" … "Anson Mathew"). Off by default, so
+       pages that do not ask for it behave exactly as before. */
+    var seqNext = 0, seqDeliver = 0, held = {};
+    function deliver(seq, fn) {
+      held[seq] = fn || function () {};
+      while (held.hasOwnProperty(seqDeliver)) {
+        var f = held[seqDeliver]; delete held[seqDeliver]; seqDeliver++;
+        try { f(); } catch (e) { dbg('error', 'result handler failed: ' + (e && e.message)); }
+      }
+    }
     function status(m, k) { if (opts.onStatus) opts.onStatus(m, k || 'info'); }
     function setState(on) { running = on; if (opts.onState) opts.onState(on); refreshIndicator(); }
     function dbg(label, detail) { if (opts.onDebug) { try { opts.onDebug(label, detail); } catch (e) {} } }
@@ -236,6 +248,7 @@
     api.cancel = function () {
       cancelled = true;
       gen++;
+      seqNext = 0; seqDeliver = 0; held = {};
       if (monitorTimer) { clearInterval(monitorTimer); monitorTimer = null; }
       if (maxT) { clearTimeout(maxT); maxT = null; }
       var c = cur; cur = null;
@@ -310,6 +323,8 @@
       var t0 = Date.now();
       dbg('request', 'POST /api/voice/command  context=' + (opts.context || 'income'));
       var myGen = gen;
+      var mySeq = opts.ordered ? seqNext++ : -1, outcome = null;
+      function run(fn) { if (opts.ordered) outcome = fn; else fn(); }
       var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       if (ac) pending.push(ac);
       inFlight++; refreshIndicator();          // → "Processing…"
@@ -318,6 +333,7 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, code: r.status, d: d }; }); })
         .then(function (res) {
           if (myGen !== gen) return;           // cancelled - discard the reply
+          run(function () {
           dbg('response', 'HTTP ' + res.code + ' in ' + (Date.now() - t0) + ' ms');
           if (res.code === 403) {
             status(res.d.error || 'Voice limit reached or disabled.', 'error');
@@ -335,17 +351,21 @@
           if (opts.onTranscript) opts.onTranscript(res.d.transcript || '');
           if (opts.onStatusData && res.d.status) opts.onStatusData(res.d.status);
           if (opts.onResult) opts.onResult(res.d);
+          });
         })
         .catch(function (e) {
           if (myGen !== gen) return;           // cancelled - stay quiet
           if (e && e.name === 'AbortError') return;
-          dbg('error', 'network error: ' + (e && e.message ? e.message : 'fetch failed'));
-          status('Network error talking to the voice service. Try again.', 'error');
+          run(function () {
+            dbg('error', 'network error: ' + (e && e.message ? e.message : 'fetch failed'));
+            status('Network error talking to the voice service. Try again.', 'error');
+          });
         })
         .then(function () {
           if (ac) { var ix = pending.indexOf(ac); if (ix >= 0) pending.splice(ix, 1); }
           if (myGen !== gen) return;           // cancel() already zeroed inFlight
           inFlight = Math.max(0, inFlight - 1); refreshIndicator();
+          if (opts.ordered) deliver(mySeq, outcome);
         });  // back to Listening, or hide
     }
 

@@ -471,7 +471,69 @@
     return api;
   }
 
+  // ── Form navigation and clear commands (deterministic, no AI) ───────────────
+  // Recognised only when the WHOLE phrase is the command, so a value that merely
+  // contains one of the words ("Next Generation Fund", "Go to Missions") is never
+  // taken as a command.
+  //   {kind:'next'}                 "next", "next one", "go to the next field" …
+  //   {kind:'goto', field}          "go to fund", "move to the amount field" …
+  //   {kind:'clearAll'}             "clear all" — every field EXCEPT the contributor
+  //   {kind:'clearForm'}            "clear form", "reset form", "start over" — everything
+  //   {kind:'clearField', field}    "clear contributor", "clear amount" …
+  //   {kind:'option', num}          "3", "number three", "option 2", "the second one"
+  //                                 (only when opts.options is true — a list is showing)
+  //   null                          not a command
+  var NAV_NUM={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,
+    thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,
+    first:1,second:2,third:3,fourth:4,fifth:5,sixth:6,seventh:7,eighth:8,ninth:9,tenth:10,won:1,to:2,too:2,for:4};
+  function parseNavCommand(transcript, fieldWords, opts){
+    opts=opts||{};
+    var t=String(transcript||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+    if(!t) return null;
+    var lead=/^(ok|okay|alright|all right|please|now|and|so|um|uh|hmm|then|yes)\s+/, tail=/\s+(please|thanks|thank you|now)$/;
+    var prev; do { prev=t; t=t.replace(lead,'').replace(tail,'').trim(); } while(t!==prev);
+    if(!t) return null;
+    fieldWords=fieldWords||{};
+    var MULTI={'payment method':'method','reference number':'ref','ref number':'ref','check number':'ref','cheque number':'ref','ref no':'ref','check no':'ref'};
+    // Map a phrase made ONLY of one field's words ("payment method", "the amount") to that field.
+    function fieldOfPhrase(p){
+      p=String(p||'').replace(/^(the|my|this)\s+/,'').replace(/\s+(field|fields|box|section|line)$/,'').trim();
+      if(!p) return null;
+      if(MULTI[p] && fieldWords[MULTI[p]]) return MULTI[p];
+      var toks=p.split(' '), found=null;
+      for(var i=0;i<toks.length;i++){
+        var w=toks[i], hit=null;
+        for(var f in fieldWords){
+          var ws=fieldWords[f]||[];
+          if(ws.indexOf(w)>=0 || (w.length>=4 && ws.some(function(k){ return k.length>=4 && lev1(w,k); }))){ hit=f; break; }
+        }
+        if(!hit && w==='fun' && fieldWords.fund) hit='fund';        // common mishearing of "fund"
+        if(!hit) return null;                                      // a non-field word → not a pure field phrase
+        if(found && found!==hit) return null;
+        found=hit;
+      }
+      return found;
+    }
+    if(opts.options){
+      var om=t.match(/^(?:(?:number|option|choice|pick|choose|select|item)\s+)?(?:number\s+)?(?:the\s+)?(\d{1,2}|[a-z]+)(?:\s+one)?$/);
+      if(om){ var n=/^\d+$/.test(om[1]) ? parseInt(om[1],10) : NAV_NUM[om[1]]; if(n) return {kind:'option', num:n}; }
+    }
+    if(/^(?:(?:go|move|skip|jump|switch|continue|proceed)(?:\s+on)?(?:\s+to)?\s+)?(?:the\s+)?next(?:\s+(?:one|field|item|box|question|step|entry))?$/.test(t)) return {kind:'next'};
+    var g=t.match(/^(?:(?:go|move|jump|switch|skip|take me|bring me|navigate)(?:\s+back)?\s+to|focus on)\s+(.+)$/) || t.match(/^(?:the\s+)?(.+?)\s+field$/);
+    if(g){ var gf=fieldOfPhrase(g[1]); if(gf) return {kind:'goto', field:gf}; }
+    if(/^(?:start over|start again|start from scratch|begin again)$/.test(t)) return {kind:'clearForm'};
+    var c=t.match(/^(?:clear|reset|erase|remove|delete|empty|wipe)(?:\s+out)?\s+(.+)$/);
+    if(c){
+      var r=c[1].replace(/^(the|my)\s+/,'').trim();
+      if(/^(all|all fields|all the fields|all of it|all of them|everything (?:but|except)(?: the)? contributor|all (?:but|except)(?: the)? contributor)$/.test(r)) return {kind:'clearAll'};
+      if(/^(form|whole form|entire form|everything|fields|all fields and (?:the )?contributor|all and (?:the )?contributor|whole thing)$/.test(r)) return {kind:'clearForm'};
+      var cf=fieldOfPhrase(r); if(cf) return {kind:'clearField', field:cf};
+    }
+    return null;
+  }
+
   root.VoiceCore = {
+    parseNavCommand: parseNavCommand,
     parseDate: parseDate, parseAmount: parseAmount, validateAmount: validateAmount, AMOUNT_MAX: AMOUNT_MAX,
     matchOption: matchOption, matchContributor: matchContributor, phoneticKey: phoneticKey, diceSim: diceSim,
     parseSetCommand: parseSetCommand, routeFields: routeFields, isLikelyHallucination: isLikelyHallucination,

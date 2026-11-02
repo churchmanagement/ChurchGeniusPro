@@ -629,7 +629,9 @@
   /* ════════════════════════════════════
      COMBOBOX — select an item
   ════════════════════════════════════ */
-  function selectContributor(id, name, skipAutoFill) {
+  // opts.voice — the pick came from Voice / Converse: the auto-fill then copies
+  // everything EXCEPT Ref No (a check number belongs to one gift only).
+  function selectContributor(id, name, skipAutoFill, opts) {
     selectedContributorId = id;
     document.getElementById('fContributor').value        = id;
     document.getElementById('fContributorInput').value   = name;
@@ -640,29 +642,48 @@
 
     // Auto-fill from last income record (add mode only). Skipped for Scan Check,
     // which must use ONLY the values read from the scanned check.
-    if (editingId === null && !skipAutoFill) {
-      autoFillFromLastIncome(id);
-    }
+    // The pending auto-fill is exposed so Voice / Converse can wait for it before
+    // moving on (otherwise a late reply could overwrite a value just spoken).
+    window.__incomeAutoFill = null;
+    window.__incomeAutoFillPending = (editingId === null && !skipAutoFill)
+      ? autoFillFromLastIncome(id, opts || {})
+      : null;
   }
 
   /* ════════════════════════════════════
      AUTO-FILL from last income record
   ════════════════════════════════════ */
-  async function autoFillFromLastIncome(memberId) {
+  // Resolves to {fund, method, amount, note, refNo} — the values it put in the
+  // form — or null when nothing was filled. A reply that arrives after the
+  // contributor has changed is ignored.
+  async function autoFillFromLastIncome(memberId, opts) {
+    opts = opts || {};
     try {
       const res  = await fetch(`/api/income/member/${memberId}/last`);
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
+      if (String(selectedContributorId) !== String(memberId) || editingId !== null) return null;
       if (data && data.id) {
         // Pre-fill Fund, Method, Ref No, Amount, Note from last record
-        // Date is intentionally left as today
+        // Date is intentionally left as today. A voice pick never copies Ref No.
         document.getElementById('fFund').value   = data.subSourceId       || '';
         document.getElementById('fMethod').value = data.transactionTypeId || '';
-        document.getElementById('fRefNo').value  = data.refNo       || '';
+        if (!opts.voice) document.getElementById('fRefNo').value = data.refNo || '';
         document.getElementById('fAmount').value = data.amount      || '';
         document.getElementById('fNote').value   = data.note        || '';
+        const filled = {
+          memberId: String(memberId),
+          fund:   document.getElementById('fFund').value,
+          method: document.getElementById('fMethod').value,
+          amount: document.getElementById('fAmount').value,
+          note:   document.getElementById('fNote').value
+        };
+        if (!opts.voice) filled.refNo = document.getElementById('fRefNo').value;
+        window.__incomeAutoFill = filled;
+        return filled;
       }
     } catch { /* silent */ }
+    return null;
   }
 
   /* ════════════════════════════════════

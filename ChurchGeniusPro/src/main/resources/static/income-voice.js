@@ -4,13 +4,19 @@
  * Lets users dictate an income entry ("Contributor Anson Mathew, Offering
  * Church Fund, Date May thirty-first twenty twenty-six, Method Bank Transfer,
  * Amount one hundred") and auto-populates the form fields, dropdowns, date and
- * amount. Uses the browser Web Speech API (Chrome/Edge desktop, Android Chrome,
- * iOS Safari 14.5+). Falls back gracefully where speech recognition is missing.
+ * amount. Audio is recorded in the browser and transcribed on the server
+ * (voice-openai.js → /api/voice/command); the page applies and validates every
+ * value itself and never saves without the user.
+ *
+ * Both modes are GUIDED: the field that needs a value is highlighted (and the
+ * Contributor list / a numbered Fund or Method list opened); "next", "go to Fund",
+ * "clear all" and "clear contributor" are recognised by the app (VoiceCore.
+ * parseNavCommand), not by the AI. Values copied from the contributor's last gift
+ * are skipped, except the amount, which is read back for confirmation.
  *
  * Self-contained: injects its own UI + styles, fetches its own contributor list,
  * reads the Fund/Method <select> options from the DOM, and reuses the page's
  * global selectContributor()/toggleGuestMode() to drive the contributor combobox.
- * The parsing logic below was unit-tested separately (41 cases).
  * ========================================================================== */
 (function () {
   'use strict';
@@ -101,7 +107,14 @@
       + '.vh-modal ul{margin:4px 0 8px;padding-left:20px;}'
       + '.vh-modal .vh-ex{background:#fbf7f9;border:1px solid #eadfe6;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12.5px;color:#555;font-style:italic;}'
       + '.vh-modal-x{float:right;border:none;background:none;font-size:16px;cursor:pointer;color:#999;padding:2px 6px;}'
-      + '.vh-modal-x:hover{color:#673147;}';
+      + '.vh-modal-x:hover{color:#673147;}'
+      // ── Guided field: the attached, numbered choice list for Fund / Method ──
+      + '#voicePickList{position:absolute;z-index:1200;background:#fff;border:1.5px solid #5c6bc0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);'
+      +   'max-height:260px;overflow:auto;font-size:13px;min-width:200px;}'
+      + '#voicePickList .vpl-head{position:sticky;top:0;background:#eef0fb;color:#3f4aa0;font-size:11.5px;font-weight:600;padding:6px 10px;border-bottom:1px solid #dde1f5;}'
+      + '#voicePickList .vpl-opt{padding:8px 10px;cursor:pointer;display:flex;gap:8px;align-items:baseline;color:#333;}'
+      + '#voicePickList .vpl-opt:hover,#voicePickList .vpl-opt.vpl-sel{background:#f3e9ee;color:#673147;}'
+      + '#voicePickList .vpl-num{min-width:24px;font-weight:700;color:#5c6bc0;}';
     var st=document.createElement('style'); st.id='voiceStyles'; st.textContent=css; document.head.appendChild(st);
   }
 
@@ -129,12 +142,16 @@
       +'<div class="vh-ex">"Contributor Anson Mathew, Offering Church Fund, Date May thirty-first twenty twenty-six, Method Bank Transfer, Amount one hundred"</div>'
       +'<ul><li>Pause briefly between fields; amounts and dates work in words or digits ("one hundred", "5 31 2026").</li>'
       +'<li>For reference/check numbers with hyphens, say "dash": "Check Number TXN dash 2026 dash 001" → TXN-2026-001.</li>'
-      +'<li>Fix mistakes by voice: <b>"Clear Amount"</b>, <b>"Clear Contributor"</b>, <b>"Reset Field"</b>, or <b>"Clear Form"</b>.</li>'
+      +'<li>The field to fill is highlighted for you, one at a time; Fund and Method show a numbered list — say the name or the number.</li>'
+      +'<li>Move around by voice: <b>"Next"</b> (skip or keep this field) or <b>"Go to Fund"</b> / <b>"Go to Amount"</b>.</li>'
+      +'<li>Fix mistakes by voice: <b>"Clear Amount"</b>, <b>"Clear Contributor"</b>, <b>"Clear All"</b> (keeps the contributor), <b>"Reset Field"</b>, or <b>"Clear Form"</b> (everything).</li>'
+      +'<li>Choosing a contributor fills Fund, Method, Amount and Note from their last gift (not the Ref No); you are asked to confirm the amount.</li>'
       +'<li>Auto-filled fields are outlined — <b>amber</b> means confirm before saving; if several people or funds match, pick from the suggestions shown.</li>'
       +'<li>Requires microphone permission; speak at a normal pace in a quiet environment.</li></ul>'
       +'<h4>🗣 Converse</h4>'
       +'<p>Click 🗣 for a guided conversation — the assistant asks for the contributor, offering, date, method, and amount one at a time, and asks follow-up questions when it needs more information (e.g. to choose between two matching names).</p>'
-      +'<ul><li>Answer naturally; say <b>"Skip"</b> to leave a field blank or <b>"Stop"</b> to end the conversation.</li>'
+      +'<ul><li>Answer naturally; say <b>"Skip"</b> or <b>"Next"</b> to leave a field blank, <b>"Go to Fund"</b> to jump to a field, or <b>"Stop"</b> to end the conversation.</li>'
+      +'<li>For Fund and Method, say the name or its number in the list shown under the field.</li>'
       +'<li>Great for hands-free entry — each answer is confirmed before it is applied.</li></ul>'
       +'<h4>Limitations</h4>'
       +'<ul><li>English is supported; names, funds, and methods are matched against your church’s own lists.</li>'
@@ -160,7 +177,10 @@
       + '<li><b>Reference / Check No</b> — <code>Reference Number 12345</code>, <code>Ref No 987654</code>, <code>Check Number 4567</code>, <code>Check No 7890</code>, <code>Cheque No …</code>. Letters work too: <code>Reference Number ABC123</code>; for hyphens say “dash”: <code>Check Number TXN dash 2026 dash 001</code> → TXN-2026-001.</li>'
       + '<li><b>Note</b>: <code>Note weekly tithe</code>.</li>'
       + '<li><b>Set a field</b> — <code>Set Contributor to Anson Mathew</code>, <code>Set Fund to Youth Fund</code>, <code>Set Amount to 100</code>, <code>Set Date to October 21, 2026</code>. Or say just <code>Set Contributor</code>, then the name; the next thing you say goes to that field only. Say <code>Done</code> to finish it. If a value is clear it is accepted without “Done”; if not, you are asked to repeat it.</li>'
-      + '<li><b>Clear / Reset</b> — fix mistakes by voice: <code>Clear Contributor</code>, <code>Clear Amount</code>, <code>Clear Date</code>, <code>Clear Method</code> (clears one field) · <code>Reset Field</code> (resets the field you changed last) · <code>Reset Fields</code> / <code>Clear Form</code> / <code>Reset Form</code> (clears the whole form).</li>'
+      + '<li><b>Guided entry</b> — when you start, the field to fill is highlighted (Contributor first, with its list open); after each value the next field that still needs one is highlighted. Fund and Method show a numbered list: say the name or the number (<code>3</code>, <code>number two</code>), or click it.</li>'
+      + '<li><b>Move between fields</b> — <code>Next</code>, <code>Next one</code>, <code>Go to the next field</code> (skip or keep the current field) · <code>Go to Fund</code>, <code>Go to Amount</code>, <code>Go to Date</code> (jump straight there).</li>'
+      + '<li><b>Last gift</b> — choosing a contributor fills Fund, Method, Amount and Note from their last gift (never the Ref No). Those fields are skipped, except the Amount, which you are asked to keep or change.</li>'
+      + '<li><b>Clear / Reset</b> — fix mistakes by voice: <code>Clear Amount</code>, <code>Clear Date</code>, <code>Clear Method</code> (one field) · <code>Clear Contributor</code> (also clears what was copied from their last gift and not changed by you) · <code>Clear All</code> (every field except the contributor) · <code>Reset Field</code> (the field you changed last) · <code>Clear Form</code> / <code>Reset Form</code> / <code>Start Over</code> (the whole form).</li>'
       + '</ul>'
       + '<div style="margin-top:6px;color:#888;">Auto-filled fields are outlined; amber means please confirm before saving. If several people or funds match, pick the right one from the suggestions.</div>'
       + '</div>';
@@ -322,7 +342,10 @@
 
   // Per-session field state so the panel accumulates across utterances.
   var pendingField=null, sessionFields={};
-  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; if(typeof activeField!=='undefined') activeField=null; var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
+  // userSet[f]  — the user gave, picked or kept this value in this session (never re-asked)
+  // skipped[f]  — the user said "skip" / "next" on this empty field (Save Now still asks for it)
+  var userSet={}, skipped={};
+  function resetSession(){ pendingField=null; lastField=null; sessionFields={}; userSet={}; skipped={}; if(typeof activeField!=='undefined') activeField=null; closePickList(); var r=$('voiceResults'),s=$('voiceSuggest'); if(r)r.innerHTML=''; if(s)s.innerHTML=''; }
   function renderSession(){
     var chips=[], sug='', confirm=false;
     Object.keys(sessionFields).forEach(function(f){ var r=sessionFields[f]; if(!r)return; if(r.chip)chips.push(r.chip); if(r.suggest)sug+=r.suggest; if(r.confirm)confirm=true; });
@@ -364,7 +387,7 @@
       if(field==='contributor' && typeof window.toggleGuestMode==='function'){ try{ window.toggleGuestMode(false); }catch(e){} }
       CLEAR_TARGETS[field].forEach(function(id){ clearDom(id); markField(id,''); flash(id); });
     });
-    sessionFields={}; lastField=null; pendingField=null; renderSession();
+    sessionFields={}; lastField=null; pendingField=null; userSet={}; skipped={}; window.__incomeAutoFill=null; closePickList(); renderSession();
   }
   function fieldFromWords(text){
     var toks=(text||'').toLowerCase().replace(/[^a-z ]+/g,' ').split(/\s+/).filter(Boolean);
@@ -425,7 +448,7 @@
   // mic is muted while it talks, see speak()), never a running commentary.
   function announce(text, spoken){ setStatus(text); if(spoken && speech){ speak(spoken); } }
   function setActive(field, spokenToo){
-    activeField=field; setCurrentField(field);
+    activeField=field; if(field){ delete skipped[field]; guideUI(field); } else setCurrentField(null);
     if(field) announce('🎯 Setting '+fieldLabel(field)+' — say the value'+(field==='amount'?' (e.g. “100”)':'')+', or “Done”.', spokenToo ? 'Setting '+fieldLabel(field)+'.' : null);
   }
   function applyPayload(payload){
@@ -436,6 +459,12 @@
     logEvent('entities', JSON.stringify(fields));
     if(typeof payload.confidence==='number' && payload.confidence>=0) logEvent('confidence', Math.round(payload.confidence*100)+'%');
     if(VC.isLikelyHallucination(transcript)){ logEvent('ignored','speech model artefact — “'+transcript+'”'); setStatus('Didn’t catch that — please say it again.'); return; }
+
+    // 0. Navigation / clear commands ("next", "go to Fund", "clear all", "3" while a
+    //    list is open) — matched on the WHOLE transcript by the app itself, before
+    //    anything the extractor returned is considered.
+    var nav=VC.parseNavCommand ? VC.parseNavCommand(transcript, FIELD_WORDS, {options: !!pickState}) : null;
+    if(nav){ handleVoiceNav(nav); return; }
 
     // 1. Explicit field selection — "Set Contributor to Anson Mathew", "Set Amount", "Done".
     //    Checked on the raw transcript FIRST, so the extractor cannot re-route it.
@@ -493,7 +522,9 @@
   // Entry points for automated page tests (Playwright feeds the JSON /api/voice/command
   // returns straight in, so the routing rules run against the real form without a mic).
   window.__incomeVoice = { applyPayload: applyPayload, convoTurn: function(p){ return convoTurn(p); }, startConvo: function(){ return startConvo(); }, endConvo: function(){ return endConvo(); },
-                           activeField: function(){ return activeField; }, convo: function(){ return convo; } };
+                           activeField: function(){ return activeField; }, convo: function(){ return convo; },
+                           guidedField: function(){ return guidedField; }, pickList: function(){ return pickState ? pickState.opts.map(function(o){ return o.num+'. '+o.text; }) : null; },
+                           feed: function(p){ handleResult(p); return resultChain; } };
 
   // Apply field(s) from one phrase, with staged feedback: I heard → Processing →
   // set / needs confirmation. A low-confidence transcript never overwrites a field
@@ -503,6 +534,13 @@
     function step(){
       if(i>=pairs.length){
         var confirm=renderSession();
+        // Voice (🎤) is guided: once the value is accepted, move to the next field
+        // that still needs something (after any auto-fill from the last gift lands).
+        if(recording && !convo.active && !confirm && !activeField){
+          var lf=pairs[pairs.length-1].field;
+          guideNextAfter(lf, '✅ '+fieldLabel(lf)+' set.');
+          return;
+        }
         if(!activeField) setCurrentField(null);
         if(!confirm) setStatus(activeField ? '🎯 '+fieldLabel(activeField)+' is still active — say the value again, or “Done”.' : '✅ Field filled. Say “Set …” and the next field, e.g. “Set Amount to 100”, or tap Stop.');
         return;
@@ -526,6 +564,7 @@
         var ok = !res.confirm;
         logEvent('result', fieldLabel(p.field)+': '+(ok ? 'set' : 'needs confirmation'));
         if(ok){
+          userSet[p.field]=true; delete skipped[p.field];
           if(activeField===p.field){ activeField=null; }            // value accepted → field finished
           announce('✅ '+fieldLabel(p.field)+' set to '+(res.said||p.value)+'.', fieldLabel(p.field)+' set to '+(res.said||p.value)+'.');
         } else if(res.problem){
@@ -546,9 +585,14 @@
     opts.forEach(function(o){ html += '<span class="voice-sugg-opt" onclick="'+o.onpick.replace(/"/g,'&quot;')+'">'+o.label+'</span>'; });
     return html+'</div>';
   }
+  var applyingByVoice=false;   // true while voice itself selects a contributor (not a user click)
   function applyContributor(id,name){
-    if(typeof window.selectContributor==='function'){ window.selectContributor(id, name); }
-    else { var h=$('fContributor'), d=$('fContributorInput'); if(h) h.value=id; if(d) d.value=name; }
+    applyingByVoice=true;
+    try{
+      if(typeof window.selectContributor==='function'){ window.selectContributor(id, name, false, {voice:true}); }
+      else { var h=$('fContributor'), d=$('fContributorInput'); if(h) h.value=id; if(d) d.value=name; }
+    } finally { applyingByVoice=false; }
+    userSet.contributor=true; delete skipped.contributor;
   }
   function usDate(iso){ var p=(iso||'').split('-'); return p.length===3 ? (p[1]+'/'+p[2]+'/'+p[0]) : iso; }
 
@@ -562,13 +606,26 @@
     }
     else { setSelect(field, value); markField(field,'ok'); if(field==='fFund') sessionFields.fund={chip:chip('Fund selected','ok')}; if(field==='fMethod') sessionFields.method={chip:chip('Method selected','ok')}; }
     renderSession(); setStatus('✅ Selected.');
+    var key = (field==='contributor'||field==='newContributor') ? 'contributor' : (field==='fFund' ? 'fund' : (field==='fMethod' ? 'method' : null));
+    if(key){
+      userSet[key]=true; delete skipped[key];
+      if(activeField===key) activeField=null;
+      if(recording && !convo.active) guideNextAfter(key, '✅ Selected.');
+    }
   };
 
   // ── Speech recognition (shared engine in voice-core.js) ───────────────────
   var recording=false;
   var SESSION_MS=300000, sessionTimer=null, ending=false;   // 5-minute Converse session
   function setRecording(on){
+    var was=recording;
     recording=on; var b=$('voiceMicBtn');
+    // Voice (🎤): highlight the first field that needs a value as soon as listening
+    // starts, and drop the guidance when it stops. (Converse guides on its own.)
+    if(!convo.active){
+      if(on && !was) guideNextAfter(null, '');
+      if(!on && was){ activeField=null; guideUI(null); }
+    }
     if(b){ b.classList.toggle('recording', on); b.innerHTML = on ? '⏹' : '🎤'; b.title = on ? 'Stop listening' : 'Voice — fill the form by voice'; }
     // Mid-session the recorder may auto-stop (silence/cap). Unless we're ending,
     // resume so the conversation keeps listening for the full 5 minutes.
@@ -601,6 +658,261 @@
     if(id){ var dom=$(id); if(dom){ dom.classList.add('voice-current'); _curEl=dom; try{ dom.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} } }
     if(ind){ ind.style.display='block'; ind.innerHTML='<span class="vc-dot"></span>🎯 Active field: <b>'+(DISPLAY[field]||field)+'</b>'; showPanel(); }
   }
+
+  /* ── Guided field controller (Voice 🎤 and Converse 🗣) ─────────────────────
+   * Moves the user through the form one field at a time: the field that needs a
+   * value is highlighted and focused (desktop), the Contributor list is opened,
+   * and Fund / Method get an attached numbered list (browsers only open a native
+   * <select> on a real click, so the list is the page's own). Fields auto-filled
+   * from the contributor's last gift are skipped — except the AMOUNT, which is
+   * read back for confirmation. Commands ("next", "go to Fund", "clear all",
+   * "clear contributor") are recognised by the app, never by the AI. */
+  var guidedField=null, resultChain=Promise.resolve(), pickState=null, pickTimer=null;
+  function isTouch(){ try{ return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches); }catch(e){ return false; } }
+  function voiceSessionActive(){ return !!((convo && convo.active) || recording); }
+  function inputIdFor(field){
+    if(field==='contributor'){ var gw=$('guestNameWrap'); return (gw && gw.style.display==='block') ? 'fGuestName' : 'fContributorInput'; }
+    return (CLEAR_TARGETS[field]||[])[0] || null;
+  }
+  function fieldValue(f){
+    if(f==='contributor') return (($('fContributor')||{}).value || ($('fGuestName')||{}).value || '');
+    var e=$((CLEAR_TARGETS[f]||[])[0]); return e ? String(e.value||'') : '';
+  }
+  // What income.html's last-gift auto-fill put in the form (only while the same contributor is selected).
+  function autoFillRecord(){ var a=window.__incomeAutoFill, c=($('fContributor')||{}).value; return (a && c && String(a.memberId)===String(c)) ? a : null; }
+  function autoFilledNow(f){ var a=autoFillRecord(); return !!(a && a[f]!=null && a[f]!=='' && fieldValue(f)===String(a[f])); }
+  function waitAutoFill(){
+    var p=window.__incomeAutoFillPending;
+    if(!p || typeof p.then!=='function') return Promise.resolve();
+    return Promise.race([ p.then(function(){},function(){}), new Promise(function(r){ setTimeout(r, 3000); }) ]);
+  }
+  function optText(id){ var s=$(id); return (s && s.selectedIndex>0) ? String(s.options[s.selectedIndex].text||'').replace(/\s*\/\s*/g,' ') : ''; }
+  function autoFillSummary(){
+    if(!autoFillRecord()) return '';
+    var parts=[];
+    if(autoFilledNow('fund'))   parts.push('the fund '+optText('fFund'));
+    if(autoFilledNow('method')) parts.push('the method '+optText('fMethod'));
+    if(autoFilledNow('amount')) parts.push('the amount '+fieldValue('amount'));
+    if(autoFilledNow('note'))   parts.push('the note');
+    if(!parts.length) return '';
+    return 'I filled in '+listJoin(parts)+' from the last gift.';
+  }
+  function listJoin(a){ return a.length<2 ? (a[0]||'') : a.slice(0,-1).join(', ')+' and '+a[a.length-1]; }
+  // Does this field still need the user? mode: 'voice' (🎤) or 'converse' (🗣).
+  function needsAttention(f, mode){
+    var s=SCRIPT[stepIndexOf(f)]; if(!s || !stepApplicable(s)) return false;
+    if(skipped[f]) return false;
+    if(!fieldPresent(f)) return true;
+    if(userSet[f]) return false;
+    if(f==='amount' && autoFilledNow('amount')) return true;   // money copied from the last gift → read back
+    if(autoFilledNow(f)) return false;                         // fund / method / note from the last gift
+    return mode==='converse' && !!s.confirm;                   // Date defaults to today; a defaulted Method
+  }
+  // Next field needing attention after index fromIdx, wrapping round so an earlier
+  // field that is still empty is not forgotten. -1 = nothing left.
+  function nextAttentionIndex(fromIdx, mode){
+    var n=SCRIPT.length, start=(typeof fromIdx==='number' && fromIdx<n) ? fromIdx : -1;
+    for(var k=1;k<=n;k++){ var i=(((start+k)%n)+n)%n; if(needsAttention(SCRIPT[i].f, mode)) return i; }
+    return -1;
+  }
+
+  // ── Attached numbered list for Fund / Method ──
+  function pickOptionsFor(id){ return selectOptions(id).filter(function(o){ return o.value!=='' && o.value!=null; }).map(function(o,i){ return {num:i+1, value:o.value, text:o.text}; }); }
+  function closePickList(){
+    var el=$('voicePickList'); if(el && el.parentNode) el.parentNode.removeChild(el);
+    pickState=null; if(pickTimer){ clearInterval(pickTimer); pickTimer=null; }
+  }
+  function positionPickList(){
+    var el=$('voicePickList'); if(!el || !pickState) return;
+    var sel=$(pickState.id); if(!sel) return;
+    var r=sel.getBoundingClientRect(), vw=document.documentElement.clientWidth||window.innerWidth;
+    var w=Math.max(r.width, 200), left=r.left+window.pageXOffset;
+    if(left+w > vw-8+window.pageXOffset) left=Math.max(8, vw-8-w)+window.pageXOffset;
+    el.style.left=left+'px'; el.style.top=(r.bottom+window.pageYOffset+4)+'px'; el.style.width=w+'px';
+  }
+  function openPickList(field){
+    var id=(field==='fund')?'fFund':'fMethod', sel=$(id);
+    closePickList();
+    if(!sel) return;
+    var opts=pickOptionsFor(id); if(!opts.length) return;
+    pickState={id:id, field:field, opts:opts};
+    var el=document.createElement('div'); el.id='voicePickList';
+    el.setAttribute('role','listbox'); el.setAttribute('aria-label','Choose '+fieldLabel(field));
+    var html='<div class="vpl-head">Say the name or the number — or click</div>';
+    opts.forEach(function(o){ html+='<div class="vpl-opt'+(String(sel.value)===String(o.value)?' vpl-sel':'')+'" role="option" data-num="'+o.num+'"><span class="vpl-num">'+o.num+'.</span><span>'+dbgEsc(o.text)+'</span></div>'; });
+    el.innerHTML=html;
+    el.addEventListener('mousedown', function(e){
+      var t=e.target && e.target.closest ? e.target.closest('.vpl-opt') : null; if(!t) return;
+      e.preventDefault(); pickOption(parseInt(t.getAttribute('data-num'),10));
+    });
+    document.body.appendChild(el); positionPickList();
+    pickTimer=setInterval(positionPickList, 250);   // the voice panel above the form grows and shrinks
+  }
+  function pickOption(num){
+    if(!pickState) return false;
+    var o=null; pickState.opts.forEach(function(x){ if(x.num===num) o=x; });
+    if(!o){ announce('That number isn’t on the list — say a number from 1 to '+pickState.opts.length+'.', convo.active ? 'That number isn’t on the list.' : null); return true; }
+    var id=pickState.id, field=pickState.field;
+    closePickList();
+    afterPick(field, function(){ setSelect(id, o.value); markField(id,'ok'); }, (field==='fund'?'Fund ':'Method ')+o.text+'.', o.text);
+    return true;
+  }
+  // A value chosen from a list, the Contributor drop-down or a native select:
+  // apply it and move on (Converse speaks; Voice updates the status line).
+  function afterPick(field, applyFn, confirmText, shown){
+    if(convo.active){
+      convo.options=null; clearOptionChips(); convo.fieldMisses=0; convo.confirmField=null; convo.awaitingPick=null;
+      convo.awaitingNewContributor=false; convo.collectingNewName=false; convo.awaitingConfirm=false;
+      convo.step=stepIndexOf(field); convo.expecting=field;
+      convoProcess(applyFn, confirmText, field);
+      return;
+    }
+    try{ applyFn(); }catch(e){}
+    userSet[field]=true; delete skipped[field];
+    sessionFields[field]={chip:chip(fieldLabel(field)+': '+shown,'ok')}; lastField=field; renderSession();
+    if(activeField===field) activeField=null;
+    if(recording) guideNextAfter(field, '✅ '+fieldLabel(field)+' set to '+shown+'.');
+  }
+
+  // ── Highlight / focus / open the guided field ──
+  function closeGuideUI(){
+    closePickList();
+    var dd=$('contributorDropdown'), ci=$('fContributorInput');
+    if(dd && document.activeElement!==ci){ dd.classList.remove('open'); if(ci) ci.classList.remove('open'); }
+  }
+  // opts.fromUser — the user clicked the field themselves: no focus change, no extra list.
+  function guideUI(field, opts){
+    opts=opts||{};
+    closeGuideUI();
+    guidedField=field||null;
+    setCurrentField(field||null);
+    if(!field || opts.fromUser) return;
+    var el=$(inputIdFor(field));
+    if(el && !isTouch()){     // on phones focusing a text box pops the keyboard over the form
+      convo._ignoreFocusUntil=Date.now()+1500;
+      try{ el.focus({preventScroll:true}); }catch(e){ try{ el.focus(); }catch(e2){} }
+    }
+    if(field==='contributor' && inputIdFor('contributor')==='fContributorInput' && typeof window.openContributorDropdown==='function'){
+      try{ window.openContributorDropdown(); }catch(e){}
+    }
+    if(field==='fund' || field==='method') openPickList(field);
+  }
+  function guideHint(f){
+    if(f==='amount' && fieldPresent('amount') && autoFilledNow('amount')) return '🎯 Amount — '+fieldValue('amount')+' was copied from the last gift. Say a new amount, or “next” to keep it.';
+    if(f==='fund' || f==='method') return '🎯 Next: '+fieldLabel(f)+' — say the name or its number in the list, or “next” to skip.';
+    if(f==='ref') return '🎯 Next: Reference / check number — say it, or “next” to skip.';
+    if(f==='contributor') return '🎯 Next: Contributor — say the person’s name, or “next” to skip.';
+    return '🎯 Next: '+fieldLabel(f)+' — say the value, or “next” to skip.';
+  }
+  // Voice (🎤): guide to the next field needing attention after `field`.
+  function guideNextAfter(field, prefix){
+    waitAutoFill().then(function(){
+      if(!recording || convo.active) return;
+      var idx=nextAttentionIndex(field ? stepIndexOf(field) : -1, 'voice');
+      var head=[prefix, field==='contributor' ? autoFillSummary() : ''].filter(Boolean).join(' ');
+      if(idx<0){
+        activeField=null; guideUI(null);
+        setStatus((head?head+' ':'')+'✅ All required fields are filled. Review the form and click Save — or say “Go to …” to change a field.');
+        return;
+      }
+      var f=SCRIPT[idx].f; activeField=f; guideUI(f);
+      setStatus((head?head+' ':'')+guideHint(f));
+    });
+  }
+
+  // ── Clear commands ──
+  function clearAllExceptContributor(){
+    ['fund','method','ref','note','amount'].forEach(function(f){
+      CLEAR_TARGETS[f].forEach(function(id){ clearDom(id); markField(id,''); flash(id); });
+      delete userSet[f]; delete skipped[f]; delete sessionFields[f];
+    });
+    var de=$('fDate'); if(de){ de.value=_isoToday(0); try{ de.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} markField('fDate',''); flash('fDate'); }
+    delete userSet.date; delete skipped.date; delete sessionFields.date;
+    var rq=$('fQuickAdd'); if(rq) rq.checked=false;
+    closePickList(); lastField=null; renderSession();
+  }
+  // Clears the contributor and every value its last-gift auto-fill brought in that the
+  // user has not changed or confirmed; values the user gave or kept stay. Returns the
+  // cleared labels.
+  function clearContributorAndDependents(){
+    var a=autoFillRecord(), dropped=[];
+    if(a){ ['fund','method','amount','note','refNo'].forEach(function(k){
+      var f=(k==='refNo') ? 'ref' : k;
+      if(a[k]!=null && a[k]!=='' && fieldValue(f)===String(a[k]) && !userSet[f]){
+        CLEAR_TARGETS[f].forEach(function(id){ clearDom(id); markField(id,''); flash(id); });
+        delete userSet[f]; delete sessionFields[f]; dropped.push(fieldLabel(f).toLowerCase());
+      }
+    }); }
+    window.__incomeAutoFill=null;
+    clearFieldKey('contributor');
+    delete userSet.contributor; delete skipped.contributor;
+    return dropped;
+  }
+
+  // Voice (🎤) commands.
+  function handleVoiceNav(nav){
+    logEvent('command', nav.kind+(nav.field?' '+nav.field:'')+(nav.num?' '+nav.num:''));
+    pendingField=null;
+    if(nav.kind==='option'){ pickOption(nav.num); return; }
+    if(nav.kind==='next'){
+      var cur=activeField||guidedField, msg='';
+      if(cur){ if(fieldPresent(cur)){ userSet[cur]=true; msg='✅ '+fieldLabel(cur)+' kept.'; } else { skipped[cur]=true; msg=fieldLabel(cur)+' skipped.'; } }
+      activeField=null; guideNextAfter(cur, msg); return;
+    }
+    if(nav.kind==='goto'){
+      delete skipped[nav.field]; activeField=nav.field; guideUI(nav.field);
+      setStatus('🎯 '+fieldLabel(nav.field)+' — say the value'+((nav.field==='fund'||nav.field==='method')?' or its number in the list':'')+'.'); return;
+    }
+    if(nav.kind==='clearAll'){ clearAllExceptContributor(); activeField=null; guideNextAfter(null, '✅ Cleared everything except the contributor.'); return; }
+    if(nav.kind==='clearForm'){ resetAllFields(); activeField=null; guideNextAfter(null, '✅ Form reset successfully.'); return; }
+    if(nav.kind==='clearField'){
+      if(nav.field==='contributor'){
+        var d=clearContributorAndDependents(); activeField='contributor'; guideUI('contributor');
+        setStatus('✅ Contributor cleared'+(d.length?' — also cleared the '+listJoin(d)+' copied from their last gift':'')+'. Say the contributor’s name.'); return;
+      }
+      clearFieldKey(nav.field); delete userSet[nav.field]; delete skipped[nav.field];
+      activeField=nav.field; guideUI(nav.field);
+      setStatus('✅ '+fieldLabel(nav.field)+' cleared. Say the new value, or “next”.'); return;
+    }
+  }
+
+  // A choice the user makes by hand during a voice session counts as their answer.
+  function hookManualPicks(){
+    var orig=window.selectContributor;
+    if(typeof orig==='function' && !orig.__voiceWrapped){
+      var wrapped=function(id, name, skipAutoFill, opts){
+        var session=voiceSessionActive();
+        if(session || applyingByVoice) opts=Object.assign({}, opts||{}, {voice:true});   // no Ref No copy for voice
+        var r=orig.call(this, id, name, skipAutoFill, opts);
+        if(session && !applyingByVoice){ markField('fContributorInput','ok'); afterPick('contributor', function(){}, 'Contributor '+name+'.', name); }
+        return r;
+      };
+      wrapped.__voiceWrapped=true; window.selectContributor=wrapped;
+    }
+    [['fFund','fund'],['fMethod','method']].forEach(function(p){
+      var el=$(p[0]); if(!el || el._voicePickBound) return; el._voicePickBound=true;
+      el.addEventListener('change', function(e){
+        if(!e || !e.isTrusted) return;                  // ignore the page's own programmatic changes
+        if(pickState && pickState.id===p[0]) closePickList();
+        if(!voiceSessionActive() || !el.value) return;
+        markField(p[0],'ok');
+        afterPick(p[1], function(){}, (p[1]==='fund'?'Fund ':'Method ')+optText(p[0])+'.', optText(p[0]));
+      });
+    });
+    [['fDate','date'],['fAmount','amount'],['fRefNo','ref'],['fNote','note'],['fGuestName','contributor']].forEach(function(p){
+      var el=$(p[0]); if(!el || el._voiceTypedBound) return; el._voiceTypedBound=true;
+      el.addEventListener('change', function(e){ if(e && e.isTrusted && el.value){ userSet[p[1]]=true; delete skipped[p[1]]; } });
+    });
+    document.addEventListener('mousedown', function(e){
+      if(!pickState) return;
+      var list=$('voicePickList'), sel=$(pickState.id);
+      if(list && list.contains(e.target)) return;
+      if(sel && (e.target===sel || sel.contains(e.target))){ closePickList(); return; }   // the native list takes over
+      closePickList();
+    }, true);
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape' && pickState) closePickList(); });
+    window.addEventListener('resize', positionPickList);
+  }
   // OpenAI-powered voice (records audio → OpenAI transcription → normalized
   // command, applied by the same applyResult pipeline used before).
   // Speech-recognition locale preference (per browser, like the other UI prefs).
@@ -611,15 +923,23 @@
   function setVoiceLocale(v){ try{ localStorage.setItem('cgp.voice.locale', v); }catch(e){} logEvent('locale', v); }
   var speech = (window.VoiceOpenAI) ? window.VoiceOpenAI.createRecorder({
     context:      'income',
-    getExtra:     function(){ return { expecting: (convo && convo.active) ? (convo.focusField||convo.expecting||'') : (activeField||''), locale: voiceLocale() }; },
+    ordered:      true,      // replies applied in the order the phrases were spoken
+    getExtra:    function(){ return { expecting: (convo && convo.active) ? (convo.focusField||convo.expecting||'') : (activeField||''), locale: voiceLocale() }; },
     onState:      setRecording,
     onStatus:     function(m){ setStatus(m); },
     onDebug:      function(label, detail){ logEvent(label, detail); },
     onTranscript: function(t){ if(t) logEvent('transcript', t); },
     onStatusData: function(s){ if(s) logEvent('usage', 'voice used '+(s.voiceUsedSeconds||0)+'s of '+((s.voiceLimitMinutes||0)*60)+'s'); },
-    onResult:     function(payload){ if(ending) return; if(convo.active){ convoTurn(payload); } else { applyPayload(payload); } },
+    // Each reply waits for the previous one and for a pending "last gift" auto-fill,
+    // so a late auto-fill can never overwrite a value that was just spoken.
+    onResult:     function(payload){ handleResult(payload); },
     onDisabled:   function(st, why){ disableVoice(voiceRefusalMessage(st, why)); }
   }) : null;
+  function handleResult(payload){
+    resultChain = resultChain.then(waitAutoFill).then(function(){
+      if(ending) return; if(convo.active){ convoTurn(payload); } else { applyPayload(payload); }
+    }).catch(function(e){ logEvent('error', 'voice result failed: '+(e && e.message)); });
+  }
   // The text shown when the server refuses voice (403): the server's reason, never
   // a generic "limit reached" unless the quota gate said so.
   function voiceRefusalMessage(st, why){
@@ -667,9 +987,9 @@
   var REQUIRED = ['contributor','fund','date','method','amount'];   // ref + note are optional
   var FIELD_PROMPT = {
     contributor:'Who is the contributor?',
-    fund:'What is the fund?',
+    fund:'What is the fund? Say its name, or its number in the list.',
     date:'What is the date?',
-    method:'What is the payment method?',
+    method:'What is the payment method? Say its name, or its number in the list.',
     ref:'What is the reference number?',
     note:'What are the notes? Speak your note — I’ll add each phrase. Say “continue” when you’re done.',
     amount:'What is the amount?'
@@ -793,6 +1113,8 @@
     if(f==='method'){ var m=$('fMethod'); var mt=(m&&m.selectedIndex>0)?(m.options[m.selectedIndex].text||''):'';
       return mt ? ('The payment method is set to '+mt+'. Do you want to change it? Say a new method, or say “keep” to leave it.')
                 : FIELD_PROMPT.method; }
+    if(f==='amount'){ var av=fieldValue('amount');
+      return 'The amount is '+av+(autoFilledNow('amount') ? ', the same as the last gift' : '')+'. Do you want to change it? Say a new amount, or say “keep” to leave it.'; }
     return FIELD_PROMPT[f];
   }
   // STRICT confirmation — only an explicit yes/confirm/save counts.
@@ -987,51 +1309,36 @@
   // filled field. ref/note are skipped unless Method = Check. After the last step
   // the conversation gives the "complete" prompt and STAYS active (issue 4).
   function advanceFrom(fromIdx, prefix){
-    var start=(typeof fromIdx==='number'?fromIdx:-1)+1;
-    for(var i=start; i<SCRIPT.length; i++){
+    var i=nextAttentionIndex(fromIdx, 'converse');
+    convo.options=null; convo.menuShown=false; convo.mni=0; convo.fieldMisses=0;
+    convo.awaitingNewContributor=false; convo.collectingNewName=false;
+    if(i>=0){
       var s=SCRIPT[i];
-      if(!stepApplicable(s)) continue;        // ref/note only when Check
+      convo.step=i; convo.expecting=s.f;
       if(fieldPresent(s.f)){
-        // A confirm-step (Date) is pre-filled (defaulted to today) → ask to confirm
-        // it rather than silently skipping it. Everything else: skip if filled.
-        if(s.confirm){
-          convo.step=i; convo.expecting=s.f; convo.confirmField=s.f; convo.fieldMisses=0; convo.options=null;
-          convo.menuShown=false; convo.mni=0; convo.awaitingNewContributor=false; convo.collectingNewName=false;
-          setCurrentField(s.f); logEvent('confirm-field', labelFor(s.f));
-          say((prefix?prefix+' ':'')+confirmFieldPrompt(s.f));
-          return;
-        }
-        continue;
+        // Pre-filled and not confirmed yet (Date defaults to today; an amount copied
+        // from the last gift) → read it back and ask, never skip silently.
+        convo.confirmField=s.f; guideUI(s.f); logEvent('confirm-field', labelFor(s.f));
+        say((prefix?prefix+' ':'')+confirmFieldPrompt(s.f));
+        return;
       }
-      convo.step=i; convo.expecting=s.f; convo.confirmField=null; convo.fieldMisses=0; convo.options=null;
-      convo.menuShown=false; convo.mni=0; convo.awaitingNewContributor=false; convo.collectingNewName=false;
-      setCurrentField(s.f); logEvent('next-question', labelFor(s.f));
+      convo.confirmField=null; guideUI(s.f); logEvent('next-question', labelFor(s.f));
       var extra = s.opt ? ' You can say “skip”.' : '';
       say((prefix?prefix+' ':'')+FIELD_PROMPT[s.f]+extra);
       return;
     }
     // Nothing left → complete; the conversation does NOT end.
-    convo.step=SCRIPT.length; convo.expecting=null; convo.options=null; convo.confirmField=null; setCurrentField(null);
-    convo.menuShown=false; convo.awaitingNewContributor=false; convo.collectingNewName=false;
+    convo.step=SCRIPT.length; convo.expecting=null; convo.confirmField=null; guideUI(null);
     logEvent('next-question', 'all fields collected — awaiting update / review / Save Now');
     say((prefix?prefix+' ':'')+completePrompt(), true);
   }
   // After a field is filled or skipped, continue from the CURRENT step.
   // After a fill: in FIELD-FOCUS mode stay on the focused field (don't auto-advance);
   // otherwise continue the guided flow from the current step.
-  var FOCUS_DONE = [
-    'You can change it, say “Set” and another field, or say “Done” to go on.',
-    'Say “Set” and a field name to jump there, or “Done” to keep going.',
-    'Set. Say a new value to change it, or say “Done”.'
-  ];
-  function focusDoneLine(){ var p=FOCUS_DONE[(convo.fdi||0)%FOCUS_DONE.length]; convo.fdi=(convo.fdi||0)+1; return p; }
+  // After a value is accepted, continue to the next field that still needs one —
+  // also when the user had jumped to this field ("Go to Fund", or clicked it).
   function respondAfterFill(confirmText){
-    if(convo.focusField){
-      convo.expecting=convo.focusField; convo.confirmField=null; convo.options=null; convo.fieldMisses=0;
-      setCurrentField(convo.focusField);
-      say((confirmText?confirmText+' ':'')+focusDoneLine(), true);
-      return;
-    }
+    if(convo.focusField){ convo.focusField=null; logEvent('field-focus', 'value set — continuing the guided flow'); }
     advanceFrom(convo.step, confirmText);
   }
   // Re-evaluate from the current step (used after "clear" / a declined save).
@@ -1040,14 +1347,25 @@
 
   // Pause listening, show "Processing…", apply the field, then speak the result
   // (which resumes listening when it finishes) — prevents overlapping input (issue 6).
-  function convoProcess(applyFn, confirmText){
+  // field — the field this answer belongs to (default: the one being asked);
+  // opt.skip — the user skipped it (remembered so it is not asked again until Save Now).
+  function convoProcess(applyFn, confirmText, field, opt){
+    opt=opt||{};
+    field = field || convo.expecting || convo.focusField || null;
     if(speech && speech.setMuted) speech.setMuted(true);   // stop listening while we update
     convo._ignoreFocusUntil = Date.now()+1200;             // ignore focus that our own apply() may trigger
+    closePickList();
     showProcessing(true); setStatus('⏳ Processing…'); logEvent('processing', confirmText||'');
     setTimeout(function(){
       try{ applyFn(); }catch(e){}
+      if(field){ if(opt.skip){ skipped[field]=true; } else { userSet[field]=true; delete skipped[field]; } }
       logEvent('field-updated', confirmText||'');
-      respondAfterFill(confirmText);
+      // A contributor pick starts the last-gift auto-fill: wait for it, then say what it filled.
+      waitAutoFill().then(function(){
+        if(!convo.active) return;
+        var extra = (field==='contributor' && !opt.skip) ? autoFillSummary() : '';
+        respondAfterFill([confirmText, extra].filter(Boolean).join(' '));
+      });
     }, 380);
   }
 
@@ -1072,14 +1390,15 @@
     if(!convo.active) return;                                          // only while the assistant is running
     if(convo._ignoreFocusUntil && Date.now()<convo._ignoreFocusUntil) return;  // ignore programmatic focus
     if(convo.focusField===f && convo.expecting===f) return;           // already focused here
-    focusField(f);
+    focusField(f, true);
   }
-  function focusField(f){
+  function focusField(f, fromUser){
     speakSeq++; try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}  // interrupt any current prompt
     convo.focusField=f; convo.expecting=f; convo.step=stepIndexOf(f);
     convo.confirmField=null; convo.options=null; convo.menuShown=false; convo.mni=0; convo.fieldMisses=0;
     convo.awaitingConfirm=false; convo.awaitingNewContributor=false; convo.collectingNewName=false; convo.awaitingPick=null;
-    clearOptionChips(); setCurrentField(f); logEvent('field-focus', labelFor(f)+' (selected by user)');
+    delete skipped[f];
+    clearOptionChips(); guideUI(f, {fromUser:!!fromUser}); logEvent('field-focus', labelFor(f)+(fromUser?' (selected by user)':' (by voice)'));
     var s=SCRIPT[stepIndexOf(f)];
     if(s && s.confirm && fieldPresent(f)){ convo.confirmField=f; say(confirmFieldPrompt(f)); }
     else say(FIELD_PROMPT[f]);
@@ -1131,7 +1450,8 @@
 
   function clearAllFields(){
     try{ if(typeof resetAllFields==='function') resetAllFields(); }catch(e){}
-    setCurrentField(null); clearOptionChips();
+    userSet={}; skipped={};
+    guideUI(null); clearOptionChips();
     convo.awaitingConfirm=false; convo.fieldMisses=0; convo.options=null; convo.expecting=null; convo.step=-1; convo.confirmField=null; convo.focusField=null; convo.awaitingClearNotes=false;
     convo.menuShown=false; convo.mni=0; convo.awaitingNewContributor=false; convo.collectingNewName=false;
   }
@@ -1163,7 +1483,7 @@
     speakSeq++;                                   // void any pending TTS resume so the mic isn't reopened
     try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
     if(was && speech) speech.stop();
-    setCurrentField(null);                        // hide the active-field / listening indicator
+    guideUI(null);                                // hide the active-field indicator, lists and drop-downs
     syncConverseButton(); clearOptionChips();     // Converse button re-enabled, Stop state cleared
     logEvent('conversation', 'ended — listening stopped');
     logEvent('system','Listening OFF'); logEvent('system','Converse Mode OFF');
@@ -1187,6 +1507,12 @@
       var cval = fields[f] ? String(fields[f]) : transcript;
       var cr = resolveField(f, cval);
       if(cr.status==='ok' && !isKeep(tl)){ convo.confirmField=null; convo.fieldMisses=0; convoProcess(cr.apply, cr.confirm); return; }
+      // "No, 75" / "No, October fifth" — a keep word plus a NEW value is a change.
+      var rem=tl.replace(/\b(no|nope|keep|keep it|leave it|leave as is|no change|don'?t change|that'?s? (fine|correct|right|good|okay|ok)|it'?s (fine|correct|right|good)|correct)\b/g,' ').replace(/[,;!?]+/g,' ').replace(/\s+/g,' ').trim();
+      if(isKeep(tl) && rem.length>=2 && /[0-9]|january|february|march|april|may|june|july|august|september|october|november|december|today|yesterday|tomorrow|hundred|thousand|dollar/.test(rem)){
+        var cr2=resolveField(f, rem);
+        if(cr2.status==='ok'){ convo.confirmField=null; convo.fieldMisses=0; convoProcess(cr2.apply, cr2.confirm); return; }
+      }
       // Keep it as-is (keep / no / that's fine / skip).
       if(isKeep(tl) || isSkip(tl)){
         convo.confirmField=null; convo.fieldMisses=0;
@@ -1206,7 +1532,7 @@
     // freely; a skipped required field still advances, but Save Now re-asks it.
     if(isSkip(tl) && !fields[f]){
       logEvent('skip', f);
-      convoProcess(function(){}, capitalize(labelFor(f))+' skipped.');
+      convoProcess(function(){}, capitalize(labelFor(f))+' skipped.', f, {skip:true});
       return;
     }
 
@@ -1241,10 +1567,48 @@
     }
     // ref / note are free text — resolveField never returns 'none' for them, but
     // guard anyway: just move on.
-    if(f==='ref' || f==='note'){ convoProcess(function(){}, capitalize(labelFor(f))+' noted.'); return; }
+    if(f==='ref' || f==='note'){ convoProcess(function(){}, capitalize(labelFor(f))+' noted.', f, {skip:true}); return; }
     // amount / date
     if(convo.fieldMisses>=3){ convo.fieldMisses=0; say('I’m having trouble with the '+labelFor(f)+'. You can also type it. '+FIELD_PROMPT[f]); return; }
     say(unclearLine()+' '+FIELD_PROMPT[f]);
+  }
+
+  function resetConvoSubstates(){
+    convo.awaitingPick=null; convo.awaitingNewContributor=false; convo.collectingNewName=false; convo.awaitingConfirm=false;
+    convo.options=null; convo.confirmField=null; convo.menuShown=false; convo.fieldMisses=0; clearOptionChips();
+  }
+  function handleConvoNav(nav){
+    logEvent('command', nav.kind+(nav.field?' '+nav.field:'')+(nav.num?' '+nav.num:''));
+    if(nav.kind==='option'){ pickOption(nav.num); return; }
+    if(nav.kind==='next'){
+      var cur=convo.focusField||convo.expecting;
+      resetConvoSubstates(); convo.focusField=null;
+      if(!cur){ say(completePrompt(), true); return; }
+      if(cur==='note'){ advanceFrom(stepIndexOf('note'), 'Okay.'); return; }       // the note keeps its text
+      var msg;
+      if(fieldPresent(cur)){ userSet[cur]=true; msg=capitalize(labelFor(cur))+' kept.'; }
+      else { skipped[cur]=true; msg=capitalize(labelFor(cur))+' skipped.'; }
+      advanceFrom(stepIndexOf(cur), msg); return;
+    }
+    if(nav.kind==='goto'){ resetConvoSubstates(); focusField(nav.field); return; }
+    if(nav.kind==='clearAll'){
+      resetConvoSubstates(); convo.focusField=null; clearAllExceptContributor();
+      advanceFrom(-1, 'Cleared everything except the contributor.'); return;
+    }
+    if(nav.kind==='clearForm'){
+      resetConvoSubstates(); clearAllFields(); convo.methodAsked=false;
+      advanceFrom(-1, 'Cleared. Let’s start over.'); return;
+    }
+    if(nav.kind==='clearField'){
+      resetConvoSubstates(); convo.focusField=null;
+      if(nav.field==='note'){ convo.awaitingClearNotes=true; say('Do you want to clear the notes?'); return; }
+      if(nav.field==='contributor'){
+        var d=clearContributorAndDependents();
+        advanceFrom(-1, 'Contributor cleared'+(d.length ? ', along with the '+listJoin(d)+' copied from their last gift' : '')+'.'); return;
+      }
+      clearFieldKey(nav.field); delete userSet[nav.field]; delete skipped[nav.field];
+      advanceFrom(stepIndexOf(nav.field)-1, capitalize(labelFor(nav.field))+' cleared.'); return;
+    }
   }
 
   // Main turn handler — guided; validates field mapping before updating.
@@ -1293,6 +1657,12 @@
       logEvent('system','User Command = Stop'); logEvent('system','Conversation Terminated');
       endConvo(null, { say:'Okay. The conversation has been stopped.' }); return;
     }
+
+    // Navigation / clear commands ("next", "go to Fund", "clear all", "clear contributor",
+    // a number while the Fund / Method list is open). A number while a "did you mean"
+    // menu is showing still belongs to that menu (handled further down).
+    var nav=VC.parseNavCommand ? VC.parseNavCommand(transcript, FIELD_WORDS, {options: !!pickState && !convo.options}) : null;
+    if(nav){ handleConvoNav(nav); return; }
 
     // ── "Did you mean <name>?" (one plausible contributor) → yes applies, no re-asks ──
     if(convo.awaitingPick){
@@ -1369,7 +1739,7 @@
     // Step 1: explicit save request (two-step — confirm next).
     if(/\bsave now\b/.test(tl) || /\b(i'?m |i am )?ready to save\b/.test(tl)){
       var miss=nextMissing();
-      if(miss){ convo.step=stepIndexOf(miss); convo.expecting=miss; convo.fieldMisses=0; convo.options=null; setCurrentField(miss); say('Before saving, I still need the '+labelFor(miss)+'. '+FIELD_PROMPT[miss]); return; }
+      if(miss){ convo.step=stepIndexOf(miss); convo.expecting=miss; convo.confirmField=null; convo.fieldMisses=0; convo.options=null; delete skipped[miss]; guideUI(miss); say('Before saving, I still need the '+labelFor(miss)+'. '+FIELD_PROMPT[miss]); return; }
       convo.awaitingConfirm=true; say('Do you want to save this contribution?'); return;
     }
 
@@ -1408,7 +1778,7 @@
       if(convo.lowConf && fieldPresent(f0)){ say('I heard “'+titleCase(String(fields[f0]))+'” for the '+labelFor(f0)+' but wasn’t sure, so I left it unchanged. Say “Set '+labelFor(f0)+'” and repeat it.', true); return; }
       if(r0.status==='multiple'){ presentOptions(f0, r0.options, r0.head); return; }
       if(r0.status==='confirm'){ convo.expecting=f0; convo.awaitingPick=r0.option; say(r0.question); return; }
-      if(r0.status==='ok'){ convoProcess(r0.apply, r0.confirm); return; }
+      if(r0.status==='ok'){ convo.step=stepIndexOf(f0); convoProcess(r0.apply, r0.confirm, f0); return; }
     }
     say(clarifyComplete(), true);
   }
@@ -1416,7 +1786,7 @@
   function doSaveViaVoice(){
     convo.awaitingConfirm=false;
     var nm=nextMissing();
-    if(nm){ convo.step=stepIndexOf(nm); convo.expecting=nm; setCurrentField(nm); say('I still need the '+labelFor(nm)+'. '+FIELD_PROMPT[nm]); return; }
+    if(nm){ convo.step=stepIndexOf(nm); convo.expecting=nm; convo.confirmField=null; delete skipped[nm]; guideUI(nm); say('I still need the '+labelFor(nm)+'. '+FIELD_PROMPT[nm]); return; }
     say('Saving the contribution.', true);
     setTimeout(function(){
       try{
@@ -1473,6 +1843,7 @@
       }
     }); }
     loadContributors();
+    hookManualPicks();    // clicks in the Contributor list / Fund / Method count as the answer during a voice session
     attachFieldFocus();   // click / tab into a field → assistant focuses it (when active)
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
