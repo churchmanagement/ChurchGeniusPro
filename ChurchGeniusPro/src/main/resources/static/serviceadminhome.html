@@ -820,6 +820,31 @@
     </div>
   </div>
 
+  <!-- ── Event Retention (dry run, 2026-11-02) ───────────── -->
+  <div class="list-card" id="eventRetentionCard">
+    <div class="list-card-header">
+      <span class="list-card-title">🗄 Event Retention</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="loadEventRetention()">↻ Refresh</button>
+        <a class="btn-primary" style="font-size:12px;padding:6px 16px;text-decoration:none;" href="/api/serviceadmin/events/retention/csv">⬇ Dry run (CSV)</a>
+      </div>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Events are archived 5 years after their last day (all related data kept) and deleted permanently after 10 years.
+        This is a dry run — nothing changes here. The nightly job only acts when its switches are on
+        (<code>EVENTS_RETENTION_ENABLED</code>, <code>EVENTS_RETENTION_HARD_DELETE_ENABLED</code>).
+      </div>
+      <div id="eventRetentionBody"><div style="color:#aaa;font-size:13px;">Loading…</div></div>
+      <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;">
+        <label for="erRestoreId">Restore an archived event — Event ID</label>
+        <input id="erRestoreId" type="number" min="1" style="width:110px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;" />
+        <button class="btn-primary" style="font-size:12px;padding:6px 14px;" onclick="restoreArchivedEvent()">Restore</button>
+        <span id="erRestoreMsg" style="font-size:12px;"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Public Website Visitors ───────────────────────── -->
   <div class="list-card" id="webStatsCard">
     <div class="list-card-header">
@@ -2984,6 +3009,55 @@
   }
   window.loadEtlOverview = loadEtlOverview;
   loadEtlOverview();
+
+  /* ── Event Retention card (GET /api/serviceadmin/events/retention — dry run only) ── */
+  async function loadEventRetention() {
+    const el = document.getElementById('eventRetentionBody');
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const th = 'text-align:left;padding:7px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;';
+    const td = 'padding:7px 10px;border-bottom:1px solid #f0f1f5;';
+    const on = b => b ? '<span style="color:#2e7d32;font-weight:700;">ON</span>' : '<span style="color:#888;font-weight:700;">OFF</span>';
+    try {
+      const r = await fetch('/api/serviceadmin/events/retention?limit=50', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      const churches = d.churches || [], events = d.events || [], rows = d.permanentDeleteRows || {};
+      let html = '<div style="font-size:13px;line-height:1.7;">Today: <b>' + esc(d.today) + '</b> (' + esc(d.timeZone) + ') · '
+        + 'Archive events that ended before <b>' + esc(d.archiveCutoff) + '</b> — switch ' + on(d.archiveEnabled) + ' · '
+        + 'Delete permanently events that ended before <b>' + esc(d.deleteCutoff) + '</b> — switch ' + on(d.hardDeleteEnabled)
+        + ' (max ' + esc(d.maxPerRun) + ' per night)</div>';
+      html += '<div style="font-weight:700;font-size:13px;margin:10px 0 6px;">By church</div>' + (churches.length
+        ? '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th style="' + th + '">Church</th><th style="' + th + '">To archive</th><th style="' + th + '">To delete permanently</th></tr></thead><tbody>'
+          + churches.map(c => '<tr><td style="' + td + '">' + esc(c.church) + '</td><td style="' + td + '">' + (c.to_archive || 0) + '</td><td style="' + td + '">' + (c.to_delete || 0) + '</td></tr>').join('')
+          + '</tbody></table></div>'
+        : '<div style="color:#aaa;font-size:13px;">No events are old enough for either rule.</div>');
+      const rowKeys = Object.keys(rows).filter(k => rows[k] > 0);
+      if (rowKeys.length) html += '<div style="font-weight:700;font-size:13px;margin:12px 0 6px;">Rows a permanent delete would remove</div><div style="font-size:12.5px;color:#555;">'
+        + rowKeys.map(k => esc(k) + ': <b>' + rows[k] + '</b>').join(' · ') + '</div>';
+      if (events.length) html += '<div style="font-weight:700;font-size:13px;margin:12px 0 6px;">Events (first ' + events.length + ' — full list in the CSV)</div>'
+        + '<div style="overflow-x:auto;max-height:280px;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr><th style="' + th + '">ID</th><th style="' + th + '">Church</th><th style="' + th + '">Event</th><th style="' + th + '">Last day</th><th style="' + th + '">State</th><th style="' + th + '">Action</th></tr></thead><tbody>'
+        + events.map(e => '<tr><td style="' + td + '">' + e.id + '</td><td style="' + td + '">' + esc(e.church) + '</td><td style="' + td + '">' + esc(e.name) + '</td><td style="' + td + '">' + esc(e.lastDay) + '</td><td style="' + td + '">' + esc(e.state) + '</td><td style="' + td + '">' + esc(e.action) + '</td></tr>').join('')
+        + '</tbody></table></div>';
+      el.innerHTML = html;
+    } catch (e) {
+      el.innerHTML = '<div style="color:#c62828;font-size:13px;">Could not load the retention dry run: ' + esc(e.message) + '</div>';
+    }
+  }
+  async function restoreArchivedEvent() {
+    const id = parseInt(document.getElementById('erRestoreId').value, 10);
+    const msg = document.getElementById('erRestoreMsg');
+    if (!id) { msg.style.color = '#c62828'; msg.textContent = 'Enter an event ID.'; return; }
+    try {
+      const r = await fetch('/api/serviceadmin/events/' + id + '/restore', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      msg.style.color = '#2e7d32'; msg.textContent = 'Event ' + id + ' restored.';
+      loadEventRetention();
+    } catch (e) { msg.style.color = '#c62828'; msg.textContent = e.message; }
+  }
+  window.loadEventRetention = loadEventRetention;
+  window.restoreArchivedEvent = restoreArchivedEvent;
+  loadEventRetention();
 
   /* ════════════════════════════════════════════════════════
      SUBSCRIPTION PLAN MANAGEMENT

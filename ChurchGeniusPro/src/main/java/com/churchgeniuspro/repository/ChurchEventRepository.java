@@ -40,6 +40,9 @@ public interface ChurchEventRepository extends JpaRepository<ChurchEvent, Intege
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
     java.util.Optional<ChurchEvent> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);
+
+    /** Live events of one church among the given ids (Events page lists, 2026-11-02). */
+    List<ChurchEvent> findByIdInAndAppClientIdAndDeleteFlagFalse(java.util.Collection<Integer> ids, String appClientId);
     java.util.Optional<ChurchEvent> findByPublicTokenAndDeleteFlagFalse(String publicToken);
 
     /**

@@ -187,12 +187,40 @@
     .rr-feedback.error { display:block; color:#c62828; }
     .rr-feedback.success { display:block; color:#2e7d32; }
 
+    /* ── Past tab: compact rows ── */
+    .past-list { display:flex; flex-direction:column; gap:6px; }
+    .past-row { display:flex; align-items:center; gap:10px; background:#fff; border-radius:10px; padding:8px 10px;
+                box-shadow:0 1px 4px rgba(0,0,0,.06); border:1px solid #eee; cursor:pointer; }
+    .past-row:hover { border-color:#c5a8b8; }
+    .past-thumb { width:40px; height:40px; border-radius:7px; object-fit:cover; flex-shrink:0; background:#f3e9ee;
+                  display:flex; align-items:center; justify-content:center; font-size:18px; color:#673147; }
+    .past-main { flex:1; min-width:0; }
+    .past-name { font-size:13.5px; font-weight:700; color:#1e2139; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .past-sub { font-size:12px; color:#777; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .past-sub .event-type-badge { margin:0; font-size:10.5px; padding:1px 7px; }
+    .past-actions { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+    .past-act { width:30px; height:30px; border-radius:7px; border:1px solid #e3dbe0; background:#fff; font-size:14px; line-height:1;
+                cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+    .past-act:hover, .past-act:focus-visible { background:#f3e9ee; border-color:#c5a8b8; outline:none; }
+    .past-act.danger { border-color:#f5c6cb; }
+    .past-more { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .past-count { font-size:12.5px; color:#888; }
+    .past-more .btn-secondary[disabled] { opacity:.7; cursor:wait; }
+    .past-spin { display:inline-block; width:11px; height:11px; border:2px solid #d9c8d1; border-top-color:#673147; border-radius:50%;
+                 animation:pastSpin .8s linear infinite; vertical-align:-2px; }
+    @keyframes pastSpin { to { transform:rotate(360deg); } }
+
     /* ── Responsive ── */
     @media (max-width: 600px) {
+      .past-row { flex-wrap:wrap; }
+      .past-main { flex-basis:calc(100% - 50px); }
+      .past-actions { width:100%; justify-content:flex-start; padding-left:50px; }
+      .past-act { width:34px; height:34px; }
       .events-grid { grid-template-columns: 1fr; }
       .stats-row .stat-card { max-width: none; }
     }
-  </style>
+    #pastMoreBtn.past-hidden { display:none !important; }   /* shared button CSS sets display:flex */
+</style>
 </head>
 <body>
 <div class="app">
@@ -252,6 +280,13 @@
 
       <!-- Cards grid -->
       <div class="events-grid" id="eventsGrid" style="display:none;"></div>
+
+      <!-- Past tab: compact rows, 10 at a time (server-side paging) -->
+      <div class="past-list" id="pastList" style="display:none;" role="list" aria-label="Past events"></div>
+      <div class="past-more" id="pastMoreRow" style="display:none;">
+        <span class="past-count" id="pastCount" aria-live="polite"></span>
+        <button type="button" class="btn-secondary btn-sm" id="pastMoreBtn" onclick="loadMorePast()">Load More</button>
+      </div>
 
       <!-- Empty state -->
       <div class="empty-state" id="emptyState" style="display:none;">
@@ -420,20 +455,13 @@
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
+  // The server decides the tabs (2026-11-02): /api/events?view=upcoming returns only
+  // events with no date or whose last day is today or later in CHURCH time, and the
+  // Past tab pages /api/events/past 10 at a time. The browser no longer splits one
+  // full list by its own (UTC) date, so today's events stay in Upcoming all evening.
   (async function init() {
     try {
-      var results = await Promise.allSettled([
-        fetch('/api/events').then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      ]);
-
-      // Events result
-      if (results[0].status === 'fulfilled') {
-        allEvents = results[0].value || [];
-      } else {
-        showFeedback('Failed to load events. Please refresh.', 'error');
-      }
-
-      renderStats();
+      await Promise.all([loadUpcoming(), loadStats()]);
       filterCards();
     } catch (e) {
       showFeedback('Failed to load events. Please refresh.', 'error');
@@ -443,29 +471,35 @@
     }
   })();
 
-  // Re-fetches the events list (used after delete).
+  async function loadUpcoming() {
+    var res = await fetch('/api/events?view=upcoming', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    allEvents = (await res.json()) || [];
+  }
+
+  async function loadStats() {
+    try {
+      var res = await fetch('/api/events/stats', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var s = await res.json();
+      document.getElementById('statTotal').textContent    = s.total || 0;
+      document.getElementById('statUpcoming').textContent = s.upcoming || 0;
+      document.getElementById('statMulti').textContent    = s.multi || 0;
+      pastTotal = (typeof s.past === 'number') ? s.past : null;
+      if (eventTimeView === 'past' && pastRows.length) renderPastMore(pastBusy ? 'loading' : 'idle');
+    } catch (e) { /* the cards keep their last values */ }
+  }
+
+  // Re-fetches everything (used after delete): stats, Upcoming, and the Past list from
+  // its first page — so a deleted event can never linger as a stale row.
   async function loadEvents() {
     try {
-      var res = await fetch('/api/events');
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      allEvents = await res.json();
-      renderStats();
-      filterCards();
+      await Promise.all([loadUpcoming(), loadStats()]);
+      resetPast();                                     // reloads Past now when it is the open tab
+      if (eventTimeView !== 'past') filterCards();
     } catch (e) {
       showFeedback('Failed to load events. Please refresh.', 'error');
     }
-  }
-
-  function renderStats() {
-    var today    = new Date().toISOString().slice(0, 10);
-    var upcoming = allEvents.filter(function(ev) {
-      if (ev.eventType === 'Multiple Days') return true;
-      return ev.eventDate && ev.eventDate >= today;
-    }).length;
-    var multi = allEvents.filter(function(ev) { return ev.eventType === 'Multiple Days'; }).length;
-    document.getElementById('statTotal').textContent    = allEvents.length;
-    document.getElementById('statUpcoming').textContent = upcoming;
-    document.getElementById('statMulti').textContent    = multi;
   }
 
   // 'upcoming' = present + future events (default); 'past' = events whose last day is before today.
@@ -474,38 +508,33 @@
     eventTimeView = v;
     document.getElementById('viewUpcomingTab').classList.toggle('active', v === 'upcoming');
     document.getElementById('viewPastTab').classList.toggle('active', v === 'past');
+    if (v === 'past') {
+      // Search/type/sort changes reload Past via filterCards; switching tabs only needs the
+      // first load (once) — calling filterCards here would fetch page 1 a second time.
+      if (!pastLoadedOnce) resetPast();
+      else {
+        showPastUi(true);
+        document.getElementById('emptyState').style.display = (!pastBusy && !pastRows.length) ? '' : 'none';
+      }
+      return;
+    }
     filterCards();
   }
 
-  // The event's effective END date (ISO yyyy-MM-dd): for multi-day, the latest day; else eventDate.
-  function eventEndDate(ev) {
-    if (ev.eventType === 'Multiple Days' && Array.isArray(ev.days) && ev.days.length) {
-      var dates = ev.days.map(function(d) { return d.eventDate || d.date; }).filter(Boolean).sort();
-      if (dates.length) return dates[dates.length - 1];
-    }
-    return ev.eventDate || null;
-  }
-
-  // Present/future when the event has no date (treat as upcoming) or ends today or later.
-  function isUpcomingEvent(ev) {
-    var end = eventEndDate(ev);
-    if (!end) return true;
-    var today = new Date().toISOString().slice(0, 10);
-    return end >= today;
-  }
-
   function filterCards() {
+    if (eventTimeView === 'past') { schedulePastReload(); return; }
+    showPastUi(false);
     var q    = (document.getElementById('searchInput').value || '').toLowerCase();
     var type = document.getElementById('typeFilter').value;
     var sort = document.getElementById('sortFilter').value;
 
+    // allEvents holds only Upcoming & Today events (the server decided).
     var filtered = allEvents.filter(function(ev) {
       var nameMatch = (ev.eventName || '').toLowerCase().indexOf(q) >= 0 ||
                       (ev.eventCode || '').toLowerCase().indexOf(q) >= 0 ||
                       (ev.city || '').toLowerCase().indexOf(q) >= 0;
       var typeMatch = !type || ev.eventType === type;
-      var timeMatch = eventTimeView === 'past' ? !isUpcomingEvent(ev) : isUpcomingEvent(ev);
-      return nameMatch && typeMatch && timeMatch;
+      return nameMatch && typeMatch;
     });
 
     filtered.sort(function(a, b) {
@@ -526,6 +555,124 @@
       grid.style.display  = '';
       grid.innerHTML = filtered.map(buildCard).join('');
     }
+  }
+
+  // ── Past tab: compact rows, 10 at a time ───────────────────────────────
+  // Newest first = most recent event date (last day of a multi-day event). "Load More"
+  // sends the server's cursor back, so an edit or delete elsewhere can't shift a page;
+  // ids already on screen are skipped as a second guard. Search / type / sort start
+  // the list again from the first 10.
+  var PAST_PAGE = 10;
+  var pastTotal = null;   // Past count from /api/events/stats
+  var pastRows = [], pastSeen = {}, pastCursor = null, pastHasMore = false;
+  var pastBusy = false, pastGen = 0, pastTimer = null, pastLoadedOnce = false;
+
+  function showPastUi(on) {
+    document.getElementById('pastList').style.display    = on && pastRows.length ? '' : 'none';
+    document.getElementById('pastMoreRow').style.display = on && (pastRows.length || pastHasMore) ? '' : 'none';
+    if (on) document.getElementById('eventsGrid').style.display = 'none';
+  }
+  function resetPast() {
+    pastRows = []; pastSeen = {}; pastCursor = null; pastHasMore = false; pastBusy = false; pastGen++;
+    document.getElementById('pastList').innerHTML = '';
+    if (eventTimeView === 'past') fetchPast(true);
+    else pastLoadedOnce = false;                       // load fresh the next time Past is opened
+  }
+  function schedulePastReload() {
+    clearTimeout(pastTimer);
+    pastTimer = setTimeout(resetPast, 300);   // typing in Search waits for a pause
+  }
+  function loadMorePast() { return fetchPast(pastRows.length === 0); }
+  function renderPastMore(state) {
+    var btn = document.getElementById('pastMoreBtn');
+    // "of N" only when no search/type filter is applied (N = the server's Past count).
+    var unfiltered = !(document.getElementById('searchInput').value || '').trim() && !document.getElementById('typeFilter').value;
+    var total = (unfiltered && pastTotal != null && pastTotal >= pastRows.length) ? pastTotal : null;
+    document.getElementById('pastCount').textContent = pastRows.length
+      ? 'Showing ' + pastRows.length + (total != null ? ' of ' + total : '') + ' past event' + ((total != null ? total : pastRows.length) === 1 ? '' : 's') : '';
+    btn.classList.toggle('past-hidden', !(state === 'loading' || state === 'error' || pastHasMore));
+    if (state === 'loading') { btn.style.display = ''; btn.disabled = true; btn.innerHTML = '<span class="past-spin" aria-hidden="true"></span> Loading…'; }
+    else if (state === 'error') { btn.style.display = ''; btn.disabled = false; btn.textContent = "Couldn't load — Retry"; }
+    else { btn.disabled = false; btn.textContent = 'Load More'; btn.style.display = pastHasMore ? '' : 'none'; }   // .past-hidden: shared button CSS forces display
+    showPastUi(eventTimeView === 'past');
+    if (state === 'loading' || state === 'error') document.getElementById('pastMoreRow').style.display = '';
+  }
+  async function fetchPast(first) {
+    if (pastBusy) return;
+    pastBusy = true; pastLoadedOnce = true;
+    var gen = pastGen;
+    var url = '/api/events/past?limit=' + PAST_PAGE
+      + '&q=' + encodeURIComponent(document.getElementById('searchInput').value || '')
+      + '&type=' + encodeURIComponent(document.getElementById('typeFilter').value || '')
+      + '&sort=' + encodeURIComponent(document.getElementById('sortFilter').value || 'newest');
+    if (!first && pastCursor) url += '&cursor=' + encodeURIComponent(pastCursor);
+    document.getElementById('emptyState').style.display = 'none';
+    renderPastMore('loading');
+    try {
+      var res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var d = await res.json();
+      if (gen !== pastGen) return;                       // superseded by a newer search
+      var fresh = (d.rows || []).filter(function (ev) { return ev && !pastSeen[ev.id]; });
+      fresh.forEach(function (ev) { pastSeen[ev.id] = true; });
+      pastRows = pastRows.concat(fresh);
+      pastCursor = d.nextCursor || null;
+      pastHasMore = !!d.hasMore && !!pastCursor;
+      document.getElementById('pastList').insertAdjacentHTML('beforeend', fresh.map(buildPastRow).join(''));
+      if (eventTimeView === 'past') document.getElementById('emptyState').style.display = pastRows.length ? 'none' : '';
+      renderPastMore('idle');
+    } catch (e) {
+      if (gen === pastGen) renderPastMore('error');
+    } finally {
+      if (gen === pastGen) pastBusy = false;
+    }
+  }
+
+  function pastAct(icon, label, onclick, extraClass) {
+    return '<button type="button" class="past-act' + (extraClass ? ' ' + extraClass : '') + '" title="' + label + '" aria-label="' + label + '" onclick="' + onclick + '">' + icon + '</button>';
+  }
+  // One compact row per past event. Same actions, permissions and targets as the card's
+  // buttons — only smaller (icon buttons with tooltips and accessible labels).
+  function buildPastRow(ev) {
+    var isMulti = ev.eventType === 'Multiple Days';
+    var thumb = (ev.hasImage && ev.encryptedId)
+      ? '<img class="past-thumb" src="/api/event-register/' + encodeURIComponent(ev.encryptedId) + '/image" alt="" loading="lazy" />'
+      : (ev.imageData ? '<img class="past-thumb" src="' + esc(ev.imageData) + '" alt="" loading="lazy" />' : '<span class="past-thumb" aria-hidden="true">📅</span>');
+    var end = null;
+    if (isMulti && Array.isArray(ev.days) && ev.days.length) {
+      var ds = ev.days.map(function (d) { return d.eventDate || d.date; }).filter(Boolean).sort();
+      if (ds.length) end = ds.length > 1 ? formatCardDate(ds[0]) + ' – ' + formatCardDate(ds[ds.length - 1]) : formatCardDate(ds[0]);
+    }
+    var when = end || (ev.eventDate ? formatCardDate(ev.eventDate) : '—');
+    var place = [ev.city, stateLabel(ev.state)].filter(Boolean).join(', ');
+    var nameJs = esc(ev.eventName).replace(/'/g, "\\'");
+    var acts = '';
+    if (canDoEventAction('general.eventcheckin') && (!window.CGP_hasFeature || window.CGP_hasFeature('eventCheckin')))
+      acts += pastAct('✅', 'Check-In', "window.location.href='/event-checkin-admin?eventId=" + ev.id + "'");
+    if (canDoEventAction('general.events.edit'))
+      acts += pastAct('✏️', 'Edit', "window.location.href='/event?id=" + ev.id + "'");
+    acts += pastAct('👥', 'Registrants', "openRegModal(" + ev.id + ",'" + nameJs + "'" + (ev.encryptedId ? ",'" + esc(ev.encryptedId) + "'" : ",null") + ")");
+    if (canDoEventAction('general.events.emailsms'))
+      acts += pastAct('🙋', 'Volunteers', "window.location.href='/event-volunteers?eventId=" + ev.id + "'");
+    if (canDoEventAction('general.events.edit'))
+      acts += pastAct('📨', 'Invite', "openRrModal(" + ev.id + ",'" + nameJs + "')");
+    if (ev.encryptedId)
+      acts += pastAct('📝', 'Register Page', "window.open('/event-register/" + encodeURIComponent(ev.encryptedId) + "', '_blank')");
+    if (ev.registrationLink)
+      acts += pastAct('🔗', 'Copy registration link', "copyLink('" + esc(ev.registrationLink) + "')");
+    if (canDoEventAction('general.events.delete'))
+      acts += pastAct('🗑️', 'Delete', "openDeleteModal(" + ev.id + ",'" + nameJs + "')", 'danger');
+    return '<div class="past-row" role="listitem" data-id="' + ev.id + '" onclick="window.location.href=\'/event-details?eventId=' + ev.id + '\'">' +
+      thumb +
+      '<div class="past-main">' +
+        '<div class="past-name">' + esc(ev.eventName) + '</div>' +
+        '<div class="past-sub"><span>' + esc(when) + '</span>' +
+          '<span class="event-type-badge' + (isMulti ? ' multi' : '') + '">' + esc(ev.eventType || 'One Day') + '</span>' +
+          (place ? '<span>' + esc(place) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="past-actions" onclick="event.stopPropagation()">' + acts + '</div>' +
+    '</div>';
   }
 
   /**
@@ -671,9 +818,8 @@
       var res = await fetch('/api/events/' + id, { method: 'DELETE' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       closeDeleteModal();
-      allEvents = allEvents.filter(function(ev) { return String(ev.id) !== String(id); });
-      renderStats();
-      filterCards();
+      // Refresh from the server: stats, Upcoming, and the Past list from its first page.
+      await loadEvents();
       showFeedback('Event "' + name + '" deleted.', 'success');
     } catch (e) {
       showFeedback('Failed to delete event. Please try again.', 'error');

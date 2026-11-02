@@ -2307,3 +2307,19 @@ BEGIN
     CREATE UNIQUE INDEX IF NOT EXISTS ux_signup_live_client_id
         ON signup (client_id) WHERE deleted IS NOT TRUE AND client_id IS NOT NULL;
 END $$;
+
+-- ── Events: delete tracking + Access Audit index (2026-11-02) ───────────────
+-- Additive only (Hibernate ddl-auto adds the same nullable columns on start; the index is
+-- also created by DatabaseIndexInitializer). deleted_at / delete_reason tell a person's
+-- delete (USER) apart from the 5-year retention archive (RETENTION) and a Service Admin
+-- restore (RESTORED); existing deleted events keep NULL in both.
+DO $$
+BEGIN
+    IF to_regclass('public.church_event') IS NOT NULL THEN
+        ALTER TABLE church_event ADD COLUMN IF NOT EXISTS deleted_at    TIMESTAMP;
+        ALTER TABLE church_event ADD COLUMN IF NOT EXISTS delete_reason VARCHAR(20);
+    END IF;
+    IF to_regclass('public.private_access_log') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS idx_pal_client_time ON private_access_log (client_id, created_at DESC, id DESC);
+    END IF;
+END $$;
