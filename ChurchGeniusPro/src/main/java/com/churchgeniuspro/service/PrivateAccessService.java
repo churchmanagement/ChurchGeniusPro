@@ -182,11 +182,28 @@ public class PrivateAccessService {
     }
 
     public Map<String, Object> report(String clientId, int limit) {
+        return report(clientId, limit, null, null);
+    }
+
+    /**
+     * One page of the access audit, newest first. Without a cursor it is the first page
+     * and carries the summary totals; with {@code beforeTs}+{@code beforeId} (the last row
+     * the page already shows) it is the next, older page. {@code hasMore} says whether
+     * older rows remain. limit 1..500.
+     */
+    public Map<String, Object> report(String clientId, int limit, LocalDateTime beforeTs, Long beforeId) {
         int cap = Math.max(1, Math.min(limit, 500));
-        List<PrivateAccessLog> recent = logRepo.findByClientIdOrderByCreatedAtDesc(clientId, PageRequest.of(0, cap));
+        PageRequest window = PageRequest.of(0, cap + 1);
+        boolean first = beforeTs == null || beforeId == null;
+        List<PrivateAccessLog> found = first
+                ? logRepo.findNewestPage(clientId, window)
+                : logRepo.findPageBefore(clientId, beforeTs, beforeId, window);
+        boolean hasMore = found.size() > cap;
+        List<PrivateAccessLog> recent = hasMore ? found.subList(0, cap) : found;
         List<Map<String, Object>> rows = new ArrayList<>();
         for (PrivateAccessLog r : recent) {
             Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", r.getId());
             m.put("time", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
             m.put("username", r.getUsername());
             m.put("ip", r.getIpAddress());
@@ -196,13 +213,16 @@ public class PrivateAccessService {
             m.put("reason", r.getReason());
             rows.add(m);
         }
-        Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("blocked", logRepo.countByClientIdAndStatus(clientId, "BLOCKED"));
-        summary.put("allowed", logRepo.countByClientIdAndStatus(clientId, "ALLOWED"));
-        summary.put("override", logRepo.countByClientIdAndStatus(clientId, "OVERRIDE"));
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("summary", summary);
+        if (first) {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("blocked", logRepo.countByClientIdAndStatus(clientId, "BLOCKED"));
+            summary.put("allowed", logRepo.countByClientIdAndStatus(clientId, "ALLOWED"));
+            summary.put("override", logRepo.countByClientIdAndStatus(clientId, "OVERRIDE"));
+            out.put("summary", summary);
+        }
         out.put("recent", rows);
+        out.put("hasMore", hasMore);
         return out;
     }
 

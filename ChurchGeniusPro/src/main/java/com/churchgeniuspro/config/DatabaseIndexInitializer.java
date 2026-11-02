@@ -65,6 +65,10 @@ public class DatabaseIndexInitializer {
             "CREATE INDEX IF NOT EXISTS idx_lb_username       ON login_block(username)",
             "CREATE INDEX IF NOT EXISTS idx_lb_blocked_until  ON login_block(blocked_until)",
 
+            // Private Page Access → Access Audit pages 10 rows at a time, newest first, by
+            // (created_at, id) for one church (keyset paging, 2026-11-02).
+            "CREATE INDEX IF NOT EXISTS idx_pal_client_time ON private_access_log(client_id, created_at DESC, id DESC)",
+
             // Per-tenant security reporting: "show this church its sign-ins for last month".
             // Also in migrate_production.sql; created here too so the index cannot go missing
             // just because the manual migration step was skipped.

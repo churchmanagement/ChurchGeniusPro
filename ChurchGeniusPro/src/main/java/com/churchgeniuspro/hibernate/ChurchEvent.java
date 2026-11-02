@@ -214,6 +214,18 @@ public class ChurchEvent {
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag;
 
+    /** When the event was deleted (null for live events and for events deleted before 2026-11-02). */
+    @Column(name = "deleted_at")
+    private java.time.LocalDateTime deletedAt;
+
+    /**
+     * Why it was deleted: {@code USER} (someone deleted it) or {@code RETENTION} (archived
+     * automatically 5 years after its last day — see EventRetentionService). Null for
+     * events deleted before the column existed. Only RETENTION archives may be restored.
+     */
+    @Column(name = "delete_reason", length = 20)
+    private String deleteReason;
+
     // ── Audit ─────────────────────────────────────────────────────────────
 
     @Column(name = "created_date", nullable = false, updatable = false)

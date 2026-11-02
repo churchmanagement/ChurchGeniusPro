@@ -44,7 +44,12 @@
     .warn { background:#fff8e1; border:1px solid #ffe082; color:#8a6d00; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-top:10px; }
     .feedback { padding:10px 16px; border-radius:9px; font-size:13px; margin-bottom:16px; display:none; }
     .feedback.ok { display:block; background:#e8f5e9; color:#2e7d32; } .feedback.err { display:block; background:#ffebee; color:#c62828; }
-  </style>
+    .audit-more { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .audit-more .btn-sec[disabled] { opacity:.7; cursor:wait; }
+  .audit-more [hidden] { display:none !important; }   /* shared button CSS sets display */
+  .spin { display:inline-block; width:12px; height:12px; border:2px solid #c9b6c1; border-top-color:#673147; border-radius:50%; animation:auditSpin .8s linear infinite; vertical-align:-2px; }
+  @keyframes auditSpin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body>
 <div class="app">
@@ -104,6 +109,10 @@
               <thead><tr><th>When</th><th>User</th><th>IP</th><th>Page</th><th>Status</th><th>Reason</th></tr></thead>
               <tbody id="auditBody"><tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No access attempts logged yet.</td></tr></tbody>
             </table>
+          </div>
+          <div class="audit-more">
+            <span id="auditCount" class="muted" aria-live="polite"></span>
+            <button type="button" class="btn-sec" id="auditMoreBtn" onclick="loadMoreAudit()" hidden>Load More</button>
           </div>
         </div>
       </div>
@@ -220,24 +229,66 @@
     else fb('Could not save rule.', false);
   }
 
-  async function loadAudit() {
-    try {
-      const r = await fetch('/api/private-access/audit?limit=150');
-      const d = await r.json();
-      const s = d.summary || {};
-      document.getElementById('auditSummary').innerHTML =
-        `<span class="pill off">Blocked: ${s.blocked||0}</span> <span class="pill on">Allowed: ${s.allowed||0}</span> <span class="pill" style="background:#fff8e1;color:#8a6d00;">Overrides: ${s.override||0}</span>`;
-      const rows = d.recent || [];
-      const tb = document.getElementById('auditBody');
-      if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No access attempts logged yet.</td></tr>'; return; }
-      tb.innerHTML = rows.map(x => `<tr>
+  // Access Audit — 10 rows at a time, newest first. "Load More" asks the server for the
+  // next 10 older than the last row shown (keyset by time + id), so rows logged while the
+  // admin reads never shift the list; ids already shown are skipped as a second guard.
+  const AUDIT_PAGE = 10;
+  let auditRows = [], auditSeen = new Set(), auditHasMore = false, auditBusy = false, auditGen = 0;
+  function auditRowHtml(x) {
+    return `<tr>
         <td>${x.time ? esc(new Date(x.time).toLocaleString()) : '—'}</td>
         <td>${esc(x.username||'—')}</td>
         <td style="font-family:monospace;">${esc(x.ip||'—')}</td>
         <td>${esc(x.page||'—')}</td>
         <td class="st-${esc(x.status)}">${esc(x.status)}</td>
-        <td class="muted">${esc(x.reason||'')}</td></tr>`).join('');
-    } catch { /* ignore */ }
+        <td class="muted">${esc(x.reason||'')}</td></tr>`;
+  }
+  function renderAuditMore(state) {
+    const btn = document.getElementById('auditMoreBtn');
+    const cnt = document.getElementById('auditCount');
+    cnt.textContent = auditRows.length ? `Showing ${auditRows.length} ${auditRows.length === 1 ? 'entry' : 'entries'}` : '';
+    if (state === 'loading') { btn.hidden = false; btn.disabled = true; btn.innerHTML = '<span class="spin" aria-hidden="true"></span> Loading…'; return; }
+    if (state === 'error')   { btn.hidden = false; btn.disabled = false; btn.textContent = "Couldn't load — Retry"; return; }
+    btn.disabled = false; btn.textContent = 'Load More'; btn.hidden = !auditHasMore;
+  }
+  async function fetchAudit(first) {
+    if (auditBusy) return;
+    auditBusy = true;
+    const gen = ++auditGen;
+    let url = '/api/private-access/audit?limit=' + AUDIT_PAGE;
+    const last = auditRows[auditRows.length - 1];
+    if (!first && last) url += '&beforeTs=' + encodeURIComponent(last.time) + '&beforeId=' + encodeURIComponent(last.id);
+    renderAuditMore('loading');
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (gen !== auditGen) return;              // superseded by a Refresh
+      const tb = document.getElementById('auditBody');
+      if (first) {
+        auditRows = []; auditSeen = new Set();
+        const s = d.summary || {};
+        document.getElementById('auditSummary').innerHTML =
+          `<span class="pill off">Blocked: ${s.blocked||0}</span> <span class="pill on">Allowed: ${s.allowed||0}</span> <span class="pill" style="background:#fff8e1;color:#8a6d00;">Overrides: ${s.override||0}</span>`;
+        tb.innerHTML = '';
+      }
+      const fresh = (d.recent || []).filter(x => x.id == null || !auditSeen.has(x.id));
+      fresh.forEach(x => { if (x.id != null) auditSeen.add(x.id); });
+      auditRows = auditRows.concat(fresh);
+      auditHasMore = !!d.hasMore;
+      if (!auditRows.length) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:14px;">No access attempts logged yet.</td></tr>';
+      else tb.insertAdjacentHTML('beforeend', fresh.map(auditRowHtml).join(''));
+      renderAuditMore('idle');
+    } catch (e) {
+      if (gen === auditGen) renderAuditMore('error');
+    } finally {
+      if (gen === auditGen) auditBusy = false;
+    }
+  }
+  function loadAudit() { auditBusy = false; return fetchAudit(true); }   // first 10 (also ↻ Refresh)
+  function loadMoreAudit() {
+    // A failed FIRST page retries from the start; otherwise fetch the next 10.
+    return fetchAudit(auditRows.length === 0);
   }
 
   load();

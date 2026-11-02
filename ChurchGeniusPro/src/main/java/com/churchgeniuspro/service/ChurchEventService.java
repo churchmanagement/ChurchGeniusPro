@@ -147,6 +147,21 @@ public class ChurchEventService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * List rows (same shape as {@link #getAll}) for the given event ids, in the given order.
+     * Only this church's non-deleted events are returned — an id that is foreign, deleted
+     * or unknown is silently left out. Used by {@link EventListService} for the paged tabs.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> rowsFor(List<Integer> ids, String appClientId) {
+        if (ids == null || ids.isEmpty() || appClientId == null) return List.of();
+        Map<Integer, ChurchEvent> byId = new java.util.HashMap<>();
+        for (ChurchEvent ev : eventRepo.findByIdInAndAppClientIdAndDeleteFlagFalse(ids, appClientId)) byId.put(ev.getId(), ev);
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (Integer id : ids) { ChurchEvent ev = byId.get(id); if (ev != null) out.add(toMapWithCounts(ev)); }
+        return out;
+    }
+
     // ── Single ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -277,6 +292,8 @@ public class ChurchEventService {
     public void delete(Integer id, String appClientId) {
         ChurchEvent ev = findOrThrow(id, appClientId);
         ev.setDeleteFlag(true);
+        ev.setDeletedAt(java.time.LocalDateTime.now(com.churchgeniuspro.util.AppClock.ZONE));
+        ev.setDeleteReason("USER");
         eventRepo.save(ev);
     }
 

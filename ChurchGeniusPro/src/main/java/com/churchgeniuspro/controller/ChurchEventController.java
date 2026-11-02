@@ -9,6 +9,7 @@ import com.churchgeniuspro.model.EventRegistrationBO;
 import com.churchgeniuspro.repository.ChurchLogoRepository;
 import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.service.ChurchEventService;
+import com.churchgeniuspro.service.EventListService;
 import com.churchgeniuspro.util.EncryptionUtil;
 import com.churchgeniuspro.util.PublicSendLimiter;
 import com.churchgeniuspro.util.RoleGuard;
@@ -117,9 +118,57 @@ public class ChurchEventController {
 
     @ResponseBody
     @GetMapping("/api/events")
-    public ResponseEntity<List<Map<String, Object>>> getAll(HttpServletRequest request) {
+    public ResponseEntity<List<Map<String, Object>>> getAll(@RequestParam(required = false) String view,
+                                                            HttpServletRequest request) {
         String appClientId = SessionUtil.getAppClientId(request);
+        // view=upcoming → only the Upcoming & Today tab's events (no date, or last day
+        // today or later in church time). No view → every event, as before (other pages).
+        if ("upcoming".equalsIgnoreCase(view) && eventLists != null) {
+            return ResponseEntity.ok(eventLists.upcoming(appClientId));
+        }
         return ResponseEntity.ok(eventService.getAll(appClientId));
+    }
+
+    /** Set by Spring; optional so the hand-built controllers in older tests still construct. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private EventListService eventLists;
+
+    /**
+     * GET /api/events/past?limit=10&amp;q=&amp;type=&amp;sort=newest|oldest|name&amp;cursor= — one page of
+     * the Past tab (events whose last day is before today, church time), most recent first
+     * by default. Body {@code {rows, hasMore, nextCursor}}; pass nextCursor back for the
+     * next page. Same access as {@code GET /api/events}.
+     */
+    @ResponseBody
+    @GetMapping("/api/events/past")
+    public ResponseEntity<?> past(@RequestParam(defaultValue = "10") int limit,
+                                  @RequestParam(required = false) String q,
+                                  @RequestParam(required = false) String type,
+                                  @RequestParam(required = false) String sort,
+                                  @RequestParam(required = false) String cursor,
+                                  HttpServletRequest request) {
+        String appClientId = authedTenant(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).body(Map.of("error", "Sign in"));
+        if (q != null && q.length() > 200) return ResponseEntity.badRequest().body(Map.of("error", "Search is too long"));
+        try {
+            EventListService.PastPage page = eventLists.past(appClientId, q, type, sort, cursor, limit);
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("rows", page.rows());
+            body.put("hasMore", page.hasMore());
+            body.put("nextCursor", page.nextCursor());
+            return ResponseEntity.ok(body);
+        } catch (EventListService.BadRequest e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** GET /api/events/stats — {total, upcoming, past, multi} for the stat cards (same tab rule). */
+    @ResponseBody
+    @GetMapping("/api/events/stats")
+    public ResponseEntity<?> stats(HttpServletRequest request) {
+        String appClientId = authedTenant(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).body(Map.of("error", "Sign in"));
+        return ResponseEntity.ok(eventLists.stats(appClientId));
     }
 
     @ResponseBody

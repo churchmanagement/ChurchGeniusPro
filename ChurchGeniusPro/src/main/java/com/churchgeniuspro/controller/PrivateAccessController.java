@@ -126,10 +126,20 @@ public class PrivateAccessController {
 
     @ResponseBody
     @GetMapping("/api/private-access/audit")
-    public ResponseEntity<?> audit(@RequestParam(defaultValue = "100") int limit, HttpServletRequest request) {
+    public ResponseEntity<?> audit(@RequestParam(defaultValue = "100") int limit,
+                                   @RequestParam(required = false) String beforeTs,
+                                   @RequestParam(required = false) Long beforeId,
+                                   HttpServletRequest request) {
         String deny = adminAndClient(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
-        return ResponseEntity.ok(service.report(SessionUtil.getAppClientId(request), limit));
+        // Keyset cursor = the (time, id) of the last row the page already shows.
+        java.time.LocalDateTime cursor = null;
+        if (beforeTs != null && !beforeTs.isBlank()) {
+            try { cursor = java.time.LocalDateTime.parse(beforeTs.trim()); }
+            catch (java.time.format.DateTimeParseException e) { return ResponseEntity.badRequest().body(Map.of("error", "Invalid beforeTs")); }
+            if (beforeId == null) return ResponseEntity.badRequest().body(Map.of("error", "beforeId is required with beforeTs"));
+        }
+        return ResponseEntity.ok(service.report(SessionUtil.getAppClientId(request), limit, cursor, beforeId));
     }
 
     /**
