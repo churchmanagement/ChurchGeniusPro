@@ -971,6 +971,21 @@ public class SongBookService {
         return auditRepo.findByClientIdOrderByCreatedAtDesc(clientId, PageRequest.of(0, Math.max(1, Math.min(limit, 500))));
     }
 
+    /**
+     * One page of the audit trail, newest first. With no cursor it returns the newest
+     * entries; with the (createdAt, id) of the last row already shown it returns the
+     * next older ones. Over-fetches one row so {@code hasMore} needs no count query.
+     */
+    public com.churchgeniuspro.model.PageSlice<SongAuditLog> auditPage(String clientId, Instant beforeTs,
+                                                                        Long beforeId, int limit) {
+        int size = Math.max(1, Math.min(limit, 500));
+        PageRequest window = PageRequest.of(0, size + 1);
+        List<SongAuditLog> rows = (beforeTs == null || beforeId == null)
+                ? auditRepo.findNewestPage(clientId, window)
+                : auditRepo.findPageBefore(clientId, beforeTs, beforeId, window);
+        return com.churchgeniuspro.model.PageSlice.of(rows, size);
+    }
+
     /* ════════════════════ helpers ════════════════════ */
 
     public Song find(String clientId, Long id) { return songRepo.findByIdAndClientId(id, clientId).orElse(null); }

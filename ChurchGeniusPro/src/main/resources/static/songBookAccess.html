@@ -48,6 +48,23 @@
                  padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s; z-index: 9999; }
     .cgp-toast.show { opacity: 1; }
     .cgp-toast.err { background: #c62828; }
+    .more-wrap { text-align: center; padding: 14px 0 4px; }
+    .more-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; border-radius: 8px;
+                font-size: 13px; font-weight: 700; background: #fff; color: #673147; border: 1.5px solid #e6d9e0; }
+    .more-btn:hover:not(:disabled) { background: #faf5f8; border-color: #673147; }
+    .more-btn:disabled { opacity: .65; cursor: default; }
+    .more-btn.err { color: #c62828; border-color: #f2c4c4; }
+    .spin { width: 14px; height: 14px; border: 2px solid #e6d9e0; border-top-color: #673147; border-radius: 50%;
+            animation: sbspin .7s linear infinite; display: none; }
+    .more-btn.loading .spin { display: inline-block; }
+    @keyframes sbspin { to { transform: rotate(360deg); } }
+    .list-status { text-align: center; color: #999; font-size: 13px; padding: 24px; }
+    @media (max-width: 640px) {
+      .audit-row { flex-wrap: wrap; }
+      .audit-act { min-width: 0; }
+      .audit-meta { width: 100%; }
+      .more-btn { width: 100%; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -70,7 +87,7 @@
       <!-- Members -->
       <div class="card" id="paneMembers">
         <div class="toolbar">
-          <input class="search" id="search" placeholder="Search members by name or email…" oninput="renderMembers()" />
+          <input class="search" id="search" placeholder="Search members by name or email…" oninput="onSearchInput()" />
           <span class="member-sub" id="countLbl"></span>
         </div>
         <div style="overflow-x:auto;">
@@ -81,13 +98,25 @@
             <tbody id="memberRows"></tbody>
           </table>
         </div>
+        <div class="list-status" id="membersStatus" style="display:none;"></div>
         <div class="empty" id="membersEmpty" style="display:none;">No portal members found.</div>
+        <div class="more-wrap" id="membersMoreWrap" style="display:none;">
+          <button type="button" class="more-btn" id="membersMoreBtn" onclick="loadMoreMembers()">
+            <span class="spin" aria-hidden="true"></span><span class="lbl">Load More</span>
+          </button>
+        </div>
       </div>
 
       <!-- Activity -->
       <div class="card" id="paneActivity" style="display:none;">
         <div id="auditList"></div>
+        <div class="list-status" id="auditStatus" style="display:none;"></div>
         <div class="empty" id="auditEmpty" style="display:none;">No activity yet.</div>
+        <div class="more-wrap" id="auditMoreWrap" style="display:none;">
+          <button type="button" class="more-btn" id="auditMoreBtn" onclick="loadMoreAudit()">
+            <span class="spin" aria-hidden="true"></span><span class="lbl">Load More</span>
+          </button>
+        </div>
       </div>
 
     </main>
@@ -98,8 +127,15 @@
 <div class="cgp-toast" id="toast"></div>
 
 <script>
-let MEMBERS = [];
+/* Song Book Access — members and activity are fetched from the server 10 at a time.
+   "Load More" appends the next batch in place (no page reload, tab and scroll kept). */
+const PAGE_SIZE = 10;
 const LEVELS = ['NONE','VIEW','FULL'];
+
+// Members tab state
+const MEM = { rows: [], offset: 0, hasMore: false, total: null, loading: false, query: '', seq: 0 };
+// Activity tab state (keyset cursor = createdAt + id of the last row shown)
+const AUD = { rows: [], hasMore: false, loading: false, loaded: false, stale: false, seq: 0 };
 
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg, err){ const t=document.getElementById('toast'); t.textContent=msg; t.className='cgp-toast show'+(err?' err':''); setTimeout(()=>t.className='cgp-toast',2600); }
@@ -109,29 +145,38 @@ function showTab(which){
   document.getElementById('tabActivity').classList.toggle('active', which==='activity');
   document.getElementById('paneMembers').style.display = which==='members' ? '' : 'none';
   document.getElementById('paneActivity').style.display = which==='activity' ? '' : 'none';
-  if (which==='activity') loadAudit();
+  // Fetch the activity log only the first time it is opened, or when an access change
+  // since then has added newer entries; otherwise keep what is already loaded.
+  if (which==='activity' && (!AUD.loaded || AUD.stale) && !AUD.loading) loadAudit(true);
 }
 
-async function loadMembers(){
-  try {
-    const r = await fetch('/api/songbook/admin/members');
-    if (!r.ok) { toast('Could not load members.', true); return; }
-    MEMBERS = await r.json();
-    renderMembers();
-  } catch(e){ toast('Could not load members.', true); }
+/* Load More button: state = 'idle' | 'loading' | 'error' | 'hidden' */
+function setMore(prefix, state){
+  const wrap = document.getElementById(prefix+'MoreWrap');
+  const btn  = document.getElementById(prefix+'MoreBtn');
+  wrap.style.display = state==='hidden' ? 'none' : '';
+  btn.disabled = state==='loading';
+  btn.classList.toggle('loading', state==='loading');
+  btn.classList.toggle('err', state==='error');
+  btn.setAttribute('aria-busy', state==='loading' ? 'true' : 'false');
+  btn.querySelector('.lbl').textContent =
+    state==='loading' ? 'Loading…' : (state==='error' ? 'Couldn’t load — Retry' : 'Load More');
 }
+function setStatus(id, text){
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.style.display = text ? '' : 'none';
+}
+
+/* ───────────── Members ───────────── */
 
 function fullName(m){ return [m.firstName, m.lastName].filter(Boolean).join(' ') || '(unnamed)'; }
 function levelBadge(l){ const c = l==='FULL'?'b-full':(l==='VIEW'?'b-view':'b-none'); const t = l==='FULL'?'Full Access':(l==='VIEW'?'View Only':'No Access'); return `<span class="badge ${c}">${t}</span>`; }
+function levelText(l){ return l==='FULL'?'Full Access':(l==='VIEW'?'View Only':'No Access'); }
 
-function renderMembers(){
-  const q = (document.getElementById('search').value||'').toLowerCase().trim();
-  const list = MEMBERS.filter(m => !q || (fullName(m)+' '+(m.email||'')).toLowerCase().includes(q));
-  document.getElementById('countLbl').textContent = list.length + ' member' + (list.length===1?'':'s');
-  document.getElementById('membersEmpty').style.display = MEMBERS.length ? 'none' : 'block';
-  document.getElementById('memberRows').innerHTML = list.map(m => {
-    const lvl = m.level || 'NONE';
-    return `<tr>
+function memberRowHtml(m){
+  const lvl = m.level || 'NONE';
+  return `<tr id="mrow-${m.memberId}">
       <td><div class="member-name">${esc(fullName(m))}</div><div class="member-sub">${esc(m.email||'')}</div></td>
       <td><span class="member-sub">${esc(m.role||'')}</span></td>
       <td id="cur-${m.memberId}">${levelBadge(lvl)}</td>
@@ -143,7 +188,75 @@ function renderMembers(){
         </span>
       </td>
     </tr>`;
-  }).join('');
+}
+
+function updateMemberCount(){
+  const shown = MEM.rows.length;
+  const total = MEM.total == null ? shown : MEM.total;
+  document.getElementById('countLbl').textContent = shown < total
+    ? `Showing ${shown} of ${total} members`
+    : `${total} member${total===1?'':'s'}`;
+}
+
+/* reset=true starts a fresh list (first load or a new search); otherwise appends the next 10. */
+async function fetchMembers(reset){
+  if (MEM.loading && !reset) return;           // ignore repeated clicks while a batch is in flight
+  const seq = ++MEM.seq;                          // newer requests win over stale responses
+  MEM.loading = true;
+  const offset = reset ? 0 : MEM.offset;
+  if (reset) setStatus('membersStatus', MEM.rows.length ? '' : 'Loading members…');
+  setMore('members', reset ? 'hidden' : 'loading');
+  try {
+    const url = `/api/songbook/admin/members?offset=${offset}&limit=${PAGE_SIZE}&q=${encodeURIComponent(MEM.query)}`;
+    const r = await fetch(url);
+    if (seq !== MEM.seq) return;
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json();
+    if (seq !== MEM.seq) return;
+    const tbody = document.getElementById('memberRows');
+    if (reset) { MEM.rows = []; tbody.innerHTML = ''; }
+    const seen = new Set(MEM.rows.map(m => m.memberId));
+    const fresh = rows.filter(m => !seen.has(m.memberId));
+    MEM.rows = MEM.rows.concat(fresh);
+    MEM.offset = offset + rows.length;
+    MEM.hasMore = r.headers.get('X-Has-More') === 'true';
+    const total = r.headers.get('X-Total-Count');
+    if (total != null) MEM.total = parseInt(total, 10);
+    tbody.insertAdjacentHTML('beforeend', fresh.map(memberRowHtml).join(''));
+    setStatus('membersStatus', '');
+    document.getElementById('membersEmpty').style.display = MEM.rows.length ? 'none' : 'block';
+    document.getElementById('membersEmpty').textContent = MEM.query ? 'No members match your search.' : 'No portal members found.';
+    updateMemberCount();
+    setMore('members', MEM.hasMore ? 'idle' : 'hidden');
+  } catch(e){
+    if (seq !== MEM.seq) return;
+    setStatus('membersStatus', '');
+    if (reset) {                                  // first batch / new search failed:
+      MEM.retryReset = true;                      // Retry starts that list over
+      if (!MEM.rows.length) document.getElementById('membersEmpty').style.display = 'none';
+    }
+    setMore('members', 'error');
+    toast('Could not load members.', true);
+  } finally {
+    if (seq === MEM.seq) MEM.loading = false;
+  }
+}
+
+function loadMembers(){ return fetchMembers(true); }
+function loadMoreMembers(){
+  if (MEM.retryReset) { MEM.retryReset = false; return fetchMembers(true); }
+  return fetchMembers(false);
+}
+
+let searchTimer = null;
+function onSearchInput(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    const q = (document.getElementById('search').value || '').trim();
+    if (q === MEM.query) return;
+    MEM.query = q; MEM.total = null; MEM.retryReset = false;
+    fetchMembers(true);
+  }, 300);
 }
 
 async function setLevel(memberId, level){
@@ -153,25 +266,70 @@ async function setLevel(memberId, level){
       body: JSON.stringify({ memberId, level })
     });
     if (!r.ok){ toast('Could not update access.', true); return; }
-    const m = MEMBERS.find(x=>x.memberId===memberId); if (m) m.level = level;
-    renderMembers();
-    toast(`${fullName(m)} → ${level==='FULL'?'Full Access':(level==='VIEW'?'View Only':'No Access')}`);
+    const m = MEM.rows.find(x=>x.memberId===memberId);
+    if (m) {
+      m.level = level;
+      const row = document.getElementById('mrow-' + memberId);
+      if (row) row.outerHTML = memberRowHtml(m);   // update just this row, keep the rest
+    }
+    AUD.stale = true;                               // a new ACCESS_GRANT entry now exists
+    toast(`${m ? fullName(m) : 'Member'} → ${levelText(level)}`);
   } catch(e){ toast('Could not update access.', true); }
 }
 
-async function loadAudit(){
-  try {
-    const r = await fetch('/api/songbook/admin/audit?limit=150');
-    const rows = r.ok ? await r.json() : [];
-    document.getElementById('auditEmpty').style.display = rows.length ? 'none' : 'block';
-    document.getElementById('auditList').innerHTML = rows.map(a => {
-      const when = a.createdAt ? new Date(a.createdAt).toLocaleString() : '';
-      const what = [a.songTitle, a.detail].filter(Boolean).join(' — ');
-      return `<div class="audit-row"><span class="audit-act">${esc(a.action)}</span>
+/* ───────────── Activity Log ───────────── */
+
+function auditRowHtml(a){
+  const when = a.createdAt ? new Date(a.createdAt).toLocaleString() : '';
+  const what = [a.songTitle, a.detail].filter(Boolean).join(' — ');
+  return `<div class="audit-row"><span class="audit-act">${esc(a.action)}</span>
         <span style="flex:1;">${esc(what)}</span>
         <span class="audit-meta">${esc(a.actor||'')} · ${esc(when)}</span></div>`;
-    }).join('');
-  } catch(e){}
+}
+
+async function fetchAudit(reset){
+  if (AUD.loading) return;
+  const seq = ++AUD.seq;
+  AUD.loading = true;
+  let url = `/api/songbook/admin/audit?limit=${PAGE_SIZE}`;
+  const last = AUD.rows[AUD.rows.length - 1];
+  if (!reset && last && last.createdAt && last.id != null) {
+    url += `&beforeTs=${encodeURIComponent(last.createdAt)}&beforeId=${encodeURIComponent(last.id)}`;
+  }
+  if (reset) setStatus('auditStatus', 'Loading activity…');
+  setMore('audit', reset ? 'hidden' : 'loading');
+  try {
+    const r = await fetch(url);
+    if (seq !== AUD.seq) return;
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json();
+    if (seq !== AUD.seq) return;
+    const list = document.getElementById('auditList');
+    if (reset) { AUD.rows = []; list.innerHTML = ''; }
+    const seen = new Set(AUD.rows.map(a => a.id));
+    const fresh = rows.filter(a => a.id == null || !seen.has(a.id));
+    AUD.rows = AUD.rows.concat(fresh);
+    AUD.hasMore = r.headers.get('X-Has-More') === 'true';
+    AUD.loaded = true; AUD.stale = false; AUD.retryReset = false;
+    list.insertAdjacentHTML('beforeend', fresh.map(auditRowHtml).join(''));
+    setStatus('auditStatus', '');
+    document.getElementById('auditEmpty').style.display = AUD.rows.length ? 'none' : 'block';
+    setMore('audit', AUD.hasMore ? 'idle' : 'hidden');
+  } catch(e){
+    if (seq !== AUD.seq) return;
+    setStatus('auditStatus', '');
+    if (reset) AUD.retryReset = true;
+    setMore('audit', 'error');
+    toast('Could not load activity.', true);
+  } finally {
+    if (seq === AUD.seq) AUD.loading = false;
+  }
+}
+
+function loadAudit(reset){ return fetchAudit(reset !== false); }
+function loadMoreAudit(){
+  if (AUD.retryReset) { AUD.retryReset = false; return fetchAudit(true); }
+  return fetchAudit(false);
 }
 
 loadMembers();

@@ -1,11 +1,18 @@
 package com.churchgeniuspro.service;
 
+import com.churchgeniuspro.hibernate.FamilyMember;
 import com.churchgeniuspro.hibernate.SongBookAccess;
+import com.churchgeniuspro.model.PageSlice;
+import com.churchgeniuspro.repository.FamilyMemberRepository;
+import com.churchgeniuspro.repository.OffsetWindow;
 import com.churchgeniuspro.repository.SongBookAccessRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,10 +23,71 @@ import java.util.Map;
 @Service
 public class SongBookAccessService {
 
-    private final SongBookAccessRepository repo;
+    /** Largest page the Song Book Access list will serve in one request. */
+    public static final int MAX_PAGE_SIZE = 100;
 
-    public SongBookAccessService(SongBookAccessRepository repo) {
+    private final SongBookAccessRepository repo;
+    private final FamilyMemberRepository memberRepo;
+
+    public SongBookAccessService(SongBookAccessRepository repo, FamilyMemberRepository memberRepo) {
         this.repo = repo;
+        this.memberRepo = memberRepo;
+    }
+
+    /**
+     * One page of active members with their Song Book access level, for the admin
+     * Song Book Access screen. Fetches {@code limit + 1} members (so {@code hasMore}
+     * needs no count query) and only the access grants for those members — instead of
+     * every member and every grant in the church.
+     *
+     * @param search free text matched against name, nickname and email (case-insensitive)
+     */
+    @Transactional(readOnly = true)
+    public PageSlice<Map<String, Object>> memberPage(String clientId, String search, int offset, int limit) {
+        int size = Math.max(1, Math.min(limit, MAX_PAGE_SIZE));
+        int from = Math.max(0, offset);
+        List<FamilyMember> members = memberRepo.findSongBookAccessPage(
+                clientId, likePattern(search), new OffsetWindow(from, size + 1));
+
+        List<Long> ids = new ArrayList<>();
+        for (FamilyMember m : members) if (m.getId() != null) ids.add(m.getId().longValue());
+        Map<Long, String> levels = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (SongBookAccess a : repo.findByClientIdAndMemberIdIn(clientId, ids)) {
+                levels.put(a.getMemberId(), a.getAccessLevel());
+            }
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (FamilyMember m : members) {
+            if (m.getId() == null) continue;
+            long id = m.getId().longValue();
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("memberId", id);
+            row.put("firstName", m.getFirstName());
+            row.put("lastName", m.getLastName());
+            row.put("email", m.getEmail());
+            row.put("role", m.getRole());
+            String lvl = levels.get(id);
+            row.put("level", lvl == null || lvl.isBlank() ? "NONE" : lvl);
+            rows.add(row);
+        }
+        return PageSlice.of(rows, size);
+    }
+
+    /** Number of active members matching {@code search} (shown as "Showing x of N"). */
+    @Transactional(readOnly = true)
+    public long memberCount(String clientId, String search) {
+        return memberRepo.countSongBookAccessMembers(clientId, likePattern(search));
+    }
+
+    /** Lower-cased "%text%" LIKE pattern with %, _ and ! escaped ('!' is the escape char); '' = no filter. */
+    static String likePattern(String search) {
+        String q = search == null ? "" : search.trim().toLowerCase();
+        if (q.isEmpty()) return "";
+        if (q.length() > 100) q = q.substring(0, 100);
+        q = q.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        return "%" + q + "%";
     }
 
     /** "FULL" | "VIEW" | "NONE" for a member (NONE when no grant exists). */

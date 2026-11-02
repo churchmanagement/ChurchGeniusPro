@@ -740,4 +740,42 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
                    "WHERE fm.id IN (:ids) AND f.app_client_id = :appClientId", nativeQuery = true)
     List<Object[]> aiMemberNames(@Param("appClientId") String appClientId, @Param("ids") java.util.Collection<Integer> ids);
 
+    /* ── Song Book Access: one page of active members (server-side paging) ── */
+
+    /**
+     * One page of active members for the Song Book Access screen, in the same
+     * last-name / first-name order the screen has always used (plus id, so paging
+     * is stable). Same "active" rules as {@link #findAllWithFamilyByAppUser}, but
+     * tenant-required and without fetching the family, so a page costs one small
+     * query instead of loading the whole church. {@code q} is an already-lowercased
+     * LIKE pattern ('' = no search) matched against "first last", nickname and email,
+     * using '!' as the escape character.
+     */
+    @Query("SELECT m FROM FamilyMember m JOIN m.family f " +
+           "WHERE (m.deleteFlag = false OR m.deleteFlag IS NULL) " +
+           "AND (m.inactive = false OR m.inactive IS NULL) " +
+           "AND (f.deleteFlag = false OR f.deleteFlag IS NULL) " +
+           "AND (f.inactive = false OR f.inactive IS NULL) " +
+           "AND f.appClientId = :appClientId " +
+           "AND (:q = '' " +
+           "     OR LOWER(CONCAT(COALESCE(m.firstName,''), ' ', COALESCE(m.lastName,''))) LIKE :q ESCAPE '!' " +
+           "     OR LOWER(COALESCE(m.otherName,'')) LIKE :q ESCAPE '!' " +
+           "     OR LOWER(COALESCE(m.email,'')) LIKE :q ESCAPE '!') " +
+           "ORDER BY m.lastName ASC, m.firstName ASC, m.id ASC")
+    List<FamilyMember> findSongBookAccessPage(@Param("appClientId") String appClientId,
+                                              @Param("q") String q,
+                                              org.springframework.data.domain.Pageable page);
+
+    /** Total for {@link #findSongBookAccessPage} with the same filters (first page only). */
+    @Query("SELECT COUNT(m) FROM FamilyMember m JOIN m.family f " +
+           "WHERE (m.deleteFlag = false OR m.deleteFlag IS NULL) " +
+           "AND (m.inactive = false OR m.inactive IS NULL) " +
+           "AND (f.deleteFlag = false OR f.deleteFlag IS NULL) " +
+           "AND (f.inactive = false OR f.inactive IS NULL) " +
+           "AND f.appClientId = :appClientId " +
+           "AND (:q = '' " +
+           "     OR LOWER(CONCAT(COALESCE(m.firstName,''), ' ', COALESCE(m.lastName,''))) LIKE :q ESCAPE '!' " +
+           "     OR LOWER(COALESCE(m.otherName,'')) LIKE :q ESCAPE '!' " +
+           "     OR LOWER(COALESCE(m.email,'')) LIKE :q ESCAPE '!')")
+    long countSongBookAccessMembers(@Param("appClientId") String appClientId, @Param("q") String q);
 }
