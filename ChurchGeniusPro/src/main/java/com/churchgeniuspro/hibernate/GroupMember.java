@@ -44,9 +44,11 @@ public class GroupMember {
     private String email;
 
     /**
-     * ETL Migration Phase 4 (approved decision 6): the member this membership belongs to,
-     * when an import could resolve one. Nullable and informational — nothing in the Groups
-     * feature reads or maintains it, so memberships added or edited in the app leave it null.
+     * The member this membership belongs to. Set by ETL imports (Phase 4, decision 6) and,
+     * since 2026-11-02, by the Groups page when the person is picked from the member list
+     * ("Add existing member"); typed-in memberships and older rows leave it null and are
+     * matched by email (View Family involvement, AI Search) only when that is unambiguous.
+     * Editing a membership's name or email keeps the link.
      */
     @Column(name = "family_member_id")
     private Integer familyMemberId;

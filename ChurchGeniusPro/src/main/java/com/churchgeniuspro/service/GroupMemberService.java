@@ -47,6 +47,19 @@ public class GroupMemberService {
     @Transactional
     public GroupMember addMember(Integer groupId, String firstName, String lastName,
                                   String email, String appClientId) {
+        return addMember(groupId, firstName, lastName, email, appClientId, null);
+    }
+
+    /**
+     * Same as {@link #addMember(Integer, String, String, String, String)}, also recording
+     * which church member this membership is (2026-11-02) when the person was picked from
+     * the member list. The id is kept only when it is a live member of this church;
+     * anything else (another church, deleted, unknown) is silently dropped and the
+     * membership is saved by name/email exactly as before.
+     */
+    @Transactional
+    public GroupMember addMember(Integer groupId, String firstName, String lastName,
+                                  String email, String appClientId, Integer familyMemberId) {
         Group group = groupService.findOrThrow(groupId, appClientId);
         // Email is optional — normalise when provided but do NOT dedup by email,
         // because multiple family members may share the same email address.
@@ -57,6 +70,9 @@ public class GroupMemberService {
         m.setLastName(lastName.trim());
         m.setEmail(em);
         m.setAppClientId(appClientId);
+        if (familyMemberId != null && familyMemberRepo.findByIdAndTenant(familyMemberId, appClientId).isPresent()) {
+            m.setFamilyMemberId(familyMemberId);
+        }
         return repo.save(m);
     }
 
@@ -98,6 +114,7 @@ public class GroupMemberService {
         map.put("nickname",    nickname);
         map.put("displayName", MemberNameUtil.display(m.getFirstName(), m.getLastName(), nickname));
         map.put("groupId",   m.getGroup().getId());
+        map.put("familyMemberId", m.getFamilyMemberId());
         return map;
     }
 

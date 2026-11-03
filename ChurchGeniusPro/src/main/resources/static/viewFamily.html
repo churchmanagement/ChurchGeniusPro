@@ -499,6 +499,39 @@
       .fam-act { width: 40px; height: 40px; }   /* comfortable touch target */
       .fam-foot { padding: 8px 14px; }
     }
+
+    /* ── Involvement badges + member details (2026-11-02) ───────────────── */
+    .fam-inv { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px 106px; }
+    .fam-inv:empty { display: none; }
+    .fam-card > .fam-foot { margin-top: auto; }   /* footer stays at the bottom when a row's cards differ in height */
+    .fam-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; line-height: 1.4; white-space: nowrap; border: 1px solid transparent; }
+    .fam-chip svg { width: 13px; height: 13px; fill: currentColor; }
+    .fam-chip-vol { background: #fdf2e3; color: #9a5b00; border-color: #f6e0bd; }
+    .fam-chip-fu  { background: #eaf4fb; color: #1f5f8b; border-color: #cfe4f3; }
+    .fam-chip-grp { background: #f1ecf8; color: #5b3a8c; border-color: #e0d5ef; }
+    .fam-chip.dim { opacity: .55; }
+    @media (max-width: 480px) { .fam-inv { padding: 0 14px 12px 90px; } }
+    .inv-row-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+    .inv-toggle {
+      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin-right: 6px;
+      border-radius: 6px; border: 1.5px solid #ead9e2; background: #faf5f8; color: #673147; font-size: 12px; vertical-align: middle;
+      transition: transform .15s;
+    }
+    .inv-toggle[aria-expanded="true"] { transform: rotate(90deg); background: #673147; color: #fff; border-color: #673147; }
+    .inv-toggle:focus-visible { outline: 2px solid #673147; outline-offset: 2px; }
+    tr.inv-detail td { background: #fbf8fa !important; padding: 10px 16px 14px 46px; }
+    .inv-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 18px; }
+    .inv-sec h5 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #8a7380; margin: 0 0 5px; font-weight: 700; }
+    .inv-sec ul { list-style: none; margin: 0; padding: 0; }
+    .inv-sec li { font-size: 12.5px; color: #333; padding: 3px 0; line-height: 1.35; }
+    .inv-sec li .inv-sub { display: block; color: #888; font-size: 11.5px; }
+    .inv-sec .inv-none { color: #aaa; font-style: italic; font-size: 12.5px; }
+    .inv-sec .inv-tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 4px; vertical-align: 1px; }
+    .inv-tag-tent { background: #fff4d6; color: #8a6100; }
+    .inv-tag-poss { background: #eeeeee; color: #666; }
+    .inv-yes { color: #2e7d32; font-weight: 700; font-size: 12.5px; }
+    .inv-no  { color: #999; font-weight: 600; font-size: 12.5px; }
+    @media (max-width: 600px) { tr.inv-detail td { padding-left: 16px; } }
   </style>
 </head>
 <body>
@@ -742,6 +775,12 @@
     loadFamilies();
   }
 
+  /* Involvement (volunteers / follow-ups / groups) — 2026-11-02.
+     Counts per family on screen, loaded after each page of cards. */
+  let involvementCounts  = {};     // familyId → {volunteers?, followUps?, groups?}
+  let involvementAllowed = null;   // {volunteers, followUps, groups} from the server
+  let involvementLoading = new Set();
+
   /** Lookup map: id → family object (avoids escaping issues in onclick) */
   const familyMap = {};
 
@@ -755,7 +794,8 @@
     const showUnalert  = document.getElementById('filterUnalert')?.checked  || false;
     const familyType   = document.getElementById('filterFamilyType')?.value || '';
 
-    // Reset state for a fresh load
+    // Reset state for a fresh load (involvement counts are kept: they do not change with
+    // the filters, and a page reload starts from scratch anyway)
     allFamilies   = [];
     totalFamilies = 0;
     currentPage   = 0;
@@ -881,6 +921,7 @@
             <button type="button" class="fam-act fam-act-members" onclick="showMembers(${f.id})" title="View members" aria-label="View members of ${escHtml(name)}">${ICON.people}</button>
           </div>
         </div>
+        <div class="fam-inv" aria-label="Involvement">${involvementChips(involvementCounts[f.id])}</div>
         <div class="fam-foot">
           <span class="fam-pill ${alertsOff ? 'fam-alert-off' : 'fam-alert-on'}" title="${alertsOff ? 'Disable Alert is ticked for the primary member' : 'Alerts are on for the primary member'}">${alertsOff ? ICON.bellOff + 'Alert Off' : ICON.bell + 'Alert On'}</span>
           <span class="fam-foot-right">${typeBadge}<span class="fam-pill fam-status-${status}">${statusTxt}</span></span>
@@ -913,6 +954,48 @@
     }
 
     grid.innerHTML = allFamilies.map(buildFamilyCard).join('');
+    loadInvolvement();
+  }
+
+  /** Fetch counts for the cards on screen that do not have them yet (one request per page). */
+  async function loadInvolvement() {
+    const ids = allFamilies.map(f => f.id).filter(id => !(id in involvementCounts) && !involvementLoading.has(id));
+    if (!ids.length || involvementAllowed && !involvementAllowed.volunteers && !involvementAllowed.followUps && !involvementAllowed.groups) return;
+    for (let i = 0; i < ids.length; i += 50) {
+      const batch = ids.slice(i, i + 50);
+      batch.forEach(id => involvementLoading.add(id));
+      try {
+        const d = await CGP_api(`/api/families/involvement?familyIds=${batch.join(',')}`, { cache: 'no-store' });
+        involvementAllowed = d.allowed || involvementAllowed;
+        batch.forEach(id => { involvementCounts[id] = (d.families || {})[id] || {}; paintInvolvement(id); });
+      } catch (e) {
+        /* badges are extra information: a failure leaves the cards as they are */
+      } finally {
+        batch.forEach(id => involvementLoading.delete(id));
+      }
+    }
+  }
+
+  const INV_ICON = {
+    vol: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+    fu:  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-2 14-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>',
+    grp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>'
+  };
+
+  /** Badges for one family; a section with 0 people (or that the viewer may not see) is left out. */
+  function involvementChips(c) {
+    if (!c) return '';
+    const parts = [];
+    const one = (n, word) => `${n} member${n === 1 ? '' : 's'} ${word}`;
+    if (c.volunteers > 0) parts.push(`<span class="fam-chip fam-chip-vol" title="${one(c.volunteers, 'volunteering')}">${INV_ICON.vol}Volunteers ${c.volunteers}</span>`);
+    if (c.followUps  > 0) parts.push(`<span class="fam-chip fam-chip-fu" title="${one(c.followUps, 'with open follow-ups')}">${INV_ICON.fu}Follow-ups ${c.followUps}</span>`);
+    if (c.groups     > 0) parts.push(`<span class="fam-chip fam-chip-grp" title="${one(c.groups, 'in groups')}">${INV_ICON.grp}Groups ${c.groups}</span>`);
+    return parts.join('');
+  }
+
+  function paintInvolvement(id) {
+    const el = document.querySelector(`.fam-card[data-id="${id}"] .fam-inv`);
+    if (el) el.innerHTML = involvementChips(involvementCounts[id]);
   }
 
   async function loadMoreFamilies() {
@@ -1092,6 +1175,8 @@
   };
 
   let _allModalMembers = []; // full unfiltered list from API
+  let _modalInvolvement = null;   // {allowed, byMember:{id → details}} for the open family
+  const _invOpen = new Set();     // member ids whose details are expanded
 
   async function showMembers(id) {
     const family = familyMap[id];
@@ -1105,12 +1190,23 @@
     document.getElementById('memberCountLabel').textContent = '';
     document.getElementById('membersModal').classList.add('open');
 
+    _modalInvolvement = null;
+    _invOpen.clear();
+    // Involvement is extra: loaded alongside, never blocks or breaks the member list.
+    const invPromise = CGP_api(`/api/families/${id}/involvement`, { cache: 'no-store' }).catch(() => null);
     try {
       const res = await fetch(`/api/families/${id}`);
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
       _allModalMembers = data.members || [];
       applyMemberFilter();
+      const inv = await invPromise;
+      if (inv && Array.isArray(inv.members) && document.getElementById('membersModal').classList.contains('open')) {
+        const byMember = {};
+        inv.members.forEach(m => { byMember[m.memberId] = m; });
+        _modalInvolvement = { allowed: inv.allowed || {}, byMember };
+        applyMemberFilter();
+      }
     } catch {
       document.getElementById('modalMembersBody').innerHTML =
         '<tr><td colspan="6" class="modal-empty">❌ Failed to load members.</td></tr>';
@@ -1149,15 +1245,80 @@
       const delTag    = m.deleted  ? ' <span style="font-size:10px;color:#c62828;font-weight:700;margin-left:4px;">Deleted</span>'  : '';
       const rowClass  = m.deleted ? 'member-deleted' : m.inactive ? 'member-inactive' : '';
       rowNum++;
+      const inv       = involvementFor(m);
+      const open      = inv && _invOpen.has(m.id);
+      const toggle    = inv ? `<button type="button" class="inv-toggle" onclick="toggleInvolvement(${Number(m.id)})" aria-expanded="${open}" aria-controls="inv-${Number(m.id)}" title="${open ? 'Hide' : 'Show'} volunteering, follow-ups and groups" aria-label="${open ? 'Hide' : 'Show'} involvement for ${escHtml(name)}">▸</button>` : '';
+      const detailRow = open ? `<tr class="inv-detail" id="inv-${Number(m.id)}"><td colspan="6">${involvementDetailHtml(inv)}</td></tr>` : '';
       return `<tr class="${rowClass}">
         <td>${rowNum}</td>
-        <td><strong>${displayName}</strong>${inactTag}${delTag}</td>
+        <td>${toggle}<strong>${displayName}</strong>${inactTag}${delTag}${inv ? `<div class="inv-row-chips">${memberChips(inv)}</div>` : ''}</td>
         <td>${formatPhone(m.phone)}</td>
         <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}</td>
         <td>${escHtml(m.memberType) || ''}</td>
         <td><span class="role-badge ${roleClass}">${escHtml(m.role)}</span></td>
-      </tr>`;
+      </tr>${detailRow}`;
     }).join('');
+  }
+
+  /** Involvement details for a modal member, or null when there is nothing the viewer may see. */
+  function involvementFor(m) {
+    if (!_modalInvolvement || m == null) return null;
+    const a = _modalInvolvement.allowed || {};
+    if (!a.volunteers && !a.followUps && !a.groups) return null;
+    return _modalInvolvement.byMember[m.id] || null;
+  }
+
+  function memberChips(inv) {
+    const a = _modalInvolvement.allowed || {};
+    const out = [];
+    if (a.volunteers) {
+      const n = (inv.volunteers || []).filter(v => !v.tentative).length;
+      out.push(`<span class="fam-chip fam-chip-vol${inv.volunteer ? '' : ' dim'}" title="Volunteer: ${inv.volunteer ? 'Yes' : 'No'}">${INV_ICON.vol}${inv.volunteer ? 'Volunteer · ' + n : 'Not volunteering'}</span>`);
+    }
+    if (a.followUps) {
+      const n = (inv.followUps || []).length;
+      out.push(`<span class="fam-chip fam-chip-fu${n ? '' : ' dim'}" title="Open follow-ups assigned">${INV_ICON.fu}Follow-ups · ${n}</span>`);
+    }
+    if (a.groups) {
+      const n = (inv.groups || []).length;
+      out.push(`<span class="fam-chip fam-chip-grp${n ? '' : ' dim'}" title="Groups">${INV_ICON.grp}Groups · ${n}</span>`);
+    }
+    return out.join('');
+  }
+
+  function invList(items, possible, emptyText, line) {
+    let html = '';
+    if (items && items.length) html += '<ul>' + items.map(line).join('') + '</ul>';
+    if (possible && possible.length) {
+      html += '<ul>' + possible.map(it => line(it).replace('</li>', ' <span class="inv-tag inv-tag-poss" title="Matched by name or a shared email only, so not counted">Possible match</span></li>')).join('') + '</ul>';
+    }
+    return html || `<div class="inv-none">${emptyText}</div>`;
+  }
+
+  function involvementDetailHtml(inv) {
+    const a = _modalInvolvement.allowed || {};
+    const fmtDate = d => { if (!d) return ''; const p = String(d).split('-'); return p.length === 3 ? `${p[1]}/${p[2]}/${p[0]}` : escHtml(d); };
+    const secs = [];
+    if (a.volunteers) {
+      const line = v => `<li>${escHtml(v.title)}${v.tentative ? ' <span class="inv-tag inv-tag-tent">Tentative (Maybe)</span>' : ''}`
+        + `<span class="inv-sub">${[escHtml(v.kind), v.detail ? escHtml(v.detail) : '', v.date ? fmtDate(v.date) : '', v.status && !v.tentative ? escHtml(v.status) : ''].filter(Boolean).join(' · ')}</span></li>`;
+      secs.push(`<div class="inv-sec"><h5>Volunteer: <span class="${inv.volunteer ? 'inv-yes' : 'inv-no'}">${inv.volunteer ? 'Yes' : 'No'}</span></h5>`
+        + invList(inv.volunteers, null, 'No current or upcoming volunteering', line) + '</div>');
+    }
+    if (a.followUps) {
+      const line = f => `<li>${escHtml(f.title)}<span class="inv-sub">${[f.status ? escHtml(f.status) : '', f.date ? 'Due ' + fmtDate(f.date) : ''].filter(Boolean).join(' · ')}</span></li>`;
+      secs.push('<div class="inv-sec"><h5>Follow-ups (open)</h5>' + invList(inv.followUps, inv.possibleFollowUps, 'None', line) + '</div>');
+    }
+    if (a.groups) {
+      const line = g => `<li>${escHtml(g.title)}</li>`;
+      secs.push('<div class="inv-sec"><h5>Groups</h5>' + invList(inv.groups, inv.possibleGroups, 'None', line) + '</div>');
+    }
+    return `<div class="inv-sections">${secs.join('')}</div>`;
+  }
+
+  function toggleInvolvement(id) {
+    if (_invOpen.has(id)) _invOpen.delete(id); else _invOpen.add(id);
+    applyMemberFilter();
   }
 
   function closeMembersModal() {
