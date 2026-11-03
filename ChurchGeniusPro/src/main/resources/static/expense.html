@@ -109,6 +109,8 @@
       margin-bottom: 18px; padding-bottom: 10px;
       border-bottom: 1px solid #e8eaf6;
     }
+    .form-card-head { display: flex; align-items: center; min-height: 30px; }
+    .cgp-fc-collapsed > .form-card-head { margin-bottom: 0; padding-bottom: 0; }
 
     /* ── Form grid ───────────────────────────────────────── */
     .form-grid {
@@ -313,7 +315,7 @@
 
       <!-- ── Expense Entry Form ─────────────────────────── -->
       <div class="form-card" id="expenseFormCard">
-        <div class="form-card-title" id="formCardTitle">New Expense</div>
+        <div class="form-card-title form-card-head"><span id="formCardTitle">New Expense</span></div>
         <input type="hidden" id="editingId" value="" />
 
         <div class="form-grid">
@@ -830,6 +832,7 @@
 
     document.getElementById('editingId').value        = id;
     document.getElementById('formCardTitle').textContent = 'Edit Expense';
+    if (window.CGP_formCollapse) CGP_formCollapse.expand('expenseFormCard');
     document.getElementById('saveBtn').textContent    = '💾 Update Expense';
 
     // Expense combobox
@@ -1311,6 +1314,13 @@ window.CHECKSCAN = (function () {
 <script src="/voice-core.js"></script>
 <script src="/voice-openai.js"></script>
 <script src="/expense-voice.js"></script>
+<script src="/form-collapse.js"></script>
+<script>
+  // Minimise / expand the entry form (display only; 2026-11-03).
+  document.addEventListener('DOMContentLoaded', function () {
+    CGP_formCollapse.init({ card: 'expenseFormCard', head: '.form-card-head', key: 'expense', label: 'Expense form' });
+  });
+</script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
 </body>

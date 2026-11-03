@@ -1251,7 +1251,7 @@
       const detailRow = open ? `<tr class="inv-detail" id="inv-${Number(m.id)}"><td colspan="6">${involvementDetailHtml(inv)}</td></tr>` : '';
       return `<tr class="${rowClass}">
         <td>${rowNum}</td>
-        <td>${toggle}<strong>${displayName}</strong>${inactTag}${delTag}${inv ? `<div class="inv-row-chips">${memberChips(inv)}</div>` : ''}</td>
+        <td>${toggle}<strong>${displayName}</strong>${inactTag}${delTag}${inv ? (c => c ? `<div class="inv-row-chips">${c}</div>` : '')(memberChips(inv)) : ''}</td>
         <td>${formatPhone(m.phone)}</td>
         <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}</td>
         <td>${escHtml(m.memberType) || ''}</td>
@@ -1273,11 +1273,12 @@
     const out = [];
     if (a.volunteers) {
       const n = (inv.volunteers || []).filter(v => !v.tentative).length;
-      out.push(`<span class="fam-chip fam-chip-vol${inv.volunteer ? '' : ' dim'}" title="Volunteer: ${inv.volunteer ? 'Yes' : 'No'}">${INV_ICON.vol}${inv.volunteer ? 'Volunteer · ' + n : 'Not volunteering'}</span>`);
+      // Shown only while the member volunteers; "not volunteering" is left unsaid (2026-11-03).
+      if (inv.volunteer) out.push(`<span class="fam-chip fam-chip-vol" title="Volunteer: Yes">${INV_ICON.vol}Volunteer · ${n}</span>`);
     }
     if (a.followUps) {
       const n = (inv.followUps || []).length;
-      out.push(`<span class="fam-chip fam-chip-fu${n ? '' : ' dim'}" title="Open follow-ups assigned">${INV_ICON.fu}Follow-ups · ${n}</span>`);
+      if (n > 0) out.push(`<span class="fam-chip fam-chip-fu" title="Open follow-ups assigned">${INV_ICON.fu}Follow-ups · ${n}</span>`);
     }
     if (a.groups) {
       const n = (inv.groups || []).length;

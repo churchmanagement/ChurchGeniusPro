@@ -896,6 +896,7 @@
 
     editingId = id;
     document.getElementById('formCardTitle').textContent = 'Edit Income';
+    if (window.CGP_formCollapse) CGP_formCollapse.expand('formCard');
     document.getElementById('saveBtn').textContent       = 'Update';
 
     // Contributor — switch to guest mode if this record has no member ID
@@ -1609,6 +1610,13 @@ window.CHECKSCAN = (function () {
 <script src="/voice-core.js"></script>
 <script src="/voice-openai.js"></script>
 <script src="/income-voice.js"></script>
+<script src="/form-collapse.js"></script>
+<script>
+  // Minimise / expand the entry form (display only; 2026-11-03).
+  document.addEventListener('DOMContentLoaded', function () {
+    CGP_formCollapse.init({ card: 'formCard', head: '.card-header', key: 'income', label: 'Income form' });
+  });
+</script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
 </body>
