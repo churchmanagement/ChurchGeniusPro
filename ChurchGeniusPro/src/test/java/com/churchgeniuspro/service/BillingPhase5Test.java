@@ -379,7 +379,10 @@ class BillingPhase5Test extends BillingTestBase {
 
         @Test @DisplayName("wrong, blank, expired and draft tokens get the same empty result")
         void refused() {
-            assertThat(billing.publicView("x" + token.substring(1), null)).isEmpty();
+            // change the first character to a DIFFERENT one (a token that already starts with
+            // 'x' made the old "x" + rest identical to the real token, ~1 run in 64)
+            String tampered = (token.charAt(0) == 'x' ? "y" : "x") + token.substring(1);
+            assertThat(billing.publicView(tampered, null)).isEmpty();
             assertThat(billing.publicView("", null)).isEmpty();
             assertThat(billing.publicView(null, null)).isEmpty();
             invRows.get(inv.getId()).setAccessTokenExpires(TODAY.minusDays(1));
