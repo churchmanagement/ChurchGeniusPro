@@ -322,6 +322,10 @@ public class FamilyService {
             out.put("nonMember",        isNonMemberFamilyType(famType));
             out.put("primaryFirstName", firstName);
             out.put("primaryLastName",  lastName);
+            // View Family cards (2026-11-02): the primary member's phone and Disable Alerts
+            // setting (alerts are per member; the card follows the person it is named after).
+            out.put("primaryPhone",          primary != null ? str(primary.get("phone")) : null);
+            out.put("primaryAlertsDisabled", primary != null && toBool(primary.get("disableAlerts")));
             // Thumbnail pre-computed at save time (photo_thumbnail column).
             // Falls back to full photo_data via COALESCE in the SQL query for old rows.
             out.put("primaryPhotoData", photoByFamily.get(fid));
