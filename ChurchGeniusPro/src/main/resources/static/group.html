@@ -1401,7 +1401,9 @@
         body: JSON.stringify({
           firstName: (m.firstName || '').trim(),
           lastName:  (m.lastName  || '').trim(),
-          email:     resolvedEmail
+          email:     resolvedEmail,
+          // the picked church member, so the membership is linked by id (2026-11-02)
+          familyMemberId: m.id != null ? String(m.id) : null
         })
       });
       const data = await res.json();

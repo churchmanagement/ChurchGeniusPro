@@ -2180,6 +2180,7 @@ public class TestDataService {
                 gm.setFirstName(m.getFirstName());
                 gm.setLastName(m.getLastName());
                 gm.setEmail(m.getEmail());
+                gm.setFamilyMemberId(m.getId());   // linked by member id (2026-11-02)
                 gm.setAppClientId(clientId);
                 gm.setDeleteFlag(false);
                 groupMemberRepo.save(gm);

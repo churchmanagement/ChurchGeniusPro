@@ -242,6 +242,7 @@ public class FollowUpController {
         m.put("priority",    f.getPriority());
         m.put("status",      f.getStatus());
         m.put("assignedTo",  f.getAssignedTo());
+        m.put("assignedMemberId", f.getAssignedMemberId());
         m.put("linkedType",  f.getLinkedType());
         m.put("linkedId",    f.getLinkedId());
         m.put("linkedLabel", f.getLinkedLabel());
@@ -259,7 +260,28 @@ public class FollowUpController {
         return m;
     }
 
-    private void applyBody(FollowUp f, Map<String, Object> body) {
+    /**
+     * Which member the follow-up is assigned to (2026-11-02). The page sends
+     * {@code assignedMemberId} when the assignee was picked from the member list; it is
+     * kept only when that member belongs to this church and is not deleted. A typed-in
+     * assignee sends none (→ null). A caller that does not send the field at all (older
+     * pages, other screens) keeps the stored id while the assignee name is unchanged and
+     * clears it when the name changes, so an id never points at someone else's name.
+     */
+    private Integer resolveAssignedMemberId(FollowUp f, Map<String, Object> body, String previousAssignee, String clientId) {
+        String name = f.getAssignedTo();
+        if (name == null || name.isBlank()) return null;
+        if (body != null && body.containsKey("assignedMemberId")) {
+            Object raw = body.get("assignedMemberId");
+            if (raw == null || String.valueOf(raw).isBlank()) return null;
+            Integer id;
+            try { id = Integer.valueOf(String.valueOf(raw).trim()); } catch (NumberFormatException e) { return null; }
+            return familyMemberRepo.findByIdAndTenant(id, clientId).isPresent() ? id : null;
+        }
+        return Objects.equals(name, previousAssignee == null ? null : previousAssignee.trim()) ? f.getAssignedMemberId() : null;
+    }
+
+    private void applyBody(FollowUp f, Map<String, Object> body, String clientId) {
         String title = bodyVal(body, "title");
         if (title != null) f.setTitle(title.trim());
 
@@ -273,7 +295,9 @@ public class FollowUpController {
         if (status != null) f.setStatus(String.valueOf(status).trim());
 
         Object assignedTo = bodyVal(body, "assignedTo");
+        String previousAssignee = f.getAssignedTo();
         f.setAssignedTo(assignedTo != null ? String.valueOf(assignedTo).trim() : null);
+        f.setAssignedMemberId(resolveAssignedMemberId(f, body, previousAssignee, clientId));
 
         Object linkedType = bodyVal(body, "linkedType");
         f.setLinkedType(linkedType != null ? String.valueOf(linkedType).trim() : null);
@@ -386,7 +410,7 @@ public class FollowUpController {
         FollowUp f = new FollowUp();
         f.setClientId(clientId);
         f.setCreatedBy(currentUsername(req));
-        applyBody(f, body);
+        applyBody(f, body, clientId);
         followUpRepo.save(f);
 
         return ResponseEntity.ok(toMap(f));
@@ -415,7 +439,7 @@ public class FollowUpController {
             }
         }
 
-        applyBody(f, body);
+        applyBody(f, body, clientId);
         followUpRepo.save(f);
         return ResponseEntity.ok(toMap(f));
     }

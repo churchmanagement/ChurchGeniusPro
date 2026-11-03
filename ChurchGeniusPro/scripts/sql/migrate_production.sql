@@ -2323,3 +2323,22 @@ BEGIN
         CREATE INDEX IF NOT EXISTS idx_pal_client_time ON private_access_log (client_id, created_at DESC, id DESC);
     END IF;
 END $$;
+
+-- ── View Family involvement: member links (2026-11-02) ──────────────────────
+-- Additive only. follow_up.assigned_member_id records which member a follow-up is
+-- assigned to when the assignee is picked from the member list; it stays NULL for
+-- typed-in assignees and for every existing row (no backfill). group_member already
+-- has family_member_id (ETL Phase 4); only its lookup index is new. Hibernate adds
+-- the same nullable column on start and DatabaseIndexInitializer creates the same
+-- indexes, so running this before or after a deploy, or twice, is harmless.
+DO $$
+BEGIN
+    IF to_regclass('public.follow_up') IS NOT NULL THEN
+        ALTER TABLE follow_up ADD COLUMN IF NOT EXISTS assigned_member_id INTEGER;
+        CREATE INDEX IF NOT EXISTS idx_follow_up_client_member ON follow_up (client_id, assigned_member_id);
+    END IF;
+    IF to_regclass('public.group_member') IS NOT NULL THEN
+        ALTER TABLE group_member ADD COLUMN IF NOT EXISTS family_member_id INTEGER;
+        CREATE INDEX IF NOT EXISTS idx_group_member_client_member ON group_member (app_client_id, family_member_id);
+    END IF;
+END $$;

@@ -329,6 +329,7 @@
     <div class="field" id="assigneeField" style="position:relative;">
       <label>Assigned To</label>
       <input type="hidden" id="fAssignedTo" />
+      <input type="hidden" id="fAssignedMemberId" />
       <input type="text" id="fAssignedSearch" placeholder="Search members & volunteers by name, email, phone…"
              maxlength="150" autocomplete="off" oninput="onAssigneeInput()" onfocus="openAssigneeDrop()" />
       <div id="assigneeDrop" class="assignee-drop">
@@ -527,7 +528,7 @@
     document.getElementById('fDesc').value        = item.description || '';
     document.getElementById('fPriority').value    = item.priority    || 'MEDIUM';
     document.getElementById('fDueDate').value     = item.dueDate     ? item.dueDate.slice(0, 10) : '';
-    setAssignee(item.assignedTo || '');
+    setAssignee(item.assignedTo || '', item.assignedMemberId);
     document.getElementById('fLinkedType').value  = item.linkedType  || '';
     document.getElementById('fLinkedLabel').value = item.linkedLabel || '';
     document.getElementById('saveBtn').textContent = 'Update';
@@ -547,9 +548,11 @@
 
   function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  function setAssignee(value) {
+  // memberId = the picked person's member id (2026-11-02); empty for a typed-in name.
+  function setAssignee(value, memberId) {
     document.getElementById('fAssignedTo').value     = value || '';
     document.getElementById('fAssignedSearch').value = value || '';
+    document.getElementById('fAssignedMemberId').value = memberId ? String(memberId) : '';
   }
 
   async function loadAssignees() {
@@ -572,6 +575,7 @@
   // Typing keeps the free-text value (so a typed name still saves) AND filters the list.
   function onAssigneeInput() {
     document.getElementById('fAssignedTo').value = document.getElementById('fAssignedSearch').value.trim();
+    document.getElementById('fAssignedMemberId').value = '';   // typed text is not a picked member
     openAssigneeDrop();
   }
 
@@ -594,7 +598,7 @@
     box.innerHTML = list.slice(0, 200).map(function (a) {
       var badge = a.type === 'Both' ? 'both' : (a.isVolunteer ? 'volunteer' : 'member');
       var sub = [a.email, a.phone].filter(Boolean).join(' · ');
-      return '<div class="assignee-row" onclick="selectAssignee(' + jsStr(a.name) + ')">' +
+      return '<div class="assignee-row" onclick="selectAssignee(' + jsStr(a.name) + ',' + (parseInt(a.id, 10) || 'null') + ')">' +
                '<div class="a-main">' +
                  '<div class="a-name">' + escA(a.name) +
                    (a.inactive ? ' <span class="a-inactive-tag">(inactive)</span>' : '') + '</div>' +
@@ -606,8 +610,8 @@
   }
   function jsStr(s){ return "'" + String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
 
-  function selectAssignee(name) {
-    setAssignee(name);
+  function selectAssignee(name, memberId) {
+    setAssignee(name, memberId);
     closeAssigneeDrop();
   }
 
@@ -651,7 +655,7 @@
       var v = await res.json();
       assignees.push(v);                              // add to in-memory directory
       assignees.sort(function (a, b) { return String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()); });
-      setAssignee(v.name);                            // auto-select in Assigned To
+      setAssignee(v.name, v.id);                      // auto-select in Assigned To
       closeAddVolunteer();
       showFeedback('Volunteer added and assigned.', 'success');
     } catch (e) {
@@ -677,6 +681,7 @@
       priority:    document.getElementById('fPriority').value,
       dueDate:     document.getElementById('fDueDate').value || null,
       assignedTo:  document.getElementById('fAssignedTo').value.trim(),
+      assignedMemberId: document.getElementById('fAssignedMemberId').value || null,
       linkedType:  document.getElementById('fLinkedType').value || null,
       linkedLabel: document.getElementById('fLinkedLabel').value.trim() || null
     };
@@ -1107,7 +1112,7 @@
       post('/api/followups', { title:title, description:(document.getElementById('mgNoteText')||{value:''}).value.trim(),
           dueDate:(document.getElementById('mgFuDue')||{value:''}).value||null,
           priority:(document.getElementById('mgFuPriority')||{value:'MEDIUM'}).value||'MEDIUM',
-          assignedTo:mgCur.assignedTo||null, linkedType:'CONNECT', linkedId:mgCur.id, linkedLabel:'Connect: '+name })
+          assignedTo:mgCur.assignedTo||null, assignedMemberId:(mgCur.assignedTo && mgCur.assignedMemberId)||null, linkedType:'CONNECT', linkedId:mgCur.id, linkedLabel:'Connect: '+name })
         .then(function(res){ if(res.ok){ document.getElementById('mgNoteTitle').value=''; if(document.getElementById('mgNoteText'))document.getElementById('mgNoteText').value='';
           if(document.getElementById('mgFuDue'))document.getElementById('mgFuDue').value=''; mgLoadHist(); note('Follow-up added.', true); } else note(res.j.error||'Failed.', false); });
     } else {

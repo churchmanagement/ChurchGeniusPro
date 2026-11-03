@@ -94,7 +94,15 @@ public class GroupMemberController {
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            GroupMember saved = memberService.addMember(groupId, firstName, lastName, email, appClientId);
+            // familyMemberId: sent when the person was picked from the member list
+            // ("Add existing member"); a typed-in person has none. Checked against this
+            // church in the service.
+            Integer familyMemberId = null;
+            String rawMemberId = body.get("familyMemberId");
+            if (!isBlank(rawMemberId)) {
+                try { familyMemberId = Integer.valueOf(rawMemberId.trim()); } catch (NumberFormatException ignored) { }
+            }
+            GroupMember saved = memberService.addMember(groupId, firstName, lastName, email, appClientId, familyMemberId);
             return ResponseEntity.ok(Map.of("id", saved.getId(), "success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());

@@ -73,6 +73,16 @@ public class FollowUp {
     private String assignedTo;
 
     /**
+     * The church member the follow-up is assigned to, when the assignee was picked from
+     * the member list (2026-11-02). Nullable: a typed-in assignee and every follow-up
+     * created before this column existed keep it empty and are identified by
+     * {@link #assignedTo} alone. Never required; the name in {@code assigned_to} is still
+     * what the follow-ups page shows and filters on.
+     */
+    @Column(name = "assigned_member_id")
+    private Integer assignedMemberId;
+
+    /**
      * Type of the linked record.  One of:
      * {@code MEMBER}, {@code VISITOR}, {@code PRAYER_REQUEST}, {@code DONATION}.
      * {@code null} means the follow-up is standalone (not linked to a specific record).

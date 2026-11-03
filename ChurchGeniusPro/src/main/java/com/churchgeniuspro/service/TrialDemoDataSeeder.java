@@ -420,7 +420,9 @@ public class TrialDemoDataSeeder {
                     "New visitor via Connect With Us.\nEmail: " + email + "\nPhone: " + phone
                             + "\nPreferred contact: " + v.prefs() + "\nHow they heard about us: " + v.howHeard(),
                     "Contacted".equals(v.status()) ? "COMPLETED" : "PENDING", s.getAssignedTo(),
-                    "CONNECT", s.getId(), "Connect: " + full, today.plusDays(2));
+                    "CONNECT", s.getId(), "Connect: " + full, today.plusDays(2),
+                    // same member the Connect card is assigned to (linked by id, 2026-11-02)
+                    s.getAssignedTo() != null ? s.getAssignedMemberId() : null);
             s.setFollowUpId(f.getId());
             connectRepo.save(s);
             backdate("connect_submission", "created_at", "client_id", s.getId(), clientId,
@@ -459,7 +461,7 @@ public class TrialDemoDataSeeder {
             String who = ((String) r[0] + " " + r[1]).trim();
             FollowUp f = followUp(clientId, "Prayer follow-up: " + who, (String) r[2],
                     "FollowedUp".equals(r[5]) ? "COMPLETED" : "PENDING", null,
-                    "PRAYER", p.getId(), "Prayer: " + who, today.plusDays(1));
+                    "PRAYER", p.getId(), "Prayer: " + who, today.plusDays(1), null);
             p.setFollowUpId(f.getId());
             prayerRepo.save(p);
             backdate("public_prayer_request", "created_at", "client_id", p.getId(), clientId,
@@ -497,7 +499,8 @@ public class TrialDemoDataSeeder {
     // ── helpers ───────────────────────────────────────────────────────────
 
     private FollowUp followUp(String clientId, String title, String desc, String status, String assignedTo,
-                              String linkedType, Long linkedId, String label, LocalDate due) {
+                              String linkedType, Long linkedId, String label, LocalDate due,
+                              Integer assignedMemberId) {
         FollowUp f = new FollowUp();
         f.setClientId(clientId);
         f.setTitle(title.length() > 255 ? title.substring(0, 255) : title);
@@ -505,6 +508,7 @@ public class TrialDemoDataSeeder {
         f.setStatus(status);
         f.setPriority("MEDIUM");
         f.setAssignedTo(assignedTo);
+        f.setAssignedMemberId(assignedMemberId);
         f.setLinkedType(linkedType);
         f.setLinkedId(linkedId);
         f.setLinkedLabel(label);

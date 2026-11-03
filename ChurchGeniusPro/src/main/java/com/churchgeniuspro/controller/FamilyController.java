@@ -296,6 +296,78 @@ public class FamilyController {
                 familyService.getFamilies(search, showDeleted, showInactive, familyType, appClientId, page, pageSize));
     }
 
+    // ── Involvement (volunteers / follow-ups / groups), 2026-11-02 ─────────
+
+    /** Optional so hand-built controller tests keep their constructor. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.FamilyInvolvementService involvementService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.AiAccessPolicy accessPolicy;
+
+    /**
+     * What this viewer may see, by the Volunteers, Kids Ministry, Prayer Team, Follow-ups
+     * and Groups pages' own rules (role + page permission + plan feature). Accountants,
+     * Member Portal and church logins get nothing.
+     */
+    private com.churchgeniuspro.service.FamilyInvolvementService.Access involvementAccess(HttpServletRequest request, String clientId) {
+        if (accessPolicy == null) return com.churchgeniuspro.service.FamilyInvolvementService.Access.none();
+        var a = accessPolicy.resolve(request, clientId);
+        if (a.member() || a.church() || a.kids()) return com.churchgeniuspro.service.FamilyInvolvementService.Access.none();
+        boolean groups = accessPolicy.crossAccess(request, clientId).groups();
+        return new com.churchgeniuspro.service.FamilyInvolvementService.Access(
+                a.volunteers(), a.kidsMinistry(), a.prayer(), a.followUps(), a.followUpsAll(), a.username(), groups);
+    }
+
+    /**
+     * Distinct-member counts per family for the cards on screen:
+     * {@code GET /api/families/involvement?familyIds=1,2,3} (at most 50) →
+     * {@code {allowed:{volunteers,followUps,groups}, families:{"1":{volunteers:2,…}}}}.
+     * Same access rule as the View Family page; sections the viewer may not see are absent.
+     */
+    @ResponseBody
+    @GetMapping("/api/families/involvement")
+    public ResponseEntity<Map<String, Object>> involvementCounts(@RequestParam(defaultValue = "") String familyIds,
+                                                                 HttpServletRequest request) {
+        if (familyPageGuard(request) != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        List<Integer> ids = new java.util.ArrayList<>();
+        for (String part : familyIds.split(",")) {
+            if (part.isBlank()) continue;
+            try { ids.add(Integer.valueOf(part.trim())); }
+            catch (NumberFormatException e) { return ResponseEntity.badRequest().body(Map.of("error", "familyIds must be numbers")); }
+        }
+        if (ids.size() > com.churchgeniuspro.service.FamilyInvolvementService.MAX_FAMILIES) {
+            return ResponseEntity.badRequest().body(Map.of("error", "At most "
+                    + com.churchgeniuspro.service.FamilyInvolvementService.MAX_FAMILIES + " families per request"));
+        }
+        var access = involvementAccess(request, appClientId);
+        Map<String, Object> allowed = new java.util.LinkedHashMap<>();
+        allowed.put("volunteers", access.anyVolunteers());
+        allowed.put("followUps",  access.followUps());
+        allowed.put("groups",     access.groups());
+        Map<String, Object> families = new java.util.LinkedHashMap<>();
+        if (involvementService != null) {
+            involvementService.counts(appClientId, ids, access).forEach((fid, c) -> families.put(String.valueOf(fid), c));
+        }
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("allowed", allowed);
+        body.put("families", families);
+        return ResponseEntity.ok(body);
+    }
+
+    /** Per-member volunteer / follow-up / group details for one family (Members popup). */
+    @ResponseBody
+    @GetMapping("/api/families/{id}/involvement")
+    public ResponseEntity<Map<String, Object>> involvementDetails(@PathVariable Integer id, HttpServletRequest request) {
+        if (familyPageGuard(request) != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        if (involvementService == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        Map<String, Object> d = involvementService.details(appClientId, id, involvementAccess(request, appClientId));
+        return d == null ? ResponseEntity.status(404).body(Map.of("error", "Family not found")) : ResponseEntity.ok(d);
+    }
+
     // ── Single-family detail ──────────────────────────────────────────────
 
     /**
