@@ -428,6 +428,43 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
     .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); }
+
+    /* ── Group cards (2026-11-02) — same card look as /viewfamily ───────────
+       Container queries pick the columns from the space the list actually
+       has (the sidebar changes it): 1 / 2 / 3 per row. */
+    .grp-grid-wrap { container-type: inline-size; margin-bottom: 20px; }
+    .grp-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @container (min-width: 700px)  { .grp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @container (min-width: 1080px) { .grp-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .grp-grid .empty-state { grid-column: 1 / -1; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .grp-card {
+      position: relative; display: flex; align-items: center; gap: 14px; min-width: 0;
+      padding: 16px 14px 16px 20px;
+      background: #fff; border: 1px solid #ece6ea; border-radius: 16px;
+      box-shadow: 0 1px 2px rgba(60,20,40,.04), 0 4px 14px rgba(60,20,40,.06);
+      overflow: hidden; transition: box-shadow .18s, transform .18s, border-color .18s;
+    }
+    .grp-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #673147; opacity: .8; }
+    .grp-card:hover { box-shadow: 0 2px 4px rgba(60,20,40,.06), 0 10px 26px rgba(60,20,40,.10); border-color: #e0d2da; transform: translateY(-1px); }
+    .grp-card.is-open { border-color: #673147; box-shadow: 0 0 0 2px rgba(103,49,71,.18), 0 4px 14px rgba(60,20,40,.08); background: #fdf9fb; }
+    .grp-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .grp-name { font-size: 15.5px; font-weight: 700; color: #2b1520; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .grp-count { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #555; min-width: 0; }
+    .grp-count svg { flex: 0 0 auto; width: 15px; height: 15px; fill: #a5869a; }
+    .grp-actions { flex: 0 0 auto; display: flex; gap: 8px; }
+    .grp-act {
+      width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+      color: #673147; background: #faf5f8; border: 1.5px solid #ead9e2; transition: background .15s, color .15s, border-color .15s;
+    }
+    .grp-act svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
+    .grp-act:hover, .grp-act.is-active { background: #673147; color: #fff; border-color: #673147; }
+    .grp-act-delete:hover { background: #c62828; border-color: #c62828; color: #fff; }
+    .grp-act:focus-visible { outline: 2px solid #673147; outline-offset: 2px; }
+    @media (max-width: 480px) {
+      .grp-card { gap: 10px; padding: 14px 12px 14px 18px; }
+      .grp-act { width: 40px; height: 40px; }   /* comfortable touch target */
+      .grp-actions { gap: 6px; }
+    }
   </style>
 </head>
 <body>
@@ -468,21 +505,9 @@
         </div>
       </div>
 
-      <!-- ── Groups table card ──────────────────────────── -->
-      <div class="card">
-        <div class="table-wrap">
-          <table class="groups-table">
-            <thead>
-              <tr>
-                <th style="width:52px;">#</th>
-                <th>Group Name</th>
-                <th style="width:90px;">Members</th>
-                <th style="width:270px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="groupsTableBody"></tbody>
-          </table>
-        </div>
+      <!-- ── Group cards ─────────────────────────────────── -->
+      <div class="grp-grid-wrap">
+        <div class="grp-grid" id="groupsGrid" role="list" aria-label="Groups"></div>
       </div>
 
       <!-- ── Members Panel ──────────────────────────────── -->
@@ -709,45 +734,53 @@
     renderGroupsTable();
   }
 
+  /* Icons (inline SVG, same set as /viewfamily) */
+  const GRP_ICON = {
+    people: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
+    edit:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
+    trash:  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>'
+  };
+
+  /* Last member count seen per group, so a re-render (opening / closing the
+     members panel) shows it straight away while the fresh count loads. */
+  const memberCounts = {};
+  function memberCountText(n) {
+    return n == null ? '—' : `${n} Member${n === 1 ? '' : 's'}`;
+  }
+
   /* ════════════════════════════════════
-     RENDER GROUPS TABLE
+     RENDER GROUP CARDS
   ════════════════════════════════════ */
   function renderGroupsTable() {
-    const tbody = document.getElementById('groupsTableBody');
+    const grid = document.getElementById('groupsGrid');
 
     if (allGroups.length === 0) {
-      tbody.innerHTML = `
-        <tr><td colspan="4">
-          <div class="empty-state">
-            <div class="empty-icon">👥</div>
-            <div class="empty-text">No groups yet. Add one above to get started.</div>
-          </div>
-        </td></tr>`;
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👥</div>
+          <div class="empty-text">No groups yet. Add one above to get started.</div>
+        </div>`;
       return;
     }
 
-    tbody.innerHTML = allGroups.map((g, idx) => {
+    const canEdit   = !(window.CGP_PERMS && window.CGP_PERMS['admin.groups.edit'] === false);
+    const canDelete = !(window.CGP_PERMS && window.CGP_PERMS['admin.groups.delete'] === false);
+    grid.innerHTML = allGroups.map(g => {
       const isActive = g.id === activeGroupId;
+      const name = escHtml(g.groupName);
       return `
-        <tr class="${isActive ? 'selected-row' : ''}">
-          <td class="row-num">${idx + 1}</td>
-          <td><span class="group-name">${escHtml(g.groupName)}</span></td>
-          <td><span class="member-count-badge" id="memberCount-${g.id}">—</span></td>
-          <td>
-            <div class="actions">
-              <button class="btn-action btn-members"
-                      onclick="toggleMembers(${g.id})" title="Members">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                </svg>
-              </button>
-              ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.edit'] === false ? '' :
-                `<button class="btn-action btn-edit" onclick="openEditGroupModal(${g.id})" title="Edit">📝</button>`}
-              ${window.CGP_PERMS && window.CGP_PERMS['admin.groups.delete'] === false ? '' :
-                `<button class="btn-action btn-delete" onclick="deleteGroup(${g.id})" title="Delete">🗑</button>`}
-            </div>
-          </td>
-        </tr>`;
+        <article class="grp-card${isActive ? ' is-open' : ''}" role="listitem" data-id="${g.id}" aria-label="${name}">
+          <div class="grp-info">
+            <div class="grp-name" title="${name}">${name}</div>
+            <div class="grp-count">${GRP_ICON.people}<span id="memberCount-${g.id}">${memberCountText(memberCounts[g.id])}</span></div>
+          </div>
+          <div class="grp-actions">
+            <button type="button" class="grp-act grp-act-members${isActive ? ' is-active' : ''}" onclick="toggleMembers(${g.id})"
+                    title="${isActive ? 'Hide members' : 'View members'}" aria-label="${isActive ? 'Hide' : 'View'} members of ${name}" aria-expanded="${isActive}">${GRP_ICON.people}</button>
+            ${canEdit ? `<button type="button" class="grp-act grp-act-edit" onclick="openEditGroupModal(${g.id})" title="Edit group" aria-label="Edit ${name}">${GRP_ICON.edit}</button>` : ''}
+            ${canDelete ? `<button type="button" class="grp-act grp-act-delete" onclick="deleteGroup(${g.id})" title="Delete group" aria-label="Delete ${name}">${GRP_ICON.trash}</button>` : ''}
+          </div>
+        </article>`;
     }).join('');
 
     // Load member counts asynchronously
@@ -759,8 +792,9 @@
       const res = await fetch(`/api/groups/${groupId}/members`);
       if (!res.ok) return;
       const members = await res.json();
+      memberCounts[groupId] = members.length;
       const el = document.getElementById(`memberCount-${groupId}`);
-      if (el) el.textContent = members.length;
+      if (el) el.textContent = memberCountText(members.length);
     } catch { /* ignore */ }
   }
 
@@ -918,7 +952,7 @@
     });
 
     document.getElementById('membersPanel').classList.add('open');
-    renderGroupsTable();   // re-render to show selected-row highlight & active button
+    renderGroupsTable();   // re-render to highlight the open group's card & active button
     await loadChurchMembers();
     await loadMembers();
 
@@ -1037,9 +1071,10 @@
         showMemberFeedback(`✅ Member added successfully.`, 'success');
         await loadMembers();
         await loadMemberCount(activeGroupId);
-        // Update badge in groups table
+        // Update the count on the group's card
+        memberCounts[activeGroupId] = allMembers.length;
         const badge = document.getElementById(`memberCount-${activeGroupId}`);
-        if (badge) badge.textContent = allMembers.length;
+        if (badge) badge.textContent = memberCountText(allMembers.length);
       } else {
         showMemberFeedback(`❌ ${data.error || 'Failed to add member.'}`, 'error');
       }
