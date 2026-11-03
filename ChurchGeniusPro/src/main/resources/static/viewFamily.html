@@ -408,6 +408,97 @@
     }
     .toggle-checkbox:checked::after { left: 21px; }
     .toggle-label { font-size: 13px; color: #555; user-select: none; white-space: nowrap; }
+
+    /* ── Family address-label cards (2026-11-02) ─────────────
+       Container queries pick the columns from the space the list
+       actually has (the sidebar changes it): 1 / 2 / 3 per row. */
+    .fam-list-card { background: transparent; box-shadow: none; overflow: visible; }
+    .fam-list-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 2px 4px 12px;
+    }
+    .fam-select-all { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #555; cursor: pointer; user-select: none; }
+    .fam-select-all input { width: 16px; height: 16px; accent-color: #673147; cursor: pointer; }
+    .fam-sort-btn {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #673147;
+      border: 1.5px solid #e3d3dc; background: #fff; border-radius: 8px; padding: 6px 12px;
+    }
+    .fam-sort-btn:hover { border-color: #673147; }
+    .fam-sort-btn:focus-visible, .fam-act:focus-visible, .fam-name:focus-visible { outline: 2px solid #673147; outline-offset: 2px; }
+    .fam-grid-wrap { container-type: inline-size; }
+    .fam-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @container (min-width: 700px)  { .fam-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @container (min-width: 1080px) { .fam-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .fam-grid .empty-state { grid-column: 1 / -1; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+
+    .fam-card {
+      position: relative; display: flex; flex-direction: column; min-width: 0;
+      background: #fff; border: 1px solid #ece6ea; border-radius: 16px;
+      box-shadow: 0 1px 2px rgba(60,20,40,.04), 0 4px 14px rgba(60,20,40,.06);
+      overflow: hidden; transition: box-shadow .18s, transform .18s, border-color .18s;
+    }
+    .fam-card:hover { box-shadow: 0 2px 4px rgba(60,20,40,.06), 0 10px 26px rgba(60,20,40,.10); border-color: #e0d2da; transform: translateY(-1px); }
+    .fam-card.is-selected { border-color: #673147; box-shadow: 0 0 0 2px rgba(103,49,71,.18), 0 4px 14px rgba(60,20,40,.08); }
+    .fam-body { display: flex; align-items: center; gap: 14px; padding: 16px 14px 14px 16px; min-width: 0; }
+    .fam-photo {
+      position: relative; flex: 0 0 auto; width: 76px; height: 76px; border-radius: 14px; overflow: hidden;
+      background: #f4eaf0; box-shadow: inset 0 0 0 1px rgba(103,49,71,.08);
+    }
+    .fam-photo img, .fam-photo svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .fam-check {
+      position: absolute; top: 5px; left: 5px; width: 18px; height: 18px; margin: 0;
+      accent-color: #673147; cursor: pointer; background: #fff; border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    }
+    .fam-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .fam-name {
+      font-size: 15.5px; font-weight: 700; color: #2b1520; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 4px;
+    }
+    .fam-name:hover { color: #673147; text-decoration: underline; }
+    .fam-line { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #555; min-width: 0; }
+    .fam-line svg { flex: 0 0 auto; width: 15px; height: 15px; fill: #a5869a; }
+    .fam-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fam-line .fam-muted { color: #b9aab3; font-style: italic; }
+    .fam-actions { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; align-self: center; }
+    .fam-act {
+      width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+      color: #673147; background: #faf5f8; border: 1.5px solid #ead9e2; transition: background .15s, color .15s, border-color .15s;
+    }
+    .fam-act svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
+    .fam-act:hover { background: #673147; color: #fff; border-color: #673147; }
+    .fam-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+      padding: 9px 16px; border-top: 1px dashed #eadfe5; background: #fcfafb;
+    }
+    .fam-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+    .fam-pill svg { width: 13px; height: 13px; fill: currentColor; }
+    .fam-alert-on  { background: #eef3ff; color: #3554a5; }
+    .fam-alert-off { background: #f1f1f3; color: #7a7a85; }
+    .fam-status-active   { background: #e7f5ea; color: #2e7d32; }
+    .fam-status-inactive { background: #fff1e0; color: #b45309; }
+    .fam-status-deleted  { background: #fdeaea; color: #c62828; }
+    .fam-foot-right { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .fam-foot .badge-type { margin-left: 0; }
+
+    /* Status accents: a coloured edge, plus a softer card for inactive / deleted */
+    .fam-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #4caf50; }
+    .fam-card.st-inactive::before { background: #f59e0b; }
+    .fam-card.st-deleted::before  { background: #e53935; }
+    .fam-card.st-inactive { background: #fffdf8; border-color: #f3e3c8; }
+    .fam-card.st-inactive .fam-foot { background: #fff8ec; border-top-color: #f3e3c8; }
+    .fam-card.st-deleted  { background: #fffafa; border-color: #f2d6d6; }
+    .fam-card.st-deleted  .fam-foot { background: #fff3f3; border-top-color: #f2d6d6; }
+    .fam-card.st-deleted  .fam-photo { filter: grayscale(.85); opacity: .75; }
+    .fam-card.st-deleted  .fam-name { color: #8d7f86; text-decoration: line-through; }
+    .fam-card.st-deleted  .fam-name:hover { text-decoration: line-through underline; }
+
+    @media (max-width: 480px) {
+      .fam-body { gap: 12px; padding: 14px 12px 12px 14px; }
+      .fam-photo { width: 64px; height: 64px; border-radius: 12px; }
+      .fam-act { width: 40px; height: 40px; }   /* comfortable touch target */
+      .fam-foot { padding: 8px 14px; }
+    }
   </style>
 </head>
 <body>
@@ -544,24 +635,19 @@
         <button class="btn-bulk-report" onclick="bulkFamilyReport()">📄 Family Report</button>
       </div>
 
-      <!-- ── Table Card ──────────────────────────────────── -->
-      <div class="card">
-        <div class="table-wrap">
-          <table class="family-table">
-            <thead>
-              <tr>
-                <th style="width:36px;">
-                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" title="Select / deselect all on this page" />
-                </th>
-                <th style="width:56px;">Photo</th>
-                <th id="thPrimary" style="cursor:pointer;user-select:none;white-space:nowrap;" onclick="togglePrimarySort()" title="Sort by name">Primary <span id="primarySortArrow" class="sort-icon asc"><i class="sa"></i><i class="sd"></i></span></th>
-                <th style="width:96px; text-align:center;">Members</th>
-                <th style="width:96px;">Status</th>
-                <th style="width:200px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="familyTableBody"></tbody>
-          </table>
+      <!-- ── Family cards ─────────────────────────────────── -->
+      <div class="card fam-list-card">
+        <div class="fam-list-head">
+          <label class="fam-select-all" title="Select / deselect all active families shown">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+            <span>Select all</span>
+          </label>
+          <button type="button" class="fam-sort-btn" id="thPrimary" onclick="togglePrimarySort()" title="Sort by name" aria-label="Sort by name">
+            Name <span id="primarySortArrow" class="sort-icon asc"><i class="sa"></i><i class="sd"></i></span>
+          </button>
+        </div>
+        <div class="fam-grid-wrap">
+          <div class="fam-grid" id="familyGrid" role="list" aria-label="Families"></div>
         </div>
 
         <!-- Load More -->
@@ -723,8 +809,87 @@
     document.getElementById('selectAll').checked = false;
   }
 
+  /* Icons (inline SVG — no external files) */
+  const ICON = {
+    phone:  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>',
+    people: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
+    edit:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
+    bell:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>',
+    bellOff:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 18.69 7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03zM12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-7.32V11c0-3.08-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68c-.15.03-.29.08-.42.12L18 14.68z"/></svg>'
+  };
+
+  /* Default picture for a family without a photo: three soft silhouettes on the brand tint. */
+  const DEFAULT_FAMILY_SVG =
+    '<svg viewBox="0 0 80 80" role="img" aria-label="No family photo">' +
+      '<defs><linearGradient id="famBg" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="#f7eef3"/><stop offset="1" stop-color="#e9d6e0"/></linearGradient></defs>' +
+      '<rect width="80" height="80" fill="url(#famBg)"/>' +
+      '<g fill="#673147">' +
+        '<circle cx="25" cy="30" r="8" opacity=".38"/><path d="M11 62c0-9 6.3-15 14-15s14 6 14 15z" opacity=".38"/>' +
+        '<circle cx="55" cy="30" r="8" opacity=".38"/><path d="M41 62c0-9 6.3-15 14-15s14 6 14 15z" opacity=".38"/>' +
+        '<circle cx="40" cy="39" r="7" opacity=".7"/><path d="M28 66c0-8 5.4-13 12-13s12 5 12 13z" opacity=".7"/>' +
+      '</g></svg>';
+
+  function familyDisplayName(f) {
+    return ((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || f.familyName || 'Family';
+  }
+
+  /** Photo src only when it is an image data URL or a same-site path (it goes into an attribute). */
+  function safePhotoSrc(src) {
+    if (!src || typeof src !== 'string') return null;
+    if (/^data:image\/(png|jpe?g|gif|webp|bmp);base64,[a-z0-9+/=\s]+$/i.test(src)) return src;
+    if (/^\/[^\s"'<>]*$/.test(src)) return src;
+    return null;
+  }
+
+  function buildFamilyCard(f) {
+    const checked   = selectedIds.has(f.id);
+    const canSelect = !f.inactive && !f.deleted;
+    const status    = f.deleted ? 'deleted' : f.inactive ? 'inactive' : 'active';
+    const statusTxt = f.deleted ? 'Deleted' : f.inactive ? 'Inactive' : 'Active';
+    const name      = familyDisplayName(f);
+    const count     = Number(f.memberCount) || 0;
+    const photo     = safePhotoSrc(f.primaryPhotoData);
+    const alertsOff = f.primaryAlertsDisabled === true;
+    const canEdit   = !(window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false);
+    const phoneHtml = f.primaryPhone
+      ? `<span>${formatPhone(f.primaryPhone)}</span>`
+      : `<span class="fam-muted">No phone</span>`;
+    const typeBadge = f.nonMember
+      ? `<span class="badge badge-type" title="Non-member family: the primary member's Member Type is ${escHtml(f.familyType)}">${escHtml(f.familyType)}</span>`
+      : '';
+
+    return `
+      <article class="fam-card st-${status}${checked ? ' is-selected' : ''}" role="listitem" data-id="${f.id}" aria-label="${escHtml(name)}, ${statusTxt}">
+        <div class="fam-body">
+          <div class="fam-photo">
+            ${photo ? `<img src="${escHtml(photo)}" alt="Photo of ${escHtml(name)}" loading="lazy" />` : DEFAULT_FAMILY_SVG}
+            ${canSelect
+              ? `<input type="checkbox" class="fam-check" ${checked ? 'checked' : ''} onchange="onRowCheck(${f.id}, this.checked)" aria-label="Select ${escHtml(name)}" title="Select for bulk actions" />`
+              : ''}
+          </div>
+          <div class="fam-info">
+            <a class="fam-name" href="/family" title="View ${escHtml(name)}"
+               onclick="event.preventDefault(); postNavigate('/family', {id:${f.id}, mode:'view'})">${escHtml(name)}</a>
+            <div class="fam-line">${ICON.phone}${phoneHtml}</div>
+            <div class="fam-line">${ICON.people}<span>${count} Member${count === 1 ? '' : 's'}</span></div>
+          </div>
+          <div class="fam-actions">
+            ${canEdit
+              ? `<button type="button" class="fam-act fam-act-edit" onclick="postNavigate('/family', {id:${f.id}, mode:'edit'})" title="Edit family" aria-label="Edit ${escHtml(name)}">${ICON.edit}</button>`
+              : ''}
+            <button type="button" class="fam-act fam-act-members" onclick="showMembers(${f.id})" title="View members" aria-label="View members of ${escHtml(name)}">${ICON.people}</button>
+          </div>
+        </div>
+        <div class="fam-foot">
+          <span class="fam-pill ${alertsOff ? 'fam-alert-off' : 'fam-alert-on'}" title="${alertsOff ? 'Disable Alert is ticked for the primary member' : 'Alerts are on for the primary member'}">${alertsOff ? ICON.bellOff + 'Alert Off' : ICON.bell + 'Alert On'}</span>
+          <span class="fam-foot-right">${typeBadge}<span class="fam-pill fam-status-${status}">${statusTxt}</span></span>
+        </div>
+      </article>`;
+  }
+
   function renderTableWithLoadMore() {
-    const tbody = document.getElementById('familyTableBody');
+    const grid = document.getElementById('familyGrid');
 
     // update count info
     const infoEl = document.getElementById('familyCountInfo');
@@ -739,64 +904,15 @@
     if (wrap) wrap.style.display = allFamilies.length < totalFamilies ? 'block' : 'none';
 
     if (allFamilies.length === 0) {
-      tbody.innerHTML = `
-        <tr><td colspan="6">
-          <div class="empty-state">
-            <div class="empty-icon">👨‍👩‍👧‍👦</div>
-            <div class="empty-text">No families found. Use the filters above or add a new family.</div>
-          </div>
-        </td></tr>`;
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👨‍👩‍👧‍👦</div>
+          <div class="empty-text">No families found. Use the filters above or add a new family.</div>
+        </div>`;
       return;
     }
 
-    tbody.innerHTML = allFamilies.map(f => {
-      const checked   = selectedIds.has(f.id);
-      const canSelect = !f.inactive && !f.deleted;
-
-      /* status badge */
-      const badge = (f.deleted
-        ? `<span class="badge badge-deleted">Deleted</span>`
-        : f.inactive
-          ? `<span class="badge badge-inactive">Inactive</span>`
-          : `<span class="badge badge-active">Active</span>`)
-        /* non-member family (primary member is a Guest / Visitor) — status badge unchanged */
-        + (f.nonMember ? `<span class="badge badge-type" title="Non-member family: the primary member's Member Type is ${escHtml(f.familyType)}">${escHtml(f.familyType)}</span>` : '');
-
-      return `
-        <tr class="${f.deleted ? 'row-deleted' : ''}">
-          <td>
-            ${canSelect
-              ? `<input type="checkbox" ${checked ? 'checked' : ''} onchange="onRowCheck(${f.id}, this.checked)" />`
-              : `<input type="checkbox" style="visibility:hidden;" disabled />`}
-          </td>
-          <td>
-            <div class="family-photo">
-              ${f.primaryPhotoData
-                ? `<img src="${f.primaryPhotoData}" alt="photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-                : '👪'}
-            </div>
-          </td>
-          <td>
-            <a class="family-name-link" href="#"
-               onclick="event.preventDefault(); postNavigate('/family', {id:${f.id}, mode:'view'})">${escHtml(((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || f.familyName)}</a>
-          </td>
-          <td style="text-align:center;">${f.memberCount}</td>
-          <td>${badge}</td>
-          <td>
-            <div class="actions">
-              ${window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false ? '' :
-                `<button class="btn-action btn-edit"
-                      onclick="postNavigate('/family', {id:${f.id}, mode:'edit'})" title="Edit">📝</button>`}
-              <button class="btn-action btn-members"
-                      onclick="showMembers(${f.id})" title="View Members">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                </svg>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
+    grid.innerHTML = allFamilies.map(buildFamilyCard).join('');
   }
 
   async function loadMoreFamilies() {
@@ -835,6 +951,8 @@
   function onRowCheck(id, checked) {
     if (checked) selectedIds.add(id);
     else         selectedIds.delete(id);
+    const card = document.querySelector(`.fam-card[data-id="${id}"]`);
+    if (card) card.classList.toggle('is-selected', checked);
     updateBulkBar();
   }
 
@@ -1277,7 +1395,7 @@ window.CGP_applyPerms = function(p) {
   if (p['admin.family.edit']     === false) hide('.btn-add');
   if (p['admin.family.inactive'] === false) hide('.btn-bulk-inactive');
   if (p['admin.family.delete']   === false) hide('.btn-bulk-delete');
-  // Re-render table so inline edit buttons respect permissions
+  // Re-render the cards so the Edit icon respects permissions
   if (typeof renderTableWithLoadMore === 'function') renderTableWithLoadMore();
 };
 window.CGP_PAGE = { activePage: 'admin/family', pageTitle: '', openSection: 'admin' };
