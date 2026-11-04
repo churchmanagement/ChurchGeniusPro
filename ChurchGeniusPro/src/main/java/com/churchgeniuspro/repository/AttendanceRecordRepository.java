@@ -36,4 +36,21 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
     @Query("select distinct a.attendanceDate from AttendanceRecord a where a.clientId = :clientId "
          + "and a.familyMemberId = :fmId and a.deleteFlag = false order by a.attendanceDate desc")
     List<LocalDate> distinctDatesForMember(@Param("clientId") String clientId, @Param("fmId") Integer familyMemberId);
+    // ── Visitor check-in (2026-11-04) ──────────────────────────────────────────
+    // Plain derived queries (no nullable parameters: PostgreSQL cannot type a null one).
+
+    /** The live record of a member for one date + service/event name (no duplicates). */
+    Optional<AttendanceRecord> findFirstByClientIdAndAttendanceDateAndServiceTypeAndFamilyMemberIdAndDeleteFlagFalse(
+            String clientId, LocalDate date, String serviceType, Integer familyMemberId);
+
+    /** The live record of a visitor for one date + service/event name (no duplicates). */
+    Optional<AttendanceRecord> findFirstByClientIdAndAttendanceDateAndServiceTypeAndVisitorIdAndDeleteFlagFalse(
+            String clientId, LocalDate date, String serviceType, Long visitorId);
+
+    /** A visitor's visits, newest first. */
+    List<AttendanceRecord> findByClientIdAndVisitorIdAndDeleteFlagFalseOrderByAttendanceDateDesc(String clientId, Long visitorId);
+
+    /** Every live visitor check-in of the church in a date range (reports). */
+    List<AttendanceRecord> findByClientIdAndPersonTypeAndAttendanceDateBetweenAndDeleteFlagFalse(
+            String clientId, String personType, LocalDate from, LocalDate to);
 }

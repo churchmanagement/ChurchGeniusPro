@@ -3,6 +3,7 @@ package com.churchgeniuspro.controller;
 import com.churchgeniuspro.hibernate.AttendanceRecord;
 import com.churchgeniuspro.hibernate.AttendanceServiceType;
 import com.churchgeniuspro.service.AttendanceService;
+import com.churchgeniuspro.service.VisitorCheckInService;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +31,11 @@ public class AttendanceController {
         this.svc = svc;
         this.volunteerNotify = volunteerNotify;
     }
+
+    /** Visitor check-in, services/events list, visitor edit and reports (2026-11-04). */
+    private com.churchgeniuspro.service.VisitorCheckInService visitors;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setVisitorCheckInService(com.churchgeniuspro.service.VisitorCheckInService v) { this.visitors = v; }
 
     private String deny(HttpServletRequest req) { return RoleGuard.requireAdminOrUser(req); }
     /** True if the current user LACKS the given action permission (opt-in denial). */
@@ -202,11 +208,16 @@ public class AttendanceController {
         Integer memberId = intVal(b.get("memberId"));
         if (memberId == null) return ResponseEntity.badRequest().body(Map.of("error", "memberId required"));
         String service = str(b.get("serviceType"));
-        if (service == null) return ResponseEntity.badRequest().body(Map.of("error", "serviceType required"));
+        Long typeId = longVal(b.get("serviceTypeId"));
         try {
-            AttendanceRecord a = svc.checkInMember(cid(req), user(req), memberId, str(b.get("name")), service,
+            if (typeId != null) service = visitors.target(cid(req), typeId).getName();
+            if (service == null) return ResponseEntity.badRequest().body(Map.of("error", "serviceType required"));
+            LocalDate date = requestDate(b.get("date"));
+            AttendanceRecord a = svc.checkInMember(cid(req), user(req), memberId, str(b.get("name")), service, typeId, date,
                     str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), str(b.get("method")));
             return ResponseEntity.ok(svc.recordMap(a));
+        } catch (VisitorCheckInService.CheckInException ex) {
+            return checkInError(ex);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
         }
@@ -218,15 +229,20 @@ public class AttendanceController {
         if (lacks(req, "general.attendance.edit")) return forbidden();
         Integer familyId = intVal(b.get("familyId"));
         String service = str(b.get("serviceType"));
-        if (familyId == null || service == null) return ResponseEntity.badRequest().body(Map.of("error", "familyId and serviceType required"));
+        Long typeId = longVal(b.get("serviceTypeId"));
         List<Integer> ids = new ArrayList<>();
         Object mi = b.get("memberIds");
         if (mi instanceof List<?> l) for (Object o : l) { Integer v = intVal(o); if (v != null) ids.add(v); }
         try {
-            List<Map<String, Object>> out = svc.familyCheckIn(cid(req), user(req), familyId, service,
+            if (typeId != null) service = visitors.target(cid(req), typeId).getName();
+            if (familyId == null || service == null) return ResponseEntity.badRequest().body(Map.of("error", "familyId and serviceType required"));
+            LocalDate date = requestDate(b.get("date"));
+            List<Map<String, Object>> out = svc.familyCheckIn(cid(req), user(req), familyId, service, typeId, date,
                     str(b.get("ministry")), str(b.get("campus")), str(b.get("status")), ids)
                     .stream().map(svc::recordMap).collect(Collectors.toList());
             return ResponseEntity.ok(Map.of("checkedIn", out.size(), "records", out));
+        } catch (VisitorCheckInService.CheckInException ex) {
+            return checkInError(ex);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
         }
@@ -298,7 +314,7 @@ public class AttendanceController {
         if (deny(req) != null) return ResponseEntity.status(403).build();
         List<AttendanceRecord> recs = svc.queryRecords(cid(req), parseDate(from), parseDate(to),
                 memberId, familyId, service, status, ministry);
-        String fname = "attendance-" + LocalDate.now();
+        String fname = "attendance-" + com.churchgeniuspro.util.AppClock.today();
         switch (format) {
             case "xlsx":
                 return ResponseEntity.ok()
@@ -317,6 +333,127 @@ public class AttendanceController {
                         .body(svc.exportCsv(recs));
         }
     }
+
+    // ── Services & events list (D2: only the ones created on this page) ─────────
+    @GetMapping("/targets")
+    public ResponseEntity<?> targets(@RequestParam(required = false) String filter,
+                                     @RequestParam(required = false) String q, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        try {
+            return ResponseEntity.ok(visitors.targets(cid(req), filter, q, svc.serviceTypes(cid(req))));
+        } catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    /** New service (name) or event (name + date) — needs the Attendance Edit permission only. */
+    @PostMapping("/targets")
+    public ResponseEntity<?> createTarget(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.edit")) return forbidden();
+        try {
+            svc.serviceTypes(cid(req)); // seed the defaults first so a new name is checked against them
+            var t = visitors.createTarget(cid(req), str(b.get("kind")), str(b.get("name")),
+                    requestDate(b.get("eventDate")), Boolean.TRUE.equals(b.get("confirmNew")));
+            return ResponseEntity.ok(visitors.targetMap(t, VisitorCheckInService.isEvent(t) ? null : "service"));
+        } catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    // ── Visitor registration (individual / family / group) ──────────────────────
+    @PostMapping("/visitors/register")
+    public ResponseEntity<?> registerVisitors(@RequestBody Map<String, Object> b, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.edit")) return forbidden();
+        try {
+            List<VisitorCheckInService.Person> people = new ArrayList<>();
+            Object raw = b.get("people");
+            if (raw instanceof List<?> l) for (Object o : l) if (o instanceof Map<?, ?> m) people.add(person(m));
+            var r = new VisitorCheckInService.Registration(str(b.get("kind")), str(b.get("groupName")), people,
+                    longVal(b.get("targetId")), requestDate(b.get("date")), str(b.get("interestLevel")),
+                    Boolean.TRUE.equals(b.get("followUpRequired")), str(b.get("followUpNote")),
+                    str(b.get("invitedBy")), str(b.get("status")), str(b.get("ministry")), str(b.get("campus")));
+            return ResponseEntity.ok(visitors.register(cid(req), user(req), r));
+        } catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    @GetMapping("/visitors")
+    public ResponseEntity<?> listVisitors(@RequestParam(required = false) String q, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        return ResponseEntity.ok(visitors.listVisitors(cid(req), q));
+    }
+
+    @GetMapping("/visitors/{id}")
+    public ResponseEntity<?> getVisitor(@PathVariable Long id, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        try { return ResponseEntity.ok(visitors.getVisitor(cid(req), id)); }
+        catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    @PutMapping("/visitors/{id}")
+    public ResponseEntity<?> updateVisitor(@PathVariable Long id, @RequestBody Map<String, Object> b, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.edit")) return forbidden();
+        try {
+            Object fu = b.get("followUpRequired");
+            return ResponseEntity.ok(visitors.updateVisitor(cid(req), id, person(b),
+                    b.containsKey("interestLevel") ? (b.get("interestLevel") == null ? "" : String.valueOf(b.get("interestLevel"))) : null,
+                    fu instanceof Boolean x ? x : null,
+                    b.containsKey("note") ? (b.get("note") == null ? "" : String.valueOf(b.get("note"))) : null));
+        } catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    @DeleteMapping("/visitors/{id}")
+    public ResponseEntity<?> deleteVisitor(@PathVariable Long id, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        if (lacks(req, "general.attendance.delete")) return forbidden();
+        try { visitors.deleteVisitor(cid(req), id); return ResponseEntity.ok(Map.of("status", "success")); }
+        catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    // ── Visitor reports ───────────────────────────────────────────────────────────
+    @GetMapping("/reports/v2/{kind}")
+    public ResponseEntity<?> visitorReports(@PathVariable String kind,
+                                            @RequestParam(required = false) String from,
+                                            @RequestParam(required = false) String to,
+                                            @RequestParam(required = false) Long targetId, HttpServletRequest req) {
+        if (deny(req) != null) return forbidden();
+        try {
+            LocalDate f = requestDate(from), t = requestDate(to);
+            String c = cid(req);
+            return switch (kind) {
+                case "attendees" -> ResponseEntity.ok(visitors.attendeeReport(c, f, t, targetId));
+                case "visitors"  -> ResponseEntity.ok(visitors.visitorListReport(c, f, t, targetId));
+                case "interest"  -> ResponseEntity.ok(visitors.interestReport(c, f, t, targetId));
+                case "followups" -> ResponseEntity.ok(visitors.followUpReport(c, f, t, targetId));
+                case "parties"   -> ResponseEntity.ok(visitors.partyReport(c, f, t, targetId));
+                default -> ResponseEntity.badRequest().body(Map.of("error", "unknown report"));
+            };
+        } catch (VisitorCheckInService.CheckInException ex) { return checkInError(ex); }
+    }
+
+    private static VisitorCheckInService.Person person(Map<?, ?> m) {
+        return new VisitorCheckInService.Person(str(m.get("firstName")), str(m.get("lastName")), str(m.get("gender")),
+                str(m.get("relationship")), str(m.get("phone")), str(m.get("email")), str(m.get("address1")),
+                str(m.get("address2")), str(m.get("city")), str(m.get("state")), str(m.get("zipCode")));
+    }
+
+    private static ResponseEntity<?> checkInError(VisitorCheckInService.CheckInException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", "error");
+        body.put("code", ex.code);
+        body.put("error", ex.getMessage());
+        body.put("message", ex.getMessage());
+        body.putAll(ex.extra);
+        return ResponseEntity.status(ex.status).body(body);
+    }
+
+    /** A YYYY-MM-DD date from the request; a malformed one is refused (never silently "today"). */
+    private static LocalDate requestDate(Object o) {
+        String s = str(o);
+        if (s == null) return null;
+        try { return LocalDate.parse(s); }
+        catch (Exception e) { throw new VisitorCheckInService.CheckInException(400, "BAD_DATE", "Use a date like 2026-11-08."); }
+    }
+
+    private static Long longVal(Object o) { try { return o == null || String.valueOf(o).isBlank() ? null : Long.valueOf(String.valueOf(o).trim()); } catch (Exception e) { return null; } }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
     private static String str(Object o) { if (o == null) return null; String s = String.valueOf(o).trim(); return s.isEmpty() ? null : s; }

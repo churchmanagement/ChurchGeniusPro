@@ -2342,3 +2342,58 @@ BEGIN
         CREATE INDEX IF NOT EXISTS idx_group_member_client_member ON group_member (app_client_id, family_member_id);
     END IF;
 END $$;
+
+-- ── Attendance: visitor check-in enhancements (2026-11-04) ──────────────────
+-- Additive only, every column nullable (Hibernate ddl-auto adds the same on start;
+-- DatabaseIndexInitializer creates the same indexes). visitor_party groups visitors who
+-- came as a FAMILY or GROUP; attendance_record now carries the service/event id, the
+-- visit's interest / follow-up answer and the follow-up task it created;
+-- attendance_service_type.event_date marks a dated event. Existing rows keep NULL.
+-- Not yet executed in production — run only with explicit approval.
+DO $$
+BEGIN
+    CREATE SEQUENCE IF NOT EXISTS visitor_party_id_seq START WITH 1 INCREMENT BY 1;
+    CREATE TABLE IF NOT EXISTS visitor_party (
+        id                 BIGINT       NOT NULL DEFAULT nextval('visitor_party_id_seq') PRIMARY KEY,
+        client_id          VARCHAR(100) NOT NULL,
+        kind               VARCHAR(10)  NOT NULL,
+        group_name         VARCHAR(150),
+        primary_visitor_id BIGINT,
+        created_by         VARCHAR(120),
+        created_date       TIMESTAMP,
+        delete_flag        BOOLEAN      NOT NULL DEFAULT false
+    );
+    CREATE INDEX IF NOT EXISTS idx_visitor_party_client ON visitor_party (client_id, delete_flag);
+    IF to_regclass('public.attendance_visitor') IS NOT NULL THEN
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS first_name         VARCHAR(100);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS last_name          VARCHAR(100);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS gender             VARCHAR(1);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS address1           VARCHAR(200);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS address2           VARCHAR(200);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS city               VARCHAR(100);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS state              VARCHAR(40);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS zip_code           VARCHAR(12);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS party_id           BIGINT;
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS relationship       VARCHAR(20);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS interest_level     VARCHAR(20);
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS follow_up_required BOOLEAN;
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS note               TEXT;
+        ALTER TABLE attendance_visitor ADD COLUMN IF NOT EXISTS updated_at         TIMESTAMP;
+        CREATE INDEX IF NOT EXISTS idx_att_visitor_client_party ON attendance_visitor (client_id, party_id);
+    END IF;
+    IF to_regclass('public.attendance_record') IS NOT NULL THEN
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS service_type_id    BIGINT;
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS party_id           BIGINT;
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS interest_level     VARCHAR(20);
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS follow_up_required BOOLEAN;
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS visit_note         TEXT;
+        ALTER TABLE attendance_record ADD COLUMN IF NOT EXISTS follow_up_id       BIGINT;
+        CREATE INDEX IF NOT EXISTS idx_att_record_client_visitor ON attendance_record (client_id, visitor_id);
+    END IF;
+    IF to_regclass('public.attendance_service_type') IS NOT NULL THEN
+        ALTER TABLE attendance_service_type ADD COLUMN IF NOT EXISTS event_date DATE;
+    END IF;
+    IF to_regclass('public.follow_up') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS idx_follow_up_client_linked ON follow_up (client_id, linked_type, linked_id);
+    END IF;
+END $$;

@@ -81,6 +81,47 @@
     .vn-field textarea { min-height:90px; resize:vertical; }
     .vn-results { font-size:12.5px; max-height:160px; overflow:auto; border:1px solid #eee; border-radius:8px; padding:6px 10px; margin-top:10px; }
     .vn-results .sent { color:#1e7e34; } .vn-results .skipped { color:#b26a00; } .vn-results .failed { color:#c0392b; }
+    /* ── Service / event picker + visitor registration (2026-11-04) ── */
+    .tp { position:relative; min-width:260px; flex:1 1 260px; max-width:420px; }
+    .tp-btn { width:100%; text-align:left; padding:8px 30px 8px 10px; border:1.5px solid #ddd; border-radius:8px; background:#fff; font-size:13.5px; color:#333; position:relative; min-height:38px; }
+    .tp-btn::after { content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#999; }
+    .tp-btn .tp-sub { color:#999; font-size:11.5px; margin-left:6px; }
+    .tp-panel { position:absolute; z-index:50; left:0; right:0; top:calc(100% + 4px); background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); padding:10px; min-width:min(340px, 92vw); }
+    .tp-chips { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
+    .tp-chip { border:1px solid #e0d3da; background:#fbf7f9; color:#555; font-weight:600; font-size:12px; padding:4px 10px; border-radius:999px; }
+    .tp-chip.on { background:#673147; color:#fff; border-color:#673147; }
+    .tp-search { width:100%; padding:7px 9px; border:1.5px solid #ddd; border-radius:8px; font-size:13px; margin-bottom:6px; }
+    .tp-list { height:220px; overflow:auto; border:1px solid #f0e9ed; border-radius:8px; }
+    .tp-item { display:flex; justify-content:space-between; gap:8px; width:100%; text-align:left; padding:8px 10px; border-bottom:1px solid #f5f0f3; font-size:13px; background:#fff; }
+    .tp-item:hover, .tp-item:focus { background:#f8f1f5; outline:none; }
+    .tp-item.sel { background:#f3e8ee; font-weight:700; }
+    .tp-item .d { color:#999; font-size:11.5px; white-space:nowrap; }
+    .tp-new { margin-top:8px; border-top:1px dashed #e6dde2; padding-top:8px; }
+    .tp-new .row { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-end; }
+    .tp-new input, .tp-new select { padding:6px 8px; border:1.5px solid #ddd; border-radius:7px; font-size:13px; }
+    .tp-new .nm { flex:1 1 140px; min-width:0; }
+    .tp-sugg { margin-top:6px; font-size:12.5px; background:#fff8e6; border:1px solid #f1dca6; border-radius:8px; padding:7px 9px; }
+    .tp-sugg button { margin:3px 4px 0 0; }
+    .date-hint { font-size:11.5px; color:#b26a00; margin-top:3px; }
+    .vr-kind { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+    .vr-person { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#fdfbfc; }
+    .vr-person .hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-weight:700; color:#673147; font-size:13px; }
+    .vr-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:8px 10px; }
+    .vr-grid .ctrl input, .vr-grid .ctrl select { min-width:0; width:100%; }
+    .vr-grid .wide { grid-column:1 / -1; }
+    .vr-check { display:flex !important; flex-direction:row; gap:8px; align-items:center; font-size:13px !important; font-weight:700; color:#444 !important; cursor:pointer; margin:2px 0 0 !important; }
+    .vr-grid .ctrl .vr-check input { width:auto; min-width:0; margin:0; flex:0 0 auto; }
+    .vr-addr { display:contents; } .vr-addr.hide { display:none; }
+    .vr-results { margin-top:10px; font-size:13px; }
+    .vr-results div { padding:3px 0; }
+    .tag { display:inline-block; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; background:#eef4fd; color:#2c5fa3; margin-left:4px; }
+    .tag.new { background:#e6f4ea; color:#1e7e34; }
+    .vl-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    .vl-tools input { flex:1 1 200px; padding:8px 10px; border:1.5px solid #ddd; border-radius:8px; font-size:13.5px; }
+    .confirm-bar { background:#fdecee; border:1px solid #f3c6cc; color:#8a2a1f; border-radius:8px; padding:8px 10px; font-size:13px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .modal .inner.vm { width:620px; text-align:left; max-height:90vh; overflow:auto; }
+    .rep-target { min-width:200px; }
+    @media (max-width:560px){ .tp { max-width:none; } .ctrl input, .ctrl select { min-width:0; width:100%; } .ctrl-row .ctrl { flex:1 1 140px; } }
   </style>
 </head>
 <body>
@@ -102,6 +143,7 @@
       <div class="at-tabs">
         <button class="at-tab on" data-tab="dashboard">📊 Dashboard</button>
         <button class="at-tab" data-tab="checkin">✅ Check-In</button>
+        <button class="at-tab" data-tab="visitors">🙋 Visitors</button>
         <button class="at-tab" data-tab="records">📋 Records</button>
         <button class="at-tab" data-tab="reports">📈 Reports</button>
       </div>
@@ -121,7 +163,33 @@
       <section id="tab-checkin" class="hide">
         <div class="at-card">
           <div class="ctrl-row">
-            <div class="ctrl"><label>Service / Event</label><select id="ciService"></select></div>
+            <div class="ctrl tp" id="tpWrap">
+              <label id="tpLbl">Service / Event</label>
+              <input type="hidden" id="ciService"><input type="hidden" id="ciTargetId">
+              <button type="button" class="tp-btn" id="tpBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="tpLbl tpBtn">Loading…</button>
+              <div class="tp-panel hide" id="tpPanel" role="dialog" aria-label="Choose a service or event">
+                <div class="tp-chips" role="group" aria-label="Show">
+                  <button type="button" class="tp-chip on" data-f="all">All</button>
+                  <button type="button" class="tp-chip" data-f="services">Services</button>
+                  <button type="button" class="tp-chip" data-f="today">Today's Events</button>
+                  <button type="button" class="tp-chip" data-f="future">Future Events</button>
+                  <button type="button" class="tp-chip" data-f="past">Past Events</button>
+                </div>
+                <input type="search" class="tp-search" id="tpSearch" placeholder="Search services and events…" aria-label="Search services and events">
+                <div class="tp-list" id="tpList" role="listbox"></div>
+                <div class="tp-new" data-perm="general.attendance.edit">
+                  <div class="row">
+                    <select id="tpNewKind" aria-label="New entry type"><option value="service">New service</option><option value="event">New event</option></select>
+                    <input id="tpNewName" class="nm" type="text" maxlength="100" placeholder="Name" aria-label="New service or event name">
+                    <input id="tpNewDate" type="date" class="hide" aria-label="Event date">
+                    <button type="button" class="btn sm" id="tpNewBtn">+ Add</button>
+                  </div>
+                  <div id="tpNewMsg" class="msg"></div>
+                  <div id="tpSugg"></div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl"><label for="ciDate">Attendance date</label><input id="ciDate" type="date"><div class="date-hint hide" id="ciDateHint">Not today — saved as already checked out.</div></div>
             <div class="ctrl"><label>Status</label><select id="ciStatus"></select></div>
             <div class="ctrl"><label>Ministry (optional)</label><input id="ciMinistry" type="text" placeholder="e.g. Choir"></div>
             <div class="ctrl"><label>Campus / Location (optional)</label><input id="ciCampus" type="text" placeholder="Main campus"></div>
@@ -155,16 +223,44 @@
             <div id="familyMembers" style="margin-top:12px;"></div>
           </div>
 
-          <!-- Visitor -->
+          <!-- Visitor (individual / family / group registration, 2026-11-04) -->
           <div id="m-visitor" class="method hide">
-            <div class="ctrl-row">
-              <div class="ctrl"><label>Name *</label><input id="vName" type="text"></div>
-              <div class="ctrl"><label>Phone</label><input id="vPhone" type="tel"></div>
-              <div class="ctrl"><label>Email</label><input id="vEmail" type="email"></div>
-              <div class="ctrl"><label>Invited by</label><input id="vInvited" type="text"></div>
-              <div class="ctrl" style="flex:1;"><label>Address</label><input id="vAddress" type="text" style="width:100%"></div>
+            <div class="vr-kind" role="radiogroup" aria-label="Registration type">
+              <button type="button" class="mtab vr-k on" data-k="INDIVIDUAL" role="radio" aria-checked="true">🙋 Individual</button>
+              <button type="button" class="mtab vr-k" data-k="FAMILY" role="radio" aria-checked="false">👪 Family</button>
+              <button type="button" class="mtab vr-k" data-k="GROUP" role="radio" aria-checked="false">👥 Group</button>
             </div>
-            <button class="btn" id="vCheckIn" type="button" data-perm="general.attendance.edit">Check in visitor</button>
+            <div class="ctrl hide" id="vrGroupWrap" style="margin-bottom:10px;max-width:360px;"><label for="vrGroupName" id="vrGroupLbl">Family name (optional)</label><input id="vrGroupName" type="text" maxlength="150"></div>
+            <div id="vrPeople"></div>
+            <button type="button" class="btn ghost sm hide" id="vrAddPerson">+ Add person</button>
+            <div class="vr-grid" style="margin-top:12px;">
+              <div class="ctrl"><label for="vrInterest">Interest</label><select id="vrInterest"><option value="">— Not asked —</option><option value="INTERESTED">Interested</option><option value="NOT_SURE">Not Sure</option><option value="NOT_INTERESTED">Not Interested</option></select></div>
+              <div class="ctrl"><label for="vInvited">Invited by</label><input id="vInvited" type="text" maxlength="200"></div>
+              <div class="ctrl wide"><label class="vr-check"><input type="checkbox" id="vrFollow"> Follow-up required</label></div>
+              <div class="ctrl wide hide" id="vrNoteWrap"><label for="vrNote">Follow-up note</label><input id="vrNote" type="text" maxlength="1000" placeholder="e.g. Would like a call about small groups"></div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" id="vCheckIn" type="button" data-perm="general.attendance.edit">Check in visitor</button>
+              <button class="btn ghost" id="vrClear" type="button">Clear</button>
+            </div>
+            <div class="vr-results" id="vrResults"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── Visitors (list / edit / delete) ───────── -->
+      <section id="tab-visitors" class="hide">
+        <div class="at-card">
+          <div class="vl-tools">
+            <input type="search" id="vlSearch" placeholder="Search visitors by name, phone or email…" aria-label="Search visitors">
+            <span class="muted" id="vlCount"></span>
+          </div>
+          <div id="vlMsg" class="msg"></div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Name</th><th>Contact</th><th>Family / Group</th><th>Visits</th><th>Last visit</th><th>Interest</th><th></th></tr></thead>
+              <tbody id="vlBody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -200,6 +296,7 @@
           <div class="ctrl-row">
             <div class="ctrl"><label>From</label><input id="repFrom" type="date"></div>
             <div class="ctrl"><label>To</label><input id="repTo" type="date"></div>
+            <div class="ctrl hide" id="repTargetWrap"><label for="repTarget">Service / Event</label><select id="repTarget" class="rep-target"><option value="">All</option></select></div>
             <button class="btn" id="repRun" type="button">Run</button>
           </div>
           <div class="method-tabs">
@@ -207,7 +304,11 @@
             <button class="mtab" data-r="families">Family Attendance</button>
             <button class="mtab" data-r="ministry">Ministry</button>
             <button class="mtab" data-r="events">Events</button>
-            <button class="mtab" data-r="visitors">Visitors</button>
+            <button class="mtab" data-r="v2attendees">Attendee List</button>
+            <button class="mtab" data-r="v2visitors">Visitor Report</button>
+            <button class="mtab" data-r="v2interest">Interest</button>
+            <button class="mtab" data-r="v2followups">Follow-up</button>
+            <button class="mtab" data-r="v2parties">Families &amp; Groups</button>
             <button class="mtab" data-r="trends">Trends</button>
           </div>
           <div id="repBody"></div>
@@ -254,6 +355,34 @@
   </div>
 </div></div>
 
+<!-- Edit visitor modal -->
+<div class="modal" id="visitorModal" role="dialog" aria-modal="true" aria-labelledby="vmTitle"><div class="inner vm">
+  <h3 style="margin-top:0;color:var(--brand);" id="vmTitle">Edit visitor</h3>
+  <input type="hidden" id="vmId">
+  <div class="vr-grid">
+    <div class="ctrl"><label for="vmFirst">First name *</label><input id="vmFirst" type="text" maxlength="100"></div>
+    <div class="ctrl"><label for="vmLast">Last name *</label><input id="vmLast" type="text" maxlength="100"></div>
+    <div class="ctrl"><label for="vmGender">Gender</label><select id="vmGender"><option value="">—</option><option value="M">Male</option><option value="F">Female</option></select></div>
+    <div class="ctrl"><label for="vmRel">Relationship</label><select id="vmRel"><option value="">—</option><option value="PRIMARY">Primary</option><option value="SPOUSE">Spouse</option><option value="ADULT">Adult</option><option value="CHILD">Child</option><option value="OTHER">Other</option></select></div>
+    <div class="ctrl"><label for="vmPhone">Phone</label><input id="vmPhone" type="tel" maxlength="40"></div>
+    <div class="ctrl"><label for="vmEmail">Email</label><input id="vmEmail" type="email" maxlength="150"></div>
+    <div class="ctrl wide"><label for="vmA1">Address 1</label><input id="vmA1" type="text" maxlength="200"></div>
+    <div class="ctrl wide"><label for="vmA2">Address 2</label><input id="vmA2" type="text" maxlength="200"></div>
+    <div class="ctrl"><label for="vmCity">City</label><input id="vmCity" type="text" maxlength="100"></div>
+    <div class="ctrl"><label for="vmState">State</label><input id="vmState" type="text" maxlength="40"></div>
+    <div class="ctrl"><label for="vmZip">ZIP</label><input id="vmZip" type="text" maxlength="12"></div>
+    <div class="ctrl"><label for="vmInterest">Interest</label><select id="vmInterest"><option value="">— Not asked —</option><option value="INTERESTED">Interested</option><option value="NOT_SURE">Not Sure</option><option value="NOT_INTERESTED">Not Interested</option></select></div>
+    <div class="ctrl wide"><label class="vr-check"><input type="checkbox" id="vmFollow"> Follow-up required</label></div>
+    <div class="ctrl wide"><label for="vmNote">Note</label><input id="vmNote" type="text" maxlength="1000"></div>
+  </div>
+  <div class="muted" id="vmVisits" style="margin-top:10px;"></div>
+  <div id="vmMsg" class="msg"></div>
+  <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+    <button class="btn ghost" type="button" onclick="document.getElementById('visitorModal').classList.remove('open')">Cancel</button>
+    <button class="btn" type="button" id="vmSave" data-perm="general.attendance.edit" onclick="saveVisitor()">Save</button>
+  </div>
+</div></div>
+
 <!-- Edit record modal -->
 <div class="modal" id="editModal"><div class="inner" style="text-align:left;">
   <h3 style="margin-top:0;color:var(--brand);">Edit record</h3>
@@ -287,15 +416,17 @@
     b.addEventListener('click', function(){
       document.querySelectorAll('.at-tab').forEach(function(x){ x.classList.remove('on'); });
       b.classList.add('on');
-      ['dashboard','checkin','records','reports'].forEach(function(t){ el('tab-'+t).classList.toggle('hide', t!==b.dataset.tab); });
+      ['dashboard','checkin','visitors','records','reports'].forEach(function(t){ el('tab-'+t).classList.toggle('hide', t!==b.dataset.tab); });
       if (b.dataset.tab==='dashboard') loadDashboard();
+      if (b.dataset.tab==='visitors') loadVisitors();
       if (b.dataset.tab==='records') applyRecords();
       if (b.dataset.tab==='reports') loadCurrentReport();
     });
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.mtab'), function(b){
+  // Check-in method tabs only (the report and visitor-type tabs have their own handlers).
+  Array.prototype.forEach.call(document.querySelectorAll('#tab-checkin .method-tabs .mtab[data-m]'), function(b){
     b.addEventListener('click', function(){
-      document.querySelectorAll('.mtab').forEach(function(x){ x.classList.remove('on'); });
+      document.querySelectorAll('#tab-checkin .method-tabs .mtab[data-m]').forEach(function(x){ x.classList.remove('on'); });
       b.classList.add('on');
       ['manual','scan','family','visitor'].forEach(function(m){ el('m-'+m).classList.toggle('hide', m!==b.dataset.m); });
       if (b.dataset.m!=='scan') stopCamera();
@@ -307,9 +438,10 @@
   Promise.all([ get('/api/attendance/service-types'), get('/api/attendance/statuses') ]).then(function(r){
     SERVICE_TYPES = r[0]||[]; STATUSES = r[1]||['PRESENT','LATE','ABSENT','EXCUSED'];
     function opts(list, withAll){ return (withAll?'<option value="">All</option>':'') + list.map(function(x){ var v=x.name||x; return '<option>'+esc(v)+'</option>'; }).join(''); }
-    el('ciService').innerHTML  = SERVICE_TYPES.map(function(t){ return '<option>'+esc(t.name)+'</option>'; }).join('');
-    el('eService').innerHTML   = el('ciService').innerHTML;
-    el('rService').innerHTML   = '<option value="">All</option>' + el('ciService').innerHTML;
+    var names = []; SERVICE_TYPES.forEach(function(t){ if (names.indexOf(t.name) < 0) names.push(t.name); });
+    var nameOpts = names.map(function(n){ return '<option>'+esc(n)+'</option>'; }).join('');
+    el('eService').innerHTML   = nameOpts;
+    el('rService').innerHTML   = '<option value="">All</option>' + nameOpts;
     el('ciStatus').innerHTML   = STATUSES.map(function(s){ return '<option>'+esc(s)+'</option>'; }).join('');
     el('eStatus').innerHTML    = el('ciStatus').innerHTML;
     el('rStatus').innerHTML    = '<option value="">All</option>' + el('ciStatus').innerHTML;
@@ -347,7 +479,115 @@
   }
 
   /* ── Check-in context ── */
-  function ctx(){ return { serviceType: el('ciService').value, status: el('ciStatus').value, ministry: el('ciMinistry').value.trim(), campus: el('ciCampus').value.trim() }; }
+  function ctx(){
+    return { serviceType: el('ciService').value, serviceTypeId: el('ciTargetId').value ? Number(el('ciTargetId').value) : null,
+             date: el('ciDate').value || null, status: el('ciStatus').value,
+             ministry: el('ciMinistry').value.trim(), campus: el('ciCampus').value.trim() };
+  }
+  function needTarget(){ if (el('ciTargetId').value) return false; ciMsg('Choose a service or event first.', 'err'); openPicker(); return true; }
+  function dateNote(c){ return (c.date && c.date !== churchToday()) ? ' on ' + c.date : ''; }
+
+  /* ── Church date (America/Chicago) ── */
+  function churchToday(){
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date()); }
+    catch(e){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  }
+  el('ciDate').value = churchToday();
+  el('ciDate').addEventListener('change', function(){
+    if (!this.value) this.value = churchToday();
+    el('ciDateHint').classList.toggle('hide', this.value === churchToday());
+  });
+
+  /* ── Service / event picker (only the church's own list) ── */
+  var TP = { filter:'all', list:[], sel:null, seq:0 };
+  function errBody(e){ return (e && e.body && typeof e.body === 'object') ? e.body : {}; }
+  function tpLabel(t){ return t.kind === 'event' ? t.name + ' · ' + t.eventDate : t.name; }
+  function selectTarget(t){
+    TP.sel = t;
+    el('ciTargetId').value = t ? t.id : '';
+    el('ciService').value = t ? t.name : '';
+    el('tpBtn').innerHTML = t ? esc(t.name) + (t.kind === 'event' ? '<span class="tp-sub">'+esc(t.eventDate)+'</span>' : '<span class="tp-sub">service</span>')
+                              : '<span class="muted">Choose a service or event…</span>';
+    try { if (t) localStorage.setItem('cgpAttTarget', String(t.id)); } catch(e){}
+    // an event's own date becomes the attendance date
+    if (t && t.kind === 'event') { el('ciDate').value = t.eventDate; el('ciDateHint').classList.toggle('hide', t.eventDate === churchToday()); }
+  }
+  function openPicker(){ el('tpPanel').classList.remove('hide'); el('tpBtn').setAttribute('aria-expanded','true'); loadTargets();
+    // never take focus from a field the user already moved to
+    setTimeout(function(){ if (!el('tpPanel').contains(document.activeElement)) el('tpSearch').focus(); }, 30); }
+  function closePicker(){ el('tpPanel').classList.add('hide'); el('tpBtn').setAttribute('aria-expanded','false'); }
+  el('tpBtn').addEventListener('click', function(){ el('tpPanel').classList.contains('hide') ? openPicker() : closePicker(); });
+  document.addEventListener('click', function(e){ if (!el('tpWrap').contains(e.target)) closePicker(); });
+  el('tpPanel').addEventListener('keydown', function(e){ if (e.key === 'Escape') { closePicker(); el('tpBtn').focus(); } });
+  Array.prototype.forEach.call(document.querySelectorAll('.tp-chip'), function(c){
+    c.addEventListener('click', function(){
+      document.querySelectorAll('.tp-chip').forEach(function(x){ x.classList.remove('on'); });
+      c.classList.add('on'); TP.filter = c.dataset.f; loadTargets();
+    });
+  });
+  var tpT; el('tpSearch').addEventListener('input', function(){ clearTimeout(tpT); tpT = setTimeout(loadTargets, 200); });
+  function loadTargets(){
+    var my = ++TP.seq;
+    return CGP_api('/api/attendance/targets?filter='+TP.filter+'&q='+encodeURIComponent(el('tpSearch').value.trim()))
+      .then(function(list){ if (my !== TP.seq) return; TP.list = list || []; renderTargets(); return TP.list; })
+      .catch(function(e){ if (my === TP.seq) el('tpList').innerHTML = '<div class="tp-item muted">'+esc(CGP_errorMessage(e,'Could not load the list.'))+'</div>'; });
+  }
+  function renderTargets(){
+    el('tpList').innerHTML = TP.list.length ? TP.list.map(function(t, i){
+      return '<button type="button" role="option" class="tp-item'+(TP.sel && TP.sel.id===t.id?' sel':'')+'" aria-selected="'+(TP.sel && TP.sel.id===t.id)+'" data-i="'+i+'">'
+        + '<span>'+esc(t.name)+'</span><span class="d">'+(t.kind==='event' ? esc(t.eventDate) : 'Service')+'</span></button>';
+    }).join('') : '<div class="tp-item muted">Nothing here yet — add a new one below.</div>';
+    Array.prototype.forEach.call(el('tpList').querySelectorAll('.tp-item[data-i]'), function(b){
+      b.addEventListener('click', function(){ selectTarget(TP.list[Number(b.dataset.i)]); closePicker(); el('tpBtn').focus(); });
+    });
+  }
+  el('tpNewKind').addEventListener('change', function(){
+    el('tpNewDate').classList.toggle('hide', this.value !== 'event');
+    if (this.value === 'event' && !el('tpNewDate').value) el('tpNewDate').value = el('ciDate').value || churchToday();
+  });
+  function tpNewMsg(t,k){ var m=el('tpNewMsg'); m.textContent=t; m.className='msg '+(k||''); }
+  el('tpNewBtn').addEventListener('click', function(){ createTarget(false); });
+  el('tpNewName').addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); createTarget(false); } });
+  function createTarget(confirmNew){
+    var kind = el('tpNewKind').value, name = el('tpNewName').value.trim();
+    el('tpSugg').innerHTML = '';
+    if (!name) { tpNewMsg('Enter a name.', 'err'); return; }
+    if (kind === 'event' && !el('tpNewDate').value) { tpNewMsg('Enter the event date.', 'err'); return; }
+    var btn = el('tpNewBtn'); btn.disabled = true;
+    CGP_api('/api/attendance/targets', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ kind: kind, name: name, eventDate: kind === 'event' ? el('tpNewDate').value : null, confirmNew: !!confirmNew }) })
+      .then(function(t){
+        btn.disabled = false; el('tpNewName').value = ''; tpNewMsg('✓ Added "'+t.name+'"', 'ok');
+        t.when = t.kind === 'event' ? null : 'service';
+        selectTarget(t); loadTargets(); refreshReportTargets(); closePicker(); el('tpBtn').focus();
+      })
+      .catch(function(e){
+        btn.disabled = false;
+        var b = errBody(e);
+        tpNewMsg(CGP_errorMessage(e, 'Could not add it.'), 'err');
+        var picks = b.suggestions || (b.existing ? [b.existing] : []);
+        if (picks.length) {
+          el('tpSugg').innerHTML = '<div class="tp-sugg">'+(b.code==='EVENT_NAME_EXISTS' ? 'Did you mean one of these?' : 'Use the existing one:')+'<br>'
+            + picks.map(function(t, i){ return '<button type="button" class="btn sm ghost" data-p="'+i+'">'+esc(tpLabel(t))+'</button>'; }).join('')
+            + (b.code==='EVENT_NAME_EXISTS' ? '<button type="button" class="btn sm" id="tpForce">Create new for '+esc(el('tpNewDate').value)+'</button>' : '')
+            + '</div>';
+          Array.prototype.forEach.call(el('tpSugg').querySelectorAll('button[data-p]'), function(x){
+            x.addEventListener('click', function(){ selectTarget(picks[Number(x.dataset.p)]); el('tpSugg').innerHTML=''; tpNewMsg('',''); closePicker(); });
+          });
+          if (el('tpForce')) el('tpForce').addEventListener('click', function(){ createTarget(true); });
+        }
+      });
+  }
+  // first load: remember the last choice, else the first service
+  CGP_api('/api/attendance/targets?filter=all').then(function(list){
+    list = list || [];
+    var last = null; try { last = localStorage.getItem('cgpAttTarget'); } catch(e){}
+    var pick = list.find(function(t){ return String(t.id) === last && (t.kind !== 'event' || t.when !== 'past'); })
+            || list.find(function(t){ return t.when === 'today'; }) || list.find(function(t){ return t.kind === 'service'; }) || null;
+    selectTarget(pick); el('ciDate').value = (pick && pick.kind === 'event') ? pick.eventDate : churchToday();
+    el('ciDateHint').classList.toggle('hide', el('ciDate').value === churchToday());
+    fillReportTargets(list);
+  }).catch(function(e){ el('tpBtn').textContent = 'Could not load services'; CGP_showError(e, 'Could not load services and events.'); });
 
   /* ── Manual search + check-in ── */
   function avatar(p){ if(p.photo) return '<img class="av" src="'+esc(p.photo)+'">'; var i=(p.name||'?').split(/\s+/).map(function(w){return w.charAt(0);}).slice(0,2).join('').toUpperCase(); return '<span class="av">'+esc(i)+'</span>'; }
@@ -371,8 +611,9 @@
   }
   function escq(s){ return String(s||'').replace(/'/g,"\\'"); }
   window.checkInMember = function(memberId, name){
+    if (needTarget()) return;
     var c = ctx(); c.memberId = memberId; c.name = name; c.method = 'manual';
-    post('/api/attendance/check-in', c).then(function(res){ ciMsg(res.ok?('✓ '+name+' checked in for '+c.serviceType):(res.j.error||'Failed'), res.ok?'ok':'err'); });
+    post('/api/attendance/check-in', c).then(function(res){ ciMsg(res.ok?('✓ '+name+' checked in for '+c.serviceType+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); });
   };
 
   /* ── Member code (QR + barcode) ── */
@@ -457,21 +698,173 @@
   window.familyCheckIn = function(familyId){
     var ids = Array.prototype.slice.call(document.querySelectorAll('#familyMembers .fm:checked')).map(function(c){ return parseInt(c.value); });
     if(!ids.length){ ciMsg('Select at least one family member.', 'err'); return; }
+    if (needTarget()) return;
     var c = ctx(); c.familyId = familyId; c.memberIds = ids;
-    post('/api/attendance/family-check-in', c).then(function(res){ ciMsg(res.ok?('✓ Checked in '+res.j.checkedIn+' family member(s)'):(res.j.error||'Failed'), res.ok?'ok':'err'); el('familyMembers').innerHTML=''; });
+    post('/api/attendance/family-check-in', c).then(function(res){ ciMsg(res.ok?('✓ Checked in '+res.j.checkedIn+' family member(s)'+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); el('familyMembers').innerHTML=''; });
   };
 
-  /* ── Visitor ── */
-  el('vCheckIn').addEventListener('click', function(){
-    var c = ctx();
-    c.name=el('vName').value.trim(); c.phone=el('vPhone').value.trim(); c.email=el('vEmail').value.trim();
-    c.address=el('vAddress').value.trim(); c.invitedBy=el('vInvited').value.trim();
-    if(!c.name){ ciMsg('Visitor name is required.', 'err'); return; }
-    post('/api/attendance/visitor-check-in', c).then(function(res){
-      if(res.ok){ ciMsg('✓ '+c.name+' checked in — '+res.j.classification, 'ok'); ['vName','vPhone','vEmail','vAddress','vInvited'].forEach(function(id){ el(id).value=''; }); }
-      else ciMsg(res.j.error||'Failed', 'err');
+  /* ── Visitor registration: individual / family / group ── */
+  var VR = { kind:'INDIVIDUAL', n:0, busy:false };
+  var PERSON_FIELDS = ['first','last','gender','rel','phone','email','a1','a2','city','state','zip'];
+  function personHtml(i){
+    var fam = VR.kind === 'FAMILY', first = i === 0;
+    var sameAddr = !first && VR.kind !== 'INDIVIDUAL';
+    return '<div class="vr-person" data-p="'+i+'"><div class="hd"><span>'+(VR.kind==='INDIVIDUAL' ? 'Visitor' : (first ? (fam ? 'Primary person' : 'Person 1 (contact)') : 'Person '+(i+1)))+'</span>'
+      + (first ? '' : '<button type="button" class="btn sm danger vr-rm" aria-label="Remove person '+(i+1)+'">Remove</button>') + '</div>'
+      + '<div class="vr-grid">'
+      + '<div class="ctrl"><label>First name *</label><input data-f="first" type="text" maxlength="100" autocomplete="off"></div>'
+      + '<div class="ctrl"><label>Last name *</label><input data-f="last" type="text" maxlength="100" autocomplete="off"></div>'
+      + '<div class="ctrl"><label>Gender</label><select data-f="gender"><option value="">—</option><option value="M">Male</option><option value="F">Female</option></select></div>'
+      + (fam ? '<div class="ctrl"><label>Relationship</label><select data-f="rel"><option value="">—</option>'
+            + (first ? '<option value="PRIMARY" selected>Primary</option>' : '<option value="SPOUSE">Spouse</option><option value="ADULT">Adult</option><option value="CHILD">Child</option><option value="OTHER">Other</option>')
+            + '</select></div>' : '')
+      + '<div class="ctrl"><label>Phone</label><input data-f="phone" type="tel" maxlength="40" autocomplete="off"></div>'
+      + '<div class="ctrl"><label>Email</label><input data-f="email" type="email" maxlength="150" autocomplete="off"></div>'
+      + (sameAddr ? '<div class="ctrl wide"><label class="vr-check"><input type="checkbox" class="vr-same" checked> Same address as the first person</label></div>' : '')
+      + '<div class="vr-addr'+(sameAddr?' hide':'')+'">'
+      + '<div class="ctrl wide"><label>Address 1</label><input data-f="a1" type="text" maxlength="200"></div>'
+      + '<div class="ctrl wide"><label>Address 2</label><input data-f="a2" type="text" maxlength="200"></div>'
+      + '<div class="ctrl"><label>City</label><input data-f="city" type="text" maxlength="100"></div>'
+      + '<div class="ctrl"><label>State</label><input data-f="state" type="text" maxlength="40"></div>'
+      + '<div class="ctrl"><label>ZIP</label><input data-f="zip" type="text" maxlength="12"></div>'
+      + '</div></div></div>';
+  }
+  function readPeople(){
+    return Array.prototype.map.call(el('vrPeople').querySelectorAll('.vr-person'), function(box){
+      var o = {}; PERSON_FIELDS.forEach(function(f){ var x = box.querySelector('[data-f="'+f+'"]'); o[f] = x ? x.value.trim() : ''; });
+      var same = box.querySelector('.vr-same'); o.same = !!(same && same.checked); return o;
+    });
+  }
+  function renderPeople(keep){
+    var old = keep ? readPeople() : [];
+    var n = VR.kind === 'INDIVIDUAL' ? 1 : Math.max(VR.n, 2);
+    VR.n = n;
+    var html = ''; for (var i = 0; i < n; i++) html += personHtml(i);
+    el('vrPeople').innerHTML = html;
+    Array.prototype.forEach.call(el('vrPeople').querySelectorAll('.vr-person'), function(box, i){
+      var o = old[i]; if (o) PERSON_FIELDS.forEach(function(f){ var x = box.querySelector('[data-f="'+f+'"]'); if (x && o[f]) x.value = o[f]; });
+      var same = box.querySelector('.vr-same');
+      if (same) { if (o && o.same === false) same.checked = false;
+        box.querySelector('.vr-addr').classList.toggle('hide', same.checked);
+        same.addEventListener('change', function(){ box.querySelector('.vr-addr').classList.toggle('hide', same.checked); }); }
+      var rm = box.querySelector('.vr-rm');
+      if (rm) rm.addEventListener('click', function(){ var all = readPeople(); all.splice(i, 1); VR.n = Math.max(2, all.length); setPeople(all); });
+    });
+    el('vrAddPerson').classList.toggle('hide', VR.kind === 'INDIVIDUAL');
+    el('vrGroupWrap').classList.toggle('hide', VR.kind === 'INDIVIDUAL');
+    el('vrGroupLbl').textContent = VR.kind === 'FAMILY' ? 'Family name (optional)' : 'Group name (optional)';
+  }
+  function setPeople(list){ VR.n = Math.max(VR.kind==='INDIVIDUAL'?1:2, list.length); renderPeople(false);
+    Array.prototype.forEach.call(el('vrPeople').querySelectorAll('.vr-person'), function(box, i){
+      var o = list[i]; if (!o) return; PERSON_FIELDS.forEach(function(f){ var x = box.querySelector('[data-f="'+f+'"]'); if (x && o[f]) x.value = o[f]; });
+      var same = box.querySelector('.vr-same'); if (same && o.same === false) { same.checked = false; box.querySelector('.vr-addr').classList.remove('hide'); }
+    }); }
+  Array.prototype.forEach.call(document.querySelectorAll('.vr-k'), function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.vr-k').forEach(function(x){ x.classList.remove('on'); x.setAttribute('aria-checked','false'); });
+      b.classList.add('on'); b.setAttribute('aria-checked','true');
+      VR.kind = b.dataset.k; renderPeople(true);
     });
   });
+  el('vrAddPerson').addEventListener('click', function(){ if (VR.n >= 30) return; VR.n++; renderPeople(true);
+    var boxes = el('vrPeople').querySelectorAll('.vr-person'); var last = boxes[boxes.length-1]; if (last) last.querySelector('[data-f="first"]').focus(); });
+  el('vrFollow').addEventListener('change', function(){ el('vrNoteWrap').classList.toggle('hide', !this.checked); });
+  function clearVisitorForm(){
+    VR.n = 0; renderPeople(false); el('vrGroupName').value = ''; el('vrInterest').value = ''; el('vInvited').value = '';
+    el('vrFollow').checked = false; el('vrNote').value = ''; el('vrNoteWrap').classList.add('hide');
+  }
+  el('vrClear').addEventListener('click', function(){ clearVisitorForm(); el('vrResults').innerHTML = ''; });
+  renderPeople(false);
+
+  el('vCheckIn').addEventListener('click', function(){
+    if (VR.busy) return;
+    if (needTarget()) return;
+    var raw = readPeople(), first = raw[0] || {};
+    for (var i = 0; i < raw.length; i++) {
+      if (!raw[i].first || !raw[i].last) { ciMsg((raw.length > 1 ? 'Person '+(i+1)+': ' : '') + 'first and last name are required.', 'err');
+        var box = el('vrPeople').querySelectorAll('.vr-person')[i]; if (box) box.querySelector('[data-f="'+(raw[i].first?'last':'first')+'"]').focus(); return; }
+    }
+    var people = raw.map(function(o){
+      var a = o.same ? first : o;
+      return { firstName:o.first, lastName:o.last, gender:o.gender||null, relationship:o.rel||null, phone:o.phone||null, email:o.email||null,
+               address1:a.a1||null, address2:a.a2||null, city:a.city||null, state:a.state||null, zipCode:a.zip||null };
+    });
+    var c = ctx();
+    var body = { kind: VR.kind, groupName: el('vrGroupName').value.trim() || null, people: people, targetId: c.serviceTypeId, date: c.date,
+                 interestLevel: el('vrInterest').value || null, followUpRequired: el('vrFollow').checked,
+                 followUpNote: el('vrNote').value.trim() || null, invitedBy: el('vInvited').value.trim() || null,
+                 status: c.status, ministry: c.ministry, campus: c.campus };
+    var btn = el('vCheckIn'); VR.busy = true; btn.disabled = true; btn.textContent = 'Checking in…';
+    CGP_api('/api/attendance/visitors/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+      .then(function(r){
+        VR.busy = false; btn.disabled = false; btn.textContent = 'Check in visitor';
+        var n = (r.visitors||[]).length;
+        ciMsg('✓ Checked in '+n+' visitor'+(n===1?'':'s')+' for '+r.target.name+(r.date !== churchToday() ? ' on '+r.date : '')+(r.followUpId ? ' — follow-up task created' : ''), 'ok');
+        el('vrResults').innerHTML = (r.visitors||[]).map(function(v){
+          return '<div>'+esc(v.name)+' — '+esc(v.classification)
+            + (v.matchedExisting ? '<span class="tag">matched existing visitor</span>' : '<span class="tag new">new visitor</span>')
+            + (v.alreadyCheckedIn ? '<span class="tag">already checked in — updated</span>' : '') + '</div>';
+        }).join('');
+        clearVisitorForm(); VISITORS_STALE = true;
+      })
+      .catch(function(e){ VR.busy = false; btn.disabled = false; btn.textContent = 'Check in visitor'; ciMsg(CGP_errorMessage(e, 'The visitor was not checked in.'), 'err'); });
+  });
+
+  /* ── Visitors list / edit / delete ── */
+  var VISITORS_STALE = true, VL = { seq:0, list:[], confirmId:null };
+  function vlMsg(t,k){ var m=el('vlMsg'); m.textContent=t; m.className='msg '+(k||''); if(k==='ok') setTimeout(function(){ m.className='msg'; }, 3500); }
+  var vlT; el('vlSearch').addEventListener('input', function(){ clearTimeout(vlT); vlT = setTimeout(loadVisitors, 250); });
+  var INTEREST_LABEL = { INTERESTED:'Interested', NOT_SURE:'Not Sure', NOT_INTERESTED:'Not Interested', NOT_ASKED:'Not asked' };
+  function loadVisitors(){
+    var my = ++VL.seq;
+    CGP_api('/api/attendance/visitors?q='+encodeURIComponent(el('vlSearch').value.trim())).then(function(list){
+      if (my !== VL.seq) return; VL.list = list || []; VISITORS_STALE = false; renderVisitors();
+    }).catch(function(e){ if (my === VL.seq) el('vlBody').innerHTML = '<tr><td colspan="7" class="muted">'+esc(CGP_errorMessage(e, 'Could not load visitors.'))+'</td></tr>'; });
+  }
+  function renderVisitors(){
+    el('vlCount').textContent = VL.list.length + ' visitor' + (VL.list.length===1?'':'s') + (VL.list.length >= 200 ? ' (first 200 — search to narrow)' : '');
+    el('vlBody').innerHTML = VL.list.length ? VL.list.map(function(v){
+      var contact = [v.phone, v.email].filter(Boolean).map(esc).join('<br>') || '<span class="muted">—</span>';
+      var row = '<tr><td><b>'+esc(v.name)+'</b><div class="muted">'+esc(v.classification)+'</div></td><td>'+contact+'</td>'
+        + '<td>'+(v.partyName ? esc(v.partyName)+(v.relationship ? ' <span class="muted">('+esc(v.relationship.charAt(0)+v.relationship.slice(1).toLowerCase())+')</span>' : '') : '<span class="muted">—</span>')+'</td>'
+        + '<td>'+esc(v.visits)+'</td><td>'+esc(v.lastVisit||'—')+'</td>'
+        + '<td>'+esc(INTEREST_LABEL[v.interestLevel] || '—')+(v.followUpRequired ? ' <span class="tag">follow-up</span>' : '')+'</td>'
+        + '<td style="white-space:nowrap;"><button class="btn sm ghost" data-perm="general.attendance.edit" onclick="editVisitor('+v.id+')">Edit</button> '
+        + '<button class="btn sm danger" data-perm="general.attendance.delete" onclick="askDeleteVisitor('+v.id+')">Delete</button></td></tr>';
+      if (VL.confirmId === v.id) row += '<tr><td colspan="7"><div class="confirm-bar" role="alert">Delete '+esc(v.name)+'? Their attendance history is kept.'
+        + '<button class="btn sm danger" id="vlYes" onclick="deleteVisitor('+v.id+')">Delete</button><button class="btn sm ghost" onclick="askDeleteVisitor(null)">Cancel</button></div></td></tr>';
+      return row;
+    }).join('') : '<tr><td colspan="7" class="muted">No visitors found.</td></tr>';
+    if (el('vlYes')) el('vlYes').focus();
+  }
+  window.askDeleteVisitor = function(id){ VL.confirmId = id; renderVisitors(); };
+  window.deleteVisitor = function(id){
+    var b = el('vlYes'); if (b) b.disabled = true;
+    CGP_api('/api/attendance/visitors/'+id, { method:'DELETE' })
+      .then(function(){ VL.confirmId = null; vlMsg('Visitor deleted.', 'ok'); loadVisitors(); })
+      .catch(function(e){ if (b) b.disabled = false; vlMsg(CGP_errorMessage(e, 'The visitor was not deleted.'), 'err'); });
+  };
+  var VM_MAP = { vmFirst:'firstName', vmLast:'lastName', vmGender:'gender', vmRel:'relationship', vmPhone:'phone', vmEmail:'email',
+                 vmA1:'address1', vmA2:'address2', vmCity:'city', vmState:'state', vmZip:'zipCode', vmInterest:'interestLevel', vmNote:'note' };
+  window.editVisitor = function(id){
+    CGP_api('/api/attendance/visitors/'+id).then(function(v){
+      el('vmId').value = id; Object.keys(VM_MAP).forEach(function(k){ el(k).value = v[VM_MAP[k]] || ''; });
+      el('vmFollow').checked = !!v.followUpRequired; el('vmMsg').className = 'msg';
+      el('vmTitle').textContent = 'Edit visitor — ' + v.name;
+      el('vmVisits').textContent = (v.visits||0) + ' visit' + (v.visits===1?'':'s') + (v.lastVisit ? ' · last ' + v.lastVisit : '')
+        + (v.partyName ? ' · ' + v.partyName : '');
+      el('visitorModal').classList.add('open'); el('vmFirst').focus();
+    }).catch(function(e){ vlMsg(CGP_errorMessage(e, 'Could not open the visitor.'), 'err'); });
+  };
+  window.saveVisitor = function(){
+    var b = {}; Object.keys(VM_MAP).forEach(function(k){ b[VM_MAP[k]] = el(k).value.trim() || null; });
+    b.followUpRequired = el('vmFollow').checked;
+    if (!b.firstName || !b.lastName) { var m=el('vmMsg'); m.textContent='First and last name are required.'; m.className='msg err'; return; }
+    var btn = el('vmSave'); btn.disabled = true;
+    CGP_api('/api/attendance/visitors/'+el('vmId').value, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) })
+      .then(function(){ btn.disabled = false; el('visitorModal').classList.remove('open'); vlMsg('Visitor saved.', 'ok'); loadVisitors(); })
+      .catch(function(e){ btn.disabled = false; var m=el('vmMsg'); m.textContent=CGP_errorMessage(e, 'The visitor was not saved.'); m.className='msg err'; });
+  };
 
   /* ── Records ── */
   function recParams(){
@@ -530,6 +923,12 @@
   });
   el('repRun').addEventListener('click', loadCurrentReport);
   function repRange(){ var p=[]; if(el('repFrom').value)p.push('from='+el('repFrom').value); if(el('repTo').value)p.push('to='+el('repTo').value); return p.join('&'); }
+  function fillReportTargets(list){
+    var cur = el('repTarget').value;
+    el('repTarget').innerHTML = '<option value="">All</option>' + (list||[]).map(function(t){ return '<option value="'+t.id+'">'+esc(tpLabel(t))+'</option>'; }).join('');
+    el('repTarget').value = cur;
+  }
+  function refreshReportTargets(){ CGP_api('/api/attendance/targets?filter=all').then(fillReportTargets).catch(function(){}); }
   function tableHtml(cols, rows){
     return '<div style="overflow:auto;"><table><thead><tr>'+cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr></thead><tbody>'
       + (rows.length ? rows.map(function(r){ return '<tr>'+r.map(function(c){return '<td>'+(c==null?'':esc(c))+'</td>';}).join('')+'</tr>'; }).join('')
@@ -546,9 +945,12 @@
     a.download='attendance-report.csv'; a.click();
   };
 
+  var REP_SEQ = 0;
   function loadCurrentReport(){
     var body = el('repBody'); body.innerHTML = '<div class="muted">Loading…</div>';
     var rng = repRange();
+    el('repTargetWrap').classList.toggle('hide', curReport.indexOf('v2') !== 0);
+    if (curReport.indexOf('v2') === 0) { loadV2Report(body, rng); return; }
     if (curReport==='members') {
       get('/api/attendance/reports/members?'+rng).then(function(rows){ rows=rows||[];
         body.innerHTML = '<div id="repTbl">' + tableHtml(['Member','Attendance %','Attended / Days','Last attendance','Consecutive absences'],
@@ -587,6 +989,51 @@
       drawChart('rtY','bar','/api/attendance/trends/yearly','Yearly');
     }
   }
+
+  /* ── Visitor reports (attendees, visitors, interest, follow-up, families & groups) ── */
+  function loadV2Report(body, rng){
+    var my = ++REP_SEQ, kind = curReport.slice(2);
+    var url = '/api/attendance/reports/v2/'+kind+'?'+rng+(el('repTarget').value ? '&targetId='+el('repTarget').value : '');
+    CGP_api(url).then(function(d){
+      if (my !== REP_SEQ) return;
+      d = d || {}; var rows = d.rows || [], html = '';
+      var scope = '<div class="muted" style="margin-bottom:8px;">'+esc(d.from)+' to '+esc(d.to)+(d.target ? ' · '+esc(tpLabel(d.target)) : ' · all services and events')+'</div>';
+      if (kind === 'attendees') {
+        html = '<div class="muted">'+d.totals.records+' check-ins · '+d.totals.members+' member · '+d.totals.visitors+' visitor</div>'
+          + '<div id="repTbl">'+tableHtml(['Date','Name','Type','Service / Event','Status'], rows.map(function(r){ return [r.date, r.name, r.personType, r.serviceType, r.status]; }))+'</div>';
+      } else if (kind === 'visitors') {
+        html = '<div class="muted">'+d.totals.visitors+' visitors · '+d.totals.firstTimeInRange+' first-time · '+d.totals.visits+' visits</div>'
+          + '<div id="repTbl">'+tableHtml(['Name','Phone','Email','Address','Family / Group','Visits (range)','First visit','Last visit','Classification'],
+            rows.map(function(r){ return [r.name, r.phone, r.email, r.address, r.partyName, r.visitsInRange, r.firstVisit, r.lastInRange, r.classification]; }))+'</div>';
+      } else if (kind === 'interest') {
+        var c = d.counts || {};
+        html = '<div class="stats" style="margin-bottom:10px;">'+['INTERESTED','NOT_SURE','NOT_INTERESTED','NOT_ASKED'].map(function(k){
+            return '<div class="stat"><div class="n">'+(c[k]||0)+'</div><div class="l">'+INTEREST_LABEL[k]+'</div></div>'; }).join('')+'</div>'
+          + '<div id="repTbl">'+tableHtml(['Name','Interest','Phone','Email','Last visit','Service / Event'],
+            rows.map(function(r){ return [r.name, INTEREST_LABEL[r.interestLevel]||r.interestLevel, r.phone, r.email, r.lastVisit, r.serviceType]; }))+'</div>';
+      } else if (kind === 'followups') {
+        var bs = d.byStatus || {};
+        html = '<div class="muted">'+Object.keys(bs).map(function(k){ return esc(k.replace('_',' ').toLowerCase())+': '+bs[k]; }).join(' · ')+'</div>'
+          + '<div id="repTbl">'+tableHtml(['Name','Visit','Service / Event','Note','Task status','Assigned to','Phone','Email'],
+            rows.map(function(r){ return [r.name, r.visitDate, r.serviceType, r.note, r.taskStatus==='NO_TASK' ? 'No task' : r.taskStatus, r.assignedTo||'Unassigned', r.phone, r.email]; }))+'</div>';
+      } else if (kind === 'parties') {
+        html = '<div class="muted">'+d.totals.families+' families · '+d.totals.groups+' groups</div>'
+          + '<div id="repTbl">'+tableHtml(['Family / Group','Type','Contact','Phone','Email','People','Visits (range)','Last visit'],
+            rows.map(function(r){ return [r.name, r.kind==='FAMILY'?'Family':'Group', r.primary, r.phone, r.email,
+              (r.people||[]).map(function(p){ return p.name + (p.relationship ? ' ('+p.relationship.toLowerCase()+')' : ''); }).join(', '), r.visitsInRange, r.lastVisit]; }))+'</div>';
+      }
+      body.innerHTML = '<h3 style="margin:0 0 4px;color:var(--brand);">'+esc(d.title||'')+'</h3>' + scope + html
+        + '<div style="text-align:right;margin-top:8px;display:flex;gap:6px;justify-content:flex-end;"><button class="btn ghost sm" onclick="printReport()">🖨 Print</button>'
+        + '<button class="btn ghost sm" onclick="csvFromTable(\'repTbl\')">⬇ Export CSV</button></div>';
+    }).catch(function(e){ if (my === REP_SEQ) body.innerHTML = '<div class="msg err" style="display:block;">'+esc(CGP_errorMessage(e, 'The report could not be loaded.'))+'</div>'; });
+  }
+  el('repTarget').addEventListener('change', loadCurrentReport);
+  window.printReport = function(){
+    var w = window.open('', '_blank'); if (!w) return;
+    w.document.write('<html><head><title>Attendance report</title><style>body{font-family:Arial,sans-serif;font-size:12px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}button{display:none;}</style></head><body>'
+      + el('repBody').innerHTML + '</body></html>');
+    w.document.close(); setTimeout(function(){ w.print(); }, 300);
+  };
 
   // default record range = last 30 days
   (function(){ var t=new Date(), f=new Date(Date.now()-30*86400000);
