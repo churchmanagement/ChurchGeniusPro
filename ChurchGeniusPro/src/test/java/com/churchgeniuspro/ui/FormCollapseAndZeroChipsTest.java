@@ -26,7 +26,9 @@ class FormCollapseAndZeroChipsTest {
         assertThat(vf).doesNotContain("Not volunteering")
                 .contains("if (inv.volunteer) out.push(")
                 .contains("if (n > 0) out.push(`<span class=\"fam-chip fam-chip-fu\"")
-                .contains("(c => c ? `<div class=\"inv-row-chips\">${c}</div>` : '')(memberChips(inv))");
+                .contains("(c => c ? `<div class=\"inv-row-chips\">${c}</div>` : '')(memberChips(inv))")
+                .contains("if (n > 0) out.push(`<span class=\"fam-chip fam-chip-grp\"")
+                .doesNotContain("fam-chip-grp${n ? '' : ' dim'}");
     }
 
     @Test @DisplayName("Both pages load form-collapse.js and expand the form when a row is edited")
@@ -49,11 +51,35 @@ class FormCollapseAndZeroChipsTest {
         String js = read("form-collapse.js");
         assertThat(js).contains(".cgp-fc-collapsed > :not(.cgp-fc-head){display:none !important;}")
                 .contains("aria-expanded")
-                .contains("voiceActive()")
+                .contains("f.busy()")
                 .contains("f.btn.disabled = !collapsed && busy;")
                 .contains("#voiceMicBtn, #voiceConverseBtn")
                 .contains("card.scrollIntoView = function")
                 .contains("catch (e) { return null; }");
         assertThat(js).doesNotContain("innerHTML = ''").doesNotContain(".value = ''").doesNotContain("fetch(");
+    }
+
+    @Test @DisplayName("Meetings: Add Meeting form uses the shared minimise control, safe with the meeting assistant")
+    void meetingsWired() throws Exception {
+        String m = read("meeting.html");
+        assertThat(m).contains("<script src=\"/form-collapse.js\"></script>")
+                .contains("card: 'meetingFormCard', head: '.form-card-header', title: '#formTitle'")
+                .contains("busy: function () { return shown('mvStopBtn') || shown('mvListening'); }")
+                .contains("expandOn: '#mvMode_voice, #mvMode_converse, #mvSend'")
+                .contains("CGP_formCollapse.expand('meetingFormCard')")
+                .contains("<h3 id=\"formTitle\">Add Meeting</h3>");
+    }
+
+    @Test @DisplayName("Events Past: responsive card grid (max 3 per row), long names clamp, every action kept")
+    void pastGrid() throws Exception {
+        String e = read("events.html");
+        assertThat(e).contains(".past-list { display:grid;")
+                .contains("minmax(min(100%, max(240px, calc((100% - 24px) / 3))), 1fr)")
+                .contains("-webkit-line-clamp:2")
+                .contains("'<div class=\"past-name\" title=\"' + esc(ev.eventName) + '\">'");
+        for (String a : new String[] {"'Check-In'", "'Edit'", "'Registrants'", "'Volunteers'", "'Invite'",
+                "'Register Page'", "'Copy registration link'", "'Delete'"}) {
+            assertThat(e).contains("pastAct(").contains(a);
+        }
     }
 }

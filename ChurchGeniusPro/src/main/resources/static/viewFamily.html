@@ -1282,7 +1282,7 @@
     }
     if (a.groups) {
       const n = (inv.groups || []).length;
-      out.push(`<span class="fam-chip fam-chip-grp${n ? '' : ' dim'}" title="Groups">${INV_ICON.grp}Groups · ${n}</span>`);
+      if (n > 0) out.push(`<span class="fam-chip fam-chip-grp" title="Groups">${INV_ICON.grp}Groups · ${n}</span>`);
     }
     return out.join('');
   }

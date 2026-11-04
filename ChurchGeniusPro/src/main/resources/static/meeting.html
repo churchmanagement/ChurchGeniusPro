@@ -1658,6 +1658,7 @@
 
       editingId = id;
       document.getElementById('formTitle').textContent = 'Edit Meeting';
+      if (window.CGP_formCollapse) CGP_formCollapse.expand('meetingFormCard');
       document.getElementById('saveBtn').textContent   = 'Update Meeting';
 
       setVal('meetingType',  data.meetingTypeId);
@@ -2638,5 +2639,21 @@ window.CGP_PAGE = { activePage: 'general/meetings', pageTitle: 'Meetings', openS
 <script src="/voice-core.js"></script>
 <script src="/voice-openai.js"></script>
 <script src="/meeting-voice.js"></script>
+<script src="/form-collapse.js"></script>
+<script>
+  // Minimise / expand the Add Meeting form (display only; 2026-11-03). Opens expanded,
+  // as before; the choice is remembered in this browser. The meeting assistant (Voice /
+  // Converse / typed request) lives above the form, so using it opens the form, and the
+  // form cannot be minimised while a conversation or listening is in progress.
+  document.addEventListener('DOMContentLoaded', function () {
+    function shown(id) { var e = document.getElementById(id); return !!(e && e.style.display !== 'none' && e.offsetParent !== null); }
+    CGP_formCollapse.init({
+      card: 'meetingFormCard', head: '.form-card-header', title: '#formTitle', key: 'meetings', label: 'Add Meeting form',
+      busy: function () { return shown('mvStopBtn') || shown('mvListening'); },
+      watch: ['mvStopBtn', 'mvListening'],
+      expandOn: '#mvMode_voice, #mvMode_converse, #mvSend'
+    });
+  });
+</script>
 </body>
 </html>

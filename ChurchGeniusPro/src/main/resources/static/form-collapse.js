@@ -1,10 +1,15 @@
 /*
- * form-collapse.js — minimise / expand an entry form (Income, Expense; 2026-11-03).
+ * form-collapse.js — minimise / expand an entry form (Income, Expense, Meetings; 2026-11-03).
  *
  * CGP_formCollapse.init({ card: 'formCard', head: '.card-header', key: 'income', label: 'Income form' })
- *   card  id of the form card
- *   head  selector (inside the card) of the row that stays visible when minimised
- *   key   remembers the choice per page in this browser (localStorage, best effort)
+ *   card      id of the form card
+ *   head      selector (inside the card) of the row that stays visible when minimised
+ *   key       remembers the choice per page in this browser (localStorage, best effort)
+ *   busy      optional () => true while the page's voice assistant is running
+ *             (default: #voiceMicBtn / #voiceConverseBtn carry .recording)
+ *   watch     optional ids whose class/style changes mean the busy state may have changed
+ *   expandOn  optional selector: a click on it expands the form first
+ *   title     optional selector of the head's last left-hand item (default: its first child)
  *
  * Display only: minimising hides the rows below the header with CSS. Nothing is
  * removed from the page, so typed values, validation, Save and Voice keep working.
@@ -22,7 +27,7 @@
   var STYLE =
     '.cgp-fc-collapsed > :not(.cgp-fc-head){display:none !important;}' +
     '.cgp-fc-collapsed > .cgp-fc-head{border-bottom-color:transparent !important;}' +
-    '.cgp-fc-head > :first-child{margin-right:auto;}' +
+    '.cgp-fc-head > .cgp-fc-title{margin-right:auto;}' +
     '.cgp-fc-head > .cgp-fc-btn{order:99;}' +
     '.cgp-fc-btn{display:inline-flex;align-items:center;gap:6px;flex:none;height:30px;padding:0 10px;margin-left:8px;' +
       'border:1px solid #e0d4da;border-radius:8px;background:#fff;color:#673147;font:600 12px/1 inherit;cursor:pointer;}' +
@@ -44,14 +49,14 @@
     catch (e) { return null; }
   }
 
-  function voiceActive() {
+  function defaultBusy() {
     var m = document.getElementById('voiceMicBtn'), c = document.getElementById('voiceConverseBtn');
     return !!((m && m.classList.contains('recording')) || (c && c.classList.contains('recording')));
   }
 
   function paint(f) {
     var collapsed = f.card.classList.contains('cgp-fc-collapsed');
-    var busy = voiceActive();
+    var busy = f.busy();
     f.btn.setAttribute('aria-expanded', String(!collapsed));
     f.btn.querySelector('.cgp-fc-txt').textContent = collapsed ? 'Expand' : 'Minimize';
     f.btn.title = collapsed ? 'Expand the ' + f.label
@@ -62,7 +67,7 @@
   }
 
   function set(f, collapse, remember) {
-    if (collapse && voiceActive()) collapse = false;
+    if (collapse && f.busy()) collapse = false;
     f.card.classList.toggle('cgp-fc-collapsed', !!collapse);
     if (remember) store(f.key, collapse ? '1' : '0');
     paint(f);
@@ -78,12 +83,17 @@
     }
     card.classList.add('cgp-fc-card');
     head.classList.add('cgp-fc-head');
+    var title = (opts.title && head.querySelector(opts.title)) || head.firstElementChild;
+    if (title) title.classList.add('cgp-fc-title');      // pushes the controls to the right
     var btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'cgp-fc-btn'; btn.id = opts.card + 'CollapseBtn';
     btn.setAttribute('aria-controls', opts.card);
     btn.innerHTML = CHEVRON + '<span class="cgp-fc-txt">Minimize</span>';
     head.appendChild(btn);
-    var f = { card: card, btn: btn, key: opts.key || opts.card, label: opts.label || 'form' };
+    var f = { card: card, btn: btn, key: opts.key || opts.card, label: opts.label || 'form',
+              busy: function () { try { return !!(opts.busy || defaultBusy)(); } catch (e) { return false; } } };
+    var watchIds = opts.watch || ['voiceMicBtn', 'voiceConverseBtn'];
+    var expandOn = opts.expandOn || '#voiceMicBtn, #voiceConverseBtn';
     forms[opts.card] = f;
 
     btn.addEventListener('click', function () {
@@ -96,27 +106,27 @@
 
     // Voice / Converse pressed → expand before the session starts guiding fields.
     document.addEventListener('click', function (e) {
-      var t = e.target && e.target.closest ? e.target.closest('#voiceMicBtn, #voiceConverseBtn') : null;
+      var t = e.target && e.target.closest ? e.target.closest(expandOn) : null;
       if (t && card.classList.contains('cgp-fc-collapsed')) set(f, false, true);
     }, true);
 
     // Keep the button's state in step with the voice buttons (added later by the voice script).
     var watched = {};
     function watch() {
-      ['voiceMicBtn', 'voiceConverseBtn'].forEach(function (id) {
+      watchIds.forEach(function (id) {
         var el = document.getElementById(id);
         if (el && !watched[id]) {
           watched[id] = true;
           new MutationObserver(function () {
-            if (voiceActive() && card.classList.contains('cgp-fc-collapsed')) set(f, false, false);
+            if (f.busy() && card.classList.contains('cgp-fc-collapsed')) set(f, false, false);
             paint(f);
-          }).observe(el, { attributes: true, attributeFilter: ['class'] });
+          }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
         }
       });
     }
     watch();
-    if (!watched.voiceMicBtn) {
-      var tries = 0, iv = setInterval(function () { watch(); if (watched.voiceMicBtn || ++tries > 40) clearInterval(iv); }, 250);
+    if (!watched[watchIds[0]]) {
+      var tries = 0, iv = setInterval(function () { watch(); if (watched[watchIds[0]] || ++tries > 40) clearInterval(iv); }, 250);
     }
 
     set(f, store(f.key) === '1', false);

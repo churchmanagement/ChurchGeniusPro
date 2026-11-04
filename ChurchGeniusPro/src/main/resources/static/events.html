@@ -187,18 +187,24 @@
     .rr-feedback.error { display:block; color:#c62828; }
     .rr-feedback.success { display:block; color:#2e7d32; }
 
-    /* ── Past tab: compact rows ── */
-    .past-list { display:flex; flex-direction:column; gap:6px; }
-    .past-row { display:flex; align-items:center; gap:10px; background:#fff; border-radius:10px; padding:8px 10px;
+    /* ── Past tab: compact cards, up to 3 per row (2026-11-03) ──
+       Each column is at least 240px and at least a third of the list, so the list shows
+       3 cards on desktop, 2 on medium widths and 1 on phones (min(100%,…) never overflows). */
+    .past-list { display:grid; gap:12px; align-items:stretch;
+                 grid-template-columns:repeat(auto-fill, minmax(min(100%, max(240px, calc((100% - 24px) / 3))), 1fr)); }
+    .past-row { display:flex; flex-wrap:wrap; align-items:flex-start; align-content:space-between; gap:10px;
+                background:#fff; border-radius:10px; padding:10px 12px; min-width:0;
                 box-shadow:0 1px 4px rgba(0,0,0,.06); border:1px solid #eee; cursor:pointer; }
     .past-row:hover { border-color:#c5a8b8; }
     .past-thumb { width:40px; height:40px; border-radius:7px; object-fit:cover; flex-shrink:0; background:#f3e9ee;
                   display:flex; align-items:center; justify-content:center; font-size:18px; color:#673147; }
-    .past-main { flex:1; min-width:0; }
-    .past-name { font-size:13.5px; font-weight:700; color:#1e2139; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .past-main { flex:1 1 calc(100% - 50px); min-width:0; }
+    .past-name { font-size:13.5px; font-weight:700; color:#1e2139; line-height:1.3; overflow-wrap:anywhere;
+                 display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; }
     .past-sub { font-size:12px; color:#777; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .past-sub .event-type-badge { margin:0; font-size:10.5px; padding:1px 7px; }
-    .past-actions { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+    .past-actions { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-start; width:100%;
+                    padding-top:8px; border-top:1px solid #f3eef1; }
     .past-act { width:30px; height:30px; border-radius:7px; border:1px solid #e3dbe0; background:#fff; font-size:14px; line-height:1;
                 cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
     .past-act:hover, .past-act:focus-visible { background:#f3e9ee; border-color:#c5a8b8; outline:none; }
@@ -212,9 +218,6 @@
 
     /* ── Responsive ── */
     @media (max-width: 600px) {
-      .past-row { flex-wrap:wrap; }
-      .past-main { flex-basis:calc(100% - 50px); }
-      .past-actions { width:100%; justify-content:flex-start; padding-left:50px; }
       .past-act { width:34px; height:34px; }
       .events-grid { grid-template-columns: 1fr; }
       .stats-row .stat-card { max-width: none; }
@@ -665,7 +668,7 @@
     return '<div class="past-row" role="listitem" data-id="' + ev.id + '" onclick="window.location.href=\'/event-details?eventId=' + ev.id + '\'">' +
       thumb +
       '<div class="past-main">' +
-        '<div class="past-name">' + esc(ev.eventName) + '</div>' +
+        '<div class="past-name" title="' + esc(ev.eventName) + '">' + esc(ev.eventName) + '</div>' +
         '<div class="past-sub"><span>' + esc(when) + '</span>' +
           '<span class="event-type-badge' + (isMulti ? ' multi' : '') + '">' + esc(ev.eventType || 'One Day') + '</span>' +
           (place ? '<span>' + esc(place) + '</span>' : '') +
