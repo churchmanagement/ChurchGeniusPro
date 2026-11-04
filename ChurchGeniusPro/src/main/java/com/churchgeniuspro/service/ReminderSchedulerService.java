@@ -2027,35 +2027,20 @@ public class ReminderSchedulerService {
              + "</div></body></html>";
     }
 
+    // Celebration emails are age-neutral (user decision 2026-11-04): never a person's age,
+    // an ordinal ("18th Birthday") or years married — only "Sam's Birthday" /
+    // "John & Mary's Wedding Anniversary". The stored birth/wedding year is not read here.
+
     private String buildBirthdayCelebrantBody(FamilyMember m) {
-        int currentYear = LocalDate.now().getYear();
-        // Build age phrase when birth year is recorded and yields a positive age
-        String agePhrase = "";
-        if (m.getBirthdayYear() != null && m.getBirthdayYear() > 0) {
-            int age = currentYear - m.getBirthdayYear();
-            if (age > 0) {
-                agePhrase = "<p>What a milestone — today you turn <strong>" + ordinal(age) + "</strong>!</p>";
-            }
-        }
         return wrapInTemplate("Happy Birthday, " + esc(firstNameWithNick(m)) + "! \uD83C\uDF82",
                 "<p>Wishing you a wonderful birthday filled with joy and blessings!</p>"
-              + agePhrase
               + "<p>May this special day bring you happiness and may the year ahead be full of God\u2019s grace.</p>");
     }
 
     private String buildBirthdayAudienceBody(FamilyMember celebrant) {
         String name = esc(fullNameWithNick(celebrant));
-        int currentYear = LocalDate.now().getYear();
-        // Append age milestone when birth year is available
-        String ageClause = "";
-        if (celebrant.getBirthdayYear() != null && celebrant.getBirthdayYear() > 0) {
-            int age = currentYear - celebrant.getBirthdayYear();
-            if (age > 0) {
-                ageClause = ", celebrating their <strong>" + ordinal(age) + " birthday</strong>";
-            }
-        }
         return wrapInTemplate("\uD83C\uDF82 Birthday Wishes for " + name,
-                "<p>Today is <strong>" + name + "</strong>\u2019s birthday" + ageClause + "!</p>"
+                "<p>Today is <strong>" + name + "</strong>\u2019s birthday!</p>"
               + "<p>Please join us in wishing " + esc(celebrant.getFirstName()) + " a wonderful birthday filled with blessings.</p>");
     }
 
@@ -2063,69 +2048,24 @@ public class ReminderSchedulerService {
      * Anniversary email to the couple themselves.
      *
      * @param coupleNames    display names of the couple (already HTML-escaped)
-     * @param anniversaryYear the year the couple married, or {@code null} if unknown
+     * @param anniversaryYear ignored — the email never states how many years (kept so callers are unchanged)
      */
     private String buildAnniversaryCelebrantBody(String coupleNames, Integer anniversaryYear) {
-        Integer years = yearsMarried(anniversaryYear);
-        String yearsPhrase = years != null
-                ? "<p>Congratulations on reaching your <strong>" + ordinal(years)
-                    + " wedding anniversary</strong>!</p>"
-                : "";
         return wrapInTemplate("Happy Anniversary, " + coupleNames + "! \uD83D\uDC8D",
-                "<p>Wishing you a joyful anniversary filled with love and blessings!</p>"
-              + yearsPhrase
+                "<p>Wishing you a joyful wedding anniversary filled with love and blessings!</p>"
               + "<p>May your marriage continue to be a blessing to all around you.</p>");
     }
 
     /**
-     * Anniversary email to members / guests.
+     * Anniversary email to members / guests: "Today is John &amp; Mary's wedding anniversary!".
      *
      * @param coupleNames    display names of the couple (already HTML-escaped)
-     * @param anniversaryYear the year the couple married, or {@code null} if unknown
+     * @param anniversaryYear ignored — the email never states how many years (kept so callers are unchanged)
      */
     private String buildAnniversaryAudienceBody(String coupleNames, Integer anniversaryYear) {
-        Integer years = yearsMarried(anniversaryYear);
-        // With a valid year: "\u2026's 1st wedding anniversary!"; without: "\u2026's wedding anniversary!"
-        String yearsClause = years != null
-                ? " <strong>" + ordinal(years) + " wedding anniversary</strong>"
-                : " wedding anniversary";
         return wrapInTemplate("\uD83D\uDC8D Anniversary Wishes for " + coupleNames,
-                "<p>Today is <strong>" + coupleNames + "</strong>\u2019s" + yearsClause + "!</p>"
+                "<p>Today is <strong>" + coupleNames + "</strong>\u2019s wedding anniversary!</p>"
               + "<p>Please join us in celebrating this special occasion with love and prayers.</p>");
-    }
-
-    /**
-     * Number of years married, derived from the stored wedding YEAR \u2014 or
-     * {@code null} when the ordinal must be omitted from the email.
-     *
-     * <p>The stored value is only trusted when it is a plausible wedding year
-     * (1900 \u2026 current year). This guards against bad data such as a duration
-     * ("5") or a mistyped value, which previously produced nonsense like
-     * "2021st wedding anniversary". A wedding earlier this year (0 years) also
-     * yields {@code null} so no ordinal is shown.
-     */
-    private Integer yearsMarried(Integer anniversaryYear) {
-        if (anniversaryYear == null) return null;
-        int currentYear = LocalDate.now().getYear();
-        if (anniversaryYear < 1900 || anniversaryYear > currentYear) return null;
-        int years = currentYear - anniversaryYear;
-        return years > 0 ? years : null;
-    }
-
-    /**
-     * Returns the English ordinal string for a positive integer.
-     * Examples: 1 → "1st", 2 → "2nd", 3 → "3rd", 11 → "11th", 21 → "21st".
-     */
-    private String ordinal(int n) {
-        if (n <= 0) return String.valueOf(n);
-        // 11th, 12th, 13th are exceptions to the normal suffix rule
-        if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
-        switch (n % 10) {
-            case 1:  return n + "st";
-            case 2:  return n + "nd";
-            case 3:  return n + "rd";
-            default: return n + "th";
-        }
     }
 
     private String buildMonthlySummaryBody(String monthName,
