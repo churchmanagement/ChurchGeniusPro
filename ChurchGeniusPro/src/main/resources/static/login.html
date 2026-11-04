@@ -451,6 +451,7 @@
               applyLoginData(data);
               return;
             }
+            if (data.code === 'KIDS_PORTAL_AGE' && data.message) errorMsg.textContent = data.message;
           } catch (_) { /* ignore — proceed to manual login */ }
 
           /* Mobile Phase 6: in the app, a stored device secret signs in behind the
@@ -483,6 +484,17 @@
           errorMsg.textContent = reason === 'idle'
             ? 'You were signed out after a period of inactivity. Please sign in again.'
             : 'Your session has expired. Please sign in again.';
+        }
+        /* Kids Portal 13+ rule (2026-11-04): an open session ended because the church's
+           record no longer allows this login. Fixed wording only — never echoed from the URL. */
+        var AGE_REASONS = {
+          'dob':        'Kids Portal needs your child\'s full date of birth in the church\'s records. Please contact your church office (Admin) to update it.',
+          'age':        'Kids Portal is available for children aged 13 and older. If the date of birth in the church\'s records is wrong, please contact your church office.',
+          'age-member': 'Online accounts are available only to people aged 13 and older. If the date of birth in the church\'s records is wrong, please contact your church office.'
+        };
+        if (Object.prototype.hasOwnProperty.call(AGE_REASONS, reason)) {
+          errorMsg.style.color = '#8a6d3b';
+          errorMsg.textContent = AGE_REASONS[reason];
         }
         var nextPath = urlParams.get('next');
         if (nextPath && /^\/[A-Za-z0-9_\-./?=&%]*$/.test(nextPath) && nextPath.indexOf('//') !== 0) {
@@ -898,4 +910,4 @@
   </script>
   <script src="/legal-footer.js"></script>
   </body>
-</html>
+</html>

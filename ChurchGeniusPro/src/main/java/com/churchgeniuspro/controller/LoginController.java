@@ -18,6 +18,7 @@ import com.churchgeniuspro.service.RememberMeService;
 import com.churchgeniuspro.service.SecurityAuditService;
 import com.churchgeniuspro.service.SubscriptionService;
 import com.churchgeniuspro.util.PasswordUtil;
+import com.churchgeniuspro.util.KidsPortalEligibility;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -359,6 +360,19 @@ public class LoginController {
             }
         }
 
+        // ── Kids Portal 13+ rule (2026-11-04) ───────────────────────────────
+        // Correct password, so a denial — never a failure count. Every stored sign-in
+        // for this login is revoked so nothing stays remembered for an under-13.
+        String ageBlock = ageRefusal(user);
+        if (ageBlock != null) {
+            loginProtection.recordDenied(request, username, "KIDS_PORTAL_AGE", user.getClientId(), "/login");
+            forgetStoredSignIns(user, request, response);
+            res.put("status",  "error");
+            res.put("code",    KidsPortalEligibility.CODE);
+            res.put("message", ageBlock);
+            return ResponseEntity.status(403).body(res);
+        }
+
         // ── Build session ──────────────────────────────────────────────────
         HttpSession existing = request.getSession(false);
         if (existing != null) existing.invalidate();
@@ -471,6 +485,16 @@ public class LoginController {
             res.put("status", "none");
             return ResponseEntity.ok(res);
         }
+        String ageBlock = ageRefusal(resolved.user());            // Kids Portal 13+ rule
+        if (ageBlock != null) {
+            LOG.warn("Device login refused for signup {} — Kids Portal age rule", resolved.user().getId());
+            rememberMe.revokeSecret(raw);
+            forgetStoredSignIns(resolved.user(), request, null);
+            res.put("status",  "none");
+            res.put("code",    KidsPortalEligibility.CODE);
+            res.put("message", ageBlock);
+            return ResponseEntity.ok(res);
+        }
 
         HttpSession session = establishAutoLoginSession(resolved.user(), request, res);
         if (isAppShell(request) && RoleGuard.isKidsPortalSession(session)) {   // Mobile Phase 3 (M6)
@@ -543,6 +567,15 @@ public class LoginController {
             if (user != null) LOG.warn("Remember-me refused for username='{}' — {}", user.getUsername(), refusal);
             rememberMe.revokeCurrent(request, response);
             res.put("status", "none");
+            return ResponseEntity.ok(res);
+        }
+        String ageBlock = ageRefusal(user);                       // Kids Portal 13+ rule
+        if (ageBlock != null) {
+            LOG.warn("Remember-me refused for signup {} — Kids Portal age rule", user.getId());
+            forgetStoredSignIns(user, request, response);
+            res.put("status",  "none");
+            res.put("code",    KidsPortalEligibility.CODE);
+            res.put("message", ageBlock);
             return ResponseEntity.ok(res);
         }
 
@@ -824,6 +857,13 @@ public class LoginController {
                 return ResponseEntity.status(403).body(res);
             }
 
+            String ageBlock = ageRefusal(targetSignup);           // Kids Portal 13+ rule
+            if (ageBlock != null) {
+                res.put("error", ageBlock);
+                res.put("code",  KidsPortalEligibility.CODE);
+                return ResponseEntity.status(403).body(res);
+            }
+
             boolean targetIsChurch = Boolean.TRUE.equals(targetSignup.getChurch());
             currentSession.invalidate();
             HttpSession newSession = request.getSession(true);
@@ -1083,6 +1123,41 @@ public class LoginController {
 
         return "This subscription expired on " + end + " and access has ended. "
              + "Please contact your administrator to renew it.";
+    }
+
+    /**
+     * Kids Portal 13+ rule (2026-11-04): why this login may NOT sign in, or null when it
+     * may. Only member/child portal logins ({@code MBR…}) are checked; the date of birth
+     * is the church's family record ({@link KidsPortalEligibility}).
+     *
+     * <p>A lookup error does not block the sign-in (same rule as the subscription check:
+     * a lookup problem must never cost a member their sign-in). That is safe for this
+     * rule because {@link #buildResponse} reads the same record: when it cannot, the
+     * session gets no {@code memberId}, so it is never a Kids Portal session, and the
+     * open-session check ({@code KidsPortalAgeFilter}) re-reads the record later.
+     */
+    String ageRefusal(SignUp user) {
+        if (user == null || user.getClientId() == null
+                || !user.getClientId().toUpperCase().startsWith("MBR")) return null;
+        try {
+            FamilyMember fm = familyMemberRepository.findByMemberRef(user.getClientId()).orElse(null);
+            return KidsPortalEligibility.message(fm);
+        } catch (Exception e) {
+            LOG.warn("[KidsPortalAge] eligibility check failed for signup {} — not blocking: {}",
+                    user.getId(), com.churchgeniuspro.util.LogSafe.exception(e));
+            return null;
+        }
+    }
+
+    /** Refused for age: no remembered browser or app sign-in may stay stored for this login (D2). */
+    private void forgetStoredSignIns(SignUp user, HttpServletRequest request, HttpServletResponse response) {
+        try {
+            if (response != null) rememberMe.revokeCurrent(request, response);
+            if (user != null && user.getId() != null) rememberMe.revokeAllFor(user.getId());
+        } catch (Exception e) {
+            LOG.warn("[KidsPortalAge] could not revoke stored sign-ins for signup {}: {}",
+                    user == null ? null : user.getId(), com.churchgeniuspro.util.LogSafe.exception(e));
+        }
     }
 
     /**

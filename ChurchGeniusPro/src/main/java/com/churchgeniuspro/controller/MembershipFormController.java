@@ -763,6 +763,12 @@ public class MembershipFormController {
         if (!fromThisChurch || alreadyBound) {
             return ResponseEntity.badRequest().body(Map.of("error", "Signup not found"));
         }
+        // Kids Portal 13+ rule (2026-11-04): no login for an undated child or anyone under 13.
+        String ageBlock = com.churchgeniuspro.util.KidsPortalEligibility.message(fm);
+        if (ageBlock != null) {
+            return ResponseEntity.status(403).body(Map.of("error", ageBlock,
+                    "code", com.churchgeniuspro.util.KidsPortalEligibility.CODE));
+        }
         // Link by setting the family member's memberRef to match the signup's clientId
         if (su.getClientId() != null && su.getClientId().startsWith("MBR")) {
             fm.setMemberRef(su.getClientId());
@@ -857,6 +863,16 @@ public class MembershipFormController {
         // Ensure the target member is in the same family
         if (fm.getFamily() == null || !fm.getFamily().getId().equals(self.getFamily().getId()))
             return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+
+        // Kids Portal 13+ rule (2026-11-04): the church's record is the only source of a
+        // child's date of birth. From the member portal it cannot be changed for a
+        // child-role member or anyone the record shows is under 13, and a Kids Portal
+        // session cannot change anyone's. Sending the stored value back is fine.
+        if (birthDateChanges(body, fm)
+                && (com.churchgeniuspro.util.RoleGuard.isKidsPortalSession(session) || birthDateLocked(fm))) {
+            return ResponseEntity.status(403).body(Map.of("error", BIRTH_DATE_LOCKED_MESSAGE,
+                    "code", "BIRTH_DATE_LOCKED"));
+        }
 
         // Apply editable fields (no role/family changes allowed via member portal)
         if (body.containsKey("firstName"))  fm.setFirstName(str(body, "firstName"));
@@ -1845,6 +1861,25 @@ public class MembershipFormController {
     }
 
     // -- Helper: safe Integer extraction from a Map<String,Object> ----------
+
+    static final String BIRTH_DATE_LOCKED_MESSAGE =
+            "A child's date of birth can only be changed by the church office. Please contact your church office.";
+
+    /** A child-role member, or anyone the church's record shows is under 13. */
+    static boolean birthDateLocked(FamilyMember fm) {
+        if (com.churchgeniuspro.util.KidsPortalEligibility.isChildRole(fm.getRole())) return true;
+        java.time.LocalDate today = com.churchgeniuspro.util.AppClock.today();
+        java.time.LocalDate dob = com.churchgeniuspro.util.KidsPortalEligibility.dateOfBirth(
+                fm.getBirthdayYear(), fm.getBirthdayMonth(), fm.getBirthdayDay(), today);
+        return dob != null && com.churchgeniuspro.util.KidsPortalEligibility.isUnder13(dob, today);
+    }
+
+    /** True when the body sends a birthday part that differs from the stored one. */
+    private boolean birthDateChanges(Map<String, Object> body, FamilyMember fm) {
+        return (body.containsKey("birthdayMonth") && !java.util.Objects.equals(intVal(body, "birthdayMonth"), fm.getBirthdayMonth()))
+            || (body.containsKey("birthdayDay")   && !java.util.Objects.equals(intVal(body, "birthdayDay"),   fm.getBirthdayDay()))
+            || (body.containsKey("birthdayYear")  && !java.util.Objects.equals(intVal(body, "birthdayYear"),  fm.getBirthdayYear()));
+    }
 
     private Integer intVal(Map<String, Object> m, String key) {
         Object v = m.get(key);

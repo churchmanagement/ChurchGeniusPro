@@ -55,6 +55,33 @@ public class FamilyService {
         this.familyMemberRepository = familyMemberRepository;
     }
 
+    /** Optional: tells the family page which members hold a login (Kids Portal badge, D3). */
+    private com.churchgeniuspro.repository.LoginRepository loginRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setLoginRepository(com.churchgeniuspro.repository.LoginRepository loginRepository) {
+        this.loginRepository = loginRepository;
+    }
+
+    /**
+     * Kids Portal 13+ rule (D3): {@code MISSING_DOB} or {@code UNDER_13} for a member who
+     * holds a live login the age rule now refuses, else null. Display only.
+     */
+    String kidsPortalStatus(FamilyMember m) {
+        if (loginRepository == null || m == null || m.isDeleteFlag()
+                || m.getMemberRef() == null || m.getMemberRef().isBlank()) return null;
+        com.churchgeniuspro.util.KidsPortalEligibility.Status st = com.churchgeniuspro.util.KidsPortalEligibility.check(m);
+        if (st == com.churchgeniuspro.util.KidsPortalEligibility.Status.OK) return null;
+        try {
+            boolean hasLogin = loginRepository.findByClientId(m.getMemberRef())
+                    .filter(su -> !Boolean.FALSE.equals(su.getActive()) && !Boolean.TRUE.equals(su.getDeleted()))
+                    .isPresent();
+            return hasLogin ? st.name() : null;
+        } catch (Exception e) {
+            return null;   // display only
+        }
+    }
+
     // ── Save (create) ─────────────────────────────────────────────────────
 
     @Transactional
@@ -465,6 +492,7 @@ public class FamilyService {
             row.put("disableAlerts",       m.isDisableAlerts());
             row.put("includeContributions",m.isIncludeContributions());
             row.put("photoData",           m.getPhotoData());
+            row.put("kidsPortalStatus",    kidsPortalStatus(m));
             return row;
         }).collect(Collectors.toList()));
 

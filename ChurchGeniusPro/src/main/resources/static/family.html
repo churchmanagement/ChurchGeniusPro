@@ -239,7 +239,9 @@
       .form-grid.cols-5 { grid-template-columns: 1fr 1fr 1fr; }
       .span-2, .span-3 { grid-column: span 1; }
     }
-  </style>
+    .kp-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;
+              background:#fff4e5; color:#8a4b00; border:1px solid #f3c58b; white-space:normal; vertical-align:middle; }
+</style>
 </head>
 <body>
 <div class="app">
@@ -1128,6 +1130,13 @@
   /* ════════════════════════════════════
      RENDER MEMBERS LIST TABLE
   ════════════════════════════════════ */
+  /* Kids Portal 13+ rule (2026-11-04): why this member's login is refused at sign-in. */
+  function kidsPortalBadge(status) {
+    if (status === 'MISSING_DOB') return ' <span class="kp-badge" title="This login cannot sign in until a full date of birth (month, day and year) is entered.">Kids Portal: needs full date of birth</span>';
+    if (status === 'UNDER_13')    return ' <span class="kp-badge" title="Logins are available from age 13, based on the date of birth in this record.">Login blocked: under 13</span>';
+    return '';
+  }
+
   function renderMembersList() {
     const tbody = document.getElementById('membersListBody');
     if (!familyMembers.length) {
@@ -1140,7 +1149,7 @@
         : escHtml([m.firstName, m.lastName].filter(Boolean).join(' ')));
       return `<tr>
         <td>${i + 1}</td>
-        <td><strong>${nameHtml}</strong></td>
+        <td><strong>${nameHtml}</strong>${kidsPortalBadge(m.kidsPortalStatus)}</td>
         <td>${escHtml(m.memberType || 'Member')}</td>
         <td>${formatPhone(m.phone)}${m.phonePrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}</td>
         <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}${m.emailPrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}${m.addressPrivate ? ' <span title="Address Private — hidden from members" style="font-size:11px;">🔒🏠</span>' : ''}</td>
@@ -1593,6 +1602,7 @@
         emailPrivate:         !!m.emailPrivate,
         addressPrivate:       !!m.addressPrivate,
         role:                 uiRole,
+        kidsPortalStatus:     m.kidsPortalStatus || null,   /* display only (Kids Portal 13+ rule) */
       });
     });
 
