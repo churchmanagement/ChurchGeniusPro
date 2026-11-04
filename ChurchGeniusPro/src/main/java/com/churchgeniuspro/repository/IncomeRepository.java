@@ -409,18 +409,41 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
      * null for a campaign with no end, in which case there is no upper bound.
      * Returns null when there are no matching rows (caller treats as zero).
      */
+    default BigDecimal sumMemberSubSourceTotal(Integer memberId, Integer subSourceId, String appClientId,
+                                               LocalDate startDate, LocalDate endDate) {
+        // A null date parameter cannot be typed by the PostgreSQL driver ("could not determine
+        // data type of parameter"), so a campaign without an end date uses its own query
+        // instead of "(:endDate IS NULL OR …)" — that form made /api/pledges/campaigns fail
+        // with a 500 for every church that had such a campaign (2026-11-04).
+        return endDate == null
+                ? sumMemberSubSourceTotalFrom(memberId, subSourceId, appClientId, startDate)
+                : sumMemberSubSourceTotalBetween(memberId, subSourceId, appClientId, startDate, endDate);
+    }
+
     @Query("SELECT SUM(i.amount) FROM Income i " +
            "WHERE i.deleteFlag = false " +
            "AND i.member.id = :memberId " +
            "AND i.subSource.id = :subSourceId " +
            "AND (:appClientId IS NULL OR i.appClientId = :appClientId) " +
            "AND i.incomeDate >= :startDate " +
-           "AND (:endDate IS NULL OR i.incomeDate <= :endDate)")
-    BigDecimal sumMemberSubSourceTotal(@Param("memberId")    Integer memberId,
-                                       @Param("subSourceId") Integer subSourceId,
-                                       @Param("appClientId") String  appClientId,
-                                       @Param("startDate")   LocalDate startDate,
-                                       @Param("endDate")     LocalDate endDate);
+           "AND i.incomeDate <= :endDate")
+    BigDecimal sumMemberSubSourceTotalBetween(@Param("memberId")    Integer memberId,
+                                              @Param("subSourceId") Integer subSourceId,
+                                              @Param("appClientId") String  appClientId,
+                                              @Param("startDate")   LocalDate startDate,
+                                              @Param("endDate")     LocalDate endDate);
+
+    /** {@link #sumMemberSubSourceTotal} for a campaign with no end date. */
+    @Query("SELECT SUM(i.amount) FROM Income i " +
+           "WHERE i.deleteFlag = false " +
+           "AND i.member.id = :memberId " +
+           "AND i.subSource.id = :subSourceId " +
+           "AND (:appClientId IS NULL OR i.appClientId = :appClientId) " +
+           "AND i.incomeDate >= :startDate")
+    BigDecimal sumMemberSubSourceTotalFrom(@Param("memberId")    Integer memberId,
+                                           @Param("subSourceId") Integer subSourceId,
+                                           @Param("appClientId") String  appClientId,
+                                           @Param("startDate")   LocalDate startDate);
 
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
