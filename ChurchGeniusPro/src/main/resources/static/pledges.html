@@ -311,19 +311,18 @@
 
   /* ── Initial data load ─────────────────────────────────────────────── */
   function loadAll() {
-    return Promise.all([
-      CGP_api('/api/income/sub-sources'),
-      CGP_api('/api/income/contributors'),
-      CGP_api('/api/pledges/campaigns'),
-    ]).then(function (out) {
-      ALL_SUBSOURCES = out[0] || [];
-      ALL_MEMBERS    = out[1] || [];
-      ALL_CAMPAIGNS  = out[2] || [];
-      populateSubSourceSelect();
-      renderCampaigns();
-    }).catch(function (e) {
-      flash(CGP_errorMessage(e, 'Failed to load campaigns.'), 'error');
-    });
+    // Each list loads on its own, so a failure in one (e.g. the campaigns list) no longer
+    // leaves the Fund drop-down and the member picker empty (2026-11-04).
+    var funds = CGP_api('/api/income/sub-sources').then(function (r) {
+      ALL_SUBSOURCES = r || []; populateSubSourceSelect();
+    }).catch(function (e) { flash(CGP_errorMessage(e, 'Failed to load funds.'), 'error'); });
+    var members = CGP_api('/api/income/contributors').then(function (r) {
+      ALL_MEMBERS = r || [];
+    }).catch(function (e) { flash(CGP_errorMessage(e, 'Failed to load members.'), 'error'); });
+    var campaigns = CGP_api('/api/pledges/campaigns').then(function (r) {
+      ALL_CAMPAIGNS = r || [];
+    }).catch(function (e) { ALL_CAMPAIGNS = []; flash(CGP_errorMessage(e, 'Failed to load campaigns.'), 'error'); });
+    return Promise.all([funds, members, campaigns]).then(function () { renderCampaigns(); });
   }
 
   /* ── Campaign cards ────────────────────────────────────────────────── */
