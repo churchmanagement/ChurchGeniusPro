@@ -327,6 +327,51 @@ public class FollowUpController {
         return "forward:/followups.html";
     }
 
+    // ── Visitors tab (2026-11-04) ─────────────────────────────────────────
+    /** Visitor details for the Visitors tab; optional so hand-built tests are unchanged. */
+    private com.churchgeniuspro.repository.AttendanceVisitorRepository visitorRepo;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setVisitorRepo(com.churchgeniuspro.repository.AttendanceVisitorRepository r) { this.visitorRepo = r; }
+
+    /**
+     * Follow-ups created from visitor check-in (linkedType VISITOR) with the visitor's contact details.
+     * Same visibility as the main list: admins see all, Users only tasks assigned to them.
+     */
+    @ResponseBody
+    @GetMapping("/api/followups/visitors")
+    public ResponseEntity<?> visitorFollowUps(@RequestParam(required = false) String status, HttpServletRequest req) {
+        String clientId = resolveClientId(req);
+        if (clientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        List<FollowUp> rows = isAdmin(req)
+                ? followUpRepo.findByClientIdAndLinkedTypeAndDeleteFlagFalseOrderByCreatedAtDesc(clientId, "VISITOR")
+                : followUpRepo.findByClientIdAndLinkedTypeAndAssignedToAndDeleteFlagFalseOrderByCreatedAtDesc(
+                        clientId, "VISITOR", currentUsername(req));
+        String st = status == null || status.isBlank() ? null : status.trim().toUpperCase(java.util.Locale.ROOT);
+        Set<Long> ids = new HashSet<>();
+        for (FollowUp f : rows) if (f.getLinkedId() != null) ids.add(f.getLinkedId());
+        Map<Long, com.churchgeniuspro.hibernate.AttendanceVisitor> vs = new HashMap<>();
+        if (visitorRepo != null && !ids.isEmpty())
+            for (var v : visitorRepo.findByClientIdAndIdInAndDeleteFlagFalse(clientId, ids)) vs.put(v.getId(), v);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (FollowUp f : rows) {
+            if (st != null && !("OPEN".equals(st) ? ("PENDING".equals(f.getStatus()) || "MISSED".equals(f.getStatus())) : st.equals(f.getStatus())))
+                continue;
+            Map<String, Object> m = toMap(f);
+            var v = vs.get(f.getLinkedId());
+            m.put("visitorDeleted", v == null);
+            if (v != null) {
+                m.put("visitorName", v.getName());
+                m.put("visitorPhone", v.getPhone());
+                m.put("visitorEmail", v.getEmail());
+                m.put("visitorLastVisit", v.getLastVisitDate() == null ? null : v.getLastVisitDate().toString());
+                m.put("visitorVisits", v.getVisitCount());
+                m.put("visitorInterest", v.getInterestLevel());
+            }
+            out.add(m);
+        }
+        return ResponseEntity.ok(out);
+    }
+
     // ── List ──────────────────────────────────────────────────────────────
 
     @ResponseBody

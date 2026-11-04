@@ -86,6 +86,30 @@ public class AttendanceRecord {
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag = false;
 
+    // ── Visitor check-in links (2026-11-04); all nullable, older rows keep them empty ──
+
+    /** The Attendance page's own service/event entry ({@link AttendanceServiceType}). */
+    @Column(name = "service_type_id")
+    private Long serviceTypeId;
+
+    /** The visitor family/group this check-in belongs to ({@link VisitorParty}). */
+    @Column(name = "party_id")
+    private Long partyId;
+
+    /** Interest recorded on this visit: INTERESTED, NOT_SURE, NOT_INTERESTED. */
+    @Column(name = "interest_level", length = 20)
+    private String interestLevel;
+
+    @Column(name = "follow_up_required")
+    private Boolean followUpRequired;
+
+    @Column(name = "visit_note", columnDefinition = "TEXT")
+    private String visitNote;
+
+    /** The follow-up task this visit raised or was added to. */
+    @Column(name = "follow_up_id")
+    private Long followUpId;
+
     @PrePersist
     protected void onCreate() {
         if (this.createdDate == null) this.createdDate = LocalDateTime.now();

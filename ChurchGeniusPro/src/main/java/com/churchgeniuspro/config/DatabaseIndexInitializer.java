@@ -75,6 +75,12 @@ public class DatabaseIndexInitializer {
             "CREATE INDEX IF NOT EXISTS idx_follow_up_client_member ON follow_up(client_id, assigned_member_id)",
             "CREATE INDEX IF NOT EXISTS idx_group_member_client_member ON group_member(app_client_id, family_member_id)",
 
+            // Attendance visitor check-in (2026-11-04): people of a visitor family/group, a
+            // visitor's visits, and the open follow-up linked to a visitor. Also in migrate_production.sql.
+            "CREATE INDEX IF NOT EXISTS idx_att_visitor_client_party ON attendance_visitor(client_id, party_id)",
+            "CREATE INDEX IF NOT EXISTS idx_att_record_client_visitor ON attendance_record(client_id, visitor_id)",
+            "CREATE INDEX IF NOT EXISTS idx_follow_up_client_linked ON follow_up(client_id, linked_type, linked_id)",
+
             // Per-tenant security reporting: "show this church its sign-ins for last month".
             // Also in migrate_production.sql; created here too so the index cannot go missing
             // just because the manual migration step was skipped.

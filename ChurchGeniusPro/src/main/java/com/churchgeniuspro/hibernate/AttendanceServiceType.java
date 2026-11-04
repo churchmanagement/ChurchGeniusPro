@@ -43,4 +43,11 @@ public class AttendanceServiceType {
 
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag = false;
+
+    /**
+     * Date of an EVENT created on the Attendance page (2026-11-04), used by the Today /
+     * Future / Past filters. Empty for a service, which repeats.
+     */
+    @Column(name = "event_date")
+    private java.time.LocalDate eventDate;
 }

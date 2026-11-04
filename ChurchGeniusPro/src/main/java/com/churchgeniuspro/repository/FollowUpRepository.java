@@ -76,4 +76,9 @@ public interface FollowUpRepository extends JpaRepository<FollowUp, Long> {
                                       @org.springframework.data.repository.query.Param("assignedTo") String assignedTo,
                                       @org.springframework.data.repository.query.Param("statuses") java.util.Collection<String> statuses);
 
+    /** Follow-ups of one linked kind (e.g. VISITOR), newest first — Follow-ups → Visitors tab. */
+    List<FollowUp> findByClientIdAndLinkedTypeAndDeleteFlagFalseOrderByCreatedAtDesc(String clientId, String linkedType);
+
+    List<FollowUp> findByClientIdAndLinkedTypeAndAssignedToAndDeleteFlagFalseOrderByCreatedAtDesc(
+            String clientId, String linkedType, String assignedTo);
 }

@@ -2,6 +2,7 @@ package com.churchgeniuspro.service;
 
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
+import com.churchgeniuspro.util.AppClock;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -174,20 +175,39 @@ public class AttendanceService {
     }
 
     // ── Check-in ────────────────────────────────────────────────────────────────
-    /** Member check-in (idempotent per member+date+service). */
+    /** Member check-in (idempotent per member+date+service), today in church time. */
     public AttendanceRecord checkInMember(String clientId, String createdBy, Integer memberId, String name,
                                           String service, String ministry, String campus, String status, String method) {
+        return checkInMember(clientId, createdBy, memberId, name, service, null, null, ministry, campus, status, method);
+    }
+
+    /**
+     * Member check-in for a chosen date (2026-11-04, D8): past and future dates allowed; any day other
+     * than today (church time) is saved already checked out. {@code serviceTypeId} links the record to
+     * the church's own service/event row; the name stays in {@code service_type} for older reports.
+     */
+    public AttendanceRecord checkInMember(String clientId, String createdBy, Integer memberId, String name,
+                                          String service, Long serviceTypeId, LocalDate date,
+                                          String ministry, String campus, String status, String method) {
         memberRepo.findByIdAndTenant(memberId, clientId)
                 .orElseThrow(() -> new IllegalArgumentException("Member not found: " + memberId));
-        AttendanceRecord a = recordRepo.findDuplicate(clientId, LocalDate.now(), service, "MEMBER", memberId, null)
+        LocalDate day = date != null ? date : AppClock.today();
+        VisitorCheckInService.checkDateRange(day);
+        AttendanceRecord a = recordRepo
+                .findFirstByClientIdAndAttendanceDateAndServiceTypeAndFamilyMemberIdAndDeleteFlagFalse(clientId, day, service, memberId)
                 .orElseGet(AttendanceRecord::new);
         a.setClientId(clientId);
-        a.setAttendanceDate(LocalDate.now());
-        if (a.getCheckInTime() == null) a.setCheckInTime(LocalDateTime.now());
+        a.setAttendanceDate(day);
+        if (a.getCheckInTime() == null) {
+            LocalDateTime[] t = VisitorCheckInService.timesFor(day);
+            a.setCheckInTime(t[0]);
+            a.setCheckOutTime(t[1]);
+        }
         a.setPersonType("MEMBER");
         a.setFamilyMemberId(memberId);
         a.setPersonName(name);
         a.setServiceType(service);
+        if (serviceTypeId != null) a.setServiceTypeId(serviceTypeId);
         a.setMinistry(blankNull(ministry));
         a.setCampus(blankNull(campus));
         a.setStatus(normStatus(status));
@@ -199,10 +219,17 @@ public class AttendanceService {
 
     public List<AttendanceRecord> familyCheckIn(String clientId, String createdBy, Integer familyId,
                                                 String service, String ministry, String campus, String status, List<Integer> memberIds) {
+        return familyCheckIn(clientId, createdBy, familyId, service, null, null, ministry, campus, status, memberIds);
+    }
+
+    public List<AttendanceRecord> familyCheckIn(String clientId, String createdBy, Integer familyId,
+                                                String service, Long serviceTypeId, LocalDate date,
+                                                String ministry, String campus, String status, List<Integer> memberIds) {
         List<AttendanceRecord> out = new ArrayList<>();
         for (FamilyMember m : activeFamilyMembers(clientId, familyId)) {
             if (memberIds != null && !memberIds.isEmpty() && !memberIds.contains(m.getId())) continue;
-            out.add(checkInMember(clientId, createdBy, m.getId(), fullName(m), service, ministry, campus, status, "family"));
+            out.add(checkInMember(clientId, createdBy, m.getId(), fullName(m), service, serviceTypeId, date,
+                    ministry, campus, status, "family"));
         }
         return out;
     }
@@ -220,7 +247,7 @@ public class AttendanceService {
         if (isNew) {
             v = new AttendanceVisitor();
             v.setClientId(clientId);
-            v.setFirstVisitDate(LocalDate.now());
+            v.setFirstVisitDate(AppClock.today());
             v.setVisitCount(0);
         }
         if (name != null && !name.isBlank()) v.setName(name.trim());
@@ -228,12 +255,12 @@ public class AttendanceService {
         if (email != null && !email.isBlank()) v.setEmail(email.trim());
         if (address != null && !address.isBlank()) v.setAddress(address.trim());
         if (invitedBy != null && !invitedBy.isBlank()) v.setInvitedBy(invitedBy.trim());
-        v.setLastVisitDate(LocalDate.now());
+        v.setLastVisitDate(AppClock.today());
         v.setVisitCount(v.getVisitCount() + 1);
         visitorRepo.save(v);
 
         AttendanceRecord a = new AttendanceRecord();
-        a.setClientId(clientId); a.setAttendanceDate(LocalDate.now()); a.setCheckInTime(LocalDateTime.now());
+        a.setClientId(clientId); a.setAttendanceDate(AppClock.today()); a.setCheckInTime(LocalDateTime.now(AppClock.ZONE));
         a.setPersonType("VISITOR"); a.setVisitorId(v.getId()); a.setPersonName(v.getName());
         a.setServiceType(service); a.setMinistry(blankNull(ministry)); a.setCampus(blankNull(campus));
         a.setStatus(normStatus(status)); a.setCheckInMethod("manual"); a.setCreatedBy(createdBy);
@@ -248,13 +275,13 @@ public class AttendanceService {
 
     public boolean checkOut(Long recordId, String clientId) {
         return recordRepo.findByIdAndClientIdAndDeleteFlagFalse(recordId, clientId).map(a -> {
-            a.setCheckOutTime(LocalDateTime.now()); recordRepo.save(a); return true;
+            a.setCheckOutTime(LocalDateTime.now(AppClock.ZONE)); recordRepo.save(a); return true;
         }).orElse(false);
     }
 
     // ── Dashboard ────────────────────────────────────────────────────────────────
     public Map<String, Object> dashboard(String clientId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         LocalDate weekStart = today.with(DayOfWeek.MONDAY), weekEnd = weekStart.plusDays(6);
         LocalDate monthStart = today.withDayOfMonth(1), monthEnd = today.withDayOfMonth(today.lengthOfMonth());
 
@@ -291,7 +318,7 @@ public class AttendanceService {
 
     // ── Trends ───────────────────────────────────────────────────────────────────
     public List<Map<String, Object>> weeklyTrend(String clientId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         LocalDate end = today.with(DayOfWeek.SUNDAY);
         List<Map<String, Object>> out = new ArrayList<>();
         for (int i = 7; i >= 0; i--) {
@@ -304,7 +331,7 @@ public class AttendanceService {
     }
 
     public List<Map<String, Object>> monthlyTrend(String clientId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         List<Map<String, Object>> out = new ArrayList<>();
         for (int i = 11; i >= 0; i--) {
             LocalDate mStart = today.minusMonths(i).withDayOfMonth(1);
@@ -317,12 +344,12 @@ public class AttendanceService {
     }
 
     public List<Map<String, Object>> byField(String clientId, boolean ministry) {
-        return byField(clientId, ministry, LocalDate.now().minusMonths(3), LocalDate.now());
+        return byField(clientId, ministry, AppClock.today().minusMonths(3), AppClock.today());
     }
 
     public List<Map<String, Object>> byField(String clientId, boolean ministry, LocalDate from, LocalDate to) {
-        LocalDate f = from != null ? from : LocalDate.now().minusMonths(3);
-        LocalDate t = to   != null ? to   : LocalDate.now();
+        LocalDate f = from != null ? from : AppClock.today().minusMonths(3);
+        LocalDate t = to   != null ? to   : AppClock.today();
         Map<String, Long> counts = new TreeMap<>();
         for (AttendanceRecord a : recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(clientId, f, t)) {
             if (!isPresent(a)) continue;
@@ -334,7 +361,7 @@ public class AttendanceService {
     }
 
     public List<Map<String, Object>> yearlyTrend(String clientId) {
-        int year = LocalDate.now().getYear();
+        int year = AppClock.today().getYear();
         List<Map<String, Object>> out = new ArrayList<>();
         for (int y = year - 4; y <= year; y++) {
             long c = recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(
@@ -352,8 +379,8 @@ public class AttendanceService {
     // ── Reports ──────────────────────────────────────────────────────────────────
     /** Per-member: attendance %, last attendance, consecutive absences (over a range). */
     public List<Map<String, Object>> memberReport(String clientId, LocalDate from, LocalDate to) {
-        LocalDate f = from != null ? from : LocalDate.now().minusMonths(3);
-        LocalDate t = to   != null ? to   : LocalDate.now();
+        LocalDate f = from != null ? from : AppClock.today().minusMonths(3);
+        LocalDate t = to   != null ? to   : AppClock.today();
         List<AttendanceRecord> recs = recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(clientId, f, t);
         List<LocalDate> serviceDays = recs.stream().filter(this::isPresent)
                 .map(AttendanceRecord::getAttendanceDate).distinct()
@@ -389,8 +416,8 @@ public class AttendanceService {
 
     /** Per-family summary: check-ins, distinct members attended, last attendance. */
     public List<Map<String, Object>> familyReport(String clientId, LocalDate from, LocalDate to) {
-        LocalDate f = from != null ? from : LocalDate.now().minusMonths(3);
-        LocalDate t = to   != null ? to   : LocalDate.now();
+        LocalDate f = from != null ? from : AppClock.today().minusMonths(3);
+        LocalDate t = to   != null ? to   : AppClock.today();
         Map<Integer, Integer> memberFamily = new HashMap<>();
         Map<Integer, String> familyName = new HashMap<>();
         for (FamilyMember m : memberRepo.findAllWithFamilyByAppUser(clientId)) {
@@ -426,7 +453,7 @@ public class AttendanceService {
 
     /** Visitor report: first-time, returning, and follow-up lists. */
     public Map<String, Object> visitorReport(String clientId) {
-        LocalDate cutoff = LocalDate.now().minusDays(60);
+        LocalDate cutoff = AppClock.today().minusDays(60);
         List<Map<String, Object>> firstTime = new ArrayList<>(), returning = new ArrayList<>(), followUp = new ArrayList<>();
         for (AttendanceVisitor v : visitorRepo.findByClientIdAndDeleteFlagFalseOrderByNameAsc(clientId)) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -451,8 +478,8 @@ public class AttendanceService {
     public List<AttendanceRecord> queryRecords(String clientId, LocalDate from, LocalDate to,
                                                Integer memberId, Integer familyId, String service,
                                                String status, String ministry) {
-        LocalDate f = from != null ? from : LocalDate.now().minusMonths(3);
-        LocalDate t = to != null ? to : LocalDate.now();
+        LocalDate f = from != null ? from : AppClock.today().minusMonths(3);
+        LocalDate t = to != null ? to : AppClock.today();
         Set<Integer> familyMemberIds = familyId == null ? null :
                 safeFamilyMembers(clientId, familyId).stream().map(FamilyMember::getId).collect(Collectors.toSet());
         return recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(clientId, f, t).stream()
@@ -497,6 +524,10 @@ public class AttendanceService {
         m.put("campus", a.getCampus());
         m.put("status", a.getStatus());
         m.put("method", a.getCheckInMethod());
+        m.put("visitorId", a.getVisitorId());
+        m.put("serviceTypeId", a.getServiceTypeId());
+        m.put("interestLevel", a.getInterestLevel());
+        m.put("followUpRequired", Boolean.TRUE.equals(a.getFollowUpRequired()));
         return m;
     }
 
