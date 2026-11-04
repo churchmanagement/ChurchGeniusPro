@@ -970,7 +970,7 @@ public class TestDataService {
             String[] kids = { "Lily", "Owen", "Ava", "Ethan", "Mia", "Liam" };
             FamilyMember kidDraft = newMember(clientId, fam, "Child",
                     kids[rng.nextInt(kids.length)], n[1], "Member",
-                    rng.nextBoolean() ? "Male" : "Female", 6 + rng.nextInt(8));
+                    rng.nextBoolean() ? "Male" : "Female", 13 + rng.nextInt(5));   // Kids Portal is 13+ (2026-11-04)
             login = familyMemberRepo.save(kidDraft);   // the child holds the login
         }
         if (login.getMemberRef() == null) {
@@ -1884,7 +1884,9 @@ public class TestDataService {
             // Real child member profile in the parent's family.
             FamilyMember childFm = newMember(clientId, parent.getFamily(), "Child",
                     first, last, "Member",
-                    rng.nextBoolean() ? "Male" : "Female", 6 + rng.nextInt(8));
+                    rng.nextBoolean() ? "Male" : "Female",
+                    // The first two hold the demo Kids Portal logins, which need 13+ (2026-11-04).
+                    i < 2 ? 13 + rng.nextInt(2) : 6 + rng.nextInt(8));
             familyMemberRepo.save(childFm);
             childMembers.add(childFm);
 
@@ -2103,6 +2105,8 @@ public class TestDataService {
         for (FamilyMember c : childMembers) {
             if (created >= count) break;
             if (c.getMemberRef() == null) continue;
+            // Kids Portal 13+ rule: never seed a login the sign-in would refuse.
+            if (com.churchgeniuspro.util.KidsPortalEligibility.check(c) != com.churchgeniuspro.util.KidsPortalEligibility.Status.OK) continue;
             String username = ("child_" + safeLower(c.getFirstName()) + "_"
                     + Math.abs(c.getId())).replaceAll("[^a-z0-9_]", "");
             String password = randomPassword();

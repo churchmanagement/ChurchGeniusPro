@@ -436,6 +436,13 @@ public class FamilyController {
                     appClientId, com.churchgeniuspro.util.LogSafe.exception(e));
         }
 
+        // Kids Portal 13+ rule (2026-11-04): on the "own family" path (no Family edit
+        // right) the church's record stays the authority for role and date of birth.
+        HttpSession fs = request.getSession(false);
+        if (fs != null && !isFamilyManager(fs) && !memberHasFamilyGrant(fs)) {
+            keepRecordedRoleAndBirthDate(bo, appClientId);
+        }
+
         try {
             Family saved = familyService.update(id, bo, appClientId);
             String primaryName = saved.getMembers().stream()
@@ -627,6 +634,34 @@ public class FamilyController {
     //    /api/members returns names only to them.
 
     private static final java.util.Set<String> FAMILY_MANAGER_ROLES = java.util.Set.of("SuperAdmin", "Admin", "Accountant");
+
+    /**
+     * Own-family edits (Member Portal or a staff login editing its own household without
+     * the Family edit right) may not change a person's family role or date of birth:
+     * existing members keep what the church recorded, and a child added this way is
+     * saved without a date of birth so no Kids Portal login works until the church
+     * office enters it. Names, contact details and the rest are unchanged.
+     */
+    void keepRecordedRoleAndBirthDate(com.churchgeniuspro.model.FamilyBO bo, String appClientId) {
+        if (bo == null || bo.getMembers() == null) return;
+        for (com.churchgeniuspro.model.FamilyMemberBO m : bo.getMembers()) {
+            if (m == null) continue;
+            com.churchgeniuspro.hibernate.FamilyMember stored = (m.getId() == null || m.getId() == 0) ? null
+                    : familyMemberRepository.findByIdAndTenant(m.getId(), appClientId).orElse(null);
+            if (stored != null) {
+                m.setRole(stored.getRole());
+                m.setBirthdayMonth(str(stored.getBirthdayMonth()));
+                m.setBirthdayDay(str(stored.getBirthdayDay()));
+                m.setBirthdayYear(str(stored.getBirthdayYear()));
+            } else if (com.churchgeniuspro.util.KidsPortalEligibility.isChildRole(m.getRole())) {
+                m.setBirthdayMonth(null);
+                m.setBirthdayDay(null);
+                m.setBirthdayYear(null);
+            }
+        }
+    }
+
+    private static String str(Integer v) { return v == null ? null : v.toString(); }
 
     /** A staff login with a family-manager role (not a church login, not a Member Portal login). */
     static boolean isFamilyManager(HttpSession session) {

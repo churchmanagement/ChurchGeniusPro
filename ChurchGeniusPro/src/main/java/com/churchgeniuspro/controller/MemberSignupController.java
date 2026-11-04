@@ -250,6 +250,10 @@ public class MemberSignupController {
             }
         }
 
+        // Kids Portal 13+ rule (2026-11-04): refused BEFORE any code is e-mailed.
+        ResponseEntity<Map<String, Object>> ageBlocked = ageBlocked(matched, res);
+        if (ageBlocked != null) return ageBlocked;
+
         // Resolve email to send OTP to — prefer the matched member's own email,
         // fall back to Head of Household's email within the same family
         String email = resolved(matched, appClientId);
@@ -319,6 +323,8 @@ public class MemberSignupController {
         FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef)
                 .filter(m -> belongsTo(m, appClientId)).orElse(null);
         if (fm == null) return startOver(res);
+        ResponseEntity<Map<String, Object>> ageBlocked = ageBlocked(fm, res);   // Kids Portal 13+ rule
+        if (ageBlocked != null) return ageBlocked;
 
         // Resolve email
         String email = resolved(fm, appClientId);
@@ -415,6 +421,12 @@ public class MemberSignupController {
         FamilyMember fm = familyMemberRepository.findByMemberRef(memberRef)
                 .filter(m -> belongsTo(m, appClientId)).orElse(null);
         if (fm == null) return startOver(res);
+        ResponseEntity<Map<String, Object>> ageBlocked = ageBlocked(fm, res);   // Kids Portal 13+ rule
+        if (ageBlocked != null) {
+            verificationStore.remove(memberRef, OTP_TYPE);
+            handles.remove(handleKey);
+            return ageBlocked;
+        }
 
         // A handle that already produced an account must not produce a second one.
         Optional<SignUp> existing = loginRepository.findByClientId(memberRef);
@@ -679,5 +691,21 @@ public class MemberSignupController {
              +     "Sent by <strong>" + safeChurch + "</strong></p>"
              + "</td></tr>"
              + "</table></td></tr></table></body></html>";
+    }
+
+    /**
+     * Kids Portal 13+ rule (2026-11-04): a 403 when this person may not hold a login —
+     * a child with no full date of birth in the church's record, or anyone the record
+     * shows is under 13 — else null. The date comes only from the family record; the
+     * sign-up page never asks for one.
+     */
+    private static ResponseEntity<Map<String, Object>> ageBlocked(FamilyMember fm, Map<String, Object> res) {
+        String message = com.churchgeniuspro.util.KidsPortalEligibility.message(fm);
+        if (message == null) return null;
+        res.clear();
+        res.put("status",  "age_blocked");
+        res.put("code",    com.churchgeniuspro.util.KidsPortalEligibility.CODE);
+        res.put("message", message);
+        return ResponseEntity.status(403).body(res);
     }
 }

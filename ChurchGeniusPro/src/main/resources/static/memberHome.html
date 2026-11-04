@@ -585,7 +585,8 @@
     }
     #childNavBar .child-nav-btn:hover  { background:#e8d5e4; }
     #childNavBar .child-nav-btn.active { background:#673147;color:#fff; }
-  </style>
+    .fe-record-note { font-size:12px; color:#8a4b00; background:#fff8ec; border:1px solid #f3d6a8; border-radius:6px; padding:6px 10px; margin:4px 0 10px; }
+</style>
 </head>
 <body>
 <div class="app">
@@ -918,7 +919,12 @@ setInterval(pollMbrNotifications, 60000);
           && url.indexOf('/api/auth/logout') === -1 && !redirecting) {
         redirecting = true;
         try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
-        window.location.href = '/?reason=expired&next=' + encodeURIComponent('/memberHome');
+        /* Kids Portal 13+ rule: an ended session says why (reason is from a fixed list). */
+        response.clone().json().catch(function () { return null; }).then(function (b) {
+          var ageReason = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason : null;
+          window.location.href = ageReason ? '/?reason=' + ageReason
+                                           : '/?reason=expired&next=' + encodeURIComponent('/memberHome');
+        });
       }
       if (response.status === 403 && url.indexOf('/api/') !== -1) {
         response.clone().json().then(function (body) {
@@ -1884,6 +1890,7 @@ window.applyMemberNavFilter = function(privMap) {
           <div class="field"><label>Birth Day</label><select id="fePBirthDay"><option value="">Day</option></select></div>
           <div class="field"><label>Birth Year</label><select id="fePBirthYear"><option value="">Year</option></select></div>
         </div>
+        <div id="fePRecordNote" class="fe-record-note" style="display:none;">Date of birth and family role can only be changed by the church office.</div>
 
         <!-- Address -->
         <div class="modal-section-title">Address</div>
@@ -1957,6 +1964,7 @@ window.applyMemberNavFilter = function(privMap) {
             <div class="field"><label>Birth Day</label><select id="feMMBirthDay"><option value="">Day</option></select></div>
             <div class="field"><label>Birth Year</label><select id="feMMBirthYear"><option value="">Year</option></select></div>
           </div>
+          <div id="feMMRecordNote" class="fe-record-note" style="display:none;"></div>
           <!-- Address -->
           <div style="margin-bottom:8px;">
             <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;margin-bottom:8px;">
@@ -4560,6 +4568,7 @@ async function openFamilyEditModal() {
       var uiRole = ({'Head':'Head of Household','Head of Household':'Head of Household','Spouse':'Spouse','Adult':'Adult','Child':'Child'})[primary.role]||'Head of Household';
       feSelSet('fePRole', uiRole);
       fePrimaryRoleChange(uiRole);
+      feApplyPrimaryLock();
       feSelSet('fePAnnivMonth', primary.anniversaryMonth);
       feSelSet('fePAnnivDay',   primary.anniversaryDay);
       feSelSet('fePAnnivYear',  primary.anniversaryYear);
@@ -4629,6 +4638,7 @@ function openFeMemberForm() {
   feResetMemberForm();
   document.getElementById('feMemberForm').style.display = '';
   document.getElementById('feAddMemberBtn').style.display = 'none';
+  feApplyRecordLock();
 }
 
 function cancelFeMember() {
@@ -4670,6 +4680,39 @@ function feOnSameAsPrimary(checked) {
 
 function feOnMemberRoleChange(val) {
   document.getElementById('feMMAnivWrap').style.display = val==='Spouse' ? '' : 'none';
+  feApplyRecordLock();
+}
+
+/* Kids Portal 13+ rule (2026-11-04): the church's record is the only source of a
+   person's date of birth and family role. Saved people keep what the church recorded
+   (the server ignores changes here too); a child added here is saved without a date of
+   birth, which the church office enters. */
+var FE_DOB_IDS = ['feMMBirthMonth','feMMBirthDay','feMMBirthYear'];
+function feApplyRecordLock() {
+  var existing = feEditingIdx !== null && feMembers[feEditingIdx] && feMembers[feEditingIdx].id;
+  var roleEl = document.getElementById('feMMRole');
+  var isChild = roleEl && roleEl.value === 'Child';
+  var lockDob = !!existing || isChild;
+  FE_DOB_IDS.forEach(function (id) {
+    var el = document.getElementById(id); if (!el) return;
+    if (!existing && isChild) el.value = '';
+    el.disabled = lockDob;
+  });
+  if (roleEl) roleEl.disabled = !!existing;
+  var note = document.getElementById('feMMRecordNote');
+  if (note) {
+    note.textContent = existing ? 'Date of birth and family role can only be changed by the church office.'
+                     : (isChild ? 'A child\'s date of birth is added by the church office.' : '');
+    note.style.display = note.textContent ? '' : 'none';
+  }
+}
+function feApplyPrimaryLock() {
+  var lock = !!fePrimaryId;
+  ['fePBirthMonth','fePBirthDay','fePBirthYear','fePRole'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.disabled = lock;
+  });
+  var note = document.getElementById('fePRecordNote');
+  if (note) note.style.display = lock ? '' : 'none';
 }
 
 function feEditMember(idx) {
@@ -4698,6 +4741,7 @@ function feEditMember(idx) {
   document.getElementById('feMMInactive').checked       = !!m.inactive;
   document.getElementById('feMMDisableAlerts').checked  = !!m.disableAlerts;
   document.getElementById('feMMIncludeContrib').checked = !!m.includeContributions;
+  feApplyRecordLock();
   document.getElementById('feMMSameAsPrimary').checked  = !!m.sameAsFamilyAddress;
   feOnSameAsPrimary(!!m.sameAsFamilyAddress);
   feOnMemberRoleChange(m.role||'Adult');
@@ -8178,4 +8222,4 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <!-- ══ VOLUNTEER PROFILE MODAL ═════════════════════════════════════════ -->
-<div class
+<div class

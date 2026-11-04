@@ -1088,13 +1088,14 @@ public class HelpContentCatalog {
         // roles: Member
         add(new HelpArticle("kids_portal", "Member Portal", "Kids Portal", null, false,
             "What a child sees when they sign in, and why it works on the website only.",
-            "A login whose family role is Child opens the Kids Portal: no side menu, just buttons for Sunday School (lessons, documents, exams), Groups, and Worship when the child is on a worship group (next 12 weeks, with Print and Download). Guess It, Signed-in devices and Delete my account are not available. The Kids Portal works on the website only; the mobile app refuses a child login with the message that the Kids Portal is available on the website.",
+            "A login whose family role is Child opens the Kids Portal: no side menu, just buttons for Sunday School (lessons, documents, exams), Groups, and Worship when the child is on a worship group (next 12 weeks, with Print and Download). Guess It, Signed-in devices and Delete my account are not available. The Kids Portal is for children aged 13 and older: the age comes from the full date of birth (month, day and year) in the church's family record, and a child under 13 or with no full date of birth cannot create a login or sign in. Only the church office can enter or change a child's date of birth, and nobody under 13 can hold any online account. The Kids Portal works on the website only; the mobile app refuses a child login with the message that the Kids Portal is available on the website.",
             list("Sign in on the website with the child's username and password.",
                  "Use the Sunday School, Groups and Worship buttons at the top."),
-            list("Problem: the app says the Kids Portal is available on the website — Fix: open the website in the phone's browser and sign in there.",
+            list("Problem: a child cannot create a login or sign in — Fix: the Kids Portal is for ages 13 and up; the church office checks the child's full date of birth in the family record. A child under 13 can sign in from their 13th birthday.",
+                 "Problem: the app says the Kids Portal is available on the website — Fix: open the website in the phone's browser and sign in there.",
                  "Problem: a child sees the full portal, or an adult sees the Kids Portal — Fix: the church office corrects the person's role in the family record."),
-            "1.0", list("v1.0 — Initial release."),
-            list("kids portal","child login","children","child account","web only")).roles("Member"));
+            "1.1", list("v1.1 — Kids Portal is for ages 13 and older (date of birth from the church's record).", "v1.0 — Initial release."),
+            list("kids portal","child login","children","child account","web only","under 13","age 13")).roles("Member"));
 
         // roles: Church,SuperAdmin,Admin,User
         add(new HelpArticle("member_portal_access", "Member Portal", "Member Portal Set-up for Staff", "more.publicscreens", false,

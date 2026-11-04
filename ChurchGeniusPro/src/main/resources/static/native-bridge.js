@@ -531,6 +531,7 @@
             return (data.deviceToken ? writeDeviceToken(data.deviceToken) : Promise.resolve()).then(function () { return data; });
           }
           if (data && data.status === 'none') clearDeviceToken();   // revoked / expired / refused
+          if (data && data.code === 'KIDS_PORTAL_AGE' && data.message) return { status: 'none', message: data.message };
           return null;
         }).catch(function () { return null; });   // offline: keep the token, show the form
       });

@@ -883,7 +883,11 @@
                 if (response.status === 401 && url.indexOf('/api/') !== -1 &&
                         url.indexOf('/api/session') === -1 &&
                         url.indexOf('/api/logout')  === -1) {
-                    logout('expired');
+                    /* Kids Portal 13+ rule: a member session ended for age says why. */
+                    response.clone().json().catch(function () { return null; }).then(function (b) {
+                        var r = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason : 'expired';
+                        logout(r);
+                    });
                 }
                 // The server can also end access mid-session: a subscription that
                 // lapses, or a demo login a Service Admin blocks. Without this the

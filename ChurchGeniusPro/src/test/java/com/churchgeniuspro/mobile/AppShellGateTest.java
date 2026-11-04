@@ -56,6 +56,9 @@ class AppShellGateTest {
         when(loginRepo.findByUsernameAndDeletedFalse(username)).thenReturn(Optional.of(s));
         Family f = new Family(); f.setAppClientId("CHR-1");
         FamilyMember fm = new FamilyMember(); fm.setMemberRef(ref); fm.setFamily(f); fm.setFirstName("Kid"); fm.setLastName("Test"); fm.setRole(role); fm.setId(5);
+        // Kids Portal 13+ rule (2026-11-04): a 15-year-old, so only the app-shell rule applies here.
+        java.time.LocalDate dob = com.churchgeniuspro.util.AppClock.today().minusYears(15);
+        fm.setBirthdayYear(dob.getYear()); fm.setBirthdayMonth(dob.getMonthValue()); fm.setBirthdayDay(dob.getDayOfMonth());
         when(familyRepo.findByMemberRef(ref)).thenReturn(Optional.of(fm));
         when(familyRepo.findActiveByEmail(anyString())).thenReturn(List.of());
     }
