@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>AI Activity — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:20px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; margin:0; }
+    .card-body { padding:16px 20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-sec[disabled] { opacity:.7; cursor:wait; }
+    select { border:1.5px solid #dde0ec; border-radius:8px; padding:7px 10px; font-size:13px; color:#1e2139; background:#fff; font-family:inherit; }
+    .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+    .tile { border:1px solid #eef0f6; border-radius:10px; padding:12px 14px; background:#fafbfe; }
+    .tile .n { font-size:22px; font-weight:800; color:#1e2139; }
+    .tile .l { font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; font-weight:700; margin-top:2px; }
+    .tile .s { font-size:12px; color:#666; margin-top:4px; }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; min-width:680px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:8px 10px; text-align:left; border-bottom:2px solid #eef0f8; white-space:nowrap; }
+    td { padding:8px 10px; border-bottom:1px solid #f3f4f9; vertical-align:top; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .pill.OK { background:#e8f5e9; color:#2e7d32; } .pill.DENIED { background:#fdecea; color:#c62828; }
+    .pill.RATE_LIMITED { background:#fff8e1; color:#8a6d00; } .pill.ERROR { background:#eceff1; color:#455a64; }
+    .ch { font-weight:700; color:#673147; }
+    .more { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
+    .more [hidden] { display:none !important; }   /* shared button CSS sets display */
+    .spin { display:inline-block; width:12px; height:12px; border:2px solid #c9b6c1; border-top-color:#673147; border-radius:50%; animation:aiSpin .8s linear infinite; vertical-align:-2px; }
+    @keyframes aiSpin { to { transform: rotate(360deg); } }
+    .empty { padding:18px; text-align:center; color:#9fa8c4; font-size:13px; }
+    .err { background:#ffebee; color:#c62828; padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; display:none; }
+    .err.show { display:block; }
+    @media (max-width:640px) { .card-body { padding:12px; } .tile .n { font-size:18px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">✨ AI Activity</div>
+      <div class="page-subtitle">Every AI request made in your church's account: who asked, which feature, what it cost and how it ended.
+        Questions and answers are never stored — only the kind of request.</div>
+
+      <div class="err" id="err"></div>
+
+      <div class="card">
+        <div class="card-header"><span>📊</span><h2>Summary</h2>
+          <select id="days" onchange="loadSummary()" aria-label="Period">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+        <div class="card-body">
+          <div class="tiles" id="tiles"><div class="tile"><div class="n">…</div><div class="l">Loading</div></div></div>
+          <div class="tbl-wrap" style="margin-top:14px"><table id="chanTbl" hidden>
+            <thead><tr><th>Feature</th><th>Calls</th><th>Refused</th><th>Prompt tokens</th><th>Answer tokens</th></tr></thead>
+            <tbody id="chanBody"></tbody></table></div>
+          <div class="muted" id="rateNote" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>🗒️</span><h2>Recent requests</h2>
+          <button class="btn-sec" onclick="loadRows()">↻ Refresh</button></div>
+        <div class="card-body">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>When</th><th>Who</th><th>Feature</th><th>Intent</th><th>Model</th><th>Tokens</th><th>Result</th><th>Time</th></tr></thead>
+            <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+          </table></div>
+          <div class="more">
+            <span class="muted" id="count"></span>
+            <button class="btn-sec" id="moreBtn" onclick="loadMore()" hidden>Load more</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const CHANNEL_LABEL = { SEARCH:'AI Search', DATA:'AI Search (data)', CONFIRM:'AI action confirm', ASSIST:'Converse / Type',
+                          VOICE:'Voice', VISION:'Scan (vision)', HELP:'Help assistant', MCP:'External (MCP)', OTHER:'Other' };
+  const OUTCOME_LABEL = { OK:'OK', DENIED:'Refused', RATE_LIMITED:'Rate limited', ERROR:'Error' };
+  let rows = [], hasMore = false, busy = false;
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.classList.add('show'); }
+  function hideErr(){ document.getElementById('err').classList.remove('show'); }
+  function chan(c){ return CHANNEL_LABEL[c] || esc(c||''); }
+  function when(iso){ if(!iso) return ''; const d=new Date(iso); return isNaN(d)?esc(iso):d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+  function num(n){ return (n==null?0:Number(n)).toLocaleString(); }
+
+  async function loadSummary(){
+    const days = document.getElementById('days').value;
+    try {
+      hideErr();
+      const s = await CGP_apiJson('/api/ai/activity/summary?days=' + encodeURIComponent(days));
+      const refused = (s.channels||[]).reduce((a,c)=>a+(c.refused||0),0);
+      document.getElementById('tiles').innerHTML =
+        tile(num(s.calls),'AI requests','in the last '+s.days+' days') +
+        tile(num(s.tokens),'Model tokens','0 = answered without a model') +
+        tile(num(refused),'Refused','permission, plan or rate limit') +
+        tile((s.channels||[]).length,'Features used','');
+      const body = document.getElementById('chanBody'); body.innerHTML='';
+      (s.channels||[]).forEach(c=>{ body.insertAdjacentHTML('beforeend',
+        `<tr><td class="ch">${chan(c.channel)}</td><td>${num(c.calls)}</td><td>${num(c.refused)}</td><td>${num(c.promptTokens)}</td><td>${num(c.completionTokens)}</td></tr>`); });
+      document.getElementById('chanTbl').hidden = !(s.channels||[]).length;
+      const r = s.rateLimit||{};
+      document.getElementById('rateNote').textContent = r.userPerMinuteLimit
+        ? `Limits: ${r.userPerMinuteLimit} requests per person per minute (you: ${r.userThisMinute} this minute) · ${r.tenantPerDayLimit} per church per day (today: ${r.tenantToday}).` + (r.enforce===false?' Limits are currently warn-only.':'')
+        : '';
+    } catch(e){ showErr(CGP_errorMessage(e,'Could not load the summary.')); document.getElementById('tiles').innerHTML=''; }
+  }
+  function tile(n,l,s){ return `<div class="tile"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div><div class="s">${esc(s)}</div></div>`; }
+
+  async function fetchRows(first){
+    if (busy) return; busy = true;
+    const btn = document.getElementById('moreBtn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Loading…';
+    try {
+      hideErr();
+      let url = '/api/ai/activity?limit=10';
+      if (!first && rows.length) { const last = rows[rows.length-1]; url += '&beforeTs=' + encodeURIComponent(last.createdAt) + '&beforeId=' + encodeURIComponent(last.id); }
+      const d = await CGP_apiJson(url);
+      const seen = new Set(rows.map(r=>r.id));
+      const fresh = (d.rows||[]).filter(r=>!seen.has(r.id));
+      rows = first ? (d.rows||[]) : rows.concat(fresh);
+      hasMore = !!d.hasMore;
+      render();
+    } catch(e){ showErr(CGP_errorMessage(e,"Couldn't load — Retry")); if (first) { rows=[]; render(); } }
+    finally { busy=false; btn.disabled=false; btn.textContent='Load more'; btn.hidden = !hasMore; }
+  }
+  function render(){
+    const tb = document.getElementById('rows');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No AI requests recorded yet.</td></tr>'; }
+    else tb.innerHTML = rows.map(r=>`<tr>
+      <td>${when(r.createdAt)}</td><td>${esc(r.actor||'')}</td><td class="ch">${chan(r.channel)}</td>
+      <td>${esc(r.intent||'—')}</td><td>${esc(r.model||'—')}</td>
+      <td>${(r.promptTokens||r.completionTokens)? num((r.promptTokens||0)+(r.completionTokens||0)) : '—'}</td>
+      <td><span class="pill ${esc(r.outcome||'OK')}">${OUTCOME_LABEL[r.outcome]||esc(r.outcome||'')}</span></td>
+      <td>${r.durationMs==null?'':num(r.durationMs)+' ms'}</td></tr>`).join('');
+    document.getElementById('count').textContent = rows.length ? `Showing ${rows.length} request${rows.length===1?'':'s'}` : '';
+    document.getElementById('moreBtn').hidden = !hasMore;
+  }
+  function loadRows(){ return fetchRows(true); }
+  function loadMore(){ return fetchRows(rows.length===0); }
+
+  loadSummary(); loadRows();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'admin/ai-activity', pageTitle: 'AI Activity', openSection: 'admin' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

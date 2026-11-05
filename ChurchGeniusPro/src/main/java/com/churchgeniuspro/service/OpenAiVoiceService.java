@@ -12,9 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -51,9 +49,11 @@ public class OpenAiVoiceService {
     @Value("${openai.voice.language:en}")                   private String voiceLanguage;
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .build();
+    /** Every OpenAI call goes through the gateway (retry, cap, token accounting) — AI Phase 0. */
+    private com.churchgeniuspro.ai.llm.LlmGateway gateway = new com.churchgeniuspro.ai.llm.LlmGateway();
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setGateway(com.churchgeniuspro.ai.llm.LlmGateway gateway) { if (gateway != null) this.gateway = gateway; }
 
     public boolean isEnabled() { return apiKey != null && !apiKey.isBlank(); }
 
@@ -129,8 +129,8 @@ public class OpenAiVoiceService {
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "voice.transcribe");
+            if (!resp.ok()) {
                 log.warn("[Voice] transcription failed status={} body={}", resp.statusCode(),
                         LogSafe.text(truncate(resp.body())));
                 return null;
@@ -181,8 +181,8 @@ public class OpenAiVoiceService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(root)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "voice.command");
+            if (!resp.ok()) {
                 log.warn("[Voice] command model failed status={} body={}", resp.statusCode(),
                         LogSafe.text(truncate(resp.body())));
                 return transcript;
@@ -230,8 +230,8 @@ public class OpenAiVoiceService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(root)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "voice.extract");
+            if (!resp.ok()) {
                 log.warn("[Voice] extractFields failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return out;
             }
@@ -311,8 +311,8 @@ public class OpenAiVoiceService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(root)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "assist");
+            if (!resp.ok()) {
                 log.warn("[Assist] failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return out;
             }
@@ -354,8 +354,8 @@ public class OpenAiVoiceService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(root)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "chatJson");
+            if (!resp.ok()) {
                 log.warn("[chatJson] failed status={} body={}", resp.statusCode(), LogSafe.text(truncate(resp.body())));
                 return null;
             }

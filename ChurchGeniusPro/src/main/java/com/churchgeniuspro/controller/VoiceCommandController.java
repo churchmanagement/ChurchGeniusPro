@@ -246,6 +246,7 @@ public class VoiceCommandController {
         resp.putIfAbsent("intent", "assist");
         resp.putIfAbsent("source", "Assistant");
         resp.put("model", voiceService.commandModel());
+        com.churchgeniuspro.ai.audit.AiAuditService.intent(request, "assist." + resp.get("intent"));
         return ResponseEntity.ok(resp);
     }
 

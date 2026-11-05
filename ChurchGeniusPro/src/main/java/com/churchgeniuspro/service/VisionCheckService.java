@@ -11,9 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -45,9 +43,11 @@ public class VisionCheckService {
     @Value("${openai.api.base:https://api.openai.com/v1}") private String apiBase;
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .build();
+    /** Every OpenAI call goes through the gateway (retry, cap, token accounting) — AI Phase 0. */
+    private com.churchgeniuspro.ai.llm.LlmGateway gateway = new com.churchgeniuspro.ai.llm.LlmGateway();
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setGateway(com.churchgeniuspro.ai.llm.LlmGateway gateway) { if (gateway != null) this.gateway = gateway; }
 
     public boolean isEnabled() { return apiKey != null && !apiKey.isBlank(); }
 
@@ -340,8 +340,8 @@ public class VisionCheckService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "vision.image");
+            if (!resp.ok()) {
                 log.warn("[Vision] OpenAI returned HTTP {}: {}", resp.statusCode(), LogSafe.text(truncate(resp.body(), 300)));
                 cr.error = "OpenAI HTTP " + resp.statusCode();
                 return cr;
@@ -383,8 +383,8 @@ public class VisionCheckService {
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
                     .build();
 
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2) {
+            var resp = gateway.send(req, "vision.text");
+            if (!resp.ok()) {
                 log.warn("[Vision] OpenAI (text) returned HTTP {}: {}", resp.statusCode(), LogSafe.text(truncate(resp.body(), 300)));
                 return null;
             }

@@ -39,6 +39,7 @@ class AuditTableRetentionServiceTest {
         jdbc.execute("CREATE TABLE payroll_audit_log (id INT PRIMARY KEY, created TIMESTAMP)");
         jdbc.execute("CREATE TABLE private_access_log (id INT PRIMARY KEY, created_at TIMESTAMP)");
         jdbc.execute("CREATE TABLE ntag_login_history (id INT PRIMARY KEY, login_time TIMESTAMP)");
+        jdbc.execute("CREATE TABLE ai_audit_log (id INT PRIMARY KEY, created_at TIMESTAMP)");
         jdbc.execute("CREATE TABLE church_event (id INT PRIMARY KEY, event_date DATE)");
         jdbc.execute("CREATE TABLE event_registration_reminder_log (id INT PRIMARY KEY, event_id INT, recipient VARCHAR(200), created_date TIMESTAMP)");
     }
@@ -47,7 +48,7 @@ class AuditTableRetentionServiceTest {
     void drop() { jdbc.execute("DROP ALL OBJECTS"); }
 
     private AuditTableRetentionService service(int shortDays, int longDays) {
-        return new AuditTableRetentionService(jdbc, true, shortDays, shortDays, shortDays, shortDays, longDays, longDays, longDays, longDays);
+        return new AuditTableRetentionService(jdbc, true, shortDays, shortDays, shortDays, shortDays, longDays, longDays, longDays, longDays, shortDays);
     }
 
     private static Timestamp daysAgo(int d) { return Timestamp.valueOf(LocalDateTime.now().minusDays(d)); }
@@ -78,7 +79,7 @@ class AuditTableRetentionServiceTest {
 
         // 0 days = that table is never touched
         jdbc.update("INSERT INTO plaid_webhook_event VALUES (3, '{}', ?)", daysAgo(1000));
-        Map<String, Integer> off = new AuditTableRetentionService(jdbc, true, 0, 90, 90, 90, 365, 365, 365, 365).purgeNow();
+        Map<String, Integer> off = new AuditTableRetentionService(jdbc, true, 0, 90, 90, 90, 365, 365, 365, 365, 90).purgeNow();
         assertThat(off).containsEntry("plaid_webhook_event", 0);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM plaid_webhook_event", Integer.class)).isEqualTo(2);
     }
@@ -108,7 +109,7 @@ class AuditTableRetentionServiceTest {
         assertThat(out).containsEntry("vision_usage_log", -1).containsEntry("help_audit_log", 1);
 
         jdbc.update("INSERT INTO help_audit_log VALUES (2, 'q', ?)", daysAgo(500));
-        AuditTableRetentionService disabled = new AuditTableRetentionService(jdbc, false, 90, 90, 90, 90, 365, 365, 365, 365);
+        AuditTableRetentionService disabled = new AuditTableRetentionService(jdbc, false, 90, 90, 90, 90, 365, 365, 365, 365, 90);
         disabled.purgeExpiredRows();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM help_audit_log", Integer.class)).isEqualTo(1);
     }

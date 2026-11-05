@@ -113,6 +113,7 @@ public class HelpController {
         Map<String, Object> m = helpAssistant.assist(
                 sa(req, "privileges"), sa(req, "role"), isChurch(req), q.trim(), history, voice,
                 clientId(req), sa(req, "username"));
+        com.churchgeniuspro.ai.audit.AiAuditService.intent(req, "help." + (voice ? "voice" : "text"));
         return ResponseEntity.ok(m);
     }
 

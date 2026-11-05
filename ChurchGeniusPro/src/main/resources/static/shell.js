@@ -137,6 +137,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'admin/stripe-integration',  label: 'Stripe Integration',  icon: '&#x1F4B3;', href: '/stripeIntegration'    },
         { id: 'admin/whatsapp-integration',label: 'WhatsApp Integration',icon: '&#x1F4AC;', href: '/whatsappIntegration'  },
         { id: 'admin/private-access',      label: 'Private Page Access', icon: '&#x1F512;', href: '/private-access-settings' },
+        { id: 'admin/ai-activity',         label: 'AI Activity',         icon: '&#x2728;',  href: '/aiActivity'              },
         // Church logins see only the Admin section, so Ticketing and the AI Assistant
         // are listed here for them (churchOnly: not rendered for any other role; staff
         // reach the same pages under More).

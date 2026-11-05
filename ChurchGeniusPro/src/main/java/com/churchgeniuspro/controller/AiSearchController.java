@@ -48,7 +48,7 @@ public class AiSearchController {
         if (clientId == null || clientId.isBlank()) return ResponseEntity.status(401).build();
         String query = body != null ? body.get("query") : null;
         Map<String, Object> result = searchService.search(query, accessPolicy.resolve(request, clientId), clientId);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(AiDataSearchController.audited(request, result));
     }
 
     /**

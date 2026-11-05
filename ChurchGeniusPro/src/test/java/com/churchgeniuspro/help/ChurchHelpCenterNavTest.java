@@ -43,7 +43,7 @@ class ChurchHelpCenterNavTest {
         int end = session.indexOf("function reorderNav(", start);
         String filter = session.substring(start, end);
         assertThat(filter).contains("var isHelp     = onclick.indexOf('/helpCenter') !== -1;")
-                .contains("var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isHelp;");
+                .contains("var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isAiLog || isHelp;");
     }
 
     @Test @DisplayName("the Help Center has the Account & User Management card with all seven topics, church-only")

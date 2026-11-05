@@ -2987,6 +2987,38 @@
           </div>
         </div>
 
+        <!-- ═══ AI ACTIVITY (AI Phase 0, 2026-11-04) ═══ -->
+        <div class="hc-card" id="hc-ai-activity" data-cat="admin" data-roles="SuperAdmin,Admin,Church" data-keywords="ai activity ai audit ai log ai usage tokens rate limit who used ai search voice scan converse help assistant">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">✨</span>
+            <div class="hc-card-head-text">
+              <h3>AI Activity</h3>
+              <div class="hc-card-nav">Admin → AI Activity</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">AI Activity lists every AI request made in your church's account — AI Search, Voice, Converse, check and form scans and the Help assistant — with who asked, which feature, whether a model was used, how many tokens it took and how it ended. Questions and answers are never stored; only the kind of request is.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Church</span></div>
+            <div class="hc-mock" aria-label="AI Activity"><span class="hc-mock-title">✨ AI Activity</span><span class="hc-ui lite">Last 30 days ▾</span><span class="hc-ui lite">↻ Refresh</span><span class="hc-ui lite">Load more</span></div>
+            <div class="hc-section-label">What the page shows</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Summary</strong> — requests, model tokens, refused requests and features used for the last 7, 30 or 90 days, plus your church's AI limits (requests per person per minute and per church per day)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Recent requests</strong> — ten at a time with <span class="hc-ui lite">Load more</span>: when, who, feature, the kind of question (e.g. <em>crossref.lapsedGivers</em>), model, tokens, result (OK, Refused, Rate limited, Error) and time taken</span></div>
+            </div>
+            <div class="hc-note">A request answered without a model (most AI Search questions) shows no model and no tokens — it cost nothing. Rows are kept for 90 days.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">Why does a request say "Refused"?</div><div class="hc-faq-a">The person lacked the page permission or plan feature the question needed, or (for badge / temporary-access logins) AI is not available at all. Nothing was shown to them.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Why "Rate limited"?</div><div class="hc-faq-a">More than the allowed number of AI requests in one minute by one person, or in one day by the church. The request was not answered; the person can try again after the wait shown to them.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Can I read what was asked?</div><div class="hc-faq-a">No — questions and answers are deliberately not stored anywhere.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/aiActivity">✨ AI Activity</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ NTAG LOGIN & LANDING PAGE ═══ -->
         <div class="hc-card" id="hc-ntag" data-cat="admin" data-roles="SuperAdmin,Admin,Church" data-keywords="ntag nfc tag tap login temporary login pin email code otp allowed pages landing page buttons branding welcome message banner analytics revoke reset pin">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4097,6 +4129,15 @@ const HC_KB = [
     steps: ['Open the Email Settings page (or Compose Email → ⚙ Settings)','Fill in Display Name, Footer Comments and Signature; tick Add Logo / Daily Verse','Click Save Settings','Trial/Demo: enter your address, click Send verification code, enter the 6-digit code and click Verify'],
     links: [{label:'Email Settings', url:'/emailSettings', icon:'📧'},{label:'Daily Verse Setup', url:'/dailyVerseSetup', icon:'📖'}],
     related: ['bulk email','trial account']
+  },
+  {
+    id: 'ai-activity',
+    q: ['ai activity','ai audit','ai log','ai usage','who used ai','ai tokens','rate limited','ai refused'],
+    title: '✨ See Who Used AI and What It Cost',
+    answer: 'Admin → AI Activity (SuperAdmin, Admin, church login) lists every AI request in your church — AI Search, Voice, Converse, scans and the Help assistant — with who asked, the kind of question, model and tokens, and whether it was answered, refused or rate limited. Questions and answers are never stored.',
+    steps: ['Go to Admin → AI Activity','Pick Last 7 / 30 / 90 days for the summary','Scroll Recent requests; click Load more for older ones'],
+    links: [{label:'AI Activity', url:'/aiActivity', icon:'✨'}],
+    related: ['ai search','voice commands','private page access']
   },
   {
     id: 'private-page-access',

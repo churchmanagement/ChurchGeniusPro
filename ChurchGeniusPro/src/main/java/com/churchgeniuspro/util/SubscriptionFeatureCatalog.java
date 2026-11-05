@@ -119,10 +119,15 @@ public final class SubscriptionFeatureCatalog {
                 "/api/ai-search")),
         new Feature("aiVoice",        "AI Voice",               "AI",         List.of(
                 "/api/voice")),
+        // The Help Center's conversational assistant is the same gpt-4o-mini call as Converse
+        // (AI Phase 0: it was the only text LLM endpoint outside plan gating).
         new Feature("aiConverse",     "AI Converse",            "AI",         List.of(
-                "/api/ai-assist")),
+                "/api/ai-assist", "/api/help/assist")),
+        // Every gpt-4o vision call: checks on Expense AND Income, bank-statement scans, membership-form
+        // and kids-form extraction (AI Phase 0: the last four were outside plan gating).
         new Feature("scanCheck",      "Scan Check",             "AI",         List.of(
-                "/api/expense/check-scan", "/api/expense/check-parse"))
+                "/api/expense/check-scan", "/api/expense/check-parse", "/api/income/check-scan",
+                "/api/bank-import/scan", "/api/bank-import/scan-parse", "/api/family/scan-extract", "/api/kids-ministry/child-scan-extract"))
     );
 
     /**

@@ -585,6 +585,20 @@ public class HelpContentCatalog {
             "1.1", list("v1.1 — Step-by-step setup, kiosk link and audit.", "v1.0 — Initial release."),
             list("private page","private access","network restriction","ip restriction","kiosk","church wifi")).roles("SuperAdmin,Admin"));
 
+        // roles: SuperAdmin,Admin,Church (AI Phase 0, 2026-11-04)
+        add(new HelpArticle("ai_activity", "Admin", "AI Activity", null, true,
+            "Who used the AI features, what kind of request it was, what it cost and how it ended — never the question itself.",
+            "Admin → AI Activity (SuperAdmin, Admin, church login). Every AI request — AI Search, Voice, Converse, check / statement / form scans and the Help assistant — writes one row: when, who, feature, the kind of question (an intent key such as crossref.lapsedGivers), the model and tokens when a model was used, the result (OK, Refused, Rate limited, Error) and the time taken. "
+          + "The Summary shows requests, tokens, refusals and features used for the last 7, 30 or 90 days, plus the church's AI limits: requests per person per minute and per church per day. Rows are kept for 90 days. Questions and answers are never stored. "
+          + "Refused means the person lacked the page permission or plan feature the question needed, or used a badge / temporary-access login, which cannot use AI. Rate limited means the per-person or per-church limit was reached; the request was not answered.",
+            list("Go to Admin → AI Activity.",
+                 "Choose the period for the summary.",
+                 "Read Recent requests; click Load more for older ones."),
+            list("Problem: many Rate limited rows — Fix: a page or script is calling AI in a loop; find the person in the Who column.",
+                 "Problem: a request shows Refused — Fix: grant the page permission the question needed, or check the plan's AI features."),
+            "1.0", list("v1.0 — Initial release (AI Phase 0)."),
+            list("ai activity","ai audit","ai log","ai usage","tokens","rate limit")).roles("SuperAdmin,Admin,Church"));
+
         add(new HelpArticle("temporary_access", "Admin", "Temporary Access & Badges", null, true,
             "Time-limited logins for helpers with printable barcode badges.",
             "Temporary Access (Admin → Users → ⏱️ Temporary Access) gives a helper access to chosen General pages for a set period, using a printable barcode badge and a 6-digit code instead of a username and password. Accounting and admin pages can never be granted. Access ends automatically at the end time, with a warning 15 minutes before. NTAG (NFC) login is the tap-to-sign-in alternative.",

@@ -92,6 +92,7 @@ public class AiAccessPolicy {
         String role = s.getAttribute("role") == null ? "" : String.valueOf(s.getAttribute("role"));
         boolean member = "Member".equals(role) && s.getAttribute("memberId") != null;
         if (RoleGuard.isKidsPortalSession(s)) return AiAccess.none(role);
+        if (isTemporaryAccess(s)) return AiAccess.none(role);      // S1 (AI Phase 0): badge/code sessions get no AI data
         Object ch = s.getAttribute("church");
         boolean church = Boolean.TRUE.equals(ch) || "true".equalsIgnoreCase(String.valueOf(ch));
         if (!member && s.getAttribute("username") == null) return AiAccess.none(role);
@@ -153,6 +154,7 @@ public class AiAccessPolicy {
         HttpSession s = req == null ? null : req.getSession(false);
         if (s == null || s.getAttribute("username") == null) return CrossAccess.none();
         if (RoleGuard.isKidsPortalSession(s)) return CrossAccess.none();
+        if (isTemporaryAccess(s)) return CrossAccess.none();
         String role = s.getAttribute("role") == null ? "" : String.valueOf(s.getAttribute("role"));
         if ("Member".equals(role)) return CrossAccess.none();
         Object ch = s.getAttribute("church");
@@ -210,8 +212,19 @@ public class AiAccessPolicy {
         }
     }
 
+    /**
+     * A temporary-access (badge / code) session: role {@code User} with a privileges JSON built from
+     * the 7-page {@code TemporaryAccessService.PAGE_CATALOG}. Until AI Phase 0 the AI keys were simply
+     * missing from that JSON, which {@code RoleGuard} reads as <em>allowed</em> for staff — so a
+     * badge holder could ask the AI for members and giving. Now such a session gets nothing from the AI.
+     */
+    public static boolean isTemporaryAccess(HttpSession s) {
+        return s != null && s.getAttribute("tempAccessId") != null;
+    }
+
     private boolean feature(String clientId, String featureKey) {
-        if (subscriptions == null || clientId == null) return true;
+        if (subscriptions == null) return true;           // unit tests: no subscription service wired
+        if (clientId == null || clientId.isBlank()) return false;   // no tenant → no feature (AI Phase 0: was fail-open)
         try { return subscriptions.isFeatureEnabled(clientId, featureKey); }
         catch (RuntimeException e) { return false; }   // unclear → deny
     }

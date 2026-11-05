@@ -61,7 +61,8 @@ public class AuditTableRetentionService {
             @Value("${audit.retention.plaid-audit-log-days:365}") int plaidAuditDays,
             @Value("${audit.retention.payroll-audit-log-days:365}") int payrollAuditDays,
             @Value("${audit.retention.private-access-log-days:365}") int privateAccessDays,
-            @Value("${audit.retention.ntag-login-history-days:365}") int ntagHistoryDays) {
+            @Value("${audit.retention.ntag-login-history-days:365}") int ntagHistoryDays,
+            @Value("${audit.retention.ai-audit-log-days:90}") int aiAuditDays) {
         this.jdbc = jdbc;
         this.enabled = enabled;
         this.rules = List.of(
@@ -74,7 +75,8 @@ public class AuditTableRetentionService {
             new Rule("plaid_audit_log",                 "created_date",  plaidAuditDays,   null),
             new Rule("payroll_audit_log",               "created",       payrollAuditDays, null),
             new Rule("private_access_log",              "created_at",    privateAccessDays, null),
-            new Rule("ntag_login_history",              "login_time",    ntagHistoryDays,  null));
+            new Rule("ntag_login_history",              "login_time",    ntagHistoryDays,  null),
+            new Rule("ai_audit_log",                    "created_at",    aiAuditDays,      null));
     }
 
     /** 03:50 daily — after the login-log (03:20), Plaid staging (03:30) and log-file (03:40) sweeps. */

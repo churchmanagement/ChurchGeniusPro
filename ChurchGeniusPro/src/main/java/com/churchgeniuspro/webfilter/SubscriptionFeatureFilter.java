@@ -32,8 +32,11 @@ import java.io.IOException;
  *       HTML notice.</li>
  * </ol>
  *
- * <p>Fail-open on any exception so a subscription lookup problem can never
- * take the application down.
+ * <p>Failure policy (AI Phase 0, 2026-11-04, mirrors {@code PrivatePageFilter}): when the plan of a
+ * <em>known</em> tenant cannot be read, a gated {@code /api/*} call is refused with 403
+ * {@code SUBSCRIPTION_CHECK_FAILED} (+ ref) — a plan gate that fails open is no gate, and every AI
+ * endpoint sits behind one; page requests still fail open so the shell renders and the API call
+ * behind it explains the problem. Anything that fails before the tenant is known passes as before.
  */
 public class SubscriptionFeatureFilter implements Filter {
 
@@ -66,9 +69,25 @@ public class SubscriptionFeatureFilter implements Filter {
             String clientId = resolveClientId(session);
             if (clientId == null) { chain.doFilter(req, res); return; }         // no org context → pass
 
-            if (subscriptionService.isFeatureEnabled(clientId, featureKey)) {
+            boolean enabled;
+            try {
+                enabled = subscriptionService.isFeatureEnabled(clientId, featureKey);
+            } catch (RuntimeException e) {
+                String ref = com.churchgeniuspro.util.ErrorResponses.newRef();
+                if (path.startsWith("/api/")) {
+                    log.warn("SubscriptionFeatureFilter failed CLOSED for clientId={} feature={} on {} [ref={}] — {}",
+                            clientId, featureKey, path, ref, com.churchgeniuspro.util.LogSafe.exception(e));
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Your church's subscription could not be checked right now. "
+                            + "Please try again in a moment.\",\"code\":\"SUBSCRIPTION_CHECK_FAILED\",\"ref\":\"" + ref + "\"}");
+                    return;
+                }
+                log.warn("SubscriptionFeatureFilter failed open (page) for clientId={} feature={} on {} [ref={}] — {}",
+                        clientId, featureKey, path, ref, com.churchgeniuspro.util.LogSafe.exception(e));
                 chain.doFilter(req, res); return;
             }
+            if (enabled) { chain.doFilter(req, res); return; }
 
             log.info("Subscription block: clientId={} feature={} path={}",
                     clientId, featureKey, path);

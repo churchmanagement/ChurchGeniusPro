@@ -2397,3 +2397,27 @@ BEGIN
         CREATE INDEX IF NOT EXISTS idx_follow_up_client_linked ON follow_up (client_id, linked_type, linked_id);
     END IF;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 0 (2026-11-04): ai_audit_log — one row per AI request (no question text).
+-- Additive; Hibernate ddl-auto creates the same table and indexes on start, so this
+-- block only matters when it runs before the new JAR. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_audit_log (
+    id                BIGSERIAL PRIMARY KEY,
+    client_id         VARCHAR(100) NOT NULL,
+    actor             VARCHAR(150),
+    role              VARCHAR(40),
+    channel           VARCHAR(20)  NOT NULL,
+    path              VARCHAR(160),
+    intent            VARCHAR(80),
+    model             VARCHAR(60),
+    prompt_tokens     INTEGER,
+    completion_tokens INTEGER,
+    http_status       INTEGER,
+    outcome           VARCHAR(20)  NOT NULL,
+    duration_ms       INTEGER,
+    created_at        TIMESTAMP    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_client_time      ON ai_audit_log (client_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_client_day_actor ON ai_audit_log (client_id, created_at, actor);

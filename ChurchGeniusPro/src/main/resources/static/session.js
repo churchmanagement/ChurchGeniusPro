@@ -727,9 +727,10 @@
             // Ticketing and the AI Assistant are available to the Church role (2026-10-01).
             var isTickets  = onclick.indexOf('/tickets') !== -1;
             var isAi       = onclick.indexOf('/ai-assistant') !== -1;
+            var isAiLog    = onclick.indexOf('/aiActivity') !== -1;     // AI Phase 0: the church owner may audit AI use
             // Help Center (Admin → Help Center) is available to the Church role (2026-10-29).
             var isHelp     = onclick.indexOf('/helpCenter') !== -1;
-            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isHelp;
+            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isAiLog || isHelp;
             btn.style.display = show ? '' : 'none';
         });
     }

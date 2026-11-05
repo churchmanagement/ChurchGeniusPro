@@ -62,9 +62,9 @@ public class AiDataSearchController {
             // (Phase E). Runs outside the read-only answer() transaction because it may write.
             if (meetingCreate != null) {
                 Map<String, Object> created = meetingCreate.handle(request, clientId, question);
-                if (created != null) return ResponseEntity.ok(created);
+                if (created != null) return ResponseEntity.ok(audited(request, created));
             }
-            return ResponseEntity.ok(service.answer(request, clientId, question));
+            return ResponseEntity.ok(audited(request, service.answer(request, clientId, question)));
         } catch (Exception e) {
             LOG.error("AI data search failed for clientId={} ({} char question)", clientId, question == null ? 0 : question.length(), e);   // the question can name members / amounts
             resp.put("handled", false);          // fail open into the normal search flow
@@ -93,12 +93,19 @@ public class AiDataSearchController {
         if (meetingCreate == null) { resp.put("handled", false); return ResponseEntity.ok(resp); }
         String token = body == null || body.get("token") == null ? null : String.valueOf(body.get("token"));
         try {
-            return ResponseEntity.ok(meetingCreate.confirm(request, clientId, token));
+            return ResponseEntity.ok(audited(request, meetingCreate.confirm(request, clientId, token)));
         } catch (Exception e) {
             LOG.error("AI meeting confirm failed for clientId={}", clientId, e);
             resp.put("handled", true); resp.put("denied", false); resp.put("intent", "meeting.error");
             resp.put("answer", "The meeting could not be created. Please try again or use the Meetings page.");
             return ResponseEntity.ok(resp);
         }
+    }
+
+    /** Annotates the request for the AI audit row: intent key and whether the answer was a refusal (never the text). */
+    static Map<String, Object> audited(HttpServletRequest request, Map<String, Object> answer) {
+        com.churchgeniuspro.ai.audit.AiAuditService.intentFrom(request, answer);
+        if (answer != null && Boolean.TRUE.equals(answer.get("denied"))) request.setAttribute("ai.denied", Boolean.TRUE);
+        return answer;
     }
 }
