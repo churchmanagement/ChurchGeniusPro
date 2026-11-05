@@ -68,7 +68,7 @@ public record PeopleFilter(List<Predicate> predicates) {
 
     /** Negatable, labelled, module-tagged condition. */
     public sealed interface Predicate permits AgeBand, BirthMonth, Role, Gender, Status, MemberType,
-            Attended, Gave, InGroup, Serving, InCampaign, RegisteredForEvent, HasContact {
+            Attended, Gave, InGroup, Serving, InCampaign, RegisteredForEvent, HasContact, Engagement {
         /** Short human label for the chip, e.g. "Age 18–30". */
         String label();
         /** The module whose page rule gates this predicate: Members, Attendance, Income, Groups, Volunteers, Pledges, Events. */
@@ -92,6 +92,7 @@ public record PeopleFilter(List<Predicate> predicates) {
                 case "InCampaign"-> new InCampaign(bool(m.get("negated")), strOrNull(m.get("campaign")));
                 case "RegisteredForEvent" -> new RegisteredForEvent(bool(m.get("negated")), strOrNull(m.get("event")));
                 case "HasContact"-> new HasContact(bool(m.get("negated")), oneOf(str(m.get("what")), "email", "phone"));
+                case "Engagement"-> new Engagement(oneOf(str(m.get("signal")), "ENGAGED", "WATCH", "AT_RISK", "NEW", "QUIET"));
                 default -> throw new IllegalArgumentException("Unknown condition: " + kind);
             };
         }
@@ -235,5 +236,13 @@ public record PeopleFilter(List<Predicate> predicates) {
     private static String oneOf(String v, String... allowed) {
         for (String a : allowed) if (a.equalsIgnoreCase(v)) return a;
         throw new IllegalArgumentException("Not allowed: " + v);
+    }
+
+    /** AI Phase 2: the latest nightly engagement signal (Attendance module — the signal is mostly attendance; its giving part is presence only and never shown here). */
+    public record Engagement(String signal) implements Predicate {
+        public Engagement { Objects.requireNonNull(signal, "signal"); }
+        public String label() { return switch (signal) { case "AT_RISK" -> "At risk"; case "WATCH" -> "Watch"; case "NEW" -> "New people"; case "QUIET" -> "Quiet"; default -> "Engaged"; }; }
+        public String module() { return "Attendance"; }
+        public Map<String, Object> toJson() { return json("Engagement", "signal", signal); }
     }
 }

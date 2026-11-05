@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Ministry Report — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:16px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; margin:0; }
+    .card-body { padding:16px 20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-sec[disabled], .btn[disabled] { opacity:.6; cursor:wait; }
+    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .toolbar select { padding:7px 10px; border:1px solid #dfe3ee; border-radius:8px; font-size:13px; background:#fff; }
+    .partial { background:#fff8e1; color:#8a6100; padding:8px 12px; border-radius:9px; font-size:12.5px; margin-bottom:12px; }
+    .narr { font-size:14px; line-height:1.65; color:#1e2139; }
+    .narr p { margin:0 0 6px; }
+    .tiles { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr)); }
+    .tile { border:1px solid #eef0f6; border-radius:12px; padding:12px; background:#fff; }
+    .tile .k { font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; font-weight:700; }
+    .tile .v { font-size:22px; font-weight:800; color:#1e2139; margin:4px 0 2px; word-break:break-word; }
+    .tile .c { font-size:11.5px; color:#8a8a8a; }
+    .up { color:#1e7e34; } .down { color:#b02a37; }
+    .sig { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(min(100%,130px),1fr)); }
+    .sig .tile { cursor:help; }
+    .sig-engaged .v { color:#1e7e34; } .sig-watch .v { color:#8a6100; } .sig-at_risk .v { color:#b02a37; } .sig-new .v { color:#1d4ed8; } .sig-quiet .v { color:#555; }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:8px 10px; text-align:left; border-bottom:2px solid #eef0f8; white-space:nowrap; }
+    td { padding:8px 10px; border-bottom:1px solid #f3f4f9; }
+    td.num, th.num { text-align:right; }
+    .defs { margin-top:8px; font-size:12px; color:#555; } .defs summary { cursor:pointer; color:#673147; font-weight:600; }
+    .defs li { margin:4px 0; }
+    .err { background:#ffebee; color:#c62828; padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; display:none; }
+    .err.show { display:block; }
+    .empty { padding:22px; text-align:center; color:#9fa8c4; font-size:13px; }
+    .spin { display:inline-block; width:12px; height:12px; border:2px solid #c9b6c1; border-top-color:#673147; border-radius:50%; animation:mrSpin .8s linear infinite; vertical-align:-2px; }
+    @keyframes mrSpin { to { transform: rotate(360deg); } }
+    @media (max-width:640px) { .card-body { padding:12px; } .tile .v { font-size:19px; } }
+    @media print {
+      .sidebar, .topbar, .toolbar, #aiBar, .ai-search-bar, .page-subtitle, .err { display:none !important; }
+      body { background:#fff; } .card { box-shadow:none; border:1px solid #ddd; break-inside:avoid; }
+      .main-area, .page-content { margin:0 !important; padding:0 !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">📈 Ministry Report</div>
+      <div class="page-subtitle">One month of your church's ministry facts, compared with the previous month and the same month last year.
+        Every figure comes from your own records — the rules are listed at the bottom. You see only the sections your permissions open.</div>
+
+      <div class="err" id="err"></div>
+
+      <div class="card">
+        <div class="card-header"><span>📅</span><h2 id="title">Ministry Report</h2>
+          <div class="toolbar">
+            <label class="muted" for="month">Month</label>
+            <select id="month" aria-label="Month"></select>
+            <button class="btn-sec" id="csvBtn" disabled>⬇ Download CSV</button>
+            <button class="btn-sec" id="printBtn" disabled onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+        <div class="card-body" id="body"><div class="empty"><span class="spin"></span> Loading…</div></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  let report = null, busy = false;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showErr(m){ const e=document.getElementById('err'); e.textContent=m; e.classList.add('show'); }
+  function hideErr(){ document.getElementById('err').classList.remove('show'); }
+  function n(v){ return v==null ? '—' : Number(v).toLocaleString(); }
+
+  function fillMonths() {
+    const sel = document.getElementById('month');
+    const now = new Date(); let y = now.getFullYear(), m = now.getMonth() + 1;   // this month first, then 24 back
+    const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    for (let i = 0; i < 25; i++) {
+      const o = document.createElement('option'); o.value = y + '-' + m; o.textContent = names[m-1] + ' ' + y;
+      sel.appendChild(o);
+      m--; if (m === 0) { m = 12; y--; }
+    }
+    // default = last completed month (the server's default too)
+    sel.selectedIndex = 1;
+    sel.addEventListener('change', load);
+  }
+
+  function pct(cur, prev, label) {
+    const a = Number(String(cur).replace(/,/g,'')), b = Number(String(prev).replace(/,/g,''));
+    if (!isFinite(a) || !isFinite(b) || b === 0) return '<span class="c">' + esc(label) + ': ' + esc(prev==null?'—':prev) + '</span>';
+    const p = Math.round((a - b) * 100 / b);
+    const cls = p > 0 ? 'up' : p < 0 ? 'down' : '';
+    return '<span class="c">' + esc(label) + ': ' + esc(prev) + ' <span class="' + cls + '">(' + (p > 0 ? '+' : '') + p + '%)</span></span>';
+  }
+
+  function tile(label, cur, prev, ly, r, money) {
+    const v = money ? '$' + cur : n(cur);
+    return '<div class="tile"><div class="k">' + esc(label) + '</div><div class="v">' + esc(v) + '</div>'
+      + pct(cur, prev, r.previousLabel) + '<br>' + pct(cur, ly, r.lastYearLabel) + '</div>';
+  }
+
+  function section(title, icon, inner) {
+    return '<h3 style="font-size:13px;margin:18px 0 8px;color:#1e2139">' + icon + ' ' + esc(title) + '</h3>' + inner;
+  }
+
+  function render(r) {
+    report = r;
+    document.getElementById('title').textContent = 'Ministry Report — ' + r.label;
+    const c = r.current, p = r.previous, l = r.lastYear, a = r.access || {};
+    let h = '';
+    if (r.partial) h += '<div class="partial">' + esc(r.label) + ' is not over yet — these figures cover the days recorded so far.</div>';
+    h += '<div class="narr">' + (r.narrative || []).map(s => '<p>' + esc(s) + '</p>').join('') + '</div>';
+
+    if (a.attendance && c.attendance) {
+      h += section('Attendance', '📝', '<div class="tiles">'
+        + tile('Check-ins', c.attendance.checkins, p.attendance.checkins, l.attendance.checkins, r)
+        + tile('Attendance days', c.attendance.days, p.attendance.days, l.attendance.days, r)
+        + tile('Avg per day', c.attendance.avgPerDay, p.attendance.avgPerDay, l.attendance.avgPerDay, r)
+        + tile('Members present', c.attendance.members, p.attendance.members, l.attendance.members, r)
+        + tile('Visitors present', c.attendance.visitors, p.attendance.visitors, l.attendance.visitors, r) + '</div>');
+      h += section('Visitors', '🙋', '<div class="tiles">'
+        + tile('First-time visitors', c.visitors.firstTime, p.visitors.firstTime, l.visitors.firstTime, r)
+        + tile('Returning visitors', c.visitors.returning, p.visitors.returning, l.visitors.returning, r) + '</div>');
+    }
+    if (a.followUps && c.followUps) {
+      h += section('Follow-ups', '📌', '<div class="tiles">'
+        + tile('Created', c.followUps.created, p.followUps.created, l.followUps.created, r)
+        + tile('Completed', c.followUps.completed, p.followUps.completed, l.followUps.completed, r)
+        + tile('Open at month end', c.followUps.openAtEnd, p.followUps.openAtEnd, l.followUps.openAtEnd, r) + '</div>');
+    }
+    if (a.finance && c.giving) {
+      let funds = '';
+      if (c.giving.funds && c.giving.funds.length) {
+        funds = '<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>Fund</th><th class="num">Gifts</th><th class="num">Total</th></tr></thead><tbody>'
+          + c.giving.funds.map(f => '<tr><td>' + esc(f.fund) + '</td><td class="num">' + n(f.gifts) + '</td><td class="num">$' + esc(f.total) + '</td></tr>').join('')
+          + '</tbody></table></div>';
+      }
+      h += section('Giving', '💰', '<div class="tiles">'
+        + tile('Total recorded', c.giving.total, p.giving.total, l.giving.total, r, true)
+        + tile('Gifts', c.giving.gifts, p.giving.gifts, l.giving.gifts, r)
+        + tile('Givers', c.giving.givers, p.giving.givers, l.giving.givers, r) + '</div>' + funds);
+    }
+    if (a.groups && c.groups) {
+      h += section('Groups (today)', '👥', '<div class="tiles">'
+        + '<div class="tile"><div class="k">Live groups</div><div class="v">' + n(c.groups.groups) + '</div></div>'
+        + '<div class="tile"><div class="k">People in groups</div><div class="v">' + n(c.groups.people) + '</div></div></div>');
+    }
+    if (a.volunteers && c.volunteers) {
+      h += section('Volunteers', '🙌', '<div class="tiles">'
+        + tile('Assignments', c.volunteers.assignments, p.volunteers.assignments, l.volunteers.assignments, r)
+        + tile('Volunteers', c.volunteers.volunteers, p.volunteers.volunteers, l.volunteers.volunteers, r)
+        + tile('Declined', c.volunteers.declined, p.volunteers.declined, l.volunteers.declined, r) + '</div>');
+    }
+    if (a.attendance && r.engagement) {
+      const e = r.engagement, cnt = e.counts || {}, prev = e.previous || {};
+      const RULE = {
+        ENGAGED: 'Attended recently (plus any giving, group or serving).',
+        WATCH: 'Attendance or giving recently stopped, or no attendance in a year while still in a group / serving / giving.',
+        AT_RISK: 'A regular attender absent for six weeks, or gave last year but not this year with no attendance in 90 days.',
+        NEW: 'First attendance within the last 90 days.',
+        QUIET: 'No attendance, gift, group or serving in 365 days.' };
+      const LABEL = { ENGAGED:'Engaged', WATCH:'Watch', AT_RISK:'At risk', NEW:'New', QUIET:'Quiet' };
+      let inner = e.snapshotDate ? '<div class="muted" style="margin-bottom:8px">Snapshot of ' + esc(e.snapshotDate) + ' (the nightly run closest to the month end).</div>'
+                                 : '<div class="muted" style="margin-bottom:8px">No engagement snapshot exists yet — signals appear after the first nightly run.</div>';
+      inner += '<div class="sig">' + Object.keys(LABEL).map(k => {
+        const cur = cnt[k] == null ? 0 : cnt[k], pv = prev[k];
+        const d = pv == null ? '' : ' <span class="c">prev ' + n(pv) + '</span>';
+        return '<div class="tile sig-' + k.toLowerCase() + '" title="' + esc(RULE[k]) + '"><div class="k">' + LABEL[k] + '</div><div class="v">' + n(cur) + '</div>' + d + '</div>';
+      }).join('') + '</div>';
+      h += section('Engagement signals', '🔎', inner);
+    }
+    if (!h.trim()) h = '<div class="empty">Nothing to show.</div>';
+    h += '<details class="defs"><summary>How this was worked out</summary><ul>' + (r.definitions || []).map(d => '<li>' + esc(d) + '</li>').join('') + '</ul></details>';
+    document.getElementById('body').innerHTML = h;
+    document.getElementById('csvBtn').disabled = false;
+    document.getElementById('printBtn').disabled = false;
+  }
+
+  function selected() { const v = document.getElementById('month').value.split('-'); return { year: v[0], month: v[1] }; }
+
+  async function load() {
+    if (busy) return; busy = true; hideErr();
+    document.getElementById('csvBtn').disabled = true; document.getElementById('printBtn').disabled = true;
+    document.getElementById('body').innerHTML = '<div class="empty"><span class="spin"></span> Loading…</div>';
+    const s = selected();
+    try {
+      render(await CGP_api('/api/ministry-report?year=' + encodeURIComponent(s.year) + '&month=' + encodeURIComponent(s.month)));
+    } catch (e) {
+      const msg = CGP_errorMessage(e, "Couldn't load the report.");
+      document.getElementById('body').innerHTML = '<div class="empty">' + esc(msg) + ' <button class="btn-sec" onclick="load()">Retry</button></div>';
+      showErr(msg);
+    } finally { busy = false; }
+  }
+
+  document.getElementById('csvBtn').addEventListener('click', () => {
+    const s = selected();
+    window.location.href = '/api/ministry-report/csv?year=' + encodeURIComponent(s.year) + '&month=' + encodeURIComponent(s.month);
+  });
+
+  fillMonths();
+  load();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/ministry-report', pageTitle: 'Ministry Report', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

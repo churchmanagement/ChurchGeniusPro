@@ -2439,3 +2439,31 @@ CREATE TABLE IF NOT EXISTS ai_saved_people_list (
     delete_flag   BOOLEAN      NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_ai_saved_list_client ON ai_saved_people_list (app_client_id, delete_flag, name);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 2 (2026-11-04): member_engagement_snapshot — nightly engagement facts per live member
+-- (counts and dates only: no names, no amounts). Additive; Hibernate ddl-auto creates the same on start.
+-- Purged after audit.retention.member-engagement-snapshot-days (730). Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS member_engagement_snapshot (
+    id               BIGSERIAL PRIMARY KEY,
+    app_client_id    VARCHAR(100) NOT NULL,
+    member_id        INTEGER      NOT NULL,
+    snapshot_date    DATE         NOT NULL,
+    attendance_30    INTEGER      NOT NULL DEFAULT 0,
+    attendance_90    INTEGER      NOT NULL DEFAULT 0,
+    attendance_365   INTEGER      NOT NULL DEFAULT 0,
+    first_attended   DATE,
+    last_attended    DATE,
+    gifts_90         INTEGER      NOT NULL DEFAULT 0,
+    gifts_365        INTEGER      NOT NULL DEFAULT 0,
+    gifts_prior_365  INTEGER      NOT NULL DEFAULT 0,
+    last_gift        DATE,
+    groups_count     INTEGER      NOT NULL DEFAULT 0,
+    serving          BOOLEAN      NOT NULL DEFAULT FALSE,
+    signal           VARCHAR(12)  NOT NULL,
+    reasons_json     TEXT,
+    created_at       TIMESTAMP    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mes_client_day_member ON member_engagement_snapshot (app_client_id, snapshot_date, member_id);
+CREATE INDEX IF NOT EXISTS idx_mes_client_member_day ON member_engagement_snapshot (app_client_id, member_id, snapshot_date);

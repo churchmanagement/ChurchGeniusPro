@@ -110,6 +110,13 @@ public final class PeopleFilterQueryBuilder {
                             + "AND (SELECT COUNT(*) FROM family_member x JOIN family xf ON xf.id = x.family_id WHERE xf.app_client_id = :cid AND x.delete_flag = false "
                             + "AND xf.delete_flag = false AND LOWER(TRIM(x.email)) = LOWER(TRIM(fm.email))) = 1)");
                 }
+                case Engagement en -> {
+                    attendance = true;
+                    p.put(k + "sig", en.signal());
+                    // the member's LATEST nightly snapshot row of this church carries the signal
+                    where.add("EXISTS (SELECT 1 FROM member_engagement_snapshot es WHERE es.app_client_id = :cid AND es.member_id = fm.id AND es.signal = :" + k + "sig "
+                            + "AND es.snapshot_date = (SELECT MAX(es2.snapshot_date) FROM member_engagement_snapshot es2 WHERE es2.app_client_id = :cid AND es2.member_id = fm.id))");
+                }
             }
         }
         String statusSql = switch (status) {

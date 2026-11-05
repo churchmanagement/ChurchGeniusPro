@@ -368,6 +368,35 @@ public class FamilyController {
         return d == null ? ResponseEntity.status(404).body(Map.of("error", "Family not found")) : ResponseEntity.ok(d);
     }
 
+    /** Optional so hand-built controller tests keep their constructor (AI Phase 2). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.intel.MemberIntelligenceService intelligence;
+
+    /**
+     * AI Phase 2 — Family 360: the latest nightly engagement signal (with its reasons) for every member of one
+     * family: {@code GET /api/families/{id}/engagement} → {@code {allowed, familyId, snapshotDate, members:[...]}}.
+     * Same guard as the Family page; the signal is attendance-based, so it is shown only to viewers with the
+     * Attendance page rule (AiAccessPolicy.crossAccess); giving-presence facts and reasons only with the Income
+     * page rule. Member Portal, Kids and church logins get {@code allowed:false} and no members.
+     */
+    @ResponseBody
+    @GetMapping("/api/families/{id}/engagement")
+    public ResponseEntity<Map<String, Object>> engagement(@PathVariable Integer id, HttpServletRequest request) {
+        if (familyPageGuard(request) != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null || appClientId.isBlank()) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        if (intelligence == null || accessPolicy == null) return ResponseEntity.status(404).body(Map.of("error", "Not found"));
+        var a = accessPolicy.resolve(request, appClientId);
+        boolean allowed = !(a.member() || a.church() || a.kids()) && accessPolicy.crossAccess(request, appClientId).attendance();
+        if (!allowed) return ResponseEntity.ok(Map.of("allowed", false, "familyId", id, "members", List.of()));
+        Map<String, Object> d = intelligence.family(appClientId, id, a.incomeRecords());
+        if (d == null) return ResponseEntity.status(404).body(Map.of("error", "Family not found"));
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("allowed", true);
+        body.putAll(d);
+        return ResponseEntity.ok(body);
+    }
+
     // ── Single-family detail ──────────────────────────────────────────────
 
     /**

@@ -62,6 +62,12 @@ public final class PeopleFilterParser {
     static final String PLEDGE  = "pledge|pledged|pledges|pledging|campaign|campaigns";
     static final String EVENT   = "registered for|signed up for|signed up to|rsvp\\w*|registered to|registrations? for|attending the";
     static final String HOWTO   = "how do|how to|how can|how should|where do|where can|what is|what are|explain|help me";
+    /** AI Phase 2: engagement signal words → the latest nightly snapshot's signal. Matched and cut before everything else. */
+    static final String ENGAGE_AT_RISK = "at risk|at-risk|atrisk|drifting|drifting away|disengaging|disengaged|falling away|slipping away|fading|about to leave";
+    static final String ENGAGE_NEW     = "new people|newcomers|newcomer|new attenders|new attendees|new faces|new members|newly attending|first timers|first-timers|recently started attending|started attending recently";
+    static final String ENGAGE_WATCH   = "watch list|watchlist|on watch|needs? attention|need a check in|need a check-in|worth a call|to watch";
+    static final String ENGAGE_QUIET   = "quiet|gone quiet|dormant|disappeared|vanished|not seen in a year|no activity";
+    static final String ENGAGE_ENGAGED = "engaged|most engaged|highly engaged|very engaged|most involved|most active|core members|committed";
 
     private static boolean has(String s, String regex) { return Pattern.compile("(?<![a-z0-9])(?:" + regex + ")(?![a-z0-9])").matcher(s).find(); }
     private static Matcher find(String s, String regex) { Matcher m = Pattern.compile("(?<![a-z0-9])(?:" + regex + ")(?![a-z0-9])").matcher(s); return m.find() ? m : null; }
@@ -90,6 +96,14 @@ public final class PeopleFilterParser {
             String c = full;
             for (String n : new String[] { groupName, campaignName, eventName }) if (n != null)   // funds stay: "tithe" is also the giving word
                 for (String v : variants(n)) c = c.replaceAll("(?<![a-z0-9])" + Pattern.quote(v) + "(?![a-z0-9])", " \u0007 ");
+            // engagement signal words (Phase 2) — cut out so "new attenders" is the NEW signal, not an attendance count
+            for (String[] sig : new String[][] { { ENGAGE_AT_RISK, "AT_RISK" }, { ENGAGE_NEW, "NEW" }, { ENGAGE_WATCH, "WATCH" }, { ENGAGE_QUIET, "QUIET" }, { ENGAGE_ENGAGED, "ENGAGED" } }) {
+                if (has(c, sig[0])) {
+                    add(out, new Engagement(sig[1])); strong = true;
+                    c = c.replaceAll("(?<![a-z0-9])(?:" + sig[0] + ")(?![a-z0-9])", " \u0008 ");
+                    break;
+                }
+            }
             // Negation applies to what FOLLOWS the negating word in this clause ("regular attenders not in a group":
             // attendance is positive, the group is negated; "havent attended": attendance negated).
             Matcher negM = find(c, NEGATE);

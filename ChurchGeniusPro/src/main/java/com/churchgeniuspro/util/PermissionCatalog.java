@@ -87,6 +87,7 @@ public final class PermissionCatalog {
         k("more.ticketing", "Ticketing", "more"),
         k("more.aiassistant", "AI Assistant", "more"),
         k("more.savedlists", "Saved Lists", "more"),
+        k("more.ministryreport", "Ministry Report", "more"),
 
         k("member", "Member Portal", "member"),
         k("member.family", "My Family", "member"),

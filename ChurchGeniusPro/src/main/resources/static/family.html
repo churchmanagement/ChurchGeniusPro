@@ -239,6 +239,12 @@
       .form-grid.cols-5 { grid-template-columns: 1fr 1fr 1fr; }
       .span-2, .span-3 { grid-column: span 1; }
     }
+    .eng-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; cursor:help; white-space:nowrap; }
+    .eng-engaged { background:#e6f4ea; color:#1e7e34; }
+    .eng-watch   { background:#fff4d6; color:#8a6100; }
+    .eng-at_risk { background:#fde8e8; color:#b02a37; }
+    .eng-new     { background:#e7f0fd; color:#1d4ed8; }
+    .eng-quiet   { background:#eeeeee; color:#555; }
     .kp-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;
               background:#fff4e5; color:#8a4b00; border:1px solid #f3c58b; white-space:normal; vertical-align:middle; }
 </style>
@@ -1131,6 +1137,30 @@
      RENDER MEMBERS LIST TABLE
   ════════════════════════════════════ */
   /* Kids Portal 13+ rule (2026-11-04): why this member's login is refused at sign-in. */
+  /* AI Phase 2 — engagement signal per member (GET /api/families/{id}/engagement); absent until loaded or when the viewer may not see it. */
+  let engagementByMember = {};
+  const ENGAGE_LABEL = { ENGAGED: 'Engaged', WATCH: 'Watch', AT_RISK: 'At risk', NEW: 'New', QUIET: 'Quiet' };
+  function engagementBadge(memberId) {
+    const e = engagementByMember[memberId];
+    if (!e || !e.signal || !ENGAGE_LABEL[e.signal]) return '';
+    const reasons = Array.isArray(e.reasons) ? e.reasons : [];
+    const title = ['Engagement: ' + ENGAGE_LABEL[e.signal] + ' (as of ' + (e.snapshotDate || '') + ')'].concat(reasons).join('\n');
+    return ' <span class="eng-badge eng-' + e.signal.toLowerCase() + '" title="' + escHtml(title) + '">' + ENGAGE_LABEL[e.signal] + '</span>';
+  }
+  async function loadEngagement(id) {
+    engagementByMember = {};
+    if (!id) return;
+    try {
+      const d = await CGP_api(`/api/families/${id}/engagement`);
+      if (!d || d.allowed !== true || !Array.isArray(d.members)) return;
+      d.members.forEach(m => { if (m && m.memberId != null) engagementByMember[m.memberId] = m; });
+      if (familyMembers.length) renderMembersList();
+      // the primary member lives in the form, not the list: show their badge beside the first name
+      const hint = document.getElementById('pFirstNameHint');
+      if (hint && primaryMemberId != null && !hint.textContent) hint.innerHTML = engagementBadge(primaryMemberId).replace(' <span', '<span');
+    } catch (e) { /* a failed signal load never blocks the family page */ }
+  }
+
   function kidsPortalBadge(status) {
     if (status === 'MISSING_DOB') return ' <span class="kp-badge" title="This login cannot sign in until a full date of birth (month, day and year) is entered.">Kids Portal: needs full date of birth</span>';
     if (status === 'UNDER_13')    return ' <span class="kp-badge" title="Logins are available from age 13, based on the date of birth in this record.">Login blocked: under 13</span>';
@@ -1149,7 +1179,7 @@
         : escHtml([m.firstName, m.lastName].filter(Boolean).join(' ')));
       return `<tr>
         <td>${i + 1}</td>
-        <td><strong>${nameHtml}</strong>${kidsPortalBadge(m.kidsPortalStatus)}</td>
+        <td><strong>${nameHtml}</strong>${kidsPortalBadge(m.kidsPortalStatus)}${engagementBadge(m.id)}</td>
         <td>${escHtml(m.memberType || 'Member')}</td>
         <td>${formatPhone(m.phone)}${m.phonePrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}</td>
         <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}${m.emailPrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}${m.addressPrivate ? ' <span title="Address Private — hidden from members" style="font-size:11px;">🔒🏠</span>' : ''}</td>
@@ -1493,6 +1523,7 @@
       familyId = data.id;
       window._familyRenewedAt = data.membershipRenewedAt || null;   // V15: shown in the view-mode subtitle
       populateFamily(data, mode);
+      loadEngagement(data.id);
     } catch (err) {
       showFeedback('❌ ' + (err.message || 'Failed to load family details.'), 'error');
       // Re-enable save button so the user isn't left with a permanently disabled button

@@ -3065,6 +3065,40 @@
           </div>
         </div>
 
+        <!-- ═══ MINISTRY REPORT (AI Phase 2) ═══ -->
+        <div class="hc-card" id="hc-ministry-report" data-cat="members" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.ministryreport" data-keywords="ministry report monthly report engagement at risk watch new quiet church health attendance visitors giving groups volunteers follow-ups csv print">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📈</span>
+            <div class="hc-card-head-text">
+              <h3>Ministry Report</h3>
+              <div class="hc-card-nav">More → Ministry Report</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">One month of your church's ministry facts — check-ins and attendance days, first-time and returning visitors, follow-ups, giving by fund (finance roles), groups, volunteers and the nightly <em>engagement signals</em> — compared with last month and the same month last year, with a plain-sentence narrative. Nothing here is written by a model: every number comes from your records and the rule behind it is listed.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span><span class="hc-role">User</span></div>
+            <div class="hc-mock" aria-label="Ministry Report"><span class="hc-mock-title">📈 Ministry Report</span><span class="hc-ui">October 2026</span><span class="hc-ui lite">⬇ Download CSV</span><span class="hc-ui lite">🖨 Print</span></div>
+            <div class="hc-section-label">Engagement signals</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Engaged</strong> — attended recently (plus any giving, group or serving)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Watch</strong> — attendance or giving recently stopped, or no attendance in a year while still in a group / serving / giving</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>At risk</strong> — a regular attender (3+ days between 90 and 30 days ago) absent for six weeks, or gave last year but not this year with no attendance in 90 days</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>New</strong> — first attendance within the last 90 days</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Quiet</strong> — no attendance, gift, group or serving in 365 days</span></div>
+            </div>
+            <div class="hc-note">Signals are computed every night (02:30 Central) from counts and dates only — never amounts or names. The same badge appears beside each member on the Family page, and the AI Search understands “members at risk”, “new people not in a group” or “quiet members”. You only see the sections your own permissions open.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">Why is Giving missing?</div><div class="hc-faq-a">Giving follows the Income page rule — SuperAdmin, Admin and Accountant with the Income permission. Other logins see the other sections only.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Engagement says “no snapshot yet”.</div><div class="hc-faq-a">Signals appear after the first nightly run. Older months use the snapshot closest to that month's end.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/ministryReport">📈 Ministry Report</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ NTAG LOGIN & LANDING PAGE ═══ -->
         <div class="hc-card" id="hc-ntag" data-cat="admin" data-roles="SuperAdmin,Admin,Church" data-keywords="ntag nfc tag tap login temporary login pin email code otp allowed pages landing page buttons branding welcome message banner analytics revoke reset pin">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4184,6 +4218,15 @@ const HC_KB = [
     steps: ['On Home, ask e.g. “women 18–30 who attended twice in the last 60 days but didn\'t give this year”','Click ✕ on any chip that was misread','Click Save as list and name it','Go to More → Saved Lists to Run, Download CSV, Email or Rename it'],
     links: [{label:'Saved Lists', url:'/savedLists', icon:'📋'},{label:'AI Search (Home)', url:'/home', icon:'✨'}],
     related: ['ai search','ai activity','group email']
+  },
+  {
+    id: 'ministry-report',
+    q: ['ministry report','monthly report','engagement report','church health','members at risk','at risk','new people','quiet members','engagement signals'],
+    title: '📈 Ministry Report — One Month at a Glance',
+    answer: 'More → Ministry Report shows a month of attendance, visitors, follow-ups, giving (finance roles), groups, volunteers and the nightly engagement signals — Engaged, Watch, At risk, New, Quiet — compared with last month and last year, with a plain narrative and a CSV download. Every number comes from your records; the rules are listed under the report.',
+    steps: ['Open More → Ministry Report','Pick a month (the last completed month opens first)','Read the narrative and tiles; hover a signal for its rule','Download the CSV or print it for a meeting'],
+    links: [{label:'Ministry Report', url:'/ministryReport', icon:'📈'},{label:'Attendance', url:'/attendance', icon:'📝'}],
+    related: ['saved lists','ai search','attendance']
   },
   {
     id: 'ai-activity',

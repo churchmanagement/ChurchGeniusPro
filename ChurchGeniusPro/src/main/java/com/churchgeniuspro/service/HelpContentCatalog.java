@@ -602,6 +602,23 @@ public class HelpContentCatalog {
             "1.0", list("v1.0 — Initial release (AI Phase 1)."),
             list("saved lists","people filter","ai search list","email a list","export list")).roles("SuperAdmin,Admin,Accountant"));
 
+        // roles: SuperAdmin,Admin,Accountant,User (AI Phase 2, 2026-11-04)
+        add(new HelpArticle("ministry_report", "Members", "Ministry Report (monthly)", "more.ministryreport", false,
+            "One month of your church's ministry facts — attendance, visitors, follow-ups, giving, groups, volunteers and engagement signals — compared with last month and the same month last year.",
+            "More → Ministry Report shows a chosen month (default: the last completed month): check-ins and attendance days, distinct members and visitors, first-time and returning visitors, follow-up tasks created / completed / still open, giving by fund (finance roles only), live groups and people in them, volunteer assignments, and the engagement signals from the nightly snapshot — Engaged, Watch, At risk, New, Quiet — each with the previous month's figure. "
+          + "A short narrative in plain sentences and a “How this was worked out” list explain every number; nothing is written by a model. You only see the sections your own permissions open (Attendance page rule, Income page rule, Groups, Volunteers, Follow-ups). "
+          + "Engagement signals: NEW = first attendance within 90 days; QUIET = no attendance, gift, group or serving in 365 days; AT RISK = a regular attender (3+ days between 90 and 30 days ago) absent for six weeks, or someone who gave last year but not this year with no attendance in 90 days; WATCH = recent attendance or giving stopped, or no attendance in a year; ENGAGED = everything else with recent activity. The same signals appear as a badge beside each member on the Family page, and the AI Search understands “members at risk”, “new people not in a group”, “quiet members”. "
+          + "⬇ Download CSV saves the figures with the comparison columns; 🖨 Print uses a print layout.",
+            list("Open More → Ministry Report.",
+                 "Pick a month (the last completed month is shown first).",
+                 "Read the narrative, then the tiles; hover a signal count for its rule.",
+                 "Download the CSV or print the page for a board or elders' meeting."),
+            list("Problem: a section is missing — Fix: your login lacks that page's permission (for example Income for giving); an administrator can grant it.",
+                 "Problem: Engagement shows “no snapshot yet” — Fix: signals appear after the first nightly run (02:30 Central).",
+                 "Problem: the current month looks low — Fix: it is not over yet; the report says so at the top."),
+            "1.0", list("v1.0 — Initial release (AI Phase 2)."),
+            list("ministry report","monthly report","engagement","at risk","church health","new people")).roles("SuperAdmin,Admin,Accountant,User"));
+
         // roles: SuperAdmin,Admin,Church (AI Phase 0, 2026-11-04)
         add(new HelpArticle("ai_activity", "Admin", "AI Activity", null, true,
             "Who used the AI features, what kind of request it was, what it cost and how it ended — never the question itself.",

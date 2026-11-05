@@ -2068,6 +2068,7 @@
             '/tickets':             'more.ticketing',
             '/ai-assistant':        'more.aiassistant',
             '/savedLists':          'more.savedlists',
+            '/ministryReport':      'more.ministryreport',
             // Reminders — all three sub-pages sit behind the single 'Reminders'
             // checkbox (general.reminders); legacy reminders.* keys via CGP_PERM_ALIASES.
             '/eventReminders':      'general.reminders',
@@ -2089,7 +2090,7 @@
             'general':    ['general.meetings','general.attendance','general.events','general.ministry',
                            'general.email','general.emailsettings','general.reminders'],
             'more':       ['more.certificates','more.publicscreens','more.followups','more.helpcenter',
-                           'more.ticketing','more.aiassistant','more.savedlists'],
+                           'more.ticketing','more.aiassistant','more.savedlists','more.ministryreport'],
             'reminders':  ['general.reminders']
         };
 

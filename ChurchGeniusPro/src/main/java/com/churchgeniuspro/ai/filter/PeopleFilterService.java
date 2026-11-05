@@ -229,6 +229,8 @@ public class PeopleFilterService {
                 case RegisteredForEvent re -> d.add("Registered: a registration for “" + re.event() + "” whose email belongs to this person alone — registrations carry no member record.");
                 case Role r -> d.add("Role: the family role on the record (Head of household, Spouse, Adult, Child), legacy spellings included.");
                 case MemberType t -> d.add("Type: the person's member type on the Families page (blank counts as Member).");
+                case Engagement en -> d.add("Engagement (" + en.label() + "): the person's latest nightly engagement signal, worked out from attendance days, "
+                        + "giving presence (never amounts), group membership and serving — see the Ministry Report for the rules. People without a snapshot yet are never included.");
                 default -> { }
             }
         }
