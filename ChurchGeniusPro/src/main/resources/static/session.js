@@ -1462,6 +1462,7 @@
         '/private-access-settings': 'privatePages', '/ntagAccess': 'ntag',
         '/savedLists': 'aiSearch',
         '/apiTokens': 'mcp',
+        '/workflows': 'workflows',
         '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers',
         '/guessIt': 'activityCorner', '/memberHome?tab=guessit': 'activityCorner'
     };
@@ -2071,6 +2072,7 @@
             '/savedLists':          'more.savedlists',
             '/apiTokens':           'more.aiassistant',
             '/ministryReport':      'more.ministryreport',
+            '/workflows':           'more.workflows',
             // Reminders — all three sub-pages sit behind the single 'Reminders'
             // checkbox (general.reminders); legacy reminders.* keys via CGP_PERM_ALIASES.
             '/eventReminders':      'general.reminders',
@@ -2092,7 +2094,7 @@
             'general':    ['general.meetings','general.attendance','general.events','general.ministry',
                            'general.email','general.emailsettings','general.reminders'],
             'more':       ['more.certificates','more.publicscreens','more.followups','more.helpcenter',
-                           'more.ticketing','more.aiassistant','more.savedlists','more.ministryreport'],
+                           'more.ticketing','more.aiassistant','more.savedlists','more.ministryreport','more.workflows'],
             'reminders':  ['general.reminders']
         };
 

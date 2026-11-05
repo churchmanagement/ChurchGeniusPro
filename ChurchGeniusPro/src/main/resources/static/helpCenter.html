@@ -3100,6 +3100,41 @@
           </div>
         </div>
 
+        <!-- ═══ AUTOMATIONS / WORKFLOWS (AI Phase 6) ═══ -->
+        <div class="hc-card" id="hc-workflows" data-cat="members" data-roles="SuperAdmin,Admin" data-perm="more.workflows" data-feature="workflows" data-keywords="automations automation workflows workflow rules triggers conditions actions if this then that auto follow-up visitor at risk overdue gift template describe">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">⚙️</span>
+            <div class="hc-card-head-text">
+              <h3>Automations</h3>
+              <div class="hc-card-nav">More → Automations</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Rules that watch what happens in your church and act for you — <strong>when</strong> a visitor checks in, a member checks in, a follow-up is created, a prayer request is added, a gift is recorded, a member's engagement signal changes overnight or a follow-up goes overdue; <strong>if</strong> the conditions you set hold (e.g. first visit, interest = Interested, amount ≥ 1,000, signal = AT_RISK); <strong>then</strong> create a follow-up, notify or e-mail a staff member, add a family note, or ask the AI for an e-mail draft. Every rule is <em>off</em> until an admin switches it on, runs with the permissions of the admin who enabled it, and never messages members, visitors or donors.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span></div>
+            <div class="hc-mock" aria-label="Automations page"><span class="hc-mock-title">⚙️ Automations</span><span class="hc-ui">+ From template</span><span class="hc-ui lite">✨ Describe a rule</span><span class="hc-ui lite">Test run</span><span class="hc-ui lite">On / Off</span></div>
+            <div class="hc-section-label">How to add a rule</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Pick one of the ten templates (first-time visitor → follow-up, interested visitor → notify, third visit → membership talk, visiting family → e-mail, member At risk → follow-up, member Quiet → note + notify, overdue follow-up → notify, high-priority follow-up → notify, new prayer request → e-mail, gift ≥ $1,000 → thank-you) — or describe the rule in a sentence and let the assistant draft it, or build it by hand</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Edit the trigger, conditions and actions in the form; text fields can use placeholders such as <code>{{name}}</code>, <code>{{amount}}</code>, <code>{{title}}</code></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Press <span class="hc-ui lite">Test run</span> to see, on sample facts, whether the conditions hold and what each action would do — nothing is written</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Switch the rule <span class="hc-ui">On</span>. From then on each run is listed under Runs with its outcome (Done, Skipped, Denied, Capped, Failed) and what it did</span></div>
+            </div>
+            <div class="hc-note">Each action follows the page it touches: creating a follow-up needs the owner's Follow-ups page, a family note the Families page, an AI draft the AI Writing plan feature — checked again on every run; if the owner loses a permission the run is recorded as Denied and nothing happens. The same event never runs a rule twice. A church is limited to 200 runs a day. Pro / Trial plans only.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">Can a rule text or e-mail our members?</div><div class="hc-faq-a">No. Notifications and e-mails go only to staff logins of your church; messages to members always go through the Email / SMS pages.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">The nightly triggers did not fire.</div><div class="hc-faq-a">Signal changes and overdue follow-ups are evaluated once a night (03:20 Central) and only for churches with an enabled rule for them; a signal change also needs two consecutive snapshot days.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">A run says Capped.</div><div class="hc-faq-a">Your church reached its daily limit of automation runs; the rule picks up again tomorrow.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/workflows">⚙️ Automations</a>
+              <a class="hc-qlink" href="/followups">📌 Follow-Ups</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ AI CONNECTIONS / MCP (AI Phase 5) ═══ -->
         <div class="hc-card" id="hc-ai-connections" data-cat="members" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="mcp" data-keywords="ai connections api tokens personal access token mcp claude desktop chatgpt external ai bearer token scopes revoke">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4338,6 +4373,15 @@ const HC_KB = [
     steps: ['Type the request in the ✨ AI Search bar or the AI Assistant chat','Answer a clarifying question if a name matched several people','Read the card and press the action button (or say "yes")','Check Admin → AI Activity → Proposed actions any time'],
     links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'AI Activity', url:'/aiActivity', icon:'📜'}],
     related: ['ai search','ai activity','follow-ups','groups']
+  },
+  {
+    id: 'workflows',
+    q: ['automations','automation','workflows','workflow','rules','triggers','if this then that','auto follow-up','automatic follow-up','when a visitor checks in','describe a rule'],
+    title: '⚙️ Automations — When This Happens, Do That',
+    answer: 'More → Automations (SuperAdmin / Admin). A rule has a trigger (visitor checks in, member checks in, follow-up created, prayer request added, gift recorded, engagement signal changed overnight, follow-up overdue), conditions (e.g. interest = Interested, amount ≥ 1000, signal = AT_RISK) and actions (create a follow-up, notify or e-mail a staff member, add a family note, draft an e-mail with AI). Start from one of ten templates, describe the rule in a sentence, or build it by hand; Test run shows what would happen on sample facts. Every rule is off until an admin switches it on, runs with that admin\'s permissions (re-checked each time), never messages members, and is listed under Runs. Pro / Trial plans.',
+    steps: ['Open More → Automations','Add from a template, describe the rule, or build it by hand','Test run on sample facts','Switch the rule On and watch the Runs list'],
+    links: [{label:'Automations', url:'/workflows', icon:'⚙️'},{label:'Follow-Ups', url:'/followups', icon:'📌'}],
+    related: ['follow-ups','ai actions','ministry report']
   },
   {
     id: 'ai-connections',

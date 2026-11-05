@@ -108,7 +108,8 @@ class ApiPermissionCheckRatchetTest {
         Map.entry("controller/AiPeopleFilterController.java", 1),  // /api/ai-search/filter + saved-lists share one gate() — AI Assistant feature gate (AI Phase 1, 2026-11-04)
         Map.entry("controller/AiWritingController.java", 1),       // /api/ai/write + /api/ai/forms share one gate() — AI Assistant feature gate (AI Phase 3, 2026-11-04)
         Map.entry("ai/action/AiTools.java", 1),                     // add_group_member mirrors POST /api/groups/{id}/members' admin.groups.edit guard (AI Phase 4, 2026-11-05)
-        Map.entry("controller/ApiTokenController.java", 1)          // /api/tokens* share one gate() — AI Assistant feature gate (AI Phase 5, 2026-11-05)
+        Map.entry("controller/ApiTokenController.java", 1),         // /api/tokens* share one gate() — AI Assistant feature gate (AI Phase 5, 2026-11-05)
+        Map.entry("workflow/WorkflowController.java", 1)             // POST /api/workflows/draft — AI Assistant feature gate for the one model call (AI Phase 6, 2026-11-05)
     ));
 
     @Test

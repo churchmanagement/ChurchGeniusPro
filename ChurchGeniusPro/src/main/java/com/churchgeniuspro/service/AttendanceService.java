@@ -3,6 +3,8 @@ package com.churchgeniuspro.service;
 import com.churchgeniuspro.hibernate.*;
 import com.churchgeniuspro.repository.*;
 import com.churchgeniuspro.util.AppClock;
+import com.churchgeniuspro.workflow.WorkflowEvent;
+import com.churchgeniuspro.workflow.WorkflowEvents;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -39,6 +41,9 @@ public class AttendanceService {
     private final FamilyMemberRepository          memberRepo;
     private final VolunteerProfileRepository      volunteerRepo;
     private final FamilyRepository                familyRepo;
+    /** AI Phase 6: optional — null in hand-built tests; the engine hears ATTENDANCE_SAVED for member check-ins. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private WorkflowEvents workflowEvents;
 
     public AttendanceService(AttendanceRecordRepository recordRepo,
                              AttendanceVisitorRepository visitorRepo,
@@ -214,7 +219,13 @@ public class AttendanceService {
         a.setCheckInMethod(method != null ? method : "manual");
         a.setCreatedBy(createdBy);
         a.setDeleteFlag(false);
-        return recordRepo.save(a);
+        boolean created = a.getId() == null;
+        AttendanceRecord saved = recordRepo.save(a);
+        if (created)   // a re-save of the same member+day+service is not a new check-in
+            WorkflowEvents.publish(workflowEvents, WorkflowEvent.of("ATTENDANCE_SAVED", clientId, "attendance:" + saved.getId(), name,
+                    WorkflowEvent.facts("name", name, "memberId", memberId, "serviceName", service, "status", saved.getStatus(),
+                            "method", saved.getCheckInMethod(), "date", day.toString())));
+        return saved;
     }
 
     public List<AttendanceRecord> familyCheckIn(String clientId, String createdBy, Integer familyId,

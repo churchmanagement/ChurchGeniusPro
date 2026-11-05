@@ -32,6 +32,10 @@ import java.util.stream.Collectors;
  */
 @Service
 public class IncomeService {
+
+    /** AI Phase 6: optional — null in hand-built tests; the engine hears GIFT_RECORDED after the commit. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.workflow.WorkflowEvents workflowEvents;
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(IncomeService.class);
 
     private final IncomeRepository          incomeRepo;
@@ -228,6 +232,13 @@ public class IncomeService {
             // statement line between our check above and this insert.
             throw duplicateFromRace("income", appClientId, ref, incomeDate, amount);
         }
+        // AI Phase 6: the engine hears GIFT_RECORDED (amount, fund, who — never a note or contact detail).
+        com.churchgeniuspro.workflow.WorkflowEvents.publish(workflowEvents, com.churchgeniuspro.workflow.WorkflowEvent.of("GIFT_RECORDED", appClientId, "income:" + saved.getId(),
+                member != null ? (member.getFirstName() + " " + member.getLastName()).trim() : (guestName == null ? "Guest" : guestName),
+                com.churchgeniuspro.workflow.WorkflowEvent.facts("amount", saved.getAmount(), "fund", saved.getSubSource() == null ? "" : saved.getSubSource().getSourceName(),
+                        "guest", member == null, "memberId", member == null ? null : member.getId(),
+                        "name", member != null ? (member.getFirstName() + " " + member.getLastName()).trim() : (guestName == null ? "" : guestName),
+                        "date", saved.getIncomeDate() == null ? "" : saved.getIncomeDate().toString(), "quickAdd", quickAdd, "incomeId", saved.getId())));
         // Auto-credit pledge balance when the contributor matches a member with an
         // active pledge against this fund. The hook runs in its own transaction
         // (REQUIRES_NEW), so a failure never rolls back the income; it is logged with

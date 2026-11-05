@@ -54,6 +54,9 @@ public class PrayerRequestController {
 
     private final PrayerSectionRepository      sectionRepo;
     private final PrayerRequestRepository      requestRepo;
+    /** AI Phase 6: optional — null in hand-built tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.workflow.WorkflowEvents workflowEvents;
     private final PrayerScheduleRepository     scheduleRepo;
     private final FamilyMemberRepository       memberRepo;
     private final JavaMailSender               mailSender;
@@ -273,6 +276,11 @@ public class PrayerRequestController {
         r.setAssignedVolunteerId(assigneeId);
         r.setClientId(clientId);
         requestRepo.save(r);
+        // AI Phase 6: the engine hears PRAYER_REQUEST_CREATED (title, status, requester, assigned — never the description).
+        com.churchgeniuspro.workflow.WorkflowEvents.publish(workflowEvents, com.churchgeniuspro.workflow.WorkflowEvent.of("PRAYER_REQUEST_CREATED", clientId,
+                "prayer:" + r.getId(), r.getTitle(),
+                com.churchgeniuspro.workflow.WorkflowEvent.facts("title", r.getTitle(), "status", r.getStatus() == null ? "" : r.getStatus(),
+                        "requesterName", r.getRequesterName() == null ? "" : r.getRequesterName(), "assigned", assigneeId != null, "requestId", r.getId())));
         return ResponseEntity.ok(toMap(r));
     }
 

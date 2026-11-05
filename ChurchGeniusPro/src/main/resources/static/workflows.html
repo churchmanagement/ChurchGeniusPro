@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Automations — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:16px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; margin:0; }
+    .card-body { padding:16px 20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-sec[disabled], .btn[disabled] { opacity:.6; cursor:wait; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; }
+    [hidden], .btn[hidden], .btn-sec[hidden], .btn-danger[hidden], .card[hidden] { display:none !important; }
+    .notice { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; }
+    .notice.warn { background:#fff6e5; color:#8a5a00; border:1px solid #ffe2a8; }
+    .notice.err { background:#fdecea; color:#c62828; }
+    .notice.ok { background:#e8f5e9; color:#2e7d32; }
+    .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); }
+    .rule { border:1px solid #eef0f6; border-radius:12px; padding:14px; background:#fff; display:flex; flex-direction:column; gap:8px; }
+    .rule.on { border-color:#2e7d32; box-shadow:0 0 0 2px rgba(46,125,50,.1); }
+    .rule-name { font-weight:800; color:#1e2139; font-size:15px; word-break:break-word; }
+    .rule-trig { font-size:12.5px; color:#4f2538; font-weight:600; }
+    .rule-meta { font-size:12px; color:#8a8a8a; }
+    .rule-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; align-items:center; }
+    .switch { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#1e2139; }
+    .switch input { width:18px; height:18px; }
+    .pill { display:inline-block; border-radius:12px; padding:2px 9px; font-size:11.5px; font-weight:700; }
+    .pill.on { background:#e8f5e9; color:#2e7d32; } .pill.off { background:#f0f2f8; color:#666; }
+    .pill.done { background:#e8f5e9; color:#2e7d32; } .pill.skipped { background:#f0f2f8; color:#666; } .pill.denied, .pill.failed { background:#fdecea; color:#c62828; } .pill.capped { background:#fff6e5; color:#8a5a00; } .pill.dry { background:#e3f2fd; color:#1565c0; }
+    .tpl { border:1px dashed #d9dce8; border-radius:12px; padding:12px; background:#fbfbfe; display:flex; flex-direction:column; gap:6px; }
+    .tpl-name { font-weight:700; color:#1e2139; font-size:13.5px; }
+    .form-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+    label.f { display:flex; flex-direction:column; gap:4px; font-size:12.5px; font-weight:600; color:#555; }
+    label.f input, label.f select, label.f textarea { font:inherit; padding:8px 10px; border:1px solid #d9dce8; border-radius:8px; }
+    label.f textarea { min-height:70px; }
+    .row { display:grid; gap:8px; grid-template-columns:1fr 1fr 1fr auto; align-items:end; margin-bottom:8px; }
+    .row select, .row input { font:inherit; padding:7px 9px; border:1px solid #d9dce8; border-radius:8px; width:100%; }
+    .act { border:1px solid #eef0f6; border-radius:10px; padding:10px; margin-bottom:8px; background:#fafbfe; }
+    .act-head { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .act-head select { font:inherit; padding:7px 9px; border:1px solid #d9dce8; border-radius:8px; flex:1; }
+    .sect { font-size:12px; font-weight:800; letter-spacing:.04em; color:#9fa8c4; text-transform:uppercase; margin:14px 0 8px; }
+    .out { background:#1e2139; color:#e8ebf7; padding:12px 14px; border-radius:10px; font-size:12.5px; white-space:pre-wrap; margin-top:10px; }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; min-width:640px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #eef0f6; vertical-align:top; }
+    th { color:#9fa8c4; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+    td.empty { color:#8a8a8a; text-align:center; padding:18px; }
+    .log li { font-size:12.5px; color:#444; }
+    @media (max-width:560px) { .card-body { padding:14px; } .row { grid-template-columns:1fr 1fr; } table { min-width:560px; } }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="content">
+    <div class="page-title">⚙️ Automations</div>
+    <div class="page-subtitle">When something happens in your church — a visitor checks in, a member slips to <em>At risk</em>, a follow-up goes overdue, a large gift arrives — a rule can create a follow-up, notify or e-mail a staff member, add a family note or draft an e-mail. Every rule is off until you switch it on, runs with your permissions, and never messages members.</div>
+
+    <div id="statusNotice"></div>
+
+    <div class="card" id="rulesCard">
+      <div class="card-header"><h2>Your rules</h2>
+        <button class="btn-sec" onclick="load()">↻ Refresh</button>
+        <button class="btn-sec" onclick="openRuns(null)">📜 Runs</button>
+        <button class="btn" id="newBtn" onclick="openEditor(null)">+ New rule</button></div>
+      <div class="card-body">
+        <div class="grid" id="rules"><div class="muted">Loading…</div></div>
+      </div>
+    </div>
+
+    <div class="card" id="editorCard" hidden>
+      <div class="card-header"><h2 id="editorTitle">New rule</h2><button class="btn-sec" onclick="closeEditor()">Close</button></div>
+      <div class="card-body">
+        <div class="sect">✨ Describe the rule (optional)</div>
+        <div class="form-grid">
+          <label class="f" style="grid-column:1/-1">In your own words<textarea id="describe" maxlength="1000" placeholder="e.g. When a first-time visitor checks in, create a follow-up for me due in two days and notify me"></textarea></label>
+        </div>
+        <div class="rule-actions" style="margin:6px 0 4px"><button class="btn-sec" id="draftBtn" onclick="draftRule()">✨ Draft the rule</button><span class="muted" id="draftMsg"></span></div>
+
+        <div class="sect">Rule</div>
+        <div class="form-grid">
+          <label class="f">Name<input id="rName" maxlength="120"></label>
+          <label class="f">Trigger<select id="rTrigger" onchange="onTriggerChange()"></select></label>
+          <label class="f" style="grid-column:1/-1">Description<input id="rDesc" maxlength="500"></label>
+        </div>
+        <div class="muted" id="triggerHelp" style="margin-top:6px"></div>
+
+        <div class="sect">Conditions (all must hold)</div>
+        <div id="conds"></div>
+        <button class="btn-sec" onclick="addCond()">+ Condition</button>
+
+        <div class="sect">Actions</div>
+        <div id="acts"></div>
+        <button class="btn-sec" onclick="addAct()">+ Action</button>
+        <div class="muted" style="margin-top:6px">Text fields may use placeholders from the trigger's facts, e.g. <code>{{name}}</code>, <code>{{amount}}</code>, <code>{{title}}</code>.</div>
+
+        <div class="rule-actions" style="margin-top:14px">
+          <button class="btn" id="saveBtn" onclick="saveRule()">Save</button>
+          <button class="btn-sec" id="testBtn" onclick="testRule()" hidden>▶ Test run</button>
+          <span class="muted" id="saveMsg"></span>
+        </div>
+        <div class="out" id="testOut" hidden></div>
+      </div>
+    </div>
+
+    <div class="card" id="runsCard" hidden>
+      <div class="card-header"><h2 id="runsTitle">Runs</h2><button class="btn-sec" onclick="document.getElementById('runsCard').hidden = true">Close</button></div>
+      <div class="card-body">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>When</th><th>Rule</th><th>Trigger</th><th>Subject</th><th>Outcome</th><th>What happened</th></tr></thead>
+          <tbody id="runRows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="card" id="templatesCard">
+      <div class="card-header"><h2>Templates</h2><span class="muted">Added switched off — review, test, then turn on.</span></div>
+      <div class="card-body"><div class="grid" id="templates"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const when = s => { if (!s) return '—'; const d = new Date(s); return isNaN(d) ? esc(s) : d.toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}); };
+  let state = null, editingId = null, vocab = null;
+  const STATUS = { DONE:'Done', SKIPPED:'Skipped', DENIED:'Denied', CAPPED:'Capped', FAILED:'Failed', DRY:'Test' };
+
+  function notice(kind, html) { document.getElementById('statusNotice').innerHTML = html ? '<div class="notice ' + kind + '">' + html + '</div>' : ''; }
+  const trig = key => (vocab.triggers.find(t => t.key === key) || null);
+  const actType = key => (vocab.actions.find(a => a.key === key) || null);
+
+  async function load() {
+    const box = document.getElementById('rules');
+    try { state = await CGP_api('/api/workflows'); }
+    catch (e) {
+      if (e && e.status === 403 && e.code === 'SUBSCRIPTION_FEATURE_DISABLED') notice('warn', 'Automations are not included in your plan. Upgrade to Pro to use rules.');
+      else notice('err', esc(CGP_errorMessage(e, "Couldn't load the rules.")) + ' <button class="btn-sec" onclick="load()">Retry</button>');
+      box.innerHTML = '<div class="muted">—</div>';
+      document.getElementById('templatesCard').hidden = true; document.getElementById('newBtn').disabled = true;
+      return;
+    }
+    vocab = state.vocabulary;
+    if (!state.engineEnabled) notice('warn', 'The automation engine is switched off on this server: rules are kept but nothing runs.');
+    else if (document.querySelector('#statusNotice .notice.warn')) notice('', '');
+    const rules = state.rules || [];
+    box.innerHTML = rules.length ? rules.map(r => `<div class="rule ${r.enabled ? 'on' : ''}" data-id="${Number(r.id)}">
+        <div class="rule-name">${esc(r.name)}</div>
+        <div class="rule-trig">When: ${esc(r.triggerLabel)}</div>
+        <div class="muted">${esc(r.description || '')}</div>
+        <div class="rule-meta">${(r.conditions || []).length} condition(s) · ${(r.actions || []).length} action(s) · owner ${esc(r.owner)} · ${Number(r.runCount || 0)} run(s)${r.lastRunAt ? ' · last ' + when(r.lastRunAt) : ''}${r.broken ? ' · <span class="pill failed">needs repair</span>' : ''}</div>
+        <div class="rule-actions">
+          <label class="switch"><input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule(${Number(r.id)}, this)"> <span class="pill ${r.enabled ? 'on' : 'off'}">${r.enabled ? 'On' : 'Off'}</span></label>
+          <button class="btn-sec" onclick="openEditor(${Number(r.id)})">✏️ Edit</button>
+          <button class="btn-sec" onclick="openRuns(${Number(r.id)})">📜 Runs</button>
+          <button class="btn-danger" onclick="deleteRule(${Number(r.id)}, this)">Delete</button>
+        </div></div>`).join('') : '<div class="muted">No rules yet — add one from a template below, or describe one.</div>';
+    document.getElementById('newBtn').disabled = rules.length >= (state.maxRules || 50);
+    document.getElementById('templates').innerHTML = (state.templates || []).map(t => `<div class="tpl"><div class="tpl-name">${esc(t.name)}</div><div class="muted">${esc(t.description)}</div>
+        <div class="rule-actions"><button class="btn-sec" onclick="addTemplate('${esc(t.key)}')">+ Add</button></div></div>`).join('');
+  }
+
+  async function toggleRule(id, cb) {
+    cb.disabled = true;
+    try { await CGP_api('/api/workflows/' + id + '/enable', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ enabled: cb.checked }) }); notice('ok', cb.checked ? 'Rule switched on — it now runs with your permissions.' : 'Rule switched off.'); }
+    catch (e) { cb.checked = !cb.checked; notice('err', esc(CGP_errorMessage(e, "Couldn't change the rule."))); }
+    finally { cb.disabled = false; await load(); }
+  }
+
+  let pendingDelete = null;
+  async function deleteRule(id, btn) {
+    if (pendingDelete !== id) { pendingDelete = id; btn.textContent = 'Click again to delete'; setTimeout(() => { if (pendingDelete === id) { pendingDelete = null; btn.textContent = 'Delete'; } }, 6000); return; }
+    pendingDelete = null;
+    try { await CGP_api('/api/workflows/' + id, { method:'DELETE' }); notice('ok', 'Rule deleted.'); if (editingId === id) closeEditor(); await load(); }
+    catch (e) { notice('err', esc(CGP_errorMessage(e, "Couldn't delete the rule."))); }
+  }
+
+  async function addTemplate(key) {
+    try { const r = await CGP_api('/api/workflows', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ templateKey: key }) }); notice('ok', 'Added “' + esc(r.name) + '” (off). Test it, then switch it on.'); await load(); openEditor(r.id); }
+    catch (e) { notice('err', esc(CGP_errorMessage(e, "Couldn't add the template."))); }
+  }
+
+  /* ───────────── editor ───────────── */
+  function openEditor(id) {
+    editingId = id;
+    const card = document.getElementById('editorCard'); card.hidden = false;
+    document.getElementById('testOut').hidden = true; document.getElementById('saveMsg').textContent = ''; document.getElementById('draftMsg').textContent = '';
+    document.getElementById('testBtn').hidden = id == null;
+    const sel = document.getElementById('rTrigger');
+    sel.innerHTML = vocab.triggers.map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join('');
+    const r = id == null ? null : (state.rules || []).find(x => x.id === id);
+    document.getElementById('editorTitle').textContent = r ? 'Edit: ' + r.name : 'New rule';
+    document.getElementById('describe').value = '';
+    fillForm(r || { name:'', description:'', trigger: vocab.triggers[0].key, conditions: [], actions: [{ type:'create_follow_up', params:{ title:'Follow up: {{name}}', assignTo:'owner', dueInDays:'3' } }] });
+    card.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+  function closeEditor() { document.getElementById('editorCard').hidden = true; editingId = null; }
+
+  function fillForm(r) {
+    document.getElementById('rName').value = r.name || '';
+    document.getElementById('rDesc').value = r.description || '';
+    document.getElementById('rTrigger').value = r.trigger;
+    onTriggerChange(true);
+    document.getElementById('conds').innerHTML = '';
+    (r.conditions || []).forEach(c => addCond(c));
+    document.getElementById('acts').innerHTML = '';
+    (r.actions || []).forEach(a => addAct(a));
+  }
+  function onTriggerChange(keep) {
+    const t = trig(document.getElementById('rTrigger').value);
+    document.getElementById('triggerHelp').textContent = t ? t.description + ' Facts: ' + Object.keys(t.facts).join(', ') + (t.nightly ? ' (evaluated nightly)' : '') : '';
+    if (!keep) { document.querySelectorAll('#conds .row select.cf').forEach(s => fillFields(s, s.value)); }
+  }
+  function fillFields(sel, val) {
+    const t = trig(document.getElementById('rTrigger').value);
+    sel.innerHTML = Object.keys(t.facts).map(f => `<option value="${esc(f)}">${esc(f)} (${esc(t.facts[f])})</option>`).join('');
+    if (val && t.facts[val]) sel.value = val;
+  }
+  function addCond(c) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = `<select class="cf"></select><select class="co">${vocab.operators.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select><input class="cv" placeholder="value"><button class="btn-sec" onclick="this.parentElement.remove()">✕</button>`;
+    document.getElementById('conds').appendChild(row);
+    fillFields(row.querySelector('.cf'), c && c.field);
+    if (c) { row.querySelector('.co').value = c.op; row.querySelector('.cv').value = c.value == null ? '' : c.value; }
+  }
+  function addAct(a) {
+    const box = document.createElement('div'); box.className = 'act';
+    box.innerHTML = `<div class="act-head"><select class="at" onchange="renderParams(this.closest('.act'))">${vocab.actions.map(x => `<option value="${esc(x.key)}">${esc(x.label)}</option>`).join('')}</select><button class="btn-sec" onclick="this.closest('.act').remove()">✕</button></div><div class="params form-grid"></div><div class="muted ad"></div>`;
+    document.getElementById('acts').appendChild(box);
+    if (a) box.querySelector('.at').value = a.type;
+    renderParams(box, a && a.params);
+  }
+  function renderParams(box, values) {
+    const t = actType(box.querySelector('.at').value); box.querySelector('.ad').textContent = t.description;
+    const staff = (state.staff || []).map(s => `<option value="${Number(s.id)}">${esc(s.name)} (${esc(s.role)})</option>`).join('');
+    box.querySelector('.params').innerHTML = Object.keys(t.params).map(p => {
+      const v = values && values[p] != null ? values[p] : '';
+      if (p === 'to' || p === 'assignTo') return `<label class="f">${esc(p)}<select data-p="${esc(p)}"><option value="owner">The rule owner (me)</option>${staff}</select></label>`;
+      if (p === 'priority') return `<label class="f">priority<select data-p="priority"><option value="">Medium (default)</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>`;
+      if (p === 'tone') return `<label class="f">tone<select data-p="tone"><option value="">Warm (default)</option>${['warm','formal','casual','urgent','encouraging','celebratory'].map(x => `<option>${x}</option>`).join('')}</select></label>`;
+      if (p === 'dueInDays') return `<label class="f">due in days<input data-p="dueInDays" type="number" min="0" max="365" value="${esc(v)}"></label>`;
+      const wide = (p === 'body' || p === 'description' || p === 'message' || p === 'prompt');
+      return `<label class="f" ${wide ? 'style="grid-column:1/-1"' : ''}>${esc(p)}${t.params[p] ? ' *' : ''}<input data-p="${esc(p)}" value="${esc(v)}"></label>`;
+    }).join('');
+    if (values) Object.keys(values).forEach(p => { const el = box.querySelector(`[data-p="${p}"]`); if (el && el.tagName === 'SELECT') el.value = String(values[p]); });
+  }
+  function readForm() {
+    const rule = { name: document.getElementById('rName').value.trim(), description: document.getElementById('rDesc').value.trim(), trigger: document.getElementById('rTrigger').value, conditions: [], actions: [] };
+    document.querySelectorAll('#conds .row').forEach(r => rule.conditions.push({ field: r.querySelector('.cf').value, op: r.querySelector('.co').value, value: r.querySelector('.cv').value }));
+    document.querySelectorAll('#acts .act').forEach(b => { const params = {}; b.querySelectorAll('[data-p]').forEach(el => { if (el.value !== '') params[el.dataset.p] = el.value; }); rule.actions.push({ type: b.querySelector('.at').value, params }); });
+    return rule;
+  }
+
+  async function saveRule() {
+    const msg = document.getElementById('saveMsg'); const btn = document.getElementById('saveBtn');
+    const rule = readForm();
+    if (!rule.name) { msg.textContent = 'Give the rule a name.'; return; }
+    if (!rule.actions.length) { msg.textContent = 'Add at least one action.'; return; }
+    btn.disabled = true; msg.textContent = 'Saving…';
+    try {
+      const r = editingId == null
+        ? await CGP_api('/api/workflows', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rule) })
+        : await CGP_api('/api/workflows/' + editingId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rule) });
+      editingId = r.id; document.getElementById('testBtn').hidden = false; document.getElementById('editorTitle').textContent = 'Edit: ' + r.name;
+      msg.textContent = 'Saved' + (r.enabled ? '.' : ' (off). Test it, then switch it on from the list.');
+      await load();
+    } catch (e) { msg.textContent = CGP_errorMessage(e, "Couldn't save the rule."); }
+    finally { btn.disabled = false; }
+  }
+
+  async function testRule() {
+    const out = document.getElementById('testOut'); const btn = document.getElementById('testBtn');
+    if (editingId == null) return;
+    btn.disabled = true; out.hidden = false; out.textContent = 'Running on sample facts…';
+    try {
+      const r = await CGP_api('/api/workflows/' + editingId + '/test', { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
+      out.textContent = 'Outcome: ' + (STATUS[r.status] || r.status) + ' (nothing was written)\n\nSample facts:\n' + Object.keys(r.facts || {}).map(k => '  ' + k + ' = ' + r.facts[k]).join('\n')
+        + '\n\nConditions:\n' + ((r.conditions || []).length ? r.conditions.map(c => '  ' + c).join('\n') : '  (none)') + '\n\nActions:\n' + (r.actions || []).map(a => '  • ' + a).join('\n');
+    } catch (e) { out.textContent = CGP_errorMessage(e, "The test run failed."); }
+    finally { btn.disabled = false; }
+  }
+
+  async function draftRule() {
+    const msg = document.getElementById('draftMsg'); const btn = document.getElementById('draftBtn');
+    const d = document.getElementById('describe').value.trim();
+    if (!d) { msg.textContent = 'Describe the rule first.'; return; }
+    btn.disabled = true; msg.textContent = 'Drafting…';
+    try {
+      const r = await CGP_api('/api/workflows/draft', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ description: d }) });
+      fillForm(r); msg.textContent = 'Draft filled in — review it, then Save.';
+    } catch (e) { msg.textContent = CGP_errorMessage(e, "Couldn't draft the rule."); }
+    finally { btn.disabled = false; }
+  }
+
+  async function openRuns(id) {
+    const card = document.getElementById('runsCard'); card.hidden = false;
+    const tb = document.getElementById('runRows'); tb.innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+    document.getElementById('runsTitle').textContent = id == null ? 'Runs — all rules' : 'Runs — ' + (((state.rules || []).find(x => x.id === id) || {}).name || '');
+    try {
+      const r = await CGP_api(id == null ? '/api/workflows/runs' : '/api/workflows/' + id + '/runs');
+      const rows = r.rows || [];
+      tb.innerHTML = rows.length ? rows.map(x => `<tr><td>${when(x.at)}</td><td>${esc(x.rule)}</td><td>${esc(x.trigger)}</td><td>${esc(x.subject)}</td>
+          <td><span class="pill ${esc(String(x.status || '').toLowerCase())}">${esc(STATUS[x.status] || x.status)}</span></td><td><ul class="log">${(x.log || []).map(l => '<li>' + esc(l) + '</li>').join('')}</ul></td></tr>`).join('')
+        : '<tr><td colspan="6" class="empty">No runs yet.</td></tr>';
+    } catch (e) { tb.innerHTML = '<tr><td colspan="6" class="empty">' + esc(CGP_errorMessage(e, "Couldn't load the runs.")) + '</td></tr>'; }
+    card.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  load();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/workflows', pageTitle: 'Automations', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

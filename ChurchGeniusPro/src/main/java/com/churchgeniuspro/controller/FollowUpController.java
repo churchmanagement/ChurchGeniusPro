@@ -38,6 +38,9 @@ public class FollowUpController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FollowUpController.class);
 
     private final FollowUpRepository followUpRepo;
+    /** AI Phase 6: optional — null in hand-built tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.workflow.WorkflowEvents workflowEvents;
     private final FamilyService familyService;
     private final FamilyRepository familyRepo;
     private final FamilyMemberRepository familyMemberRepo;
@@ -457,6 +460,13 @@ public class FollowUpController {
         f.setCreatedBy(currentUsername(req));
         applyBody(f, body, clientId);
         followUpRepo.save(f);
+        // AI Phase 6: the engine hears FOLLOW_UP_CREATED (names and codes only — never the description).
+        com.churchgeniuspro.workflow.WorkflowEvents.publish(workflowEvents, com.churchgeniuspro.workflow.WorkflowEvent.of("FOLLOW_UP_CREATED", clientId,
+                "followup:" + f.getId(), f.getTitle(),
+                com.churchgeniuspro.workflow.WorkflowEvent.facts("title", f.getTitle(), "status", f.getStatus() == null ? "" : f.getStatus(), "priority", f.getPriority() == null ? "" : f.getPriority(),
+                        "assignedTo", f.getAssignedTo() == null ? "" : f.getAssignedTo(), "linkedType", f.getLinkedType() == null ? "" : f.getLinkedType(),
+                        "linkedLabel", f.getLinkedLabel() == null ? "" : f.getLinkedLabel(), "createdBy", f.getCreatedBy() == null ? "" : f.getCreatedBy(),
+                        "hasDueDate", f.getDueDate() != null, "followUpId", f.getId(), "memberId", f.getAssignedMemberId())));
 
         return ResponseEntity.ok(toMap(f));
     }

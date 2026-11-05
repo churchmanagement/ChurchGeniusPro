@@ -63,7 +63,8 @@ public class AuditTableRetentionService {
             @Value("${audit.retention.private-access-log-days:365}") int privateAccessDays,
             @Value("${audit.retention.ntag-login-history-days:365}") int ntagHistoryDays,
             @Value("${audit.retention.ai-audit-log-days:90}") int aiAuditDays,
-            @Value("${audit.retention.member-engagement-snapshot-days:730}") int engagementSnapshotDays) {
+            @Value("${audit.retention.member-engagement-snapshot-days:730}") int engagementSnapshotDays,
+            @Value("${audit.retention.workflow-run-days:180}") int workflowRunDays) {
         this.jdbc = jdbc;
         this.enabled = enabled;
         this.rules = List.of(
@@ -79,7 +80,9 @@ public class AuditTableRetentionService {
             new Rule("ntag_login_history",              "login_time",    ntagHistoryDays,  null),
             new Rule("ai_audit_log",                    "created_at",    aiAuditDays,      null),
             // AI Phase 2: nightly engagement snapshots (counts/dates only) — 24 months of history for the Ministry Report
-            new Rule("member_engagement_snapshot",      "created_at",    engagementSnapshotDays, null));
+            new Rule("member_engagement_snapshot",      "created_at",    engagementSnapshotDays, null),
+            // AI Phase 6: workflow run history (status + log per run) — 180 days
+            new Rule("workflow_run",                    "created_at",    workflowRunDays, null));
     }
 
     /** 03:50 daily — after the login-log (03:20), Plaid staging (03:30) and log-file (03:40) sweeps. */

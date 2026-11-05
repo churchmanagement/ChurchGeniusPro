@@ -2522,3 +2522,44 @@ CREATE TABLE IF NOT EXISTS mcp_tenant_setting (
     updated_at    TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_setting_client ON mcp_tenant_setting (app_client_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 6 (2026-11-05): workflow_definition (trigger → condition → action rules, off by default) and
+-- workflow_run (one row per evaluated event per rule; (definition_id, event_key) unique = idempotency).
+-- Additive; Hibernate ddl-auto creates the same on start. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS workflow_definition (
+    id              BIGSERIAL PRIMARY KEY,
+    app_client_id   VARCHAR(100) NOT NULL,
+    name            VARCHAR(120) NOT NULL,
+    description     VARCHAR(500),
+    trigger_type    VARCHAR(40)  NOT NULL,
+    conditions_json TEXT,
+    actions_json    TEXT         NOT NULL,
+    enabled         BOOLEAN      NOT NULL DEFAULT FALSE,
+    owner_user_id   INTEGER      NOT NULL,
+    owner_username  VARCHAR(150) NOT NULL,
+    template_key    VARCHAR(40),
+    created_by      VARCHAR(150),
+    created_at      TIMESTAMP    NOT NULL,
+    updated_at      TIMESTAMP,
+    last_run_at     TIMESTAMP,
+    run_count       INTEGER      NOT NULL DEFAULT 0,
+    delete_flag     BOOLEAN      NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_wf_def_client_trigger ON workflow_definition (app_client_id, trigger_type, enabled);
+
+CREATE TABLE IF NOT EXISTS workflow_run (
+    id              BIGSERIAL PRIMARY KEY,
+    app_client_id   VARCHAR(100) NOT NULL,
+    definition_id   BIGINT       NOT NULL,
+    trigger_type    VARCHAR(40)  NOT NULL,
+    event_key       VARCHAR(160) NOT NULL,
+    subject         VARCHAR(200),
+    status          VARCHAR(10)  NOT NULL,
+    log_json        TEXT,
+    created_at      TIMESTAMP    NOT NULL,
+    duration_ms     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_wf_run_client_time ON workflow_run (app_client_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wf_run_def_key ON workflow_run (definition_id, event_key);

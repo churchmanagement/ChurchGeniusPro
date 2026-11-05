@@ -11,6 +11,8 @@ import com.churchgeniuspro.repository.AttendanceVisitorRepository;
 import com.churchgeniuspro.repository.FollowUpRepository;
 import com.churchgeniuspro.repository.VisitorPartyRepository;
 import com.churchgeniuspro.util.AppClock;
+import com.churchgeniuspro.workflow.WorkflowEvent;
+import com.churchgeniuspro.workflow.WorkflowEvents;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +54,9 @@ public class VisitorCheckInService {
     private final AttendanceServiceTypeRepository typeRepo;
     private final VisitorPartyRepository partyRepo;
     private final FollowUpRepository followUpRepo;
+    /** AI Phase 6: optional — null in hand-built tests; the engine hears VISITOR_RECORDED after the commit. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private WorkflowEvents workflowEvents;
 
     public VisitorCheckInService(AttendanceVisitorRepository visitorRepo, AttendanceRecordRepository recordRepo,
                                  AttendanceServiceTypeRepository typeRepo, VisitorPartyRepository partyRepo,
@@ -334,6 +339,16 @@ public class VisitorCheckInService {
         out.put("checkedOut", times[1] != null);
         out.put("visitors", results);
         out.put("followUpId", followUpId);
+        // AI Phase 6: one event per registration (the primary visitor names it); facts hold names, counts and codes only.
+        AttendanceVisitor primary = visitors.get(0);
+        boolean anyNew = matched.stream().anyMatch(m -> !m);
+        WorkflowEvents.publish(workflowEvents, WorkflowEvent.of("VISITOR_RECORDED", clientId,
+                "visitor:" + primary.getId() + ":" + date + ":" + target.getId(), primary.getName(),
+                WorkflowEvent.facts("name", primary.getName(), "kind", kind, "peopleCount", visitors.size(),
+                        "interest", r.interestLevel() == null ? "" : r.interestLevel().trim().toUpperCase(Locale.ROOT),
+                        "followUpRequired", r.followUpRequired(), "newVisitor", anyNew,
+                        "visitCount", Math.max(1, primary.getVisitCount()),
+                        "serviceName", target.getName(), "date", date.toString(), "visitorId", primary.getId(), "followUpId", followUpId)));
         return out;
     }
 

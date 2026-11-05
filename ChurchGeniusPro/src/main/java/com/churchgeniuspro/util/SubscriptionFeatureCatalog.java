@@ -136,6 +136,9 @@ public final class SubscriptionFeatureCatalog {
         // /mcp. The token endpoint itself is outside /api and checks the feature in code; this gates the token pages.
         new Feature("mcp",            "External AI (MCP)",      "AI",         List.of(
                 "/api/tokens")),
+        // AI Phase 6 (2026-11-05): trigger → condition → action automations (engine + page). PRO/TRIAL only.
+        new Feature("workflows",      "Automations",            "AI",         List.of(
+                "/api/workflows")),
         // Every gpt-4o vision call: checks on Expense AND Income, bank-statement scans, membership-form
         // and kids-form extraction (AI Phase 0: the last four were outside plan gating).
         new Feature("scanCheck",      "Scan Check",             "AI",         List.of(

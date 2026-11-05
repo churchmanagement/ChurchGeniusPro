@@ -619,6 +619,22 @@ public class HelpContentCatalog {
             "1.0", list("v1.0 — Initial release (AI Phase 4)."),
             list("ai actions","add to group","follow-up done","family note","assign volunteer","create meeting","confirm")).roles("SuperAdmin,Admin,User"));
 
+        // roles: SuperAdmin,Admin (AI Phase 6, 2026-11-05)
+        add(new HelpArticle("workflows", "Members", "Automations (when this happens, do that)", "more.workflows", false,
+            "Trigger → condition → action rules: a visitor check-in, a member at risk, an overdue follow-up or a large gift can create a follow-up, notify or e-mail a staff member, add a family note or draft an e-mail — every rule off until an admin switches it on.",
+            "More → Automations (SuperAdmin / Admin). A rule has three parts. TRIGGER — what happened: a visitor checks in, a member checks in, a follow-up is created, a prayer request is added, a gift is recorded, or (overnight) a member's engagement signal changes or a follow-up is overdue. CONDITIONS — all must hold: equals / not equals / contains / greater or less than / one of / is true / is false / exists, on the facts the trigger carries (name, kind, interest, visit count, amount, fund, signal, days overdue …). ACTIONS — up to five: create a follow-up (title, description, assignee, due in N days, priority), notify a staff member (in-app / push), e-mail a staff member, add a family note, or draft an e-mail with the writing assistant (saved as a follow-up to review — never sent). Text fields may use placeholders such as {{name}}, {{amount}} or {{title}}. "
+          + "Add a rule from one of ten templates, describe it in a sentence and let the assistant draft it (you still review and save), or build it by hand. Test run evaluates the conditions on sample facts and lists what each action WOULD do without writing anything. A new rule is OFF; the admin who switches it on becomes its owner, and every run uses that owner's permissions, re-checked each time: creating a follow-up needs the Follow-ups page, a family note the Families page, an AI draft the AI Writing plan feature. If a permission is gone the run is recorded as Denied and nothing happens. Notifications and e-mails go only to staff logins of the church — a rule never messages members, visitors or donors. "
+          + "The same event never runs a rule twice; a church is limited to 200 runs a day (Capped after that); each run is listed under Runs with Done / Skipped / Denied / Capped / Failed and a plain-language log, kept for 180 days. The nightly triggers run at 03:20 Central, after the engagement snapshot, and only for churches with an enabled rule for them. Pro and Trial plans; the server can switch the whole engine off.",
+            list("Open More → Automations.",
+                 "Click + From template, ✨ Describe a rule, or + New rule; edit trigger, conditions and actions.",
+                 "Press Test run and read what would happen.",
+                 "Switch the rule On; check Runs after the next matching event."),
+            list("Problem: a run says Denied — Fix: the owner lost a page permission (or the account was disabled); an admin re-enables the rule to become its owner, or restores the permission.",
+                 "Problem: the rule never ran for a signal change — Fix: it needs two consecutive nightly snapshots and an enabled rule; check Admin → AI Activity for the snapshot and the Runs list the next morning.",
+                 "Problem: a run says Capped — Fix: the church reached 200 runs today; it continues tomorrow."),
+            "1.0", list("v1.0 — Initial release (AI Phase 6)."),
+            list("automations","automation","workflows","rules","triggers","auto follow-up","if this then that")).roles("SuperAdmin,Admin"));
+
         // roles: SuperAdmin,Admin,Accountant,User (AI Phase 5, 2026-11-05)
         add(new HelpArticle("ai_connections", "Members", "AI Connections (MCP) — Claude Desktop, ChatGPT and other AI tools", "more.aiassistant", false,
             "Personal access tokens that let an external AI tool ask your church's data the same questions AI Search answers, with your permissions only, through the MCP endpoint.",
