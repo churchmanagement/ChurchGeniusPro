@@ -430,7 +430,7 @@ public class AiCrossReferenceService {
     private static String name(Object f, Object l) { return (str(f) + " " + str(l)).trim(); }
     private static BigDecimal num(Object o) { return o == null ? BigDecimal.ZERO : o instanceof BigDecimal b ? b : new BigDecimal(o.toString()); }
     private static String money(Object o) { return NumberFormat.getCurrencyInstance(Locale.US).format(num(o)); }
-    static LocalDate toDate(Object o) {
+    public static LocalDate toDate(Object o) {
         if (o instanceof LocalDate d) return d;
         if (o instanceof java.sql.Date d) return d.toLocalDate();
         if (o instanceof Timestamp t) return t.toLocalDateTime().toLocalDate();

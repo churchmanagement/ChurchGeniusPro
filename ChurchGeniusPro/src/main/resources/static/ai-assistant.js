@@ -81,6 +81,7 @@
     { label:'WhatsApp Integration', target:'/whatsappIntegration', section:'admin', cat:'Admin', desc:'Connect a WhatsApp sender for member messaging.', keys:['whatsapp','whatsapp integration'] },
     { label:'Private Page Access', target:'/private-access-settings', section:'admin', cat:'Admin', feature:'privatePages', desc:"Restrict Kids Ministry, Event Check-in and Temporary Login so they only work from the church's own Wi-Fi/network.", keys:['private page access','private pages','private access'] },
     { label:'AI Activity',        target:'/aiActivity',              section:'admin', cat:'Admin', desc:"Every AI request made in the church — who asked, which feature, model tokens and result. Questions are never stored.", keys:['ai activity','ai audit','ai log','ai usage'] },
+    { label:'Saved Lists',        target:'/savedLists',              section:'more',  cat:'More',  desc:"People filters saved from AI Search (e.g. women 18–30 not in a group): run them again, download a CSV or e-mail everyone on the list.", keys:['saved lists','saved list','people filter','my lists'] },
     { label:'NTAG Login',       target:'/ntagAccess',        section:'admin', cat:'Admin', feature:'ntag', desc:'Temporary NTAG (NFC) login credentials and the NTag landing page with its links and Live Preview.', keys:['ntag','ntag login','nfc login','ntag landing'] },
     { label:'Temporary Access', target:'/temporaryAccess',   section:'admin', cat:'Admin', desc:'Time-limited logins for helpers with printable barcode badges.', keys:['temporary access','temporary login','access card','badge'] },
     { label:'Ticketing',        target:'/tickets',           section:'more', cat:'Support', perm:'more.ticketing', optIn:true, desc:'Support tickets to the ChurchGeniusPro team: subject, description, urgency and contact details; you get a reference number and email updates. Support may be limited during a trial.', keys:['ticketing','ticket','tickets','support ticket','raise a ticket','contact support'] },
@@ -584,7 +585,7 @@
   // Kept in step with the server's vocabulary (AiQueryLexicon): every synonym the server maps
   // must also bring the question to the server, or the bar answers it as navigation instead.
   function looksLikeDataQuestion(q){
-    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?|attend\w*|attenders?|attendees?|lapsed|regulars|visitors?|first[- ]time\w*|newcomers?|groups?)\b/i.test(q);
+    return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?|attend\w*|attenders?|attendees?|lapsed|regulars|visitors?|first[- ]time\w*|newcomers?|groups?|women|men|ladies|adults?|teens?|teenagers?|youth|seniors?|guests?|non-?members?|people|born|aged|years? old|e-?mails?|phones?|spouses?|heads? of household|registered|signed up)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
   // — i.e. asks for data rather than for a page.
@@ -596,7 +597,9 @@
         // A status filter ("deleted members", "inactive families", "unalert") asks for records, not a page.
         || /\b(deleted|removed|in-?active|deactivated|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off)|disabled alerts?)\b/i.test(q)
         // A cross-referenced question (Phase 1) asks for people, not a page: "regulars we haven't seen", "not in any group".
-        || /\b(attend\w*|attenders?|lapsed|regulars|haven'?t seen|not seen|not in (?:a|any) (?:small )?groups?|not serving|first[- ]time visitors?|followed[- ]up)\b/i.test(q);
+        || /\b(attend\w*|attenders?|lapsed|regulars|haven'?t seen|not seen|not in (?:a|any) (?:small )?groups?|not serving|first[- ]time visitors?|followed[- ]up)\b/i.test(q)
+        // A composed people filter (AI Phase 1): age, gender, type, birth month, contact details, a named group / campaign / event.
+        || /\b(women|men|ladies|adults?|teens?|teenagers?|youth|seniors?|guests?|non-?members?|born in|aged|years? old|over \d|under \d|\d\s*\+|no (?:e-?mail|phone)|without (?:an? )?(?:e-?mail|phone)|in the .+ group|registered for|signed up for|pledged|who (?:are|is|have|has|gave|attended|serve))\b/i.test(q);
   }
   function tryDataSearch(query){
     return fetch('/api/ai-search/data', {
@@ -811,6 +814,22 @@
         d.definitions.forEach(function(t){ html+='<li>'+esc(t)+'</li>'; });
         html+='</ul></details>';
       }
+      // People filter (AI Phase 1): the conditions the server understood, as chips. ✕ re-runs the
+      // question without that condition (the filter JSON goes back, never the text); "Save as list"
+      // stores the FILTER under a name — every later run re-checks the viewer's permissions.
+      if (d.filter && Array.isArray(d.filter.predicates) && d.filter.predicates.length){
+        var labels = Array.isArray(d.filter.labels) ? d.filter.labels : [];
+        html+='<div class="aa-chips" role="group" aria-label="Conditions understood">';
+        d.filter.predicates.forEach(function(p, i){
+          html+='<span class="aa-chip">'+esc(labels[i] || p.kind)
+            + (d.filter.predicates.length > 1 ? '<button type="button" class="aa-chip-x" data-i="'+i+'" title="Remove this condition and search again" aria-label="Remove '+esc(labels[i]||p.kind)+'">✕</button>' : '')
+            + '</span>';
+        });
+        html+='</div><div class="aa-actions aa-filter-actions">'
+          + '<button type="button" class="aa-open alt aa-save-list">Save as list</button>'
+          + '<span class="aa-actions-note">Conditions are combined with AND.</span></div>';
+        html+='<script type="application/json" class="aa-filter-json">'+JSON.stringify(d.filter.predicates).replace(/</g,'\\u003c')+'</script>';
+      }
       // Public screens: the screen's name is the link (its real public address from the server);
       // only a same-site relative address is ever turned into a link.
       if (Array.isArray(d.publicLinks) && d.publicLinks.length){
@@ -864,7 +883,11 @@
     wrap.querySelectorAll('.aa-open').forEach(function(b){
       if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
       if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
+      if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(wrap, b); }); return; }
       b.addEventListener('click', function(){ open(b.getAttribute('data-url'), b.getAttribute('data-label'), b.getAttribute('data-nt')==='1' || wantsNewTab(lastQ)); });
+    });
+    wrap.querySelectorAll('.aa-chip-x').forEach(function(x){
+      x.addEventListener('click', function(){ rerunFilterWithout(wrap, parseInt(x.getAttribute('data-i'), 10)); });
     });
     try{ wrap.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
   }
@@ -893,6 +916,48 @@
         setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: d.created ? 'Meeting created' : (d.denied ? 'Permission denied' : 'Not created') });
         if (speaking) speak(stripUrls(d.answer||''));
       });
+  }
+  /* AI Phase 1: the filter JSON the card carries (what the server understood). */
+  function filterPredicates(wrap){
+    var tag = wrap ? wrap.querySelector('.aa-filter-json') : null;
+    try { return tag ? JSON.parse(tag.textContent) : null; } catch(e){ return null; }
+  }
+  function renderFilterAnswer(d){
+    renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
+      pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
+  }
+  function rerunFilterWithout(wrap, i){
+    var preds = filterPredicates(wrap);
+    if (!preds || preds.length < 2) return;
+    preds.splice(i, 1);
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); return; }
+    var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true); busy(true);
+    _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
+    fetch('/api/ai-search/filter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ predicates:preds }), signal:aaSignal() })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j }; }); }).catch(function(){ return null; })
+      .then(function(res){
+        if (!aaLive(g)) return;
+        busy(false); endTurn();
+        var d = res && res.ok ? res.j : { handled:true, denied:false, intent:'filter.error', answer:(res && res.j && res.j.error) || 'The search could not be run. Please try again.' };
+        renderFilterAnswer(d);
+        setDebug({ intent:'Data: '+(d.intent||'filter'), source:'Church Data', result: d.denied ? 'Permission denied' : 'Answered (data)' });
+      });
+  }
+  function saveFilterAsList(wrap, btn){
+    var preds = filterPredicates(wrap);
+    if (!preds || !preds.length) return;
+    var name = window.prompt('Name for this list (e.g. "Women 18–30 not in a group"):', '');
+    if (name == null) return;
+    name = String(name).trim();
+    if (!name){ toast('Please give the list a name.'); return; }
+    if (btn) btn.disabled = true;
+    fetch('/api/ai-search/saved-lists', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name:name, predicates:preds }) })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, status:r.status, j:j }; }); })
+      .then(function(res){
+        if (res.ok){ toast('Saved — find it under More \u2192 Saved Lists.'); if (btn) btn.textContent='Saved \u2713'; }
+        else { toast((res.j && res.j.error) || (res.status===403 ? 'You do not have access to Saved Lists.' : 'The list could not be saved.')); if (btn) btn.disabled=false; }
+      })
+      .catch(function(){ toast('The list could not be saved.'); if (btn) btn.disabled=false; });
   }
   function cancelMeeting(btn){
     var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
@@ -1281,6 +1346,11 @@
       '#aiResultsWrap .aa-defs summary{cursor:pointer;color:#673147;font-weight:600;}',
       '#aiResultsWrap .aa-defs ul{margin:6px 0 0 18px;padding:0;}',
       '#aiResultsWrap .aa-defs li{margin:2px 0;}',
+      '#aiResultsWrap .aa-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}',
+      '#aiResultsWrap .aa-chip{display:inline-flex;align-items:center;gap:4px;background:#f3eef1;color:#4f2538;border:1px solid #e3d5dc;border-radius:14px;padding:3px 10px;font-size:12px;font-weight:600;}',
+      '#aiResultsWrap .aa-chip-x{border:none;background:none;color:#8a5a6c;cursor:pointer;font-size:12px;line-height:1;padding:0 2px;}',
+      '#aiResultsWrap .aa-chip-x:hover{color:#c62828;}',
+      '#aiResultsWrap .aa-filter-actions{margin-top:8px;}',
       // Phase F — small screens: the input takes a full row, controls wrap under it,
       // summary tiles and suggestion rows stack, the panel stays scrollable.
       '@media (max-width:640px){'
@@ -1495,7 +1565,8 @@
   // Exposed for testing / external use.
   window.CGP_ASSISTANT = { matchDest:matchDest, matchReport:matchReport, isAvailable:isAvailable, reportAvailable:reportAvailable,
     resolveLocal:resolveLocal, classify:classify, buildContext:buildContext, converseStart:converseStart, converseStep:converseStep,
-    matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
+    matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting,
+    rerunFilterWithout:rerunFilterWithout, saveFilterAsList:saveFilterAsList, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
     _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); },
     _setTimeoutMs:function(ms){ AA_TIMEOUT_MS=ms; }, _inFlight:function(){ return _inFlight; } };
 })();

@@ -67,6 +67,9 @@
     .bubble .aa-more { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e9dde4; font-size: 12px; color: #888; }
     .bubble .aa-sources { margin-top:8px; font-size:12px; color:#555; }
     .bubble .aa-defs { margin-top:6px; font-size:12px; color:#555; }
+    .bubble .aa-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .bubble .aa-chip { display:inline-flex; align-items:center; gap:4px; background:#f3eef1; color:#4f2538; border:1px solid #e3d5dc; border-radius:14px; padding:3px 10px; font-size:12px; font-weight:600; }
+    .bubble .aa-chip-x { border:none; background:none; color:#8a5a6c; cursor:pointer; font-size:12px; line-height:1; padding:0 2px; }
     .bubble .aa-defs summary { cursor:pointer; color:#673147; font-weight:600; }
     .bubble .aa-defs ul { margin:6px 0 0 18px; padding:0; }
     .bubble .aa-more a { color: #673147; font-weight: 700; }
@@ -276,7 +279,7 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
         // Page suggestions (Open / New tab) and the Help Center link come across as-is;
         // the engine's own listeners are dropped (cloned) — the transcript wires them once.
         // Structured data answers (summary strip / bounded table) come across as-is too.
-        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-publinks, .aa-more, .aa-actions').forEach(function (el) { html += el.outerHTML; });
+        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-actions, .aa-filter-json').forEach(function (el) { html += el.outerHTML; });
         card.querySelectorAll('.aa-suggest').forEach(function (sg) { sg.querySelectorAll('.aa-open').forEach(function (b) { b.parentNode.replaceChild(b.cloneNode(true), b); }); html += sg.outerHTML; });
         var more = card.querySelector('a[href="/helpCenter"]');
         if (more) html += '<div class="aa-more">Need more detail? <a href="/helpCenter">Open the full Help Center →</a></div>';
@@ -309,6 +312,10 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
     if (chip) { input.value = chip.textContent.trim(); autosize(); send(); return; }
     var cf = e.target.closest('.aa-confirm');
     if (cf && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.confirmMeeting === 'function') { e.preventDefault(); window.CGP_ASSISTANT.confirmMeeting(cf.getAttribute('data-token'), cf); return; }
+    var cx = e.target.closest('.aa-chip-x');
+    if (cx && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.rerunFilterWithout === 'function') { e.preventDefault(); window.CGP_ASSISTANT.rerunFilterWithout(cx.closest('.bubble') || cx.closest('.msg') || log, parseInt(cx.getAttribute('data-i'), 10)); return; }
+    var sv = e.target.closest('.aa-save-list');
+    if (sv && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.saveFilterAsList === 'function') { e.preventDefault(); window.CGP_ASSISTANT.saveFilterAsList(sv.closest('.bubble') || sv.closest('.msg') || log, sv); return; }
     var cc = e.target.closest('.aa-cancel');
     if (cc && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.cancelMeeting === 'function') { e.preventDefault(); window.CGP_ASSISTANT.cancelMeeting(cc); return; }
     var b = e.target.closest('.aa-open');

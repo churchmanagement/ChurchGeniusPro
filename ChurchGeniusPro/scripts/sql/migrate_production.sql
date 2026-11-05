@@ -2421,3 +2421,21 @@ CREATE TABLE IF NOT EXISTS ai_audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_audit_client_time      ON ai_audit_log (client_id, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_audit_client_day_actor ON ai_audit_log (client_id, created_at, actor);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 1 (2026-11-04): ai_saved_people_list — named people filters (the filter, never the people).
+-- Additive; Hibernate ddl-auto creates the same on start. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_saved_people_list (
+    id            BIGSERIAL PRIMARY KEY,
+    app_client_id VARCHAR(100) NOT NULL,
+    name          VARCHAR(120) NOT NULL,
+    filter_json   TEXT         NOT NULL,
+    created_by    VARCHAR(150),
+    created_at    TIMESTAMP    NOT NULL,
+    updated_at    TIMESTAMP,
+    last_run_at   TIMESTAMP,
+    last_count    INTEGER,
+    delete_flag   BOOLEAN      NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_ai_saved_list_client ON ai_saved_people_list (app_client_id, delete_flag, name);

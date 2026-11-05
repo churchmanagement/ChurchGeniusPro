@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Saved Lists — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:16px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; margin:0; }
+    .card-body { padding:16px 20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-sec[disabled], .btn[disabled] { opacity:.6; cursor:wait; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; }
+    .sl-list { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); }
+    .sl-item { border:1px solid #eef0f6; border-radius:12px; padding:14px; background:#fff; display:flex; flex-direction:column; gap:8px; }
+    .sl-item.is-open { border-color:#673147; box-shadow:0 0 0 2px rgba(103,49,71,.12); }
+    .sl-name { font-weight:800; color:#1e2139; font-size:15px; word-break:break-word; }
+    .sl-chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .sl-chip { display:inline-block; background:#f3eef1; color:#4f2538; border:1px solid #e3d5dc; border-radius:14px; padding:3px 10px; font-size:12px; font-weight:600; }
+    .sl-meta { font-size:12px; color:#8a8a8a; }
+    .sl-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; }
+    .sl-actions button { white-space:nowrap; }
+    .result { margin-top:14px; }
+    .result .answer { font-size:14px; color:#1e2139; margin-bottom:8px; }
+    .result .denied { background:#fdecea; color:#c62828; padding:10px 14px; border-radius:9px; font-size:13px; }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th { background:#f5f6fb; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#9fa8c4; padding:8px 10px; text-align:left; border-bottom:2px solid #eef0f8; white-space:nowrap; }
+    td { padding:8px 10px; border-bottom:1px solid #f3f4f9; }
+    .defs { margin-top:8px; font-size:12px; color:#555; } .defs summary { cursor:pointer; color:#673147; font-weight:600; }
+    .err { background:#ffebee; color:#c62828; padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; display:none; }
+    .err.show { display:block; }
+    .ok { background:#e8f5e9; color:#2e7d32; padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; display:none; }
+    .ok.show { display:block; }
+    .empty { padding:22px; text-align:center; color:#9fa8c4; font-size:13px; }
+    .spin { display:inline-block; width:12px; height:12px; border:2px solid #c9b6c1; border-top-color:#673147; border-radius:50%; animation:slSpin .8s linear infinite; vertical-align:-2px; }
+    @keyframes slSpin { to { transform: rotate(360deg); } }
+    /* in-page confirm (never a browser dialog) */
+    .confirm { border:1px solid #f3c2c2; background:#fff8f8; border-radius:9px; padding:10px 12px; font-size:12.5px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    @media (max-width:640px) { .card-body { padding:12px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">📋 Saved Lists</div>
+      <div class="page-subtitle">People filters you saved from AI Search — for example “Women 18–30 not in a group”. A list stores the conditions, not the people:
+        every run looks up who matches today, under your own permissions.</div>
+
+      <div class="err" id="err"></div>
+      <div class="ok" id="okMsg"></div>
+
+      <div class="card">
+        <div class="card-header"><span>📋</span><h2>Your lists</h2>
+          <span class="muted" id="count"></span>
+          <button class="btn-sec" onclick="loadLists()">↻ Refresh</button>
+          <a class="btn" href="/home" style="text-decoration:none">＋ New list from AI Search</a>
+        </div>
+        <div class="card-body">
+          <div class="muted" style="margin-bottom:12px">To create a list: ask a question in the AI Search bar (Home), then click <strong>Save as list</strong> under the answer.</div>
+          <div class="sl-list" id="lists"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+
+      <div class="card" id="resultCard" hidden>
+        <div class="card-header"><span>👥</span><h2 id="resultTitle">Result</h2>
+          <button class="btn-sec" id="exportBtn">⬇ Download CSV</button>
+          <button class="btn-sec" id="emailBtn">✉ Email this list</button>
+          <button class="btn-sec" onclick="closeResult()">✕ Close</button>
+        </div>
+        <div class="card-body" id="resultBody"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  let lists = [], openId = null, busy = false;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showErr(m){ const e=document.getElementById('err'); e.textContent=m; e.classList.add('show'); document.getElementById('okMsg').classList.remove('show'); }
+  function showOk(m){ const e=document.getElementById('okMsg'); e.textContent=m; e.classList.add('show'); document.getElementById('err').classList.remove('show'); setTimeout(()=>e.classList.remove('show'), 4000); }
+  function hideErr(){ document.getElementById('err').classList.remove('show'); }
+  function when(iso){ if(!iso) return 'never'; const d=new Date(iso); return isNaN(d)?esc(iso):d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+
+  async function loadLists(){
+    try {
+      hideErr();
+      const d = await CGP_apiJson('/api/ai-search/saved-lists');
+      lists = d.lists || [];
+      render();
+    } catch(e){ showErr(CGP_errorMessage(e, "Couldn't load your saved lists.")); document.getElementById('lists').innerHTML = '<div class="empty">Couldn’t load — <button class="btn-sec" onclick="loadLists()">Retry</button></div>'; }
+  }
+  function render(){
+    const wrap = document.getElementById('lists');
+    document.getElementById('count').textContent = lists.length ? lists.length + ' list' + (lists.length===1?'':'s') : '';
+    if (!lists.length){ wrap.innerHTML = '<div class="empty">No saved lists yet. Ask the AI Search a people question and click “Save as list”.</div>'; return; }
+    wrap.innerHTML = lists.map(l => `
+      <div class="sl-item${l.id===openId?' is-open':''}" data-id="${l.id}">
+        <div class="sl-name">${esc(l.name)}</div>
+        <div class="sl-chips">${(l.labels||[]).map(x=>'<span class="sl-chip">'+esc(x)+'</span>').join('')}${l.unreadable?'<span class="sl-chip" style="color:#c62828">Unreadable — edit or delete</span>':''}</div>
+        <div class="sl-meta">Last run: ${when(l.lastRunAt)}${l.lastCount!=null?' · '+esc(l.lastCount)+' people':''}${l.createdBy?' · by '+esc(l.createdBy):''}</div>
+        <div class="sl-actions">
+          <button class="btn" onclick="runList(${l.id})">▶ Run</button>
+          <button class="btn-sec" onclick="rename(${l.id})" title="Rename">✏️ Rename</button>
+          <button class="btn-danger" onclick="askDelete(${l.id}, this)">🗑 Delete</button>
+        </div>
+        <div class="confirm-slot"></div>
+      </div>`).join('');
+  }
+
+  async function runList(id){
+    if (busy) return; busy = true;
+    const l = lists.find(x=>x.id===id); openId = id; render();
+    const card = document.getElementById('resultCard'), body = document.getElementById('resultBody');
+    card.hidden = false; document.getElementById('resultTitle').textContent = l ? l.name : 'Result';
+    body.innerHTML = '<div class="muted"><span class="spin"></span> Running…</div>';
+    document.getElementById('exportBtn').onclick = () => { window.location.href = '/api/ai-search/saved-lists/' + id + '/export'; };
+    document.getElementById('emailBtn').onclick = () => emailList(id);
+    try {
+      hideErr();
+      const d = await CGP_apiJson('/api/ai-search/saved-lists/' + id + '/run', { method:'POST' });
+      renderResult(d);
+      if (d.list){ const i = lists.findIndex(x=>x.id===id); if (i>=0) lists[i] = Object.assign({}, lists[i], d.list); render(); }
+    } catch(e){ body.innerHTML = '<div class="denied">'+esc(CGP_errorMessage(e, 'The list could not be run.'))+'</div>'; }
+    finally { busy = false; try{ card.scrollIntoView({behavior:'smooth', block:'nearest'}); }catch(x){} }
+  }
+  function renderResult(d){
+    const body = document.getElementById('resultBody');
+    if (d.denied){ body.innerHTML = '<div class="denied">'+esc(d.answer||'Not allowed.')+'</div>'; document.getElementById('exportBtn').disabled = true; document.getElementById('emailBtn').disabled = true; return; }
+    document.getElementById('exportBtn').disabled = false; document.getElementById('emailBtn').disabled = false;
+    let html = '<div class="answer">'+esc(d.answer||'')+'</div>';
+    if (Array.isArray(d.columns) && Array.isArray(d.rows) && d.rows.length){
+      html += '<div class="tbl-wrap"><table><thead><tr>' + d.columns.map(c=>'<th>'+esc(c)+'</th>').join('') + '</tr></thead><tbody>'
+            + d.rows.map(r=>'<tr>'+(r||[]).map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('') + '</tbody></table></div>';
+      if (d.truncated) html += '<div class="muted" style="margin-top:8px">Showing '+esc(d.shown)+' of '+esc(d.total)+' — the CSV and e-mail hand-off use the full list.</div>';
+    }
+    if (Array.isArray(d.definitions) && d.definitions.length){
+      html += '<details class="defs"><summary>How this was worked out</summary><ul>'+d.definitions.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></details>';
+    }
+    body.innerHTML = html;
+  }
+  async function emailList(id){
+    const btn = document.getElementById('emailBtn'); btn.disabled = true;
+    try {
+      const d = await CGP_apiJson('/api/ai-search/saved-lists/' + id + '/emails');
+      const emails = d.emails || [];
+      if (!emails.length){ showErr('No one on this list has an e-mail address on record.'); return; }
+      const l = lists.find(x=>x.id===id);
+      try { sessionStorage.setItem('cgpSavedListEmails', JSON.stringify({ name: l ? l.name : '', emails: emails })); } catch(e){ showErr('Could not hand the addresses to the e-mail page.'); return; }
+      if (d.withoutEmail) showOk(d.withoutEmail + ' of the matching people have no e-mail address and will be left out.');
+      setTimeout(()=>{ window.location.href = '/notifyEmail'; }, d.withoutEmail ? 1200 : 0);
+    } catch(e){ showErr(CGP_errorMessage(e, 'The addresses could not be loaded.')); }
+    finally { btn.disabled = false; }
+  }
+  async function rename(id){
+    const l = lists.find(x=>x.id===id); if (!l) return;
+    const name = window.prompt('New name for this list:', l.name);
+    if (name == null) return;
+    try {
+      hideErr();
+      const d = await CGP_apiJson('/api/ai-search/saved-lists/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: String(name).trim() }) });
+      const i = lists.findIndex(x=>x.id===id); if (i>=0) lists[i] = d; render(); showOk('Renamed.');
+    } catch(e){ showErr(CGP_errorMessage(e, 'The list could not be renamed.')); }
+  }
+  function askDelete(id, btn){
+    const item = btn.closest('.sl-item'); const slot = item.querySelector('.confirm-slot');
+    slot.innerHTML = '<div class="confirm">Delete this list? The people are not affected. <button class="btn-danger" onclick="doDelete('+id+')">Yes, delete</button> <button class="btn-sec" onclick="this.closest(\'.confirm-slot\').innerHTML=\'\'">Cancel</button></div>';
+  }
+  async function doDelete(id){
+    try {
+      hideErr();
+      await CGP_api('/api/ai-search/saved-lists/' + id, { method:'DELETE' });
+      await loadLists();                       // only after the server agrees
+      if (openId === id) closeResult();
+      showOk('Deleted.');
+    } catch(e){ showErr(CGP_errorMessage(e, 'The list could not be deleted.')); }
+  }
+  function closeResult(){ document.getElementById('resultCard').hidden = true; openId = null; render(); }
+
+  loadLists();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/saved-lists', pageTitle: 'Saved Lists', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

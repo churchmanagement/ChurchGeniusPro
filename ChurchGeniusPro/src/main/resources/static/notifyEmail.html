@@ -540,6 +540,22 @@
   (function init() {
     loadEvents();
     setupContentEditorPlaceholder();
+    // Saved Lists hand-off (AI Phase 1): More → Saved Lists → "Email this list" leaves the
+    // addresses in sessionStorage for this one page load; they become Group Email tags.
+    try {
+      var raw = sessionStorage.getItem('cgpSavedListEmails');
+      if (raw) {
+        sessionStorage.removeItem('cgpSavedListEmails');
+        var data = JSON.parse(raw);
+        var emails = Array.isArray(data) ? data : (data && Array.isArray(data.emails) ? data.emails : []);
+        if (emails.length) {
+          var sel = document.getElementById('recipientType');
+          if (sel) { sel.value = 'group-email'; onRecipientTypeChange('group-email'); }
+          emails.forEach(function (e) { addEmailTag(String(e)); });
+          if (data && data.name) setHint('groupEmailHint', 'Recipients from the saved list “' + data.name + '” (' + emails.length + ').');
+        }
+      }
+    } catch (e) { /* no hand-off */ }
   })();
 
   async function loadEvents() {

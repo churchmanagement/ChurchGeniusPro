@@ -626,7 +626,7 @@
         </div>
 
         <!-- ═══ AI SEARCH & AI ASSISTANT ═══ -->
-        <div class="hc-card" id="hc-ai-assistant" data-cat="getting-started" data-roles="SuperAdmin,Admin,Accountant,User,Church,Member" data-perm="more.aiassistant" data-keywords="ai-assistant ai search assistant chat voice converse type guide help microphone ask question go to page report create meeting fill form">
+        <div class="hc-card" id="hc-ai-assistant" data-cat="getting-started" data-roles="SuperAdmin,Admin,Accountant,User,Church,Member" data-perm="more.aiassistant" data-keywords="ai-assistant ai search assistant chat voice converse type guide help microphone ask question go to page report create meeting fill form people filter chips save as list women men age group attended gave">
           <div class="hc-card-head" onclick="toggleCard(this)">
             <span class="hc-card-icon">✨</span>
             <div class="hc-card-head-text">
@@ -680,6 +680,13 @@
             </div>
             <div class="hc-note">The conversation is kept only in this browser tab and disappears when you close the tab.</div>
 
+            <div class="hc-section-label" id="hc-ai-assistant-filters">People filters (ask for a list of people)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Combine conditions in one question: <em>“women 18–30 who attended twice in the last 60 days but didn't give this year”</em>, <em>“visitors with no email”</em>, <em>“adults who serve but aren't in a group”</em>, <em>“members in the Welcome Team group”</em></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>The answer lists the people and shows each condition as a chip — click a chip's ✕ to drop it and search again</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">Save as list</span> to keep the conditions under a name; find it under <strong>More → Saved Lists</strong></span></div>
+            </div>
+            <div class="hc-note">Conditions you can combine: age or age range, birthday month, men / women, role (head of household, spouse, adults, children), guests / visitors / non-members, inactive / deleted, attended (how often, since when, or not attended), gave (period, a fund, or did not give), in or not in a group (by name), serving or not, pledged to a campaign, registered for an event, has or lacks an e-mail / phone. Every condition must hold (AND). You only see people from modules you may open; a question needing a module you lack is refused whole.</div>
             <div class="hc-section-label">Common questions</div>
             <div class="hc-faq">
               <div class="hc-faq-item"><div class="hc-faq-q">I don't see the ✨ bar or the AI Assistant page.</div><div class="hc-faq-a">The <strong>AI Assistant</strong> permission is off for your login. Staff have it unless it is unticked; Member Portal logins need it ticked. Ask the church owner login (Admin → Users → 🔐).</div></div>
@@ -3019,6 +3026,45 @@
           </div>
         </div>
 
+        <!-- ═══ SAVED LISTS (AI Phase 1, 2026-11-04) ═══ -->
+        <div class="hc-card" id="hc-saved-lists" data-cat="members" data-roles="SuperAdmin,Admin,Accountant" data-perm="more.savedlists" data-feature="aiSearch" data-keywords="saved lists saved list people filter my lists run list export csv email this list ai search women men age group attended gave">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">📋</span>
+            <div class="hc-card-head-text">
+              <h3>Saved Lists</h3>
+              <div class="hc-card-nav">More → Saved Lists</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">A Saved List is a people filter you asked the AI Search for — “women 18–30 not in a group”, “visitors with no email” — kept under a name. It stores the <em>conditions</em>, not the people, so every run shows who matches today, and only people you are allowed to see.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span></div>
+            <div class="hc-mock" aria-label="Saved Lists"><span class="hc-mock-title">📋 Saved Lists</span><span class="hc-ui">▶ Run</span><span class="hc-ui lite">⬇ Download CSV</span><span class="hc-ui lite">✉ Email this list</span><span class="hc-ui lite">✏️ Rename</span></div>
+            <div class="hc-section-label">How to create a list</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>On Home, ask the ✨ AI Search a people question with one or more conditions (see the AI Search card for what you can combine)</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Check the chips under the answer — click ✕ on any condition that was misread</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">Save as list</span> and give it a name</span></div>
+            </div>
+            <div class="hc-section-label">Using a list</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui">▶ Run</span> shows who matches now (the first 20; the count is the total)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">⬇ Download CSV</span> saves everyone on the list (up to 2,000) with the same columns</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">✉ Email this list</span> opens Email with everyone's address as Group Email recipients (people without an e-mail are left out and counted)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">✏️ Rename</span> and <span class="hc-ui lite">🗑 Delete</span> change only the list — never the people</span></div>
+            </div>
+            <div class="hc-note">Saved Lists use the AI Search plan feature and the <strong>Saved Lists</strong> permission (Admin → Users → 🔐 → More). Each run is recorded in Admin → AI Activity.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">Run says I need access I don't have.</div><div class="hc-faq-a">The list reads a module your login cannot open (for example Income or Groups). Nothing is shown until an administrator grants that permission — a list never shows a partial answer.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Why did the count change?</div><div class="hc-faq-a">The list is re-evaluated every time: attendance, giving and group changes since the last run move people in and out.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/savedLists">📋 Saved Lists</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ NTAG LOGIN & LANDING PAGE ═══ -->
         <div class="hc-card" id="hc-ntag" data-cat="admin" data-roles="SuperAdmin,Admin,Church" data-keywords="ntag nfc tag tap login temporary login pin email code otp allowed pages landing page buttons branding welcome message banner analytics revoke reset pin">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4129,6 +4175,15 @@ const HC_KB = [
     steps: ['Open the Email Settings page (or Compose Email → ⚙ Settings)','Fill in Display Name, Footer Comments and Signature; tick Add Logo / Daily Verse','Click Save Settings','Trial/Demo: enter your address, click Send verification code, enter the 6-digit code and click Verify'],
     links: [{label:'Email Settings', url:'/emailSettings', icon:'📧'},{label:'Daily Verse Setup', url:'/dailyVerseSetup', icon:'📖'}],
     related: ['bulk email','trial account']
+  },
+  {
+    id: 'saved-lists',
+    q: ['saved lists','saved list','people filter','my lists','run a list','email this list','export a list','women not in a group','visitors with no email'],
+    title: '📋 Saved Lists — Reusable People Filters',
+    answer: 'Ask the AI Search for people with several conditions (age, men/women, attended, gave, in a group, visitors, no e-mail…), then click Save as list under the answer. More → Saved Lists runs it again any time, downloads a CSV, or e-mails everyone on it. A list stores the conditions, not the people, and only ever shows people you may see.',
+    steps: ['On Home, ask e.g. “women 18–30 who attended twice in the last 60 days but didn\'t give this year”','Click ✕ on any chip that was misread','Click Save as list and name it','Go to More → Saved Lists to Run, Download CSV, Email or Rename it'],
+    links: [{label:'Saved Lists', url:'/savedLists', icon:'📋'},{label:'AI Search (Home)', url:'/home', icon:'✨'}],
+    related: ['ai search','ai activity','group email']
   },
   {
     id: 'ai-activity',

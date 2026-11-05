@@ -33,6 +33,8 @@ public class AiAuditService {
     static {
         CHANNELS.put("/api/ai-search/confirm",            "CONFIRM");
         CHANNELS.put("/api/ai-search/data",               "DATA");
+        CHANNELS.put("/api/ai-search/filter",             "DATA");
+        CHANNELS.put("/api/ai-search/saved-lists",        "DATA");
         CHANNELS.put("/api/ai-search",                    "SEARCH");
         CHANNELS.put("/api/ai-assist",                    "ASSIST");
         CHANNELS.put("/api/voice",                        "VOICE");

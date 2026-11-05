@@ -54,6 +54,11 @@ public class AiDataSearchService {
     /** Test seam. */
     public void setCrossReference(AiCrossReferenceService crossRef) { this.crossRef = crossRef; }
 
+    /** AI Phase 1 (2026-11-04): composable people filters; null in the older unit tests. */
+    private com.churchgeniuspro.ai.filter.PeopleFilterService peopleFilter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPeopleFilter(com.churchgeniuspro.ai.filter.PeopleFilterService peopleFilter) { this.peopleFilter = peopleFilter; }
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchService(FamilyMemberRepository memberRepo,
                                IncomeRepository incomeRepo,
@@ -104,6 +109,14 @@ public class AiDataSearchService {
         if (crossRef != null) {
             Map<String, Object> x = crossRef.route(qc, a, access.crossAccess(req, clientId), clientId, today);
             if (x != null) return x;
+        }
+        // Phase 1 of the AI roadmap (2026-11-04): composable people filters ("women 18–30 who attended twice
+        // in the last 60 days but didn't give this year"). Claims only questions with two or more conditions,
+        // or one the routes below cannot express (age, gender, birth month, guest/visitor, a named group,
+        // a campaign, an event, missing contact details) — so every older answer is unchanged.
+        if (peopleFilter != null) {
+            Map<String, Object> pf = peopleFilter.route(question, qc, a, access.crossAccess(req, clientId), clientId, today);
+            if (pf != null) return pf;
         }
 
         // Order matters: volunteers (profiles) first, then a named person's giving, then

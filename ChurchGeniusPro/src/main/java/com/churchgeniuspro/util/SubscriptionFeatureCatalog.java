@@ -115,8 +115,9 @@ public final class SubscriptionFeatureCatalog {
         new Feature("ntag",           "Customize NTag",         "Admin",      List.of(
                 "/ntagAccess", "/api/ntag", "/api/ntag-landing")),
 
+        // Saved Lists (AI Phase 1) are saved AI-Search filters, so they share the AI Search feature.
         new Feature("aiSearch",       "AI Type (Search)",       "AI",         List.of(
-                "/api/ai-search")),
+                "/api/ai-search", "/savedLists")),
         new Feature("aiVoice",        "AI Voice",               "AI",         List.of(
                 "/api/voice")),
         // The Help Center's conversational assistant is the same gpt-4o-mini call as Converse

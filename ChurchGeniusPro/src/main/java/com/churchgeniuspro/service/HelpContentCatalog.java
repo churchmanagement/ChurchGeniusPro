@@ -585,6 +585,23 @@ public class HelpContentCatalog {
             "1.1", list("v1.1 — Step-by-step setup, kiosk link and audit.", "v1.0 — Initial release."),
             list("private page","private access","network restriction","ip restriction","kiosk","church wifi")).roles("SuperAdmin,Admin"));
 
+        // roles: SuperAdmin,Admin,Accountant (AI Phase 1, 2026-11-04)
+        add(new HelpArticle("saved_lists", "Members", "Saved Lists (people filters)", "more.savedlists", false,
+            "People filters asked of the AI Search, kept under a name: run again, download a CSV or e-mail everyone on the list.",
+            "Ask the ✨ AI Search on Home for people with several conditions — age or age range, birthday month, men / women, role, guests / visitors / non-members, inactive / deleted, attended (how often, since when, or not), gave (period, fund, or did not give), in or not in a group (by name), serving, pledged to a campaign, registered for an event, has or lacks an e-mail / phone. "
+          + "Every condition must hold (AND). The answer lists the people (first 20, with the total) and shows each condition as a chip; ✕ drops a misread condition and searches again. Save as list keeps the conditions under a name. "
+          + "More → Saved Lists (SuperAdmin, Admin, Accountant with the Saved Lists permission; AI Search in the plan): ▶ Run shows who matches today, ⬇ Download CSV saves everyone (up to 2,000), ✉ Email this list opens Email with every address as Group Email recipients (people without an e-mail are counted and left out), ✏️ Rename / 🗑 Delete change only the list. "
+          + "A list stores the conditions, never the people; each run re-checks the viewer's permissions and refuses the whole list when a module (Income, Groups, Attendance, Volunteers, Pledges, Events) is not available to them. Runs are recorded in Admin → AI Activity.",
+            list("On Home, ask the AI Search a people question with one or more conditions.",
+                 "Click ✕ on any chip that was misread.",
+                 "Click Save as list and give it a name.",
+                 "Open More → Saved Lists to Run, Download CSV, Email, Rename or Delete it."),
+            list("Problem: Run says the list needs access I don't have — Fix: an administrator grants the module's permission; a list never shows a partial answer.",
+                 "Problem: Email this list says nobody has an e-mail — Fix: add e-mail addresses on the Families page, or download the CSV instead.",
+                 "Problem: the count changed since last time — Fix: nothing to fix; the list is re-evaluated on every run."),
+            "1.0", list("v1.0 — Initial release (AI Phase 1)."),
+            list("saved lists","people filter","ai search list","email a list","export list")).roles("SuperAdmin,Admin,Accountant"));
+
         // roles: SuperAdmin,Admin,Church (AI Phase 0, 2026-11-04)
         add(new HelpArticle("ai_activity", "Admin", "AI Activity", null, true,
             "Who used the AI features, what kind of request it was, what it cost and how it ended — never the question itself.",

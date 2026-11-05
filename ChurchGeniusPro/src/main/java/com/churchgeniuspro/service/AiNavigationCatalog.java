@@ -55,6 +55,7 @@ public final class AiNavigationCatalog {
         pg("WhatsApp Integration","/whatsappIntegration","Admin",  "Connect a WhatsApp sender for member messaging.", "whatsapp,whatsapp integration", churchOnly()),
         pg("Private Page Access","/private-access-settings","Admin","Restrict Kids Ministry, Event Check-in and Temporary Login to the church's own network.", "private page access,private pages,private access,private page", staff(ADMIN, null)),
         pg("AI Activity","/aiActivity","Admin","Every AI request made in the church — who, which feature, tokens and result; questions are never stored.", "ai activity,ai audit,ai log,ai usage", staffOrChurch(ADMIN, null)),
+        pg("Saved Lists","/savedLists","More","People filters saved from AI Search — run, export or e-mail a list of people who match your conditions.", "saved lists,saved list,people filter,my lists", staff(ACCT_OR_ADMIN, "more.savedlists")),
         pg("NTag Landing Page",  "/ntagLandingAdmin",    "Admin",  "The NTag (NFC tap) landing page: enable it, choose its buttons and preview it.", "ntag,ntag page,ntag landing,nfc landing,nfc page", staffOrChurch(ADMIN, null)),
         pg("NTAG Login",         "/ntagAccess",          "Admin",  "Temporary NTAG (NFC) login credentials.", "ntag login,nfc login,ntag credentials", churchOnly()),
         pg("Temporary Access",   "/temporaryAccess",     "Admin",  "Time-limited logins for helpers with printable badges.", "temporary access,temporary login,access card,badge", churchOnly()),
