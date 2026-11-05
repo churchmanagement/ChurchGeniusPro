@@ -112,6 +112,7 @@ public class SubscriptionPlanAdminController {
         p.setPlanCode(code);
         apply(p, body);
         p.setPlanName(name);
+        p.setFeaturesJson(aiOffByDefault(code, p.getFeaturesJson()));
         planRepo.save(p);
         subscriptionService.clearCache();
         if (trialPolicy != null) trialPolicy.refresh();
@@ -194,6 +195,24 @@ public class SubscriptionPlanAdminController {
         Object features = body.get("features");
         if (features instanceof Map<?, ?> m) {
             try { p.setFeaturesJson(MAPPER.writeValueAsString(m)); } catch (Exception ignored) { }
+        }
+    }
+
+    /**
+     * AI features are PRO / TRIAL only by default (2026-11-05): a plan created with any other code gets every
+     * AI-group key set to {@code false} unless the request named it {@code true} — a missing key would otherwise
+     * mean "enabled". Only on CREATE; editing an existing plan stores exactly what the Service Admin ticked.
+     */
+    static String aiOffByDefault(String planCode, String featuresJson) {
+        String code = planCode == null ? "" : planCode.trim().toUpperCase();
+        if (SubscriptionFeatureCatalog.AI_DEFAULT_ON_PLANS.contains(code)) return featuresJson;
+        try {
+            Map<String, Object> m = featuresJson == null || featuresJson.isBlank() ? new LinkedHashMap<>()
+                    : MAPPER.readValue(featuresJson, new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String, Object>>() {});
+            for (String key : SubscriptionFeatureCatalog.aiFeatureKeys()) m.putIfAbsent(key, Boolean.FALSE);
+            return MAPPER.writeValueAsString(m);
+        } catch (Exception e) {
+            return featuresJson;   // not a JSON object we understand — leave it as the editor sent it
         }
     }
 

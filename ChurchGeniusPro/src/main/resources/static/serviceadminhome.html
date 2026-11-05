@@ -3176,10 +3176,13 @@
     const box = document.getElementById('plFeatures');
     const groups = {};
     FEATURE_CATALOG.forEach(f => { (groups[f.group] = groups[f.group] || []).push(f); });
+    // AI features are Pro / Trial only by default (2026-11-05): a NEW plan starts with the whole AI group
+    // unticked; the Service Admin ticks what the plan should carry. Existing plans show what they have.
     box.innerHTML = Object.keys(groups).map(g =>
-      '<div style="grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;color:#999;margin-top:6px;">' + g + '</div>'
+      '<div style="grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;color:#999;margin-top:6px;">' + g
+      + (g === 'AI' ? ' <span style="font-weight:400;text-transform:none;color:#b08;">— off by default on every plan except Pro and Trial</span>' : '') + '</div>'
       + groups[g].map(f => {
-          const enabled = !(p && p.features && p.features[f.key] === false);
+          const enabled = p ? !(p.features && p.features[f.key] === false) : f.group !== 'AI';
           return '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;">'
             + '<input type="checkbox" class="pl-feat" data-key="' + f.key + '" ' + (enabled ? 'checked' : '')
             + ' style="accent-color:#673147;" /> ' + f.label + '</label>';
@@ -3214,8 +3217,10 @@
       return v === '' ? null : parseInt(v, 10);
     };
     const features = {};
+    const AI_KEYS = FEATURE_CATALOG.filter(f => f.group === 'AI').map(f => f.key);
     document.querySelectorAll('#plFeatures .pl-feat').forEach(cb => {
-      if (!cb.checked) features[cb.dataset.key] = false;   // store only disabled flags
+      if (!cb.checked) features[cb.dataset.key] = false;          // store disabled flags
+      else if (AI_KEYS.includes(cb.dataset.key)) features[cb.dataset.key] = true;   // AI: an explicit yes, so the server's "off unless named" default never hides a ticked box
     });
     const body = {
       planCode:  document.getElementById('plCode').value.trim(),

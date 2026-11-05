@@ -44,6 +44,23 @@ public final class SubscriptionFeatureCatalog {
             "/api/public/donate"
     );
 
+    /** The plans that carry every AI feature by default; every other plan has the AI roadmap features OFF unless a Service Admin ticks them. */
+    public static final java.util.Set<String> AI_DEFAULT_ON_PLANS = java.util.Set.of("PRO", "TRIAL");
+
+    /**
+     * AI roadmap features (2026-11) that are OFF by default on every plan but PRO and TRIAL. The older AI keys
+     * (aiSearch, aiVoice, aiConverse, scanCheck) keep the per-plan settings each plan already has — the seeder
+     * never touches them.
+     */
+    public static final List<String> AI_PRO_ONLY_FEATURES = List.of("aiWrite", "aiActions", "mcp", "workflows");
+
+    /** Every feature in the AI group (for the Service Admin editor's new-plan default). */
+    public static List<String> aiFeatureKeys() {
+        List<String> out = new java.util.ArrayList<>();
+        for (Feature f : FEATURES) if ("AI".equals(f.group())) out.add(f.key());
+        return out;
+    }
+
     public static final List<Feature> FEATURES = List.of(
         new Feature("memberPortal",   "Member Portal",          "Portals",    List.of()),
         new Feature("kidsPortal",     "Kids Portal",            "Portals",    List.of()),

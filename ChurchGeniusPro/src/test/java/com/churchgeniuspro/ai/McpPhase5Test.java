@@ -579,7 +579,8 @@ class McpPhase5Test {
         Path root = Path.of("src/main");
         assertThat(SubscriptionFeatureCatalog.FEATURES).anySatisfy(f -> { assertThat(f.key()).isEqualTo("mcp"); assertThat(f.pathPrefixes()).contains("/api/tokens"); });
         String seeder = Files.readString(root.resolve("java/com/churchgeniuspro/config/SubscriptionPlanSeeder.java"));
-        assertThat(seeder).contains("denyFeatureOnce(repo, \"FREE\", \"mcp\")").contains("denyFeatureOnce(repo, \"STANDARD\", \"mcp\")");
+        assertThat(seeder).contains("denyAiFeaturesOutsideProAndTrial(repo);");   // every plan but PRO/TRIAL gets mcp:false once (2026-11-05)
+        assertThat(SubscriptionFeatureCatalog.AI_PRO_ONLY_FEATURES).contains("mcp");
         assertThat(seeder.split("\\\\\"mcp\\\\\":false").length).isGreaterThanOrEqualTo(3);
         String props = Files.readString(root.resolve("resources/application.properties"));
         assertThat(props).contains("mcp.enabled=${MCP_ENABLED:true}").contains("mcp.rate.per-token-per-minute=");

@@ -456,7 +456,8 @@ class WorkflowPhase6Test {
         Path root = Path.of("src/main");
         assertThat(SubscriptionFeatureCatalog.FEATURES).anySatisfy(f -> { assertThat(f.key()).isEqualTo("workflows"); assertThat(f.pathPrefixes()).contains("/api/workflows"); });
         String seeder = Files.readString(root.resolve("java/com/churchgeniuspro/config/SubscriptionPlanSeeder.java"));
-        assertThat(seeder).contains("denyFeatureOnce(repo, \"FREE\", \"workflows\")").contains("denyFeatureOnce(repo, \"STANDARD\", \"workflows\")");
+        assertThat(seeder).contains("denyAiFeaturesOutsideProAndTrial(repo);");   // every plan but PRO/TRIAL gets workflows:false once (2026-11-05)
+        assertThat(SubscriptionFeatureCatalog.AI_PRO_ONLY_FEATURES).contains("workflows");
         assertThat(seeder.split("\\\\\"workflows\\\\\":false").length).isGreaterThanOrEqualTo(3);
         String props = Files.readString(root.resolve("resources/application.properties"));
         assertThat(props).contains("workflow.enabled=${WORKFLOW_ENABLED:true}").contains("workflow.runs-per-tenant-per-day=").contains("workflow.nightly-cron=").contains("audit.retention.workflow-run-days=");

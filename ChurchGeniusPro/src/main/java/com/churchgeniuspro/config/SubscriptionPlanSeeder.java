@@ -1,6 +1,7 @@
 package com.churchgeniuspro.config;
 
 import com.churchgeniuspro.hibernate.SubscriptionPlan;
+import com.churchgeniuspro.util.SubscriptionFeatureCatalog;
 import com.churchgeniuspro.repository.SubscriptionPlanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,16 +76,11 @@ public class SubscriptionPlanSeeder {
                     1000, null, 100, 100, null, null,
                     "{}");
             commercial(repo, "PRO", "34.99", null, null);
-            // AI Phase 3 (2026-11-04): plans seeded before the aiWrite key existed would allow it by default
-            // (a missing key = enabled). FREE and STANDARD get the explicit off switch once; PRO/TRIAL stay on.
-            denyFeatureOnce(repo, "FREE", "aiWrite");
-            denyFeatureOnce(repo, "STANDARD", "aiWrite");
-            denyFeatureOnce(repo, "FREE", "aiActions");       // AI Phase 4
-            denyFeatureOnce(repo, "STANDARD", "aiActions");
-            denyFeatureOnce(repo, "FREE", "mcp");             // AI Phase 5
-            denyFeatureOnce(repo, "STANDARD", "mcp");
-            denyFeatureOnce(repo, "FREE", "workflows");       // AI Phase 6
-            denyFeatureOnce(repo, "STANDARD", "workflows");
+            // AI Phases 3–6 (2026-11): plan rows that existed before these keys would allow them by default
+            // (a missing key = enabled). The AI roadmap features are PRO / TRIAL only by default, so EVERY other
+            // plan — FREE, STANDARD and any plan a Service Admin created — gets the explicit off switch once.
+            // An explicit true/false a Service Admin already saved is never changed (2026-11-05, user decision).
+            denyAiFeaturesOutsideProAndTrial(repo);
         };
     }
 
@@ -106,7 +102,24 @@ public class SubscriptionPlanSeeder {
     }
 
     /** Adds {@code "key":false} to a plan's features JSON when the key is absent — an admin's explicit true/false is never changed. */
-    public static void denyFeatureOnce(SubscriptionPlanRepository repo, String code, String key) {
+    /**
+     * Adds {@code "<key>":false} for every {@link SubscriptionFeatureCatalog#AI_PRO_ONLY_FEATURES} key that a plan's
+     * JSON lacks, on every plan whose code is not PRO or TRIAL. Idempotent; never overrides a saved value.
+     */
+    public static int denyAiFeaturesOutsideProAndTrial(SubscriptionPlanRepository repo) {
+        int added = 0;
+        for (SubscriptionPlan p : repo.findAll()) {
+            String code = p.getPlanCode() == null ? "" : p.getPlanCode().trim().toUpperCase(java.util.Locale.ROOT);
+            if (SubscriptionFeatureCatalog.AI_DEFAULT_ON_PLANS.contains(code)) continue;
+            for (String key : SubscriptionFeatureCatalog.AI_PRO_ONLY_FEATURES)
+                if (denyFeatureOnce(repo, p.getPlanCode(), key)) added++;
+        }
+        return added;
+    }
+
+    /** @return true when the key was added (false when it was already present or the JSON is not an object). */
+    public static boolean denyFeatureOnce(SubscriptionPlanRepository repo, String code, String key) {
+        boolean[] added = {false};
         repo.findByPlanCodeIgnoreCase(code).ifPresent(p -> {
             String json = p.getFeaturesJson() == null || p.getFeaturesJson().isBlank() ? "{}" : p.getFeaturesJson().trim();
             if (json.contains("\"" + key + "\"")) return;
@@ -114,8 +127,10 @@ public class SubscriptionPlanSeeder {
             String body = json.substring(1, json.length() - 1).trim();
             p.setFeaturesJson("{" + (body.isEmpty() ? "" : body + ",") + "\"" + key + "\":false}");
             repo.save(p);
+            added[0] = true;
             log.info("Subscription plan '{}' now carries {}=false", code, key);
         });
+        return added[0];
     }
 
     private void seed(SubscriptionPlanRepository repo, String code, String name, int sortOrder,
