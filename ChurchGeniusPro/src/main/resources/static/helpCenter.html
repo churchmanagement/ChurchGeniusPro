@@ -3065,6 +3065,41 @@
           </div>
         </div>
 
+        <!-- ═══ AI ACTIONS (AI Phase 4) ═══ -->
+        <div class="hc-card" id="hc-ai-actions" data-cat="members" data-roles="SuperAdmin,Admin,User" data-perm="more.aiassistant" data-feature="aiActions" data-keywords="ai actions action agent add to group follow-up mark as done family note assign volunteer create meeting confirm proposal">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">⚡</span>
+            <div class="hc-card-head-text">
+              <h3>AI Actions</h3>
+              <div class="hc-card-nav">Home → ✨ AI Search · More → AI Assistant</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Ask the AI Search to <em>do</em> something and it proposes the exact change first: <strong>"Add Sarah Lee to Welcome Team"</strong>, <strong>"Mark the follow-up for the Lees as done"</strong>, <strong>"Add a note to the Smiths: new baby arrived"</strong>, <strong>"Assign John Moe as usher on Sunday"</strong>, <strong>"Remind me to call Pat by Friday"</strong>, <strong>"Create a deacons meeting on Nov 20 at 7 pm"</strong>. You see a card with every detail and a Confirm button — nothing is written until you confirm (typed or spoken "yes" works too), and the card expires after 10 minutes.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
+            <div class="hc-mock" aria-label="AI action proposal"><span class="hc-mock-title">⚡ Add Sarah Lee to the group Welcome Team. Shall I go ahead?</span><span class="hc-ui">Add to group</span><span class="hc-ui lite">Cancel</span></div>
+            <div class="hc-section-label">The six actions</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Add to group</strong> — an existing member into a group (needs Groups edit)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Add follow-up</strong> / <strong>Complete follow-up</strong> — a task, optionally about a member, with a due date (needs Follow-ups)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Add family note</strong> — a note "Family note — &lt;family&gt;" in Notes (needs the Families page)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Assign volunteer</strong> — a pending assignment for a role on a date (SuperAdmin / Admin with Volunteers)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Create meeting</strong> — a one-time meeting of an existing category (needs Meetings edit)</span></div>
+            </div>
+            <div class="hc-note">Every action follows the same permission as its own page, is checked again at the moment you confirm, only ever touches your own church's records, and is listed under Admin → AI Activity → Proposed actions. There is no "send" action: e-mails and texts always go through their own pages. Pro / Trial plans only.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">It asked "which one?"</div><div class="hc-faq-a">Two people, groups or roles matched the name. Answer with the full name shown (or its number) and the proposal continues.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">"That confirmation is no longer valid."</div><div class="hc-faq-a">The card was already used, cancelled or is older than 10 minutes. Ask again — nothing was done.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/home">✨ AI Search (Home)</a>
+              <a class="hc-qlink" href="/aiActivity">📜 AI Activity</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ AI WRITING + FORM BUILDER (AI Phase 3) ═══ -->
         <div class="hc-card" id="hc-ai-writing" data-cat="communication" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="aiWrite" data-keywords="ai writing draft with ai rewrite shorten translate spanish email draft sms draft tone describe your event form builder registration questions">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4252,6 +4287,15 @@ const HC_KB = [
     steps: ['On Home, ask e.g. “women 18–30 who attended twice in the last 60 days but didn\'t give this year”','Click ✕ on any chip that was misread','Click Save as list and name it','Go to More → Saved Lists to Run, Download CSV, Email or Rename it'],
     links: [{label:'Saved Lists', url:'/savedLists', icon:'📋'},{label:'AI Search (Home)', url:'/home', icon:'✨'}],
     related: ['ai search','ai activity','group email']
+  },
+  {
+    id: 'ai-actions',
+    q: ['ai actions','action agent','add to group with ai','mark as done','add a note to a family','assign volunteer with ai','remind me to','confirm action','proposal'],
+    title: '⚡ AI Actions — Do Things from the Search Bar',
+    answer: 'Type what you want done — "Add Sarah Lee to Welcome Team", "Mark the follow-up for the Lees as done", "Add a note to the Smiths: …", "Assign John as usher on Sunday", "Remind me to call Pat by Friday", "Create a deacons meeting on Nov 20 at 7 pm" — and the AI proposes the exact change on a card. Nothing is written until you press Confirm (or say yes); the card expires after 10 minutes. Same permissions as the page, checked again at confirm; listed under Admin → AI Activity. Pro / Trial plans.',
+    steps: ['Type the request in the ✨ AI Search bar or the AI Assistant chat','Answer a clarifying question if a name matched several people','Read the card and press the action button (or say "yes")','Check Admin → AI Activity → Proposed actions any time'],
+    links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'AI Activity', url:'/aiActivity', icon:'📜'}],
+    related: ['ai search','ai activity','follow-ups','groups']
   },
   {
     id: 'ai-writing',

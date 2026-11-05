@@ -35,6 +35,7 @@
     .pill { display:inline-block; padding:2px 9px; border-radius:11px; font-size:11px; font-weight:700; white-space:nowrap; }
     .pill.OK { background:#e8f5e9; color:#2e7d32; } .pill.DENIED { background:#fdecea; color:#c62828; }
     .pill.RATE_LIMITED { background:#fff8e1; color:#8a6d00; } .pill.ERROR { background:#eceff1; color:#455a64; }
+    .pill.executed { background:#e8f5e9; color:#2e7d32; } .pill.proposed { background:#fff8e1; color:#8a6d00; } .pill.rejected, .pill.expired { background:#eceff1; color:#455a64; } .pill.failed { background:#fdecea; color:#c62828; }
     .ch { font-weight:700; color:#673147; }
     .more { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
     .more [hidden] { display:none !important; }   /* shared button CSS sets display */
@@ -75,6 +76,20 @@
         </div>
       </div>
 
+      <!-- AI Phase 4: what the action agent proposed and what was confirmed (church logins see the same list as admins) -->
+      <div class="card" id="actionsCard" data-feature="aiActions">
+        <div class="card-header"><span>⚡</span><h2>Proposed actions</h2>
+          <span class="muted" id="actionsNote"></span>
+          <button class="btn-sec" onclick="loadActions()">↻ Refresh</button></div>
+        <div class="card-body">
+          <div class="muted" style="margin-bottom:10px">Things staff asked the AI Search to do ("add Sarah Lee to Welcome Team"). Nothing is written until the person confirms; a proposal expires after 10 minutes.</div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th><th>Status</th><th>Via</th></tr></thead>
+            <tbody id="actionRows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header"><span>🗒️</span><h2>Recent requests</h2>
           <button class="btn-sec" onclick="loadRows()">↻ Refresh</button></div>
@@ -94,8 +109,29 @@
 </div>
 
 <script>
-  const CHANNEL_LABEL = { SEARCH:'AI Search', DATA:'AI Search (data)', CONFIRM:'AI action confirm', ASSIST:'Converse / Type',
-                          VOICE:'Voice', VISION:'Scan (vision)', HELP:'Help assistant', MCP:'External (MCP)', OTHER:'Other' };
+  const CHANNEL_LABEL = { SEARCH:'AI Search', DATA:'AI Search (data)', CONFIRM:'Meeting confirm', ASSIST:'Converse / Type',
+                          VOICE:'Voice', VISION:'Scan (vision)', HELP:'Help assistant', WRITE:'AI Writing', FORMS:'AI Form builder', ACTIONS:'AI Actions', MCP:'External (MCP)', OTHER:'Other' };
+  const STATUS_LABEL = { PROPOSED:'Awaiting confirmation', EXECUTED:'Done', REJECTED:'Cancelled', EXPIRED:'Expired', FAILED:'Failed' };
+  async function loadActions(){
+    const tb = document.getElementById('actionRows');
+    try {
+      const d = await CGP_api('/api/ai/actions');
+      document.getElementById('actionsNote').textContent = d.enabled === false ? 'AI actions are switched off on this server.' : (d.all ? 'Whole church' : 'Your own proposals');
+      const list = d.rows || [];
+      if (!list.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">No actions proposed yet.</td></tr>'; return; }
+      tb.innerHTML = list.map(r => `<tr><td>${when(r.createdAt)}</td><td>${esc(r.by)}</td><td>${esc(r.label)}</td><td>${esc(r.summary)}</td>
+        <td><span class="pill ${esc(String(r.status||'').toLowerCase())}">${esc(STATUS_LABEL[r.status]||r.status)}</span></td><td>${esc(r.source==='LLM'?'AI picked the tool':r.source==='VOICE'?'Voice':'Typed')}</td></tr>`).join('');
+    } catch (e) {
+      const st = e && e.status;
+      if (st === 403) {   // plan without AI Actions, or a church login
+        const card = document.getElementById('actionsCard');
+        card.removeAttribute('data-feature');   // session.js re-applies display for [data-feature] when the plan loads — keep this card gone
+        card.style.display = 'none';
+        return;
+      }
+      tb.innerHTML = '<tr><td colspan="6" class="empty">' + esc(CGP_errorMessage(e, "Couldn't load the actions.")) + ' <button class="btn-sec" onclick="loadActions()">Retry</button></td></tr>';
+    }
+  }
   const OUTCOME_LABEL = { OK:'OK', DENIED:'Refused', RATE_LIMITED:'Rate limited', ERROR:'Error' };
   let rows = [], hasMore = false, busy = false;
 
@@ -160,7 +196,7 @@
   function loadRows(){ return fetchRows(true); }
   function loadMore(){ return fetchRows(rows.length===0); }
 
-  loadSummary(); loadRows();
+  loadSummary(); loadRows(); loadActions();
 </script>
 
 <script>

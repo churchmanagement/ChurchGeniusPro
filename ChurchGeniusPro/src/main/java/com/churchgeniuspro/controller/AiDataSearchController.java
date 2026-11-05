@@ -29,6 +29,9 @@ public class AiDataSearchController {
 
     private final AiDataSearchService service;
     private final com.churchgeniuspro.service.AiMeetingCreateService meetingCreate;   // Phase E; null in legacy tests
+    /** AI Phase 4 action agent; optional so hand-built tests keep their constructor. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.action.AiActionService actions;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
@@ -63,6 +66,12 @@ public class AiDataSearchController {
             if (meetingCreate != null) {
                 Map<String, Object> created = meetingCreate.handle(request, clientId, question);
                 if (created != null) return ResponseEntity.ok(audited(request, created));
+            }
+            // AI Phase 4: "add Sarah Lee to Welcome Team", "mark the Lees as followed up", a yes/no to an open
+            // proposal, or an answer to a clarifying question. Proposes only — the write happens on confirm.
+            if (actions != null) {
+                Map<String, Object> proposed = actions.handle(request, clientId, question);
+                if (proposed != null) return ResponseEntity.ok(audited(request, proposed));
             }
             return ResponseEntity.ok(audited(request, service.answer(request, clientId, question)));
         } catch (Exception e) {

@@ -2467,3 +2467,26 @@ CREATE TABLE IF NOT EXISTS member_engagement_snapshot (
 );
 CREATE INDEX IF NOT EXISTS idx_mes_client_day_member ON member_engagement_snapshot (app_client_id, snapshot_date, member_id);
 CREATE INDEX IF NOT EXISTS idx_mes_client_member_day ON member_engagement_snapshot (app_client_id, member_id, snapshot_date);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 4 (2026-11-05): ai_action_proposal — the action agent's propose → confirm → execute records
+-- (tool, parameters as ids/labels, status, one-time token). Additive; Hibernate ddl-auto creates the same
+-- on start. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_action_proposal (
+    id            BIGSERIAL PRIMARY KEY,
+    app_client_id VARCHAR(100) NOT NULL,
+    username      VARCHAR(150) NOT NULL,
+    tool          VARCHAR(40)  NOT NULL,
+    params_json   TEXT,
+    summary       VARCHAR(500),
+    status        VARCHAR(12)  NOT NULL,
+    token         VARCHAR(64),
+    expires_at    TIMESTAMP    NOT NULL,
+    created_at    TIMESTAMP    NOT NULL,
+    decided_at    TIMESTAMP,
+    source        VARCHAR(10),
+    result_json   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ai_action_client_status ON ai_action_proposal (app_client_id, status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_ai_action_token ON ai_action_proposal (token);

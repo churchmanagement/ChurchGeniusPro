@@ -131,6 +131,7 @@ class MemberApiScopeTest {
             Set<String> KNOWN_STAFF_ONLY = Set.of(
                     "/api/users",            // session.js: staff permissions (members have no appUserId)
                     "/api/public-screens",   // ai-assistant.js: lists public links for staff; r.ok checked
+                    "/api/ai/actions",       // ai-assistant.js: confirm/reject of an action proposal — members never receive a proposal (AI Phase 4)
                     "/api/guess-it/admin");  // guessIt.html host panel — staff only, hidden for members
             List<String> files = List.of("memberHome.html", "memberWorship.html", "worshipPlanning.html", "songbook.html",
                     "guessIt.html", "helpCenter.html", "tickets.html", "ai-assistant.html", "ai-assistant.js", "devices.js",

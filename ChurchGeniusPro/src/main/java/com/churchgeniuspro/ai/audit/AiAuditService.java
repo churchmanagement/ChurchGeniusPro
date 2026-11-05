@@ -41,6 +41,7 @@ public class AiAuditService {
         CHANNELS.put("/api/help/assist",                  "HELP");
         CHANNELS.put("/api/ai/write",                     "WRITE");     // AI Phase 3: drafts (never sends)
         CHANNELS.put("/api/ai/forms",                     "FORMS");     // AI Phase 3: describe-to-build
+        CHANNELS.put("/api/ai/actions",                   "ACTIONS");   // AI Phase 4: confirm / reject / list (proposals come through /api/ai-search)
         CHANNELS.put("/api/expense/check-scan",           "VISION");
         CHANNELS.put("/api/expense/check-parse",          "VISION");
         CHANNELS.put("/api/income/check-scan",            "VISION");

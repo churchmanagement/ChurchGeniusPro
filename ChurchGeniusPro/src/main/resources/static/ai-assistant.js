@@ -513,12 +513,12 @@
     //    "What was the income for March?", "Who are the volunteers?").
     //    Answered server-side with permission checks; runs in ALL modes.
     //    handled=false → fall through to the normal flow below.
-    if (looksLikeDataQuestion(query) || _aaServerPending){
+    if (looksLikeDataQuestion(query) || looksLikeAction(query) || _aaServerPending){
       tryDataSearch(query).then(function(d){
         if (!aaLive(g)) return;                     // stopped, or superseded
         // A meeting draft is open on the server (missing fields / awaiting "yes"): the next
         // message goes to the server too, whatever it looks like (Phase E).
-        _aaServerPending = !!(d && d.handled && (d.intent==='meeting.ask' || d.intent==='meeting.confirm'));
+        _aaServerPending = !!(d && d.handled && (d.intent==='meeting.ask' || d.intent==='meeting.confirm' || d.intent==='action.ask' || d.intent==='action.confirm'));
         if (d && d.handled){
           busy(false);
           renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data',
@@ -587,6 +587,13 @@
   // must also bring the question to the server, or the bar answers it as navigation instead.
   function looksLikeDataQuestion(q){
     return /\b(birthdays?|anniversar\w*|income|revenues?|receipts|takings|earnings|collections?|tithes?|tithed|tithing|contribut\w*|donat\w*|donors?|gave|give|given|gives|giving|givers?|gifts?|offerings?|volunteers?|volunteering|volunteered|helpers?|serving|on duty|rota|roster|money|funds received|amount received|payments made|all entries|happenings|(?:church )?activities|pledged|expenses?|expenditures?|spent|spend|spending|costs?|bills|purchases|paid out|outgoings|transactions?|ledger|campaigns?|pledges?|meetings?|meet ?ups?|prayers?|follow[- ]?ups?|tasks?|events?|programs?|programmes?|functions|occasions|reminders?|members?|kids?|children|public (links?|screens?|pages?)|reports?|statements?|famil(?:y|ies)|households?|un-?alert\w*|non-?alert\w*|alerts? (?:are |is )?(?:disabled|off|turned off)|disabled alerts?|attend\w*|attenders?|attendees?|lapsed|regulars|visitors?|first[- ]time\w*|newcomers?|groups?|women|men|ladies|adults?|teens?|teenagers?|youth|seniors?|guests?|non-?members?|people|born|aged|years? old|e-?mails?|phones?|spouses?|heads? of household|registered|signed up)\b/i.test(q);
+  }
+  // AI Phase 4: a request to DO something ("add Sarah Lee to Welcome Team", "mark the Lees as followed up",
+  // "note for the Smiths: …", "assign John as usher on Sunday", "remind me to call Pat") goes to the server
+  // first — it proposes an action and asks for confirmation; nothing is written until the card is confirmed.
+  function looksLikeAction(q){
+    return /^\s*(please\s+)?(add|put|enrol|enroll|include|assign|sign up|mark|complete|close|finish|log|record|note|write|remind me)\b/i.test(q)
+        && !/^\s*(how|where|what|when|which|who|why|is|are|do|does|can|could|list|show|find)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
   // — i.e. asks for data rather than for a page.
@@ -853,8 +860,8 @@
         html+='<div class="aa-summary">';
         Object.keys(cs).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v aa-sum-sm">'+esc(cs[k])+'</div></div>'; });
         html+='</div><div class="aa-actions">'
-          +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'">Create meeting</button>'
-          +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'">Cancel</button>'
+          +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'" data-label="'+esc(d.confirm.label||'Create meeting')+'" data-endpoint="'+esc(d.confirm.endpoint||'/api/ai-search/confirm')+'">'+esc(d.confirm.label||'Create meeting')+'</button>'
+          +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'" data-endpoint="'+esc(d.confirm.endpoint||'')+'">Cancel</button>'
           +'<span class="aa-actions-note">Nothing is saved until you confirm.</span></div>';
       }
     }
@@ -896,25 +903,30 @@
      the token on first use, so a repeat click or a stale transcript button creates nothing. */
   function confirmMeeting(token, btn){
     if (!token) return;
+    // AI Phase 4: the same button confirms an action proposal — the card says which endpoint and label.
+    var label = (btn && btn.getAttribute && btn.getAttribute('data-label')) || 'Create meeting';
+    var endpoint = (btn && btn.getAttribute && btn.getAttribute('data-endpoint')) || '/api/ai-search/confirm';
+    var isAction = endpoint.indexOf('/api/ai/actions/') === 0;
     var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
     if (row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=true; }); }
-    if (btn){ btn.textContent='Creating…'; }
-    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); if(row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=false; }); } if(btn) btn.textContent='Create meeting'; return; }
-    lastQ='Create meeting (confirmed)';
-    reportQuestion('Yes, create it', 'type');  // the confirm click is its own turn
+    if (btn){ btn.textContent= isAction ? 'Working…' : 'Creating…'; }
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); if(row){ row.querySelectorAll('button').forEach(function(x){ x.disabled=false; }); } if(btn) btn.textContent=label; return; }
+    lastQ=label+' (confirmed)';
+    reportQuestion(isAction ? 'Yes, go ahead' : 'Yes, create it', 'type');  // the confirm click is its own turn
     var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true);
     _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
     busy(true);
-    fetch('/api/ai-search/confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }), signal:aaSignal() })
+    fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }), signal:aaSignal() })
       .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){
         if (!aaLive(g)) return;
         busy(false); _aaServerPending=false; endTurn();
-        if (!d || !d.handled){ d={ handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
+        if (!d || !d.handled){ d= isAction ? { handled:true, denied:false, intent:'action.failed', answer:'The action could not be completed, so nothing was saved. Please try again or use the page directly.' }
+                                           : { handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
         if (row){ row.remove(); }
         renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
           pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
-        setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: d.created ? 'Meeting created' : (d.denied ? 'Permission denied' : 'Not created') });
+        setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: (d.created || d.executed) ? 'Done' : (d.denied ? 'Permission denied' : 'Not done') });
         if (speaking) speak(stripUrls(d.answer||''));
       });
   }
@@ -962,8 +974,16 @@
   }
   function cancelMeeting(btn){
     var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
+    var endpoint = (btn && btn.getAttribute && btn.getAttribute('data-endpoint')) || '';
+    var token = btn && btn.getAttribute ? btn.getAttribute('data-token') : null;
     if (row){ row.remove(); }
     _aaServerPending=false;
+    if (endpoint.indexOf('/api/ai/actions/') === 0 && token){
+      // AI Phase 4: reject the proposal itself (the server marks it REJECTED; the token can never be used)
+      fetch('/api/ai/actions/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) }).catch(function(){});
+      toast('Okay — nothing was done.');
+      return;
+    }
     fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
     toast('Okay — the meeting was not created.');
   }

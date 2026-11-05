@@ -222,7 +222,7 @@ public class AiAccessPolicy {
         return s != null && s.getAttribute("tempAccessId") != null;
     }
 
-    private boolean feature(String clientId, String featureKey) {
+    public boolean feature(String clientId, String featureKey) {
         if (subscriptions == null) return true;           // unit tests: no subscription service wired
         if (clientId == null || clientId.isBlank()) return false;   // no tenant → no feature (AI Phase 0: was fail-open)
         try { return subscriptions.isFeatureEnabled(clientId, featureKey); }
