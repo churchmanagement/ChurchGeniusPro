@@ -38,7 +38,7 @@ class AssistantKnowledgeTest {
         MENU_TO_ARTICLE.put("/viewfamily", "members");            MENU_TO_ARTICLE.put("/groups", "groups");
         MENU_TO_ARTICLE.put("/membershipRequests", "membership_requests"); MENU_TO_ARTICLE.put("/unsubscribed-list", "email_settings");
         MENU_TO_ARTICLE.put("/filesUpload", "files_notes");       MENU_TO_ARTICLE.put("/stripeIntegration", "stripe_integration");
-        MENU_TO_ARTICLE.put("/whatsappIntegration", "whatsapp_integration"); MENU_TO_ARTICLE.put("/private-access-settings", "private_page_access"); MENU_TO_ARTICLE.put("/aiActivity", "ai_activity"); MENU_TO_ARTICLE.put("/savedLists", "saved_lists"); MENU_TO_ARTICLE.put("/ministryReport", "ministry_report");
+        MENU_TO_ARTICLE.put("/whatsappIntegration", "whatsapp_integration"); MENU_TO_ARTICLE.put("/private-access-settings", "private_page_access"); MENU_TO_ARTICLE.put("/aiActivity", "ai_activity"); MENU_TO_ARTICLE.put("/savedLists", "saved_lists"); MENU_TO_ARTICLE.put("/ministryReport", "ministry_report"); MENU_TO_ARTICLE.put("/apiTokens", "ai_connections");
         MENU_TO_ARTICLE.put("/tickets", "ticketing");             MENU_TO_ARTICLE.put("/ai-assistant", "ai_assistant");
         MENU_TO_ARTICLE.put("/ntagAccess", "ntag_login");         MENU_TO_ARTICLE.put("/income", "income");
         MENU_TO_ARTICLE.put("/expense", "expense");               MENU_TO_ARTICLE.put("/bank-import", "bank_import");

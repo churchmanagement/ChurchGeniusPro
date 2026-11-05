@@ -619,6 +619,23 @@ public class HelpContentCatalog {
             "1.0", list("v1.0 — Initial release (AI Phase 4)."),
             list("ai actions","add to group","follow-up done","family note","assign volunteer","create meeting","confirm")).roles("SuperAdmin,Admin,User"));
 
+        // roles: SuperAdmin,Admin,Accountant,User (AI Phase 5, 2026-11-05)
+        add(new HelpArticle("ai_connections", "Members", "AI Connections (MCP) — Claude Desktop, ChatGPT and other AI tools", "more.aiassistant", false,
+            "Personal access tokens that let an external AI tool ask your church's data the same questions AI Search answers, with your permissions only, through the MCP endpoint.",
+            "More → AI Connections. An Admin first switches on \"Allow external AI connections\" for the church (off until then). Then any staff login with the AI Assistant permission can create a personal access token: give it a name (the tool it is for), choose its scopes and how long it lives (1–365 days, 90 by default), and copy the token — it is shown only once. "
+          + "In the AI tool add an MCP server with the endpoint shown on the page (…/mcp) and the token as the Authorization: Bearer header; the page shows the exact settings for Claude Desktop and ChatGPT. The tool then sees these tools: ask_church_data (any plain-English question — the same answers as AI Search), search_people (the people filters by explicit conditions), list_saved_lists / run_saved_list, ministry_report, engagement_summary and, only with the actions scope, list_actions / propose_action / confirm_action / cancel_action (the AI Actions — proposed first, written only when you confirm). "
+          + "Scopes: Read is always on and reaches exactly as far as your own permissions; Contact details — without it e-mail, phone and street addresses are masked in every answer; Giving — without it no income, expense, pledge or report amounts are returned even if you can see them in the app; Actions — Admins only. "
+          + "Every request is checked again on the server: token valid and not expired or revoked, your account still enabled, the church's plan (Pro / Trial) and switch, and the same page permissions AI Search uses. The church id always comes from the token, never from the tool. Up to 10 active tokens per person; per-token and per-church rate limits; Admins see every token of the church and can revoke all; every call is listed under Admin → AI Activity as External (MCP). Member, Kids Portal, church-owner and temporary logins cannot create tokens.",
+            list("Admin: open More → AI Connections and switch on Allow external AI connections.",
+                 "Click + New token, name it, choose scopes and expiry, Create.",
+                 "Copy the token now (shown once) and add endpoint + Bearer token to the AI tool.",
+                 "Ask the tool a question; check Admin → AI Activity for the call."),
+            list("Problem: the tool says 401 / unauthorised — Fix: the token was revoked or expired, the church switched connections off, or the account was disabled; check the Status column and create a new token.",
+                 "Problem: amounts or e-mail addresses are missing — Fix: the token lacks the Giving or Contact details scope; create one with the scope you need.",
+                 "Problem: I lost the token — Fix: it cannot be shown again; revoke it and create a new one."),
+            "1.0", list("v1.0 — Initial release (AI Phase 5)."),
+            list("ai connections","api token","personal access token","mcp","claude desktop","chatgpt","external ai")).roles("SuperAdmin,Admin,Accountant,User"));
+
         // roles: SuperAdmin,Admin,Accountant,User (AI Phase 3, 2026-11-04)
         add(new HelpArticle("ai_writing", "Communication", "AI Writing & Form Builder", "more.aiassistant", false,
             "✨ Draft with AI in the e-mail and SMS composers (draft, rewrite, shorten, fix, translate — never sends) and ✨ Describe your event on the Event form.",

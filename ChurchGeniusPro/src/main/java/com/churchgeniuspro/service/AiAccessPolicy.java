@@ -114,6 +114,11 @@ public class AiAccessPolicy {
                                 false, false, false, false, false, false, false, false, false, false, openable(req, s, clientId, role, false, true));
         }
         boolean fin = FINANCE_ROLES.contains(role) && feature(clientId, "accounting");
+        // AI Phase 5: a token-backed session (external MCP client) carries scopes; without "giving" the
+        // principal has no finance access at all, whatever the owner's own permissions say.
+        java.util.Set<String> tokenScopes = com.churchgeniuspro.mcp.TokenSession.scopes(s);
+        boolean givingScope = tokenScopes == null || tokenScopes.contains("giving");
+        fin = fin && givingScope;
         boolean members        = MEMBER_PAGE_ROLES.contains(role) && page(req, "admin.family");
         boolean incomeRecords  = fin && page(req, "accounting.income");
         boolean expenseRecords = fin && page(req, "accounting.expense");
@@ -127,7 +132,7 @@ public class AiAccessPolicy {
         boolean followUps      = ADMIN_OR_USER.contains(role) && page(req, "more.followups") && feature(clientId, "followUps");
         boolean events         = STAFF_ROLES.contains(role) && page(req, "general.events");
         boolean reminders      = ADMIN_OR_USER.contains(role) && page(req, "general.reminders") && feature(clientId, "reminders");
-        boolean pledges        = FINANCE_ROLES.contains(role) && page(req, "accounting.pledges") && feature(clientId, "pledges");
+        boolean pledges        = givingScope && FINANCE_ROLES.contains(role) && page(req, "accounting.pledges") && feature(clientId, "pledges");
         boolean kidsMinistry   = ADMIN_OR_USER.contains(role) && page(req, "general.ministry.kids") && feature(clientId, "kidsMinistry");
         boolean publicLinks    = ADMIN_OR_USER.contains(role) && page(req, "more.publicscreens") && feature(clientId, "publicScreens");
         return new AiAccess(role, username, false, false, false, members, incomeRecords, expenseRecords, reports, volunteers,

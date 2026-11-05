@@ -3100,6 +3100,48 @@
           </div>
         </div>
 
+        <!-- ═══ AI CONNECTIONS / MCP (AI Phase 5) ═══ -->
+        <div class="hc-card" id="hc-ai-connections" data-cat="members" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="mcp" data-keywords="ai connections api tokens personal access token mcp claude desktop chatgpt external ai bearer token scopes revoke">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🔗</span>
+            <div class="hc-card-head-text">
+              <h3>AI Connections (MCP)</h3>
+              <div class="hc-card-nav">More → AI Connections</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Let an AI tool you already use — Claude Desktop, ChatGPT or any MCP client — ask questions about your church's data from outside ChurchGeniusPro. You create a <strong>personal access token</strong>, paste it into the tool, and the tool can then call the same AI Search answers you get here: <em>with your permissions only</em>, for your church only. Tokens are shown once, expire (90 days by default), can be revoked at any time, and every call is listed under Admin → AI Activity as "External (MCP)".</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span><span class="hc-role">User</span></div>
+            <div class="hc-mock" aria-label="AI Connections page"><span class="hc-mock-title">🔗 AI Connections</span><span class="hc-ui">+ New token</span><span class="hc-ui lite">Revoke</span><span class="hc-ui lite">Revoke all</span></div>
+            <div class="hc-section-label">How to connect a tool</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>An Admin switches on <strong>Allow external AI connections</strong> at the top of the page (off for every church until then)</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click <span class="hc-ui">+ New token</span>, name it after the tool, choose what it may see and how long it lives</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Copy the token — it is shown only this once — and add the server to your tool with the endpoint URL and the token as a Bearer header (the page shows the exact settings for Claude Desktop and ChatGPT)</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Ask the tool a question such as "regular attenders who are not in a group" — it uses ask_church_data and shows the same answer AI Search would</span></div>
+            </div>
+            <div class="hc-section-label">What a token may see (scopes)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Read</strong> (always) — people, attendance, groups, volunteers, follow-ups, reports and saved lists, exactly as far as your own permissions reach</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Contact details</strong> — without it e-mail addresses, phone numbers and street addresses are masked in every answer</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Giving</strong> — without it no income, expense, pledge or report amounts are returned, even if you can see them in the app</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Actions</strong> (Admins only) — the AI Actions tools: the external tool can <em>propose</em> a change and only your confirmation carries it out</span></div>
+            </div>
+            <div class="hc-note">Tokens are for staff accounts only (never Member or Kids logins), one person each, up to 10 active per person. Requests are rate-limited per token and per church, and the church can turn every connection off with one switch or revoke every token at once. Pro / Trial plans only.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">I lost the token.</div><div class="hc-faq-a">It cannot be shown again — revoke it and create a new one.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">The tool says 401 / unauthorised.</div><div class="hc-faq-a">The token was revoked or has expired, the church switched connections off, or the account it belongs to was disabled. Check the Status column on this page.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Does the AI tool get our whole database?</div><div class="hc-faq-a">No. It can only call the listed tools, each answers with the token owner's permissions, and the church id always comes from the token — never from the tool.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/apiTokens">🔗 AI Connections</a>
+              <a class="hc-qlink" href="/aiActivity">📜 AI Activity</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ AI WRITING + FORM BUILDER (AI Phase 3) ═══ -->
         <div class="hc-card" id="hc-ai-writing" data-cat="communication" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="aiWrite" data-keywords="ai writing draft with ai rewrite shorten translate spanish email draft sms draft tone describe your event form builder registration questions">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4296,6 +4338,15 @@ const HC_KB = [
     steps: ['Type the request in the ✨ AI Search bar or the AI Assistant chat','Answer a clarifying question if a name matched several people','Read the card and press the action button (or say "yes")','Check Admin → AI Activity → Proposed actions any time'],
     links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'AI Activity', url:'/aiActivity', icon:'📜'}],
     related: ['ai search','ai activity','follow-ups','groups']
+  },
+  {
+    id: 'ai-connections',
+    q: ['ai connections','api tokens','personal access token','mcp','claude desktop','chatgpt','external ai','connect claude','connect chatgpt','bearer token','revoke token'],
+    title: '🔗 AI Connections (MCP) — Use Claude Desktop or ChatGPT with Your Church Data',
+    answer: 'More → AI Connections gives you a personal access token that an external AI tool (Claude Desktop, ChatGPT or any MCP client) uses to ask the same questions AI Search answers — with your permissions, for your church only. An Admin first switches on "Allow external AI connections". Tokens are shown once, expire after 90 days by default, carry scopes (contact details, giving, actions) and can be revoked at any time; every call is listed under Admin → AI Activity as External (MCP). Pro / Trial plans.',
+    steps: ['Admin: switch on Allow external AI connections','Click + New token, name it, pick scopes and expiry','Copy the token (shown once) and add the endpoint + Bearer token to your tool','Ask the tool a question — it calls ask_church_data'],
+    links: [{label:'AI Connections', url:'/apiTokens', icon:'🔗'},{label:'AI Activity', url:'/aiActivity', icon:'📜'}],
+    related: ['ai search','ai activity','ai actions']
   },
   {
     id: 'ai-writing',

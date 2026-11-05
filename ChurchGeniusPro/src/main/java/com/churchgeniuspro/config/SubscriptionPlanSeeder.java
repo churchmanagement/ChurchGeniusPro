@@ -51,7 +51,7 @@ public class SubscriptionPlanSeeder {
                   + "\"eventCheckin\":false,\"kidsCheckin\":false,\"kidsMinistry\":false,"
                   + "\"kidsPortal\":false,\"volunteers\":false,\"privatePages\":false,"
                   + "\"ntag\":false,\"aiSearch\":false,\"aiVoice\":false,"
-                  + "\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false,\"aiActions\":false}");
+                  + "\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false,\"aiActions\":false,\"mcp\":false}");
             commercial(repo, "FREE", "0.00", 0, null);
 
             seed(repo, "STANDARD", "Standard Plan", 2,
@@ -63,7 +63,7 @@ public class SubscriptionPlanSeeder {
                     // AI is "Limited" on Standard: search on, voice/converse/scan off.
                     // No Payroll on Standard. Bank Sync is on, capped at 3 connected
                     // accounts by max_bank_accounts (commercial() below).
-                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false,\"aiActions\":false,"
+                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false,\"aiActions\":false,\"mcp\":false,"
                   + "\"payroll\":false}",
                     10);   // up to 10 church-added users (viewusers)
             commercial(repo, "STANDARD", "14.99", 3, null);
@@ -81,6 +81,8 @@ public class SubscriptionPlanSeeder {
             denyFeatureOnce(repo, "STANDARD", "aiWrite");
             denyFeatureOnce(repo, "FREE", "aiActions");       // AI Phase 4
             denyFeatureOnce(repo, "STANDARD", "aiActions");
+            denyFeatureOnce(repo, "FREE", "mcp");             // AI Phase 5
+            denyFeatureOnce(repo, "STANDARD", "mcp");
         };
     }
 

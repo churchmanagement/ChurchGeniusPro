@@ -185,6 +185,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'more/ai-assistant',   label: 'AI Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
         { id: 'more/saved-lists',    label: 'Saved Lists',    icon: '&#x1F4CB;', href: '/savedLists'    },
         { id: 'more/ministry-report',label: 'Ministry Report',icon: '&#x1F4C8;', href: '/ministryReport'},
+        { id: 'more/api-tokens',     label: 'AI Connections', icon: '&#x1F517;', href: '/apiTokens'     },
         { id: 'more/songbook-access',label: 'Song Book Access',icon: '&#x1F3B5;', href: '/admin/songbook-access' }
     ]},
     // REMINDERS section kept for backward-compat active-page detection only.

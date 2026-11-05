@@ -132,6 +132,10 @@ public final class SubscriptionFeatureCatalog {
         // /api/ai-search and checked against this feature in code). PRO/TRIAL only.
         new Feature("aiActions",      "AI Actions",             "AI",         List.of(
                 "/api/ai/actions")),
+        // AI Phase 5 (2026-11-05): personal access tokens for external AI tools (Claude Desktop, ChatGPT …) talking to
+        // /mcp. The token endpoint itself is outside /api and checks the feature in code; this gates the token pages.
+        new Feature("mcp",            "External AI (MCP)",      "AI",         List.of(
+                "/api/tokens")),
         // Every gpt-4o vision call: checks on Expense AND Income, bank-statement scans, membership-form
         // and kids-form extraction (AI Phase 0: the last four were outside plan gating).
         new Feature("scanCheck",      "Scan Check",             "AI",         List.of(

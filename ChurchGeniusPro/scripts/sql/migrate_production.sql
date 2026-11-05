@@ -2490,3 +2490,35 @@ CREATE TABLE IF NOT EXISTS ai_action_proposal (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_action_client_status ON ai_action_proposal (app_client_id, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_ai_action_token ON ai_action_proposal (token);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- AI Phase 5 (2026-11-05): personal_access_token (hashed tokens for the external MCP endpoint /mcp;
+-- the secret is never stored) and mcp_tenant_setting (the church's opt-in; no row = off).
+-- Additive; Hibernate ddl-auto creates the same on start. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS personal_access_token (
+    id            BIGSERIAL PRIMARY KEY,
+    app_client_id VARCHAR(100) NOT NULL,
+    app_user_id   INTEGER      NOT NULL,
+    username      VARCHAR(150) NOT NULL,
+    name          VARCHAR(80)  NOT NULL,
+    token_prefix  VARCHAR(16)  NOT NULL,
+    token_hash    VARCHAR(64)  NOT NULL,
+    scopes        VARCHAR(200) NOT NULL,
+    created_at    TIMESTAMP    NOT NULL,
+    expires_at    TIMESTAMP    NOT NULL,
+    last_used_at  TIMESTAMP,
+    revoked_at    TIMESTAMP,
+    revoked_by    VARCHAR(150)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pat_hash ON personal_access_token (token_hash);
+CREATE INDEX IF NOT EXISTS idx_pat_client_user ON personal_access_token (app_client_id, app_user_id);
+
+CREATE TABLE IF NOT EXISTS mcp_tenant_setting (
+    id            BIGSERIAL PRIMARY KEY,
+    app_client_id VARCHAR(100) NOT NULL,
+    enabled       BOOLEAN      NOT NULL DEFAULT FALSE,
+    updated_by    VARCHAR(150),
+    updated_at    TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_setting_client ON mcp_tenant_setting (app_client_id);

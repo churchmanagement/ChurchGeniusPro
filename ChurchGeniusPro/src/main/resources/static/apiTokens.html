@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>AI Connections — Church Genius Pro</title>
+  <style>
+    *,*::before,*::after { box-sizing:border-box; }
+    button { cursor:pointer; font-family:inherit; border:none; background:none; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .page-title { font-size:20px; font-weight:800; color:#1e2139; }
+    .page-subtitle { font-size:13px; color:#9fa8c4; margin:2px 0 18px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); margin-bottom:16px; overflow:hidden; }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 20px; border-bottom:1px solid #eef0f6; background:#fafbfe; flex-wrap:wrap; }
+    .card-header h2 { font-size:14px; font-weight:700; color:#1e2139; flex:1; margin:0; }
+    .card-body { padding:16px 20px; }
+    .muted { color:#8a8a8a; font-size:12.5px; line-height:1.55; }
+    .btn { background:#673147; color:#fff; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:700; }
+    .btn:hover { background:#4f2538; }
+    .btn-sec { background:#f0f2f8; color:#555; border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600; }
+    .btn-sec:hover { background:#e4e7f4; }
+    .btn-sec[disabled], .btn[disabled] { opacity:.6; cursor:wait; }
+    .btn-danger { color:#c62828; border:1.5px solid #f3c2c2; background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; }
+    .notice { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; }
+    .notice.warn { background:#fff6e5; color:#8a5a00; border:1px solid #ffe2a8; }
+    .notice.err { background:#fdecea; color:#c62828; }
+    .notice.ok { background:#e8f5e9; color:#2e7d32; }
+    .switch { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:#1e2139; }
+    .switch input { width:20px; height:20px; }
+    .form-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+    label.f { display:flex; flex-direction:column; gap:4px; font-size:12.5px; font-weight:600; color:#555; }
+    label.f input, label.f select { font:inherit; padding:8px 10px; border:1px solid #d9dce8; border-radius:8px; }
+    .scopes { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .scopes label { display:flex; gap:8px; align-items:flex-start; font-size:13px; font-weight:500; color:#333; }
+    .scopes label span.d { color:#8a8a8a; font-size:12px; display:block; }
+    .secret { margin-top:14px; padding:14px; border:2px dashed #673147; border-radius:12px; background:#fbf7f9; }
+    .secret code { display:block; font-size:13px; word-break:break-all; background:#fff; padding:8px 10px; border-radius:8px; border:1px solid #e3d5dc; margin:8px 0; }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; min-width:640px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #eef0f6; vertical-align:top; }
+    th { color:#9fa8c4; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+    td.empty { color:#8a8a8a; text-align:center; padding:18px; }
+    .pill { display:inline-block; border-radius:12px; padding:2px 9px; font-size:11.5px; font-weight:700; }
+    .pill.active { background:#e8f5e9; color:#2e7d32; } .pill.expired { background:#f0f2f8; color:#666; } .pill.revoked { background:#fdecea; color:#c62828; }
+    .chip { display:inline-block; background:#f3eef1; color:#4f2538; border:1px solid #e3d5dc; border-radius:12px; padding:1px 8px; font-size:11.5px; font-weight:600; margin:1px 2px 1px 0; }
+    pre.snip { background:#1e2139; color:#e8ebf7; padding:12px 14px; border-radius:10px; font-size:12px; overflow-x:auto; margin:6px 0 12px; }
+    .snip-title { font-size:13px; font-weight:700; color:#1e2139; margin-top:10px; }
+    .confirm-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+    [hidden], .btn[hidden], .btn-sec[hidden], .btn-danger[hidden] { display:none !important; }   /* buttons.css gives .btn-* display:inline-flex !important — the attribute selector must out-rank it */
+    @media (max-width:560px) { .card-body { padding:14px; } table { min-width:560px; } }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="content">
+    <div class="page-title">🔗 AI Connections</div>
+    <div class="page-subtitle">Personal access tokens let an AI tool you already use (Claude Desktop, ChatGPT, any MCP client) ask your church's data the same questions AI Search answers — with <strong>your</strong> permissions only, for this church only. Tokens are shown once, expire, and can be revoked at any time. Every call is listed under Admin → AI Activity.</div>
+
+    <div id="statusNotice"></div>
+
+    <div class="card" id="settingsCard" hidden>
+      <div class="card-header"><h2>Church setting</h2></div>
+      <div class="card-body">
+        <label class="switch"><input type="checkbox" id="tenantSwitch" onchange="toggleTenant()"> Allow external AI connections for this church</label>
+        <div class="muted" style="margin-top:6px">Off = no token works and none can be created. Only SuperAdmin and Admin accounts can change this. <span id="tenantMsg"></span></div>
+      </div>
+    </div>
+
+    <div class="card" id="createCard">
+      <div class="card-header"><h2>New token</h2><button class="btn" id="newBtn" onclick="toggleCreate()">+ New token</button></div>
+      <div class="card-body" id="createBody" hidden>
+        <div class="form-grid">
+          <label class="f">Name (the tool it is for)<input id="tName" maxlength="80" placeholder="e.g. Claude Desktop on my laptop"></label>
+          <label class="f">Expires in<select id="tDays"><option value="30">30 days</option><option value="90" selected>90 days</option><option value="180">180 days</option><option value="365">1 year</option></select></label>
+        </div>
+        <div class="scopes" id="scopeList">
+          <label><input type="checkbox" checked disabled> <span><strong>Read</strong> (always) <span class="d">People, attendance, groups, volunteers, follow-ups, reports and saved lists — exactly as far as your own permissions reach.</span></span></label>
+          <label><input type="checkbox" id="scContact"> <span><strong>Contact details</strong> <span class="d">Without it e-mail addresses, phone numbers and street addresses are masked in every answer.</span></span></label>
+          <label><input type="checkbox" id="scGiving"> <span><strong>Giving</strong> <span class="d">Without it no income, expense, pledge or report amounts are returned, even if you can see them in the app.</span></span></label>
+          <label id="scActionsRow"><input type="checkbox" id="scActions"> <span><strong>Actions</strong> (Admins only) <span class="d">The AI Actions tools: the external tool can propose a change and only your confirmation carries it out.</span></span></label>
+        </div>
+        <div class="confirm-row"><button class="btn" id="createBtn" onclick="createToken()">Create token</button><button class="btn-sec" onclick="toggleCreate()">Cancel</button><span class="muted" id="createMsg"></span></div>
+        <div class="secret" id="secretBox" hidden>
+          <strong>Copy your token now — it is shown only once.</strong>
+          <code id="secretVal"></code>
+          <div class="confirm-row"><button class="btn-sec" onclick="copySecret()">📋 Copy</button><span class="muted" id="copyMsg"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2 id="listTitle">My tokens</h2><button class="btn-sec" onclick="load()">↻ Refresh</button><button class="btn-danger" id="revokeAllBtn" hidden onclick="revokeAll()">Revoke all tokens of the church</button></div>
+      <div class="card-body">
+        <div class="muted" id="listNote"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Name</th><th>Token</th><th>Owner</th><th>Scopes</th><th>Created</th><th>Expires</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Connect a tool</h2></div>
+      <div class="card-body">
+        <div class="muted">Endpoint: <code id="endpoint">…</code> · Transport: MCP Streamable HTTP (stateless) · Auth: <code>Authorization: Bearer &lt;token&gt;</code></div>
+        <div class="snip-title">Claude Desktop (Settings → Connectors → Add custom connector) or any client with a remote-MCP proxy</div>
+        <pre class="snip" id="snipClaude"></pre>
+        <div class="snip-title">Claude Desktop config file (claude_desktop_config.json) via mcp-remote</div>
+        <pre class="snip" id="snipRemote"></pre>
+        <div class="snip-title">ChatGPT (Settings → Connectors → Create) · plain HTTP test with curl</div>
+        <pre class="snip" id="snipCurl"></pre>
+        <div class="muted">Tools the client will see: ask_church_data, search_people, list_saved_lists, run_saved_list, ministry_report, engagement_summary — and with the Actions scope list_actions, propose_action, confirm_action, cancel_action.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const when = s => { if (!s) return '—'; const d = new Date(s); return isNaN(d) ? esc(s) : d.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}); };
+  const STATUS = { ACTIVE:'Active', EXPIRED:'Expired', REVOKED:'Revoked' };
+  let state = null;
+
+  function notice(kind, html) { document.getElementById('statusNotice').innerHTML = html ? '<div class="notice ' + kind + '">' + html + '</div>' : ''; }
+
+  async function load() {
+    const tb = document.getElementById('rows');
+    try {
+      state = await CGP_api('/api/tokens');
+    } catch (e) {
+      if (e && e.status === 403 && e.code === 'SUBSCRIPTION_FEATURE_DISABLED') { notice('warn', 'External AI connections are not included in your plan. Upgrade to Pro to connect Claude Desktop, ChatGPT or other AI tools.'); }
+      else notice('err', esc(CGP_errorMessage(e, "Couldn't load your tokens.")) + ' <button class="btn-sec" onclick="load()">Retry</button>');
+      tb.innerHTML = '<tr><td colspan="9" class="empty">—</td></tr>';
+      document.getElementById('createCard').hidden = true;
+      return;
+    }
+    document.getElementById('endpoint').textContent = state.endpoint;
+    snippets(state.endpoint);
+    const admin = !!state.admin;
+    document.getElementById('settingsCard').hidden = !admin;
+    document.getElementById('tenantSwitch').checked = !!state.tenantEnabled;
+    document.getElementById('tenantSwitch').disabled = !state.planAllows || !state.serverEnabled;
+    document.getElementById('revokeAllBtn').hidden = !admin;
+    document.getElementById('scActionsRow').hidden = !admin;
+    document.getElementById('listTitle').textContent = admin ? 'All tokens of the church' : 'My tokens';
+    document.getElementById('listNote').textContent = admin ? 'Every token of the church. Your own are marked (you).' : 'Only you can see and revoke your tokens; administrators see every token of the church.';
+    if (!state.serverEnabled) notice('warn', 'External AI connections are switched off on this server.');
+    else if (!state.planAllows) notice('warn', 'External AI connections are not included in your plan. Upgrade to Pro to connect Claude Desktop, ChatGPT or other AI tools.');
+    else if (!state.tenantEnabled) notice('warn', admin ? 'External connections are off for this church — switch them on below to create tokens.' : 'External connections are off for this church. Ask an administrator to switch them on.');
+    else if (document.querySelector('#statusNotice .notice.warn')) notice('', '');   // a stale warning goes; a fresh ok/error message stays
+    const canCreate = state.serverEnabled && state.planAllows && state.tenantEnabled;
+    document.getElementById('newBtn').disabled = !canCreate;
+    if (!canCreate) { document.getElementById('createBody').hidden = true; }
+    const rows = admin ? (state.all || []) : (state.mine || []);
+    const mineIds = new Set((state.mine || []).map(t => t.id));
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">No tokens yet.</td></tr>'; return; }
+    tb.innerHTML = rows.map(t => `<tr>
+      <td>${esc(t.name)}</td><td><code>${esc(t.prefix)}</code></td><td>${esc(t.owner)}${mineIds.has(t.id) ? ' <span class="muted">(you)</span>' : ''}</td>
+      <td>${(t.scopes || []).map(s => '<span class="chip">' + esc(s) + '</span>').join('')}</td>
+      <td>${when(t.createdAt)}</td><td>${when(t.expiresAt)}</td><td>${t.lastUsedAt ? when(t.lastUsedAt) : 'Never'}</td>
+      <td><span class="pill ${esc(String(t.status || '').toLowerCase())}">${esc(STATUS[t.status] || t.status)}</span></td>
+      <td>${t.status === 'ACTIVE' ? '<button class="btn-danger" onclick="revoke(' + Number(t.id) + ')">Revoke</button>' : ''}</td></tr>`).join('');
+  }
+
+  function toggleCreate() {
+    const b = document.getElementById('createBody');
+    const open = b.hidden;
+    b.hidden = !open;
+    if (open) { document.getElementById('secretBox').hidden = true; document.getElementById('createMsg').textContent = ''; document.getElementById('tName').focus(); }
+  }
+
+  async function createToken() {
+    const msg = document.getElementById('createMsg'); const btn = document.getElementById('createBtn');
+    const name = document.getElementById('tName').value.trim();
+    if (!name) { msg.textContent = 'Give the token a name.'; return; }
+    const scopes = [];
+    if (document.getElementById('scContact').checked) scopes.push('contact');
+    if (document.getElementById('scGiving').checked) scopes.push('giving');
+    if (document.getElementById('scActions').checked) scopes.push('actions');
+    btn.disabled = true; msg.textContent = 'Creating…';
+    try {
+      const r = await CGP_api('/api/tokens', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, scopes, expiresDays: Number(document.getElementById('tDays').value) }) });
+      document.getElementById('secretVal').textContent = r.token;
+      document.getElementById('secretBox').hidden = false;
+      document.getElementById('copyMsg').textContent = '';
+      msg.textContent = 'Created. ' + (r.note || '');
+      document.getElementById('tName').value = '';
+      await load();
+    } catch (e) {
+      msg.textContent = CGP_errorMessage(e, "Couldn't create the token.");
+    } finally { btn.disabled = false; }
+  }
+
+  async function copySecret() {
+    const v = document.getElementById('secretVal').textContent;
+    try { await navigator.clipboard.writeText(v); document.getElementById('copyMsg').textContent = 'Copied.'; }
+    catch (e) { document.getElementById('copyMsg').textContent = 'Select the token and copy it by hand.'; }
+  }
+
+  let pendingRevoke = null;
+  async function revoke(id) {
+    // Two clicks within 6 s instead of a dialog: the first arms, the second revokes.
+    const rowBtn = Array.from(document.querySelectorAll('#rows button')).find(b => b.getAttribute('onclick') === 'revoke(' + id + ')');
+    if (pendingRevoke !== id) { pendingRevoke = id; if (rowBtn) rowBtn.textContent = 'Click again to revoke'; setTimeout(() => { if (pendingRevoke === id) { pendingRevoke = null; if (rowBtn) rowBtn.textContent = 'Revoke'; } }, 6000); return; }
+    pendingRevoke = null;
+    try { await CGP_api('/api/tokens/' + id, { method:'DELETE' }); notice('ok', 'Token revoked. Any tool using it is refused from now on.'); await load(); }
+    catch (e) { notice('err', esc(CGP_errorMessage(e, "Couldn't revoke the token."))); }
+  }
+
+  let pendingAll = false;
+  async function revokeAll() {
+    const btn = document.getElementById('revokeAllBtn');
+    if (!pendingAll) { pendingAll = true; btn.textContent = 'Click again to revoke EVERY token'; setTimeout(() => { pendingAll = false; btn.textContent = 'Revoke all tokens of the church'; }, 6000); return; }
+    pendingAll = false; btn.textContent = 'Revoke all tokens of the church';
+    try { const r = await CGP_api('/api/tokens/revoke-all', { method:'POST' }); notice('ok', 'Revoked ' + Number(r.revoked || 0) + ' token(s).'); await load(); }
+    catch (e) { notice('err', esc(CGP_errorMessage(e, "Couldn't revoke the tokens."))); }
+  }
+
+  async function toggleTenant() {
+    const sw = document.getElementById('tenantSwitch'); const m = document.getElementById('tenantMsg');
+    sw.disabled = true; m.textContent = 'Saving…';
+    try { await CGP_api('/api/tokens/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ enabled: sw.checked }) }); m.textContent = sw.checked ? 'On.' : 'Off — every token is refused.'; await load(); }
+    catch (e) { sw.checked = !sw.checked; m.textContent = CGP_errorMessage(e, "Couldn't save the setting."); }
+    finally { sw.disabled = false; }
+  }
+
+  function snippets(url) {
+    document.getElementById('snipClaude').textContent = 'Name:  ChurchGeniusPro\nRemote MCP server URL:  ' + url + '\nAuthentication:  Bearer token → paste your token';
+    document.getElementById('snipRemote').textContent = JSON.stringify({ mcpServers: { churchgeniuspro: { command: 'npx', args: ['-y', 'mcp-remote', url, '--header', 'Authorization:${CGP_TOKEN}'], env: { CGP_TOKEN: 'Bearer <your token>' } } } }, null, 2);
+    document.getElementById('snipCurl').textContent = 'curl -s ' + url + ' \\\n  -H "Authorization: Bearer <your token>" -H "Content-Type: application/json" \\\n  -d \'{"jsonrpc":"2.0","id":1,"method":"tools/list"}\'';
+  }
+
+  load();
+</script>
+
+<script>
+window.CGP_PAGE = { activePage: 'more/api-tokens', pageTitle: 'AI Connections', openSection: 'more' };
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

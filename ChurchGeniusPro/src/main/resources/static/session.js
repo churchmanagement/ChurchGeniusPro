@@ -1461,6 +1461,7 @@
         '/followups': 'followUps', '/songbook': 'songbook', '/admin/songbook-access': 'songbook',
         '/private-access-settings': 'privatePages', '/ntagAccess': 'ntag',
         '/savedLists': 'aiSearch',
+        '/apiTokens': 'mcp',
         '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers',
         '/guessIt': 'activityCorner', '/memberHome?tab=guessit': 'activityCorner'
     };
@@ -2011,7 +2012,7 @@
         // Opt-in features (2026-10-01): for a member-portal session these nav items
         // appear only when the saved permission is explicitly true; staff keep the
         // usual "missing = allowed" rule through NAV_PERM below.
-        var OPT_IN_NAV = { '/tickets': 'more.ticketing', '/ai-assistant': 'more.aiassistant' };
+        var OPT_IN_NAV = { '/tickets': 'more.ticketing', '/ai-assistant': 'more.aiassistant', '/apiTokens': 'more.aiassistant' };
         function hideOptInItemsForMember(role, perms) {
             if (role !== 'Member') return;
             document.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
@@ -2068,6 +2069,7 @@
             '/tickets':             'more.ticketing',
             '/ai-assistant':        'more.aiassistant',
             '/savedLists':          'more.savedlists',
+            '/apiTokens':           'more.aiassistant',
             '/ministryReport':      'more.ministryreport',
             // Reminders — all three sub-pages sit behind the single 'Reminders'
             // checkbox (general.reminders); legacy reminders.* keys via CGP_PERM_ALIASES.
