@@ -335,12 +335,15 @@ public class OpenAiVoiceService {
      * {@link JsonNode}, or {@code null} when disabled / on error. The caller owns
      * the schema and must treat the result as a suggestion only.
      */
-    public JsonNode chatJson(String systemPrompt, String userPrompt) {
+    public JsonNode chatJson(String systemPrompt, String userPrompt) { return chatJson(systemPrompt, userPrompt, 0); }
+
+    /** Same as {@link #chatJson(String, String)} with a caller-chosen temperature (AI Phase 3: drafts want some variety). */
+    public JsonNode chatJson(String systemPrompt, String userPrompt, double temperature) {
         if (!isEnabled() || systemPrompt == null || userPrompt == null) return null;
         try {
             ObjectNode root = mapper.createObjectNode();
             root.put("model", commandModel);
-            root.put("temperature", 0);
+            root.put("temperature", Math.max(0, Math.min(1, temperature)));
             root.putObject("response_format").put("type", "json_object");
             ArrayNode messages = root.putArray("messages");
             messages.addObject().put("role", "system").put("content", systemPrompt);

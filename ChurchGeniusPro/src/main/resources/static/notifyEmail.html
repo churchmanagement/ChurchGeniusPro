@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <script src="/cgp-api.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#673147" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -405,6 +406,7 @@
                   <button type="button" title="Unordered list" onclick="fmt('insertUnorderedList')">• List</button>
                   <button type="button" title="Ordered list"   onclick="fmt('insertOrderedList')">1. List</button>
                   <button type="button" title="Clear formatting" onclick="fmt('removeFormat')" style="margin-left:auto;">✕ Clear</button>
+                  <span id="aiWriteEmailAnchor"></span>
                 </div>
                 <div id="contentEditor" contenteditable="true"
                      data-placeholder="Write your email body here…"
@@ -1069,5 +1071,11 @@ window.CGP_PAGE = { activePage: 'general/email', pageTitle: 'Notify Email', open
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script src="/ai-write.js"></script>
+<script>
+  // AI Phase 3: "✨ Draft with AI" beside the editor toolbar — a draft only; Send stays the only way out.
+  CGP_AI_WRITE.mount({ id: 'aiwEmail', channel: 'email', target: 'contentEditor', subject: 'subject', anchor: 'aiWriteEmailAnchor',
+    onInsert: function () { if (typeof onContentInput === 'function') onContentInput(); } });
+</script>
 </body>
 </html>

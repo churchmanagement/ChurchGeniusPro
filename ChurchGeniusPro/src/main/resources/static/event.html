@@ -455,6 +455,24 @@
         </div>
         <div class="form-card-body">
 
+          <!-- AI Phase 3: describe-to-build — fills the form below; Save is still yours -->
+          <div class="sub-section" id="aiFormSection" data-feature="aiWrite">
+            <button type="button" class="aiw-btn" id="aiFormToggle" onclick="aiFormToggle()">✨ Describe your event</button>
+            <div id="aiFormPanel" class="aiw-panel" hidden>
+              <div class="aiw-row"><strong style="flex:1">✨ Describe your event or sign-up form <span style="font-weight:400;color:#8a8a8a">— fills the form for you to review; nothing is saved until you click Save</span></strong>
+                <button type="button" aria-label="Close" onclick="aiFormToggle(false)" style="border:none;background:none;cursor:pointer;font-size:16px;color:#888">✕</button></div>
+              <textarea id="aiFormDesc" placeholder="e.g. VBS registration, June 9–13, 9 am to noon, free, max 80 children; ask for the child's name, allergies, parent phone and pickup authorisation"></textarea>
+              <div class="aiw-actions" style="margin-top:8px"><button type="button" class="aiw-primary" id="aiFormDraftBtn" onclick="aiFormDraft()">Draft the form</button></div>
+              <div class="aiw-err" id="aiFormErr" hidden></div>
+              <div id="aiFormResult" hidden>
+                <div class="aiw-meta" id="aiFormMeta"></div>
+                <div class="aiw-preview" id="aiFormPreview"></div>
+                <div class="aiw-actions"><button type="button" class="aiw-primary" onclick="aiFormApply()">Fill the form</button>
+                  <label style="font-size:12px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="aiFormAddQuestions" checked> add the registration questions to the Event Note</label></div>
+              </div>
+            </div>
+          </div>
+
           <!-- Event Details -->
           <div class="sub-section">
             <div class="sub-section-title">Event Details</div>
@@ -2047,5 +2065,73 @@ window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTi
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script src="/ai-write.js"></script>
+<script>
+  /* AI Phase 3 — describe-to-build (POST /api/ai/forms/draft). The draft is shown first; "Fill the form" copies the
+     validated values into the fields and the questions (plain text) into the note; the user still saves. */
+  CGP_AI_WRITE.css();   // the panel styles live in ai-write.js
+  function aiEsc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  let aiFormLast = null;
+  function aiFormToggle(show) {
+    const p = document.getElementById('aiFormPanel');
+    p.hidden = show === false ? true : !p.hidden;
+    if (!p.hidden) document.getElementById('aiFormDesc').focus();
+  }
+  function aiFormError(m) { const e = document.getElementById('aiFormErr'); e.hidden = !m; e.textContent = m || ''; }
+  async function aiFormDraft() {
+    aiFormError(null);
+    const desc = document.getElementById('aiFormDesc').value.trim();
+    if (!desc) { aiFormError('Describe the event first.'); return; }
+    const btn = document.getElementById('aiFormDraftBtn'); btn.disabled = true; btn.textContent = 'Drafting…';
+    try {
+      const d = await CGP_api('/api/ai/forms/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description: desc }) });
+      aiFormLast = d;
+      const ev = d.event || {}, qs = d.questions || [], un = d.unsupported || [];
+      const LABEL = { eventName:'Name', eventType:'Type', eventDate:'Date', endDate:'Last day', startTime:'Start', endTime:'End', registrationEndDate:'Registration closes', fee:'Fee',
+                      maxCapacity:'Capacity', allowMaybeRsvp:'Allow "Maybe"', showRegistrants:'Show registrants', foodAvailable:'Food', foodLabel:'Food label', foodOptions:'Food options',
+                      accommodationAvailable:'Accommodation', accommodationAddress:'Accommodation address', accommodationComments:'Accommodation notes', hostName:'Host', hostPhone:'Host phone', hostEmail:'Host e-mail', note:'Note' };
+      let h = '';
+      Object.keys(ev).forEach(k => { const v = ev[k]; h += '<div><b>' + aiEsc(LABEL[k] || k) + ':</b> ' + aiEsc(Array.isArray(v) ? v.join(', ') : (v === true ? 'Yes' : v === false ? 'No' : v)) + '</div>'; });
+      if (qs.length) { h += '<div style="margin-top:8px"><b>Registration questions</b></div>' + qs.map(q => '<div>• ' + aiEsc(q.label) + (q.required ? ' <i>(required)</i>' : '') + ' <span style="color:#888">[' + aiEsc(q.type) + (q.options ? ': ' + aiEsc(q.options.join(' / ')) : '') + ']</span></div>').join(''); }
+      if (un.length) { h += '<div style="margin-top:8px;color:#9a3412"><b>Not available in this form:</b> ' + aiEsc(un.join('; ')) + '</div>'; }
+      if (!h) h = '<i>The assistant found nothing it could fill from that description.</i>';
+      document.getElementById('aiFormPreview').innerHTML = h;
+      document.getElementById('aiFormMeta').textContent = Object.keys(ev).length + ' field' + (Object.keys(ev).length === 1 ? '' : 's') + ', ' + qs.length + ' question' + (qs.length === 1 ? '' : 's') + ' · draft — review before saving';
+      document.getElementById('aiFormAddQuestions').parentElement.style.display = qs.length ? '' : 'none';
+      document.getElementById('aiFormResult').hidden = false;
+    } catch (e) {
+      aiFormLast = null; document.getElementById('aiFormResult').hidden = true;
+      aiFormError(CGP_errorMessage(e, "The assistant couldn't draft that form just now."));
+    } finally { btn.disabled = false; btn.textContent = 'Draft the form'; }
+  }
+  function aiSet(id, v) { const el = document.getElementById(id); if (!el || v == null) return; el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+  function aiCheck(id, v, handler) { const el = document.getElementById(id); if (!el || typeof v !== 'boolean') return; if (el.checked !== v) { el.checked = v; if (handler) handler(); else el.dispatchEvent(new Event('change', { bubbles: true })); } }
+  function aiFormApply() {
+    if (!aiFormLast) return;
+    const ev = aiFormLast.event || {}, qs = aiFormLast.questions || [];
+    aiSet('eventName', ev.eventName);
+    if (ev.eventType) { const r = document.querySelector('input[name="eventType"][value="' + ev.eventType + '"]'); if (r && !r.checked) { r.checked = true; onEventTypeChange(ev.eventType); } }
+    if (ev.eventType === 'Multiple Days' && ev.eventDate) {
+      const c = document.getElementById('daysContainer'); if (c && !c.querySelector('.day-row')) {
+        let d = new Date(ev.eventDate + 'T00:00:00'); const end = ev.endDate ? new Date(ev.endDate + 'T00:00:00') : d;
+        for (let i = 0; i < 31 && d <= end; i++) { addDayRow(d.toISOString().slice(0, 10), ev.startTime || '', ev.endTime || '', !!ev.foodAvailable); d.setDate(d.getDate() + 1); }
+      }
+    } else { aiSet('eventDate', ev.eventDate); aiSet('startTime', ev.startTime); aiSet('endTime', ev.endTime); }
+    aiSet('registrationEndDate', ev.registrationEndDate); aiSet('fee', ev.fee); aiSet('maxCapacity', ev.maxCapacity);
+    aiCheck('allowMaybeRsvp', ev.allowMaybeRsvp); aiCheck('showRegistrants', ev.showRegistrants);
+    aiCheck('foodAvailable', ev.foodAvailable, onFoodAvailableChange);
+    if (ev.foodLabel) aiSet('foodLabelInput', ev.foodLabel); if (ev.foodOptions) aiSet('foodOptionsInput', ev.foodOptions.join(', '));
+    aiCheck('accommodationAvailable', ev.accommodationAvailable, onAccomChange);
+    aiSet('accommodationAddress', ev.accommodationAddress); aiSet('accommodationComments', ev.accommodationComments);
+    aiSet('hostName', ev.hostName); aiSet('hostPhone', ev.hostPhone); aiSet('hostEmail', ev.hostEmail);
+    let noteText = ev.note || '';
+    if (qs.length && document.getElementById('aiFormAddQuestions').checked) {
+      noteText += (noteText ? '\n\n' : '') + 'Registration questions:\n' + qs.map(q => '• ' + q.label + (q.required ? ' (required)' : '') + (q.options ? ': ' + q.options.join(' / ') : '')).join('\n');
+    }
+    if (noteText) setNoteHtml(noteText.split(/\n{2,}/).map(p => '<p>' + aiEsc(p).replace(/\n/g, '<br>') + '</p>').join(''));
+    aiFormToggle(false);
+    const name = document.getElementById('eventName'); if (name) name.focus();
+  }
+</script>
 </body>
 </html>

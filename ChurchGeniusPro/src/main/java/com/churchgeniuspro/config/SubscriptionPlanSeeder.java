@@ -51,7 +51,7 @@ public class SubscriptionPlanSeeder {
                   + "\"eventCheckin\":false,\"kidsCheckin\":false,\"kidsMinistry\":false,"
                   + "\"kidsPortal\":false,\"volunteers\":false,\"privatePages\":false,"
                   + "\"ntag\":false,\"aiSearch\":false,\"aiVoice\":false,"
-                  + "\"aiConverse\":false,\"scanCheck\":false}");
+                  + "\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false}");
             commercial(repo, "FREE", "0.00", 0, null);
 
             seed(repo, "STANDARD", "Standard Plan", 2,
@@ -63,7 +63,7 @@ public class SubscriptionPlanSeeder {
                     // AI is "Limited" on Standard: search on, voice/converse/scan off.
                     // No Payroll on Standard. Bank Sync is on, capped at 3 connected
                     // accounts by max_bank_accounts (commercial() below).
-                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false,"
+                    "{\"aiVoice\":false,\"aiConverse\":false,\"scanCheck\":false,\"aiWrite\":false,"
                   + "\"payroll\":false}",
                     10);   // up to 10 church-added users (viewusers)
             commercial(repo, "STANDARD", "14.99", 3, null);
@@ -75,6 +75,10 @@ public class SubscriptionPlanSeeder {
                     1000, null, 100, 100, null, null,
                     "{}");
             commercial(repo, "PRO", "34.99", null, null);
+            // AI Phase 3 (2026-11-04): plans seeded before the aiWrite key existed would allow it by default
+            // (a missing key = enabled). FREE and STANDARD get the explicit off switch once; PRO/TRIAL stay on.
+            denyFeatureOnce(repo, "FREE", "aiWrite");
+            denyFeatureOnce(repo, "STANDARD", "aiWrite");
         };
     }
 
@@ -92,6 +96,19 @@ public class SubscriptionPlanSeeder {
             if (p.getMaxBankAccounts() == null && maxBankAccounts != null) { p.setMaxBankAccounts(maxBankAccounts); changed = true; }
             if (p.getTrialDays() == null && trialDays != null) { p.setTrialDays(trialDays); changed = true; }
             if (changed) repo.save(p);
+        });
+    }
+
+    /** Adds {@code "key":false} to a plan's features JSON when the key is absent — an admin's explicit true/false is never changed. */
+    public static void denyFeatureOnce(SubscriptionPlanRepository repo, String code, String key) {
+        repo.findByPlanCodeIgnoreCase(code).ifPresent(p -> {
+            String json = p.getFeaturesJson() == null || p.getFeaturesJson().isBlank() ? "{}" : p.getFeaturesJson().trim();
+            if (json.contains("\"" + key + "\"")) return;
+            if (!json.startsWith("{") || !json.endsWith("}")) return;             // not a JSON object we understand — leave it alone
+            String body = json.substring(1, json.length() - 1).trim();
+            p.setFeaturesJson("{" + (body.isEmpty() ? "" : body + ",") + "\"" + key + "\":false}");
+            repo.save(p);
+            log.info("Subscription plan '{}' now carries {}=false", code, key);
         });
     }
 

@@ -6215,6 +6215,11 @@ window.CGP_PAGE = { activePage: 'general/kids-ministry', openSection: 'general',
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script src="/ai-write.js"></script>
+<script>
+  CGP_AI_WRITE.mount({ id: 'aiwKmEmail', channel: 'email', target: 'kmCmpEmailBody', subject: 'kmCmpSubject' });
+  CGP_AI_WRITE.mount({ id: 'aiwKmSms',   channel: 'sms',   target: 'kmCmpSmsBody' });
+</script>
 <script>window.CGP_PRIVATE_KEY = 'kids';</script>
 <script src="/private-badge.js"></script>
 <script src="/pwa.js"></script>

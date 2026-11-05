@@ -602,6 +602,23 @@ public class HelpContentCatalog {
             "1.0", list("v1.0 — Initial release (AI Phase 1)."),
             list("saved lists","people filter","ai search list","email a list","export list")).roles("SuperAdmin,Admin,Accountant"));
 
+        // roles: SuperAdmin,Admin,Accountant,User (AI Phase 3, 2026-11-04)
+        add(new HelpArticle("ai_writing", "Communication", "AI Writing & Form Builder", "more.aiassistant", false,
+            "✨ Draft with AI in the e-mail and SMS composers (draft, rewrite, shorten, fix, translate — never sends) and ✨ Describe your event on the Event form.",
+            "E-mail (General → Email) and every SMS box (Volunteers, Kids Ministry, Attendance → Email / SMS Volunteers) have a ✨ Draft with AI button. Describe the message, pick a tone (warm, formal, casual, urgent, encouraging, celebratory), length and language, press Draft, read it, then Insert (replaces the selected text or the whole message) or Append and edit it like your own words. Rewrite, Shorten, Expand (e-mail), Fix grammar and Translate work on the text you selected, or the whole message when nothing is selected. "
+          + "The assistant only ever returns a draft: your Send button is the only way a message leaves. SMS drafts fit one text (160 characters) and never carry STOP wording — the system adds it when sending. Drafts never mention anyone's age, birth year or years married, and never invent facts — missing details appear as [date] or [name] placeholders to fill in. The assistant sees only your request and the selected text, never member records. "
+          + "On Events → Add Event, ✨ Describe your event turns one sentence (\"VBS registration, June 9–13, 9 am to noon, free, max 80 children, ask for allergies and pickup authorisation\") into the filled form — name, type, dates, times, fee, capacity, food options, accommodation, host — plus the registration questions you asked for, shown first and added to the Event Note when you choose; the form has no custom fields yet, so questions live in the note. You still click Save. "
+          + "Needs the AI Assistant permission and the AI Writing plan feature (Pro and Trial; Free and Standard see no button). Every draft is recorded in Admin → AI Activity.",
+            list("Click ✨ Draft with AI in the editor or SMS box.",
+                 "Describe the message; choose tone, length and language; press Draft.",
+                 "Insert or Append the draft and edit it.",
+                 "Send with the page's own Send button."),
+            list("Problem: the button is missing — Fix: the plan lacks AI Writing (Pro / Trial) or the login lacks the AI Assistant permission.",
+                 "Problem: the draft says [date] or [name] — Fix: the assistant never invents details; add them to your request or fill the placeholders.",
+                 "Problem: the SMS draft is over 160 characters — Fix: press Shorten, or accept that it goes out as two texts."),
+            "1.0", list("v1.0 — Initial release (AI Phase 3)."),
+            list("ai writing","draft with ai","rewrite","translate","sms draft","describe your event","form builder")).roles("SuperAdmin,Admin,Accountant,User"));
+
         // roles: SuperAdmin,Admin,Accountant,User (AI Phase 2, 2026-11-04)
         add(new HelpArticle("ministry_report", "Members", "Ministry Report (monthly)", "more.ministryreport", false,
             "One month of your church's ministry facts — attendance, visitors, follow-ups, giving, groups, volunteers and engagement signals — compared with last month and the same month last year.",

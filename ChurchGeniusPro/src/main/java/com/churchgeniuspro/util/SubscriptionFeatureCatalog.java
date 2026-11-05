@@ -124,6 +124,10 @@ public final class SubscriptionFeatureCatalog {
         // (AI Phase 0: it was the only text LLM endpoint outside plan gating).
         new Feature("aiConverse",     "AI Converse",            "AI",         List.of(
                 "/api/ai-assist", "/api/help/assist")),
+        // AI Phase 3 (2026-11-04): writing drafts in the e-mail / SMS composers and describe-to-build on the Event form.
+        // Returns text or form JSON only — never sends anything.
+        new Feature("aiWrite",        "AI Writing",             "AI",         List.of(
+                "/api/ai/write", "/api/ai/forms")),
         // Every gpt-4o vision call: checks on Expense AND Income, bank-statement scans, membership-form
         // and kids-form extraction (AI Phase 0: the last four were outside plan gating).
         new Feature("scanCheck",      "Scan Check",             "AI",         List.of(

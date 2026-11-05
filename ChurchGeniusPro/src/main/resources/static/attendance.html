@@ -402,6 +402,12 @@
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script src="/ai-write.js"></script>
+<script>
+  // Email / SMS Volunteers: one message box for both channels — the panel follows the SMS box rule when only SMS is ticked.
+  CGP_AI_WRITE.mount({ id: 'aiwVn', channel: 'email', target: 'vnBody', subject: 'vnSubject',
+    channelOf: function () { var e = document.getElementById('vnEmail'), s = document.getElementById('vnSms'); return (s && s.checked && !(e && e.checked)) ? 'sms' : 'email'; } });
+</script>
 <script>
   var el = function(id){ return document.getElementById(id); };
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

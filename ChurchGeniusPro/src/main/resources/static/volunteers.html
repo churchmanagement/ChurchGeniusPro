@@ -1139,5 +1139,10 @@ window.CGP_PAGE = { activePage: 'general/volunteers', pageTitle: 'Volunteers', o
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script src="/ai-write.js"></script>
+<script>
+  CGP_AI_WRITE.mount({ id: 'aiwVolEmail', channel: 'email', target: 'volCmpEmailBody', subject: 'volCmpSubject' });
+  CGP_AI_WRITE.mount({ id: 'aiwVolSms',   channel: 'sms',   target: 'volCmpSmsBody' });
+</script>
 </body>
 </html>

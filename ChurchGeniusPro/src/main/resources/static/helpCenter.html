@@ -3065,6 +3065,40 @@
           </div>
         </div>
 
+        <!-- ═══ AI WRITING + FORM BUILDER (AI Phase 3) ═══ -->
+        <div class="hc-card" id="hc-ai-writing" data-cat="communication" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="aiWrite" data-keywords="ai writing draft with ai rewrite shorten translate spanish email draft sms draft tone describe your event form builder registration questions">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">✨</span>
+            <div class="hc-card-head-text">
+              <h3>AI Writing &amp; Form Builder</h3>
+              <div class="hc-card-nav">Email / SMS composers · Events → Add Event</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Press <span class="hc-ui lite">✨ Draft with AI</span> in the e-mail editor or any SMS box to get a <em>draft</em> — describe what to say, pick a tone, length and language, then Insert or Append and edit it like your own words. Rewrite, Shorten, Fix grammar and Translate work on the text you select. Nothing is ever sent by the assistant: your Send button stays the only way out. On the Event form, <span class="hc-ui lite">✨ Describe your event</span> turns a sentence into the filled-in form (dates, times, fee, capacity, food options, host) plus the registration questions you asked for.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span><span class="hc-role">User</span></div>
+            <div class="hc-mock" aria-label="Draft with AI"><span class="hc-mock-title">✨ Draft with AI</span><span class="hc-ui">Draft</span><span class="hc-ui lite">Rewrite</span><span class="hc-ui lite">Shorten</span><span class="hc-ui lite">Fix grammar</span><span class="hc-ui lite">Translate</span><span class="hc-ui">Insert</span></div>
+            <div class="hc-section-label">How to draft a message</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open Email (General → Email) or an SMS box (Volunteers, Kids Ministry, Attendance → Email / SMS Volunteers) and click <span class="hc-ui lite">✨ Draft with AI</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Describe the message — "a warm reminder for Sunday's volunteer training at 9 am" — and choose tone, length and language</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Read the draft, then <span class="hc-ui">Insert</span> (replaces your selection or the whole message) or Append</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Edit, then send with the page's own Send button as always</span></div>
+            </div>
+            <div class="hc-note">Drafts never contain anyone's age, birth year or years married. SMS drafts fit one text (160 characters); the STOP wording is added by the system when sending. The assistant sees only your request and the text you selected — no member records. Needs the <strong>AI Assistant</strong> permission and the AI Writing plan feature (Pro / Trial). Every draft is recorded in Admin → AI Activity.</div>
+            <div class="hc-section-label">Common questions</div>
+            <div class="hc-faq">
+              <div class="hc-faq-item"><div class="hc-faq-q">The draft has [date] or [name] in it.</div><div class="hc-faq-a">The assistant never invents facts it wasn't given — fill the placeholders in or include the details in your request.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Can it ask registrants for allergies or a T-shirt size?</div><div class="hc-faq-a">The Event form has no custom fields yet, so "Describe your event" lists those questions and can add them to the Event Note for registrants to read; the sign-up form itself collects name, contact, attendees and dietary preference.</div></div>
+            </div>
+            <div class="hc-quick-links">
+              <a class="hc-qlink" href="/notifyEmail">✉️ Email</a>
+              <a class="hc-qlink" href="/event">📅 Add Event</a>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ MINISTRY REPORT (AI Phase 2) ═══ -->
         <div class="hc-card" id="hc-ministry-report" data-cat="members" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.ministryreport" data-keywords="ministry report monthly report engagement at risk watch new quiet church health attendance visitors giving groups volunteers follow-ups csv print">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4217,6 +4251,15 @@ const HC_KB = [
     answer: 'Ask the AI Search for people with several conditions (age, men/women, attended, gave, in a group, visitors, no e-mail…), then click Save as list under the answer. More → Saved Lists runs it again any time, downloads a CSV, or e-mails everyone on it. A list stores the conditions, not the people, and only ever shows people you may see.',
     steps: ['On Home, ask e.g. “women 18–30 who attended twice in the last 60 days but didn\'t give this year”','Click ✕ on any chip that was misread','Click Save as list and name it','Go to More → Saved Lists to Run, Download CSV, Email or Rename it'],
     links: [{label:'Saved Lists', url:'/savedLists', icon:'📋'},{label:'AI Search (Home)', url:'/home', icon:'✨'}],
+    related: ['ai search','ai activity','group email']
+  },
+  {
+    id: 'ai-writing',
+    q: ['ai writing','draft with ai','write an email for me','rewrite','shorten','translate to spanish','ai sms','describe your event','ai form builder','registration questions'],
+    title: '✨ AI Writing & Form Builder',
+    answer: 'In the e-mail editor and every SMS box, ✨ Draft with AI writes a draft from your description (tone, length, language), or rewrites / shortens / fixes / translates the text you select; Insert puts it in your message and you send it yourself — the assistant never sends. On Add Event, ✨ Describe your event fills the form from one sentence and lists the registration questions you asked for. Pro / Trial plans with the AI Assistant permission.',
+    steps: ['Click ✨ Draft with AI in the editor or SMS box','Describe the message and pick tone, length, language','Insert or Append the draft, edit it','Send with the page\'s own Send button'],
+    links: [{label:'Email', url:'/notifyEmail', icon:'✉️'},{label:'Add Event', url:'/event', icon:'📅'}],
     related: ['ai search','ai activity','group email']
   },
   {
