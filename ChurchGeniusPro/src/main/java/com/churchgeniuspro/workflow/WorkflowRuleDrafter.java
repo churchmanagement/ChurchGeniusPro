@@ -46,6 +46,7 @@ public class WorkflowRuleDrafter {
         if (n.hasNonNull("refusal") && !n.get("refusal").asText().isBlank())
             return new Draft(null, "The assistant could not express that as a rule: " + cut(n.get("refusal").asText(), 300), null);
         try {
+            n = normalizeModelOutput(n);
             WorkflowSchema.Rule rule = WorkflowSchema.validate(n);
             return new Draft(rule, null, M.convertValue(n, LinkedHashMap.class));
         } catch (IllegalArgumentException e) {
@@ -65,6 +66,52 @@ public class WorkflowRuleDrafter {
              + "Recipients (\"to\" / \"assignTo\") are \"owner\" unless the person names a staff member — never a member or visitor. "
              + "Never mention anyone's age, birth year or years married. Keep names short and practical.";
     }
+
+
+    /**
+     * Repairs harmless format slips in the MODEL's rule before the strict {@link WorkflowSchema#validate}
+     * (2026-11-05: "priority must be LOW, MEDIUM or HIGH" refused whole drafts for "Normal" / "Medium (default)").
+     * Only action parameters are touched: blank values are dropped, priority wording is mapped to LOW/MEDIUM/HIGH
+     * (dropped when it means none of them), an unknown tone is dropped, and "2 days" / 2.0 becomes "2".
+     * Unknown triggers, fields, operators, actions and parameter NAMES are still refused by the schema.
+     */
+    static JsonNode normalizeModelOutput(JsonNode n) {
+        if (n == null || !n.isObject() || !n.path("actions").isArray()) return n;
+        com.fasterxml.jackson.databind.node.ObjectNode copy = n.deepCopy();
+        for (JsonNode a : copy.path("actions")) {
+            if (!(a instanceof com.fasterxml.jackson.databind.node.ObjectNode ao)) continue;
+            if (!(ao.get("params") instanceof com.fasterxml.jackson.databind.node.ObjectNode p)) continue;
+            for (String k : new java.util.ArrayList<>(iter(p.fieldNames()))) {
+                JsonNode v = p.get(k);
+                if (v == null || v.isNull() || (v.isTextual() && v.asText().isBlank())) { p.remove(k); continue; }
+                if (!v.isValueNode()) continue;
+                String s = v.asText().trim();
+                switch (k) {
+                    case "priority" -> { String m = priority(s); if (m == null) p.remove(k); else p.put(k, m); }
+                    case "tone" -> {
+                        String t = s.toLowerCase(java.util.Locale.ROOT);
+                        if (java.util.Set.of("warm", "formal", "casual", "urgent", "encouraging", "celebratory").contains(t)) p.put(k, t); else p.remove(k);
+                    }
+                    case "dueInDays" -> {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,3})").matcher(s);
+                        if (m.find()) p.put(k, m.group(1)); else p.remove(k);
+                    }
+                    default -> { }
+                }
+            }
+        }
+        return copy;
+    }
+
+    static String priority(String s) {
+        String t = s == null ? "" : s.toLowerCase(java.util.Locale.ROOT);
+        if (t.contains("high") || t.contains("urgent") || t.contains("critical") || t.contains("important")) return "HIGH";
+        if (t.contains("low")) return "LOW";
+        if (t.contains("medium") || t.contains("normal") || t.contains("default") || t.contains("standard") || t.contains("moderate") || t.contains("mid")) return "MEDIUM";
+        return null;
+    }
+
+    private static <T> java.util.List<T> iter(java.util.Iterator<T> it) { java.util.List<T> l = new java.util.ArrayList<>(); it.forEachRemaining(l::add); return l; }
 
     private static String cut(String s, int n) { return s.length() <= n ? s : s.substring(0, n); }
 }

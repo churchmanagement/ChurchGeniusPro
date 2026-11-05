@@ -46,7 +46,7 @@ public class AiFormDraftService {
         JsonNode node = openAi.chatJson(systemPrompt(today), "DESCRIPTION:\n" + description.trim(), 0.2);
         if (node == null) return null;
         try {
-            return validate(node);
+            return validate(normalizeModelOutput(node));
         } catch (IllegalArgumentException e) {
             log.warn("[ai-forms] model output refused: {}", e.getMessage());
             return null;
@@ -121,6 +121,119 @@ public class AiFormDraftService {
         out.put("questions", questions);
         out.put("unsupported", node.path("unsupported").isArray() ? strings(node.path("unsupported"), "unsupported", 10) : List.of());
         return out;
+    }
+
+
+    // ── model output → schema shape ──────────────────────────────────────────────────────────────────
+    // The model often answers with harmless format slips (an empty "hostName", fee 0, maxCapacity "60",
+    // "9:00 AM", eventType "one day", a key the form does not have). validate() is strict on purpose and
+    // rejected the WHOLE draft for any of them (2026-11-05: every description returned 502). This pass
+    // repairs or drops such values for MODEL output only; validate() stays strict for client JSON
+    // (/api/ai/forms/validate). Question types outside FIELD_TYPES are still refused by validate().
+    private static final com.fasterxml.jackson.databind.ObjectMapper NM = new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final Set<String> TEXT_KEYS = Set.of("eventName", "fee", "foodLabel", "accommodationAddress", "hostName", "hostPhone", "hostEmail", "accommodationComments", "note");
+    private static final Set<String> DATE_KEYS = Set.of("eventDate", "endDate", "registrationEndDate");
+    private static final Set<String> TIME_KEYS = Set.of("startTime", "endTime");
+    private static final Set<String> BOOL_KEYS = Set.of("allowMaybeRsvp", "showRegistrants", "foodAvailable", "accommodationAvailable");
+
+    public static JsonNode normalizeModelOutput(JsonNode node) {
+        if (node == null || !node.isObject()) return node;
+        com.fasterxml.jackson.databind.node.ObjectNode out = NM.createObjectNode();
+        com.fasterxml.jackson.databind.node.ObjectNode ev = out.putObject("event");
+        JsonNode e = node.path("event");
+        List<String> dropped = new ArrayList<>();
+        if (e.isObject()) {
+            for (Iterator<String> it = e.fieldNames(); it.hasNext(); ) {
+                String k = it.next(); JsonNode v = e.get(k);
+                if (v == null || v.isNull() || (v.isTextual() && v.asText().isBlank()) || (v.isArray() && v.size() == 0)) continue;
+                if (TEXT_KEYS.contains(k)) {
+                    if ("fee".equals(k) && v.isNumber()) { ev.put(k, v.asDouble() == 0 ? "Free" : "$" + v.asText()); continue; }
+                    if (v.isValueNode()) ev.put(k, v.asText().trim()); else dropped.add(k);
+                } else if (DATE_KEYS.contains(k)) {
+                    String d = v.asText("").trim();
+                    if (d.matches("\\d{4}-\\d{2}-\\d{2}.*")) ev.put(k, d.substring(0, 10)); else dropped.add(k);
+                } else if (TIME_KEYS.contains(k)) {
+                    String t = toHHMM(v.asText(""));
+                    if (t != null) ev.put(k, t); else dropped.add(k);
+                } else if (BOOL_KEYS.contains(k)) {
+                    Boolean b = v.isBoolean() ? Boolean.valueOf(v.asBoolean()) : yesNo(v.asText(""));
+                    if (b != null) ev.put(k, b); else dropped.add(k);
+                } else if ("maxCapacity".equals(k)) {
+                    String n = v.asText("").replaceAll("[^0-9]", "");
+                    if (v.isNumber()) ev.put(k, v.asInt()); else if (!n.isEmpty() && n.length() <= 7) ev.put(k, Integer.parseInt(n)); else dropped.add(k);
+                } else if ("eventType".equals(k)) {
+                    String t = v.asText("").trim().toLowerCase(Locale.ROOT);
+                    if (t.startsWith("one") || t.startsWith("single")) ev.put(k, "One Day");
+                    else if (t.startsWith("multi")) ev.put(k, "Multiple Days");
+                    else dropped.add(k);
+                } else if ("foodOptions".equals(k)) {
+                    com.fasterxml.jackson.databind.node.ArrayNode a = ev.putArray(k);
+                    if (v.isArray()) v.forEach(x -> { if (x.isValueNode() && !x.asText().isBlank()) a.add(x.asText().trim()); });
+                    else for (String part : v.asText("").split(",")) if (!part.isBlank()) a.add(part.trim());
+                    if (a.isEmpty()) ev.remove(k);
+                } else dropped.add(k);
+            }
+        }
+        com.fasterxml.jackson.databind.node.ArrayNode qs = out.putArray("questions");
+        JsonNode q = node.path("questions");
+        if (q.isArray()) for (JsonNode f : q) {
+            if (!f.isObject()) { qs.add(f); continue; }                      // validate() refuses it
+            String label = f.path("label").asText("").trim();
+            if (label.isEmpty()) continue;
+            String type = questionType(f.path("type").asText(""));
+            com.fasterxml.jackson.databind.node.ObjectNode m = qs.addObject();
+            m.put("type", type); m.put("label", label);
+            JsonNode r = f.get("required");
+            m.put("required", r != null && (r.isBoolean() ? r.asBoolean() : Boolean.TRUE.equals(yesNo(r.asText("")))));
+            if ("select".equals(type) || "radio".equals(type)) {
+                com.fasterxml.jackson.databind.node.ArrayNode o = m.putArray("options");
+                f.path("options").forEach(x -> { if (x.isValueNode() && !x.asText().isBlank()) o.add(x.asText().trim()); });
+                if (o.size() < 2) { m.remove("options"); m.put("type", "text"); }
+            }
+        }
+        com.fasterxml.jackson.databind.node.ArrayNode un = out.putArray("unsupported");
+        JsonNode u = node.path("unsupported");
+        if (u.isArray()) u.forEach(x -> { if (x.isValueNode() && !x.asText().isBlank()) un.add(x.asText().trim()); });
+        else if (u.isTextual() && !u.asText().isBlank()) un.add(u.asText().trim());
+        if (!dropped.isEmpty()) log.info("[ai-forms] dropped unusable model fields: {}", dropped);
+        return out;
+    }
+
+    /** "9", "9:30", "09:30:00", "9 AM", "9:30 pm", "noon", "21:00" → HH:MM; null when it is not a time. */
+    static String toHHMM(String raw) {
+        String t = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT).replace(".", "");
+        if (t.equals("noon")) return "12:00";
+        if (t.equals("midnight")) return "00:00";
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d{1,2})(?::(\\d{2}))?(?::\\d{2})?\\s*(am|pm)?$").matcher(t);
+        if (!m.matches()) return null;
+        int h = Integer.parseInt(m.group(1)), min = m.group(2) == null ? 0 : Integer.parseInt(m.group(2));
+        String ap = m.group(3);
+        if (ap != null) { if (h < 1 || h > 12) return null; if (ap.equals("pm") && h != 12) h += 12; if (ap.equals("am") && h == 12) h = 0; }
+        if (h > 23 || min > 59) return null;
+        return String.format("%02d:%02d", h, min);
+    }
+
+    private static Boolean yesNo(String s) {
+        String t = s == null ? "" : s.trim().toLowerCase(Locale.ROOT);
+        if (Set.of("true", "yes", "y", "1").contains(t)) return Boolean.TRUE;
+        if (Set.of("false", "no", "n", "0").contains(t)) return Boolean.FALSE;
+        return null;
+    }
+
+    private static String questionType(String raw) {
+        String t = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        return switch (t) {
+            case "", "string", "short text", "short_text", "shorttext", "input", "name" -> "text";
+            case "long text", "long_text", "paragraph", "multiline", "comment", "comments" -> "textarea";
+            case "tel", "telephone", "phone number", "phone_number", "mobile" -> "phone";
+            case "e-mail", "email address" -> "email";
+            case "integer", "numeric", "int" -> "number";
+            case "boolean", "bool", "yes/no", "yes_no", "yes-no", "toggle" -> "yesno";
+            case "dropdown", "drop-down", "choice", "multiple choice", "multiple_choice", "single choice", "list" -> "select";
+            case "checkboxes" -> "checkbox";
+            case "heading", "header", "title" -> "section";
+            default -> t;                                                     // validate() decides
+        };
     }
 
     /** The questions as the plain-text block the page appends to the event note. */
