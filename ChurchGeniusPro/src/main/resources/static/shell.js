@@ -135,7 +135,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'admin/unsubscribed-list',   label: 'Unsubscribed List',   icon: '&#x1F6AB;', href: '/unsubscribed-list'    },
         // { id: 'admin/files',            label: 'Files & Notes',       icon: '&#x1F4C1;', href: '/filesUpload'          }, // HIDDEN — feature temporarily disabled; do not remove
         { id: 'admin/stripe-integration',  label: 'Stripe Integration',  icon: '&#x1F4B3;', href: '/stripeIntegration'    },
-        { id: 'admin/whatsapp-integration',label: 'WhatsApp Integration',icon: '&#x1F4AC;', href: '/whatsappIntegration'  },
+        // { id: 'admin/whatsapp-integration',label: 'WhatsApp Integration',icon: '&#x1F4AC;', href: '/whatsappIntegration'  }, // HIDDEN — WhatsApp turned off for now (2026-11-06, cgp.whatsapp.enabled); do not remove
         { id: 'admin/private-access',      label: 'Private Page Access', icon: '&#x1F512;', href: '/private-access-settings' },
         { id: 'admin/ai-activity',         label: 'AI Activity',         icon: '&#x2728;',  href: '/aiActivity'              },
         // Church logins see only the Admin section, so Ticketing and the AI Assistant

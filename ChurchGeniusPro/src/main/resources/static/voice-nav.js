@@ -41,8 +41,9 @@
     { href: '/publicScreens',       label: 'Public Screens',       keys: ['public screens', 'public screen'] },
     { href: '/followups',           label: 'Follow-Ups',           keys: ['follow ups', 'follow-ups', 'followups', 'follow up'] },
     { href: '/helpCenter',          label: 'Help Center',          keys: ['help center', 'help centre', 'help'] },
-    { href: '/stripeIntegration',   label: 'Stripe Integration',   keys: ['stripe integration', 'stripe'] },
-    { href: '/whatsappIntegration', label: 'WhatsApp Integration', keys: ['whatsapp integration', 'whatsapp', 'whats app'] }
+    { href: '/stripeIntegration',   label: 'Stripe Integration',   keys: ['stripe integration', 'stripe'] }
+    // HIDDEN — WhatsApp turned off for now (2026-11-06):
+    // { href: '/whatsappIntegration', label: 'WhatsApp Integration', keys: ['whatsapp integration', 'whatsapp', 'whats app'] }
   ];
 
   var LEAD_RE = /^(?:please\s+)?(?:can you\s+|could you\s+)?(?:go to|goto|navigate to|take me to|open up|open|show me|show|launch|visit|switch to|move to)\s+/i;

@@ -40,7 +40,7 @@ public class SongBookPublicController {
     }
 
     @GetMapping("/api/public/songbook")
-    public ResponseEntity<?> view(@RequestParam("t") String token) {
+    public ResponseEntity<?> view(@RequestParam("t") String token, jakarta.servlet.http.HttpServletRequest request) {
         SongBookPublish p = service.publicByToken(token);
         if (p == null || p.getSnapshot() == null) {
             return ResponseEntity.status(404).body(Map.of("error", "This song book is not available."));
@@ -48,13 +48,18 @@ public class SongBookPublicController {
         // best-effort view audit
         try { service.audit(p.getClientId(), "public", "Public", "PUBLIC_VIEW", null, p.getBookTitle(), null); }
         catch (Exception ignore) {}
-        // snapshot is already a JSON document — return it verbatim (UTF-8 for Indic scripts)
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/json;charset=UTF-8")).body(p.getSnapshot());
+        // snapshot is already a JSON document — return it verbatim (UTF-8 for Indic scripts).
+        // Inside the iOS / Android app the sponsor / advertisement pages are left out
+        // (App Store readiness, Option A); the website gets the snapshot unchanged.
+        String body = LoginController.isAppShell(request) ? SongBookService.snapshotWithoutAds(p.getSnapshot()) : p.getSnapshot();
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/json;charset=UTF-8")).body(body);
     }
 
     /** Public advertisement page image for a published book (ad id from the snapshot). */
     @GetMapping("/api/public/songbook/ad-image")
-    public ResponseEntity<?> adImage(@RequestParam("t") String token, @RequestParam("id") Long id) {
+    public ResponseEntity<?> adImage(@RequestParam("t") String token, @RequestParam("id") Long id,
+                                     jakarta.servlet.http.HttpServletRequest request) {
+        if (LoginController.isAppShell(request)) return ResponseEntity.notFound().build();   // no ads in the app
         SongBookPublish p = service.publicByToken(token);
         if (p == null) return ResponseEntity.notFound().build();
         com.churchgeniuspro.hibernate.SongBookAd a = service.getAd(p.getClientId(), id);

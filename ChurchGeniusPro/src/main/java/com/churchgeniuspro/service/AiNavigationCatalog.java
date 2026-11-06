@@ -52,7 +52,8 @@ public final class AiNavigationCatalog {
         pg("Users",              "/viewusers",           "Admin",  "Staff logins, roles and the permission checkboxes that control which pages each login sees.", "users,view users,user management,manage users,permissions,staff logins", churchOnly()),
         pg("Files & Notes",      "/filesUpload",         "Admin",  "Upload files and keep notes for the church office.", "files,files and notes,notes,upload file", staff(STAFF, "admin.files")),
         pg("Stripe Integration", "/stripeIntegration",   "Admin",  "Connect the church's own Stripe account for online giving.", "stripe,stripe integration,online giving setup", churchOnly()),
-        pg("WhatsApp Integration","/whatsappIntegration","Admin",  "Connect a WhatsApp sender for member messaging.", "whatsapp,whatsapp integration", churchOnly()),
+        // HIDDEN — WhatsApp turned off for now (2026-11-06, cgp.whatsapp.enabled):
+        // pg("WhatsApp Integration","/whatsappIntegration","Admin",  "Connect a WhatsApp sender for member messaging.", "whatsapp,whatsapp integration", churchOnly()),
         pg("Private Page Access","/private-access-settings","Admin","Restrict Kids Ministry, Event Check-in and Temporary Login to the church's own network.", "private page access,private pages,private access,private page", staff(ADMIN, null)),
         pg("AI Activity","/aiActivity","Admin","Every AI request made in the church — who, which feature, tokens and result; questions are never stored.", "ai activity,ai audit,ai log,ai usage", staffOrChurch(ADMIN, null)),
         pg("Ministry Report","/ministryReport","More","One month of your church's ministry facts — attendance, visitors, follow-ups, giving, groups, volunteers and engagement signals — compared with last month and last year, with a CSV download.", "ministry report,monthly report,engagement report,church health,at risk members,monthly summary", staff(STAFF, "more.ministryreport")),

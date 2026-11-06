@@ -4,6 +4,7 @@ import com.churchgeniuspro.hibernate.WhatsAppSettings;
 import com.churchgeniuspro.repository.WhatsAppSettingsRepository;
 import com.churchgeniuspro.util.RoleGuard;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -28,8 +29,26 @@ public class WhatsAppSettingsController {
 
     private final WhatsAppSettingsRepository repo;
 
+    /**
+     * WhatsApp is turned OFF for now (App Store readiness, user decision 2026-11-06): the
+     * page goes back to the dashboard and the settings API answers 404. Saved Twilio details
+     * stay in the database untouched. {@code cgp.whatsapp.enabled=true} (env
+     * {@code CGP_WHATSAPP_ENABLED}) reopens the page and API; sending itself is still
+     * disabled in {@code WhatsAppSenderService}.
+     */
+    @Value("${cgp.whatsapp.enabled:false}")
+    private boolean enabled = false;
+
     public WhatsAppSettingsController(WhatsAppSettingsRepository repo) {
         this.repo = repo;
+    }
+
+    void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public boolean isEnabled() { return enabled; }
+
+    private static ResponseEntity<?> turnedOff() {
+        return ResponseEntity.status(404).body(Map.of("error", "WhatsApp is turned off.", "code", "WHATSAPP_OFF"));
     }
 
     // ── Page ─────────────────────────────────────────────────────────────────
@@ -38,7 +57,8 @@ public class WhatsAppSettingsController {
     public String page(HttpServletRequest request) {
         // Owner-only: ONLY church-type logins may access. All other roles denied.
         String deny = RoleGuard.requireChurch(request);
-        return deny != null ? deny : "forward:/whatsappIntegration.html";
+        if (deny != null) return deny;
+        return enabled ? "forward:/whatsappIntegration.html" : "redirect:/home";
     }
 
     // ── REST: load ────────────────────────────────────────────────────────────
@@ -55,6 +75,7 @@ public class WhatsAppSettingsController {
         if (clientId == null) return ResponseEntity.status(401).build();
         // Owner-only, like the /whatsappIntegration page: this holds the Twilio auth token.
         if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
+        if (!enabled) return turnedOff();
 
         WhatsAppSettings s = repo.findByClientId(clientId).orElse(new WhatsAppSettings());
 
@@ -83,6 +104,7 @@ public class WhatsAppSettingsController {
         if (clientId == null) return ResponseEntity.status(401).build();
         // Owner-only, like the /whatsappIntegration page: this holds the Twilio auth token.
         if (RoleGuard.requireChurch(request) != null) return ResponseEntity.status(403).build();
+        if (!enabled) return turnedOff();
 
         String accountSid                = str(body.get("accountSid"));
         String authToken                 = str(body.get("authToken"));

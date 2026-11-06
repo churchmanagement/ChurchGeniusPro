@@ -455,9 +455,24 @@ public class SongBookController {
 
     /* ── advertisement pages ── */
 
+    /**
+     * App Store readiness (Option A, 2026-11-06): sponsor / advertisement pages are never shown
+     * or managed inside the iOS / Android app (user agent {@code ChurchGeniusProApp/}). The list
+     * is empty, images are 404 and changes are refused; the website is unchanged and saved ads
+     * are kept.
+     */
+    static final String ADS_APP_MESSAGE = "Sponsor pages are managed on the ChurchGeniusPro website.";
+
+    private static ResponseEntity<?> adsRefusedInApp(HttpServletRequest req) {
+        return LoginController.isAppShell(req)
+                ? ResponseEntity.status(403).body(Map.of("error", ADS_APP_MESSAGE, "code", "ADS_WEB_ONLY"))
+                : null;
+    }
+
     @GetMapping("/ads")
     public ResponseEntity<?> listAds(HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        if (LoginController.isAppShell(req)) return ResponseEntity.ok(java.util.List.of());   // no ads in the app
         return ResponseEntity.ok(service.listAds(c.clientId()));
     }
 
@@ -467,6 +482,7 @@ public class SongBookController {
                                       @RequestParam(value = "position", required = false) String position,
                                       HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        ResponseEntity<?> app = adsRefusedInApp(req); if (app != null) return app;
         try {
             int n = service.addAds(c.clientId(), file.getBytes(), file.getContentType(),
                     file.getOriginalFilename(), title, position, c.actor(), c.role());
@@ -481,6 +497,7 @@ public class SongBookController {
     @GetMapping("/ads/{id}/image")
     public ResponseEntity<?> adImage(@PathVariable Long id, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> deny = needView(c); if (deny != null) return deny;
+        if (LoginController.isAppShell(req)) return ResponseEntity.notFound().build();   // no ads in the app
         com.churchgeniuspro.hibernate.SongBookAd a = service.getAd(c.clientId(), id);
         if (a == null || a.getData() == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok()
@@ -492,6 +509,7 @@ public class SongBookController {
     @PutMapping("/ads/{id}")
     public ResponseEntity<?> updateAd(@PathVariable Long id, @RequestBody Map<String, Object> b, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        ResponseEntity<?> app = adsRefusedInApp(req); if (app != null) return app;
         try {
             service.updateAd(c.clientId(), id,
                     b.get("title") == null ? null : String.valueOf(b.get("title")),
@@ -506,6 +524,7 @@ public class SongBookController {
     @PostMapping("/ads/{id}/replace")
     public ResponseEntity<?> replaceAd(@PathVariable Long id, @RequestParam("file") MultipartFile file, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        ResponseEntity<?> app = adsRefusedInApp(req); if (app != null) return app;
         try {
             service.replaceAd(c.clientId(), id, file.getBytes(), file.getContentType(),
                     file.getOriginalFilename(), c.actor(), c.role());
@@ -520,6 +539,7 @@ public class SongBookController {
     @PostMapping("/ads/reorder")
     public ResponseEntity<?> reorderAds(@RequestBody Map<String, Object> b, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        ResponseEntity<?> app = adsRefusedInApp(req); if (app != null) return app;
         Object raw = b.get("ids");
         java.util.List<Long> ids = new java.util.ArrayList<>();
         if (raw instanceof java.util.List<?> list) {
@@ -532,6 +552,7 @@ public class SongBookController {
     @DeleteMapping("/ads/{id}")
     public ResponseEntity<?> deleteAd(@PathVariable Long id, HttpServletRequest req) {
         Ctx c = ctx(req); ResponseEntity<?> d = needEdit(c); if (d != null) return d;
+        ResponseEntity<?> app = adsRefusedInApp(req); if (app != null) return app;
         service.deleteAd(c.clientId(), id, c.actor(), c.role());
         return ResponseEntity.ok(Map.of("ok", true));
     }

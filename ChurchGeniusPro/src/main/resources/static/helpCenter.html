@@ -295,6 +295,8 @@
     .hc-church-only:not(.hc-church-visible) { display: none !important; }
     /* Cards a role cannot use (data-roles / data-perm / data-feature, see gateCards). */
     .hc-card.hc-role-hidden { display: none !important; }
+    /* Feature turned off for now (WhatsApp, 2026-11-06) — card kept, never shown. */
+    .hc-card.hc-off { display: none !important; }
     #hcAccountMgmt .hc-section-label { scroll-margin-top: 80px; }
     .hc-ui {
       display: inline-flex; align-items: center; gap: 4px;
@@ -2206,7 +2208,7 @@
         </div>
 
         <!-- ═══ WHATSAPP INTEGRATION ═══ -->
-        <div class="hc-card" id="hc-whatsapp" data-cat="communication" data-roles="Church" data-keywords="whatsapp whatsapp integration twilio account sid auth token sender phone default message meeting reminder template sid">
+        <div class="hc-card hc-off" id="hc-whatsapp" data-cat="communication" data-roles="Church" data-keywords="whatsapp whatsapp integration twilio account sid auth token sender phone default message meeting reminder template sid">
           <div class="hc-card-head" onclick="toggleCard(this)">
             <span class="hc-card-icon">💬</span>
             <div class="hc-card-head-text">
@@ -2274,7 +2276,7 @@
             <span class="hc-card-chevron">▼</span>
           </div>
           <div class="hc-card-body">
-            <p class="hc-desc">Automatic messages by email and SMS (WhatsApp sending is currently paused). <strong>Event Reminders</strong> go to people who registered for an event; <strong>Periodic Reminders</strong> cover birthdays, anniversaries, holidays and meetings; <strong>One-time Reminders</strong> send once on a chosen date.</p>
+            <p class="hc-desc">Automatic messages by email and SMS (WhatsApp is turned off for now). <strong>Event Reminders</strong> go to people who registered for an event; <strong>Periodic Reminders</strong> cover birthdays, anniversaries, holidays and meetings; <strong>One-time Reminders</strong> send once on a chosen date.</p>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
             <div class="hc-mock" aria-label="Reminders hub">
               <span class="hc-mock-title">🔔 Reminders</span>
@@ -2293,7 +2295,7 @@
               <div class="hc-step"><span class="hc-step-num">2</span><span>Select the <strong>Event</strong></span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span>Under <strong>Occurrences</strong> tick one or more: <strong>Same Day</strong>, <strong>Before Days</strong> (days before the event) and <strong>After Days</strong> (days after)</span></div>
               <div class="hc-step"><span class="hc-step-num">4</span><span>Optional: write an email template for each occurrence. Click a placeholder to insert it — <em>{eventName}</em>, <em>{date}</em>, <em>{time}</em>, <em>{location}</em>, <em>{map}</em>, <em>{calendar}</em>, <em>{beforeDays}</em> — and click <span class="hc-ui lite">👁 Preview</span>. Leave blank to use the default email</span></div>
-              <div class="hc-step"><span class="hc-step-num">5</span><span>Choose <strong>Notification Channels</strong> (📧 Email, 💬 SMS; 📱 WhatsApp is paused and sends nothing) and click <span class="hc-ui">💾 Save</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>Choose <strong>Notification Channels</strong> (📧 Email, 💬 SMS; WhatsApp is turned off for now) and click <span class="hc-ui">💾 Save</span></span></div>
             </div>
             <div class="hc-note">Event reminders go to people who registered and answered <strong>Yes</strong> or <strong>Maybe</strong> — not to people who answered No. Same Day and Before Days emails include a calendar invite. When you come from a new event, a suggested schedule (3 days before, same day, 1 day after) is filled in — nothing is saved until you click Save.</div>
 
@@ -4654,9 +4656,9 @@ const HC_KB = [
     id: 'whatsapp-integration',
     q: ['whatsapp','whatsapp integration','twilio','account sid','auth token','whatsapp sender'],
     title: '💬 WhatsApp Integration',
-    answer: 'Admin → WhatsApp Integration (church owner login only) stores the church’s Twilio Account SID, Auth Token, WhatsApp Sender Phone, an optional Default Message and a Meeting Reminder Template SID. WhatsApp sending is currently paused in ChurchGeniusPro; your details are kept, and reminders still go out by email and SMS.',
-    steps: ['Go to Admin → WhatsApp Integration','Enter Account SID, Auth Token and Sender Phone (with country code)','Optionally add a Default Message and Meeting Reminder Template SID','Click Save Settings'],
-    links: [{label:'WhatsApp Integration', url:'/whatsappIntegration', icon:'💬'}],
+    answer: 'WhatsApp is turned off in ChurchGeniusPro for now, so the WhatsApp Integration page is not in the menu. Any Twilio details your church saved earlier are kept. Reminders and notifications go out by email, SMS and app notifications.',
+    steps: [],
+    links: [],
     related: ['sms opt in','reminders']
   },
   {

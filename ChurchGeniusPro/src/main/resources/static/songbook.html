@@ -148,6 +148,12 @@
       .pb-lyrics{font-family:var(--ml);font-size:14px;line-height:1.55;} .pb-sec{font-size:15px;font-weight:800;color:#673147;margin:18px 0 10px;text-transform:uppercase;letter-spacing:1px;}
       .pb-imgpage{page-break-after:always;text-align:center;} .pb-imgpage img{max-width:100%;max-height:96vh;display:inline-block;} }
   </style>
+  <!-- App Store readiness (Option A, 2026-11-06): no sponsor / advertisement pages inside the
+       iOS / Android app (the server also refuses them there); the website is unchanged. -->
+  <style>html.cgp-app-noads #sbTabBtn_ads, html.cgp-app-noads #sbPane_ads { display: none !important; }</style>
+  <script>
+    if (/ChurchGeniusProApp\//.test(navigator.userAgent || '')) document.documentElement.classList.add('cgp-app-noads');
+  </script>
 </head>
 <body>
 <div class="app">

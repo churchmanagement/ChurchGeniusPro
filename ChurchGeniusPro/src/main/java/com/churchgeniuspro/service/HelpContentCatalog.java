@@ -196,7 +196,7 @@ public class HelpContentCatalog {
             "General → Reminders has three pages. Event Reminders: pick an event, tick Same Day, Before Days and/or After Days, optionally write an email template per occurrence (placeholders {eventName}, {date}, {time}, {location}, {map}, {calendar}, {beforeDays}, with 👁 Preview) and choose Email/SMS/WhatsApp; they go to registrants who answered Yes or Maybe, and the Delivery button shows delivered/failed/skipped attempts with reasons. Periodic Reminders: choose a type (Birthday, Wedding Anniversary, Birthdays & Anniversary, Meeting Reminder, Weekly Meeting Reminder, Monthly Statement, Celebrants (Members Only), New Year, Christmas, US Independence, Thanksgiving, Veterans Day, Presidents' Day, Memorial Day, Labor Day), recipients (Members, Guests, Visitors, Groups, and Celebrant options for birthday/anniversary types) and channels; holidays have email ({occasion}, {date}) and 160-character SMS templates, Birthday/Wedding Anniversary a celebrant email ({name}). One-time Reminders: a Name and Event Date; the Name is the subject and the Note is the message. Tick DISABLE to pause any reminder. Schedules run in the church's America/Chicago time.",
             list("Go to General → Reminders and open Event Reminders, Periodic Reminders or One-time Reminders.",
                  "Fill in the event or type, occurrences or date, recipients and templates.",
-                 "Choose Notification Channels (📧 Email, 💬 SMS; 📱 WhatsApp sending is currently paused).",
+                 "Choose Notification Channels (📧 Email, 💬 SMS; WhatsApp is turned off for now).",
                  "Click 💾 Save. Edit, Delete (and Delivery for event reminders) are on each row."),
             list("Problem: an event reminder reached nobody — Fix: only registrants who answered Yes or Maybe receive it; open Delivery for the reason each attempt was skipped or failed.",
                  "Problem: wrong send time — Fix: times are evaluated in America/Chicago, not the viewer's local zone.",
@@ -544,12 +544,11 @@ public class HelpContentCatalog {
         // roles: Church
         add(new HelpArticle("whatsapp_integration", "Communication", "WhatsApp Integration", null, true,
             "Store the church's Twilio account details for WhatsApp messages (church owner login).",
-            "Admin → WhatsApp Integration is available to the church owner login only. Enter the Twilio Account SID and Auth Token (from the Twilio Console), the WhatsApp-enabled Sender Phone with country code, an optional Default Message (up to 1000 characters) and an optional Meeting Reminder Template SID, then click Save Settings. "
-          + "After saving, the Auth Token is never shown again — the page only says it is set. "
-          + "WhatsApp sending is currently paused in ChurchGeniusPro; the details are kept, and reminders and notifications still go out by email and SMS.",
-            list("Open Admin → WhatsApp Integration.", "Enter Account SID, Auth Token and Sender Phone.", "Optionally add a Default Message and Meeting Reminder Template SID.", "Click Save Settings."),
-            list("Problem: \"Account SID is required\" / \"Sender Phone is required\" / \"Auth Token is required\" — Fix: fill in the required field."),
-            "1.1", list("v1.1 — Field-by-field steps; WhatsApp sending currently paused.", "v1.0 — Initial release."),
+            "WhatsApp is turned off in ChurchGeniusPro for now, so Admin → WhatsApp Integration is not in the menu and the page cannot be opened. "
+          + "Any Twilio details the church saved earlier are kept. Reminders and notifications go out by email, SMS and app notifications.",
+            list("No setup is needed — WhatsApp is turned off for now."),
+            list("Problem: the WhatsApp Integration menu item is gone — Fix: nothing to fix; WhatsApp is turned off for now and the saved details are kept."),
+            "1.2", list("v1.2 — WhatsApp turned off for now; page hidden.", "v1.1 — Field-by-field steps; WhatsApp sending currently paused.", "v1.0 — Initial release."),
             list("whatsapp","twilio","account sid","auth token","sender phone")).roles("Church"));
 
         // roles: SuperAdmin,Admin

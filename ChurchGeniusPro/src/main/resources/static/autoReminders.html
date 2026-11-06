@@ -280,7 +280,7 @@
                     <input type="checkbox" class="toggle-checkbox" id="chSms" checked />
                     <span class="toggle-label">💬 SMS</span>
                   </label>
-                  <label class="toggle-row" for="chWhatsApp">
+                  <label class="toggle-row" for="chWhatsApp" hidden style="display:none" data-off="whatsapp"><!-- WhatsApp turned off for now (2026-11-06) -->
                     <input type="checkbox" class="toggle-checkbox" id="chWhatsApp" />
                     <span class="toggle-label">📱 WhatsApp</span>
                   </label>
@@ -604,7 +604,7 @@
       smsTemplate:    document.getElementById('smsTemplate').value.trim() || null,
       sendEmail:      document.getElementById('chEmail').checked,
       sendSms:        document.getElementById('chSms').checked,
-      sendWhatsApp:   document.getElementById('chWhatsApp').checked
+      sendWhatsApp:   false   // WhatsApp turned off for now
     };
     try {
       const url    = editingId ? `/api/reminders/auto/${editingId}` : '/api/reminders/auto';

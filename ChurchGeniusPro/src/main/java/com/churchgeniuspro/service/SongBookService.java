@@ -769,6 +769,27 @@ public class SongBookService {
      * picker and to validate/resolve the Current / Next selections. Empty when the
      * book is not published or has no songs.
      */
+    /**
+     * App Store readiness (Option A, 2026-11-06): the published snapshot with its sponsor /
+     * advertisement pages removed ({@code "ads"} becomes an empty list), for the iOS / Android
+     * app. The stored snapshot is never changed. A snapshot that cannot be read is returned
+     * as an empty-ads document rather than verbatim, so ads can never leak through a parse
+     * error.
+     */
+    private static final ObjectMapper ADS_MAPPER = new ObjectMapper();
+
+    public static String snapshotWithoutAds(String snapshot) {
+        if (snapshot == null || snapshot.isBlank()) return snapshot;
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = ADS_MAPPER.readTree(snapshot);
+            if (root instanceof com.fasterxml.jackson.databind.node.ObjectNode o) {
+                o.putArray("ads");
+                return ADS_MAPPER.writeValueAsString(o);
+            }
+        } catch (Exception ignored) { }
+        return "{\"sections\":[],\"ads\":[]}";
+    }
+
     public List<Map<String, Object>> snapshotSongs(String snapshot) {
         List<Map<String, Object>> out = new ArrayList<>();
         if (snapshot == null || snapshot.isBlank()) return out;
