@@ -2563,3 +2563,23 @@ CREATE TABLE IF NOT EXISTS workflow_run (
 );
 CREATE INDEX IF NOT EXISTS idx_wf_run_client_time ON workflow_run (app_client_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_wf_run_def_key ON workflow_run (definition_id, event_key);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- App Store readiness D6 (2026-11-06): ai_consent — each individual login's answer to the
+-- three AI data-sharing notices (VOICE / ASSISTANT / SCAN) shown in the iOS / Android app.
+-- One row per (church, login, notice type). Additive; Hibernate ddl-auto creates the same on
+-- start. Safe to run twice. NOT run against production without the owner's approval.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_consent (
+    id              BIGSERIAL PRIMARY KEY,
+    app_client_id   VARCHAR(100) NOT NULL,
+    login_id        INTEGER      NOT NULL,
+    login_kind      VARCHAR(10)  NOT NULL,
+    notice_type     VARCHAR(12)  NOT NULL,
+    notice_version  INTEGER      NOT NULL,
+    agreed_at       TIMESTAMP,
+    withdrawn_at    TIMESTAMP,
+    source          VARCHAR(10),
+    updated_at      TIMESTAMP    NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_consent_login_type ON ai_consent (app_client_id, login_id, notice_type);

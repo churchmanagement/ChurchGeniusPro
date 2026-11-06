@@ -45,6 +45,7 @@
     .err { background:#ffebee; color:#c62828; padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:12px; display:none; }
     .err.show { display:block; }
     @media (max-width:640px) { .card-body { padding:12px; } .tile .n { font-size:18px; } }
+      html:not(.cgp-ai-consent-app) .cgp-app-only { display: none !important; }
   </style>
 </head>
 <body>
@@ -58,6 +59,15 @@
         Questions and answers are never stored — only the kind of request.</div>
 
       <div class="err" id="err"></div>
+
+      <!-- App Store readiness D6: the person's own AI data-sharing consent (shown in the app only) -->
+      <div class="card cgp-app-only" id="aiShareCard">
+        <div class="card-header"><span>🔐</span><h2>AI data sharing</h2></div>
+        <div class="card-body">
+          <div class="muted" style="margin-bottom:10px">See which AI features you allowed to share data with OpenAI in this app, and stop sharing at any time.</div>
+          <button type="button" class="btn-secondary" id="aiShareBtn" onclick="window.CGP_aiConsent &amp;&amp; CGP_aiConsent.openSettings()">Manage AI data sharing</button>
+        </div>
+      </div>
 
       <div class="card">
         <div class="card-header"><span>📊</span><h2>Summary</h2>
@@ -109,7 +119,7 @@
 </div>
 
 <script>
-  const CHANNEL_LABEL = { SEARCH:'AI Search', DATA:'AI Search (data)', CONFIRM:'Meeting confirm', ASSIST:'Converse / Type',
+  const CHANNEL_LABEL = { SEARCH:'AI Search', CONSENT:'AI data sharing', DATA:'AI Search (data)', CONFIRM:'Meeting confirm', ASSIST:'Converse / Type',
                           VOICE:'Voice', VISION:'Scan (vision)', HELP:'Help assistant', WRITE:'AI Writing', FORMS:'AI Form builder', ACTIONS:'AI Actions', MCP:'External (MCP)', WORKFLOWS:'Automations', OTHER:'Other' };
   const STATUS_LABEL = { PROPOSED:'Awaiting confirmation', EXECUTED:'Done', REJECTED:'Cancelled', EXPIRED:'Expired', FAILED:'Failed' };
   async function loadActions(){

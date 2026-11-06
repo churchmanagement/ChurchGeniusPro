@@ -52,6 +52,7 @@ public class MemberApiScopeFilter implements Filter {
             "/api/guess-it",                                    // playing; host controls are staff-only in the controller
             "/api/songbook", "/api/worship", "/api/ss",         // controller-checked (access list / write guard / teacher of class)
             "/api/favorites", "/api/push", "/api/help", "/api/tickets",
+            "/api/ai/consent",                                  // D6: the person's own AI data-sharing consent
             "/api/ai-search", "/api/ai-assist", "/api/voice/command", "/api/voice/status", "/api/voice/features",
             "/api/openai-usage/status", "/api/demo/product-tour", "/api/demo/trial-agreement",
             "/api/trial-tips", "/api/logo");

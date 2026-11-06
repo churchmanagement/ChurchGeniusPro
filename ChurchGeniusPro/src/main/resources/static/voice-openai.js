@@ -190,6 +190,19 @@
     api.start = function () {
       if (!supported) { status('Voice recording isn’t supported in this browser. Use a recent Chrome, Edge, or Safari.', 'error'); return; }
       if (running) return;
+      // App Store readiness D6 — inside the iOS / Android app the Voice data-sharing notice
+      // comes BEFORE the microphone: nothing is recorded or sent until the person agreed.
+      // Web browsers: unchanged (no check, starts at once).
+      var inApp = /ChurchGeniusProApp\//.test(navigator.userAgent || '') || !!(window.CGP_NATIVE && window.CGP_NATIVE.isNative);
+      if (inApp && !api.__consentChecked) {
+        if (!window.CGP_aiConsent) { status('Voice is getting ready — please try again in a moment.', 'info'); return; }
+        window.CGP_aiConsent.ensure('VOICE').then(function (ok) {
+          if (!ok) { status('Voice entry cancelled — nothing was recorded.', 'info'); if (opts.onCancel) { try { opts.onCancel(); } catch (e) {} } return; }
+          api.__consentChecked = true;
+          try { api.start(); } finally { api.__consentChecked = false; }
+        });
+        return;
+      }
       cancelled = false;
       var startGen = gen;
       lastVoiceAt = Date.now();
@@ -348,6 +361,9 @@
           if (!res.ok) { dbg('error', res.d.error || ('HTTP ' + res.code)); status(res.d.error || 'Voice processing failed. Please try again.', 'error'); return; }
           var conf = (res.d.confidence != null && res.d.confidence >= 0) ? (' · conf ' + Math.round(res.d.confidence * 100) + '%') : '';
           if (res.d.durationSeconds != null) dbg('openai', 'transcribed ' + res.d.durationSeconds + 's of audio' + conf);
+          // D6: the server's one-time voice token for this transcript (app only) — attached
+          // by ai-consent.js to the follow-up request that carries the same text.
+          if (res.d.voiceToken && window.CGP_aiConsent) window.CGP_aiConsent.rememberVoice(res.d.transcript || '', res.d.voiceToken);
           if (opts.onTranscript) opts.onTranscript(res.d.transcript || '');
           if (opts.onStatusData && res.d.status) opts.onStatusData(res.d.status);
           if (opts.onResult) opts.onResult(res.d);

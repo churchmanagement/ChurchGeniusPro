@@ -44,6 +44,30 @@
   };
   if (!isNative) return;
 
+  // App Store readiness D6 — second app signal for the server (besides the user-agent
+  // marker): every same-origin fetch from the app carries X-CGP-Client: app. Not proof
+  // (any client can send it); it keeps consent enforced if a build ever lost the marker.
+  (function () {
+    var f = window.fetch;
+    if (!f || f.__cgpAppHeader) return;
+    var w = function (input, init) {
+      try {
+        var url = typeof input === 'string' ? input : (input && input.url) || '';
+        var same = new URL(url, location.href).origin === location.origin;
+        if (same && typeof input === 'string') {
+          var h = new Headers((init && init.headers) || {});
+          h.set('X-CGP-Client', 'app');
+          h.set('X-CGP-Platform', window.CGP_NATIVE.platform);
+          var copy = {}; if (init) for (var k in init) copy[k] = init[k];
+          copy.headers = h; init = copy;
+        }
+      } catch (e) { /* never block a request */ }
+      return f.call(window, input, init);
+    };
+    w.__cgpAppHeader = true;
+    window.fetch = w;
+  })();
+
   var P = cap.Plugins || {};
   var log = function () { try { console.log.apply(console, ['[native-bridge]'].concat([].slice.call(arguments))); } catch (_) {} };
   var toast = function (msg) {

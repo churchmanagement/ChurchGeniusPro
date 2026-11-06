@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/shell.css" />
   <title>Member Home – Church Genius Pro</title>
   <script src="/native-bridge.js"></script>
+  <script src="/ai-consent.js"></script>
   <script src="/cgp-api.js"></script>
   <script src="/devices.js" defer></script>
 <script>
@@ -586,7 +587,8 @@
     #childNavBar .child-nav-btn:hover  { background:#e8d5e4; }
     #childNavBar .child-nav-btn.active { background:#673147;color:#fff; }
     .fe-record-note { font-size:12px; color:#8a4b00; background:#fff8ec; border:1px solid #f3d6a8; border-radius:6px; padding:6px 10px; margin:4px 0 10px; }
-</style>
+    html:not(.cgp-ai-consent-app) .cgp-app-only{display:none !important;}
+  </style>
 </head>
 <body>
 <div class="app">
@@ -627,6 +629,7 @@
       </div>
     </div>
     <button class="btn-settings" id="btnSettings" onclick="openSettingsModal()" title="Settings" aria-label="Settings">&#9881;</button>
+    <button class="btn-logout cgp-app-only" id="aiShareBtn" onclick="window.CGP_aiConsent && CGP_aiConsent.openSettings()" title="AI data sharing">🔐 AI sharing</button>
     <button class="btn-logout" onclick="doLogout()">Logout</button>
   </div>
 </header>

@@ -816,6 +816,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
       document.body.appendChild(el);
     }
     add('/native-bridge.js', 'native-bridge-script'); // mobile app shell bridge (inert in a browser; see the file header)
+    add('/ai-consent.js', 'ai-consent-script');       // App Store D6: AI data-sharing notices (inert in a browser)
     add('/devices.js', 'devices-script');             // "Signed-in devices" modal (opened from the notification bell)
     add('/voice-flags.js', 'voice-flags-script'); // per-church Voice feature gating (hides disabled buttons)
     add('/voice-openai.js', 'aa-voice');   // shared recorder engine (Voice/Converse)

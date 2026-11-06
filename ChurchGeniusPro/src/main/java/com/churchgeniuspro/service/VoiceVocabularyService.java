@@ -70,6 +70,15 @@ public class VoiceVocabularyService {
      * @param expecting the field being filled ("contributor", "fund", "method", "amount", …) or blank
      */
     public String promptFor(String clientId, String context, String expecting) {
+        return promptFor(clientId, context, expecting, true);
+    }
+
+    /**
+     * @param includePeople false inside the iOS / Android app (App Store readiness D6): the
+     *        hint then never carries contributor (people) names — only fund, expense category
+     *        and payment method names, as the Voice data-sharing notice says.
+     */
+    public String promptFor(String clientId, String context, String expecting, boolean includePeople) {
         String ctx = context == null ? "" : context.trim().toLowerCase(Locale.ROOT);
         String exp = expecting == null ? "" : expecting.trim().toLowerCase(Locale.ROOT);
         if (clientId == null || clientId.isBlank()) return null;
@@ -79,7 +88,7 @@ public class VoiceVocabularyService {
         sb.append(ctx.equals("expense") ? FIELD_WORDS_EXPENSE : FIELD_WORDS_INCOME);
 
         List<String> names = new ArrayList<>();
-        if (ctx.equals("income") && (exp.isEmpty() || exp.equals("contributor"))) names.addAll(contributorNames(clientId));
+        if (includePeople && ctx.equals("income") && (exp.isEmpty() || exp.equals("contributor"))) names.addAll(contributorNames(clientId));
         if (ctx.equals("expense") && (exp.isEmpty() || exp.equals("expense"))) names.addAll(expenseCategoryNames(clientId));
         if (exp.isEmpty() || exp.equals("fund"))   names.addAll(ctx.equals("expense") ? mainFundNames(clientId) : fundNames(clientId));
         if (exp.isEmpty() || exp.equals("method")) names.addAll(methodNames(clientId));

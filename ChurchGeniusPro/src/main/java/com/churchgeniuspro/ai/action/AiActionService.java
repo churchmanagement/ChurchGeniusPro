@@ -216,6 +216,10 @@ public class AiActionService {
         String source = "TEXT";
         if (parsed == null) {
             if (!ACTION_VERB.matcher(q).find() || MEETING.matcher(q).find()) return null;
+            // App Store readiness D6 (decision D): a question is never sent to OpenAI when the
+            // church's plan does not include AI actions — the plan check comes FIRST.
+            if (!access.feature(clientId, FEATURE)) return base("action.unavailable",
+                    "AI actions (doing things from the search bar) are not part of your current plan.");
             parsed = llmPick(q, a);
             if (parsed == null) return null;
             source = "LLM";

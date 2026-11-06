@@ -687,6 +687,18 @@ public class HelpContentCatalog {
             list("ministry report","monthly report","engagement","at risk","church health","new people")).roles("SuperAdmin,Admin,Accountant,User"));
 
         // roles: SuperAdmin,Admin,Church (AI Phase 0, 2026-11-04)
+        add(new HelpArticle("ai_data_sharing", "Help", "AI Data Sharing (mobile app)", null, true,
+            "In the iOS and Android app, a one-time notice before an AI feature sends data to OpenAI.",
+            "In the ChurchGeniusPro app, the first time a person uses an AI feature they see a notice saying what is sent to OpenAI, and nothing is recorded, uploaded or sent until they tap Agree & Continue. "
+          + "There are three notices: AI Voice Entry (Voice and Converse — the recording, plus a short list of the church's fund, expense category and payment method names), AI Assistant (AI Search, assistant chat, Help assistant, Draft with AI, Describe your event, Automations drafting — what is typed, with recent messages in a conversation) and Document Scan (check, bank statement, membership and children's form scans — the photo or file). "
+          + "Each person answers each notice once; the answer is kept for their own login on every device and asked again only when the wording changes. Cancel stops the action and sends nothing. "
+          + "To stop sharing: Admin → AI Activity → Manage AI data sharing, 🔐 AI sharing in the Member Portal, or the Help Center card; it takes effect at once on all devices and the notice is shown again on the next use. Information already sent is not recalled. The website does not show these notices.",
+            list("Use an AI feature in the app and read the notice.", "Tap Agree & Continue, or Cancel.", "To stop later, open AI data sharing and tap Stop sharing."),
+            list("Problem: the notice keeps appearing — Fix: the wording was updated, or sharing was stopped on another device; agree again to continue.",
+                 "Problem: \"AI features are not available for this sign-in\" — Fix: sign out and sign in again."),
+            "1.0", list("v1.0 — Initial release (App Store readiness D6)."),
+            list("ai data sharing","consent","openai","stop sharing","notice")).roles("SuperAdmin,Admin,Accountant,User,Member,Church"));
+
         add(new HelpArticle("ai_activity", "Admin", "AI Activity", null, true,
             "Who used the AI features, what kind of request it was, what it cost and how it ended — never the question itself.",
             "Admin → AI Activity (SuperAdmin, Admin, church login). Every AI request — AI Search, Voice, Converse, check / statement / form scans and the Help assistant — writes one row: when, who, feature, the kind of question (an intent key such as crossref.lapsedGivers), the model and tokens when a model was used, the result (OK, Refused, Rate limited, Error) and the time taken. "

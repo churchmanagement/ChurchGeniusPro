@@ -17,9 +17,12 @@ public class AiGuardFilterConfig {
 
     @Bean
     public FilterRegistrationBean<AiGuardFilter> aiGuardFilter(AiAuditService audit, AiRateLimiter limiter,
-                                                               @Value("${ai.gates.temp-access.enforce:true}") boolean enforceTempAccess) {
+                                                               @Value("${ai.gates.temp-access.enforce:true}") boolean enforceTempAccess,
+                                                               com.churchgeniuspro.ai.consent.AiConsentGate consentGate) {
         FilterRegistrationBean<AiGuardFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new AiGuardFilter(audit, limiter, enforceTempAccess));
+        AiGuardFilter filter = new AiGuardFilter(audit, limiter, enforceTempAccess);
+        filter.setConsentGate(consentGate);   // App Store readiness D6
+        registration.setFilter(filter);
         registration.addUrlPatterns("/api/*");
         registration.setName("aiGuardFilter");
         registration.setOrder(8);

@@ -297,6 +297,7 @@
     .hc-card.hc-role-hidden { display: none !important; }
     /* Feature turned off for now (WhatsApp, 2026-11-06) — card kept, never shown. */
     .hc-card.hc-off { display: none !important; }
+    html:not(.cgp-ai-consent-app) .cgp-app-only-hc { display: none !important; }
     #hcAccountMgmt .hc-section-label { scroll-margin-top: 80px; }
     .hc-ui {
       display: inline-flex; align-items: center; gap: 4px;
@@ -3061,6 +3062,34 @@
           </div>
         </div>
 
+        <!-- ═══ AI DATA SHARING (App Store readiness D6, 2026-11-06) ═══ -->
+        <div class="hc-card" id="hc-ai-data-sharing" data-cat="mobile-app" data-roles="SuperAdmin,Admin,Accountant,User,Member,Church" data-keywords="ai data sharing consent openai notice voice assistant scan stop sharing withdraw privacy app">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🔐</span>
+            <div class="hc-card-head-text">
+              <h3>AI Data Sharing (mobile app)</h3>
+              <div class="hc-card-nav">Shown the first time you use an AI feature in the app</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">In the ChurchGeniusPro iOS and Android app, the first time you use an AI feature you see a short notice saying what is sent to OpenAI. Nothing is recorded, uploaded or sent until you tap <span class="hc-ui">Agree &amp; Continue</span>. You answer once per notice, and your answer applies on all your devices. The website does not show these notices.</p>
+            <div class="hc-section-label">The three notices</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>AI Voice Entry</strong> — Voice and Converse on Income, Expense, Meetings, Home, Help and the AI assistant. Your recording is sent for transcription, with a short list of your church's fund, expense category and payment method names.</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>AI Assistant</strong> — AI Search, the assistant chat, the Help assistant, ✨ Draft with AI, Describe your event and Automations rule drafting. What you type, with your recent messages in a conversation, is sent.</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Document Scan</strong> — check scans, bank statement scans, membership form and children's registration form scans. The photo or file is sent to be read.</span></div>
+            </div>
+            <div class="hc-section-label" id="hc-ai-data-sharing-stop">Stop sharing with AI</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Admin → AI Activity</strong> (admins) or tap <span class="hc-ui lite">🔐 AI sharing</span> in the Member Portal, or use the button below</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Tap <span class="hc-ui lite">Stop sharing</span> beside a feature, or <span class="hc-ui lite">Stop all</span></span></div>
+            </div>
+            <p class="cgp-app-only-hc"><button type="button" class="hc-ui" onclick="window.CGP_aiConsent &amp;&amp; CGP_aiConsent.openSettings()">Manage AI data sharing</button></p>
+            <div class="hc-note">Stopping takes effect at once on all your devices. The next time you use that feature you are asked again. Information already sent is not recalled.</div>
+          </div>
+        </div>
+
         <!-- ═══ SAVED LISTS (AI Phase 1, 2026-11-04) ═══ -->
         <div class="hc-card" id="hc-saved-lists" data-cat="members" data-roles="SuperAdmin,Admin,Accountant" data-perm="more.savedlists" data-feature="aiSearch" data-keywords="saved lists saved list people filter my lists run list export csv email this list ai search women men age group attended gave">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4507,6 +4536,15 @@ const HC_KB = [
     steps: ['Open More → Ministry Report','Pick a month (the last completed month opens first)','Read the narrative and tiles; hover a signal for its rule','Download the CSV or print it for a meeting'],
     links: [{label:'Ministry Report', url:'/ministryReport', icon:'📈'},{label:'Attendance', url:'/attendance', icon:'📝'}],
     related: ['saved lists','ai search','attendance']
+  },
+  {
+    id: 'ai-data-sharing',
+    q: ['ai data sharing','ai consent','data sharing notice','openai','stop sharing with ai','withdraw ai consent','agree and continue'],
+    title: '🔐 AI Data Sharing in the App',
+    answer: 'In the iOS and Android app, the first time you use Voice, the AI Assistant or a document scan you see a notice saying what is sent to OpenAI. Nothing is sent until you tap Agree & Continue. You answer once per notice, on all your devices. To stop, open AI data sharing and tap Stop sharing (you will be asked again next time). The website does not show these notices.',
+    steps: ['Use an AI feature in the app and read the notice','Tap Agree & Continue to go on, or Cancel to stop','To stop later: Admin → AI Activity → Manage AI data sharing, or 🔐 AI sharing in the Member Portal'],
+    links: [],
+    related: ['ai activity','voice commands','ai search']
   },
   {
     id: 'ai-activity',

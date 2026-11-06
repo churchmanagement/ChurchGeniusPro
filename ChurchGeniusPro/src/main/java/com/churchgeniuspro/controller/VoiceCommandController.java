@@ -135,7 +135,10 @@ public class VoiceCommandController {
 
         OpenAiVoiceService.Transcription tr;
         try {
-            String prompt = vocabulary == null ? null : vocabulary.promptFor(clientId, context, expecting);
+            // App Store readiness D6: inside the app the hint never carries people's names
+            // (contributors) — only fund, expense category and payment method names.
+            boolean includePeople = !com.churchgeniuspro.ai.consent.AppShellDetector.isApp(request);
+            String prompt = vocabulary == null ? null : vocabulary.promptFor(clientId, context, expecting, includePeople);
             String language = VoiceVocabularyService.languageFor(locale);
             tr = voiceService.transcribe(audio.getBytes(), audio.getOriginalFilename(), audio.getContentType(), prompt, language);
         } catch (Exception e) {
@@ -174,8 +177,19 @@ public class VoiceCommandController {
             resp.put("command", ex.get("command"));
         }
         resp.put("status", usageService.statusMap(clientId));
+        // D6: one-time token so a follow-up text request can be confirmed as voice by the
+        // server (issued only in the app, after the Voice consent passed in AiGuardFilter).
+        if (consentGate != null) {
+            String vt = consentGate.issueVoiceToken(request, context, tr.text());
+            if (vt != null) resp.put("voiceToken", vt);
+        }
         return ResponseEntity.ok(resp);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.consent.AiConsentGate consentGate;
+
+    void setConsentGate(com.churchgeniuspro.ai.consent.AiConsentGate g) { this.consentGate = g; }
 
     /**
      * AI Search Assistant (Type / Voice / Converse) on the Home page.

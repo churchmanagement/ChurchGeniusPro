@@ -27,6 +27,11 @@ import java.io.IOException;
  *   <li>refuses <b>temporary-access (badge/code) sessions</b> — 403 {@code AI_TEMP_ACCESS}
  *       (finding S1: those sessions are role {@code User} with a privileges JSON built from a
  *       7-page catalogue, and the AI policy read the missing AI keys as <em>allowed</em>);</li>
+ *   <li><b>inside the iOS / Android app only</b> (App Store readiness D6), requires the
+ *       person's consent to the matching AI data-sharing notice
+ *       ({@link com.churchgeniuspro.ai.consent.AiConsentGate}) — 403
+ *       {@code AI_CONSENT_REQUIRED} otherwise. This check FAILS CLOSED: an error, or a missing
+ *       gate, refuses the app request. Website requests skip it entirely;</li>
  *   <li>applies the {@link AiRateLimiter} — 429 {@code AI_RATE_LIMITED} with
  *       {@code Retry-After} (finding S4); in WARN-only mode it logs and lets the call through;</li>
  *   <li>runs the request, then writes <b>one</b> {@code ai_audit_log} row: who, which church,
@@ -47,12 +52,16 @@ public class AiGuardFilter implements Filter {
     private final AiAuditService audit;
     private final AiRateLimiter limiter;
     private final boolean enforceTempAccess;
+    private com.churchgeniuspro.ai.consent.AiConsentGate consentGate;
 
     public AiGuardFilter(AiAuditService audit, AiRateLimiter limiter, boolean enforceTempAccess) {
         this.audit = audit;
         this.limiter = limiter;
         this.enforceTempAccess = enforceTempAccess;
     }
+
+    /** D6 consent gate (set by {@link AiGuardFilterConfig}); null = every app request is refused. */
+    public void setConsentGate(com.churchgeniuspro.ai.consent.AiConsentGate gate) { this.consentGate = gate; }
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
@@ -79,6 +88,39 @@ public class AiGuardFilter implements Filter {
                 }
                 log.warn("[AiGuard] temporary-access session reached {} (enforcement off)", path);
             }
+        } catch (Exception e) {
+            log.warn("[AiGuard] gate failed open on {}: {}", path, com.churchgeniuspro.util.LogSafe.exception(e));
+        }
+
+        // D6 — AI data-sharing consent, app only, fails CLOSED.
+        com.churchgeniuspro.ai.consent.AiConsentPaths.Requirement need =
+                com.churchgeniuspro.ai.consent.AiConsentPaths.requirementFor(path);
+        if (need.kind() != com.churchgeniuspro.ai.consent.AiConsentPaths.Kind.NONE
+                && com.churchgeniuspro.ai.consent.AppShellDetector.isApp(request)) {
+            com.churchgeniuspro.ai.consent.AiConsentGate.Decision cd;
+            try {
+                cd = consentGate == null ? null : consentGate.check(request, need);
+            } catch (Exception e) {
+                log.warn("[AiGuard] consent check failed (closed) on {}: {}", path, com.churchgeniuspro.util.LogSafe.exception(e));
+                cd = null;
+            }
+            if (cd == null) {
+                writeJson(response, 403, "{\"error\":\"The AI data sharing check could not be completed. Please try again.\","
+                        + "\"code\":\"" + com.churchgeniuspro.ai.consent.AiConsentGate.CODE_FAILED + "\"}");
+                record(clientId, actor, role, channel, path, request, 403, "DENIED", started);
+                return;
+            }
+            if (!cd.allowed()) {
+                writeJson(response, cd.status(), cd.json());
+                AiAuditService.intent(request, "consent." + cd.code().toLowerCase(java.util.Locale.ROOT)
+                        + (cd.notice() == null ? "" : "." + cd.notice().name()));
+                record(clientId, actor, role, channel, path, request, cd.status(), "DENIED", started);
+                return;
+            }
+            if (cd.request() != request) { request = cd.request(); req = request; }
+        }
+
+        try {
             AiRateLimiter.Decision d = limiter.tryAcquire(clientId, actor);
             if (!d.allowed()) {
                 if (limiter.enforcing()) {

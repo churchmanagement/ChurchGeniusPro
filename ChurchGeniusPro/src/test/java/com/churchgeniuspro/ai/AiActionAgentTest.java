@@ -284,6 +284,21 @@ class AiActionAgentTest {
         assertThat(svc.handle(req("User", null), CID, "Assign John Moe as usher on 2026-11-08").get("intent")).isEqualTo("action.denied");
     }
 
+    @Test @DisplayName("D6 decision D: a church whose plan lacks AI actions never has the question sent to OpenAI")
+    void planCheckBeforeFallback() throws Exception {
+        when(openAi.isEnabled()).thenReturn(true);
+        AiAccessPolicy noActions = org.mockito.Mockito.spy(new AiAccessPolicy());
+        org.mockito.Mockito.doReturn(false).when(noActions).feature(anyString(), eq(AiActionService.FEATURE));
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
+        AiActionService svc2 = new AiActionService(registry, repo, noActions, openAi, new TransactionTemplate(tm), true, true, 10);
+        Map<String, Object> m = svc2.handle(req("Admin", null), CID, "Include Sarah Lee with the Welcome Team");
+        assertThat(m.get("intent")).isEqualTo("action.unavailable");
+        verify(openAi, org.mockito.Mockito.never()).chatJson(anyString(), anyString(), anyDouble());
+        // a typed phrase the parser understands still answers "not on your plan", also without the model
+        assertThat(svc2.handle(req("Admin", null), CID, "Add Sarah Lee to Welcome Team").get("intent")).isEqualTo("action.unavailable");
+        verify(openAi, org.mockito.Mockito.never()).chatJson(anyString(), anyString(), anyDouble());
+    }
+
     @Test @DisplayName("LLM fallback picks only a registered tool from the closed list; kill switch stops proposals and confirms; recent list; audit + plan catalog")
     void fallbackAndSwitches() throws Exception {
         when(openAi.isEnabled()).thenReturn(true);

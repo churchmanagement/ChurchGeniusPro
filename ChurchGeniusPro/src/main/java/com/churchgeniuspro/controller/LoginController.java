@@ -380,6 +380,8 @@ public class LoginController {
 
         buildResponse(res, user, isChurch, session);
 
+        com.churchgeniuspro.ai.consent.AppShellDetector.markSession(request, session);   // D6 sticky app flag
+
         // ── Mobile Phase 3 (M6 decision: adults-only app) ────────────────────
         // A Kids-portal (child) login is a web-only feature; the app shell refuses it
         // after the password check so the message is specific, and the half-built
@@ -539,6 +541,7 @@ public class LoginController {
         if (existing != null) existing.invalidate();
         HttpSession session = request.getSession(true);
         buildResponse(res, user, Boolean.TRUE.equals(user.getChurch()), session);
+        com.churchgeniuspro.ai.consent.AppShellDetector.markSession(request, session);   // D6 sticky app flag
         return session;
     }
 
@@ -868,6 +871,7 @@ public class LoginController {
             currentSession.invalidate();
             HttpSession newSession = request.getSession(true);
             buildResponse(res, targetSignup, targetIsChurch, newSession);
+            com.churchgeniuspro.ai.consent.AppShellDetector.markSession(request, newSession);   // D6 sticky app flag
             return ResponseEntity.ok(res);
 
         } else if (rawTargetAppUserId != null) {
@@ -926,6 +930,7 @@ public class LoginController {
             currentSession.invalidate();
             HttpSession newSession = request.getSession(true);
             buildResponse(res, targetSignup, false, newSession);
+            com.churchgeniuspro.ai.consent.AppShellDetector.markSession(request, newSession);   // D6 sticky app flag
             return ResponseEntity.ok(res);
         }
 
@@ -1039,6 +1044,8 @@ public class LoginController {
         HttpSession newSession = request.getSession(true);
 
         buildResponse(res, targetSignup, false, newSession);
+
+        com.churchgeniuspro.ai.consent.AppShellDetector.markSession(request, newSession);   // D6 sticky app flag
         res.put("status", "success");
 
         return ResponseEntity.ok(res);
@@ -1217,6 +1224,8 @@ public class LoginController {
 
         session.setAttribute("clientId",  clientId);
         session.setAttribute("username",  user.getUsername());
+        // App Store readiness D6: the individual login (signup.id) AI consent is recorded against.
+        session.setAttribute(com.churchgeniuspro.ai.consent.AiConsentService.SESSION_LOGIN_ID, user.getId());
         session.setAttribute("church",    isChurch);
         session.setAttribute("churchId",  user.getChurchId() != null ? String.valueOf(user.getChurchId()) : "");
 

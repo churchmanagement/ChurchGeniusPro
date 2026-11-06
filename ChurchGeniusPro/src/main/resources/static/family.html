@@ -275,7 +275,7 @@
           <button type="button" class="btn-view-families" onclick="window.open('/api/membership-form/pdf','_blank')" title="Download a printable / fillable membership form">📄 Membership Form (PDF)</button>
           <button type="button" class="help-dot" aria-label="How does the Membership Form PDF work?"
                   aria-expanded="false" onclick="toggleHelp('membershipFormHelp', this)">?</button>
-          <button type="button" class="btn-view-families" onclick="document.getElementById('scanUploadInput').click()" title="Upload a completed membership form to auto-fill">📤 Upload Scanned Form</button>
+          <button type="button" class="btn-view-families" data-ai-consent="SCAN" onclick="document.getElementById('scanUploadInput').click()" title="Upload a completed membership form to auto-fill">📤 Upload Scanned Form</button>
           <a href="/viewfamily" class="btn-view-families">👪 View Families</a>
         </div>
         <input type="file" id="scanUploadInput" accept=".pdf,image/*" style="display:none;" onchange="MFSCAN.upload(this)" />
