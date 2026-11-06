@@ -637,6 +637,7 @@
           </div>
           <div class="hc-card-body">
             <p class="hc-desc">The ✨ AI Search bar sits at the top of every page. Ask in plain English to open a page, look up your church's data, get report totals for a period, create a one-time meeting, or learn how to do something. The AI Assistant page is the same assistant as a chat conversation.</p>
+            <div class="hc-note">The AI features (AI Search, Voice, Converse, check scanning, Draft with AI, Action Agent, Automations and AI Connections) are included in the <strong>Pro</strong> plan and the free <strong>Trial</strong>. On other plans they appear only when ChurchGeniusPro has turned them on for that plan — contact support@churchgeniuspro.com if you would like them.</div>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span><span class="hc-role">User</span><span class="hc-role">Limited</span><span class="hc-role">Church</span><span class="hc-role">Member (when granted)</span></div>
             <div class="hc-mock" aria-label="AI Search bar"><span class="hc-mock-title">✨ Ask anything…</span><span class="hc-ui">Search</span><span class="hc-ui lite">🔎</span><span class="hc-ui lite">🎤</span><span class="hc-ui lite">🗣</span><span class="hc-ui lite">❔</span><span class="hc-ui lite">?</span></div>
             <div class="hc-toc">
@@ -833,14 +834,15 @@
 
             <div class="hc-section-label" id="hc-families-find">How to find a family</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Families</strong>. The list shows each family's photo, <strong>Primary</strong> member, number of <strong>Members</strong> and <strong>Status</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Families</strong>. Each family is a card with its photo, family name, phone, number of members, <strong>Alert</strong> (On/Off) and <strong>Status</strong>, plus badges such as <strong>Volunteers 2 · Follow-ups 1 · Groups 3</strong></span></div>
               <div class="hc-step"><span class="hc-step-num">2</span><span>Type in <strong>Search by family name…</strong> to narrow the list. Click the <strong>Primary</strong> column heading to sort A–Z or Z–A</span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span>Use <strong>Type</strong> to choose <em>All Families</em>, <em>Member Families</em>, <em>Non-Member Families</em>, <em>Guests only</em> or <em>Visitors only</em></span></div>
-              <div class="hc-step"><span class="hc-step-num">4</span><span>Click the Primary member's name to open the family (read-only view), or the members icon to see everyone in the family in a pop-up</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Click the family name to open the family (read-only view), <span class="hc-ui lite">✏️</span> to edit it, or <strong>View members</strong> to see everyone in a pop-up. In the pop-up, each person shows Volunteer, Follow-ups and Groups chips — click <span class="hc-ui lite">▸</span> beside a name to see where they volunteer, their open follow-ups and their groups</span></div>
               <div class="hc-step"><span class="hc-step-num">5</span><span>The list loads a page at a time — click <span class="hc-ui lite">Load More</span> at the bottom to see the rest</span></div>
             </div>
             <div class="hc-note">A family's type is the <strong>Member Type of its Primary member</strong>. If the Primary is a Guest or Visitor, the family counts as a non-member family and shows a <strong>Guest</strong> or <strong>Visitor</strong> badge next to its status.</div>
             <div class="hc-note">The <strong>Deleted</strong> and <strong>Inactive</strong> switches show <em>only</em> deleted or inactive families. Turn them off to return to the active list.</div>
+            <div class="hc-note">The badges count only what your login may see: volunteering includes active volunteer profiles and upcoming (confirmed or pending) assignments; follow-ups are open tasks assigned to that person; groups are groups they belong to. A "Possible match" means a record matches the name only and is not counted.</div>
 
             <div class="hc-section-label" id="hc-families-add">How to add a family</div>
             <div class="hc-steps">
@@ -1035,12 +1037,12 @@
             <div class="hc-section-label" id="hc-groups-create">How to create a group</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>Admin → Groups</strong></span></div>
-              <div class="hc-step"><span class="hc-step-num">2</span><span>Type the <strong>Group Name</strong> (for example <em>Youth Group</em>) and click <span class="hc-ui">＋ Add Group</span></span></div>
-              <div class="hc-step"><span class="hc-step-num">3</span><span>Use <span class="hc-ui lite">📝</span> to rename a group or <span class="hc-ui lite">🗑</span> to delete it</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Type the <strong>Group Name</strong> (for example <em>Youth Group</em>) and click <span class="hc-ui">＋ Add Group</span>. Each group appears as a card showing its name and number of members</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Use the Edit icon on a card to rename a group, or the Delete icon to remove it</span></div>
             </div>
             <div class="hc-section-label" id="hc-groups-members">How to add people to a group</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">1</span><span>Click the members icon on the group's row to open <strong>Group Members</strong></span></div>
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Click <strong>View members</strong> on the group's card to open <strong>Group Members</strong> below it</span></div>
               <div class="hc-step"><span class="hc-step-num">2</span><span>Under <strong>Add from existing members</strong>, search by name or email, pick the person and click <span class="hc-ui">＋ Add to Group</span></span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span>If the person has no email, you can tick <strong>Use Head of Household email</strong> so group emails reach their family</span></div>
               <div class="hc-step"><span class="hc-step-num">4</span><span>For someone who isn't in your directory, use <strong>Or add a new member</strong>: enter First Name, Last Name and (optional) Email, then click <span class="hc-ui">＋ Add Member</span>. This adds them to the group only, not to Families</span></div>
@@ -1082,12 +1084,13 @@
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
             <div class="hc-mock" aria-label="Follow-Ups tabs">
               <span class="hc-mock-title">Follow-Ups</span>
-              <span class="hc-ui lite">📋 Follow-Up Tasks</span><span class="hc-ui lite">🤝 Connect With Us</span><span class="hc-ui lite">🙏 Prayer Requests</span><span class="hc-ui lite">🚩 Reported Content</span>
+              <span class="hc-ui lite">📋 Follow-Up Tasks</span><span class="hc-ui lite">🤝 Connect With Us</span><span class="hc-ui lite">🙏 Prayer Requests</span><span class="hc-ui lite">🙋 Visitors</span><span class="hc-ui lite">🚩 Reported Content</span>
             </div>
             <div class="hc-toc">
               <a href="#" onclick="return hcGoSection('hc-followups-tasks')">Follow-up tasks</a>
               <a href="#" onclick="return hcGoSection('hc-followups-connect')">Connect With Us</a>
               <a href="#" onclick="return hcGoSection('hc-followups-prayer')">Prayer Requests</a>
+              <a href="#" onclick="return hcGoSection('hc-followups-visitors')">Visitors</a>
               <a href="#" onclick="return hcGoSection('hc-followups-reports')">Reported Content</a>
               <a href="#" onclick="return hcGoSection('hc-followups-bell')">Notifications</a>
             </div>
@@ -1120,6 +1123,14 @@
               <div class="hc-step"><span class="hc-step-num">3</span><span>Assign a prayer volunteer, change the status (New, Assigned, InProgress, PrayedFor, FollowedUp, Closed) and add notes with <span class="hc-ui">+ Add Note</span></span></div>
             </div>
             <div class="hc-note warn">🗑 on a prayer request deletes it with its notes and assignment. This cannot be undone.</div>
+
+            <div class="hc-section-label" id="hc-followups-visitors">How to follow up first-time visitors</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>When a visitor is checked in on the Attendance page with <strong>Follow-up required</strong> ticked, one follow-up is created for the whole family or group</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Open <span class="hc-ui lite">🙋 Visitors</span> here to see them with the visitor's phone and email; the tab shows how many are still open</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Filter by status or search by name, click <span class="hc-ui lite">✏️ Assign</span> to give it to a staff member or volunteer, and <span class="hc-ui lite">✔ Done</span> when you have been in touch</span></div>
+            </div>
+            <div class="hc-note">If the same visitor comes back while their follow-up is still open, the new visit is added to that task rather than creating another one. Users see only the visitor follow-ups assigned to them.</div>
 
             <div class="hc-section-label" id="hc-followups-reports">How to review reported chat messages</div>
             <div class="hc-steps">
@@ -1426,6 +1437,7 @@
               <div class="hc-step"><span class="hc-step-num">5</span><span>Add a <strong>Note</strong>, an optional <strong>Meeting Image</strong> (max 5 MB) and pick a <strong>Message Template</strong> for notifications</span></div>
               <div class="hc-step"><span class="hc-step-num">6</span><span>Click <span class="hc-ui">Save</span>. Edit later with <span class="hc-ui lite">📝</span> on the meeting's row</span></div>
             </div>
+            <div class="hc-note">Click <span class="hc-ui lite">Minimize</span> on the Add Meeting form to fold it away and see more of your meetings; <span class="hc-ui lite">Expand</span> opens it again. Clicking Edit on a meeting opens the form automatically.</div>
 
             <div class="hc-section-label" id="hc-meetings-recur">How to set up a recurring meeting</div>
             <div class="hc-steps">
@@ -1489,7 +1501,7 @@
         </div>
 
         <!-- ═══ ATTENDANCE ═══ -->
-        <div class="hc-card" id="hc-attendance" data-cat="events" data-roles="SuperAdmin,Admin,User" data-perm="general.attendance" data-keywords="attendance check in check-in headcount visitor family qr barcode scan member code records reports export csv excel pdf trends volunteers email sms volunteers dashboard">
+        <div class="hc-card" id="hc-attendance" data-cat="events" data-roles="SuperAdmin,Admin,User" data-perm="general.attendance" data-keywords="attendance check in check-in headcount visitor family qr barcode scan member code records reports export csv excel pdf trends volunteers email sms volunteers dashboard visitors tab visitor family visitor group individual interest follow-up required attendance date service event picker past future today attendee list visitor report families groups">
           <div class="hc-card-head" onclick="toggleCard(this)">
             <span class="hc-card-icon">📊</span>
             <div class="hc-card-head-text">
@@ -1499,14 +1511,15 @@
             <span class="hc-card-chevron">▼</span>
           </div>
           <div class="hc-card-body">
-            <p class="hc-desc">Record who attended a service or event — one person, a whole family, a visitor, or by scanning a member code — then review records, run reports and message your volunteers.</p>
+            <p class="hc-desc">Record who attended a service or event — one person, a whole family, first-time visitors (as an individual, a family or a group), or by scanning a member code — on today's date or another date. Then manage visitors, review records, run reports and message your volunteers.</p>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
             <div class="hc-mock" aria-label="Attendance page tabs">
               <span class="hc-mock-title">Attendance</span>
-              <span class="hc-ui lite">📊 Dashboard</span><span class="hc-ui lite">✅ Check-In</span><span class="hc-ui lite">📋 Records</span><span class="hc-ui lite">📈 Reports</span><span class="hc-ui">✉ Email / SMS Volunteers</span>
+              <span class="hc-ui lite">📊 Dashboard</span><span class="hc-ui lite">✅ Check-In</span><span class="hc-ui lite">🙋 Visitors</span><span class="hc-ui lite">📋 Records</span><span class="hc-ui lite">📈 Reports</span><span class="hc-ui">✉ Email / SMS Volunteers</span>
             </div>
             <div class="hc-toc">
               <a href="#" onclick="return hcGoSection('hc-attendance-checkin')">Check people in</a>
+              <a href="#" onclick="return hcGoSection('hc-attendance-visitors')">Visitors</a>
               <a href="#" onclick="return hcGoSection('hc-attendance-records')">Records</a>
               <a href="#" onclick="return hcGoSection('hc-attendance-reports')">Reports</a>
               <a href="#" onclick="return hcGoSection('hc-attendance-vol')">Email / SMS volunteers</a>
@@ -1515,13 +1528,23 @@
             <div class="hc-section-label" id="hc-attendance-checkin">How to check people in</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span>Go to <strong>General → Attendance</strong> and open <span class="hc-ui lite">✅ Check-In</span></span></div>
-              <div class="hc-step"><span class="hc-step-num">2</span><span>Choose the <strong>Service / Event</strong> and <strong>Status</strong> (Present, Late, Absent, Excused); optionally type a Ministry and Campus / Location</span></div>
-              <div class="hc-step"><span class="hc-step-num">3</span><span><span class="hc-ui lite">🔎 Manual</span>: search by name, phone, email or member ID and click <span class="hc-ui lite">Check in</span></span></div>
-              <div class="hc-step"><span class="hc-step-num">4</span><span><span class="hc-ui lite">👪 Family</span>: search one family member, untick anyone not present, and click <span class="hc-ui">Check in selected</span></span></div>
-              <div class="hc-step"><span class="hc-step-num">5</span><span><span class="hc-ui lite">📷 QR / Barcode</span>: scan a member code with a USB/Bluetooth scanner, or click <span class="hc-ui lite">📷 Use camera</span></span></div>
-              <div class="hc-step"><span class="hc-step-num">6</span><span><span class="hc-ui lite">🙋 Visitor</span>: enter the Name (plus Phone, Email, Invited by, Address if known) and click <span class="hc-ui">Check in visitor</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Click the <strong>Service / Event</strong> picker and choose from the list — the chips filter it to <em>Services</em>, <em>Today's Events</em>, <em>Future Events</em> or <em>Past Events</em>, and you can search by name. Need a new one? Type it under <strong>New service</strong> / <strong>New event</strong> and click <span class="hc-ui lite">+ Add</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Check the <strong>Attendance date</strong> (today by default; an event uses its own date). A date other than today is saved as already checked out. Then pick the <strong>Status</strong> (Present, Late, Absent, Excused) and, optionally, a Ministry and Campus / Location</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span><span class="hc-ui lite">🔎 Manual</span>: search by name, phone, email or member ID and click <span class="hc-ui lite">Check in</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span><span class="hc-ui lite">👪 Family</span>: search one family member, untick anyone not present, and click <span class="hc-ui">Check in selected</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">6</span><span><span class="hc-ui lite">📷 QR / Barcode</span>: scan a member code with a USB/Bluetooth scanner, or click <span class="hc-ui lite">📷 Use camera</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">7</span><span><span class="hc-ui lite">🙋 Visitor</span>: choose <span class="hc-ui lite">🙋 Individual</span>, <span class="hc-ui lite">👪 Family</span> or <span class="hc-ui lite">👥 Group</span>. Enter each person's First and Last Name (plus gender, phone, email and address if known — tick <strong>Same address as the first person</strong> to copy it), use <span class="hc-ui lite">+ Add person</span> for the rest of the family or group, then set <strong>Interest</strong>, <strong>Invited by</strong> and, if needed, <strong>Follow-up required</strong> with a note. Click <span class="hc-ui">Check in visitor</span></span></div>
             </div>
+            <div class="hc-note">A returning visitor is recognised automatically (same email and first name, or same phone and first name), so their visit count grows instead of creating a duplicate. Ticking <strong>Follow-up required</strong> creates one follow-up for the whole family or group in <strong>More → Follow-Ups → 🙋 Visitors</strong>; a later visit is added to that open task. Each person is checked in once per service and date.</div>
+
             <div class="hc-note">Click <span class="hc-ui lite">Code</span> next to a member in the search results to show and <span class="hc-ui lite">🖨 Print</span> their attendance QR/barcode, so they can be scanned next time.</div>
+
+            <div class="hc-section-label" id="hc-attendance-visitors">The 🙋 Visitors tab</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <span class="hc-ui lite">🙋 Visitors</span> to see every visitor with their contact details, family or group, number of visits, last visit and interest</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Type in <strong>Search visitors by name, phone or email…</strong> to find someone</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">Edit</span> to correct their details, or <span class="hc-ui lite">Delete</span> and confirm to remove them — their past attendance and follow-ups are kept</span></div>
+            </div>
 
             <div class="hc-section-label" id="hc-attendance-records">Records</div>
             <div class="hc-steps">
@@ -1533,7 +1556,7 @@
             <div class="hc-section-label" id="hc-attendance-reports">Dashboard and reports</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span><span class="hc-ui lite">📊 Dashboard</span> shows this week's and this month's attendance, first-time and returning visitors, members and volunteers present, and trend charts</span></div>
-              <div class="hc-step"><span class="hc-step-num">2</span><span>In <span class="hc-ui lite">📈 Reports</span> choose From/To, click <span class="hc-ui">Run</span>, and switch between Member Attendance, Family Attendance, Ministry, Events, Visitors and Trends</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>In <span class="hc-ui lite">📈 Reports</span> choose From/To (and optionally one service or event), click <span class="hc-ui">Run</span>, and switch between Member Attendance, Family Attendance, Ministry, Events, <strong>Attendee List</strong>, <strong>Visitor Report</strong>, <strong>Interest</strong>, <strong>Follow-up</strong>, <strong>Families &amp; Groups</strong> and Trends. Use <span class="hc-ui lite">🖨 Print</span> or <span class="hc-ui lite">CSV</span> to share a report</span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">⬇ Export CSV</span> under a report to download it</span></div>
             </div>
 
@@ -1549,7 +1572,9 @@
             <div class="hc-faq">
               <div class="hc-faq-item"><div class="hc-faq-q">The volunteer list is empty.</div><div class="hc-faq-a">The list shows active members who have a volunteer profile (for example one added from Follow-Ups → Assigned To → Add New Volunteer). Event volunteers are managed separately on each event.</div></div>
               <div class="hc-faq-item"><div class="hc-faq-q">I don't see the ✉ Email / SMS Volunteers button, or Edit / Delete.</div><div class="hc-faq-a">They follow the Attendance permissions <strong>Email or SMS Volunteers</strong>, <strong>Add or Edit</strong> and <strong>Delete</strong>. Ask the church account to tick them for your login.</div></div>
-              <div class="hc-faq-item"><div class="hc-faq-q">Can someone be checked in twice?</div><div class="hc-faq-a">Yes — each check-in is saved as its own record. If it happens by mistake, delete the extra one under 📋 Records.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Can someone be checked in twice?</div><div class="hc-faq-a">No — a person is checked in only once for the same service or event on the same date; checking them in again tells you they're already recorded. To correct a mistake, use Edit or Delete under 📋 Records.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">Can I record attendance for a past or future date?</div><div class="hc-faq-a">Yes. Change the <strong>Attendance date</strong> before checking people in. Any day other than today is saved as already checked out.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">A visitor's family members came separately — will they be duplicated?</div><div class="hc-faq-a">Each person is matched on their own email or phone plus first name, so a family sharing one email is never merged into one person, and someone already on file is reused.</div></div>
             </div>
             <div class="hc-quick-links">
               <a class="hc-qlink" href="/attendance">📊 Attendance</a>
@@ -2379,8 +2404,16 @@
               <div class="hc-step"><span class="hc-step-num">2</span><span><span class="hc-ui lite">🗣</span> <strong>Converse</strong>: the assistant asks for each field in turn. Say <em>"Skip"</em> to leave a field blank, <em>"review"</em> to hear what it has, or <em>"Stop"</em> to end. To save, say <em>"Save Now"</em> and confirm.</span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span><strong>Type</strong>: use the AI Search box at the top of the page for questions such as <em>"Go to Income Report"</em>.</span></div>
               <div class="hc-step"><span class="hc-step-num">4</span><span>Filled fields are outlined. Amber means "please confirm". If several people or funds match, pick one from the suggestions.</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span>The form guides you: the current field is highlighted and, for Fund or Method, a numbered list opens — say the number or the name. Say <em>"next"</em> to move on, <em>"go to Amount"</em> to jump to a field, <em>"clear Fund"</em> for one field, <em>"clear all"</em> (keeps the contributor or expense category) or <em>"clear form"</em> to start over</span></div>
             </div>
+            <div class="hc-note">Picking a contributor (or expense category) by voice copies the details of their last entry except the Ref No; fields copied this way are skipped, and the Amount is read back for you to confirm.</div>
             <div class="hc-note">Click <span class="hc-ui lite">❔</span> for the voice command guide (e.g. <em>"Clear Amount"</em>, <em>"Reset Field"</em>, <em>"Clear Form"</em>) and <span class="hc-ui lite">?</span> for help on all three methods. Voice needs a microphone and a supported browser. A new contributor is only added if you choose "Add as a new contributor".</div>
+
+            <div class="hc-section-label" id="hc-income-expense-minimize">Minimize the form</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Click <span class="hc-ui lite">Minimize</span> on the Add Income / Add Expense form header to fold the form away so the transaction list moves up; click <span class="hc-ui lite">Expand</span> to open it again</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Your choice is remembered on that device. Values you typed are kept, and the form opens by itself when you click Edit or Scan Check, or start Voice or Converse</span></div>
+            </div>
 
             <div class="hc-section-label" id="hc-income-expense-list">Edit, delete and Load More</div>
             <div class="hc-steps">
@@ -4095,6 +4128,69 @@
 <script>
 /* ── Knowledge base for in-page AI search ─────────────────── */
 const HC_KB = [
+  {
+    id: 'visitor-checkin',
+    q: ['visitor check in','check in visitor','check in a visitor','register visitor','first time visitor','new visitor','visitor family','visitor group','check in family visitors','guests attendance'],
+    title: '🙋 Check In Visitors (Individual, Family or Group)',
+    answer: 'On General → Attendance → ✅ Check-In, pick the Service / Event, check the Attendance date, then open 🙋 Visitor and choose Individual, Family or Group. Enter each person, set Interest and Invited by, tick Follow-up required if someone should get in touch, and click Check in visitor. Returning visitors are recognised by email or phone plus first name.',
+    steps: ['Go to General → Attendance and open ✅ Check-In','Choose the Service / Event and check the Attendance date','Open 🙋 Visitor and pick 🙋 Individual, 👪 Family or 👥 Group','Enter First and Last Name for each person (+ Add person for more)','Set Interest, Invited by and, if needed, Follow-up required','Click Check in visitor'],
+    links: [{label:'Attendance', url:'/attendance', icon:'📊'}],
+    related: ['visitors tab','visitor follow-ups','attendance reports']
+  },
+  {
+    id: 'visitors-tab',
+    q: ['visitors tab','visitor list','edit visitor','delete visitor','find a visitor','visitor history','visitor reports','interest report','attendee list','families and groups report'],
+    title: '🙋 Visitors Tab and Visitor Reports',
+    answer: 'General → Attendance → 🙋 Visitors lists every visitor with contact details, family or group, visits, last visit and interest; search, Edit or Delete there (attendance history is kept). In 📈 Reports, Attendee List, Visitor Report, Interest, Follow-up and Families & Groups can be filtered by date and by one service or event, printed or downloaded as CSV.',
+    steps: ['Go to General → Attendance','Open 🙋 Visitors to search, edit or delete a visitor','Open 📈 Reports, set From/To (and a service or event), click Run','Pick Attendee List, Visitor Report, Interest, Follow-up or Families & Groups','Use 🖨 Print or CSV to share it'],
+    links: [{label:'Attendance', url:'/attendance', icon:'📊'}],
+    related: ['visitor check in','visitor follow-ups']
+  },
+  {
+    id: 'visitor-followups',
+    q: ['visitor follow up','visitor follow-ups','follow up visitors','first time visitor follow up','visitors follow-up tab'],
+    title: '🙋 Visitor Follow-Ups',
+    answer: 'When a visitor is checked in with Follow-up required, one follow-up is created for the whole family or group under More → Follow-Ups → 🙋 Visitors, with their phone and email. Assign it with ✏️ Assign and click ✔ Done when you have been in touch. A repeat visit is added to the open task.',
+    steps: ['Go to More → Follow-Ups','Open the 🙋 Visitors tab','Filter by status or search by name','Click ✏️ Assign to give it to someone','Click ✔ Done when finished'],
+    links: [{label:'Follow-Ups', url:'/followups?tab=visitors', icon:'📌'}],
+    related: ['visitor check in','follow up task']
+  },
+  {
+    id: 'family-cards',
+    q: ['family cards','families page','who volunteers','family involvement','volunteers follow-ups groups badge','member volunteering','member groups','view members popup'],
+    title: '👪 Family Cards and Involvement Badges',
+    answer: 'Admin → Families shows each family as a card with photo, phone, member count, Alert and Status, plus Volunteers, Follow-ups and Groups badges. Open View members to see each person\'s chips, and click ▸ beside a name for where they volunteer, their open follow-ups and their groups.',
+    steps: ['Go to Admin → Families','Read the badges on each family card','Click View members on a card','Click ▸ beside a person for their volunteering, follow-ups and groups'],
+    links: [{label:'Families', url:'/viewfamily', icon:'👪'}],
+    related: ['family report','group email']
+  },
+  {
+    id: 'minimize-form',
+    q: ['minimize form','minimise form','hide form','collapse form','expand form','form takes too much space'],
+    title: '🔽 Minimize the Income, Expense or Meeting Form',
+    answer: 'On Income, Expense and Meetings, click Minimize on the form header to fold the form away so the list moves up; click Expand to open it again. The choice is remembered on that device, typed values are kept, and the form opens by itself when you Edit, Scan Check or start Voice / Converse.',
+    steps: ['Open Accounting → Income, Accounting → Expense or General → Meetings','Click Minimize on the form header','Click Expand to bring it back'],
+    links: [{label:'Income', url:'/income', icon:'💰'},{label:'Meetings', url:'/meetings', icon:'📅'}],
+    related: ['voice commands','scan check']
+  },
+  {
+    id: 'voice-guided',
+    q: ['voice commands','guided voice','go to field','next field','clear all','clear form','pick fund by number','voice income','voice expense'],
+    title: '🎤 Guided Voice on Income and Expense',
+    answer: 'With 🎤 Voice or 🗣 Converse, the Income and Expense forms guide you field by field: the current field is highlighted and Fund or Method opens a numbered list. Say "next", "go to Amount", a number or a name, "clear Fund", "clear all" (keeps the contributor / category) or "clear form". Picking a contributor copies their last entry except the Ref No, and the Amount is read back to confirm.',
+    steps: ['Open Accounting → Income (or Expense)','Click 🎤 Voice or 🗣 Converse','Speak a value, or say "next" / "go to <field>"','Say a number to pick from a list','Say "clear form" to start over'],
+    links: [{label:'Income', url:'/income', icon:'💰'},{label:'Expense', url:'/expense', icon:'💸'}],
+    related: ['minimize form','scan check']
+  },
+  {
+    id: 'ai-plans',
+    q: ['ai not available','ai features missing','which plan has ai','ai pro plan','ai trial','enable ai','why no ai search','draft with ai missing'],
+    title: '✨ Which Plans Include the AI Features?',
+    answer: 'The AI features (AI Search, Voice, Converse, check scanning, Draft with AI, Action Agent, Automations and AI Connections) are included in the Pro plan and the free Trial. On other plans they appear only if ChurchGeniusPro has turned them on for that plan — contact support@churchgeniuspro.com.',
+    steps: ['Check your plan on the Church Settings page or ask your church account holder','Pro and Trial include all AI features','For another plan, contact support@churchgeniuspro.com'],
+    links: [{label:'Ticketing', url:'/tickets', icon:'🎫'}],
+    related: ['subscription plans','ai assistant']
+  },
   {
     id: 'add-child',
     q: ['add a child','register a child','add child','register child','new child','enroll child','child registration','kids registration'],

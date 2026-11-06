@@ -45,8 +45,8 @@ public final class AiNavigationCatalog {
         pg("Volunteer",      "/memberHome?tab=volunteer",    "Member",   "Volunteer sign-ups and assignments in the Member Portal.", "volunteering,my volunteer", memberTab("member.volunteer")),
         pg("Directory",      "/memberHome?tab=directory",    "Member",   "The member directory (respects each member's privacy settings).", "directory,member directory", memberTab("member.directory")),
         // ── Admin ──
-        pg("Families",           "/viewfamily",          "Admin",  "The church directory of families and members: add, edit, photos, privacy, printable membership form.", "families,members,people,household,view families,family records", staff(ACCT_OR_ADMIN, "admin.family")),
-        pg("Groups",             "/groups",              "Admin",  "Create ministry groups, add members, email a whole group.", "groups,admin groups,small groups,ministry groups", staff(ADMIN, "admin.groups")),
+        pg("Families",           "/viewfamily",          "Admin",  "The church directory shown as family cards, with members and who volunteers, has follow-ups or belongs to groups; add, edit, photos, privacy, printable membership form.", "families,members,people,household,view families,family records", staff(ACCT_OR_ADMIN, "admin.family")),
+        pg("Groups",             "/groups",              "Admin",  "Ministry groups shown as cards: create groups, view and add members, email a whole group.", "groups,admin groups,small groups,ministry groups", staff(ADMIN, "admin.groups")),
         pg("Membership Requests","/membershipRequests",  "Admin",  "Applications from the public Membership Request page, reviewed before adding or renewing a family.", "membership requests,membership request,applications", staffOrChurch(ADMIN, "admin.membership")),
         pg("Unsubscribed List",  "/unsubscribed-list",   "Admin",  "People who unsubscribed from church emails.", "unsubscribed,unsubscribed list,opt out", staff(ADMIN, "admin.unsubscribed")),
         pg("Users",              "/viewusers",           "Admin",  "Staff logins, roles and the permission checkboxes that control which pages each login sees.", "users,view users,user management,manage users,permissions,staff logins", churchOnly()),
@@ -90,7 +90,7 @@ public final class AiNavigationCatalog {
         pg("Kids Ministry",   "/kidsMinistry",    "Ministry", "Children's registration, check-in and check-out with pickup alerts.", "kids ministry,children ministry,kids check in setup", staff(ADMIN_OR_USER, "general.ministry.kids")),
         pg("Worship Planning","/worshipPlanning", "Ministry", "Worship groups, instruments, songs and assignments.", "worship planning,worship,worship assignments", staff(ADMIN_OR_USER, "general.ministry.worship")),
         pg("Prayer Requests", "/prayerRequest",   "Ministry", "Prayer requests and follow-up, prayer volunteers.", "prayer,prayers,prayer requests,prayer ministry", staff(ADMIN_OR_USER, "general.ministry.prayer")),
-        pg("Attendance",      "/attendance",      "Ministry", "Record and report attendance for services, classes and meetings.", "attendance,take attendance", staff(ADMIN_OR_USER, "general.attendance")),
+        pg("Attendance",      "/attendance",      "Ministry", "Check in members, families and first-time visitors (individual, family or group) for a service or event on any date; manage visitors; attendance and visitor reports.", "attendance,take attendance,check in visitor,visitor check in,visitors", staff(ADMIN_OR_USER, "general.attendance")),
         pg("Volunteers",      "/volunteers",      "Ministry", "Volunteer roles and assignments across events.", "volunteers,volunteer roles,volunteer assignments", staff(ADMIN_OR_USER, "general.volunteers")),
         // ── Communications ──
         pg("Email",           "/notifyEmail",     "Communications", "Compose and send email to members, groups or lists.", "email,compose email,send email,notify email,bulk email", staff(ADMIN_OR_USER, "general.email")),
@@ -103,7 +103,7 @@ public final class AiNavigationCatalog {
         // ── More ──
         pg("Certificates",    "/certificates",    "More", "Generate and print certificates.", "certificates,certificate", staff(ADMIN_OR_USER, "more.certificates")),
         pg("Public Screens",  "/publicScreens",   "More", "Public links for your church: calendar, prayer requests, kids check-in, membership form, signup, donation page.", "public screens,public screen,public links,public link", staff(ADMIN_OR_USER, "more.publicscreens")),
-        pg("Follow-Ups",      "/followups",       "More", "Follow-up tasks for visitors and members.", "follow ups,follow-ups,followups,follow up,tasks", staff(ADMIN_OR_USER, "more.followups")),
+        pg("Follow-Ups",      "/followups",       "More", "Follow-up tasks for members and visitors, Connect With Us cards, public prayer requests, visitor follow-ups from check-in and reported chat messages.", "follow ups,follow-ups,followups,follow up,tasks", staff(ADMIN_OR_USER, "more.followups")),
         pg("Help Center",     "/helpCenter",      "More", "Help articles and the Help Assistant.", "help center,help centre,help,how does ai search work", staff(STAFF, "more.helpcenter")),
         pg("Song Book",       "/songbook",        "More", "Upload and organise songs; public Song Book page.", "song book,songbook,songs", new Rule(STAFF, false, null, null, null)),
         pg("Guess It",        "/guessIt",         "Activity", "Activity Corner quiz game members join from their phones.", "guess it,activity corner,quiz game", staff(ADMIN_OR_USER, null)),
