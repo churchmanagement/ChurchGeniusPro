@@ -393,7 +393,6 @@ public class PayrollService {
         stub.setYtdPostTaxDeductions(y.getPostTaxDeductions());
         stub.setYtdNetPay(y.getNetPay());
         stub.setYtdFicaWages(y.getFicaWages());
-        stub.setDirectDepositAccountLast4(emp.getDirectDepositAccountLast4());
         stub.setDirectDepositAccountType(emp.getDirectDepositAccountType());
         stub = paystubRepo.save(stub);
 

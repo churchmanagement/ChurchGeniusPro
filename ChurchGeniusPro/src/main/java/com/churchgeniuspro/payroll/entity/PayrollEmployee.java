@@ -18,7 +18,7 @@ import java.util.Date;
  * <p>Multi-tenant: scoped by {@code app_client_id} like the rest of the app.
  */
 @Data
-@ToString(exclude = {"directDepositAccountLast4", "directDepositRoutingLast4", "hourlyRate", "annualSalary", "email", "phone"})   // never in a log line, even by accident (2026-10-28 logging audit)
+@ToString(exclude = {"hourlyRate", "annualSalary", "email", "phone"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "payroll_employee")
 public class PayrollEmployee {
@@ -37,7 +37,7 @@ public class PayrollEmployee {
     private String email;
     private String phone;
 
-    // SSN is not stored (user decision 2026-11-06): no field, and SsnDataPurge clears any
+    // SSN is not stored (user decision 2026-11-06): no field, and PayrollSensitiveDataPurge clears any
     // value left in the old payroll_employee.ssn_last4 column on start.
 
     private String addressLine1;
@@ -67,12 +67,9 @@ public class PayrollEmployee {
     /** State tax: code used to look up the configurable StateTaxConfig (may be null = none). */
     private String stateTaxCode;
 
-    // ── Direct deposit (store masked / tokenized; never the full number) ───
+    // ── Direct deposit: bank name and account type only. Account and routing digits are not
+    //    stored at all (2026-11-06); PayrollSensitiveDataPurge clears the old dd_*_last4 columns.
     private String bankName;
-    @Column(name = "dd_account_last4")
-    private String directDepositAccountLast4;
-    @Column(name = "dd_routing_last4")
-    private String directDepositRoutingLast4;
     private String directDepositAccountType; // CHECKING / SAVINGS
 
     private boolean active = true;

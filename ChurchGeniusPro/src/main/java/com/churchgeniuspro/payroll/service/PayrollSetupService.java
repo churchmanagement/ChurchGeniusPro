@@ -142,8 +142,6 @@ public class PayrollSetupService {
         if (r.getPayPeriodsPerYearOverride() != null) e.setPayPeriodsPerYearOverride(r.getPayPeriodsPerYearOverride());
         if (r.getStateTaxCode() != null) e.setStateTaxCode(blankToNull(r.getStateTaxCode()));
         if (r.getBankName() != null) e.setBankName(r.getBankName());
-        if (r.getDirectDepositAccountLast4() != null) e.setDirectDepositAccountLast4(last4(r.getDirectDepositAccountLast4()));
-        if (r.getDirectDepositRoutingLast4() != null) e.setDirectDepositRoutingLast4(last4(r.getDirectDepositRoutingLast4()));
         if (r.getDirectDepositAccountType() != null) e.setDirectDepositAccountType(r.getDirectDepositAccountType());
     }
 
@@ -298,12 +296,6 @@ public class PayrollSetupService {
     private static DeductionScope parseScope(String s) {
         try { return DeductionScope.valueOf(s.trim().toUpperCase()); }
         catch (Exception e) { throw new IllegalArgumentException("Invalid scope: " + s + " (PRE_TAX or POST_TAX)."); }
-    }
-
-    private static String last4(String s) {
-        if (s == null) return null;
-        String digits = s.replaceAll("\\D", "");
-        return digits.length() <= 4 ? digits : digits.substring(digits.length() - 4);
     }
 
     private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }

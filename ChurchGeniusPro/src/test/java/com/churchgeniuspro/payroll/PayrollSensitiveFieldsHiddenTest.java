@@ -39,7 +39,6 @@ class PayrollSensitiveFieldsHiddenTest {
         e.setId(7L); e.setAppClientId("CHR-test");
         e.setFirstName("Jamie"); e.setLastName("Rivera");
         e.setBankName("Test Bank");
-        e.setDirectDepositAccountLast4(ACCT4); e.setDirectDepositRoutingLast4(ROUT4);
         e.setDirectDepositAccountType("CHECKING");
         e.setActive(true);
         return e;
@@ -67,7 +66,7 @@ class PayrollSensitiveFieldsHiddenTest {
         s.setId(1L); s.setEmployeeName("Jamie Rivera");
         s.setPayPeriodStart(LocalDate.of(2026, 10, 1)); s.setPayPeriodEnd(LocalDate.of(2026, 10, 15)); s.setPayDate(LocalDate.of(2026, 10, 16));
         s.setGrossEarnings(new BigDecimal("2000.00")); s.setTotalTaxes(new BigDecimal("300.00")); s.setNetPay(new BigDecimal("1700.00"));
-        s.setDirectDepositAccountLast4(ACCT4); s.setDirectDepositAccountType("CHECKING");   // copied onto older stubs
+        s.setDirectDepositAccountType("CHECKING");
         String t = text(new PaystubPdfService(null, null, null).generate(s, List.of(), employee(), EmployerInfo.ofName("Test Church")));
         assertThat(t).doesNotContain("SSN").doesNotContain("XXX-XX").doesNotContain(SSN4).doesNotContain(ACCT4).doesNotContain("****");
         assertThat(t).contains("Direct Deposit (CHECKING)").contains("1,700.00");

@@ -531,6 +531,8 @@ public class PrayerRequestController {
         String title = str(body, "title");
         if (title.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Title is required"));
+        if (com.churchgeniuspro.util.ContentFilter.anyBlocked(title, str(body, "description"), str(body, "requesterName")))
+            return ResponseEntity.status(422).body(com.churchgeniuspro.util.ContentFilter.refusal());
 
         // Find or use the provided sectionId
         Long sectionId = null;

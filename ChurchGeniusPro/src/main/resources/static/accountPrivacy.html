@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>Account &amp; Privacy — Church Genius Pro</title>
+  <style>
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .ap-wrap { max-width:680px; display:flex; flex-direction:column; gap:16px; }
+    .ap-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); padding:20px; }
+    .ap-card h2 { font-size:16px; margin:0 0 8px; color:#673147; }
+    .ap-card p, .ap-card li { font-size:14px; line-height:1.55; margin:0 0 8px; }
+    .ap-card ul { padding-left:20px; margin:6px 0 10px; }
+    .ap-links a { display:inline-block; margin:4px 14px 4px 0; color:#673147; font-weight:600; }
+    .ap-danger h2 { color:#b71c1c; }
+    .ap-field { display:block; margin:10px 0 0; font-size:13px; font-weight:600; }
+    .ap-field input[type=password], .ap-field input[type=text] { display:block; width:100%; max-width:360px; box-sizing:border-box;
+      margin-top:4px; padding:10px 12px; border:1px solid #d8cfd4; border-radius:8px; font-size:14px; }
+    .ap-check { display:flex; gap:8px; align-items:flex-start; margin:12px 0 0; font-size:13px; }
+    .ap-btn { margin-top:14px; padding:10px 18px; border-radius:9px; border:1px solid #b71c1c; background:#b71c1c; color:#fff;
+      font-weight:600; font-size:14px; cursor:pointer; }
+    .ap-btn.ghost { background:#fff; color:#b71c1c; }
+    .ap-btn[disabled] { opacity:.6; cursor:default; }
+    .ap-msg { margin-top:10px; font-size:13px; }
+    .ap-msg.err { color:#b71c1c; }
+    .ap-msg.ok { color:#1b5e20; }
+    .ap-status { background:#fdf5f7; border:1px solid #f0d9e0; border-radius:10px; padding:12px 14px; font-size:14px; margin:8px 0; }
+    .ap-hidden { display:none !important; }
+    @media (max-width:640px) { .ap-card { padding:14px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">🛡️ Account &amp; Privacy</div>
+      <div class="page-subtitle">Privacy information, AI data sharing and account deletion for your login.</div>
+      <div class="ap-wrap">
+
+        <section class="ap-card">
+          <h2>Privacy and terms</h2>
+          <p>How ChurchGeniusPro collects, uses and protects information — including the service providers it uses (OpenAI for AI features, Stripe for payments, Plaid for bank connections, Twilio for text messages).</p>
+          <div class="ap-links">
+            <a href="https://www.churchgeniuspro.com/privacy" target="_blank" rel="noopener" id="apPrivacyLink">Privacy Policy</a>
+            <a href="https://www.churchgeniuspro.com/terms" target="_blank" rel="noopener">Terms of Service</a>
+            <a href="/account-deletion" target="_blank" rel="noopener">Account deletion</a>
+            <a href="/aiDataSharing" id="apAiLink" class="ap-hidden">AI Data Sharing</a>
+          </div>
+          <p style="font-size:13px;color:#666;">Questions: <a href="mailto:privacy@churchgeniuspro.com">privacy@churchgeniuspro.com</a></p>
+        </section>
+
+        <section class="ap-card ap-danger ap-hidden" id="apStaffCard">
+          <h2>Delete my login</h2>
+          <p>Deletes <b>your</b> staff login straight away:</p>
+          <ul>
+            <li>you can no longer sign in, and every device you are signed in on is signed out;</li>
+            <li>your e-mail, phone and address are removed from your staff record, with your permissions, access tokens, push notifications and AI data-sharing answers.</li>
+          </ul>
+          <p>Records you entered for the church (for example gifts, expenses or follow-ups) stay in the church's history with your name, because the church needs them for its accounts.</p>
+          <label class="ap-field">Your password<input type="password" id="apStaffPw" autocomplete="current-password" /></label>
+          <label class="ap-check"><input type="checkbox" id="apStaffConfirm" /> <span>I understand my login will be deleted and cannot be restored.</span></label>
+          <button class="ap-btn" id="apStaffBtn" type="button">Delete my login</button>
+          <div class="ap-msg" id="apStaffMsg" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="ap-card ap-danger ap-hidden" id="apChurchCard">
+          <h2>Delete the whole church account</h2>
+          <div id="apChurchStatus"></div>
+          <div id="apChurchForm">
+            <p>Deletes <b id="apChurchName">the church</b> and all of its records: members, families, giving, events, attendance, messages, files and every login.</p>
+            <ul>
+              <li>We e-mail a confirmation link to the church's registered address. Nothing happens until that link is confirmed.</li>
+              <li>After confirmation the church is deleted within 30 days and you get an e-mail when it is done. You keep full access until then — export what you need first, for example from the <a href="/familySearchReport">Family &amp; Member Report</a> or <a href="/accountingReports">Accounting Reports</a>.</li>
+              <li>ChurchGenius LLC keeps only its own invoices and payment records for your subscription (tax records). Copies in database backups are removed as those backups expire.</li>
+            </ul>
+            <label class="ap-field">Your password<input type="password" id="apChurchPw" autocomplete="current-password" /></label>
+            <label class="ap-field">Type the church's name to confirm<input type="text" id="apChurchTyped" autocomplete="off" /></label>
+            <label class="ap-check"><input type="checkbox" id="apChurchConfirm" /> <span>I understand every record of the church will be deleted and cannot be restored.</span></label>
+            <button class="ap-btn" id="apChurchBtn" type="button">Request deletion</button>
+          </div>
+          <button class="ap-btn ghost ap-hidden" id="apChurchCancel" type="button">Cancel request</button>
+          <div class="ap-msg" id="apChurchMsg" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="ap-card ap-hidden" id="apOtherCard">
+          <h2>Deleting your account</h2>
+          <p>A login that is not a staff or church login cannot be deleted here. Member Portal logins: open Settings in the Member Portal and choose <b>Delete my account</b>. Other questions: <a href="mailto:support@churchgeniuspro.com">support@churchgeniuspro.com</a>.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+  window.CGP_PAGE = { activePage: (localStorage.getItem('church') === 'true' ? 'admin/account-privacy' : 'more/account-privacy'),
+                      pageTitle: 'Account & Privacy', openSection: (localStorage.getItem('church') === 'true' ? 'admin' : 'more') };
+  (function () {
+    function $(id) { return document.getElementById(id); }
+    function show(el, on) { el.classList.toggle('ap-hidden', !on); }
+    function msg(id, text, ok) { var m = $(id); m.textContent = text || ''; m.className = 'ap-msg ' + (ok ? 'ok' : 'err'); }
+    function api(path, body) {
+      return fetch(path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                           credentials: 'same-origin', body: body ? JSON.stringify(body) : undefined })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); });
+    }
+    function when(iso) { if (!iso) return ''; try { return new Date(iso).toLocaleString(); } catch (e) { return iso; } }
+    if (/ChurchGeniusProApp\//.test(navigator.userAgent)) show($('apAiLink'), true);
+
+    function renderRequest(r) {
+      var st = $('apChurchStatus'); st.textContent = '';
+      var open = r && (r.status === 'REQUESTED' || r.status === 'VERIFIED');
+      show($('apChurchForm'), !open);
+      show($('apChurchCancel'), !!open);
+      if (!open) return;
+      var box = document.createElement('div'); box.className = 'ap-status';
+      box.textContent = r.status === 'VERIFIED'
+        ? 'Deletion confirmed on ' + when(r.verifiedAt) + '. The church will be deleted within 30 days of that date; you will get an e-mail when it is done. You can still export your data or cancel the request.'
+        : 'Deletion requested on ' + when(r.requestedAt) + ' by ' + (r.requestedBy || 'a SuperAdmin') + '. Open the link we e-mailed to the church\'s registered address to confirm it (valid for 24 hours).';
+      st.appendChild(box);
+    }
+
+    function load() {
+      api('/api/account/privacy').then(function (res) {
+        if (!res.ok) { show($('apOtherCard'), true); return; }
+        var d = res.d;
+        show($('apStaffCard'), !!d.canDeleteLogin);
+        show($('apChurchCard'), !!d.canRequestChurchDeletion);
+        if (d.churchName) $('apChurchName').textContent = d.churchName;
+        renderRequest(d.request);
+      }).catch(function () { show($('apOtherCard'), true); });
+    }
+
+    $('apStaffBtn').addEventListener('click', function () {
+      var pw = $('apStaffPw').value, ok = $('apStaffConfirm').checked;
+      if (!pw) return msg('apStaffMsg', 'Enter your password.');
+      if (!ok) return msg('apStaffMsg', 'Tick the box to confirm.');
+      var b = this; b.disabled = true; b.textContent = 'Deleting…'; msg('apStaffMsg', '');
+      api('/api/account/staff/delete', { password: pw, confirm: true }).then(function (res) {
+        if (!res.ok) { b.disabled = false; b.textContent = 'Delete my login'; return msg('apStaffMsg', res.d.error || 'Could not delete the login.'); }
+        msg('apStaffMsg', res.d.message || 'Your staff login has been deleted.', true);
+        try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+        // the session is gone: leave at once, before any background call reports it as "expired"
+        window.location.replace('/login');
+      }).catch(function () { b.disabled = false; b.textContent = 'Delete my login'; msg('apStaffMsg', 'Could not reach the server. Try again.'); });
+    });
+
+    $('apChurchBtn').addEventListener('click', function () {
+      var pw = $('apChurchPw').value, name = $('apChurchTyped').value, ok = $('apChurchConfirm').checked;
+      if (!pw) return msg('apChurchMsg', 'Enter your password.');
+      if (!name.trim()) return msg('apChurchMsg', 'Type the church\'s name.');
+      if (!ok) return msg('apChurchMsg', 'Tick the box to confirm.');
+      var b = this; b.disabled = true; b.textContent = 'Sending…'; msg('apChurchMsg', '');
+      api('/api/account/church-deletion', { password: pw, churchName: name, confirm: true }).then(function (res) {
+        b.disabled = false; b.textContent = 'Request deletion';
+        if (!res.ok) { if (res.d.request) renderRequest(res.d.request); return msg('apChurchMsg', res.d.error || 'Could not send the request.'); }
+        $('apChurchPw').value = ''; $('apChurchTyped').value = ''; $('apChurchConfirm').checked = false;
+        renderRequest(res.d.request);
+        msg('apChurchMsg', res.d.message, true);
+      }).catch(function () { b.disabled = false; b.textContent = 'Request deletion'; msg('apChurchMsg', 'Could not reach the server. Try again.'); });
+    });
+
+    var cancelArmed = 0;
+    $('apChurchCancel').addEventListener('click', function () {
+      var b = this;
+      if (Date.now() - cancelArmed > 6000) { cancelArmed = Date.now(); b.textContent = 'Press again to cancel the request'; return; }
+      cancelArmed = 0; b.disabled = true;
+      api('/api/account/church-deletion/cancel', {}).then(function (res) {
+        b.disabled = false; b.textContent = 'Cancel request';
+        if (!res.ok) return msg('apChurchMsg', res.d.error || 'Could not cancel.');
+        msg('apChurchMsg', res.d.message, true);
+        renderRequest(null);
+      }).catch(function () { b.disabled = false; b.textContent = 'Cancel request'; msg('apChurchMsg', 'Could not reach the server. Try again.'); });
+    });
+
+    load();
+  })();
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

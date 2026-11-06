@@ -2093,6 +2093,9 @@ public class MembershipFormController {
         String msgBody = str(body, "body");
         if (msgBody == null || msgBody.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Message body required."));
+        // App Store D13 (guideline 1.2): offensive language is refused with a reason.
+        if (com.churchgeniuspro.util.ContentFilter.isBlocked(msgBody))
+            return ResponseEntity.status(422).body(com.churchgeniuspro.util.ContentFilter.refusal());
         // Phase 2 (M5): a member who blocked the sender receives nothing. Neutral wording —
         // the block itself is never disclosed.
         if (memberSafety != null && memberSafety.isBlocked(appClientId, selfId, recipId))
@@ -2211,6 +2214,9 @@ public class MembershipFormController {
         String msgBody = str(body, "body");
         if (msgBody == null || msgBody.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Message body required."));
+        // App Store D13 (guideline 1.2): offensive language is refused with a reason.
+        if (com.churchgeniuspro.util.ContentFilter.isBlocked(msgBody))
+            return ResponseEntity.status(422).body(com.churchgeniuspro.util.ContentFilter.refusal());
         if (memberSafety != null && memberSafety.isBlocked(appClientId, selfId, recipId))
             return ResponseEntity.status(403).body(Map.of("error", com.churchgeniuspro.service.MemberSafetyService.BLOCKED_SEND_MESSAGE));
 

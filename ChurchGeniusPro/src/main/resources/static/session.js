@@ -730,7 +730,9 @@
             var isAiLog    = onclick.indexOf('/aiActivity') !== -1;     // AI Phase 0: the church owner may audit AI use
             // Help Center (Admin → Help Center) is available to the Church role (2026-10-29).
             var isHelp     = onclick.indexOf('/helpCenter') !== -1;
-            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isAiLog || isHelp;
+            // App Store D7: Account & Privacy (privacy links, church deletion request) for the Church role.
+            var isAcct     = onclick.indexOf('/accountPrivacy') !== -1;
+            var show = isUsers || isStripe || isWhatsapp || isTickets || isAi || isAiLog || isHelp || isAcct;
             btn.style.display = show ? '' : 'none';
         });
     }

@@ -162,7 +162,12 @@ public class TenantPurgePlanner {
      *         or the tenant foreign-key graph contains a cycle.
      */
     Plan build(JdbcTemplate jdbc) {
-        return assemble(readTenantColumns(jdbc), readForeignKeys(jdbc), readTables(jdbc));
+        return build(jdbc, Set.of());
+    }
+
+    /** As {@link #build(JdbcTemplate)}, leaving the {@code keep} tables out of the plan entirely. */
+    Plan build(JdbcTemplate jdbc, Set<String> keep) {
+        return assemble(readTenantColumns(jdbc), readForeignKeys(jdbc), readTables(jdbc), keep);
     }
 
     /**
@@ -175,11 +180,18 @@ public class TenantPurgePlanner {
     Plan assemble(Map<String, String> tenantCol,
                   Map<String, List<String[]>> fks,
                   Set<String> existing) {
+        return assemble(tenantCol, fks, existing, Set.of());
+    }
+
+    Plan assemble(Map<String, String> tenantCol,
+                  Map<String, List<String[]>> fks,
+                  Set<String> existing,
+                  Set<String> keep) {
         // Tenant set: every table with a tenant column (minus the excluded), plus
         // the indirect tables (only those that actually exist in this database).
         Set<String> tenant = new LinkedHashSet<>();
-        for (String t : tenantCol.keySet()) if (!EXCLUDED.contains(t)) tenant.add(t);
-        for (String t : INDIRECT.keySet()) if (existing.contains(t)) tenant.add(t);
+        for (String t : tenantCol.keySet()) if (!EXCLUDED.contains(t) && !keep.contains(t)) tenant.add(t);
+        for (String t : INDIRECT.keySet()) if (existing.contains(t) && !keep.contains(t)) tenant.add(t);
 
         // Edge set for ordering: live FK edges within the tenant set, the indirect
         // edges, and two synthetic edges forcing signup ahead of the tables its
@@ -315,7 +327,39 @@ public class TenantPurgePlanner {
      * purge — and if a table can never be freed, the purge aborts naming it.
      */
     Map<String, Integer> purge(JdbcTemplate jdbc, String clientId) {
-        Plan plan = build(jdbc);
+        return purge(jdbc, clientId, Set.of());
+    }
+
+    /**
+     * App Store readiness D7 — whole-church deletion for ANY account (not only demo/trial).
+     * Same plan and safety invariant as the demo purge, minus the {@code keep} tables
+     * (ChurchGenius LLC's own billing records). The caller owns the transaction.
+     */
+    public Map<String, Integer> purgeChurch(JdbcTemplate jdbc, String clientId, Set<String> keep) {
+        if (clientId == null || clientId.isBlank()) throw new IllegalArgumentException("clientId required");
+        return purge(jdbc, clientId, keep);
+    }
+
+    /** Dry run for {@link #purgeChurch}: rows each planned table holds for this church (nothing deleted). */
+    public Map<String, Integer> countChurch(JdbcTemplate jdbc, String clientId, Set<String> keep) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (Step s : build(jdbc, keep).steps()) {
+            int n = 0;
+            for (Op op : s.ops()) {
+                if (!op.counts()) continue;
+                String sql = op.sql().replaceFirst("^DELETE FROM ", "SELECT COUNT(*) FROM ");
+                Object[] args = new Object[op.params()];
+                java.util.Arrays.fill(args, clientId);
+                Integer c = jdbc.queryForObject(sql, Integer.class, args);
+                n += c == null ? 0 : c;
+            }
+            if (n > 0) out.put(s.table(), n);
+        }
+        return out;
+    }
+
+    private Map<String, Integer> purge(JdbcTemplate jdbc, String clientId, Set<String> keep) {
+        Plan plan = build(jdbc, keep);
         Map<String, Integer> deleted = new LinkedHashMap<>();
         if (log.isDebugEnabled()) {
             for (Step s : plan.steps()) for (Op op : s.ops()) log.debug("M7 purge plan: {}", op.sql());

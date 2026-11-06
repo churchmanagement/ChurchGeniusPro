@@ -2586,7 +2586,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_consent_login_type ON ai_consent (app_cl
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Payroll SSN removed (user decision 2026-11-06): ChurchGeniusPro no longer stores any SSN.
--- 1) Clear stored values (the application also does this on every start — SsnDataPurge).
+-- 1) Clear stored values (the application also does this on every start — PayrollSensitiveDataPurge).
 -- 2) OPTIONAL, separate approval: drop the now-unused column.
 -- Safe to run twice. NOT run against production without the owner's approval.
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -2596,5 +2596,49 @@ BEGIN
                WHERE table_name = 'payroll_employee' AND column_name = 'ssn_last4') THEN
         UPDATE payroll_employee SET ssn_last4 = NULL WHERE ssn_last4 IS NOT NULL;
     END IF;
+    -- Bank account / routing last-4 are no longer stored either (2026-11-06, App Store privacy).
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'payroll_employee' AND column_name = 'dd_account_last4') THEN
+        UPDATE payroll_employee SET dd_account_last4 = NULL WHERE dd_account_last4 IS NOT NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'payroll_employee' AND column_name = 'dd_routing_last4') THEN
+        UPDATE payroll_employee SET dd_routing_last4 = NULL WHERE dd_routing_last4 IS NOT NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'paystub' AND column_name = 'direct_deposit_account_last4') THEN
+        UPDATE paystub SET direct_deposit_account_last4 = NULL WHERE direct_deposit_account_last4 IS NOT NULL;
+    END IF;
 END $$;
--- ALTER TABLE payroll_employee DROP COLUMN IF EXISTS ssn_last4;   -- schema change: run only after approval
+-- The application does the same on every start (PayrollSensitiveDataPurge).
+-- Schema change, run only after approval:
+-- ALTER TABLE payroll_employee DROP COLUMN IF EXISTS ssn_last4;
+-- ALTER TABLE payroll_employee DROP COLUMN IF EXISTS dd_account_last4;
+-- ALTER TABLE payroll_employee DROP COLUMN IF EXISTS dd_routing_last4;
+-- ALTER TABLE paystub DROP COLUMN IF EXISTS direct_deposit_account_last4;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- App Store readiness D7 (2026-11-06): church deletion requests. Additive; Hibernate creates
+-- the same table on start. church_client_id is deliberately not client_id / app_client_id so
+-- the tenant purge never deletes the record of a church's own deletion. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS church_deletion_request (
+    id               BIGSERIAL PRIMARY KEY,
+    church_client_id VARCHAR(100) NOT NULL,
+    church_name      VARCHAR(255),
+    status           VARCHAR(12)  NOT NULL,
+    requested_by     VARCHAR(255),
+    requested_role   VARCHAR(40),
+    notify_email     VARCHAR(255),
+    token_hash       VARCHAR(64),
+    token_expires_at TIMESTAMP,
+    requested_at     TIMESTAMP    NOT NULL,
+    verified_at      TIMESTAMP,
+    completed_at     TIMESTAMP,
+    completed_by     VARCHAR(255),
+    cancelled_at     TIMESTAMP,
+    cancelled_by     VARCHAR(255),
+    deleted_rows     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_cdr_church ON church_deletion_request (church_client_id, status);
+CREATE INDEX IF NOT EXISTS idx_cdr_token  ON church_deletion_request (token_hash);

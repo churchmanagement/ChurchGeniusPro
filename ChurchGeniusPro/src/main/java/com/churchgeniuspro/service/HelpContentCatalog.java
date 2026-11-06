@@ -700,6 +700,17 @@ public class HelpContentCatalog {
             "1.0", list("v1.0 — Initial release (App Store readiness D6)."),
             list("ai data sharing","consent","openai","stop sharing","notice")).roles("SuperAdmin,Admin,Accountant,User,Member,Church"));
 
+        add(new HelpArticle("account_privacy", "Help", "Account & Privacy", null, true,
+            "Privacy Policy and Terms links, AI data sharing, deleting your staff login, and requesting deletion of the whole church.",
+            "Account & Privacy (More → Account & Privacy for staff; Admin → Account & Privacy for the church login; also linked in the page footer) has links to the Privacy Policy, Terms of Service and the account-deletion page, plus AI Data Sharing in the app. "
+          + "Delete my login (staff): enter your password and tick the confirmation. Your staff login is deleted at once and you are signed out on every device; your e-mail, phone and address are removed from the staff record with your permissions, access tokens, push subscriptions and AI data-sharing answers. Records you entered for the church keep your name. The church's only SuperAdmin must first ask the church account to give the role to someone else, or request deletion of the whole church. "
+          + "Delete the whole church account (church login or SuperAdmin): enter your password, type the church's name and confirm. A link is e-mailed to the church's registered address; nothing happens until it is confirmed (valid 24 hours). After confirmation ChurchGeniusPro deletes every record of the church within 30 days and e-mails when it is done; the church keeps access until then to export its data, and can cancel the request on the same page. ChurchGenius LLC keeps only its own invoices and payment records for the subscription; database backup copies are removed as backups expire. Member Portal logins delete their account from Member Portal → Settings → Delete my account.",
+            list("Open More → Account & Privacy (church login: Admin → Account & Privacy).", "Read the Privacy Policy or Terms, or open AI Data Sharing.", "To delete your login: enter your password, tick the box and press Delete my login.", "To delete the church: enter your password, type the church's name, tick the box and press Request deletion, then confirm from the e-mail."),
+            list("Problem: \"You are the church's only SuperAdmin\" — Fix: ask the church account (Users) to give another person the SuperAdmin role first, or request deletion of the whole church.",
+                 "Problem: no confirmation e-mail — Fix: it goes to the church's registered address, not to the person signed in; check that mailbox or write to support@churchgeniuspro.com."),
+            "1.0", list("v1.0 — Initial release (App Store readiness D7)."),
+            list("account and privacy","delete my login","delete account","delete church","privacy policy","terms of service")).roles("SuperAdmin,Admin,Accountant,User,Church"));
+
         add(new HelpArticle("ai_activity", "Admin", "AI Activity", null, true,
             "Who used the AI features, what kind of request it was, what it cost and how it ended — never the question itself.",
             "Admin → AI Activity (SuperAdmin, Admin, church login). Every AI request — AI Search, Voice, Converse, check / statement / form scans and the Help assistant — writes one row: when, who, feature, the kind of question (an intent key such as crossref.lapsedGivers), the model and tokens when a model was used, the result (OK, Refused, Rate limited, Error) and the time taken. "

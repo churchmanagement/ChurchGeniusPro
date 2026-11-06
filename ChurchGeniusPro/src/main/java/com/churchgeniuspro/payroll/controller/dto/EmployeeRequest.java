@@ -36,8 +36,6 @@ public class EmployeeRequest {
     private String stateTaxCode;       // e.g. "TX"; null = no state tax
 
     private String bankName;
-    private String directDepositAccountLast4;
-    private String directDepositRoutingLast4;
     private String directDepositAccountType;   // CHECKING or SAVINGS
 
     private Boolean active;

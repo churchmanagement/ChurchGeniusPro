@@ -127,6 +127,6 @@ seeded 2026 values and sources.
 - The per-employee W-2 PDF is a readable **summary**, not the official IRS
   Copy A form; file official forms through SSA-approved channels / tax software.
 - No Social Security number is collected or stored (2026-11-06); any value left
-  from older versions is cleared on start (`SsnDataPurge`). The filed W-2 needs
+  from older versions is cleared on start (`PayrollSensitiveDataPurge`). The filed W-2 needs
   each SSN, so it is prepared outside ChurchGeniusPro. Bank account / routing
   numbers are not collected on the form.

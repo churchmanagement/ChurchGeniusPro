@@ -209,7 +209,7 @@ public class PaystubPdfService {
     }
 
     private void directDeposit(Doc d, Paystub stub) throws IOException {
-        if (stub.getDirectDepositAccountLast4() == null || stub.getDirectDepositAccountLast4().isBlank()) return;
+        if (stub.getDirectDepositAccountType() == null || stub.getDirectDepositAccountType().isBlank()) return;
         String type = stub.getDirectDepositAccountType() == null ? "" : " (" + stub.getDirectDepositAccountType() + ")";
         // The line still shows that net pay went by direct deposit, but no longer prints
         // any digits of the bank account (2026-10-19).
@@ -221,7 +221,7 @@ public class PaystubPdfService {
     private void footer(Doc d) throws IOException {
         d.move(6);
         d.text(LEFT, 7, d.normal,
-                "This document is an earnings statement, not a check. Account numbers are masked for security. "
+                "This document is an earnings statement, not a check. "
                         + "Generated " + LocalDate.now().format(DATE) + ".");
     }
 

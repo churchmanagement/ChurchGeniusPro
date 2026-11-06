@@ -156,6 +156,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         // Help Center for church logins (staff reach it under More → Help Center). Opens the
         // "Account & User Management" card, which covers the Users page step by step.
         { id: 'admin/help-center',         label: 'Help Center',         icon: '&#x1F4DA;', href: '/helpCenter#account-management', churchOnly: true },
+        { id: 'admin/account-privacy',     label: 'Account & Privacy',   icon: '&#x1F6E1;', href: '/accountPrivacy', churchOnly: true },   // D7
         { id: 'admin/ntag-access',         label: 'NTAG Login',          icon: '&#x1F511;', href: '/ntagAccess'          }
     ]},
     { id: 'accounting', label: 'Accounting', icon: '&#x1F4B0;', children: [
@@ -192,6 +193,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'more/follow-ups',     label: 'Follow-Ups',     icon: '&#x1F4CC;', href: '/followups'     },
         { id: 'more/help-center',    label: 'Help Center',    icon: '&#x1F4DA;', href: '/helpCenter'    },
         { id: 'more/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true },   // D6, app only
+        { id: 'more/account-privacy', label: 'Account & Privacy', icon: '&#x1F6E1;', href: '/accountPrivacy' },   // D7: privacy links + delete my login
         { id: 'more/ticketing',      label: 'Ticketing',      icon: '&#x1F3AB;', href: '/tickets'       },
         { id: 'more/ai-assistant',   label: 'AI Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
         { id: 'more/saved-lists',    label: 'Saved Lists',    icon: '&#x1F4CB;', href: '/savedLists'    },
@@ -748,7 +750,10 @@ window.CGP_memberNameHtml = function (first, last, nick) {
     var footer = document.getElementById('app-footer');
     if (!footer || footer.innerHTML.trim() !== '') return;
     var year = new Date().getFullYear();
-    footer.innerHTML = '<span>&#169; ' + year + ' Church Genius LLC. All rights reserved.</span>';
+    footer.innerHTML = '<span>&#169; ' + year + ' Church Genius LLC. All rights reserved.</span>' +
+      ' <span class="footer-links">&middot; <a href="https://www.churchgeniuspro.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>' +
+      ' &middot; <a href="https://www.churchgeniuspro.com/terms" target="_blank" rel="noopener">Terms</a>' +
+      ' &middot; <a href="/accountPrivacy">Account &amp; Privacy</a></span>';
   }
 
   /* ── Bootstrap on DOMContentLoaded ──────────────────────────────── */

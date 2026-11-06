@@ -3091,6 +3091,34 @@
           </div>
         </div>
 
+        <!-- ═══ ACCOUNT & PRIVACY (App Store D7, 2026-11-06) ═══ -->
+        <div class="hc-card" id="hc-account-privacy" data-cat="admin" data-roles="SuperAdmin,Admin,Accountant,User,Church" data-keywords="account privacy delete my login delete account delete church privacy policy terms of service close account">
+          <div class="hc-card-head" onclick="toggleCard(this)">
+            <span class="hc-card-icon">🛡️</span>
+            <div class="hc-card-head-text">
+              <h3>Account &amp; Privacy</h3>
+              <div class="hc-card-nav">More → Account &amp; Privacy (church login: Admin → Account &amp; Privacy)</div>
+            </div>
+            <span class="hc-card-chevron">▼</span>
+          </div>
+          <div class="hc-card-body">
+            <p class="hc-desc">Links to the Privacy Policy and Terms of Service, AI Data Sharing in the app, and the two ways to delete an account. The links are also in the footer of every page.</p>
+            <div class="hc-section-label">Delete my login (staff)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Enter your password and tick the confirmation</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Press <span class="hc-ui">Delete my login</span> — you are signed out on every device at once</span></div>
+            </div>
+            <div class="hc-note">Your e-mail, phone and address are removed from your staff record. Records you entered for the church (gifts, expenses, follow-ups) keep your name. The church's only SuperAdmin must hand the role to someone else first.</div>
+            <div class="hc-section-label">Delete the whole church account (church login or SuperAdmin)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Enter your password, type the church's name and tick the confirmation</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Press <span class="hc-ui">Request deletion</span>; a link is e-mailed to the church's registered address</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Open the link within 24 hours and press <span class="hc-ui">Confirm deletion</span></span></div>
+            </div>
+            <div class="hc-note">After confirmation every record of the church is deleted within 30 days and you get an e-mail when it is done. You keep access until then, so export what you need; <span class="hc-ui lite">Cancel request</span> stops it. ChurchGenius LLC keeps only its own invoices and payment records for the subscription.</div>
+          </div>
+        </div>
+
         <!-- ═══ SAVED LISTS (AI Phase 1, 2026-11-04) ═══ -->
         <div class="hc-card" id="hc-saved-lists" data-cat="members" data-roles="SuperAdmin,Admin,Accountant" data-perm="more.savedlists" data-feature="aiSearch" data-keywords="saved lists saved list people filter my lists run list export csv email this list ai search women men age group attended gave">
           <div class="hc-card-head" onclick="toggleCard(this)">
@@ -4537,6 +4565,15 @@ const HC_KB = [
     steps: ['Open More → Ministry Report','Pick a month (the last completed month opens first)','Read the narrative and tiles; hover a signal for its rule','Download the CSV or print it for a meeting'],
     links: [{label:'Ministry Report', url:'/ministryReport', icon:'📈'},{label:'Attendance', url:'/attendance', icon:'📝'}],
     related: ['saved lists','ai search','attendance']
+  },
+  {
+    id: 'account-privacy',
+    q: ['account and privacy','delete my login','delete my account','delete account','delete church','close account','privacy policy','terms of service'],
+    title: '🛡️ Account & Privacy',
+    answer: 'More → Account & Privacy (church login: Admin → Account & Privacy) has the Privacy Policy and Terms links and account deletion. Staff: Delete my login deletes your own login at once (records you entered keep your name; the only SuperAdmin must hand the role over first). Church login or SuperAdmin: Delete the whole church account e-mails a confirmation link to the church\'s registered address; after confirmation the church is deleted within 30 days. Member Portal: Settings → Delete my account.',
+    steps: ['Open More → Account & Privacy','Delete my login: password + tick the box','Delete the church: password + church name + tick the box, then confirm from the e-mail'],
+    links: [],
+    related: ['ai data sharing','users','permissions']
   },
   {
     id: 'ai-data-sharing',

@@ -820,6 +820,25 @@
     </div>
   </div>
 
+  <!-- ── Church deletion requests (App Store D7, 2026-11-06) ───────────── -->
+  <div class="list-card" id="churchDeletionCard">
+    <div class="list-card-header">
+      <span class="list-card-title">🗑 Church Deletion Requests</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="loadChurchDeletions()">↻ Refresh</button>
+      </div>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Requested in the app by the church login or a SuperAdmin, then confirmed from the church's registered e-mail.
+        Nothing is deleted automatically: review the dry run, then <b>Delete now</b> within 30 days of confirmation.
+        ChurchGenius LLC's own billing records (invoices, payments, charges, plan changes, the account row) are kept.
+      </div>
+      <div id="churchDeletionBody"><div style="color:#aaa;font-size:13px;">Loading…</div></div>
+      <div id="churchDeletionMsg" style="font-size:13px;margin-top:10px;" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
   <!-- ── Event Retention (dry run, 2026-11-02) ───────────── -->
   <div class="list-card" id="eventRetentionCard">
     <div class="list-card-header">
@@ -3009,6 +3028,78 @@
   }
   window.loadEtlOverview = loadEtlOverview;
   loadEtlOverview();
+
+  /* ── Church deletion requests (App Store D7) ── */
+  async function loadChurchDeletions() {
+    const el = document.getElementById('churchDeletionBody');
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const th = 'text-align:left;padding:7px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;';
+    const td = 'padding:7px 10px;border-bottom:1px solid #f0f1f5;vertical-align:top;';
+    const when = v => v ? esc(String(v).replace('T', ' ').slice(0, 16)) : '';
+    try {
+      const r = await fetch('/api/serviceadmin/church-deletions', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      const rows = d.requests || [];
+      if (!rows.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;">No church deletion requests.</div>'; return; }
+      el.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>'
+        + '<th style="' + th + '">Church</th><th style="' + th + '">Status</th><th style="' + th + '">Requested</th><th style="' + th + '">Confirmed</th><th style="' + th + '">Done / cancelled</th><th style="' + th + '">Actions</th></tr></thead><tbody>'
+        + rows.map(x => '<tr><td style="' + td + '"><b>' + esc(x.churchName) + '</b><br><span style="color:#888;font-size:12px;">' + esc(x.churchClientId) + '</span></td>'
+          + '<td style="' + td + '">' + esc(x.status) + (x.deletedRows != null ? '<br><span style="color:#888;font-size:12px;">' + x.deletedRows + ' rows</span>' : '') + '</td>'
+          + '<td style="' + td + '">' + when(x.requestedAt) + '<br><span style="color:#888;font-size:12px;">' + esc(x.requestedBy) + ' (' + esc(x.requestedRole) + ')</span></td>'
+          + '<td style="' + td + '">' + when(x.verifiedAt) + '</td>'
+          + '<td style="' + td + '">' + when(x.completedAt || x.cancelledAt) + '<br><span style="color:#888;font-size:12px;">' + esc(x.completedBy || x.cancelledBy) + '</span></td>'
+          + '<td style="' + td + '">'
+          + ((x.status === 'REQUESTED' || x.status === 'VERIFIED') ? '<button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="churchDeletionDryRun(' + x.id + ')">Dry run</button> ' : '')
+          + (x.status === 'VERIFIED' ? '<button class="btn-primary" style="font-size:12px;padding:4px 10px;background:#b71c1c;border-color:#b71c1c;" onclick="churchDeletionExecute(' + x.id + ',\'' + esc(x.churchClientId) + '\')">Delete now</button> ' : '')
+          + ((x.status === 'REQUESTED' || x.status === 'VERIFIED') ? '<button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="churchDeletionCancel(' + x.id + ')">Cancel</button>' : '')
+          + '<div id="cdDry' + x.id + '" style="font-size:12px;color:#555;margin-top:6px;"></div></td></tr>').join('')
+        + '</tbody></table></div>';
+    } catch (e) {
+      el.innerHTML = '<div style="color:#c62828;font-size:13px;">Could not load church deletion requests: ' + esc(e.message) + '</div>';
+    }
+  }
+  async function churchDeletionDryRun(id) {
+    const box = document.getElementById('cdDry' + id);
+    box.textContent = 'Counting…';
+    try {
+      const r = await fetch('/api/serviceadmin/church-deletions/' + id + '/dry-run', { headers: { 'Accept': 'application/json' } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      const keys = Object.keys(d.counts || {});
+      box.textContent = 'Would delete ' + d.total + ' rows in ' + keys.length + ' tables: '
+        + keys.map(k => k + ' ' + d.counts[k]).join(', ') + '. Kept: ' + (d.kept || []).join(', ') + '.';
+    } catch (e) { box.textContent = 'Dry run failed: ' + e.message; }
+  }
+  async function churchDeletionExecute(id, clientId) {
+    const msg = document.getElementById('churchDeletionMsg');
+    const typed = window.prompt('This permanently deletes every record of the church. Type its client id (' + clientId + ') to confirm:');
+    if (typed == null) return;
+    msg.style.color = '#555'; msg.textContent = 'Deleting…';
+    try {
+      const r = await fetch('/api/serviceadmin/church-deletions/' + id + '/delete', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: typed }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      msg.style.color = '#2e7d32'; msg.textContent = d.message || 'Deleted.';
+      loadChurchDeletions();
+    } catch (e) { msg.style.color = '#c62828'; msg.textContent = e.message; }
+  }
+  async function churchDeletionCancel(id) {
+    const msg = document.getElementById('churchDeletionMsg');
+    try {
+      const r = await fetch('/api/serviceadmin/church-deletions/' + id + '/cancel', { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      msg.style.color = '#2e7d32'; msg.textContent = d.message || 'Cancelled.';
+      loadChurchDeletions();
+    } catch (e) { msg.style.color = '#c62828'; msg.textContent = e.message; }
+  }
+  window.loadChurchDeletions = loadChurchDeletions;
+  window.churchDeletionDryRun = churchDeletionDryRun;
+  window.churchDeletionExecute = churchDeletionExecute;
+  window.churchDeletionCancel = churchDeletionCancel;
+  loadChurchDeletions();
 
   /* ── Event Retention card (GET /api/serviceadmin/events/retention — dry run only) ── */
   async function loadEventRetention() {

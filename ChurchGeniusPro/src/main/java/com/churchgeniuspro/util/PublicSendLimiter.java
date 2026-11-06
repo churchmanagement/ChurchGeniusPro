@@ -142,6 +142,10 @@ public class PublicSendLimiter {
     public static final Policy GUESSIT_JOIN = new Policy("guessit-join", List.of(
             ip(120, MIN10), ip(400, HOUR), tenant(2000, DAY)));
 
+    /** App Store D7: the public church-deletion confirmation link (token guessing guard). */
+    public static final Policy CHURCH_DELETION_VERIFY = new Policy("church-deletion-verify", List.of(
+            ip(10, MIN10), ip(30, HOUR)));
+
     // ── Messages ──────────────────────────────────────────────────────────
 
     public static final String IP_MSG =

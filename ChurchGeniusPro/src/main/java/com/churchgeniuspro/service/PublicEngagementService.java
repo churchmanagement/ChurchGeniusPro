@@ -228,6 +228,9 @@ public class PublicEngagementService {
         if (blank(first) || blank(last)) throw new IllegalArgumentException("First and last name are required.");
         if (blank(email)) throw new IllegalArgumentException("Email is required.");
         if (blank(str(b, "requestText"))) throw new IllegalArgumentException("Please enter your prayer request.");
+        // App Store D13 (guideline 1.2): offensive language is refused with a reason.
+        if (com.churchgeniuspro.util.ContentFilter.anyBlocked(str(b, "requestText"), first, last))
+            throw new IllegalArgumentException(com.churchgeniuspro.util.ContentFilter.MESSAGE);
 
         PublicPrayerRequest p = new PublicPrayerRequest();
         p.setClientId(clientId);

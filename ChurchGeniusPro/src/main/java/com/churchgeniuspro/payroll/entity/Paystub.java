@@ -66,8 +66,8 @@ public class Paystub {
     private BigDecimal ytdNetPay            = BigDecimal.ZERO;
     private BigDecimal ytdFicaWages         = BigDecimal.ZERO;
 
-    // Masked direct deposit shown on the stub
-    private String directDepositAccountLast4;
+    // Direct deposit shown on the stub as "Direct Deposit (CHECKING)" — no account digits are
+    // stored (2026-11-06); the old direct_deposit_account_last4 column is cleared on start.
     private String directDepositAccountType;
 
     private boolean voided;
