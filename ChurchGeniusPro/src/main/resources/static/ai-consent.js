@@ -5,19 +5,23 @@
  * In a web browser this file does NOTHING: CGP_aiConsent.ensure() resolves true at once,
  * no request is made and window.fetch is not wrapped. Inside the app:
  *
- *   CGP_aiConsent.ensure('VOICE'|'ASSISTANT'|'SCAN', {onAgree}) -> Promise<boolean>
- *       Shows the notice once per person (server-side, every device) and resolves true when
- *       the person agreed (now or before), false on Cancel or when the check failed.
- *       opts.onAgree runs synchronously inside the Agree click (file pickers need a gesture).
+ *   CGP_aiConsent.ensure('VOICE'|'ASSISTANT'|'SCAN', {continueLabel, onContinue}) -> Promise<boolean>
+ *       Shows the notice once per person (server-side, every device) and resolves true only
+ *       AFTER the server has stored the agreement (or it was already stored); false on Cancel
+ *       or when the check failed. With opts.continueLabel the dialog then shows a second step
+ *       ("Your answer is saved" + that button): opts.onContinue runs inside that tap, so a file
+ *       picker can open with a fresh gesture — it never opens before the server confirmed.
  *   CGP_aiConsent.rememberVoice(transcript, token)   (voice-openai.js)
  *       The server's one-time voice token for that transcript; attached to the follow-up
  *       request carrying the same text (/api/ai-assist, /api/help/assist, /api/voice/extract).
- *   CGP_aiConsent.openSettings()   "AI data sharing": status + Stop sharing / Stop all.
+ *   CGP_aiConsent.openSettings()   "AI data sharing" dialog: status + Stop sharing / Stop all.
+ *   CGP_aiConsent.renderSettings(el)   the same panel inline (the /aiDataSharing page).
  *
  * Safety net: a 403 AI_CONSENT_REQUIRED from any AI path shows the notice and, after Agree,
  * repeats the request once. The server refuses every AI request from the app without consent
  * (AiGuardFilter), so nothing reaches OpenAI first — this file only makes that pleasant.
- * Elements with data-ai-consent="SCAN" (scan buttons) ask before the picker opens.
+ * Elements with data-ai-consent="SCAN" (scan buttons) ask before the picker opens;
+ * data-ai-consent-picker marks a button that opens a file picker directly (two-step dialog).
  * ========================================================================== */
 (function () {
   'use strict';
@@ -81,6 +85,17 @@
       '#cgpAiConsent .cac-cancel{background:#f1eef3;color:#4a3d52;border-color:#e2dce6;}' +
       '#cgpAiConsent .cac-agree{background:#6b2d5c;color:#fff;}' +
       '#cgpAiConsent button[disabled]{opacity:.6;cursor:default;}' +
+      '.cac-panel h2{font-size:17px;line-height:1.3;margin:0 0 12px;font-weight:700;}' +
+      '.cac-panel p{font-size:14.5px;line-height:1.5;margin:0 0 10px;}' +
+      '.cac-panel .cac-err{color:#b3261e;font-size:13px;margin:4px 0 0;}' +
+      '.cac-panel .cac-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}' +
+      '.cac-panel button{font:600 14.5px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;border-radius:10px;padding:12px 16px;min-height:44px;cursor:pointer;border:1px solid transparent;}' +
+      '.cac-panel .cac-cancel{background:#f1eef3;color:#4a3d52;border-color:#e2dce6;}' +
+      '.cac-panel .cac-agree{background:#6b2d5c;color:#fff;}' +
+      '.cac-panel .cac-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #eee;}' +
+      '.cac-panel .cac-row b{display:block;font-size:14px;margin-bottom:2px;}' +
+      '.cac-panel .cac-row span{font-size:12.5px;color:#6d6275;}' +
+      '.cac-panel .cac-row button{padding:9px 12px;min-height:38px;font-size:13px;white-space:nowrap;}' +
       '#cgpAiConsent .cac-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #eee;}' +
       '#cgpAiConsent .cac-row b{display:block;font-size:14px;margin-bottom:2px;}' +
       '#cgpAiConsent .cac-row span{font-size:12.5px;color:#6d6275;}' +
@@ -108,32 +123,46 @@
       document.body.appendChild(wrap);
       try { agree.focus(); } catch (e) {}
       var done = false;
-      function finish(v) { if (done) return; done = true; document.removeEventListener('keydown', onKey, true); wrap.remove(); resolve(v); }
+      function finish(v, skipped) { if (done) return; done = true; document.removeEventListener('keydown', onKey, true); wrap.remove(); resolve(skipped ? 'saved-not-now' : v); }
       function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); finish(false); } }
       document.addEventListener('keydown', onKey, true);
       cancel.onclick = function () { finish(false); };
       agree.onclick = function () {
         agree.disabled = cancel.disabled = true; err.textContent = '';
-        var sync = opts && typeof opts.onAgree === 'function' ? opts.onAgree : null;
+        agree.textContent = 'Saving…';
         origFetch('/api/ai/consent', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ type: n.type, version: n.version })
         }).then(function (r) {
-          if (r.ok) { n.agreed = true; loadedAt = Date.now(); finish(true); return; }
+          if (r.ok) {
+            n.agreed = true; loadedAt = Date.now();
+            if (opts && opts.continueLabel) { continueStep(); return; }
+            finish(true); return;
+          }
           if (r.status === 409) { state = null; finish('outdated'); return; }
           return r.json().catch(function () { return {}; }).then(function (j) {
             err.textContent = (j && j.error) || 'Could not save your answer. Please try again.';
-            agree.disabled = cancel.disabled = false;
+            agree.disabled = cancel.disabled = false; agree.textContent = n.agree || 'Agree & Continue';
           });
         }).catch(function () {
           err.textContent = 'Could not save your answer. Please check your connection and try again.';
-          agree.disabled = cancel.disabled = false;
+          agree.disabled = cancel.disabled = false; agree.textContent = n.agree || 'Agree & Continue';
         });
-        // A file picker must open inside the tap itself; the server still refuses the upload
-        // until the answer above is stored (and the request is repeated once if needed).
-        if (sync) { try { sync(); } catch (e) {} }
       };
+      // Second step, shown only after the server stored the answer: the next tap is a fresh
+      // user gesture, so the file picker / camera can open inside it.
+      function continueStep() {
+        Array.prototype.slice.call(card.querySelectorAll('p')).forEach(function (p) { p.remove(); });
+        card.insertBefore(el('p', 'cac-saved', 'Your answer is saved.'), err);
+        btns.innerHTML = '';
+        var later = el('button', 'cac-cancel', 'Not now'); later.type = 'button';
+        var go = el('button', 'cac-agree', opts.continueLabel); go.type = 'button';
+        later.onclick = function () { finish(true, true); };
+        go.onclick = function () { try { if (opts.onContinue) opts.onContinue(); } catch (e) {} finish(true); };
+        btns.appendChild(later); btns.appendChild(go);
+        try { go.focus(); } catch (e) {}
+      }
     });
   }
 
@@ -147,6 +176,7 @@
       if (n.agreed) return true;
       return showNotice(n, opts).then(function (v) {
         if (v === 'outdated') return load(true).then(function () { return ensure(type, opts); });
+        if (v === 'saved-not-now') return 'not-now';
         return v === true;
       });
     });
@@ -229,27 +259,56 @@
     if (!t) return;
     if (t.__cgpConsentPass) { t.__cgpConsentPass = false; return; }
     var type = t.getAttribute('data-ai-consent');
-    if (agreedNow(type)) return;
+    var n = notice(type);
+    if (n && n.agreed) return;          // known agreed: the tap goes straight on (the server still checks the upload)
     e.preventDefault(); e.stopImmediatePropagation();
+    var picker = t.hasAttribute('data-ai-consent-picker');
     var clicked = false;
     function go() { if (clicked) return; clicked = true; t.__cgpConsentPass = true; t.click(); }
-    ensure(type, { onAgree: go }).then(function (ok) { if (ok) go(); });
+    // The action continues only after the server confirmed the answer. A button that opens a
+    // file picker gets a second tap ("Choose file") so the picker opens with a fresh gesture.
+    ensure(type, picker ? { continueLabel: t.getAttribute('data-ai-consent-picker') || 'Choose file', onContinue: go } : null)
+      .then(function (ok) {
+        if (ok !== true) return;
+        if (!picker) { go(); return; }
+        if (!clicked) continueOnly(t.getAttribute('data-ai-consent-picker') || 'Choose file', go);   // agreed earlier; the answer was only being loaded
+      });
+  }
+  /** A one-button step so a file picker opens inside a fresh tap. */
+  function continueOnly(label, go) {
+    css();
+    var wrap = el('div'); wrap.id = 'cgpAiConsent';
+    wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
+    var card = el('div', 'cac-card');
+    card.appendChild(el('p', 'cac-saved', 'You have already agreed to share documents for reading.'));
+    var btns = el('div', 'cac-btns');
+    var later = el('button', 'cac-cancel', 'Not now'); later.type = 'button';
+    var b = el('button', 'cac-agree', label); b.type = 'button';
+    later.onclick = function () { wrap.remove(); };
+    b.onclick = function () { wrap.remove(); go(); };
+    btns.appendChild(later); btns.appendChild(b); card.appendChild(btns); wrap.appendChild(card);
+    document.body.appendChild(wrap);
+    try { b.focus(); } catch (e) {}
   }
 
   /* ── "AI data sharing" panel — Stop sharing with AI ──────────────────────── */
   var LABEL = { VOICE: 'Voice entry', ASSISTANT: 'AI Assistant', SCAN: 'Document scan' };
-  function openSettings() {
+  /** Renders the panel into `host` (inline on /aiDataSharing, or inside the dialog card). */
+  function renderSettings(host, onClose) {
     css();
-    var old = document.getElementById('cgpAiConsent'); if (old) old.remove();
+    host.classList.add('cac-panel');
+    host.innerHTML = '<p class="cac-loading">Loading…</p>';
     return load(true).then(function (st) {
-      var wrap = el('div'); wrap.id = 'cgpAiConsent';
-      wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-labelledby', 'cgpAiShareTitle');
-      var card = el('div', 'cac-card');
-      var h = el('h2', null, 'AI data sharing'); h.id = 'cgpAiShareTitle'; card.appendChild(h);
-      card.appendChild(el('p', null, 'These are the AI features you agreed to share data with OpenAI for. Stopping takes effect at once on all your devices; you will be asked again the next time you use that feature. Information already sent is not recalled.'));
+      host.innerHTML = '';
+      var h = el('h2', null, 'AI data sharing'); h.id = 'cgpAiShareTitle'; host.appendChild(h);
+      if (!isApp()) {
+        host.appendChild(el('p', null, 'AI data sharing notices are shown in the ChurchGeniusPro iOS and Android app. Open this page in the app to see or change your answers.'));
+      } else {
+        host.appendChild(el('p', null, 'These are the AI features you agreed to share data with OpenAI for. Stopping takes effect at once on all your devices; you will be asked again the next time you use that feature. Information already sent is not recalled.'));
+      }
       var err = el('div', 'cac-err'); err.setAttribute('role', 'alert');
-      if (!st || !st.notices) { err.textContent = 'AI data sharing could not be loaded. Please try again.'; card.appendChild(err); }
-      else {
+      if (!st || !st.notices) { err.textContent = 'AI data sharing could not be loaded. Please try again.'; host.appendChild(err); }
+      else if (isApp()) {
         st.notices.forEach(function (n) {
           var row = el('div', 'cac-row');
           var info = el('div');
@@ -258,28 +317,44 @@
           row.appendChild(info);
           if (n.agreed) {
             var b = el('button', 'cac-cancel', 'Stop sharing'); b.type = 'button';
-            b.onclick = function () { withdraw(n.type, b, err); };
+            b.setAttribute('aria-label', 'Stop sharing for ' + (LABEL[n.type] || n.type));
+            b.onclick = function () { withdraw(n.type, b, err, host, onClose); };
             row.appendChild(b);
           }
-          card.appendChild(row);
+          host.appendChild(row);
         });
-        card.appendChild(err);
+        host.appendChild(err);
       }
       var btns = el('div', 'cac-btns');
-      var anyOn = st && st.notices && st.notices.some(function (n) { return n.agreed; });
+      var anyOn = isApp() && st && st.notices && st.notices.some(function (n) { return n.agreed; });
       if (anyOn) {
-        var all = el('button', 'cac-cancel', 'Stop all'); all.type = 'button';
-        all.onclick = function () { withdraw('all', all, err); };
+        var all = el('button', 'cac-cancel cac-stopall', 'Stop all'); all.type = 'button';
+        all.onclick = function () { withdraw('all', all, err, host, onClose); };
         btns.appendChild(all);
       }
-      var close = el('button', 'cac-agree', 'Close'); close.type = 'button';
-      close.onclick = function () { wrap.remove(); };
-      btns.appendChild(close); card.appendChild(btns); wrap.appendChild(card);
-      document.body.appendChild(wrap);
-      try { close.focus(); } catch (e) {}
+      if (onClose) {
+        var close = el('button', 'cac-agree', 'Close'); close.type = 'button';
+        close.onclick = onClose;
+        btns.appendChild(close);
+      }
+      if (btns.childNodes.length) host.appendChild(btns);
     });
   }
-  function withdraw(type, btn, err) {
+  function openSettings() {
+    css();
+    var old = document.getElementById('cgpAiConsent'); if (old) old.remove();
+    var wrap = el('div'); wrap.id = 'cgpAiConsent';
+    wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true'); wrap.setAttribute('aria-labelledby', 'cgpAiShareTitle');
+    var card = el('div', 'cac-card'); wrap.appendChild(card);
+    document.body.appendChild(wrap);
+    function close() { document.removeEventListener('keydown', onKey, true); wrap.remove(); }
+    function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+    document.addEventListener('keydown', onKey, true);
+    return renderSettings(card, close).then(function () {
+      var b = card.querySelector('.cac-agree'); try { if (b) b.focus(); } catch (e) {}
+    });
+  }
+  function withdraw(type, btn, err, host, onClose) {
     btn.disabled = true; err.textContent = '';
     origFetch('/api/ai/consent/withdraw', {
       method: 'POST', credentials: 'same-origin',
@@ -287,12 +362,12 @@
       body: JSON.stringify({ type: type })
     }).then(function (r) {
       if (!r.ok) throw new Error('x');
-      state = null; return openSettings();
+      state = null; return renderSettings(host, onClose);
     }).catch(function () { btn.disabled = false; err.textContent = 'Could not stop sharing. Please try again.'; });
   }
 
   window.CGP_aiConsent = {
-    isApp: isApp, ensure: ensure, rememberVoice: rememberVoice, openSettings: openSettings,
+    isApp: isApp, ensure: ensure, rememberVoice: rememberVoice, openSettings: openSettings, renderSettings: renderSettings,
     _takeVoice: takeVoice
   };
 

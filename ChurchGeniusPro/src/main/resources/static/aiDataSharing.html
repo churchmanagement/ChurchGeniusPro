@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/cgp-favicon.svg" />
+  <script src="/cgp-api.js"></script>
+  <link rel="stylesheet" href="/mobile.css" />
+  <link rel="stylesheet" href="/shell.css" />
+  <title>AI Data Sharing — Church Genius Pro</title>
+  <style>
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f5f6fa; color:#333; }
+    .ads-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); padding:20px; max-width:640px; }
+    .ads-help { font-size:13px; color:#666; margin-top:14px; line-height:1.5; }
+    .ads-help a { color:#673147; font-weight:600; }
+    @media (max-width:640px) { .ads-card { padding:14px; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
+      <div class="page-title">🔐 AI Data Sharing</div>
+      <div class="page-subtitle">Your own answers to the AI data-sharing notices shown in the ChurchGeniusPro app.</div>
+      <div class="ads-card" id="aiShareHost" aria-live="polite"><p>Loading…</p></div>
+      <div class="ads-help">Read more in the <a href="/helpCenter#hc-ai-data-sharing">Help Center</a>.</div>
+    </main>
+  </div>
+</div>
+<script>
+  window.CGP_PAGE = { activePage: 'more/ai-data-sharing', pageTitle: 'AI Data Sharing', openSection: 'more' };
+  (function start(n){
+    if (window.CGP_aiConsent) { CGP_aiConsent.renderSettings(document.getElementById('aiShareHost')); return; }
+    if (n > 60) { document.getElementById('aiShareHost').innerHTML = '<p>AI data sharing could not be loaded. Please reload the page.</p>'; return; }
+    setTimeout(function(){ start(n + 1); }, 100);
+  })(0);
+</script>
+<script src="/shell.js"></script>
+<script src="/session.js"></script>
+</body>
+</html>

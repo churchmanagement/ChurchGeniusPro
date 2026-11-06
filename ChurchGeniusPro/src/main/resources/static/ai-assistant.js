@@ -64,6 +64,7 @@
     { label:'Certificates',     target:'/certificates',      section:'more', cat:'Administration', desc:'Generate and print certificates (baptism, membership, awards).', keys:['certificates','certificate'] },
     { label:'Public Screens',   target:'/publicScreens',     section:'more', cat:'Administration', desc:'Encrypted public links for your church: event calendar, prayer requests, kids check-in, membership form, member signup, donation page.', keys:['public screens','public screen'] },
     { label:'Follow-Ups',       target:'/followups',         section:'more', cat:'Administration', desc:'Follow-up tasks for members and visitors, plus Connect With Us cards, public prayer requests, visitor follow-ups from check-in and reported chat messages.', keys:['follow ups','follow-ups','followups','follow up'] },
+    { label:'AI Data Sharing',  target:'/aiDataSharing',     section:'more', cat:'Administration', desc:'Your own answers to the AI data-sharing notices in the mobile app — see them and stop sharing with AI.', keys:['ai data sharing','stop sharing with ai','ai consent','data sharing'] },
     { label:'Help Center',      target:'/helpCenter',        section:'more', cat:'Administration', desc:'Help articles and the Help Assistant chat.', keys:['help center','help centre'] },
     { label:'Fund',             target:'/fund',              section:'account-settings', cat:'Administration', desc:'Add or edit income funds / sources (e.g. Tithe, Building Fund).', keys:['fund','funds','new fund','add fund'] },
     { label:'Expense Categories', target:'/purpose',         section:'account-settings', cat:'Administration', desc:'Add or edit expense categories (purposes) used when recording an expense.', keys:['purpose','purposes','expense category','expense categories','new expense category','add expense category'] },
@@ -1479,7 +1480,10 @@
       + '<button id="aaMode_converse" type="button" title="Converse" aria-label="Converse">🗣</button>'
       + '</span>'
       + '<button id="aaGuideBtn" class="aa-ghost" type="button" title="Guide — all commands" aria-label="Guide">❔</button>'
-      + '<button id="aaHelpBtn" class="aa-help" type="button" title="Help — how AI Search works" aria-label="Help">?</button>';
+      + '<button id="aaHelpBtn" class="aa-help" type="button" title="Help — how AI Search works" aria-label="Help">?</button>'
+      // App Store readiness D6: "AI data sharing" (Stop sharing with AI) — app only
+      + (/ChurchGeniusProApp\//.test(navigator.userAgent || '') || (window.CGP_NATIVE && window.CGP_NATIVE.isNative)
+          ? '<button id="aaShareBtn" class="aa-ghost" type="button" title="AI data sharing" aria-label="AI data sharing">🔐</button>' : '');
     // Hint goes on its own line BELOW the toolbar so it never affects alignment.
     var hintRow=document.createElement('div'); hintRow.className='aa-hintrow';
     hintRow.innerHTML='<span id="aaHint" class="aa-hint" role="status" aria-live="polite"></span>';
@@ -1532,6 +1536,10 @@
       setMode('converse');
     });
     document.getElementById('aaGuideBtn').addEventListener('click', openGuide);
+    var shareBtn = document.getElementById('aaShareBtn');
+    if (shareBtn) shareBtn.addEventListener('click', function(){
+      if (window.CGP_aiConsent) window.CGP_aiConsent.openSettings(); else window.location.href = '/aiDataSharing';
+    });
     document.getElementById('aaHelpBtn').addEventListener('click', function(){
       showHelpModal('AI Search — Help', searchHelpHtml());
     });

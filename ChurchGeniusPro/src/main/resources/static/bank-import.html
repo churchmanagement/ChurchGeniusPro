@@ -125,6 +125,9 @@
     .type-tag { font-size:11px; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; }
     .type-tag.income { background:#e7f5ec; color:#1e7a44; }
     .type-tag.expense{ background:#fdeef0; color:#b42446; }
+    /* D6: the AI note is shown in the iOS / Android app only */
+    html:not(.cgp-ai-consent-app) .cgp-app-only { display: none !important; }
+    .bi-ai-note { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #f6f1f8; color: #4a3d52; font-size: 13px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -147,6 +150,11 @@
           <div class="t">Drop a bank file or statement photo here, or click to choose</div>
           <div class="h">Supported: .csv &nbsp;·&nbsp; .ofx &nbsp;·&nbsp; .qfx &nbsp;·&nbsp; PDF &nbsp;·&nbsp; JPG / PNG / HEIC (photo or screenshot)</div>
           <div class="fname" id="fname"></div>
+        </div>
+        <!-- App Store readiness D6 (app only): what stays in ChurchGeniusPro and what is shared with OpenAI -->
+        <div class="cgp-app-only bi-ai-note" id="biAiNote" role="note">
+          <b>CSV, OFX and QFX files</b> are read by ChurchGeniusPro only — they are never sent to OpenAI.
+          <b>Photos and PDF statements</b> are sent to OpenAI to be read. You are asked first, and nothing is uploaded until you agree.
         </div>
         <input type="file" id="file" accept=".csv,.ofx,.qfx,.txt,.pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,image/*,application/pdf" style="display:none;" />
         <input type="file" id="fileCam" accept="image/*" capture="environment" style="display:none;" />
@@ -430,7 +438,24 @@
   window.closeCamera = function(){ stopCamera(); _camCanvas=null; $('camOverlay').style.display='none'; };
   function stopCamera(){ if(_camStream){ try{ _camStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} _camStream=null; } }
 
+  // App Store readiness D6: inside the app a photo / PDF is uploaded only after the person
+  // agreed to the Document Scan notice (the server also refuses it until then). Nothing is
+  // uploaded on Cancel. CSV / OFX / QFX never come here (read by ChurchGeniusPro only).
+  // In a web browser this goes straight on, exactly as before.
   function runScan(f){
+    if (window.CGP_aiConsent && CGP_aiConsent.isApp()) {
+      $('btnParse').disabled=true;
+      $('status').textContent='';
+      CGP_aiConsent.ensure('SCAN').then(function(ok){
+        if (ok === true) { uploadScan(f); return; }
+        $('btnParse').disabled=false;
+        $('status').innerHTML='<span id="biScanCancelled">Nothing was uploaded or sent to OpenAI. CSV, OFX and QFX files can be imported without AI.</span>';
+      });
+      return;
+    }
+    uploadScan(f);
+  }
+  function uploadScan(f){
     $('btnParse').disabled=true;
     $('status').innerHTML='<span class="spin"></span> Reading statement…';
     var fd=new FormData(); fd.append('file', f);

@@ -112,6 +112,14 @@ window.CGP_memberNameHtml = function (first, last, nick) {
   // Order: MY PROFILE → ADMIN → ACCOUNTING → GENERAL → ACTIVITY CORNER → MORE
   // The top-level REMINDERS section is kept for active-page detection but is
   // no longer rendered in the sidebar — Reminders are now a sub-item of GENERAL.
+  /** True inside the iOS / Android app (user-agent marker or the native bridge). */
+  function isAppShellUA() {
+    try {
+      return /ChurchGeniusProApp\//.test(navigator.userAgent || '') || !!(window.CGP_NATIVE && window.CGP_NATIVE.isNative)
+          || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    } catch (e) { return false; }
+  }
+
   var MENU = [
     { id: 'members', label: 'My Profile', icon: '&#x1F465;', children: [
         { id: 'members/family',    label: 'Family',        icon: '&#x1F46A;', href: '#mbr-family'       },
@@ -120,7 +128,9 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'members/classes',   label: 'Classes',       icon: '&#x1F4DA;', href: '#mbr-sundaySchool' },
         { id: 'members/volunteer', label: 'Volunteer',     icon: '&#x1F64B;', href: '#mbr-volunteer'    },
         { id: 'members/directory', label: 'Directory',     icon: '&#x1F4D2;', href: '#mbr-directory'    },
-        { id: 'members/songbook',  label: 'Song Book',     icon: '&#x1F3B5;', href: '/songbook'         }
+        { id: 'members/songbook',  label: 'Song Book',     icon: '&#x1F3B5;', href: '/songbook'         },
+        // App Store readiness D6: the person's own AI data-sharing answers (shown in the app only)
+        { id: 'members/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true }
     ]},
     { id: 'admin', label: 'Admin', icon: '&#x1F451;', children: [
         { id: 'admin/users',               label: 'Users',               icon: '&#x1F464;', href: '/viewusers'            },
@@ -181,6 +191,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'more/public-screens', label: 'Public Screens', icon: '&#x1F4FA;', href: '/publicScreens' },
         { id: 'more/follow-ups',     label: 'Follow-Ups',     icon: '&#x1F4CC;', href: '/followups'     },
         { id: 'more/help-center',    label: 'Help Center',    icon: '&#x1F4DA;', href: '/helpCenter'    },
+        { id: 'more/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true },   // D6, app only
         { id: 'more/ticketing',      label: 'Ticketing',      icon: '&#x1F3AB;', href: '/tickets'       },
         { id: 'more/ai-assistant',   label: 'AI Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
         { id: 'more/saved-lists',    label: 'Saved Lists',    icon: '&#x1F4CB;', href: '/savedLists'    },
@@ -300,6 +311,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
 
       (item.children || []).forEach(function (child) {
         if (child.churchOnly && localStorage.getItem('church') !== 'true') return;
+        if (child.appOnly && !isAppShellUA()) return;   // D6: shown inside the iOS / Android app only
         var childActive = activePage === child.id ? ' active' : '';
         var clickAction;
         if (child.href && child.href.indexOf('#mbr-') === 0) {

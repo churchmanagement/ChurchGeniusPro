@@ -429,7 +429,7 @@
           <button class="btn btn-secondary btn-sm" onclick="openKmSetup()" title="Choose which registration sections are used">⚙ Setup</button>
           <button class="btn btn-secondary btn-sm" onclick="openVisionUsage()" title="AI scan (Vision/OCR) usage, tokens and estimated cost">🧾 AI Scan Usage</button>
           <a class="btn btn-secondary btn-sm" href="/api/kids-ministry/child-form.pdf" target="_blank" rel="noopener" title="Download a printable / fillable Child Registration Form">⬇ Registration Form (PDF)</a>
-          <button class="btn btn-secondary btn-sm" data-ai-consent="SCAN" onclick="document.getElementById('childScanInput').click()" title="Upload a completed form to auto-fill the registration">⬆ Upload Completed Form</button>
+          <button class="btn btn-secondary btn-sm" data-ai-consent="SCAN" data-ai-consent-picker="Choose file" onclick="document.getElementById('childScanInput').click()" title="Upload a completed form to auto-fill the registration">⬆ Upload Completed Form</button>
           <button class="btn btn-primary btn-sm" onclick="openChildModal(null, true)" title="Register children, check in, and print labels — full screen">➕ Register Child</button>
         </div>
         <input type="file" id="childScanInput" accept="application/pdf,image/*" style="display:none" onchange="KMSCAN.upload(this)">

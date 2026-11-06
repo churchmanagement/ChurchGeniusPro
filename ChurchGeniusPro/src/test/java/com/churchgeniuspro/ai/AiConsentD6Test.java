@@ -528,4 +528,53 @@ class AiConsentD6Test {
             assertThat(Files.readString(st.resolve(p))).as(p).contains("data-ai-consent=\"SCAN\"");
         }
     }
+
+    @Test @DisplayName("follow-ups: bank import CSV never reaches AI; the scan upload is refused before any processing; picker only after the server confirmed; withdrawal reachable for every role")
+    void followUps() throws Exception {
+        // Bank import: the CSV/OFX path has no notice and no model call; the scan path is refused before its controller in the app
+        assertThat(AiConsentPaths.requirementFor("/api/bank-import/parse").kind()).isEqualTo(AiConsentPaths.Kind.NONE);
+        String bank = Files.readString(Path.of("src/main/java/com/churchgeniuspro/bankimport/BankImportController.java"));
+        int parse = bank.indexOf("@PostMapping(value = \"/api/bank-import/parse\"");
+        int scan = bank.indexOf("@PostMapping(value = \"/api/bank-import/scan\"");
+        assertThat(parse).isPositive(); assertThat(scan).isGreaterThan(parse);
+        assertThat(bank.substring(parse, scan)).as("CSV/OFX parsing never calls the vision model").doesNotContain("vision.");
+        int scanParse = bank.indexOf("@PostMapping(value = \"/api/bank-import/scan-parse\"");
+        int nextMapping = bank.indexOf("@PostMapping", scanParse + 10);
+        assertThat(bank.substring(scanParse, nextMapping < 0 ? bank.length() : nextMapping)).as("on-device OCR text is parsed without AI").doesNotContain("vision.");
+        Object[] refused = run(req("/api/bank-import/scan", staff(1), APP_UA));
+        assertThat(refused[1]).as("no OCR, text extraction or model call before consent").isEqualTo(false);
+        assertThat((String) refused[2]).contains("\"notice\":\"SCAN\"");
+
+        Path st = Path.of("src/main/resources/static");
+        String bi = Files.readString(st.resolve("bank-import.html"));
+        assertThat(bi.indexOf("CGP_aiConsent.ensure('SCAN')")).as("asks before the upload").isPositive()
+                .isLessThan(bi.indexOf("fetch('/api/bank-import/scan',"));
+        assertThat(bi).contains("are read by ChurchGeniusPro only — they are never sent to OpenAI").contains("Nothing was uploaded or sent to OpenAI.");
+
+        // picker opens only after the server stored the answer (no click inside the Agree tap)
+        String js = Files.readString(st.resolve("ai-consent.js"));
+        assertThat(js).doesNotContain("onAgree").contains("if (opts && opts.continueLabel) { continueStep(); return; }");
+        int ok = js.indexOf("if (r.ok) {");
+        assertThat(js.indexOf("continueStep();", ok)).isGreaterThan(ok);
+        assertThat(Files.readString(st.resolve("family.html"))).contains("data-ai-consent-picker=\"Choose file\"");
+        assertThat(Files.readString(st.resolve("kidsMinistry.html"))).contains("data-ai-consent-picker=\"Choose file\"");
+
+        // withdrawal: page for every signed-in role, More + My Profile nav (app only), the assistant bar, AI Activity, Member Portal, Help Center
+        var ctl = new com.churchgeniuspro.controller.AiDataSharingPageController();
+        for (MockHttpSession s : List.of(staff(1), churchOwner(2), member(3))) {
+            assertThat(ctl.page(req("/aiDataSharing", s, APP_UA))).isEqualTo("forward:/aiDataSharing.html");
+        }
+        MockHttpSession accountant = staff(4); accountant.setAttribute("role", "Accountant");
+        MockHttpSession user = staff(5); user.setAttribute("role", "User");
+        assertThat(ctl.page(req("/aiDataSharing", accountant, APP_UA))).isEqualTo("forward:/aiDataSharing.html");
+        assertThat(ctl.page(req("/aiDataSharing", user, APP_UA))).isEqualTo("forward:/aiDataSharing.html");
+        assertThat(ctl.page(new MockHttpServletRequest())).startsWith("redirect:");
+        String shell = Files.readString(st.resolve("shell.js"));
+        assertThat(shell).contains("{ id: 'more/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true }")
+                .contains("{ id: 'members/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true }")
+                .contains("if (child.appOnly && !isAppShellUA()) return;");
+        assertThat(Files.readString(st.resolve("ai-assistant.js"))).contains("id=\"aaShareBtn\"").contains("window.CGP_aiConsent.openSettings()");
+        assertThat(Files.readString(st.resolve("aiDataSharing.html"))).contains("CGP_aiConsent.renderSettings(");
+        assertThat(Files.readString(st.resolve("helpCenter.html"))).contains("id=\"hc-ai-data-sharing\"");
+    }
 }
