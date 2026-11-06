@@ -362,6 +362,19 @@ public class WhatsAppSenderService {
      * @param settings  Twilio credentials (used for WhatsApp only)
      * @param whatsApp  {@code true} = WhatsApp prefix, {@code false} = plain SMS via SmsService
      */
+    /**
+     * True for evaluation tenants ({@code DEMO-} sample-data and {@code TRIAL-} self-service
+     * trials). They may never send WhatsApp messages, whatever credentials are stored in
+     * {@code whatsapp_settings}; an unknown (null/blank) tenant is refused too, failing closed.
+     * SMS for these tenants is governed separately by {@code DemoAccessService.sendingAllowed}
+     * inside {@code SmsService}.
+     */
+    static boolean isWhatsAppBlockedTenant(String clientId) {
+        if (clientId == null || clientId.isBlank()) return true;
+        return clientId.startsWith(TestDataService.DEMO_CLIENT_PREFIX)
+            || clientId.startsWith(TestDataService.TRIAL_CLIENT_PREFIX);
+    }
+
     private void doSend(String toPhone, String message,
                         WhatsAppSettings settings, boolean whatsApp, String clientId) {
         // toPhone must already be normalized at this point, but guard just in case
@@ -374,6 +387,14 @@ public class WhatsAppSenderService {
             } else {
                 log.warn("SMS to {} skipped — SmsService not configured", PhoneMask.mask(toPhone));
             }
+            return;
+        }
+
+        // Evaluation tenants never send WhatsApp, even if credentials were entered
+        // (App Store readiness D8). Must stay ABOVE any Twilio WhatsApp call.
+        String waClient = clientId != null ? clientId : (settings != null ? settings.getClientId() : null);
+        if (isWhatsAppBlockedTenant(waClient)) {
+            log.info("WhatsApp send refused for evaluation tenant {} — DEMO/TRIAL tenants never send WhatsApp", waClient);
             return;
         }
 
@@ -502,6 +523,14 @@ public class WhatsAppSenderService {
     private void doSendTemplate(String toPhone, String contentSid,
                                  java.util.Map<String, String> variables,
                                  WhatsAppSettings settings) {
+        // Evaluation tenants never send WhatsApp (App Store readiness D8). Must stay
+        // ABOVE any Twilio WhatsApp call.
+        if (isWhatsAppBlockedTenant(settings != null ? settings.getClientId() : null)) {
+            log.info("WhatsApp template refused for evaluation tenant {} — DEMO/TRIAL tenants never send WhatsApp",
+                     settings.getClientId());
+            return;
+        }
+
         // WHATSAPP DISABLED — skip the Twilio Content Template API call entirely
         log.debug("WhatsApp template (doSendTemplate) disabled — skipping send to {}", PhoneMask.mask(toPhone));
 

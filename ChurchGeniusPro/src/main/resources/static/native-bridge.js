@@ -127,6 +127,31 @@
     }
   }
 
+  /* Payment pages on iOS (App Store readiness D5, Apple guideline 3.2.2(iv)): the public
+     donation page and the invoice payment page are opened in Safari itself, never inside
+     the app. AppLauncher (when the build has it) hands the URL to iOS, which opens Safari
+     because these paths are not Universal Link paths; older builds fall back to the
+     system browser sheet. */
+  var IS_IOS = window.CGP_NATIVE.platform === 'ios';
+  function isPaymentPath(abs) {
+    try {
+      var p = new URL(abs, location.href).pathname;
+      return /^\/donate\//.test(p) || /^\/invoice(\.html)?$/.test(p) || /^\/invoice\//.test(p);
+    } catch (_) { return false; }
+  }
+  function openInSafari(url) {
+    var abs; try { abs = new URL(url, location.href).href; } catch (_) { abs = url; }
+    if (P.AppLauncher && typeof P.AppLauncher.openUrl === 'function') {
+      return P.AppLauncher.openUrl({ url: abs })
+        .then(function (r) { if (r && r.completed === false) openExternal(abs); })
+        .catch(function () { openExternal(abs); });
+    }
+    openExternal(abs);
+    return Promise.resolve();
+  }
+  window.CGP_NATIVE.openInSafari = openInSafari;
+  window.CGP_NATIVE.isPaymentPath = isPaymentPath;
+
   /** Stand-in for `w = window.open(''); w.document.write(html); w.print()`. */
   function virtualWindow() {
     var html = '';
@@ -171,6 +196,7 @@
       return virtualWindow();
     }
     var abs; try { abs = new URL(u, location.href).href; } catch (_) { abs = u; }
+    if (IS_IOS && sameOrigin(abs) && isPaymentPath(abs)) { openInSafari(abs); return virtualWindow(); }
     if (sameOrigin(abs) && !/\.(pdf|csv|xlsx?|docx?)(\?|$)/i.test(abs) && target !== '_blank') {
       // Same-site page in the same window: ordinary navigation.
       location.href = abs;
@@ -190,6 +216,7 @@
     if (/^(#|javascript:|mailto:|tel:|sms:|geo:)/i.test(href)) return;
     var abs; try { abs = new URL(href, location.href).href; } catch (_) { return; }
     if (!/^https?:/i.test(abs)) return;
+    if (IS_IOS && sameOrigin(abs) && isPaymentPath(abs)) { e.preventDefault(); openInSafari(abs); return; }
     if (sameOrigin(abs)) {
       if (a.target === '_blank' && /\.(pdf|csv|xlsx?|docx?)(\?|$)/i.test(abs)) {
         e.preventDefault(); urlToBlob(abs).then(function (b) { return shareBlob(b, abs.split('/').pop().split('?')[0]); });

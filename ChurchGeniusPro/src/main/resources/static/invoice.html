@@ -100,6 +100,21 @@
   </div>
 
 <script>
+/* App Store readiness D5 (Apple guideline 3.2.2(iv)): inside the iOS app this payment page
+   is never used; it hands the same URL to Safari. Browsers and Android are unchanged. */
+function cgpIosAppShell() {
+  var c = window.Capacitor;
+  try { return !!(c && (typeof c.isNativePlatform === 'function' ? c.isNativePlatform() : c.isNative) && c.getPlatform && c.getPlatform() === 'ios'); }
+  catch (_) { return false; }
+}
+function cgpOpenInSafari(url) {
+  var P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  if (P.AppLauncher && typeof P.AppLauncher.openUrl === 'function') {
+    return P.AppLauncher.openUrl({ url: url }).catch(function () { if (P.Browser) P.Browser.open({ url: url }); });
+  }
+  if (P.Browser && typeof P.Browser.open === 'function') return P.Browser.open({ url: url });
+}
+
 (function () {
   function $(id) { return document.getElementById(id); }
   var money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -212,6 +227,7 @@
     el.hidden = false;
   }
   $('payStart').addEventListener('click', function () {
+    if (cgpIosAppShell()) { cgpOpenInSafari(location.href); payMsg('Payment opens in Safari.'); return; }
     $('payStart').disabled = true; payMsg('');
     post('/api/invoice/pay/start', { t: t }).then(function (x) {
       if (!x.ok || x.d.status !== 'success') {

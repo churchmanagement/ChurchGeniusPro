@@ -5168,7 +5168,47 @@ function loadStripeJs() {
     document.head.appendChild(s);
   });
 }
+/* App Store readiness D5 (Apple guideline 3.2.2(iv)): in the iOS app the card form is not
+   shown; giving happens on the church's public donation page, opened in Safari. Web
+   browsers and Android are unchanged. */
+function isIosApp() {
+  return !!(window.CGP_NATIVE && window.CGP_NATIVE.isNative && window.CGP_NATIVE.platform === 'ios');
+}
+async function renderGiveInSafari() {
+  var pane = document.getElementById('givePane_give');
+  var body = pane && pane.querySelector('.card .card-body');
+  if (!body) return;
+  Array.prototype.forEach.call(body.children, function (el) {
+    if (el.id !== 'giveSafariPanel') el.style.display = 'none';
+  });
+  var panel = document.getElementById('giveSafariPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'giveSafariPanel';
+    panel.style.cssText = 'text-align:center;padding:8px 4px 4px;';
+    body.insertBefore(panel, body.firstChild);
+  }
+  panel.innerHTML = '<p style="font-size:14px;color:#555;margin:0 0 14px;">Online giving opens in Safari, on your church\'s secure giving page.</p>'
+    + '<button type="button" class="btn-primary" id="giveSafariBtn" disabled>Give in Safari</button>'
+    + '<p id="giveSafariMsg" role="status" aria-live="polite" style="font-size:13px;color:#7c4a12;margin:12px 0 0;"></p>';
+  var btn = document.getElementById('giveSafariBtn'), msg = document.getElementById('giveSafariMsg');
+  try {
+    var res = await fetch('/api/member/giving-link');
+    var data = null; try { data = await res.json(); } catch (e) { data = null; }
+    if (!res.ok || !data) { msg.textContent = 'Could not load your church\'s giving page (' + res.status + '). Please try again later.'; return; }
+    if (!data.available || !data.path) { msg.textContent = data.message || 'Online giving isn\'t set up for your church yet.'; return; }
+    var url = new URL(data.path, location.origin).href;
+    btn.disabled = false;
+    btn.onclick = function () {
+      if (window.CGP_NATIVE && typeof window.CGP_NATIVE.openInSafari === 'function') window.CGP_NATIVE.openInSafari(url);
+      else window.open(url, '_blank');
+    };
+  } catch (e) {
+    msg.textContent = 'Could not load your church\'s giving page. Please try again later.';
+  }
+}
 async function initGivePayment() {
+  if (isIosApp()) { giveEnabled = false; return renderGiveInSafari(); }
   var box = document.getElementById('giveUnavailable'), btn = document.getElementById('giveBtn');
   var dateEl = document.getElementById('giveDate');
   if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);

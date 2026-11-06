@@ -382,8 +382,33 @@ let givingDisabledMsg = 'Online giving is not configured for this church account
 /* ═══════════════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════════════ */
+
+/* App Store readiness D5 (Apple guideline 3.2.2(iv)): inside the iOS app this payment page
+   is never used; it hands the same URL to Safari. Browsers and Android are unchanged. */
+function cgpIosAppShell() {
+  var c = window.Capacitor;
+  try { return !!(c && (typeof c.isNativePlatform === 'function' ? c.isNativePlatform() : c.isNative) && c.getPlatform && c.getPlatform() === 'ios'); }
+  catch (_) { return false; }
+}
+function cgpOpenInSafari(url) {
+  var P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  if (P.AppLauncher && typeof P.AppLauncher.openUrl === 'function') {
+    return P.AppLauncher.openUrl({ url: url }).catch(function () { if (P.Browser) P.Browser.open({ url: url }); });
+  }
+  if (P.Browser && typeof P.Browser.open === 'function') return P.Browser.open({ url: url });
+}
 (async function init() {
   if (!CID) { showInitError('Invalid donation link.'); return; }
+  if (cgpIosAppShell()) {
+    showInitError('Giving opens in Safari. Tap below to continue on this secure giving page in Safari.');
+    var host = document.getElementById('initError');
+    var go = document.createElement('button');
+    go.type = 'button'; go.id = 'cgpOpenSafari'; go.textContent = 'Continue in Safari';
+    go.style.cssText = 'margin-top:14px;padding:12px 20px;border:0;border-radius:10px;background:#673147;color:#fff;font-weight:700;font-size:15px;';
+    go.addEventListener('click', function () { cgpOpenInSafari(location.href); });
+    host.appendChild(go);
+    return;
+  }
 
   // Load Stripe config
   let config;
