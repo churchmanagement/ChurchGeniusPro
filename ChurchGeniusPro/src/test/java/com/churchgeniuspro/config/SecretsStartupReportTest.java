@@ -64,7 +64,7 @@ class SecretsStartupReportTest {
         assertThat(out).anyMatch(l -> l.equals("[Secrets] set      PLATFORM_STRIPE_SECRET_KEY"));
         assertThat(out).anyMatch(l -> l.equals("[Secrets] set      TWILIO_AUTH_TOKEN"));
         assertThat(out).anyMatch(l -> l.startsWith("[Secrets] MISSING  PLATFORM_STRIPE_WEBHOOK_SECRET — "));
-        assertThat(out).anyMatch(l -> l.startsWith("[Secrets] MISSING  PAYROLL_SSN_ENC_KEY — "));
+        assertThat(out).noneMatch(l -> l.contains("PAYROLL_SSN_ENC_KEY"));   // SSN is no longer stored (2026-11-06)
         assertThat(out).anyMatch(l -> l.startsWith("[Secrets] set      RECAPTCHA_SECRET (optional"));
         assertThat(out).anyMatch(l -> l.startsWith("[Secrets] not set  GEOIP_DB_PATH (optional"));
         assertThat(out).anyMatch(l -> l.startsWith("[Secrets] set      PLAID_TOKEN_ENC_KEY_PREVIOUS (rotation-only"));
@@ -82,12 +82,12 @@ class SecretsStartupReportTest {
     @Test @DisplayName("missing expected variables are WARN, optional and rotation-only are INFO — never an exception")
     void levelsByGroup() {
         new SecretsStartupReport(env("local")).report();
-        assertThat(appender.list.stream().filter(ev -> ev.getFormattedMessage().contains("  PAYROLL_SSN_ENC_KEY ")).map(ILoggingEvent::getLevel)).containsExactly(Level.WARN);
+        assertThat(appender.list.stream().filter(ev -> ev.getFormattedMessage().contains("  TWILIO_AUTH_TOKEN ")).map(ILoggingEvent::getLevel)).containsExactly(Level.WARN);
         assertThat(appender.list.stream().filter(ev -> ev.getFormattedMessage().contains("RECAPTCHA_SITE_KEY")).map(ILoggingEvent::getLevel)).containsExactly(Level.INFO);
         assertThat(appender.list.stream().filter(ev -> ev.getFormattedMessage().contains("PLAID_TOKEN_ENC_KEY_PREVIOUS")).map(ILoggingEvent::getLevel)).containsExactly(Level.INFO);
     }
 
-    @Test @DisplayName("PAYROLL_SSN_ENC_KEY missing in prod is a WARN, not a startup failure (rotation phase pending)")
+    @Test @DisplayName("prod startup without CGP_CID_KEY fails for that reason only (no payroll key is expected)")
     @DisabledIf("cidKeyFromEnvironment")
     void payrollKeyDoesNotFailProdWhenCidKeyAlsoMissing() {
         // With CGP_CID_KEY absent, prod startup fails for THAT reason only; the message names no other variable.

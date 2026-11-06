@@ -2583,3 +2583,18 @@ CREATE TABLE IF NOT EXISTS ai_consent (
     updated_at      TIMESTAMP    NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_consent_login_type ON ai_consent (app_client_id, login_id, notice_type);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Payroll SSN removed (user decision 2026-11-06): ChurchGeniusPro no longer stores any SSN.
+-- 1) Clear stored values (the application also does this on every start — SsnDataPurge).
+-- 2) OPTIONAL, separate approval: drop the now-unused column.
+-- Safe to run twice. NOT run against production without the owner's approval.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'payroll_employee' AND column_name = 'ssn_last4') THEN
+        UPDATE payroll_employee SET ssn_last4 = NULL WHERE ssn_last4 IS NOT NULL;
+    END IF;
+END $$;
+-- ALTER TABLE payroll_employee DROP COLUMN IF EXISTS ssn_last4;   -- schema change: run only after approval

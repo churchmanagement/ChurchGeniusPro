@@ -7,7 +7,6 @@ import com.churchgeniuspro.payroll.pdf.EmployerInfo;
 import com.churchgeniuspro.payroll.pdf.PaystubPdfService;
 import com.churchgeniuspro.payroll.pdf.W2PdfService;
 import com.churchgeniuspro.payroll.service.PayrollSetupService;
-import com.churchgeniuspro.payroll.service.SsnCrypto;
 import com.churchgeniuspro.payroll.service.W2Box;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -34,13 +33,11 @@ import static org.mockito.Mockito.mock;
 class PayrollSensitiveFieldsHiddenTest {
 
     static final String SSN4 = "4321", ACCT4 = "8765", ROUT4 = "1357";
-    final SsnCrypto crypto = new SsnCrypto("");
 
     PayrollEmployee employee() {
         PayrollEmployee e = new PayrollEmployee();
         e.setId(7L); e.setAppClientId("CHR-test");
         e.setFirstName("Jamie"); e.setLastName("Rivera");
-        e.setSsnLast4(crypto.encrypt(SSN4));                       // as stored before this change
         e.setBankName("Test Bank");
         e.setDirectDepositAccountLast4(ACCT4); e.setDirectDepositRoutingLast4(ROUT4);
         e.setDirectDepositAccountType("CHECKING");
@@ -56,7 +53,7 @@ class PayrollSensitiveFieldsHiddenTest {
     @DisplayName("employee API: no ssnLast4 / account / routing keys; bank name and account type still returned")
     @SuppressWarnings("unchecked")
     void apiOmitsThem() {
-        PayrollSetupController c = new PayrollSetupController(mock(PayrollSetupService.class), crypto);
+        PayrollSetupController c = new PayrollSetupController(mock(PayrollSetupService.class));
         Map<String, Object> m = (Map<String, Object>) ReflectionTestUtils.invokeMethod(c, "employeeJson", employee());
         assertThat(m).doesNotContainKeys("ssnLast4", "directDepositAccountLast4", "directDepositRoutingLast4");
         assertThat(m.values().stream().map(String::valueOf)).noneMatch(v -> v.contains(SSN4) || v.contains(ACCT4) || v.contains(ROUT4));
@@ -71,7 +68,7 @@ class PayrollSensitiveFieldsHiddenTest {
         s.setPayPeriodStart(LocalDate.of(2026, 10, 1)); s.setPayPeriodEnd(LocalDate.of(2026, 10, 15)); s.setPayDate(LocalDate.of(2026, 10, 16));
         s.setGrossEarnings(new BigDecimal("2000.00")); s.setTotalTaxes(new BigDecimal("300.00")); s.setNetPay(new BigDecimal("1700.00"));
         s.setDirectDepositAccountLast4(ACCT4); s.setDirectDepositAccountType("CHECKING");   // copied onto older stubs
-        String t = text(new PaystubPdfService(null, null, null, crypto).generate(s, List.of(), employee(), EmployerInfo.ofName("Test Church")));
+        String t = text(new PaystubPdfService(null, null, null).generate(s, List.of(), employee(), EmployerInfo.ofName("Test Church")));
         assertThat(t).doesNotContain("SSN").doesNotContain("XXX-XX").doesNotContain(SSN4).doesNotContain(ACCT4).doesNotContain("****");
         assertThat(t).contains("Direct Deposit (CHECKING)").contains("1,700.00");
     }
@@ -81,7 +78,7 @@ class PayrollSensitiveFieldsHiddenTest {
     void w2OmitsSsn() throws Exception {
         W2Box w = new W2Box();
         w.setEmployeeId(7L); w.setEmployeeName("Jamie Rivera"); w.setTaxYear(2026);
-        String t = text(new W2PdfService(crypto).generate(w, EmployerInfo.ofName("Test Church"), employee()));
+        String t = text(new W2PdfService().generate(w, EmployerInfo.ofName("Test Church"), employee()));
         assertThat(t).doesNotContain("SSN").doesNotContain("XXX-XX").doesNotContain(SSN4);
         assertThat(t).contains("Jamie Rivera");
     }

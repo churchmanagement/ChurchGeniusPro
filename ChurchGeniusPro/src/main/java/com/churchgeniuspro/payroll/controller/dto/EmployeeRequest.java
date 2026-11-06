@@ -1,23 +1,24 @@
 package com.churchgeniuspro.payroll.controller.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Create/update payload for a payroll employee. PII is intentionally limited to
- * masked values — only the last 4 digits of SSN and bank account/routing are
- * accepted and stored (full PII capture/encryption is out of scope here).
+ * Create/update payload for a payroll employee. No SSN is accepted (2026-11-06):
+ * a client that still sends {@code ssnLast4} has it ignored (unknown JSON property) and
+ * nothing is stored.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EmployeeRequest {
     private String employeeNumber;
     private String firstName;
     private String lastName;
     private String email;
     private String phone;
-    private String ssnLast4;
 
     private String addressLine1;
     private String addressLine2;

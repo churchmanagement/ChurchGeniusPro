@@ -1,7 +1,6 @@
 package com.churchgeniuspro.payroll.pdf;
 
 import com.churchgeniuspro.payroll.entity.Paystub;
-import com.churchgeniuspro.payroll.service.SsnCrypto;
 import com.churchgeniuspro.payroll.service.W2Box;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -77,9 +76,8 @@ class PaystubPdfMoneyFormatConcurrencyTest {
     @DisplayName("live concurrency: distinct amounts across simultaneous downloads never cross-contaminate")
     class ConcurrentGeneration {
 
-        private final SsnCrypto ssnCrypto = new SsnCrypto(""); // dev-derived key; no external config needed
-        private final PaystubPdfService paystubPdfService = new PaystubPdfService(null, null, null, ssnCrypto);
-        private final W2PdfService w2PdfService = new W2PdfService(ssnCrypto);
+        private final PaystubPdfService paystubPdfService = new PaystubPdfService(null, null, null);
+        private final W2PdfService w2PdfService = new W2PdfService();
 
         /** A distinct, always-positive, always-unique dollar amount per task index. */
         private static BigDecimal amountFor(int i) {

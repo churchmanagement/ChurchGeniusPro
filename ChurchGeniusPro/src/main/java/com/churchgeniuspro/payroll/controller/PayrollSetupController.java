@@ -34,14 +34,9 @@ public class PayrollSetupController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PayrollSetupController.class);
 
     private final PayrollSetupService setup;
-    /** No longer used by this controller (SSN is not returned); kept so the constructor is unchanged. */
-    @SuppressWarnings("unused")
-    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
-    public PayrollSetupController(PayrollSetupService setup,
-                                  com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
+    public PayrollSetupController(PayrollSetupService setup) {
         this.setup = setup;
-        this.ssnCrypto = ssnCrypto;
     }
 
     // ── Employees ────────────────────────────────────────────────────────────

@@ -2788,6 +2788,7 @@
               <div class="hc-step"><span class="hc-step-num">2</span><span>Click <span class="hc-ui lite">W-2 PDF</span> for one employee, or <span class="hc-ui">Download W-2 CSV (all)</span> for everyone.</span></div>
               <div class="hc-step"><span class="hc-step-num">3</span><span>Under <strong>Payroll register &amp; tax liability</strong>, pick a run to see each employee's taxes and deductions plus the employer tax liability.</span></div>
             </div>
+            <div class="hc-note" id="hc-payroll-w2-ssn">ChurchGeniusPro does not store Social Security numbers, so its W-2 PDF and CSV are summaries of the figures, not forms you can file. The W-2 you file with the SSA (and give employees) needs each employee's SSN: enter the figures in SSA Business Services Online, your tax preparer's or payroll software, and keep SSNs there.</div>
             <div class="hc-section-label" id="hc-payroll-activity">Activity log</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>Activity</strong> to see recent payroll changes and approvals (When, Who, Action, Details). Click <span class="hc-ui lite">Load 10 more</span> for older entries.</span></div>
@@ -5297,7 +5298,7 @@ const HC_KB = [
     id: 'payroll-w2',
     q: ['w-2','w2','year end payroll','payroll register','tax liability','payroll report','w2 pdf'],
     title: '📄 W-2s and Payroll Reports',
-    answer: 'Accounting → Payroll → Reports shows Year-end W-2 figures (Boxes 1–6 and 17) for the chosen Tax year, with a W-2 PDF per employee and Download W-2 CSV (all). The Payroll register & tax liability section shows each run\'s taxes, deductions and employer tax liability.',
+    answer: 'Accounting → Payroll → Reports shows Year-end W-2 figures (Boxes 1–6 and 17) for the chosen Tax year, with a W-2 PDF per employee and Download W-2 CSV (all). The Payroll register & tax liability section shows each run\'s taxes, deductions and employer tax liability. ChurchGeniusPro does not store Social Security numbers, so these W-2s are summaries: file the official W-2 (which needs each SSN) through SSA Business Services Online, a tax preparer or payroll software.',
     steps: ['Go to Accounting → Payroll → Reports','Choose the Tax year','Click W-2 PDF for one employee or Download W-2 CSV (all)','Pick a run under Payroll register & tax liability'],
     links: [{label:'Payroll Reports', url:'/payroll/reports', icon:'📄'}],
     related: ['run payroll','payroll employee']

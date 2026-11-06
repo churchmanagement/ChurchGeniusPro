@@ -272,7 +272,7 @@ public class HelpContentCatalog {
         // roles: SuperAdmin,Admin,Accountant,Church
         add(new HelpArticle("payroll", "Accounting", "Running Payroll", "accounting.payroll", false,
             "Set up employees, run payroll, hand out paystubs and produce W-2 figures.",
-            "Accounting → Payroll has Employees, Payroll Runs, Reports and Activity. Employees: + New, profile, Pay setup (Salary/Hourly, Pay frequency, State tax code, Annual salary or Hourly rate, optional Bank name and DD type), Form W-4 and assigned deductions from the Deduction catalog (pre-tax or post-tax). Social Security numbers and bank account numbers are not collected. Payroll Runs: Create run (Frequency, Period start/end, Pay date), process employees (salaried automatically, enter hours for hourly), then Submit for approval → Approve → Mark paid; Void cancels an unpaid run. Paystubs: View PDF / Download. Reports: Year-end W-2 (Boxes 1–6, 17) with W-2 PDF per employee and Download W-2 CSV (all), plus each run's payroll register and employer tax liability. Activity: audit log of payroll changes. Admin logins see only Payroll inside Accounting.",
+            "Accounting → Payroll has Employees, Payroll Runs, Reports and Activity. Employees: + New, profile, Pay setup (Salary/Hourly, Pay frequency, State tax code, Annual salary or Hourly rate, optional Bank name and DD type), Form W-4 and assigned deductions from the Deduction catalog (pre-tax or post-tax). Social Security numbers are not collected or stored, and bank account and routing numbers are not collected on the form; the Year-end W-2 PDF and CSV are summaries of the figures, not forms to file — the W-2 filed with the SSA needs each employee's SSN, so file it through SSA Business Services Online, a tax preparer or payroll software. Payroll Runs: Create run (Frequency, Period start/end, Pay date), process employees (salaried automatically, enter hours for hourly), then Submit for approval → Approve → Mark paid; Void cancels an unpaid run. Paystubs: View PDF / Download. Reports: Year-end W-2 (Boxes 1–6, 17) with W-2 PDF per employee and Download W-2 CSV (all), plus each run's payroll register and employer tax liability. Activity: audit log of payroll changes. Admin logins see only Payroll inside Accounting.",
             list("Open Accounting → Payroll → Employees, add each employee and Save W-4.",
                  "Open Payroll Runs, Create run for the period.",
                  "Process employees (enter hours for hourly staff).",
@@ -280,7 +280,8 @@ public class HelpContentCatalog {
                  "At year end use Reports → Year-end W-2."),
             list("Problem: can't delete an employee — Fix: employees with payroll history can only be Deactivated.",
                  "Problem: access denied — Fix: Payroll needs the Payroll permission and an Admin, Accountant or SuperAdmin login."),
-            "2.0", list("v2.0 — SSN and bank-account last-4 removed from the employee form; run approval steps, W-2 PDF/CSV, register & tax liability, Activity log documented.",
+            "2.1", list("v2.1 — SSN no longer stored at all; W-2 output is a summary, file the official W-2 elsewhere.",
+                        "v2.0 — SSN and bank-account last-4 removed from the employee form; run approval steps, W-2 PDF/CSV, register & tax liability, Activity log documented.",
                         "v1.0 — Initial release with engine, pay stubs, W-2, reports, RBAC."),
             list("payroll","employee","pay stub","paystub","w-2","w-4","wages","taxes","deduction","pay run")).roles("SuperAdmin,Admin,Accountant"));
 

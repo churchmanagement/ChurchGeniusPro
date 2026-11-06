@@ -43,7 +43,6 @@ class PayrollSetupServiceDeleteTest {
     @Mock EmployeeDeductionRepository employeeDeductionRepo;
     @Mock PayrollAuditLogRepository auditRepo;
     @Mock PaystubRepository paystubRepo;
-    @Mock SsnCrypto ssnCrypto;
 
     @InjectMocks PayrollSetupService service;
 

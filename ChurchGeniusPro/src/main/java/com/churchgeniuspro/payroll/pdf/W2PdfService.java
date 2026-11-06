@@ -28,13 +28,7 @@ public class W2PdfService {
 
     private static final float LEFT = 50f, RIGHT = 562f, TOP = 742f;
 
-    /** No longer used (SSN is not printed); kept so the constructor is unchanged. */
-    @SuppressWarnings("unused")
-    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
-
-    public W2PdfService(com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
-        this.ssnCrypto = ssnCrypto;
-    }
+    public W2PdfService() { }
 
     public byte[] generate(W2Box w2, EmployerInfo employer, PayrollEmployee employee) {
         try (PDDocument doc = new PDDocument()) {

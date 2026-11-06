@@ -104,10 +104,6 @@ class TenantScopedLookupRatchetTest {
         entry("payroll/service/PayrollReportingService.java", 1),
         entry("payroll/service/PayrollService.java", 3),
         entry("payroll/service/PayrollSetupService.java", 3),
-        // employeeRepo.findById(id): the id comes from this service's own findAll() loop
-        // (Service-Admin, all-tenant SSN key rotation), never from a request — same shape
-        // as PlaidTokenRotationService below.
-        entry("payroll/service/SsnRotationService.java", 1),
         entry("plaid/controller/PlaidEmailVerificationController.java", 2),
         entry("plaid/controller/PlaidItemDeleteController.java", 1),
         entry("plaid/controller/ServiceAdminPlaidController.java", 1),

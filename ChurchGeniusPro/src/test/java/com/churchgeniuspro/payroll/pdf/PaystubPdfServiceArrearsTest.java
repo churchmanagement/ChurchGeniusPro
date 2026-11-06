@@ -1,7 +1,6 @@
 package com.churchgeniuspro.payroll.pdf;
 
 import com.churchgeniuspro.payroll.entity.Paystub;
-import com.churchgeniuspro.payroll.service.SsnCrypto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +24,7 @@ class PaystubPdfServiceArrearsTest {
 
     // The two overloads that query repositories aren't exercised here — the null
     // repo/DAO arguments are never dereferenced by generate(Paystub, List, ...).
-    private final PaystubPdfService service = new PaystubPdfService(null, null, null, new SsnCrypto(""));
+    private final PaystubPdfService service = new PaystubPdfService(null, null, null);
 
     private static Paystub stub(BigDecimal netPay, BigDecimal arrears) {
         Paystub s = new Paystub();

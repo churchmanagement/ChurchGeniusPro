@@ -18,7 +18,7 @@ import java.util.Date;
  * <p>Multi-tenant: scoped by {@code app_client_id} like the rest of the app.
  */
 @Data
-@ToString(exclude = {"ssnLast4", "directDepositAccountLast4", "directDepositRoutingLast4", "hourlyRate", "annualSalary", "email", "phone"})   // never in a log line, even by accident (2026-10-28 logging audit)
+@ToString(exclude = {"directDepositAccountLast4", "directDepositRoutingLast4", "hourlyRate", "annualSalary", "email", "phone"})   // never in a log line, even by accident (2026-10-28 logging audit)
 @Entity
 @Table(name = "payroll_employee")
 public class PayrollEmployee {
@@ -37,9 +37,8 @@ public class PayrollEmployee {
     private String email;
     private String phone;
 
-    /** Stored encrypted/last-4 in practice; never expose full SSN. */
-    @Column(name = "ssn_last4")
-    private String ssnLast4;
+    // SSN is not stored (user decision 2026-11-06): no field, and SsnDataPurge clears any
+    // value left in the old payroll_employee.ssn_last4 column on start.
 
     private String addressLine1;
     private String addressLine2;

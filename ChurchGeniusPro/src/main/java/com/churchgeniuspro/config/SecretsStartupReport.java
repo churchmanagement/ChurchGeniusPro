@@ -21,8 +21,7 @@ import java.util.List;
  *       ({@code CGP_CID_KEY}: every public-form / unsubscribe token is signed with it;
  *       running on the built-in legacy key in production is a key compromise).</li>
  *   <li><b>expected</b> — a whole feature is disabled or degraded without it; WARN,
- *       the application still starts. {@code PAYROLL_SSN_ENC_KEY} is deliberately in
- *       this group, not "required", until the payroll key-rotation phase has run.</li>
+ *       the application still starts.</li>
  *   <li><b>optional</b> — INFO only.</li>
  *   <li><b>rotation-only</b> — set only while a key rotation is in progress; INFO only.</li>
  * </ul>
@@ -50,7 +49,6 @@ public class SecretsStartupReport {
             new Var("DB_URL_PROD", "spring.datasource.url", "database"),
             new Var("DB_USER_PROD", "spring.datasource.username", "database"),
             new Var("DB_PASSWORD_PROD", "spring.datasource.password", "database"),
-            new Var("PAYROLL_SSN_ENC_KEY", "payroll.ssn-enc-key", "payroll SSN last-4 runs on the derived development key"),
             new Var("PLAID_TOKEN_ENC_KEY", "plaid.token-enc-key", "Bank Sync tokens"),
             new Var("PLAID_CLIENT_ID", "plaid.client-id", "Bank Sync"),
             new Var("PLAID_SECRET", "plaid.secret", "Bank Sync (production)"),
@@ -71,8 +69,7 @@ public class SecretsStartupReport {
             new Var("PLAID_SANDBOX_SECRET", "plaid.sandbox-secret", "Bank Sync sandbox (trials)"));
 
     static final List<Var> ROTATION_ONLY = List.of(
-            new Var("PLAID_TOKEN_ENC_KEY_PREVIOUS", "plaid.token-enc-key-previous", "Bank Sync token key rotation"),
-            new Var("PAYROLL_SSN_ENC_KEY_PREVIOUS", "payroll.ssn-enc-key-previous", "payroll SSN last-4 key rotation"));
+            new Var("PLAID_TOKEN_ENC_KEY_PREVIOUS", "plaid.token-enc-key-previous", "Bank Sync token key rotation"));
 
     private final Environment env;
 

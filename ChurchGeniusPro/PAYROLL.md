@@ -120,12 +120,13 @@ seeded 2026 values and sources.
   them out of `static/` or add a resource guard if you must block direct access.
   (2) There is no separation-of-duties (the same authorized user can create and
   approve a run); add a stricter guard on `submit`/`approve` if your church
-  requires it. These endpoints surface SSNs (masked), pay, and tax data.
+  requires it. These endpoints surface pay and tax data (no SSN — it is not stored).
 - **Verify tax figures.** The seeded 2026 federal/FICA values should be
   re-checked against the final IRS publications and reviewed by a payroll/tax
   professional before running real payroll.
 - The per-employee W-2 PDF is a readable **summary**, not the official IRS
   Copy A form; file official forms through SSA-approved channels / tax software.
-- PII is intentionally limited to masked values (SSN/account last-4). Full-PII
-  capture and encryption are out of scope and should be designed before storing
-  real employee data.
+- No Social Security number is collected or stored (2026-11-06); any value left
+  from older versions is cleared on start (`SsnDataPurge`). The filed W-2 needs
+  each SSN, so it is prepared outside ChurchGeniusPro. Bank account / routing
+  numbers are not collected on the form.

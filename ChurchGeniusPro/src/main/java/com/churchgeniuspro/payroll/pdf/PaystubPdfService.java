@@ -47,18 +47,13 @@ public class PaystubPdfService {
     private final PaystubRepository paystubRepo;
     private final PaystubItemRepository itemRepo;
     private final PayrollEmployeeRepository employeeRepo;
-    /** No longer used (SSN is not printed); kept so the constructor is unchanged. */
-    @SuppressWarnings("unused")
-    private final com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto;
 
     public PaystubPdfService(PaystubRepository paystubRepo,
                              PaystubItemRepository itemRepo,
-                             PayrollEmployeeRepository employeeRepo,
-                             com.churchgeniuspro.payroll.service.SsnCrypto ssnCrypto) {
+                             PayrollEmployeeRepository employeeRepo) {
         this.paystubRepo = paystubRepo;
         this.itemRepo = itemRepo;
         this.employeeRepo = employeeRepo;
-        this.ssnCrypto = ssnCrypto;
     }
 
     /** Load a stub by id and render it. Returns the PDF bytes. */
