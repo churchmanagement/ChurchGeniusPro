@@ -105,8 +105,9 @@ public class MemberIntelligenceService {
             snapshots.deleteDay(cid, day);
         }
         List<MemberEngagementSnapshot> out = new ArrayList<>();
+        boolean tracksAttendance = churchTracksAttendance(cid, day);
         for (Row r : facts(cid, day)) {
-            Outcome o = EngagementSignalRules.evaluate(r.facts, day, thresholds);
+            Outcome o = EngagementSignalRules.evaluate(r.facts, day, thresholds, tracksAttendance);
             MemberEngagementSnapshot s = new MemberEngagementSnapshot();
             s.setAppClientId(cid); s.setMemberId(r.memberId); s.setSnapshotDate(day);
             s.setAttendance30(r.facts.attendance30()); s.setAttendance90(r.facts.attendance90()); s.setAttendance365(r.facts.attendance365());
@@ -147,6 +148,17 @@ public class MemberIntelligenceService {
             + "FROM family_member fm JOIN family f ON fm.family_id = f.id AND f.app_client_id = :cid "
             + "WHERE fm.delete_flag = false AND f.delete_flag = false AND fm.inactive = false AND f.inactive = false "
             + "ORDER BY fm.id";
+
+    /** Does the church take attendance? Any attendance record in the 90 days up to {@code day} (any status). */
+    public static final String TRACKS_ATTENDANCE_SQL = "SELECT EXISTS (SELECT 1 FROM attendance_record ar WHERE ar.client_id = :cid "
+            + "AND ar.delete_flag = false AND ar.attendance_date > :d90 AND ar.attendance_date <= :today)";
+
+    boolean churchTracksAttendance(String cid, LocalDate day) {
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("cid", cid).addValue("today", day).addValue("d90", day.minusDays(90));
+        Boolean b = jdbc.queryForObject(TRACKS_ATTENDANCE_SQL, p, Boolean.class);
+        return Boolean.TRUE.equals(b);
+    }
 
     List<Row> facts(String cid, LocalDate day) {
         MapSqlParameterSource p = new MapSqlParameterSource()

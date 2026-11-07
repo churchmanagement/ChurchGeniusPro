@@ -210,6 +210,7 @@ public class MinistryReportService {
             d.add("First-time visitors: visitor records whose first visit falls in the month; returning: visitors who checked in during the month and first visited earlier.");
             d.add("Engagement: the nightly snapshot closest to the month end. ENGAGED = recent attendance; WATCH = attendance or giving recently stopped, or no attendance in a year; "
                     + "AT_RISK = a regular attender absent for six weeks, or gave last year but not this one with no recent attendance; NEW = first attendance within 90 days; QUIET = nothing in 365 days.");
+            d.add("Engagement without attendance: Where attendance is not recorded (the church took none in the last 90 days, or the person has never been checked in), the signal uses giving, groups and serving only: ENGAGED = a gift in the last 90 days, serving or in a group; WATCH = gave in the last 12 months but not in 90 days; AT_RISK = gave in the previous 12 months but not in the last 12; QUIET = none of these.");
         }
         if (a.followUps()) d.add("Follow-ups: tasks created / completed in the month (by their recorded dates); open = Pending or Missed at month end.");
         if (a.finance()) d.add("Giving: income rows dated in the month (gross amounts; fees are expenses), grouped by fund.");

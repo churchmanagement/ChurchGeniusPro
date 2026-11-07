@@ -175,11 +175,12 @@
     if (a.attendance && r.engagement) {
       const e = r.engagement, cnt = e.counts || {}, prev = e.previous || {};
       const RULE = {
-        ENGAGED: 'Attended recently (plus any giving, group or serving).',
-        WATCH: 'Attendance or giving recently stopped, or no attendance in a year while still in a group / serving / giving.',
+        ENGAGED: 'Attended recently (plus any giving, group or serving). Where attendance is not recorded: a gift in the last 90 days, serving or in a group.',
+        WATCH: 'Attendance or giving recently stopped, or no attendance in a year while still in a group / serving / giving. Where attendance is not recorded: gave in the last 12 months but not in 90 days.',
         AT_RISK: 'A regular attender absent for six weeks, or gave last year but not this year with no attendance in 90 days.',
         NEW: 'First attendance within the last 90 days.',
         QUIET: 'No attendance, gift, group or serving in 365 days.' };
+      // 2026-11-07: where attendance is not recorded, the signal uses giving, groups and serving only (see the definitions list).
       const LABEL = { ENGAGED:'Engaged', WATCH:'Watch', AT_RISK:'At risk', NEW:'New', QUIET:'Quiet' };
       let inner = e.snapshotDate ? '<div class="muted" style="margin-bottom:8px">Snapshot of ' + esc(e.snapshotDate) + ' (the nightly run closest to the month end).</div>'
                                  : '<div class="muted" style="margin-bottom:8px">No engagement snapshot exists yet — signals appear after the first nightly run.</div>';

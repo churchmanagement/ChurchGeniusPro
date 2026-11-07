@@ -84,6 +84,46 @@ class EngagementSignalRulesTest {
         assertThat(EngagementSignalRules.evaluate(x, TODAY, T)).isEqualTo(EngagementSignalRules.evaluate(x, TODAY, T));
     }
 
+    @Test @DisplayName("2026-11-07: no attendance recorded (church or person) → giving, groups and serving only, with a note")
+    void withoutAttendance() {
+        Pattern allowed = Pattern.compile("^[A-Za-z0-9 ,.()\\-]+$");
+        // church takes no attendance: monthly giver who volunteers → ENGAGED (was WATCH)
+        Facts giverServing = f(0, 0, 0, null, null, 3, 12, 12, TODAY.minusDays(12), 0, true);
+        Outcome o = EngagementSignalRules.evaluate(giverServing, TODAY, T, false);
+        assertThat(o.signal()).isEqualTo("ENGAGED");
+        assertThat(o.reasons()).contains("3 gifts in the last 90 days.", "Serving as a volunteer.", EngagementSignalRules.CHURCH_NO_ATTENDANCE_NOTE);
+        o.reasons().forEach(r -> assertThat(r).doesNotContain("$").matches(allowed));
+        // same facts in a church that takes attendance, person never checked in → ENGAGED with the person note
+        o = EngagementSignalRules.evaluate(giverServing, TODAY, T, true);
+        assertThat(o.signal()).isEqualTo("ENGAGED");
+        assertThat(o.reasons()).contains(EngagementSignalRules.PERSON_NO_ATTENDANCE_NOTE).doesNotContain(EngagementSignalRules.CHURCH_NO_ATTENDANCE_NOTE);
+        // the 3-argument form = church takes attendance
+        assertThat(EngagementSignalRules.evaluate(giverServing, TODAY, T)).isEqualTo(o);
+        // group only → ENGAGED; gift only in the last 90 days → ENGAGED
+        assertThat(EngagementSignalRules.evaluate(f(0, 0, 0, null, null, 0, 0, 0, null, 1, false), TODAY, T, false).signal()).isEqualTo("ENGAGED");
+        assertThat(EngagementSignalRules.evaluate(f(0, 0, 0, null, null, 1, 1, 0, TODAY.minusDays(80), 0, false), TODAY, T, false).signal()).isEqualTo("ENGAGED");
+        // giving paused: gifts in the year, none in 90 days → WATCH
+        o = EngagementSignalRules.evaluate(f(0, 0, 0, null, null, 0, 4, 12, TODAY.minusDays(120), 0, false), TODAY, T, false);
+        assertThat(o.signal()).isEqualTo("WATCH");
+        assertThat(o.reasons()).contains("4 gifts in the last 12 months, none in the last 90 days.", "Last gift " + TODAY.minusDays(120) + ".");
+        // giving stopped year over year → AT_RISK
+        o = EngagementSignalRules.evaluate(f(0, 0, 0, null, null, 0, 0, 6, TODAY.minusDays(400), 0, false), TODAY, T, false);
+        assertThat(o.signal()).isEqualTo("AT_RISK");
+        assertThat(o.reasons()).contains("6 gifts recorded in the previous 12 months, none in the last 12.");
+        // nothing at all → QUIET; NEW never applies without attendance
+        o = EngagementSignalRules.evaluate(f(0, 0, 0, null, null, 0, 0, 0, null, 0, false), TODAY, T, true);
+        assertThat(o.signal()).isEqualTo("QUIET");
+        assertThat(o.reasons()).contains("No gift, group or serving in the last 365 days.", EngagementSignalRules.PERSON_NO_ATTENDANCE_NOTE);
+        // church no longer takes attendance: older check-ins are ignored (no WATCH for "no attendance in a year")
+        assertThat(EngagementSignalRules.evaluate(f(0, 0, 3, TODAY.minusYears(2), TODAY.minusDays(200), 2, 8, 8, TODAY.minusDays(20), 0, false), TODAY, T, false).signal()).isEqualTo("ENGAGED");
+        // people who HAVE been checked in, in a church that takes attendance, keep the attendance rules
+        assertThat(EngagementSignalRules.evaluate(f(0, 0, 0, TODAY.minusYears(2), TODAY.minusDays(380), 0, 0, 0, null, 2, true), TODAY, T, true).signal()).isEqualTo("WATCH");
+        assertThat(EngagementSignalRules.evaluate(f(0, 4, 20, TODAY.minusYears(2), TODAY.minusDays(45), 1, 5, 6, null, 1, false), TODAY, T, true).signal()).isEqualTo("AT_RISK");
+        // the church check is tenant-scoped and only looks at the last 90 days
+        assertThat(MemberIntelligenceService.TRACKS_ATTENDANCE_SQL).contains("ar.client_id = :cid").contains("ar.delete_flag = false")
+                .contains("ar.attendance_date > :d90").contains("ar.attendance_date <= :today");
+    }
+
     @Test @DisplayName("thresholds are honoured: a stricter regular-min or a longer at-risk gap changes the verdict")
     void thresholds() {
         Facts x = f(0, 3, 20, TODAY.minusYears(2), TODAY.minusDays(45), 0, 0, 0, null, 0, false);

@@ -20,6 +20,9 @@ import java.util.List;
  *       stopped (gifts in the year, none in 90 days), or the only tie is one of groups / serving / gifts.</li>
  *   <li>{@code ENGAGED} — everything else with recent activity.</li>
  * </ul>
+ * <p>These attendance rules apply only to people who have been checked in, in a church that takes attendance
+ * (any record in the last 90 days). Everyone else is judged on giving, groups and serving only — see
+ * {@link #evaluateWithoutAttendance}.
  */
 public final class EngagementSignalRules {
 
@@ -37,6 +40,24 @@ public final class EngagementSignalRules {
     public record Outcome(String signal, List<String> reasons) {}
 
     public static Outcome evaluate(Facts f, LocalDate today, Thresholds t) {
+        return evaluate(f, today, t, true);
+    }
+
+    /** Reason line when the church took no attendance in the last 90 days. */
+    public static final String CHURCH_NO_ATTENDANCE_NOTE = "This church does not record attendance, so the signal uses giving, groups and serving only.";
+    /** Reason line when the church takes attendance but this person has never been checked in. */
+    public static final String PERSON_NO_ATTENDANCE_NOTE = "Attendance is not recorded for this person, so the signal uses giving, groups and serving only.";
+
+    /**
+     * 2026-11-07 (user decision): attendance is judged only where it is recorded.
+     * {@code churchTracksAttendance} = the church has any attendance record in the last 90 days. When it does not,
+     * or when this person has never been checked in, the person is judged on giving, groups and serving only
+     * ({@link #evaluateWithoutAttendance}) — a church that never takes attendance would otherwise see every faithful
+     * giver or volunteer as WATCH. Everyone who has been checked in keeps the attendance rules below.
+     */
+    public static Outcome evaluate(Facts f, LocalDate today, Thresholds t, boolean churchTracksAttendance) {
+        if (!churchTracksAttendance) return evaluateWithoutAttendance(f, CHURCH_NO_ATTENDANCE_NOTE);
+        if (f.lastAttended() == null) return evaluateWithoutAttendance(f, PERSON_NO_ATTENDANCE_NOTE);
         List<String> why = new ArrayList<>();
         boolean anyYear = f.attendance365() > 0 || f.gifts365() > 0 || f.groups() > 0 || f.serving();
 
@@ -97,7 +118,37 @@ public final class EngagementSignalRules {
         return new Outcome("ENGAGED", why);
     }
 
-    public static final List<String> SIGNALS = List.of("ENGAGED", "WATCH", "AT_RISK", "NEW", "QUIET");
+    /**
+     * Giving, groups and serving only (NEW never applies — it needs a first attendance date):
+     * ENGAGED = a gift in the last 90 days, or serving, or in a group; WATCH = gifts in the last 12 months but none
+     * in the last 90; AT_RISK = gifts in the previous 12 months, none in the last 12; QUIET = none of these.
+     */
+    static Outcome evaluateWithoutAttendance(Facts f, String note) {
+        List<String> why = new ArrayList<>();
+        String signal;
+        if (f.gifts90() > 0 || f.serving() || f.groups() > 0) {
+            signal = "ENGAGED";
+            if (f.gifts90() > 0) why.add(f.gifts90() + " gift" + (f.gifts90() == 1 ? "" : "s") + " in the last 90 days.");
+            if (f.groups() > 0) why.add("In " + f.groups() + " group" + (f.groups() == 1 ? "" : "s") + ".");
+            if (f.serving()) why.add("Serving as a volunteer.");
+        } else if (f.gifts365() > 0) {
+            signal = "WATCH";
+            why.add(f.gifts365() + " gift" + (f.gifts365() == 1 ? "" : "s") + " in the last 12 months, none in the last 90 days.");
+            if (f.lastGift() != null) why.add("Last gift " + f.lastGift() + ".");
+        } else if (f.giftsPrior365() > 0) {
+            signal = "AT_RISK";
+            why.add(f.giftsPrior365() + " gift" + (f.giftsPrior365() == 1 ? "" : "s") + " recorded in the previous 12 months, none in the last 12.");
+            if (f.lastGift() != null) why.add("Last gift " + f.lastGift() + ".");
+        } else {
+            signal = "QUIET";
+            why.add("No gift, group or serving in the last 365 days.");
+            if (f.lastGift() != null) why.add("Last gift " + f.lastGift() + ".");
+        }
+        why.add(note);
+        return new Outcome(signal, why);
+    }
+
+    public static final List<String> SIGNALS =List.of("ENGAGED", "WATCH", "AT_RISK", "NEW", "QUIET");
 
     public static boolean isSignal(String s) { return s != null && SIGNALS.contains(s); }
 }
