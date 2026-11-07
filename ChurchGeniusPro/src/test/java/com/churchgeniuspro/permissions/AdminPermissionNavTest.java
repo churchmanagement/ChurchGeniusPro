@@ -178,6 +178,16 @@ class AdminPermissionNavTest {
         assertThat(missing).as("pages loading shell.js without the standard sidebar layout").isEmpty();
     }
 
+    @Test @DisplayName("Add/Edit Family on phones: members and roles stack inside their cards")
+    void familyPhoneLayout() throws Exception {
+        String html = file("family.html");
+        int media = html.indexOf("@media (max-width: 700px)");
+        assertThat(media).isPositive();
+        assertThat(media).as("phone rules come after the base table rules").isGreaterThan(html.indexOf(".roles-table select {"));
+        assertThat(html).contains("<td class=\"mt-actions\">").contains("data-label=\"Email\" class=\"mt-email\"")
+                .contains(".members-table thead { display: none; }").contains(".roles-table thead { display: none; }");
+    }
+
     @Test @DisplayName("AI Connections, Account Privacy and Automations use the standard app layout")
     void standardLayout() throws Exception {
         for (String page : List.of("apiTokens.html", "accountPrivacy.html", "workflows.html")) {

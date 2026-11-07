@@ -204,6 +204,7 @@
     .btn-edit-member:hover { background: #3949ab; border-color: #3949ab; }
     .btn-remove { padding: 4px 11px; border-radius: 6px; font-size: 13px; color: #fff; background: #673147; border: 1px solid #673147; cursor: pointer; }
     .btn-remove:hover { background: #3949ab; border-color: #3949ab; }
+    .members-table .mt-email { overflow-wrap: anywhere; }
 
     /* ── Roles table ── */
     .roles-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -247,6 +248,40 @@
     .eng-quiet   { background:#eeeeee; color:#555; }
     .kp-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;
               background:#fff4e5; color:#8a4b00; border:1px solid #f3c58b; white-space:normal; vertical-align:middle; }
+    /* Phones (2026-11-06): the members table is shown as one card per member so Edit / Delete
+       stay inside the card — the 6-column table was wider than the screen. */
+    @media (max-width: 700px) {
+      .members-table thead { display: none; }
+      .members-table, .members-table tbody { display: block; width: 100%; }
+      .members-table tr { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 4px;
+        padding: 12px 4px; border-bottom: 1px solid #f0f0f0; }
+      .members-table tr:last-child { border-bottom: none; }
+      .members-table td { display: block; padding: 0; border: none; min-width: 0; }
+      .members-table tr:hover td { background: none; }
+      .members-table td.mt-num { color: #999; font-size: 12px; padding-top: 2px; }
+      .members-table td.mt-name { font-size: 14px; }
+      .members-table td[data-label] { grid-column: 2; font-size: 13px; color: #555; }
+      .members-table td[data-label]::before { content: attr(data-label) ": "; color: #999; font-size: 11px;
+        font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+      .members-table td.mt-actions { grid-column: 2; padding-top: 6px; }
+      .members-table td.mt-actions:empty { display: none; }
+      .members-table .mt-btns { flex-wrap: wrap; }
+      .members-table td.empty-members { grid-column: 1 / -1; }
+    }
+    @media (max-width: 900px) {
+      /* Roles: one block per member — name, role picker, then the anniversary (spouse only). */
+      .roles-table thead { display: none; }
+      .roles-table, .roles-table tbody, .roles-table tr, .roles-table td { display: block; width: 100%; }
+      .roles-table tr { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+      .roles-table tr:last-child { border-bottom: none; }
+      .roles-table td { padding: 4px 0; border: none; }
+      .roles-table tr:hover td { background: none; }
+      .roles-table td > span[style*="color:#ccc"] { display: none; }
+      .roles-table select { width: 100%; min-width: 0; box-sizing: border-box; }
+      .roles-table .anniv-row { flex-wrap: wrap; }
+      .roles-table .anniv-row .anniv-label { width: 100%; }
+      .roles-table .anniv-row select { flex: 1 1 0; width: auto; min-width: 0; }
+    }
 </style>
 </head>
 <body>
@@ -1178,12 +1213,12 @@
         ? window.CGP_memberNameHtml(m.firstName, m.lastName, m.otherName)
         : escHtml([m.firstName, m.lastName].filter(Boolean).join(' ')));
       return `<tr>
-        <td>${i + 1}</td>
-        <td><strong>${nameHtml}</strong>${kidsPortalBadge(m.kidsPortalStatus)}${engagementBadge(m.id)}</td>
-        <td>${escHtml(m.memberType || 'Member')}</td>
-        <td>${formatPhone(m.phone)}${m.phonePrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}</td>
-        <td>${escHtml(m.email) || '<span style="color:#ccc">—</span>'}${m.emailPrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}${m.addressPrivate ? ' <span title="Address Private — hidden from members" style="font-size:11px;">🔒🏠</span>' : ''}</td>
-        <td>${isViewMode ? '' : `<div style="display:flex;gap:6px;align-items:center;">
+        <td class="mt-num">${i + 1}</td>
+        <td class="mt-name"><strong>${nameHtml}</strong>${kidsPortalBadge(m.kidsPortalStatus)}${engagementBadge(m.id)}</td>
+        <td data-label="Category">${escHtml(m.memberType || 'Member')}</td>
+        <td data-label="Phone">${formatPhone(m.phone)}${m.phonePrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}</td>
+        <td data-label="Email" class="mt-email">${escHtml(m.email) || '<span style="color:#ccc">—</span>'}${m.emailPrivate ? ' <span title="Private — hidden from members" style="font-size:11px;">🔒</span>' : ''}${m.addressPrivate ? ' <span title="Address Private — hidden from members" style="font-size:11px;">🔒🏠</span>' : ''}</td>
+        <td class="mt-actions">${isViewMode ? '' : `<div class="mt-btns" style="display:flex;gap:6px;align-items:center;">
           ${window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false ? '' : `<button class="btn-edit-member" onclick="editFamilyMember(${i})">Edit</button>`}
           ${window.CGP_PERMS && window.CGP_PERMS['admin.family.delete'] === false ? '' : `<button class="btn-remove" onclick="removeFamilyMember(${i})">Delete</button>`}
         </div>`}</td>
