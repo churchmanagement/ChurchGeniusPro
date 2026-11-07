@@ -2196,7 +2196,11 @@
 
   /* ── Sync parent checkboxes without full re-render ── */
   function syncPermCheckboxes() {
-    PERM_TREE.forEach((sec, si) => {
+    // Walk the SAME tree the checkboxes were rendered from (2026-11-06). The ids carry the
+    // position in visiblePermTree(); walking the full PERM_TREE put each state on the wrong
+    // checkbox whenever the plan hides a section (e.g. Activity Corner) — e.g. a member's
+    // My Profile boxes showed unticked while the saved values were ticked.
+    visiblePermTree().forEach((sec, si) => {
       const secCb = document.getElementById(`ps-cb-${si}`);
       if (secCb && !sec.standalone) {
         const state = getSectionState(sec);

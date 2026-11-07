@@ -1047,6 +1047,8 @@ var MEMBER_PRIV_TAB_MAP = {
 
 function isMemberTabAllowed(tabKey, privMap) {
   if (!privMap) return true;
+  // My Profile unticked as a whole → none of its tabs (2026-11-06).
+  if (privMap.member === false && MEMBER_TAB_KEYS().indexOf(tabKey) !== -1) return false;
   var hasMemberKeys = Object.keys(privMap).some(function(k){ return k.startsWith('member.'); });
   if (!hasMemberKeys) return true;
   var anyTrue = Object.keys(privMap).some(function(k){ return k.startsWith('member.') && privMap[k] === true; });
@@ -1060,8 +1062,21 @@ function isMemberTabAllowed(tabKey, privMap) {
   return true;
 }
 
+function MEMBER_TAB_KEYS() {
+  var out = [];
+  for (var pk in MEMBER_PRIV_TAB_MAP) if (MEMBER_PRIV_TAB_MAP.hasOwnProperty(pk)) out = out.concat(MEMBER_PRIV_TAB_MAP[pk]);
+  return out;
+}
+
 function applyMemberPrivileges(privMap) {
   if (!privMap) return;
+  if (privMap.member === false) {
+    MEMBER_TAB_KEYS().forEach(function (tabKey) {
+      var b = document.getElementById('tab' + tabKey.charAt(0).toUpperCase() + tabKey.slice(1));
+      if (b) b.style.display = 'none';
+    });
+    return;
+  }
   var hasMemberKeys = Object.keys(privMap).some(function(k){ return k.startsWith('member.'); });
   if (!hasMemberKeys) return;
   var anyTrue = Object.keys(privMap).some(function(k){ return k.startsWith('member.') && privMap[k] === true; });
@@ -1452,6 +1467,31 @@ window.applyMemberNavFilter = function(privMap) {
       }
     });
   });
+
+  // ── Step 3b: MY PROFILE follows its own checkboxes (2026-11-06) ──────────
+  // Main section unticked → the whole My Profile section (all its items) is hidden;
+  // an unticked tab (Family, Contributions, Groups, Classes, Volunteer, Directory) hides
+  // only that item. Only an explicit false hides — a key the map does not carry stays.
+  (function () {
+    var membersItem = null;
+    document.querySelectorAll('#sidebarNav > .nav-item').forEach(function (item) {
+      var a = item.querySelector('[id^="arrow-"]');
+      if (a && a.id === 'arrow-members') membersItem = item;
+    });
+    if (!membersItem) return;
+    if (privMap.member === false) { membersItem.style.display = 'none'; return; }
+    membersItem.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
+      var m = (btn.getAttribute('onclick') || '').match(/showMemberTab\(['"]([^'"]+)['"]/);
+      if (!m) return;
+      for (var pk in MEMBER_PRIV_TAB_MAP) {
+        if (MEMBER_PRIV_TAB_MAP.hasOwnProperty(pk) && MEMBER_PRIV_TAB_MAP[pk].indexOf(m[1]) !== -1
+            && privMap[pk] === false) btn.style.display = 'none';
+      }
+    });
+    var anyShown = Array.prototype.some.call(membersItem.querySelectorAll('.nav-sub-btn'),
+      function (b) { return b.style.display !== 'none'; });
+    if (!anyShown) membersItem.style.display = 'none';
+  })();
 
   // ── Step 4: hide whole section if every one of its children is denied ────
   var MEMBER_SECTION_CHILDREN = {

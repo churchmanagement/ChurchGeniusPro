@@ -42,6 +42,10 @@ public class SessionController {
     @org.springframework.context.annotation.Lazy
     private LoginController loginController;
 
+    /** Which side-menu pages this staff login may open (same rule as the page routes); optional for tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.AiAccessPolicy accessPolicy;
+
     public SessionController(AppUserRepository appUserRepository) {
         this.appUserRepository = appUserRepository;
     }
@@ -154,6 +158,17 @@ public class SessionController {
         }
         res.put("evaluationAccount", evaluation);
         res.put("features",          features);
+
+        // Side menu: page path → may this staff login open it (2026-11-06). Computed by the
+        // server from the same rules the page routes apply, so the menu never offers a link
+        // that answers Access Denied (e.g. Attendance for an Accountant). Empty for member,
+        // church, Kids Portal, temporary and NTAG sessions. Never fails the session call.
+        Map<String, Boolean> navAccess = java.util.Collections.emptyMap();
+        if (accessPolicy != null) {
+            try { navAccess = accessPolicy.navAccess(request, planTenant); }
+            catch (Exception ignored) { /* menu falls back to the permission keys */ }
+        }
+        res.put("navAccess", navAccess);
 
         return ResponseEntity.ok(res);
     }

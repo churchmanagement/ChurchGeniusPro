@@ -518,6 +518,10 @@ public final class RoleGuard {
             boolean anyChildTrue = map.entrySet().stream()
                     .anyMatch(e -> e.getKey().startsWith(childPrefix)
                                    && Boolean.TRUE.equals(e.getValue()));
+            // (2026-11-06) My Profile unticked as a whole → none of its tabs, like the
+            // staff main-menu rule in pagePermissionAllows.
+            if (memberPermKey.startsWith("member.") && Boolean.FALSE.equals(map.get("member"))) return FORWARD_ACCESS_DENIED;
+
             if (anyChildTrue) return null;
 
             // Fall back to the exact key: missing = allowed, explicit false = denied.

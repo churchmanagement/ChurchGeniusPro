@@ -197,6 +197,38 @@ public class AiAccessPolicy {
         return out;
     }
 
+    /**
+     * Side-menu access for a STAFF session (2026-11-06): every catalogue page path → whether this
+     * login may open it, decided by the same rule as {@link #openable} (the route's role guard,
+     * the alias-aware page key with the main-menu rule, the plan feature). session.js hides the
+     * menu links the server would refuse, so the menu never offers a page that answers Access
+     * Denied. Member Portal tabs are not included (the member menu has its own keys). Empty for
+     * member, church, Kids Portal, temporary-access and NTAG sessions — their menus are built
+     * from their own lists. The backend checks stay in the page controllers; this only mirrors them.
+     */
+    public java.util.Map<String, Boolean> navAccess(HttpServletRequest req, String clientId) {
+        java.util.Map<String, Boolean> out = new java.util.TreeMap<>();
+        HttpSession s = req == null ? null : req.getSession(false);
+        if (s == null || s.getAttribute("username") == null) return out;
+        if (RoleGuard.isKidsPortalSession(s) || isTemporaryAccess(s) || s.getAttribute("ntagCredId") != null) return out;
+        String role = s.getAttribute("role") == null ? "" : String.valueOf(s.getAttribute("role"));
+        if ("Member".equals(role)) return out;
+        Object ch = s.getAttribute("church");
+        if (Boolean.TRUE.equals(ch) || "true".equalsIgnoreCase(String.valueOf(ch))) return out;
+        if (com.churchgeniuspro.mcp.TokenSession.scopes(s) != null) return out;
+        java.util.Set<String> open = openable(req, s, clientId, role, false, false);
+        for (AiNavigationCatalog.Page p : AiNavigationCatalog.PAGES) {
+            if (p.rule().memberKey() != null) continue;
+            String path = p.url(); int cut = path.indexOf('?'); if (cut > 0) path = path.substring(0, cut);
+            cut = path.indexOf('#'); if (cut > 0) path = path.substring(0, cut);
+            out.merge(path, open.contains(p.url()), Boolean::logicalOr);
+        }
+        // The Member Portal page serves member logins only: a staff session has no member record,
+        // so the page signs it out. Its MY PROFILE links are therefore not offered to staff.
+        out.put("/memberHome", false);
+        return out;
+    }
+
     private static boolean page(HttpServletRequest req, String key) {
         return RoleGuard.requirePagePermission(req, key) == null;
     }

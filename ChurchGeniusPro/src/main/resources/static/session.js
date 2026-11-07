@@ -1487,8 +1487,33 @@
     }
     window.CGP_hideEmptyNavSections = hideEmptyNavSections;
 
+    /**
+     * Side-menu links the server would refuse are hidden (2026-11-06). window.CGP_NAV_ACCESS comes
+     * from /api/session (navAccess): page path → may this staff login open it, worked out on the
+     * server from the same rules the page routes apply (role guard + permission key + main-menu
+     * key + plan feature). So an Accountant never sees Attendance, Reminders, Certificates … that
+     * answer Access Denied. Only paths the server listed are touched; the server still refuses the
+     * page on its own.
+     */
+    window.CGP_NAV_ACCESS = null;
+    function navPathOf(btn) {
+        var oc = btn.getAttribute('onclick') || '';
+        var m = oc.match(/['"](\/[^'"?#]*)/);
+        return m ? m[1] : null;
+    }
+    function applyNavAccess() {
+        var acc = window.CGP_NAV_ACCESS;
+        if (!acc) return;
+        document.querySelectorAll('#sidebarNav .nav-sub-btn').forEach(function (btn) {
+            var path = navPathOf(btn);
+            if (path && acc[path] === false) btn.style.display = 'none';
+        });
+    }
+    window.CGP_applyNavAccess = applyNavAccess;
+
     function applySubscriptionNav() {
         applySubscriptionNavFeatures();
+        applyNavAccess();
         hideEmptyNavSections();
     }
 
@@ -1600,6 +1625,9 @@
                 showTrialNotice(featData.trial);
             }
         } catch (_) { /* fail-open: features stay enabled */ }
+
+        window.CGP_NAV_ACCESS = (sessionData.navAccess && Object.keys(sessionData.navAccess).length)
+            ? sessionData.navAccess : null;
 
         // ── Update sidebar user block ─────────────────────────────────────────
         updateSidebarUser(sessionData);
@@ -2410,14 +2438,20 @@
     function startPermissionPolling(sessionData, role, isChurch) {
         if (isChurch) return;
         var lastPerms = (role === 'Member' ? sessionData.memberPrivileges : sessionData.privileges) || null;
+        var lastNav = JSON.stringify(window.CGP_NAV_ACCESS);
         setInterval(function () {
             fetch(SESSION_URL, { cache: 'no-store' })
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .then(function (sd) {
                     if (!sd || sd.authenticated === false) return;
                     var now = (role === 'Member' ? sd.memberPrivileges : sd.privileges) || null;
-                    if (now === lastPerms) return;
-                    lastPerms = now;
+                    var nav = sd.navAccess && Object.keys(sd.navAccess).length ? sd.navAccess : null;
+                    var navJson = JSON.stringify(nav);
+                    if (now === lastPerms && navJson === lastNav) return;
+                    lastPerms = now; lastNav = navJson;
+                    window.CGP_NAV_ACCESS = nav;
+                    // re-run the role filter first so items a newly granted permission allows come back
+                    if (role !== 'Member') { applyRoleNavFilter(role); }
                     applyPermissions(now, role, isChurch);
                     if (typeof applySubscriptionNav === 'function') applySubscriptionNav();
                     if (window.CGP_syncFavUI) window.CGP_syncFavUI();

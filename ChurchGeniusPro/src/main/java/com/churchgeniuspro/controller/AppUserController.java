@@ -593,8 +593,12 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
-                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
+        // findById + belongsToChurch touched the lazy family outside a session
+        // (open-in-view is off) → LazyInitializationException → 500, so the Permissions
+        // screen could neither load nor save a Member Portal login's permissions.
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository
+                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
                 .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
@@ -625,8 +629,11 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
-                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
+        // findById + belongsToChurch touched the lazy family outside a session
+        // (open-in-view is off) → LazyInitializationException → 500.
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository
+                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
                 .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
@@ -660,8 +667,11 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
-                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
+        // findById + belongsToChurch touched the lazy family outside a session
+        // (open-in-view is off) → LazyInitializationException → 500.
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository
+                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
                 .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
@@ -760,8 +770,11 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository.findById(id)
-                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
+        // findById + belongsToChurch touched the lazy family outside a session
+        // (open-in-view is off) → LazyInitializationException → 500.
+        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository
+                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
                 .orElse(null);
         if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
@@ -784,8 +797,12 @@ public class AppUserController {
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
 
-        com.churchgeniuspro.hibernate.FamilyMember fm2 = familyMemberRepository.findById(id)
-                .filter(m -> belongsToChurch(m, (String) session.getAttribute("clientId")))
+        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
+        // findById + belongsToChurch touched the lazy family outside a session
+        // (open-in-view is off) → LazyInitializationException → 500, so the Permissions
+        // screen could neither load nor save a Member Portal login's permissions.
+        com.churchgeniuspro.hibernate.FamilyMember fm2 = familyMemberRepository
+                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
                 .orElse(null);
         if (fm2 == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
 
