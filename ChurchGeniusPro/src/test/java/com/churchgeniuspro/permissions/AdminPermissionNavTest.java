@@ -165,9 +165,22 @@ class AdminPermissionNavTest {
         assertThat(shell).contains("ROLE_ALLOWED");
     }
 
-    @Test @DisplayName("AI Connections and Account Privacy use the standard app layout")
+    @Test @DisplayName("every page with the side menu script uses the standard app layout")
+    void everyShellPageHasTheSidebar() throws Exception {
+        List<String> missing = new java.util.ArrayList<>();
+        try (var files = Files.list(STATIC)) {
+            for (Path f : files.filter(x -> x.toString().endsWith(".html")).toList()) {
+                String html = Files.readString(f);
+                if (html.contains("src=\"/shell.js\"") && !(html.contains("id=\"sidebar\"") && html.contains("class=\"main-area\"")))
+                    missing.add(f.getFileName().toString());
+            }
+        }
+        assertThat(missing).as("pages loading shell.js without the standard sidebar layout").isEmpty();
+    }
+
+    @Test @DisplayName("AI Connections, Account Privacy and Automations use the standard app layout")
     void standardLayout() throws Exception {
-        for (String page : List.of("apiTokens.html", "accountPrivacy.html")) {
+        for (String page : List.of("apiTokens.html", "accountPrivacy.html", "workflows.html")) {
             String html = file(page);
             assertThat(html).as(page).contains("<div class=\"app\">").contains("<aside class=\"sidebar\" id=\"sidebar\">")
                     .contains("class=\"main-area\"").contains("id=\"topbar\"").contains("class=\"page-content\"");
