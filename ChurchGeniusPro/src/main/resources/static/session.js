@@ -626,7 +626,9 @@
     function applyRoleNavFilter(role) {
         var ALLOWED = {
             'SuperAdmin': ['admin', 'admin-settings', 'accounting', 'account-settings', 'general', 'more', 'reminders', 'help'],
-            'Admin':      ['admin', 'admin-settings', 'accounting', 'general', 'more', 'reminders', 'help'],
+            // Admin: no Accounting by role (2026-11-06) — it appears only when the permission
+            // map grants at least one Accounting page (applyPermissions re-shows it then).
+            'Admin':      ['admin', 'admin-settings', 'general', 'more', 'reminders', 'help'],
             'Accountant': ['accounting', 'account-settings', 'general', 'more', 'admin', 'help'],
             'User':       ['general', 'more', 'reminders', 'help'],
             'Member':     ['general', 'more', 'reminders', 'members', 'help'],
@@ -678,17 +680,9 @@
             }
         }
 
-        // ── Sub-item filtering: Admin reaches Payroll via Accounting but is not a
-        // full accounting user → show ONLY the Payroll item inside Accounting. ──
-        if (role === 'Admin') {
-            var acctSubmenu = document.getElementById('sub-accounting');
-            if (acctSubmenu) {
-                acctSubmenu.querySelectorAll('.nav-sub-btn').forEach(function (btn) {
-                    var onclick = btn.getAttribute('onclick') || '';
-                    btn.style.display = onclick.indexOf('/payroll') !== -1 ? '' : 'none';
-                });
-            }
-        }
+        // (2026-11-06) The former "Admin sees only Payroll inside Accounting" rule is gone:
+        // what an Admin sees inside Accounting is decided by the permission map alone, and a
+        // login with nothing saved now carries its role's defaults (no Accounting for Admin).
     }
 
     /**
@@ -1473,7 +1467,32 @@
      * Hides nav items (and [data-feature] elements) whose subscription feature
      * is disabled. Safe to call repeatedly — runs after each nav rebuild.
      */
+    /**
+     * Hides every main menu whose sub-items are all hidden (2026-11-06): no empty sections,
+     * whatever hid the items (role, permission, plan feature). Favorites is left alone (its
+     * items arrive asynchronously); leaf entries without a sub-menu are untouched.
+     */
+    function hideEmptyNavSections() {
+        document.querySelectorAll('#sidebarNav > .nav-item').forEach(function (navItem) {
+            var sub = navItem.querySelector('.nav-submenu');
+            if (!sub) return;
+            var btn = navItem.querySelector('.nav-item-btn');
+            var oc = btn ? (btn.getAttribute('onclick') || '') : '';
+            if (navItem.id === 'favNavItem' || sub.id === 'sub-fav') return;
+            var visible = Array.prototype.some.call(sub.querySelectorAll('.nav-sub-btn'), function (b) {
+                return b.style.display !== 'none';
+            });
+            if (!visible) navItem.style.display = 'none';
+        });
+    }
+    window.CGP_hideEmptyNavSections = hideEmptyNavSections;
+
     function applySubscriptionNav() {
+        applySubscriptionNavFeatures();
+        hideEmptyNavSections();
+    }
+
+    function applySubscriptionNavFeatures() {
         if (!window.CGP_FEATURES) return;   // not loaded → everything enabled
 
         // Sub-nav items
@@ -2042,6 +2061,7 @@
             '/income':              'accounting.income',
             '/expense':             'accounting.expense',
             '/bank-import':         'accounting.bankimport',
+            '/bankSync':            'accounting.bankimport',   // Bank Sync follows Bank Import (2026-11-06)
             '/pledges':             'accounting.pledges',
             '/donation-review':     'accounting.donation',
             '/accountingReports':   'accounting.reports',
@@ -2175,24 +2195,23 @@
             // the former "keep the section alive for Payroll" exception is gone: when
             // accounting.payroll is allowed the section is not all-denied and stays.
 
-            if (sectionKey && perms[sectionKey] === true) {
-                // Explicitly granted — show regardless of role-based filter.
-                // Also un-hide any sub-items that the role filter may have hidden.
-                navItem.style.display = '';
-                return;
-            }
-
-            // (a) Section-level key explicitly false → hide
-            if (sectionKey && perms[sectionKey] === false) {
+            // (2026-11-06) A main menu is shown only when at least one of its sub-pages is
+            // permitted — its checkbox on the Permissions screen is derived from those children.
+            // Parent unchecked (= no child), or parent checked with every child unchecked →
+            // hidden. Empty sections are also removed after every other filter has run
+            // (hideEmptyNavSections).
+            var children = SECTION_CHILDREN[sectionId];
+            var anyChild = !(sectionKey && perms[sectionKey] === false)
+                && (children ? children.some(function (k) { return perm(k); }) : true);
+            if (!anyChild) {
                 navItem.style.display = 'none';
                 return;
             }
-
-            // (b) All PERM_TREE children explicitly denied → hide
-            var children = SECTION_CHILDREN[sectionId];
-            if (!children) return;
-            var allDenied = children.every(function (k) { return !perm(k); });
-            if (allDenied) navItem.style.display = 'none';
+            if ((sectionKey && perms[sectionKey] === true) || (sectionId === 'accounting' && acctEligible)) {
+                // Granted with at least one child — show even when the role filter hid it
+                // (Admin's Accounting is never shown by role, only by permission).
+                navItem.style.display = '';
+            }
         });
 
         // ── Account Settings topbar button ────────────────────────────────────

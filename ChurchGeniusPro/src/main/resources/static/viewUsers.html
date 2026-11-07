@@ -1782,10 +1782,11 @@
     // Admin: Admin + General + More + My Profile (all). 'general'/'more'/'member'
     // prefixes cover their sub-keys (incl. general.attendance.*, more.helpcenter).
     // 'favorites' enabled by default for all roles (preserves prior behavior).
-    // 'accounting.payroll' is included because Admin reaches Payroll through the
-    // Accounting section (see session.js / shell.js) and /payroll is now gated by
-    // that key: without it, the Admin defaults would save accounting.payroll:false.
-    Admin:        ['favorites', 'admin', 'general', 'more', 'activity', 'member', 'accounting.payroll'],
+    // No Accounting key — not even Payroll — is on by default for Admin (2026-11-06):
+    // Accounting appears only when a church administrator ticks it here.
+    // MIRRORED server-side in util/RolePermissionDefaults (pinned by a test): a login
+    // whose permissions were never saved gets exactly these defaults.
+    Admin:        ['favorites', 'admin', 'general', 'more', 'activity', 'member'],
     // Accountant: Accounting + General + More + My Profile (all).
     Accountant:   ['favorites', 'accounting', 'general', 'more', 'activity', 'member'],
     // User / Limited: General + More + My Profile (no admin, no accounting).
@@ -2220,6 +2221,19 @@
     });
   }
 
+  /* ── Section / sub-section keys derived from their children ── */
+  function deriveParentKeys(map) {
+    PERM_TREE.forEach(sec => {
+      if (sec.standalone || !sec.children) return;
+      sec.children.forEach(sub => {
+        if (sub.actions) map[sub.key] = sub.actions.some(a => map[a.key] !== false);
+      });
+      map[sec.key] = getLeafKeys(sec).some(k => map[k] !== false);
+    });
+    return map;
+  }
+  window.CGP_deriveParentKeys = deriveParentKeys;   // for tests
+
   /* ── Save permissions to backend ── */
   function syncLegacyPermissionKeys(map) {
     const aliases = window.CGP_PERM_ALIASES || {};
@@ -2249,6 +2263,12 @@
     // is ALREADY in this record with the checkbox the admin just set; nothing is added,
     // renamed or removed.
     syncLegacyPermissionKeys(_permMap);
+
+    // Parent keys follow their children (2026-11-06): a section or sub-section is on when at
+    // least one permission under it is on, and off when none is — exactly the state its
+    // checkbox shows (checked / partly checked / unchecked). Before, ticking only Income left
+    // the stored 'accounting' key false, so the whole menu stayed hidden.
+    deriveParentKeys(_permMap);
 
     // Member portal users use /api/members/{id}/permissions; staff use /api/users/{id}/permissions
     const apiUrl = _permIsMember ? `/api/members/${_permUserId}/permissions` : `/api/users/${_permUserId}/permissions`;

@@ -55,8 +55,11 @@
   </style>
 </head>
 <body>
-<div class="app-shell">
-  <div class="content">
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header id="topbar" class="topbar"></header>
+    <main class="page-content">
     <div class="page-title">🔗 AI Connections</div>
     <div class="page-subtitle">Personal access tokens let an AI tool you already use (Claude Desktop, ChatGPT, any MCP client) ask your church's data the same questions AI Search answers — with <strong>your</strong> permissions only, for this church only. Tokens are shown once, expire, and can be revoked at any time. Every call is listed under Admin → AI Activity.</div>
 
@@ -116,6 +119,7 @@
         <div class="muted">Tools the client will see: ask_church_data, search_people, list_saved_lists, run_saved_list, ministry_report, engagement_summary — and with the Actions scope list_actions, propose_action, confirm_action, cancel_action.</div>
       </div>
     </div>
+    </main>
   </div>
 </div>
 

@@ -168,8 +168,10 @@ public class PublicSubmissionNotificationService {
         }
         if (appUserId != null) {
             final Integer id = appUserId;
-            return permsRepo.findByAppUserId(id).map(UserPermissions::getPermissions)
+            String saved = permsRepo.findByAppUserId(id).map(UserPermissions::getPermissions)
                     .orElseGet(() -> userRepo.findById(id).map(AppUser::getPrivileges).orElse(null));
+            Object role = session.getAttribute("role");
+            return com.churchgeniuspro.util.RolePermissionDefaults.effective(role == null ? null : String.valueOf(role), saved);
         }
         Object p = session.getAttribute("privileges");
         return p == null ? null : String.valueOf(p);

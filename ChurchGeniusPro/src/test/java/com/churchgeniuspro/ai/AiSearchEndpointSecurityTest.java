@@ -61,6 +61,7 @@ class AiSearchEndpointSecurityTest {
     static MockHttpServletRequest staff(String role) {
         MockHttpSession s = new MockHttpSession();
         s.setAttribute("username", "staff"); s.setAttribute("role", role); s.setAttribute("appClientId", MINE); s.setAttribute("clientId", MINE);
+        if ("Admin".equals(role)) s.setAttribute("privileges", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         MockHttpServletRequest r = new MockHttpServletRequest(); r.setSession(s); return r;
     }
     static MockHttpServletRequest member(String memberRole, String privs) {

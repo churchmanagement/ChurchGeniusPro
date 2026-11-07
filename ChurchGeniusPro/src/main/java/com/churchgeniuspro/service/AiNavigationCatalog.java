@@ -69,7 +69,7 @@ public final class AiNavigationCatalog {
         pg("Income",         "/income",          "Finance", "Record contributions and other income; recurring income; voice entry.", "income,record income,contribution entry", staff(ACCT_OR_ADMIN, "accounting.income")),
         pg("Expense",        "/expense",         "Finance", "Record expenses by category and fund; recurring expenses; voice entry.", "expense,expenses,record expense", staff(ACCT_OR_ADMIN, "accounting.expense")),
         pg("Bank Import",    "/bank-import",     "Finance", "Import a downloaded bank statement and review many lines at once.", "bank import,import bank,bank statement", staff(ACCT_OR_ADMIN, "accounting.bankimport")),
-        pg("Bank Sync",      "/bankSync",        "Finance", "Connect bank accounts (Plaid) and pull in new transactions.", "bank sync,connect bank,plaid", staff(STAFF, null)),
+        pg("Bank Sync",      "/bankSync",        "Finance", "Connect bank accounts (Plaid) and pull in new transactions.", "bank sync,connect bank,plaid", staff(STAFF, "accounting.bankimport")),
         pg("Pledges",        "/pledges",         "Finance", "Pledge campaigns and each member's pledge progress.", "pledges,pledge,campaigns,pledge campaign", staff(ACCT_OR_ADMIN, "accounting.pledges")),
         pg("Donation Review","/donation-review", "Finance", "Review online donations and member contributions (Stripe), see fees, post to accounting.", "donation review,donations,online giving,donation give", staff(ACCT_OR_ADMIN, "accounting.donation")),
         pg("Funds",          "/fund",            "Finance", "Add or edit income funds / sources (e.g. Tithe, Building Fund).", "fund,funds,new fund,add fund,source,sources", staff(ACCT_OR_ADMIN, "accounting.settings")),

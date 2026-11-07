@@ -48,8 +48,13 @@ class AiAccessPolicyTest {
 
     @Test @DisplayName("staff roles without restrictions: Admin/Accountant/SuperAdmin see finance + members; User sees only volunteers")
     void staffDefaults() {
+        // A never-saved Admin carries the Admin defaults (no Accounting, 2026-11-06); with the
+        // Accounting grant it sees finance like the other two.
+        AiAccess plainAdmin = policy.resolve(staff("Admin", null), CID);
+        assertThat(plainAdmin.members()).isTrue();
+        assertThat(plainAdmin.anyFinance()).as("never-saved Admin: no Accounting").isFalse();
         for (String role : new String[] { "SuperAdmin", "Admin", "Accountant" }) {
-            AiAccess a = policy.resolve(staff(role, null), CID);
+            AiAccess a = policy.resolve(staff(role, "Admin".equals(role) ? com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING : null), CID);
             assertThat(a.kids()).isFalse();
             assertThat(a.members()).as(role + " members").isTrue();
             assertThat(a.incomeRecords()).as(role + " income").isTrue();
@@ -112,7 +117,8 @@ class AiAccessPolicyTest {
 
     @Test @DisplayName("Phase B modules follow their pages: meetings/events for staff roles, prayer/follow-ups/reminders/kids/public links for Admin+User, pledges for finance roles")
     void phaseBModules() {
-        AiAccess admin = policy.resolve(staff("Admin", null), CID);
+        assertThat(policy.resolve(staff("Admin", null), CID).pledges()).as("never-saved Admin: Pledges unticked").isFalse();
+        AiAccess admin = policy.resolve(staff("Admin", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING), CID);
         assertThat(admin.meetings()).isTrue(); assertThat(admin.events()).isTrue(); assertThat(admin.prayer()).isTrue(); assertThat(admin.followUps()).isTrue();
         assertThat(admin.followUpsAll()).isTrue(); assertThat(admin.reminders()).isTrue(); assertThat(admin.pledges()).isTrue(); assertThat(admin.kidsMinistry()).isTrue(); assertThat(admin.publicLinks()).isTrue();
         AiAccess user = policy.resolve(staff("User", null), CID);

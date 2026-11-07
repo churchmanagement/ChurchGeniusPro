@@ -132,7 +132,8 @@ public class WorkflowEngine {
         AppUser u = d.getOwnerUserId() == null ? null : users.findByIdAndClientId(d.getOwnerUserId(), d.getAppClientId()).orElse(null);
         if (u == null || u.isDeleteFlag() || !u.isEnabled()) return new Owner(null, null, "Not run — the rule owner's account is no longer active.");
         if (!com.churchgeniuspro.mcp.PersonalAccessTokenService.isStaffRole(u.getRole())) return new Owner(null, null, "Not run — the rule owner is not a staff login.");
-        String priv = permissions.findByAppUserId(u.getId()).map(UserPermissions::getPermissions).orElse(u.getPrivileges());
+        String priv = com.churchgeniuspro.util.RolePermissionDefaults.effective(u.getRole(),
+                permissions.findByAppUserId(u.getId()).map(UserPermissions::getPermissions).orElse(u.getPrivileges()));
         HttpServletRequest req = OwnerRequest.of(u, d.getOwnerUsername(), priv);
         return new Owner(u, access.resolve(req, d.getAppClientId()), null);
     }

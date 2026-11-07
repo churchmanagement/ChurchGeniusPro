@@ -30,6 +30,10 @@ public class PlaidPageController {
         if (s == null) return "redirect:/login.html";
         // Bank Sync is a staff feature (needs an app_user); others go home.
         if (!(s.getAttribute("appUserId") instanceof Integer)) return "redirect:/home";
+        // Bank Sync follows the Bank Import permission (2026-11-06): the side menu hides it
+        // without that key, so the address must not open it either.
+        String denied = com.churchgeniuspro.util.RoleGuard.requirePagePermission(request, "accounting.bankimport");
+        if (denied != null) return denied;
         // Enforce email verification / trusted device on EVERY request.
         if (!gate.isVerified(request)) {
             return "forward:/bankSyncVerify.html";
@@ -43,6 +47,10 @@ public class PlaidPageController {
         HttpSession s = request.getSession(false);
         if (s == null) return "redirect:/login.html";
         if (!(s.getAttribute("appUserId") instanceof Integer)) return "redirect:/home";
+        // Bank Sync follows the Bank Import permission (2026-11-06): the side menu hides it
+        // without that key, so the address must not open it either.
+        String denied = com.churchgeniuspro.util.RoleGuard.requirePagePermission(request, "accounting.bankimport");
+        if (denied != null) return denied;
         // Already verified? Skip straight to the page.
         if (gate.isVerified(request)) return "forward:/plaidReview.html";
         return "forward:/bankSyncVerify.html";

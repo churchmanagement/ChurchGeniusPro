@@ -66,12 +66,14 @@ class MemberIntelligenceEndpointTest {
         r.getSession(true).setAttribute("username", "pat");
         r.getSession().setAttribute("role", role);
         r.getSession().setAttribute("appClientId", CHURCH);
+        if (privileges == null && "Admin".equals(role)) privileges = com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING;   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         if (privileges != null) r.getSession().setAttribute("privileges", privileges);
         return r;
     }
     static MockHttpSession session(String role, String privileges) {
         MockHttpSession s = new MockHttpSession();
         s.setAttribute("username", "pat"); s.setAttribute("role", role); s.setAttribute("appClientId", CHURCH);
+        if (privileges == null && "Admin".equals(role)) privileges = com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING;   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         if (privileges != null) s.setAttribute("privileges", privileges);
         return s;
     }

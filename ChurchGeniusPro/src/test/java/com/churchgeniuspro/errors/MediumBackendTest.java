@@ -102,6 +102,7 @@ class MediumBackendTest {
         s.setAttribute("appClientId", CID);
         s.setAttribute("username", "admin@" + CID);
         s.setAttribute("role", "Admin");
+        s.setAttribute("privileges", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         req.setSession(s);
         return req;
     }

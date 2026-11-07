@@ -56,6 +56,7 @@ class AiPhase0FoundationTest {
     static MockHttpSession staff() {
         MockHttpSession s = new MockHttpSession();
         s.setAttribute("username", "pat"); s.setAttribute("role", "Admin"); s.setAttribute("appClientId", CID);
+        s.setAttribute("privileges", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);   // Admin granted Accounting (never-saved = no Accounting, 2026-11-06)
         return s;
     }
     static MockHttpSession temp() {

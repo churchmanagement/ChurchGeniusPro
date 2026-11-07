@@ -1334,6 +1334,9 @@ public class LoginController {
                             .findByAppUserId(appUser.getId())
                             .map(UserPermissions::getPermissions)
                             .orElse(appUser.getPrivileges());
+                    // Nothing saved → the role's defaults, as the Permissions screen shows them
+                    // (2026-11-06; before, "nothing saved" meant "everything allowed").
+                    privileges = com.churchgeniuspro.util.RolePermissionDefaults.effective(appUser.getRole(), privileges);
                     session.setAttribute("privileges", privileges);
 
                     subscriptionClientId = appClientId;

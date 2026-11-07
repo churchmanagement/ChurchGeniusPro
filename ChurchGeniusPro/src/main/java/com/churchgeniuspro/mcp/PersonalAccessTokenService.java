@@ -193,7 +193,8 @@ public class PersonalAccessTokenService {
         if (!isStaffRole(u.getRole())) return Outcome.no(403, "STAFF_ONLY", "Tokens work for staff accounts only.");
         if (!planAllows(t.getAppClientId())) return Outcome.no(403, "PLAN", "External AI connections are not included in this church's plan.");
         if (!tenantEnabled(t.getAppClientId())) return Outcome.no(403, "TENANT_OFF", "External AI connections are switched off for this church.");
-        String priv = permissions.findByAppUserId(u.getId()).map(UserPermissions::getPermissions).orElse(u.getPrivileges());
+        String priv = com.churchgeniuspro.util.RolePermissionDefaults.effective(u.getRole(),
+                permissions.findByAppUserId(u.getId()).map(UserPermissions::getPermissions).orElse(u.getPrivileges()));
         if (t.getLastUsedAt() == null || t.getLastUsedAt().plusSeconds(LAST_USED_WRITE_GAP_SECONDS).isBefore(now)) {
             t.setLastUsedAt(now);
             try { tokens.save(t); } catch (RuntimeException ignore) { /* last-used is informational */ }

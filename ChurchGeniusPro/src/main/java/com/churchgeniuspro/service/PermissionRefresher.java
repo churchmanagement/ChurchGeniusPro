@@ -108,6 +108,10 @@ public class PermissionRefresher {
             if (u == null) return false;          // AuthFilter handles deleted users; not our job
             saved = u.getPrivileges();
         }
+        // Nothing saved → the role's defaults, exactly as the Permissions screen shows them
+        // (2026-11-06; before, "nothing saved" meant "everything allowed").
+        Object role = session.getAttribute("role");
+        saved = com.churchgeniuspro.util.RolePermissionDefaults.effective(role == null ? null : String.valueOf(role), saved);
         return apply(session, "privileges", saved, appUserId);
     }
 

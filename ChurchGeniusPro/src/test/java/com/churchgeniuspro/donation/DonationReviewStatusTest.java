@@ -82,6 +82,7 @@ class DonationReviewStatusTest {
         session.setAttribute("username", "bookkeeper@example.org");
         session.setAttribute("role", role);
         session.setAttribute("appClientId", CLIENT_ID);
+        if (privilegesJson == null && "Admin".equals(role)) privilegesJson = com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING;   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         if (privilegesJson != null) session.setAttribute("privileges", privilegesJson);
         req.setSession(session);
         return req;

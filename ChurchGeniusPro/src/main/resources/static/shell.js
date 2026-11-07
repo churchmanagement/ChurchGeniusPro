@@ -354,7 +354,8 @@ window.CGP_memberNameHtml = function (first, last, nick) {
     // even during the brief window before session.js's applyRoleNavFilter() runs.
     var ROLE_ALLOWED = {
       'SuperAdmin': ['admin', 'accounting', 'general', 'more', 'members', 'activity'],
-      'Admin':      ['admin', 'accounting', 'general', 'more', 'members', 'activity'],
+      // Admin: Accounting only when the permission map grants it (session.js shows it then).
+      'Admin':      ['admin', 'general', 'more', 'members', 'activity'],
       'Accountant': ['accounting', 'general', 'more', 'admin', 'members', 'activity'],
       'User':       ['general', 'more', 'members', 'activity'],
       'Member':     ['general', 'more', 'members', 'activity'],
@@ -393,9 +394,10 @@ window.CGP_memberNameHtml = function (first, last, nick) {
           }
         });
       }
-      // Admin & Church reach Payroll through Accounting but are not full
-      // accounting users — within Accounting show ONLY the Payroll sub-item.
-      if (localRole === 'Admin' || isChurchRole) {
+      // Church logins: within Accounting show ONLY the Payroll sub-item (session.js hides the
+      // section for them anyway). Admin no longer gets this rule (2026-11-06): what an Admin
+      // sees inside Accounting is decided by the saved permissions alone (session.js).
+      if (isChurchRole) {
         var acctSub = tmpDiv.querySelector('#sub-accounting');
         if (acctSub) {
           acctSub.querySelectorAll('.nav-sub-btn').forEach(function (b) {

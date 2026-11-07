@@ -62,7 +62,7 @@ class AiDataSearchServiceTest {
         when(session.getAttribute("username")).thenReturn("staff");
         when(session.getAttribute("church")).thenReturn(null);
         when(session.getAttribute("memberId")).thenReturn(null);
-        when(session.getAttribute("privileges")).thenReturn(null);       // no restrictions
+        when(session.getAttribute("privileges")).thenReturn("Admin".equals(role) ? com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING : null);   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
     }
 
     private void asMemberPortal() {

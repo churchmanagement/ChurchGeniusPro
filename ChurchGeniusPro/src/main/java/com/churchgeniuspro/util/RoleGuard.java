@@ -344,7 +344,11 @@ public final class RoleGuard {
             // A Member Portal login whose permissions were never saved is treated exactly
             // like one saved with the Permissions screen's defaults (My Profile + Favorites
             // on, every staff key off) — not as "everything allowed" (2026-10-29).
-            return (isMember && !isMemberDefaultKey(permKey)) ? FORWARD_ACCESS_DENIED : null;
+            if (isMember) return !isMemberDefaultKey(permKey) ? FORWARD_ACCESS_DENIED : null;
+            // Staff the same way: the role's defaults (2026-11-06). Sign-in and the refresher
+            // already put them on the session; this covers a session that predates that.
+            privAttr = staffDefaults(session);
+            if (privAttr == null) return null;
         }
         return permissionAllows(String.valueOf(privAttr), permKey) ? null : FORWARD_ACCESS_DENIED;
     }
@@ -355,10 +359,12 @@ public final class RoleGuard {
      * {@link #PERMISSION_ALIASES}: a record saved by an earlier version of the
      * Permissions screen under an old key name keeps the restriction the admin set.
      *
-     * <p>Deliberately NOT used on API endpoints. Permissions control pages, menus and
-     * buttons; data endpoints keep the role checks they have today, and the aliases must
-     * not change what any API refuses. That is why this is a separate method rather than
-     * a change to {@link #requirePermission}.
+     * <p>Not called by API controllers. Since 2026-11-06 the APIs listed in
+     * {@link PermissionApiCatalog} are checked with this same rule by
+     * {@code webfilter/PermissionApiFilter} (user request: "Backend APIs must also enforce
+     * the same permissions"), so a page and the data behind it refuse the same logins;
+     * every other API keeps its role checks. A page under a main menu whose own key is
+     * explicitly false is denied as well (see {@link #pagePermissionAllows}).
      */
     public static String requirePagePermission(HttpServletRequest request, String permKey) {
         HttpSession session = request.getSession(false);
@@ -368,8 +374,16 @@ public final class RoleGuard {
         if (isChurchSession(session)) return null;
         com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         Object privAttr = session.getAttribute(isMember ? "memberPrivileges" : "privileges");
+        if (privAttr == null && !isMember) privAttr = staffDefaults(session);   // never saved → role defaults (2026-11-06)
         if (privAttr == null) return null;
         return pagePermissionAllows(String.valueOf(privAttr), permKey) ? null : FORWARD_ACCESS_DENIED;
+    }
+
+    /** The role-default map for a staff session with nothing saved; null for any other session. */
+    static String staffDefaults(HttpSession session) {
+        if (session.getAttribute("tempAccessId") != null || session.getAttribute("ntagCredId") != null) return null;
+        String r = role(session);
+        return RolePermissionDefaults.appliesTo(r) ? RolePermissionDefaults.json(r) : null;
     }
 
     /**
@@ -410,12 +424,29 @@ public final class RoleGuard {
      */
     public static boolean pagePermissionAllows(String privilegesJson, String permKey) {
         if (!permissionAllows(privilegesJson, permKey)) return false;
+        // (2026-11-06) A page under a main menu whose own checkbox is explicitly unticked is
+        // denied too — the side menu already hides the whole section in that case, so typing
+        // the address must not open it. Only an explicit false counts (missing = allowed).
+        String section = sectionOf(permKey);
+        if (section != null && !permissionAllows(privilegesJson, section)) return false;
         java.util.List<String> legacy = PERMISSION_ALIASES.get(permKey);
         if (legacy == null) return true;
         for (String old : legacy) {
             if (!permissionAllows(privilegesJson, old)) return false;
         }
         return true;
+    }
+
+    /** Main menus of the Permissions screen whose key gates every page under it. */
+    static final java.util.Set<String> MENU_SECTIONS = java.util.Set.of("admin", "accounting", "general", "more");
+
+    /** The main-menu key of a page key ("accounting.income.edit" → "accounting"), or null. */
+    static String sectionOf(String permKey) {
+        if (permKey == null) return null;
+        int dot = permKey.indexOf('.');
+        if (dot <= 0) return null;
+        String s = permKey.substring(0, dot);
+        return MENU_SECTIONS.contains(s) ? s : null;
     }
 
     /**

@@ -69,7 +69,11 @@ class PagePermissionRoutesTest {
         assertThat(route.call(staff(role, on(currentKey)))).as("current key true").isEqualTo(expectedForward);
         // never saved (older account) → page (opt-in denial preserved)
         assertThat(route.call(staff(role, "{}"))).as("missing key").isEqualTo(expectedForward);
-        assertThat(route.call(staff(role, null))).as("no privileges at all").isEqualTo(expectedForward);
+        // nothing saved at all: as before, except a never-saved Admin carries the Admin defaults
+        // (2026-11-06) — so an Accounting page (e.g. Payroll) is denied until it is ticked
+        boolean defaultOn = !com.churchgeniuspro.util.RolePermissionDefaults.appliesTo(role)
+                || com.churchgeniuspro.util.RolePermissionDefaults.map(role).getOrDefault(currentKey, true);
+        assertThat(route.call(staff(role, null))).as("no privileges at all").isEqualTo(defaultOn ? expectedForward : DENIED);
         // record saved by an older Permissions screen → still denied
         if (legacyKey != null) {
             assertThat(route.call(staff(role, off(legacyKey)))).as("legacy key false").isEqualTo(DENIED);

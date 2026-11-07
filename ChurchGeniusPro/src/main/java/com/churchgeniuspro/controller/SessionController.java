@@ -88,6 +88,9 @@ public class SessionController {
         res.put("churchId",   nvl(session.getAttribute("churchId")));
         res.put("appClientId",  session.getAttribute("appClientId"));  // String or null
         res.put("appUserId",    session.getAttribute("appUserId"));    // Integer or null
+        // Re-read the saved map at most every 15 s (and give a never-saved Admin its role
+        // defaults) so the menu built from this answer matches what the page guards enforce.
+        com.churchgeniuspro.service.PermissionRefresher.refreshIfStale(session);
         res.put("privileges",   session.getAttribute("privileges"));   // JSON string or null
         res.put("subscription", nvl(session.getAttribute("subscription")));
         res.put("churchName", nvl(session.getAttribute("churchName")));

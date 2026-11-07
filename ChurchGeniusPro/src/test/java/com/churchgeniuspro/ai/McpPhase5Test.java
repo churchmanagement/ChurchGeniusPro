@@ -82,6 +82,7 @@ class McpPhase5Test {
         when(settingRepo.findByAppClientId(anyString())).thenAnswer(i -> { if (!CID.equals(i.getArgument(0))) return Optional.empty(); McpTenantSetting s = new McpTenantSetting(); s.setAppClientId(CID); s.setEnabled(tenantOn.get()); return Optional.of(s); });
         when(settingRepo.save(any())).thenAnswer(i -> { McpTenantSetting s = i.getArgument(0); tenantOn.set(s.isEnabled()); return s; });
         pat = new AppUser(); pat.setId(7); pat.setUserId("STF-7"); pat.setClientId(CID); pat.setRole("Admin"); pat.setEnabled(true); pat.setFirstName("Pat"); pat.setLastName("Lee");
+        pat.setPrivileges(com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);   // an Admin granted Accounting; a never-saved Admin has none (2026-11-06)
         when(users.findByIdAndClientId(7, CID)).thenReturn(Optional.of(pat));
         when(perms.findByAppUserId(7)).thenReturn(Optional.empty());
         features.put("mcp", true); features.put("aiActions", true); features.put("accounting", true);
@@ -455,6 +456,7 @@ class McpPhase5Test {
         assertThat(yes.incomeRecords()).isTrue(); assertThat(yes.reports()).isTrue(); assertThat(yes.pledges()).isTrue();
         MockHttpServletRequest plain = new MockHttpServletRequest();
         plain.getSession(true).setAttribute("username", "pat"); plain.getSession().setAttribute("role", "Admin"); plain.getSession().setAttribute("appClientId", CID);
+        plain.getSession().setAttribute("privileges", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);   // Admin granted Accounting
         assertThat(policy.resolve(plain, CID).incomeRecords()).isTrue();
         assertThat(TokenSession.scopes(plain.getSession())).isNull();
     }

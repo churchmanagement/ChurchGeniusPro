@@ -297,7 +297,7 @@ class AiCrossReferenceServiceTest {
         IncomeRepository income = mock(IncomeRepository.class);
         AiDataSearchService ds = new AiDataSearchService(members, income, mock(VolunteerProfileRepository.class), new AiAccessPolicy());
         ds.setCrossReference(svc);
-        MockHttpServletRequest req = staff("Admin", null);
+        MockHttpServletRequest req = staff("Admin", com.churchgeniuspro.permissions.TestPerms.ADMIN_WITH_ACCOUNTING);
         assertThat(ds.answer(req, CID, "Regular attenders who aren't volunteering").get("intent")).isEqualTo("crossref.notServing");
         assertThat(ds.answer(req, CID, "Who gave last year but not this year?").get("intent")).isEqualTo("crossref.lapsedGivers");
         assertThat(ds.answer(staff("Accountant", null), CID, "Regular attenders not in any group").get("missing")).isEqualTo(List.of("Attendance", "Groups"));
