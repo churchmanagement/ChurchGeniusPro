@@ -282,6 +282,15 @@
       .roles-table .anniv-row .anniv-label { width: 100%; }
       .roles-table .anniv-row select { flex: 1 1 0; width: auto; min-width: 0; }
     }
+    /* Phones (2026-11-06): Phone and Email each get a full-width row under the photo + names,
+       like Address Line 1 / 2 — no empty space under the photo. */
+    @media (max-width: 700px) {
+      .pm-top { display: grid !important; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; row-gap: 14px; }
+      .pm-right { display: contents !important; }
+      .pm-names { grid-column: 2; align-self: center; }
+      #pmContact.form-grid { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) !important; gap: 14px; }
+      #pmContact .help-note { grid-column: auto; }
+    }
 </style>
 </head>
 <body>
@@ -335,7 +344,7 @@
         <div class="form-card-body">
 
           <!-- Photo + Rows 1–2: First Name/Last Name and Category/Gender -->
-          <div style="display:flex; gap:24px; align-items:flex-start; margin-bottom:14px;">
+          <div class="pm-top" style="display:flex; gap:24px; align-items:flex-start; margin-bottom:14px;">
             <!-- Photo column -->
             <div class="photo-col-wrap">
               <div class="photo-preview" id="photoPreviewBox" onclick="document.getElementById('primaryPhoto').click()" title="Click to upload photo">
@@ -345,8 +354,8 @@
               <input type="file" id="primaryPhoto" accept="image/*" style="display:none" onchange="previewPhoto(this)" />
             </div>
             <!-- Right column: Row 1 (First Name | Last Name) + Row 2 (Phone | Email) -->
-            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; justify-content:center;">
-              <div class="form-grid">
+            <div class="pm-right" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; justify-content:center;">
+              <div class="form-grid pm-names">
                 <div class="field">
                   <label for="pFirstName">First Name <span class="required-star">*</span></label>
                   <input type="text" id="pFirstName" placeholder="First name" />
@@ -358,7 +367,7 @@
                   <span class="field-hint" id="pLastNameHint"></span>
                 </div>
               </div>
-              <div class="form-grid">
+              <div class="form-grid pm-contact" id="pmContact">
                 <div class="field">
                   <label for="pPhone">Phone</label>
                   <input type="tel" id="pPhone" placeholder="Phone number" />

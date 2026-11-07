@@ -186,6 +186,8 @@ class AdminPermissionNavTest {
         assertThat(media).as("phone rules come after the base table rules").isGreaterThan(html.indexOf(".roles-table select {"));
         assertThat(html).contains("<td class=\"mt-actions\">").contains("data-label=\"Email\" class=\"mt-email\"")
                 .contains(".members-table thead { display: none; }").contains(".roles-table thead { display: none; }");
+        // Primary member: Phone and Email full-width rows under the photo + names on phones
+        assertThat(html).contains("id=\"pmContact\"").contains("#pmContact.form-grid { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) !important;");
     }
 
     @Test @DisplayName("AI Connections, Account Privacy and Automations use the standard app layout")
