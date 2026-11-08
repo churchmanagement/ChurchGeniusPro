@@ -238,7 +238,9 @@ public class GuessItGroupController {
         if (clues.isEmpty())              return err("At least one clue is required.");
         if (options.size() < 2)           return err("At least two answer options are required.");
         if (blank(correctAnswer))         return err("A correct answer is required.");
-        if (!options.contains(correctAnswer))
+        // "Moses – മോശെ" identifies the option "Moses | മോശെ": store the option's exact text.
+        correctAnswer = com.churchgeniuspro.util.GuessItText.canonicalAnswer(options, correctAnswer);
+        if (correctAnswer == null)
             return err("The correct answer must be one of the answer options.");
 
         Integer maxSeq = gameRepo.findMaxSequenceOrderByGroupId(id);
@@ -552,7 +554,10 @@ public class GuessItGroupController {
             if (outcome.errorKey() != null) out.put(outcome.errorKey(), true);
             return ResponseEntity.ok(out);
         }
-        // Finishing the last published game closes the group on its own.
+        // A correct answer ends the round: the clock stops for everyone and the
+        // host can start the next one.
+        if (outcome.correct()) finishRound(game);
+        // Finishing the last game closes the group on its own.
         maybeAutoCloseGroup(r.group);
         return ResponseEntity.ok(buildGroupState(r.group, r.participant));
     }
@@ -668,7 +673,11 @@ public class GuessItGroupController {
 
         if (game == null || !"active".equals(group.getStatus())) {
             out.put("hasGame", false);
-            out.put("v", stateVersion(group, null, gp, board));
+            Map<String, Object> last = lastRound(group, gp);
+            out.put("lastRound", last);
+            int v = stateVersion(group, null, gp, board);
+            if (last != null) v = 31 * v + Objects.hash(last.get("gameId"), last.get("winners"));
+            out.put("v", v);
             return out;
         }
 
@@ -754,12 +763,42 @@ public class GuessItGroupController {
         log.info("GuessIt: group {} ended", group.getId());
     }
 
-    /** A group with published games, all of them finished, ends by itself. */
+    /** A group whose games have all been played ends by itself. */
     private void maybeAutoCloseGroup(GuessItGroup group) {
         if (!"active".equals(group.getStatus())) return;
         List<GuessItGame> published = gameRepo.findPublishedByGroupIdOrderBySequenceOrder(group.getId());
         if (published.isEmpty()) return;
-        if (gameRepo.countUnfinishedPublishedInGroup(group.getId()) == 0) closeGroup(group);
+        if (gameRepo.countUnfinishedInGroup(group.getId()) == 0) closeGroup(group);
+    }
+
+    /** A round with a winner is over: mark it completed so the clock stops. */
+    private void finishRound(GuessItGame game) {
+        if (!"active".equals(game.getStatus())) return;
+        game.setStatus("completed");
+        game.setCompletedAt(Instant.now());
+        gameRepo.save(game);
+    }
+
+    /**
+     * The round that finished most recently in this group, so a participant who
+     * is waiting for the next round still sees who won the last one.
+     */
+    private Map<String, Object> lastRound(GuessItGroup group, GuessItGroupParticipant gp) {
+        GuessItGame last = null;
+        for (GuessItGame g : gameRepo.findAllByGroupIdOrderBySequenceOrder(group.getId())) {
+            if (!"completed".equals(g.getStatus()) || g.getCompletedAt() == null) continue;
+            if (last == null || g.getCompletedAt().isAfter(last.getCompletedAt())) last = g;
+        }
+        if (last == null) return null;
+        GuessItParticipant mine =
+                participantRepo.findByGameIdAndGroupParticipantId(last.getId(), gp.getId()).orElse(null);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("gameId",        last.getId());
+        m.put("title",         last.getTitle());
+        m.put("winners",       namesOfWinners(last.getId()));
+        m.put("youWon",        mine != null && mine.isWinner());
+        m.put("correctAnswer", last.getCorrectAnswer());
+        return m;
     }
 
     private Map<String, Object> groupSummary(GuessItGroup g) {

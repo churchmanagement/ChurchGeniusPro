@@ -73,7 +73,7 @@
     .clue-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.65);
                   letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
     .clue-number { font-size: 12px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
-    .clue-text   { font-size: 18px; font-weight: 800; color: #fff; line-height: 1.3; }
+    .clue-text   { font-size: 18px; font-weight: 800; color: #fff; line-height: 1.3; white-space: pre-line; }
 
     /* ── Stats row ── */
     .stats-row {
@@ -155,7 +155,7 @@
       display: inline-flex; align-items: center; gap: 6px;
       background: #fdf5f7; border: 1px solid #f0d9e0;
       border-radius: 20px; padding: 4px 12px;
-      font-size: 13px; color: #673147; font-weight: 600;
+      font-size: 13px; color: #673147; font-weight: 600; white-space: pre-line;
     }
     .clue-pill.current-clue { background: #673147; color: #fff; }
     .option-row {
@@ -345,11 +345,14 @@
           <option value="">No group — standalone game</option>
         </select>
         <input class="admin-input" id="newGameTitle"   placeholder="Game title (e.g. Guess the Bible Character)" />
-        <div class="admin-hint">Clues — one per line (they will be revealed one at a time):</div>
+        <div class="admin-hint">Clues — one per line (they will be revealed one at a time). A translation on the line
+          right after a clue (e.g. English then Malayalam) is kept with it as one clue; or leave a blank line
+          between clues to write each clue over several lines.</div>
         <textarea class="admin-textarea" id="newGameClues" placeholder="Female&#10;Humility&#10;King David&#10;Moabite&#10;Naomi"></textarea>
-        <div class="admin-hint">Answer options — one per line:</div>
+        <div class="admin-hint">Answer options — one per line. Bullets (* or -) are removed; write translations as
+          <code>Moses | മോശെ</code>.</div>
         <textarea class="admin-textarea" id="newGameOptions" placeholder="Eve&#10;Sarah&#10;Ruth&#10;Esther"></textarea>
-        <input class="admin-input" id="newGameAnswer"  placeholder="Correct answer (must match one option exactly)" />
+        <input class="admin-input" id="newGameAnswer"  placeholder="Correct answer (e.g. Moses, മോശെ or Moses | മോശെ)" />
         <div class="admin-err" id="createGameErr"></div>
         <button class="btn-admin btn-create" onclick="adminCreateGame()" style="margin-top:4px;">Create Game</button>
       </div>
@@ -421,12 +424,12 @@
   .gg-bar{display:flex;justify-content:space-between;align-items:center;color:#a9a9c2;
           font-size:13px;padding:0 4px 8px;}
   .gg-leave{background:none;border:0;color:#8a8aa8;font-size:12px;cursor:pointer;text-decoration:underline;}
-  .gg-clue{background:#15151f;border:1px solid #33334d;border-radius:10px;padding:12px 14px;
+  .gg-clue{white-space:pre-line;background:#15151f;border:1px solid #33334d;border-radius:10px;padding:12px 14px;
            margin-bottom:8px;color:#d8d8ea;font-size:15px;}
   .gg-clue.latest{background:linear-gradient(135deg,#4a2fa8,#7c5cff);border-color:#7c5cff;color:#fff;font-weight:600;}
   .gg-opt{display:flex;justify-content:space-between;align-items:center;gap:10px;
           background:#15151f;border:1px solid #44446a;border-radius:10px;padding:10px 12px;margin-bottom:8px;}
-  .gg-opt span{color:#e6e6f5;font-size:15px;}
+  .gg-opt span{color:#e6e6f5;font-size:15px;white-space:pre-line;}
   .gg-opt button{background:#7c5cff;border:0;border-radius:8px;color:#fff;padding:7px 14px;
                  font-size:13px;font-weight:600;cursor:pointer;}
   .gg-opt button:disabled{opacity:.45;cursor:default;}
@@ -435,6 +438,13 @@
   .gg-note.out{background:#3d1620;border:1px solid #7d2e3f;color:#ffa3b5;}
   .gg-note.wait{background:#3d3218;border:1px solid #7d6a2e;color:#ffd98a;}
   .gg-note.info{background:#1a2a3d;border:1px solid #2e5a7d;color:#9ed0ff;}
+  .gg-pub-btn{flex-shrink:0;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;
+    background:#2e7d32;color:#fff;border:1px solid #43a047;}
+  .gg-pub-btn.on{background:transparent;color:#8ff0b5;border:1px solid #2e7d4f;}
+  .gg-pub-btn:hover{opacity:.85;}
+  .gg-round-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;}
+  .gg-round-tag.live{background:#123d24;color:#8ff0b5;}
+  .gg-round-tag.hidden{background:#2a2a40;color:#a9a9c2;}
   .gg-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;
           border-radius:9px;margin-bottom:6px;background:#15151f;border:1px solid #2a2a40;}
   .gg-row.win{background:#123d24;border-color:#2e7d4f;}
@@ -574,6 +584,8 @@ async function poll() {
     }
     lastV = data.v !== undefined ? data.v : null;
     renderPublicGame(data);
+    // A round can end on its own (correct answer) — keep the host's list current.
+    if (adminPanelOpen) { try { loadAdminGames(); } catch(e) {} }
   } catch(e) {
     // Exponential backoff: 2s, 4s, 8s, cap at 8s
     errBackoff = Math.min(errBackoff + 1, 3);
@@ -697,7 +709,7 @@ function renderPublicGame(data) {
             + timerBarHtml
             + '</div>';
         } else {
-          clueHtml += '<div style="background:rgba(255,255,255,.07);border-radius:7px;padding:5px 12px;margin-bottom:5px;font-size:12px;color:rgba(255,255,255,.6);">'
+          clueHtml += '<div style="background:rgba(255,255,255,.07);border-radius:7px;padding:5px 12px;margin-bottom:5px;font-size:12px;color:rgba(255,255,255,.6);white-space:pre-line;">'
             + '<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);margin-right:6px;">CLUE ' + (i+1) + '</span>' + esc(clue)
             + '</div>';
         }
@@ -1093,21 +1105,91 @@ function updateTimerHint(secs) {
   }
 }
 
+/* ── Game form parsing: shared by the standalone and group Create paths ──
+   Clues: one per line; a line in a different script right after a one-line
+   clue is its translation and joins it ("English\nMalayalam" = one clue).
+   Blank lines, when present, separate clues instead (multi-line clues).
+   Options: list bullets removed. Answer: matched to an option by any of its
+   language parts, so "Moses – മോശെ" or "മോശെ" picks "Moses | മോശെ". */
+function giScript(line){
+  var latin = (line.match(/[A-Za-z\u00C0-\u024F]/g) || []).length;
+  var other = (line.match(/[^\s\d\x00-\x40\x5B-\x60\x7B-\x7F\u00C0-\u024F\u2000-\u206F]/g) || []).length;
+  if (!latin && !other) return '';
+  return latin >= other ? 'latin' : 'other';
+}
+function giStripBullet(s){ return String(s || '').replace(/^\s*(?:[*•·▪◦‣-]|\d{1,2}[.)])\s+/, '').trim(); }
+function giParseClues(text){
+  text = String(text || '').replace(/\r\n?/g, '\n').trim();
+  if (!text) return [];
+  if (/\n[ \t]*\n/.test(text)){
+    return text.split(/\n[ \t]*\n+/).map(function(block){
+      return block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).join('\n');
+    }).filter(Boolean);
+  }
+  var out = [], lastScript = '', lastLines = 0;
+  text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).forEach(function(line){
+    var sc = giScript(line);
+    if (out.length && lastLines === 1 && sc && lastScript && sc !== lastScript){
+      out[out.length - 1] += '\n' + line; lastLines = 2;
+    } else {
+      out.push(line); lastScript = sc; lastLines = 1;
+    }
+  });
+  return out;
+}
+function giParseOptions(text){
+  var seen = {}, out = [];
+  String(text || '').split(/\r?\n/).map(giStripBullet).filter(Boolean).forEach(function(o){
+    if (!seen[o]){ seen[o] = 1; out.push(o); }
+  });
+  return out;
+}
+function giParts(s){
+  return giStripBullet(s).split(/\s*[|\/–—]\s*|\s+-\s+/)
+    .map(function(p){ return p.normalize ? p.normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase() : p.trim().toLowerCase(); })
+    .filter(Boolean);
+}
+function giMatchAnswer(opts, answer){
+  answer = String(answer || '').trim();
+  if (!answer) return null;
+  if (opts.indexOf(answer) >= 0) return answer;
+  var a = giParts(answer); if (!a.length) return null;
+  var key = a.join('|');
+  for (var i = 0; i < opts.length; i++) if (giParts(opts[i]).join('|') === key) return opts[i];
+  var found = null;
+  for (var j = 0; j < opts.length; j++){
+    var p = giParts(opts[j]);
+    if (p.some(function(x){ return a.indexOf(x) >= 0; })){
+      if (found !== null && found !== opts[j]) return null;
+      found = opts[j];
+    }
+  }
+  return found;
+}
+function giReadGameForm(minOptions){
+  var title  = (document.getElementById('newGameTitle').value || '').trim();
+  var clues  = giParseClues(document.getElementById('newGameClues').value);
+  var opts   = giParseOptions(document.getElementById('newGameOptions').value);
+  var typed  = (document.getElementById('newGameAnswer').value || '').trim();
+  var r = { title: title, clues: clues, options: opts, answer: null, error: '' };
+  if (!title)                    r.error = 'Game title is required.';
+  else if (!clues.length)        r.error = 'At least one clue is required.';
+  else if (opts.length < minOptions) r.error = minOptions > 1 ? 'At least two answer options are required.' : 'Add at least one option.';
+  else if (!typed)               r.error = 'Correct answer is required.';
+  else {
+    r.answer = giMatchAnswer(opts, typed);
+    if (!r.answer) r.error = 'The correct answer does not match any option (or matches more than one). '
+                           + 'Type it as it appears in the options, in either language.';
+  }
+  return r;
+}
+
 async function adminCreateGame() {
-  var title  = document.getElementById('newGameTitle').value.trim();
-  var clues  = document.getElementById('newGameClues').value.trim()
-                 .split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-  var opts   = document.getElementById('newGameOptions').value.trim()
-                 .split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
-  var answer = document.getElementById('newGameAnswer').value.trim();
   var errEl  = document.getElementById('createGameErr');
   errEl.textContent = '';
-
-  if (!title)          { errEl.textContent = 'Title is required.'; return; }
-  if (!clues.length)   { errEl.textContent = 'Add at least one clue.'; return; }
-  if (!opts.length)    { errEl.textContent = 'Add at least one option.'; return; }
-  if (!answer)         { errEl.textContent = 'Correct answer is required.'; return; }
-  if (!opts.includes(answer)) { errEl.textContent = 'Correct answer must match one of the options exactly.'; return; }
+  var f = giReadGameForm(1);
+  if (f.error) { errEl.textContent = f.error; return; }
+  var title = f.title, clues = f.clues, opts = f.options, answer = f.answer;
 
   try {
     var res = await fetch('/api/guess-it/admin/games', {
@@ -1437,8 +1519,20 @@ function ggRender(d){
        + '<div class="gg-card" style="margin-top:10px;">'
        + '<button class="gg-btn" onclick="ggLeave()">Join another game</button></div>';
   } else if (!d.hasGame){
+    var lr = d.lastRound;
+    if (lr){
+      h += '<div class="gg-card"><div class="gg-title">🏁 Round over: ' + ggEsc(lr.title) + '</div>';
+      if (lr.youWon) h += '<div class="gg-note win">🎉 You got it right — 1 point!</div>';
+      else if (lr.winners && lr.winners.length)
+        h += '<div class="gg-note info">🏆 ' + ggEsc(lr.winners[0].name) + ' answered correctly first.</div>';
+      else h += '<div class="gg-note info">Nobody got this one.</div>';
+      if (lr.correctAnswer)
+        h += '<div class="gg-sub" style="margin:0;">The answer was <strong style="color:#fff;">'
+           + ggEsc(lr.correctAnswer) + '</strong>.</div>';
+      h += '</div>';
+    }
     h += '<div class="gg-card"><div class="gg-title">⏳ Waiting for the next game</div>'
-       + '<div class="gg-sub" style="margin:0;">Your host has not started a game yet. '
+       + '<div class="gg-sub" style="margin:0;">Your host will start the next round shortly. '
        + 'Keep this page open — it updates on its own.</div></div>';
   } else {
     h += '<div class="gg-card">';
@@ -1769,6 +1863,17 @@ function ggAdminSelectGroup(id){
            + 'Maximum 3 minutes.</div>';
       }
 
+      h += '<div id="ggAdminLive"></div>';
+      panel.innerHTML = h;
+      ggAdminRenderLive(d);
+    });
+}
+
+/* Rounds, leaderboard and End Group: redrawn every few seconds while the host
+   watches, so players who join and rounds that finish show up on their own. */
+function ggAdminRenderLive(d){
+  var box = ggEl('ggAdminLive'); if (!box) return;
+  var h = '';
       var games = d.gamesList || [];
       if (!games.length){
         h += '<div class="admin-hint">No games yet — create one below with this group selected.</div>';
@@ -1778,18 +1883,24 @@ function ggAdminSelectGroup(id){
           h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;'
              + 'background:#15151f;border:1px solid #2a2a40;border-radius:8px;padding:7px 10px;margin-bottom:5px;">'
              + '<span style="color:#e6e6f5;font-size:13px;">' + (i+1) + '. ' + ggEsc(g.title)
-             + ' <span style="opacity:.6;">(' + ggEsc(g.status) + ')</span>'
+             + ' <span style="opacity:.6;">(' + ggEsc(g.status === 'active' ? 'live now' : g.status) + ')</span>'
              + (g.winners && g.winners.length
                  ? ' <span style="color:#8ff0b5;">🏆 ' + ggEsc(g.winners[0].name) + '</span>' : '')
+             + (g.published ? '<span class="gg-round-tag live">Visible to players</span>'
+                            : '<span class="gg-round-tag hidden">Hidden</span>')
              + '</span>'
              + (d.ended ? '' :
-                 '<button class="btn-admin" onclick="ggAdminPublish(' + g.id + ',' + (g.published?'true':'false') + ')">'
-                 + (g.published ? 'Unpublish' : 'Publish') + '</button>')
+                 '<button class="gg-pub-btn' + (g.published ? ' on' : '') + '" '
+                 + 'title="' + (g.published ? 'Hide this round from players' : 'Let players see this round when it is started') + '" '
+                 + 'onclick="ggAdminPublish(' + g.id + ',' + (g.published?'true':'false') + ')">'
+                 + (g.published ? 'Hide' : 'Publish') + '</button>')
              + '</div>';
         });
         h += '</div>';
         if (!d.ended)
-          h += '<button class="btn-admin btn-create" onclick="ggAdminPublishAll()" style="margin-bottom:8px;">📣 Publish All</button>';
+          h += '<button class="btn-admin btn-create" onclick="ggAdminPublishAll()" style="margin-bottom:8px;">📣 Publish All</button>'
+             + '<div class="admin-hint">Press ▶ Start in the Games list to begin a round — starting a round also publishes it. '
+             + 'A round ends as soon as someone answers correctly.</div>';
       }
 
       var board = d.leaderboard || [];
@@ -1811,9 +1922,27 @@ function ggAdminSelectGroup(id){
       if (!d.ended)
         h += '<button class="btn-admin" onclick="ggAdminEndGroup()" style="margin-top:8px;">🏁 End Group</button>';
 
-      panel.innerHTML = h;
-    });
+  box.innerHTML = h;
 }
+
+var ggAdminLiveTimer = null;
+function ggAdminLiveTick(){
+  var body = ggEl('adminBody');
+  var open = adminPanelOpen && body && body.style.display !== 'none';
+  if (!open || !ggAdminCurrent || document.hidden) return;
+  var id = ggAdminCurrent.id, wasEnded = !!ggAdminCurrent.ended;
+  fetch('/api/guess-it/admin/groups/' + encodeURIComponent(id), {credentials:'include', cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.error || !ggAdminCurrent || ggAdminCurrent.id !== id) return;
+      if (!!d.ended !== wasEnded){ ggAdminSelectGroup(String(id)); return; }
+      ggAdminCurrent = d;
+      ggAdminRenderLive(d);
+    })
+    .catch(function(){});
+}
+if (!ggAdminLiveTimer) ggAdminLiveTimer = setInterval(ggAdminLiveTick, 4000);
+
 
 function ggAdminPublish(gameId, currentlyPublished){
   if (!ggAdminCurrent) return;
@@ -1845,16 +1974,10 @@ function ggAdminEndGroup(){
     var groupId = sel ? sel.value : '';
     if (!groupId) return original.apply(this, arguments);
 
-    var title  = (ggEl('newGameTitle')  ||{}).value || '';
-    var clues  = ((ggEl('newGameClues') ||{}).value || '').split('\n').map(function(x){return x.trim();}).filter(Boolean);
-    var opts   = ((ggEl('newGameOptions')||{}).value || '').split('\n').map(function(x){return x.trim();}).filter(Boolean);
-    var answer = ((ggEl('newGameAnswer')||{}).value || '').trim();
     var errEl  = ggEl('createGameErr'); if (errEl) errEl.textContent = '';
-
-    if (!title.trim())         { if (errEl) errEl.textContent = 'Game title is required.'; return; }
-    if (!clues.length)         { if (errEl) errEl.textContent = 'At least one clue is required.'; return; }
-    if (opts.length < 2)       { if (errEl) errEl.textContent = 'At least two answer options are required.'; return; }
-    if (!opts.includes(answer)){ if (errEl) errEl.textContent = 'The correct answer must match one option exactly.'; return; }
+    var f = giReadGameForm(2);
+    if (f.error){ if (errEl) errEl.textContent = f.error; return; }
+    var title = f.title, clues = f.clues, opts = f.options, answer = f.answer;
 
     ggPost('/api/guess-it/admin/groups/' + encodeURIComponent(groupId) + '/games',
            {title: title.trim(), clues: clues, options: opts, correctAnswer: answer})

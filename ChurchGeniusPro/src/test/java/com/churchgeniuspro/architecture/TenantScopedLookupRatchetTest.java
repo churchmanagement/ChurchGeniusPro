@@ -73,7 +73,7 @@ class TenantScopedLookupRatchetTest {
         entry("controller/EventRegisterPageController.java", 1),
         entry("controller/EventRegistrationReminderController.java", 1),
         entry("controller/EventVolunteerController.java", 3),
-        entry("controller/GuessItController.java", 11),
+        entry("controller/GuessItController.java", 12), // +1: restart reverses a group point via the play row of a game already checked against the session church
         entry("controller/GuessItGroupController.java", 3),
         entry("controller/KidsMinistryController.java", 19),
         entry("controller/KmPickupPublicController.java", 4),

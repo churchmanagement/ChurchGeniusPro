@@ -65,6 +65,20 @@ public interface GuessItGameRepository extends JpaRepository<GuessItGame, Long> 
            "AND g.deleteFlag = false AND g.published = true AND g.status <> 'completed'")
     long countUnfinishedPublishedInGroup(@Param("groupId") Long groupId);
 
+    /**
+     * Games in a group that have not finished yet, published or not. The group
+     * closes by itself only when this reaches zero: starting a round publishes
+     * it, so "every published round is finished" would end the group after its
+     * first round whenever the host had not pressed Publish All beforehand.
+     */
+    @Query("SELECT COUNT(g) FROM GuessItGame g WHERE g.groupId = :groupId " +
+           "AND g.deleteFlag = false AND g.status <> 'completed'")
+    long countUnfinishedInGroup(@Param("groupId") Long groupId);
+
+    /** The most recently finished game for an org — the big screen shows its result. */
+    Optional<GuessItGame> findFirstByClientIdAndStatusAndDeleteFlagFalseOrderByCompletedAtDesc(
+            String clientId, String status);
+
     /** Highest sequence number inside a group, for assigning the next one. */
     @Query("SELECT MAX(g.sequenceOrder) FROM GuessItGame g " +
            "WHERE g.groupId = :groupId AND g.deleteFlag = false")

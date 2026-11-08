@@ -5,15 +5,18 @@ import com.churchgeniuspro.hibernate.GuessItGame;
 import com.churchgeniuspro.hibernate.GuessItParticipant;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.GuessItGameRepository;
+import com.churchgeniuspro.repository.GuessItGroupParticipantRepository;
 import com.churchgeniuspro.repository.GuessItParticipantRepository;
 import com.churchgeniuspro.util.RoleGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,6 +42,10 @@ public class GuessItController {
     private final ObjectMapper                 mapper = new ObjectMapper();
 
     private final com.churchgeniuspro.service.PublicLinkResolver links;
+
+    /** Group scores, adjusted when a group round is restarted (optional so hand-built tests keep their constructor). */
+    @Autowired(required = false)
+    private GuessItGroupParticipantRepository groupParticipantRepo;
 
     public GuessItController(GuessItGameRepository gameRepo,
                              GuessItParticipantRepository participantRepo,
@@ -79,6 +86,10 @@ public class GuessItController {
         if (blank(clues))  return err("At least one clue is required.");
         if (blank(opts))   return err("At least one option is required.");
         if (blank(answer)) return err("correctAnswer is required.");
+        // "Moses – മോശെ" identifies the option "Moses | മോശെ": store the option's exact text.
+        String canonical = com.churchgeniuspro.util.GuessItText.canonicalAnswer(parseJsonArray(opts), answer);
+        if (canonical == null) return err("The correct answer must be one of the answer options.");
+        answer = canonical;
 
         // Assign the next sequence order so games always play in creation order
         Integer maxSeq = gameRepo.findMaxSequenceOrderByClientId(clientId);
@@ -112,6 +123,12 @@ public class GuessItController {
         if (body.containsKey("clues"))        g.setClues(toJson(body.get("clues")));
         if (body.containsKey("options"))      g.setOptions(toJson(body.get("options")));
         if (body.containsKey("correctAnswer")) g.setCorrectAnswer(str(body.get("correctAnswer")));
+        if (body.containsKey("options") || body.containsKey("correctAnswer")) {
+            String canonical = com.churchgeniuspro.util.GuessItText
+                    .canonicalAnswer(parseJsonArray(g.getOptions()), g.getCorrectAnswer());
+            if (canonical == null) return err("The correct answer must be one of the answer options.");
+            g.setCorrectAnswer(canonical);
+        }
         gameRepo.save(g);
         return ResponseEntity.ok(gameAdminMap(g));
     }
@@ -196,6 +213,8 @@ public class GuessItController {
 
         Instant now = Instant.now();
         g.setStatus("active");
+        // A group round the host starts is one they want players to see.
+        if (g.getGroupId() != null) g.setPublished(true);
         g.setCurrentClueIndex(0);   // reveal first clue immediately
         g.setStartedAt(now);
         g.setClueStartedAt(now);    // timer anchor for clue 0
@@ -239,9 +258,12 @@ public class GuessItController {
         if (g == null || !g.getClientId().equals(clientId)) return ResponseEntity.notFound().build();
         if ("pending".equals(g.getStatus())) return err("Use the Start button to begin a pending game.");
 
-        // Mark any other currently active game as completed before taking over
-        gameRepo.findFirstByClientIdAndStatusAndDeleteFlagFalse(clientId, "active")
-                .ifPresent(prev -> {
+        // Mark the other active game in the SAME lane completed before taking
+        // over (same rule as Start, so a restart never ends another group's round).
+        Optional<GuessItGame> live = (g.getGroupId() == null)
+                ? gameRepo.findFirstByClientIdAndGroupIdIsNullAndStatusAndDeleteFlagFalse(clientId, "active")
+                : gameRepo.findFirstByGroupIdAndStatusAndDeleteFlagFalse(g.getGroupId(), "active");
+        live.ifPresent(prev -> {
                     if (!prev.getId().equals(id)) {
                         prev.setStatus("completed");
                         prev.setCompletedAt(Instant.now());
@@ -249,13 +271,23 @@ public class GuessItController {
                     }
                 });
 
-        // Delete all participants so everyone starts fresh
+        // Delete all participants so everyone starts fresh. A group point won in
+        // the first run is taken back, so replaying a round cannot score twice.
         List<GuessItParticipant> participants = participantRepo.findByGameId(id);
+        for (GuessItParticipant p : participants) {
+            if (groupParticipantRepo != null && p.isWinner() && p.getGroupParticipantId() != null) {
+                groupParticipantRepo.findById(p.getGroupParticipantId()).ifPresent(gp -> {
+                    gp.setScore(Math.max(0, gp.getScore() - 1));
+                    groupParticipantRepo.save(gp);
+                });
+            }
+        }
         if (!participants.isEmpty()) participantRepo.deleteAll(participants);
 
         // Reset game state and make it active again
         Instant restartNow = Instant.now();
         g.setStatus("active");
+        if (g.getGroupId() != null) g.setPublished(true);
         g.setCurrentClueIndex(0);
         g.setStartedAt(restartNow);
         g.setClueStartedAt(restartNow);  // reset timer anchor for clue 0
@@ -313,6 +345,7 @@ public class GuessItController {
             next.setTimerSecs(current.getTimerSecs());
         }
         next.setStatus("active");
+        if (next.getGroupId() != null) next.setPublished(true);
         next.setCurrentClueIndex(0);
         next.setStartedAt(nextNow);
         next.setClueStartedAt(nextNow);
@@ -365,6 +398,14 @@ public class GuessItController {
 
         Optional<GuessItGame> gameOpt =
                 gameRepo.findFirstByClientIdAndStatusAndDeleteFlagFalse(clientId, "active");
+        if (gameOpt.isEmpty()) {
+            // Between rounds the big screen keeps the last result (winner,
+            // "Game Over") on display for a while instead of going blank.
+            gameOpt = gameRepo
+                    .findFirstByClientIdAndStatusAndDeleteFlagFalseOrderByCompletedAtDesc(clientId, "completed")
+                    .filter(x -> x.getCompletedAt() != null
+                            && x.getCompletedAt().isAfter(Instant.now().minus(Duration.ofHours(2))));
+        }
         if (gameOpt.isEmpty()) return ResponseEntity.ok(Map.of("hasGame", false, "v", 0));
         return ResponseEntity.ok(buildPublicState(gameOpt.get()));
     }
@@ -530,7 +571,11 @@ public class GuessItController {
             }
             p.setWinner(true);
             participantRepo.save(p);
-            // Game stays active — admin decides when to end/move on
+            // A correct answer ends the game: the clock stops and the host can
+            // start the next one.
+            g.setStatus("completed");
+            g.setCompletedAt(Instant.now());
+            gameRepo.save(g);
         } else {
             p.setEliminated(true);
             p.setEliminatedAtClue(g.getCurrentClueIndex());

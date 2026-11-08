@@ -273,7 +273,7 @@ class GuessItMultiDeviceTest {
         when(gameRepo.findFirstByGroupIdAndStatusAndDeleteFlagFalse(7L, "active"))
                 .thenReturn(Optional.of(live));
         when(gameRepo.findPublishedByGroupIdOrderBySequenceOrder(7L)).thenReturn(List.of(live));
-        when(gameRepo.countUnfinishedPublishedInGroup(7L)).thenReturn(1L);
+        when(gameRepo.countUnfinishedInGroup(7L)).thenReturn(1L);
 
         GuessItParticipant winnerRow = new GuessItParticipant();
         winnerRow.setId(500L);
