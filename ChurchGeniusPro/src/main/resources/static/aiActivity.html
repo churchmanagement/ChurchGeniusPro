@@ -130,7 +130,7 @@
       const list = d.rows || [];
       if (!list.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">No actions proposed yet.</td></tr>'; return; }
       tb.innerHTML = list.map(r => `<tr><td>${when(r.createdAt)}</td><td>${esc(r.by)}</td><td>${esc(r.label)}</td><td>${esc(r.summary)}</td>
-        <td><span class="pill ${esc(String(r.status||'').toLowerCase())}">${esc(STATUS_LABEL[r.status]||r.status)}</span></td><td>${esc(r.source==='LLM'?'AI picked the tool':r.source==='VOICE'?'Voice':'Typed')}</td></tr>`).join('');
+        <td><span class="pill ${esc(String(r.status||'').toLowerCase())}">${esc(STATUS_LABEL[r.status]||r.status)}</span></td><td>${esc(r.source==='LLM'?'AI picked the tool':r.source==='VOICE'?'Voice':r.source==='GUIDED'?'Guided conversation':'Typed')}</td></tr>`).join('');
     } catch (e) {
       const st = e && e.status;
       if (st === 403) {   // plan without AI Actions, or a church login

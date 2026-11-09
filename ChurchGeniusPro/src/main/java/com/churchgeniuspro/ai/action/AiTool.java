@@ -39,6 +39,13 @@ public interface AiTool {
     /** The sentence shown on the confirm card, built from the RESOLVED params. */
     String summary(Map<String, Object> resolved);
 
+    /**
+     * 2026-11-08 — a GUIDED-ONLY tool (create_income / create_expense) is proposed only by the guided
+     * conversation ({@code AiGuidedRecordService}), which asks for every required field and shows a review card.
+     * It is never offered to the LLM tool pick, the MCP action list, or {@code AiActionService.propose}.
+     */
+    default boolean guidedOnly() { return false; }
+
     /** Executes with the resolved params; returns a small result map (ids, labels, link). Throws on failure. */
     Map<String, Object> execute(Map<String, Object> resolved, String clientId, String username);
 

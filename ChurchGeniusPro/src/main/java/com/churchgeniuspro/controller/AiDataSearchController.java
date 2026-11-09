@@ -32,6 +32,9 @@ public class AiDataSearchController {
     /** AI Phase 4 action agent; optional so hand-built tests keep their constructor. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.ai.action.AiActionService actions;
+    /** 2026-11-08: guided "add an income / expense" conversation (between the meeting flow and the action agent). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedRecordService guided;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
@@ -63,9 +66,23 @@ public class AiDataSearchController {
         try {
             // "Create a meeting …" and the follow-up answers / confirmation of a pending draft
             // (Phase E). Runs outside the read-only answer() transaction because it may write.
+            // A new "add an income / expense" or "create a meeting" request starts over: the other
+            // conversation's open draft is dropped so an answer never lands in the wrong one.
+            jakarta.servlet.http.HttpSession hs = request.getSession(false);
+            if (guided != null && com.churchgeniuspro.ai.guided.AiGuidedRecordService.isStartRequest(question)) {
+                if (hs != null) hs.removeAttribute("aiMeetingDraft");
+                Map<String, Object> g = guided.handle(request, clientId, question);
+                if (g != null) return ResponseEntity.ok(audited(request, g));
+            }
             if (meetingCreate != null) {
+                if (hs != null && com.churchgeniuspro.service.AiMeetingCreateService.isCreateRequest(question))
+                    com.churchgeniuspro.ai.guided.AiGuidedRecordService.clear(hs);
                 Map<String, Object> created = meetingCreate.handle(request, clientId, question);
                 if (created != null) return ResponseEntity.ok(audited(request, created));
+            }
+            if (guided != null) {                                   // an answer to the open income / expense question
+                Map<String, Object> g = guided.handle(request, clientId, question);
+                if (g != null) return ResponseEntity.ok(audited(request, g));
             }
             // AI Phase 4: "add Sarah Lee to Welcome Team", "mark the Lees as followed up", a yes/no to an open
             // proposal, or an answer to a clarifying question. Proposes only — the write happens on confirm.

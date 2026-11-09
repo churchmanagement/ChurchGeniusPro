@@ -268,7 +268,7 @@ public class McpToolCatalog {
             Result g = actionsGate(c); if (g != null) return g;
             List<Map<String, Object>> out = new ArrayList<>();
             for (AiTool t : registry.all()) {
-                if (!t.allowed(c.req(), c.access(), c.cross(), c.cid())) continue;
+                if (t.guidedOnly() || !t.allowed(c.req(), c.access(), c.cross(), c.cid())) continue;
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("name", t.name()); m.put("label", t.label()); m.put("description", t.description()); m.put("parameters", t.parameters());
                 out.add(m);

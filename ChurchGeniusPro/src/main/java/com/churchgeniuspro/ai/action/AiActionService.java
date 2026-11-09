@@ -242,6 +242,9 @@ public class AiActionService {
     public Map<String, Object> propose(HttpServletRequest req, HttpSession session, AiAccess a, String clientId, String toolName, Map<String, Object> raw, String source) {
         AiTool tool = registry.get(toolName);
         if (tool == null) return null;
+        // 2026-11-08: income / expense are created only through the guided conversation (every field asked, review card).
+        if (tool.guidedOnly()) return base("action.refused", "That is done through the guided conversation in the AI Search bar — say \"add an "
+                + (toolName.contains("expense") ? "expense" : "income") + "\". Nothing was done.");
         CrossAccess x = access.crossAccess(req, clientId);
         if (!tool.allowed(req, a, x, clientId)) {
             Map<String, Object> m = base("action.denied", "I can't " + tool.label().toLowerCase(Locale.ROOT) + " for you — your login doesn't have that permission.");
@@ -279,8 +282,49 @@ public class AiActionService {
         return m;
     }
 
+    /**
+     * 2026-11-08 — the guided conversation's proposal: the tool's own resolve (tenant ids re-checked) and the same
+     * PROPOSED row + one-time token as {@link #propose}, so {@link #confirm} (button or "yes") is the only write
+     * path. Returns {@code {token, proposalId, summary}} or {@code {refusal}}. Never sets the spoken-"yes" pending
+     * token — the guided conversation handles its own "yes".
+     */
+    public Map<String, Object> proposeGuided(HttpServletRequest req, AiAccess a, String clientId, String toolName, Map<String, Object> raw) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        AiTool tool = registry.get(toolName);
+        if (!enabled) { out.put("refusal", "AI actions are switched off on this server."); return out; }
+        if (tool == null || !tool.guidedOnly()) { out.put("refusal", "That action is not available."); return out; }
+        if (!access.feature(clientId, FEATURE)) { out.put("refusal", "AI-assisted entry is not part of your current plan."); return out; }
+        if (!tool.allowed(req, a, access.crossAccess(req, clientId), clientId)) { out.put("refusal", "Your login doesn't have permission for that."); out.put("denied", true); return out; }
+        Resolution r;
+        try { r = tool.resolve(raw, clientId, a.username()); }
+        catch (RuntimeException e) { log.warn("[ai-actions] guided resolve failed for {}: {}", toolName, e.getClass().getSimpleName()); out.put("refusal", "I couldn't check those details."); return out; }
+        if (!r.isOk()) { out.put("refusal", r.refusal() != null ? r.refusal() : r.ask().question()); return out; }
+        AiActionProposal p = new AiActionProposal();
+        p.setAppClientId(clientId); p.setUsername(a.username()); p.setTool(toolName); p.setStatus("PROPOSED"); p.setSource("GUIDED");
+        p.setToken(UUID.randomUUID().toString()); p.setExpiresAt(LocalDateTime.now().plusMinutes(ttlMinutes));
+        p.setSummary(cap(tool.summary(r.resolved()), 500));
+        try { p.setParamsJson(JSON.writeValueAsString(r.resolved())); } catch (Exception e) { out.put("refusal", "I couldn't record that request."); return out; }
+        p = proposals.save(p);
+        out.put("token", p.getToken()); out.put("proposalId", p.getId()); out.put("summary", p.getSummary()); out.put("resolved", r.resolved());
+        return out;
+    }
+
+    /** True while the proposal behind {@code token} is still open (the guided draft drops itself after a button confirm). */
+    public boolean isOpen(String clientId, String token) {
+        return token != null && clientId != null && proposals.findByTokenAndAppClientIdAndStatus(token, clientId, "PROPOSED").isPresent();
+    }
+
+    /** Tokens being confirmed right now — a second click / repeated "yes" while the first is saving finds the token busy. */
+    private final java.util.Set<String> inFlight = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** The one-time confirmation. Re-checks everything, executes in one transaction, records the outcome. */
     public Map<String, Object> confirm(HttpServletRequest req, String clientId, String token) {
+        if (token != null && !inFlight.add(token)) return expired();
+        try { return confirmOnce(req, clientId, token); }
+        finally { if (token != null) inFlight.remove(token); }
+    }
+
+    private Map<String, Object> confirmOnce(HttpServletRequest req, String clientId, String token) {
         HttpSession session = req.getSession(false);
         if (session != null) session.removeAttribute(SESSION_PENDING);
         if (!enabled) return base("action.unavailable", "AI actions are switched off on this server. Nothing was done.");
@@ -367,7 +411,7 @@ public class AiActionService {
             JsonNode n = openAi.chatJson(system, q, 0);
             if (n == null || !n.hasNonNull("tool")) return null;
             String tool = n.get("tool").asText("");
-            if (registry.get(tool) == null) return null;
+            if (registry.get(tool) == null || registry.get(tool).guidedOnly()) return null;
             Map<String, Object> params = new LinkedHashMap<>();
             JsonNode ps = n.path("params");
             if (ps.isObject()) ps.fields().forEachRemaining(e -> { if (e.getValue().isValueNode() && !e.getValue().isNull()) params.put(e.getKey(), cap(e.getValue().asText(), 500)); });

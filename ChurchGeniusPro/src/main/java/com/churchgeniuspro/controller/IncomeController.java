@@ -51,7 +51,7 @@ import java.util.Map;
 public class IncomeController {
 
     /** Largest amount the ledger column (numeric(15,2)) can hold. */
-    static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999999.99");
+    public static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999999.99");
 
     private final IncomeService incomeService;
 

@@ -24,6 +24,7 @@ public class AiToolRegistry {
     public List<Map<String, Object>> describe() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (AiTool t : tools.values()) {
+            if (t.guidedOnly()) continue;                 // only the guided conversation proposes these
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("name", t.name()); m.put("label", t.label()); m.put("description", t.description()); m.put("parameters", t.parameters());
             out.add(m);
