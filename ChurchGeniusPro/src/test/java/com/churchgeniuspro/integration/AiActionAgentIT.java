@@ -109,7 +109,7 @@ class AiActionAgentIT {
         assertThat(unknown.get("intent")).isEqualTo("action.ask");
         assertThat(String.valueOf(unknown.get("answer"))).contains("couldn't find a member");
         // the proposal row is tenant-scoped
-        AiActionProposal p = proposals.findAll().stream().filter(x -> A.equals(x.getAppClientId()) && "EXECUTED".equals(x.getStatus())).findFirst().get();
+        AiActionProposal p = proposals.findAll().stream().filter(x -> A.equals(x.getAppClientId()) && "EXECUTED".equals(x.getStatus()) && "add_group_member".equals(x.getTool())).findFirst().get();   // 2026-11-08: findAll() has no order — pick the group proposal, not another test's
         assertThat(p.getToken()).isNull(); assertThat(p.getParamsJson()).contains("\"memberId\":" + sarahA).doesNotContain("@x.test");
     }
 

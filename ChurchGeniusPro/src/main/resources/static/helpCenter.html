@@ -3159,7 +3159,7 @@
         </div>
 
         <!-- ═══ AI ACTIONS (AI Phase 4) ═══ -->
-        <div class="hc-card" id="hc-ai-actions" data-cat="members" data-roles="SuperAdmin,Admin,User" data-perm="more.aiassistant" data-feature="aiActions" data-keywords="ai actions action agent add to group follow-up mark as done family note assign volunteer create meeting confirm proposal">
+        <div class="hc-card" id="hc-ai-actions" data-cat="members" data-roles="SuperAdmin,Admin,Accountant,User" data-perm="more.aiassistant" data-feature="aiActions" data-keywords="ai actions action agent add to group follow-up mark as done family note assign volunteer create meeting confirm proposal add income add expense guided conversation review card">
           <div class="hc-card-head" onclick="toggleCard(this)">
             <span class="hc-card-icon">⚡</span>
             <div class="hc-card-head-text">
@@ -3172,6 +3172,10 @@
             <p class="hc-desc">Ask the AI Search to <em>do</em> something and it proposes the exact change first: <strong>"Add Sarah Lee to Welcome Team"</strong>, <strong>"Mark the follow-up for the Lees as done"</strong>, <strong>"Add a note to the Smiths: new baby arrived"</strong>, <strong>"Assign John Moe as usher on Sunday"</strong>, <strong>"Remind me to call Pat by Friday"</strong>, <strong>"Create a deacons meeting on Nov 20 at 7 pm"</strong>. You see a card with every detail and a Confirm button — nothing is written until you confirm (typed or spoken "yes" works too), and the card expires after 10 minutes.</p>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
             <div class="hc-mock" aria-label="AI action proposal"><span class="hc-mock-title">⚡ Add Sarah Lee to the group Welcome Team. Shall I go ahead?</span><span class="hc-ui">Add to group</span><span class="hc-ui lite">Cancel</span></div>
+            <div class="hc-section-label" id="hc-ai-guided">Guided conversations — meetings, income and expenses</div>
+            <p class="hc-desc">Type <strong>"Create a meeting"</strong>, <strong>"Add an income"</strong> or <strong>"Add an expense"</strong> (or give the details in one sentence, e.g. <em>"Add an income of $50 from John Smith to Tithe by check #1234"</em>). The assistant asks for one missing detail at a time — buttons offer your church's categories, funds and payment methods, and AM / PM for a time like 7:30 — and checks once about a past meeting date or a future income / expense date. For income and expenses it then offers the optional Reference Number and Notes, asks <em>"Are you missing anything, or are you ready to review …?"</em> and shows a review card with <strong>Required</strong> and <strong>Optional</strong> rows. <strong>Edit</strong> on a row puts "Change &lt;field&gt; to " in the bar; you can also type "change the fund to Building", "actually $60" or "cancel" at any time. Nothing is saved until you press <strong>Save</strong> (or say "yes"), and each card saves only once.</p>
+            <p class="hc-desc">Income and expenses follow their pages' permission: SuperAdmin, Admin or Accountant with the Income (or Expense) page and its Edit permission. The contributor is a member of your church or a guest name — <em>Anonymous</em> and <em>Loose Offering</em> are fine. The conversation stays in the bar while you move between pages in the same browser tab until it is saved or cancelled; <strong>New conversation</strong> starts over.</p>
+            <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span></div>
             <div class="hc-section-label">The six actions</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Add to group</strong> — an existing member into a group (needs Groups edit)</span></div>
@@ -4530,6 +4534,15 @@ const HC_KB = [
     steps: ['Type the request in the ✨ AI Search bar or the AI Assistant chat','Answer a clarifying question if a name matched several people','Read the card and press the action button (or say "yes")','Check Admin → AI Activity → Proposed actions any time'],
     links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'AI Activity', url:'/aiActivity', icon:'📜'}],
     related: ['ai search','ai activity','follow-ups','groups']
+  },
+  {
+    id: 'ai-guided',
+    q: ['add an income with ai','add income from search','add an expense with ai','record a donation with ai','guided conversation','review card','create a meeting with ai','change amount','new conversation'],
+    title: '💬 Guided conversations — Meetings, Income and Expenses',
+    answer: 'Type "Create a meeting", "Add an income" or "Add an expense" in the ✨ AI Search bar. The assistant asks for one missing detail at a time (buttons offer your categories, funds, methods and AM / PM), checks a past meeting date or a future income / expense date once, offers the optional Reference Number and Notes, asks "Are you missing anything, or are you ready to review …?" and shows a review card with Required and Optional rows. Edit puts "Change <field> to " in the bar; "cancel" stops. Nothing is saved until you press Save (or say "yes"); each card saves once. Income and expenses need the Income / Expense page with its Edit permission. The conversation stays in the bar across pages in the same tab until saved or cancelled.',
+    steps: ['Type "Add an income" (or give all the details in one sentence)','Answer each question — tap a suggested button or type','Add a reference number or notes, or skip them','Review the card, press Edit to change a row, then press Save'],
+    links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'Income', url:'/income', icon:'💵'},{label:'Expense', url:'/expense', icon:'🧾'}],
+    related: ['ai actions','income','expenses','meetings']
   },
   {
     id: 'workflows',

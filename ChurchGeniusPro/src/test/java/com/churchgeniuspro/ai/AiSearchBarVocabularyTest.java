@@ -83,7 +83,7 @@ class AiSearchBarVocabularyTest {
         for (String bad : new String[] { "javascript:alert(1)", "//evil.example/x", "https://evil.example", "/x\" onmouseover=\"y", "" })
             assertThat(safe.matcher(bad).matches()).as(bad).isFalse();
         String chat = Files.readString(Paths.get("src/main/resources/static/ai-assistant.html"));
-        assertThat(chat).contains(".aa-summary, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-actions, .aa-filter-json");   // + chips / filter JSON (AI Phase 1)
+        assertThat(chat).contains(".aa-summary, .aa-fields, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-choices, .aa-actions, .aa-filter-json");   // + chips / filter JSON (AI Phase 1), review rows + suggested answers (2026-11-08)
     }
 
     @Test @DisplayName("the Meetings page opens the meeting the AI link names (?meetingId=), digits only, via its own editMeeting()")

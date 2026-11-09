@@ -522,7 +522,8 @@
         if (!aaLive(g)) return;                     // stopped, or superseded
         // A meeting draft is open on the server (missing fields / awaiting "yes"): the next
         // message goes to the server too, whatever it looks like (Phase E).
-        _aaServerPending = !!(d && d.handled && (d.intent==='meeting.ask' || d.intent==='meeting.confirm' || d.intent==='action.ask' || d.intent==='action.confirm'));
+        // 2026-11-08: guided income / expense too, and every message while a conversation thread is open.
+        _aaServerPending = isPendingAnswer(d) || _thread.active;
         if (d && d.handled){
           busy(false);
           renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data',
@@ -531,7 +532,8 @@
           setDebug({ intent:'Data: '+(d.intent||'lookup'), source:'Church Data',
             result: d.denied ? 'Permission denied' : 'Answered (data)' });
           if (mode==='converse'){ _convLog.push('Assistant: '+(d.answer||'')); persistConv(); }
-          if (speaking) speak(stripUrls(d.answer||''));
+          _aaServerPending = _aaServerPending || _thread.active;
+          if (speaking) speak(stripUrls(d.answer||'') + (Array.isArray(d.choices) && d.choices.length && d.choices.length <= 4 ? ' ' + d.choices.join(', ') + '.' : ''));
           finishTiming(); assistDone(g); if(input) input.value='';
           return;
         }
@@ -794,13 +796,120 @@
   /* ════════════════════════ Rendering ════════════════════════ */
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function results(){ return document.getElementById('aiResultsWrap'); }
+  /* ── 2026-11-08: conversation thread ─────────────────────────────────────────────
+     While a guided conversation is open (create a meeting / add an income / add an expense,
+     or an action-agent question), each question and answer is added under the previous ones
+     instead of replacing them. Older answers keep their text but their buttons are switched
+     off; only the newest card can be used. The thread is kept in this browser tab
+     (sessionStorage) across pages until the record is saved or cancelled, then cleared. */
+  var THREAD_KEY='aa.thread';
+  var _thread={ active:false, items:[] };
+  function isConvIntent(i){ return /^(meeting|action|guided)\./.test(String(i||'')); }
+  function isPendingAnswer(d){ return !!(d && d.handled && (d.pending===true || /^(meeting|action|guided)\.(ask|confirm)$/.test(String(d.intent||'')))); }
+  function threadOwner(){ return String(session.user||''); }
+  function saveThread(){
+    try{
+      if (_thread.active) sessionStorage.setItem(THREAD_KEY, JSON.stringify({ active:true, who:threadOwner(), items:_thread.items.slice(-20) }));
+      else sessionStorage.removeItem(THREAD_KEY);
+    }catch(e){}
+  }
+  function clearThread(){ _thread={ active:false, items:[] }; saveThread(); }
+  function slimCard(a){ return { intent:a.intent, category:a.category, source:a.source, confidence:a.confidence, answer:a.answer, pages:a.pages||[], suggestedAction:a.suggestedAction, data:a.data||null }; }
+  function restoreThread(){
+    var t=null;
+    try{ t=JSON.parse(sessionStorage.getItem(THREAD_KEY)||'null'); }catch(e){ t=null; }
+    if (!t || !t.active || !Array.isArray(t.items) || !t.items.length) return;
+    if (String(t.who||'') !== threadOwner()){ try{ sessionStorage.removeItem(THREAD_KEY); }catch(e){} return; }   // another login's conversation is never shown
+    _thread={ active:true, items:t.items.slice(-20) };
+    _aaServerPending=true;
+    if (uiHook()) return;                         // the chat page keeps its own transcript
+    var wrap=results(); if(!wrap) return;
+    wrap.innerHTML=threadHtml(); wrap.style.display='block'; wireCard(wrap);
+  }
+  function threadHtml(){
+    var n=_thread.items.length, html='<div class="ai-results-panel aa-thread" role="log" aria-label="Conversation with the assistant">'
+      + '<div class="ai-results-hdr"><div class="ai-results-title">✨ Assistant <em style="font-size:12px;color:#aaa;font-weight:400;">conversation</em></div>'
+      + '<div class="aa-thread-tools">'+(_thread.active ? '<button type="button" class="aa-newconv" title="Cancel this conversation and start again">New conversation</button>' : '')
+      + '<button class="ai-results-close" type="button" onclick="document.getElementById(\'aiResultsWrap\').style.display=\'none\'" title="Close" aria-label="Close results">✕</button></div></div>';
+    _thread.items.forEach(function(it, i){
+      var last = i===n-1;
+      html+='<div class="aa-turn'+(last?' aa-turn-last':' aa-turn-old')+'">'
+        + '<div class="aa-you"><span class="aa-you-b">'+esc(it.q||'')+'</span></div>'
+        + '<div class="aa-bot">'+cardBody(it.a||{}, !last)+'</div></div>';
+    });
+    return html+'</div>';
+  }
+  function newConversation(){
+    var last=_thread.items.length ? _thread.items[_thread.items.length-1] : null;
+    var c=last && last.a && last.a.data && last.a.data.confirm;
+    if (c && c.token && String(c.endpoint||'').indexOf('/api/ai/actions/')===0){
+      fetch('/api/ai/actions/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:c.token }) }).catch(function(){});
+    }
+    fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
+    clearThread(); _aaServerPending=false;
+    var wrap=results(); if (wrap){ wrap.innerHTML=''; wrap.style.display='none'; }
+    var input=document.getElementById('aiSearchInput'); if (input){ input.value=''; try{ input.focus(); }catch(e){} }
+    toast('Started a new conversation — nothing was saved.');
+  }
+  /* A suggested answer (chip) is sent as if typed; Edit puts "Change <field> to " in the bar. */
+  function chooseAnswer(text){
+    var input=document.getElementById('aiSearchInput');
+    if (input) input.value=text;
+    runAssist(text);
+  }
+  function prefillEdit(text){
+    var input=document.getElementById('aiSearchInput'); if(!input) return;
+    input.value=text; try{ input.focus(); input.setSelectionRange(text.length, text.length); }catch(e){}
+    if (typeof input.dispatchEvent==='function'){ try{ input.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){} }
+  }
+
   function renderCard(a){
     var wrap=results(); if(!wrap && !uiHook()) return;
-    var pages=a.pages||[];
+    var d0=a.data;
+    var threaded=false, ending=false;
+    if (_thread.active || isPendingAnswer(d0)){
+      if (!_thread.active){ _thread={ active:true, items:[] }; }
+      _thread.items.push({ q:lastQ, a:slimCard(a) });
+      // A saved / created / cancelled / refused / expired answer of the conversation closes it.
+      ending = !isPendingAnswer(d0) && !!(d0 && isConvIntent(d0.intent));
+      threaded=true;
+    }
+    if (threaded && !uiHook()){
+      var html0=threadHtml();
+      if (ending){ var keep=_thread.items; clearThread(); _thread.items=keep; html0=threadHtml(); _thread.items=[]; }
+      else saveThread();
+      wrap.innerHTML=html0; wrap.style.display='block';
+      wireCard(wrap);
+      var lastTurn=wrap.querySelector('.aa-turn-last');
+      try{ (lastTurn||wrap).scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
+      try{ var panel=wrap.querySelector('.aa-thread'); if(panel) panel.scrollTop=panel.scrollHeight; }catch(e){}
+      return;
+    }
+    if (threaded){ if (ending) clearThread(); else saveThread(); }
     var html='<div class="ai-results-panel" role="group" aria-label="Assistant answer">'
       + '<div class="ai-results-hdr"><div class="ai-results-title">✨ Assistant <em style="font-size:12px;color:#aaa;font-weight:400;">for: '+esc(lastQ)+'</em></div>'
       + '<button class="ai-results-close" type="button" onclick="document.getElementById(\'aiResultsWrap\').style.display=\'none\'" title="Close" aria-label="Close results">✕</button></div>'
-      + '<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(a.answer||'')+'</div>';
+      + cardBody(a, false);
+    if (a.intent!=='converse')
+      html+='<div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0eaf2;font-size:12px;color:#888;">Need more detail? <a href="/helpCenter" style="color:#673147;font-weight:700;">Open the full Help Center →</a></div>';
+    html+='</div>';
+    if (uiHook() && typeof uiHook().answer==='function'){
+      // Chat-style page: hand over the finished card; the page places and wires it.
+      var holder=document.createElement('div'); holder.innerHTML=html;
+      uiCall('answer', holder.firstChild, a, lastQ);
+      return;
+    }
+    wrap.innerHTML=html; wrap.style.display='block';
+    wireCard(wrap);
+    try{ wrap.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
+  }
+
+  /* The answer text and everything the server sent with it. {@code old} = an earlier turn of a thread: its
+     buttons are drawn switched off (only the newest card acts). */
+  function cardBody(a, old){
+    var pages=a.pages||[];
+    var dis = old ? ' disabled aria-disabled="true" tabindex="-1"' : '';
+    var html='<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(a.answer||'')+'</div>';
     // Structured data answers (Phase B): a summary strip and/or a bounded table.
     if (a.data && !a.data.denied){
       var d=a.data;
@@ -860,13 +969,34 @@
       // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
       // The token is single-use on the server, so a double click cannot create two meetings.
       if (d.confirm && d.confirm.token){
-        var cs=d.confirm.summary||{};
-        html+='<div class="aa-summary">';
-        Object.keys(cs).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v aa-sum-sm">'+esc(cs[k])+'</div></div>'; });
-        html+='</div><div class="aa-actions">'
-          +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'" data-label="'+esc(d.confirm.label||'Create meeting')+'" data-endpoint="'+esc(d.confirm.endpoint||'/api/ai-search/confirm')+'">'+esc(d.confirm.label||'Create meeting')+'</button>'
-          +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'" data-endpoint="'+esc(d.confirm.endpoint||'')+'">Cancel</button>'
-          +'<span class="aa-actions-note">Nothing is saved until you confirm.</span></div>';
+        if (Array.isArray(d.confirm.fields) && d.confirm.fields.length){
+          // 2026-11-08 review card: every value with Required / Optional and an Edit button.
+          html+='<div class="aa-fields" role="table" aria-label="Details to review">';
+          d.confirm.fields.forEach(function(f){
+            var has = f && f.value != null && String(f.value) !== '';
+            html+='<div class="aa-field" role="row"><div class="aa-field-k" role="rowheader">'+esc(f.label||'')
+              + ' <span class="'+(f.required?'aa-req':'aa-opt')+'">'+(f.required?'Required':'Optional')+'</span></div>'
+              + '<div class="aa-field-v'+(has?'':' aa-empty')+'" role="cell">'+(has?esc(f.value):'Not entered')+'</div>'
+              + (f.edit ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit)+'" aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
+              + '</div>';
+          });
+          html+='</div>';
+        } else {
+          var cs=d.confirm.summary||{};
+          html+='<div class="aa-summary">';
+          Object.keys(cs).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v aa-sum-sm">'+esc(cs[k])+'</div></div>'; });
+          html+='</div>';
+        }
+        html+='<div class="aa-actions">'
+          +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'" data-label="'+esc(d.confirm.label||'Create meeting')+'" data-endpoint="'+esc(d.confirm.endpoint||'/api/ai-search/confirm')+'"'+dis+'>'+esc(d.confirm.label||'Create meeting')+'</button>'
+          +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'" data-endpoint="'+esc(d.confirm.endpoint||'')+'"'+dis+'>Cancel</button>'
+          +'<span class="aa-actions-note">'+(old ? 'Replaced by a newer card.' : 'Nothing is saved until you confirm.')+'</span></div>';
+      }
+      // Suggested answers (categories, funds, AM / PM …) as buttons; typing still works.
+      if (Array.isArray(d.choices) && d.choices.length && !(d.confirm && d.confirm.token)){
+        html+='<div class="aa-choices" role="group" aria-label="Suggested answers">';
+        d.choices.slice(0, 24).forEach(function(c){ html+='<button type="button" class="aa-choice" data-text="'+esc(c)+'"'+dis+'>'+esc(c)+'</button>'; });
+        html+='</div>';
       }
     }
     if (pages.length){
@@ -882,26 +1012,31 @@
       });
       html+='</div>';
     }
-    if (a.intent!=='converse')
-      html+='<div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0eaf2;font-size:12px;color:#888;">Need more detail? <a href="/helpCenter" style="color:#673147;font-weight:700;">Open the full Help Center →</a></div>';
-    html+='</div>';
-    if (uiHook() && typeof uiHook().answer==='function'){
-      // Chat-style page: hand over the finished card; the page places and wires it.
-      var holder=document.createElement('div'); holder.innerHTML=html;
-      uiCall('answer', holder.firstChild, a, lastQ);
-      return;
-    }
-    wrap.innerHTML=html; wrap.style.display='block';
+    return html;
+  }
+
+  /* One place wires every button of the results panel (single card or thread). */
+  function wireCard(wrap){
     wrap.querySelectorAll('.aa-open').forEach(function(b){
+      if (b.disabled) return;
       if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
       if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
-      if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(wrap, b); }); return; }
+      if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(b.closest('.aa-turn') || wrap, b); }); return; }
       b.addEventListener('click', function(){ open(b.getAttribute('data-url'), b.getAttribute('data-label'), b.getAttribute('data-nt')==='1' || wantsNewTab(lastQ)); });
     });
     wrap.querySelectorAll('.aa-chip-x').forEach(function(x){
-      x.addEventListener('click', function(){ rerunFilterWithout(wrap, parseInt(x.getAttribute('data-i'), 10)); });
+      x.addEventListener('click', function(){ rerunFilterWithout(x.closest('.aa-turn') || wrap, parseInt(x.getAttribute('data-i'), 10)); });
     });
-    try{ wrap.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
+    wrap.querySelectorAll('.aa-choice').forEach(function(b){
+      if (b.disabled) return;
+      b.addEventListener('click', function(){ wrap.querySelectorAll('.aa-choice').forEach(function(x){ x.disabled=true; }); chooseAnswer(b.getAttribute('data-text')||''); });
+    });
+    wrap.querySelectorAll('.aa-edit').forEach(function(b){
+      if (b.disabled) return;
+      b.addEventListener('click', function(){ prefillEdit(b.getAttribute('data-edit')||''); });
+    });
+    var nc=wrap.querySelector('.aa-newconv');
+    if (nc) nc.addEventListener('click', newConversation);
   }
   /* Phase E: the "Create meeting" button. Disabled at once (client side), and the server consumes
      the token on first use, so a repeat click or a stale transcript button creates nothing. */
@@ -927,7 +1062,7 @@
         busy(false); _aaServerPending=false; endTurn();
         if (!d || !d.handled){ d= isAction ? { handled:true, denied:false, intent:'action.failed', answer:'The action could not be completed, so nothing was saved. Please try again or use the page directly.' }
                                            : { handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
-        if (row){ row.remove(); }
+        if (row && !_thread.active){ row.remove(); }
         renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
           pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
         setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: (d.created || d.executed) ? 'Done' : (d.denied ? 'Permission denied' : 'Not done') });
@@ -980,16 +1115,25 @@
     var row = btn && btn.closest ? btn.closest('.aa-actions') : null;
     var endpoint = (btn && btn.getAttribute && btn.getAttribute('data-endpoint')) || '';
     var token = btn && btn.getAttribute ? btn.getAttribute('data-token') : null;
-    if (row){ row.remove(); }
+    var threaded = _thread.active && !uiHook();
+    if (row && !threaded){ row.remove(); }
     _aaServerPending=false;
-    if (endpoint.indexOf('/api/ai/actions/') === 0 && token){
+    var isAction = endpoint.indexOf('/api/ai/actions/') === 0 && token;
+    if (isAction){
       // AI Phase 4: reject the proposal itself (the server marks it REJECTED; the token can never be used)
       fetch('/api/ai/actions/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) }).catch(function(){});
-      toast('Okay — nothing was done.');
+    } else {
+      fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
+    }
+    var msg = isAction ? 'Okay — nothing was saved.' : 'Okay — the meeting was not created.';
+    if (threaded){
+      lastQ='Cancel';
+      renderCard({ intent:'guided.cancelled', category:'Data', source:'Church Data', confidence:1, answer:msg, pages:[], suggestedAction:'none',
+                   data:{ handled:true, denied:false, intent:'guided.cancelled', answer:msg } });
       return;
     }
-    fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
-    toast('Okay — the meeting was not created.');
+    if (_thread.active) clearThread();
+    toast(isAction ? 'Okay — nothing was done.' : msg);
   }
   function toast(msg){
     if (uiCall('notice', msg)) return;
@@ -1347,6 +1491,29 @@
       '.aa-pl-desc{color:#555;}',
       '.aa-pl-exp{color:#8a7a82;font-size:12px;}',
       '.aa-actions-note{font-size:11.5px;color:#9a7d8b;}',
+      /* 2026-11-08 conversation thread, suggested answers, review card */
+      '#aiResultsWrap .aa-thread-tools{display:flex;align-items:center;gap:8px;}',
+      '#aiResultsWrap .aa-newconv{border:1.5px solid #c5a0b5;background:#fff;color:#673147;font-size:12px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer;}',
+      '#aiResultsWrap .aa-turn{padding:10px 0;border-top:1px solid #f3edf0;}',
+      '#aiResultsWrap .aa-turn:first-of-type{border-top:none;padding-top:4px;}',
+      '#aiResultsWrap .aa-you{display:flex;justify-content:flex-end;margin-bottom:6px;}',
+      '#aiResultsWrap .aa-you-b{background:#673147;color:#fff;border-radius:12px 12px 2px 12px;padding:6px 11px;font-size:13px;max-width:85%;overflow-wrap:anywhere;}',
+      '#aiResultsWrap .aa-turn-old .ai-answer{color:#777;}',
+      '#aiResultsWrap .aa-turn-old .aa-fields,#aiResultsWrap .aa-turn-old .aa-choices{opacity:.6;}',
+      '.aa-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}',
+      '.aa-choice{border:1.5px solid #c5a0b5;background:#fbf7f9;color:#673147;font-size:13px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer;min-height:34px;}',
+      '.aa-choice:disabled,.aa-edit:disabled,.aa-open:disabled{opacity:.55;cursor:default;}',
+      '.aa-fields{margin-top:10px;border:1px solid #eadfe6;border-radius:9px;overflow:hidden;}',
+      '.aa-field{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid #f3edf0;font-size:13px;}',
+      '.aa-field:first-child{border-top:none;}',
+      '.aa-field-k{color:#5a4450;font-weight:600;}',
+      '.aa-field-v{color:#333;overflow-wrap:anywhere;}',
+      '.aa-field-v.aa-empty{color:#9a8a92;font-style:italic;}',
+      '.aa-req,.aa-opt{display:inline-block;font-size:10.5px;font-weight:700;border-radius:8px;padding:1px 6px;margin-left:4px;vertical-align:1px;}',
+      '.aa-req{background:#f6e3ea;color:#8a2a4d;}',
+      '.aa-opt{background:#eef1f5;color:#5a6472;}',
+      '.aa-edit{border:1px solid #c5a0b5;background:#fff;color:#673147;font-size:12px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer;min-height:30px;}',
+      '@media (max-width:560px){.aa-field{grid-template-columns:minmax(0,1fr) auto;}.aa-field-k{grid-column:1 / -1;}}',
       '#aiResultsWrap .aa-sum-v.aa-sum-sm{font-size:13.5px;}',
       '.aa-toast{margin-top:8px;font-size:12.5px;color:#a23;background:#fdeef0;border:1px solid #f3cfd5;border-radius:7px;padding:7px 10px;}',
       '#aiResultsWrap .ai-results-panel{margin-top:10px;border:1px solid #eadfe6;border-radius:12px;background:#fff;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);max-height:min(65vh,560px);overflow:auto;}',
@@ -1570,6 +1737,7 @@
       // session, a Member without the opt-in, or staff with the permission off. Only
       // an explicit true draws the assistant — an unknown answer is treated as "no".
       session.aiAssistant=(s.aiAssistant===true);
+      session.user=String(s.username||s.memberId||s.clientId||'');
       session.ready=true;
     }).catch(function(){ session.role=safeLS('role')||'User'; session.aiAssistant=false; session.ready=true; });
   }
@@ -1586,6 +1754,7 @@
       loadServerNav();
       loadPublicLinks();
       restoreState();
+      restoreThread();
       if (window.VoiceOpenAI && window.VoiceOpenAI.getStatus){
         window.VoiceOpenAI.getStatus().then(function(st){ if(st && st.voiceAvailable===false){ /* voice gated — errors surfaced on use */ } }).catch(function(){});
       }
@@ -1598,7 +1767,8 @@
   window.CGP_ASSISTANT = { matchDest:matchDest, matchReport:matchReport, isAvailable:isAvailable, reportAvailable:reportAvailable,
     resolveLocal:resolveLocal, classify:classify, buildContext:buildContext, converseStart:converseStart, converseStep:converseStep,
     matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting,
-    rerunFilterWithout:rerunFilterWithout, saveFilterAsList:saveFilterAsList, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
+    rerunFilterWithout:rerunFilterWithout, saveFilterAsList:saveFilterAsList, chooseAnswer:chooseAnswer, prefillEdit:prefillEdit,
+    newConversation:newConversation, _thread:function(){ return _thread; }, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
     _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); },
     _setTimeoutMs:function(ms){ AA_TIMEOUT_MS=ms; }, _inFlight:function(){ return _inFlight; } };
 })();

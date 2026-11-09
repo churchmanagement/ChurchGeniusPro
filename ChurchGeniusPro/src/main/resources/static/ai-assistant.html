@@ -279,11 +279,13 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
         // Page suggestions (Open / New tab) and the Help Center link come across as-is;
         // the engine's own listeners are dropped (cloned) — the transcript wires them once.
         // Structured data answers (summary strip / bounded table) come across as-is too.
-        card.querySelectorAll('.aa-summary, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-actions, .aa-filter-json').forEach(function (el) { html += el.outerHTML; });
+        card.querySelectorAll('.aa-summary, .aa-fields, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-choices, .aa-actions, .aa-filter-json').forEach(function (el) { html += el.outerHTML; });
         card.querySelectorAll('.aa-suggest').forEach(function (sg) { sg.querySelectorAll('.aa-open').forEach(function (b) { b.parentNode.replaceChild(b.cloneNode(true), b); }); html += sg.outerHTML; });
         var more = card.querySelector('a[href="/helpCenter"]');
         if (more) html += '<div class="aa-more">Need more detail? <a href="/helpCenter">Open the full Help Center →</a></div>';
       }
+      // 2026-11-08: only the newest card of a conversation acts — earlier suggested answers / Edit / Save buttons are switched off.
+      log.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel').forEach(function (b) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); });
       push({ role: 'assistant', html: html, ts: Date.now(), kind: kind });
     },
     busy: function (on) { showTyping(!!on); },
@@ -310,6 +312,10 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
   log.addEventListener('click', function (e) {
     var chip = e.target.closest('.chip');
     if (chip) { input.value = chip.textContent.trim(); autosize(); send(); return; }
+    var ch = e.target.closest('.aa-choice');
+    if (ch && !ch.disabled) { e.preventDefault(); input.value = ch.getAttribute('data-text') || ch.textContent.trim(); autosize(); send(); return; }
+    var ed = e.target.closest('.aa-edit');
+    if (ed && !ed.disabled) { e.preventDefault(); var t = ed.getAttribute('data-edit') || ''; input.value = t; autosize(); input.focus(); try { input.setSelectionRange(t.length, t.length); } catch (x) {} return; }
     var cf = e.target.closest('.aa-confirm');
     if (cf && window.CGP_ASSISTANT && typeof window.CGP_ASSISTANT.confirmMeeting === 'function') { e.preventDefault(); window.CGP_ASSISTANT.confirmMeeting(cf.getAttribute('data-token'), cf); return; }
     var cx = e.target.closest('.aa-chip-x');
@@ -328,7 +334,12 @@ window.CGP_PAGE = { activePage: 'more/ai-assistant', openSection: 'more', pageTi
   /* ── boot: who is signed in (so another user's transcript is never shown), then restore ── */
   function boot() {
     var stored = load();
-    if (stored.length) { messages = stored; stored.forEach(function (m) { log.appendChild(bubbleEl(m)); }); }
+    if (stored.length) {
+      messages = stored; stored.forEach(function (m) { log.appendChild(bubbleEl(m)); });
+      // a restored transcript: only the newest answer's buttons stay usable
+      var all = log.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel'), lastMsg = log.lastElementChild;
+      Array.prototype.forEach.call(all, function (b) { if (!lastMsg || !lastMsg.contains(b)) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); } });
+    }
     else welcome();
     scrollToEnd(); input.focus();
   }

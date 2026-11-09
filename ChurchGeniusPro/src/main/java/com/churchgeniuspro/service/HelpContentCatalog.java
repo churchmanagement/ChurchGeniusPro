@@ -609,7 +609,12 @@ public class HelpContentCatalog {
             "Type a request in the ✨ AI Search bar (Home) or the AI Assistant chat: \"Add Sarah Lee to Welcome Team\", \"Mark the follow-up for the Lees as done\", \"Add a note to the Smiths: new baby arrived\", \"Assign John Moe as usher on Sunday\", \"Remind me to call Pat by Friday\", \"Create a deacons meeting on Nov 20 at 7 pm\". "
           + "The assistant looks the names up in your own church's records; when several people, groups or roles match it asks which one (answer with the name shown or its number); when something is missing it asks for it. Then it shows a card with every detail and the action button. Nothing is written until you press the button or say \"yes\"; Cancel or \"no\" drops it; a card older than 10 minutes expires. "
           + "At the moment you confirm, the permission and every referenced record are checked again — the action follows the same rule as its own page: Add to group needs Groups edit; Add / Complete follow-up needs Follow-ups; Add family note needs the Families page (the note lands in Notes as \"Family note — <family>\"); Assign volunteer needs SuperAdmin / Admin with Volunteers (the assignment is created pending); Create meeting needs Meetings edit (one-time meetings of an existing category; a duplicate slot is refused). "
-          + "There is no sending action: e-mails and texts always go through their own pages. Every proposal and its outcome is listed under Admin → AI Activity → Proposed actions. Pro and Trial plans; the server can switch actions off entirely.",
+          + "There is no sending action: e-mails and texts always go through their own pages. Every proposal and its outcome is listed under Admin → AI Activity → Proposed actions. Pro and Trial plans; the server can switch actions off entirely. "
+          + "GUIDED CONVERSATIONS — \"Create a meeting\", \"Add an income\" and \"Add an expense\" become a short conversation: the assistant asks for one missing detail at a time (buttons offer the church's categories, funds and methods, and AM / PM), "
+          + "asks once about a past meeting date or a future income / expense date, offers the optional Reference Number and Notes, then asks \"Are you missing anything, or are you ready to review …?\" and shows a review card with Required and Optional rows. "
+          + "Edit on a row puts \"Change <field> to \" in the bar; you can also type \"change the fund to Building\" or \"actually $60\" at any time, or \"cancel\". Nothing is saved until you press Save (or say \"yes\"); each card saves once. "
+          + "Income and expense need the Income / Expense page with its Edit permission (SuperAdmin, Admin or Accountant); the contributor is a member of your church or a guest name (Anonymous and Loose Offering are fine). "
+          + "The conversation stays in the bar while you move between pages in the same browser tab until it is saved or cancelled; New conversation starts over.",
             list("Type what you want done in the AI Search bar.",
                  "Answer a clarifying question if asked (which person / group / role).",
                  "Read the card, then press the action button or say \"yes\" — or Cancel.",
@@ -617,8 +622,8 @@ public class HelpContentCatalog {
             list("Problem: \"I can't … for you — your login doesn't have that permission\" — Fix: the action follows its page's permission; an administrator can grant it.",
                  "Problem: \"That confirmation is no longer valid\" — Fix: the card was used, cancelled or expired; ask again, nothing was done.",
                  "Problem: \"already in the group\" / \"already exists\" — Fix: duplicates are refused on purpose; nothing was done."),
-            "1.0", list("v1.0 — Initial release (AI Phase 4)."),
-            list("ai actions","add to group","follow-up done","family note","assign volunteer","create meeting","confirm")).roles("SuperAdmin,Admin,User"));
+            "1.1", list("v1.0 — Initial release (AI Phase 4).", "v1.1 — Guided conversations for meetings, income and expenses (2026-11-08)."),
+            list("ai actions","add to group","follow-up done","family note","assign volunteer","create meeting","confirm","add income","add expense","guided conversation")).roles("SuperAdmin,Admin,Accountant,User"));
 
         // roles: SuperAdmin,Admin (AI Phase 6, 2026-11-05)
         add(new HelpArticle("workflows", "Members", "Automations (when this happens, do that)", "more.workflows", false,
