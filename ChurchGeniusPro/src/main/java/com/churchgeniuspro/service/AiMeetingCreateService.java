@@ -85,8 +85,11 @@ public class AiMeetingCreateService {
 
     // ── Draft kept in the session ────────────────────────────────────────────
 
-    /** Stage ASK = fields still missing; CONFIRM = complete, waiting for the user's yes. */
-    enum Stage { ASK, CONFIRM }
+    /**
+     * Stage ASK = fields still missing; REVIEW = complete, asked "Are you missing anything, or are you
+     * ready to review…?"; CONFIRM = the review card is shown, waiting for the explicit Save / yes.
+     */
+    enum Stage { ASK, REVIEW, CONFIRM }
 
     static final class Draft implements java.io.Serializable {
         private static final long serialVersionUID = 2L;
@@ -108,6 +111,12 @@ public class AiMeetingCreateService {
         /** The field the last question asked for ("category", "date", "location", "locationPick", "time", "ampm"). */
         String asked;
         String token; Instant created;
+        /** 2026-11-08 guided flow: the user said a past date is right (asked once). */
+        boolean pastConfirmed;
+        /** The whole request came in one message — the review card is shown at once (no extra question). */
+        boolean oneShot;
+        /** The "missing anything / ready to review" question was asked (or the card was shown) — not asked again. */
+        boolean reviewOffered;
         boolean hasLocation() { return locLabel != null || locSkipped; }
         boolean hasTime() { return (start != null || timeSkipped) && timeHint == null; }
         /** The four things the AI asks for: category, date, location, time (location/time may be left blank on request). */
@@ -176,6 +185,7 @@ public class AiMeetingCreateService {
             Draft d = new Draft();
             d.clientId = clientId; d.username = a.username(); d.created = Instant.now();
             fill(d, q, today, clientId, true);
+            d.oneShot = d.complete();
             return advance(session, d, a);
         }
 
@@ -183,10 +193,42 @@ public class AiMeetingCreateService {
         AiAccess a = access.resolve(req, clientId);
         if (!a.meetingsEdit()) { clear(session); return denied(); }   // permission changed mid-conversation
 
+        // "Change the date to …", "actually 8 pm" — a correction is welcome at every stage (2026-11-08).
+        if (correct(pending, q, today, clientId)) {
+            if (pending.stage != Stage.ASK) pending.reviewOffered = true;   // already reviewing → straight back to the card
+            pending.token = null;                                            // an old card can no longer be confirmed
+            return advance(session, pending, a);
+        }
         if (pending.stage == Stage.CONFIRM) {
             if (YES.matcher(q).matches()) return confirm(req, clientId, pending.token);
             if (NO.matcher(q).matches())  { clear(session); return base("meeting.cancelled", "Okay — I have not created the meeting.", false); }
             return null;                   // some other question: the draft stays until the button is used or it expires
+        }
+        if (pending.stage == Stage.REVIEW) {
+            if (CANCEL.matcher(q).matches()) { clear(session); return base("meeting.cancelled", "Okay — I have not created the meeting.", false); }
+            if ("note".equals(pending.asked)) {                          // the answer to "What should the note say?"
+                pending.note = SKIP.matcher(q).matches() ? null : cap(q.replaceAll("^(?i)\\s*(?:the\\s+)?note\\s*(?:is|:)?\\s*", "").trim());
+                pending.asked = null;
+                return advance(session, pending, a);
+            }
+            if (ADD_NOTE.matcher(q).matches()) {
+                pending.asked = "note"; pending.created = Instant.now(); session.setAttribute(SESSION_KEY, pending);
+                Map<String, Object> m = base("meeting.ask", "What should the note say?", false);
+                m.put("asking", "note"); m.put("missing", List.of()); m.put("pending", true);
+                return m;
+            }
+            if (READY.matcher(q).matches()) { pending.reviewOffered = true; return advance(session, pending, a); }
+            boolean more = fill(pending, q, today, clientId, false);
+            if (!more) return null;        // another question: the draft waits (it expires on its own)
+            return advance(session, pending, a);
+        }
+        if ("pastDate".equals(pending.asked)) {                         // "That date is in the past — keep it?"
+            if (YES.matcher(q).matches() || KEEP_DATE.matcher(q).matches()) { pending.pastConfirmed = true; return advance(session, pending, a); }
+            if (NO.matcher(q).matches() || CHANGE_DATE.matcher(q).matches()) { pending.date = null; pending.asked = "date"; return advance(session, pending, a); }
+            LocalDate before = pending.date; pending.date = null;
+            if (fill(pending, q, today, clientId, false) && pending.date != null) return advance(session, pending, a);
+            pending.date = before;
+            return null;
         }
         // ASK stage: does this message supply any of the missing fields?
         // "cancel" always cancels; a bare "no"/"none" answering the location or time question
@@ -222,7 +264,7 @@ public class AiMeetingCreateService {
         if (mt == null) return base("meeting.error", "That meeting category no longer exists, so I have not created the meeting.", false);
         String start = d.start == null ? "" : hhmm(d.start);
         if (meetingRepo.aiCountSameSlot(clientId, d.typeId, d.date, start) > 0) {
-            return withLink(base("meeting.duplicate", "A " + mt.getTypeName() + " meeting on " + fmtDate(d.date)
+            return withLink(base("meeting.duplicate", "A " + meetingName(mt.getTypeName()) + " on " + fmtDate(d.date)
                 + (d.start == null ? "" : " at " + fmtTime(d.start)) + " already exists, so I have not created another one.", false), a);
         }
         MeetingBO bo = new MeetingBO();
@@ -248,7 +290,7 @@ public class AiMeetingCreateService {
         }
         if (saved == null || saved.getId() == null)
             return base("meeting.error", "The meeting could not be saved, so nothing was created. Please try again, or use the Meetings page.", false);
-        Map<String, Object> m = base("meeting.created", "Created a one-time " + mt.getTypeName() + " meeting on " + fmtDate(d.date)
+        Map<String, Object> m = base("meeting.created", "Created a one-time " + meetingName(mt.getTypeName()) + " on " + fmtDate(d.date)
             + timeText(d) + locationText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ".", false);
         m.put("created", true);
         m.put("meetingId", saved.getId());
@@ -266,10 +308,29 @@ public class AiMeetingCreateService {
     // ── Flow helpers ─────────────────────────────────────────────────────────
 
     private Map<String, Object> advance(HttpSession session, Draft d, AiAccess a) {
-        if (d.complete()) {
-            d.stage = Stage.CONFIRM; d.asked = null; d.token = UUID.randomUUID().toString(); d.created = Instant.now();
+        LocalDate today = AppClock.today();
+        if (d.complete() && d.date.isBefore(today) && !d.pastConfirmed) {
+            // A past date is allowed (the Meetings page allows it) but checked once — it is usually a slip.
+            d.stage = Stage.ASK; d.asked = "pastDate"; d.created = Instant.now();
             session.setAttribute(SESSION_KEY, d);
-            Map<String, Object> m = base("meeting.confirm", "Ready to create a one-time " + d.typeName + " meeting on " + fmtDate(d.date)
+            Map<String, Object> m = base("meeting.ask", fmtDate(d.date) + " is in the past. Do you want to create the "
+                + meetingName(d.typeName) + " on that date anyway, or use a different date?", false);
+            m.put("asking", "date"); m.put("missing", List.of()); m.put("pending", true);
+            m.put("choices", List.of("Yes, keep " + fmtDate(d.date), "Use a different date"));
+            return m;
+        }
+        if (d.complete() && !d.oneShot && !d.reviewOffered) {
+            d.stage = Stage.REVIEW; d.asked = null; d.reviewOffered = true; d.created = Instant.now();
+            session.setAttribute(SESSION_KEY, d);
+            Map<String, Object> m = base("meeting.ask", "Are you missing anything, or are you ready to review the meeting details?", false);
+            m.put("asking", "review"); m.put("missing", List.of()); m.put("pending", true);
+            m.put("choices", List.of("Review the details", "Add a note"));
+            return m;
+        }
+        if (d.complete()) {
+            d.stage = Stage.CONFIRM; d.asked = null; d.reviewOffered = true; d.token = UUID.randomUUID().toString(); d.created = Instant.now();
+            session.setAttribute(SESSION_KEY, d);
+            Map<String, Object> m = base("meeting.confirm", "Ready to create a one-time " + meetingName(d.typeName) + " on " + fmtDate(d.date)
                 + timeText(d) + locationText(d) + (d.note == null ? "" : " (note: " + d.note + ")") + ". Shall I create it?", false);
             Map<String, Object> c = new LinkedHashMap<>();
             c.put("token", d.token);
@@ -280,14 +341,24 @@ public class AiMeetingCreateService {
             summary.put("Repeats", "One-time");
             if (d.note != null) summary.put("Note", d.note);
             c.put("summary", summary);
+            // Review card rows: required vs optional, each with the words the Edit button puts in the bar.
+            List<Map<String, Object>> fields = new ArrayList<>();
+            fields.add(field("category", "Category", d.typeName, true, "Change category to "));
+            fields.add(field("date", "Date", fmtDate(d.date), true, "Change date to "));
+            fields.add(field("location", "Location", d.locLabel, false, "Change location to "));
+            fields.add(field("time", "Time", d.start == null ? null : fmtTime(d.start) + (d.end == null ? "" : " – " + fmtTime(d.end)), false, "Change time to "));
+            fields.add(field("note", "Note", d.note, false, "Change note to "));
+            c.put("fields", fields);
+            c.put("label", "Create meeting");
             m.put("confirm", c);
+            m.put("pending", true);
             return m;
         }
         // Ask for ONE missing thing at a time, in the order of the Meetings form: category, date,
         // location, time. Anything the user already gave is never asked again.
         d.stage = Stage.ASK; d.created = Instant.now();
         session.setAttribute(SESSION_KEY, d);
-        String ask; String field;
+        String ask; String field; List<String> choices = null;
         if (d.typeId == null) {
             List<MeetingType> types = typeRepo.findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(d.clientId);
             if (types.isEmpty()) {
@@ -299,13 +370,15 @@ public class AiMeetingCreateService {
             ask = (d.typeName != null ? "Several categories match \"" + d.typeName + "\". " : "")
                 + "Which category is this meeting? " + String.join(", ", names) + (types.size() > maxRows ? " … (more on the Meeting Types page)" : "") + ".";
             field = "category";
+            choices = names;
         } else if (d.date == null) {
-            ask = "What date is the " + d.typeName + " meeting?";
+            ask = "What date is the " + meetingName(d.typeName) + "?";
             field = "date";
         } else if (d.locChoiceIds != null) {
             ask = "Several members match that name: " + String.join(", ", d.locChoiceLabels)
                 + ". Which one's home is the meeting at? You can also type an address, or say \u201cno location\u201d.";
             field = "locationPick";
+            choices = new ArrayList<>(d.locChoiceLabels);
         } else if (!d.hasLocation() && d.notFoundHome != null) {
             ask = "I could not find a member named \u201c" + d.notFoundHome + "\u201d with an address on file. "
                 + "Please type the address or place instead, or say \u201cno location\u201d.";
@@ -315,8 +388,10 @@ public class AiMeetingCreateService {
             ask = "Where will it be held? Name the member whose home it is at, type an address or place, or say \u201cno location\u201d.";
             field = "location";
         } else if (d.timeHint != null) {
-            ask = "Is " + d.timeHint + " o'clock AM or PM?";
+            String h = d.timeHint.contains(":") ? d.timeHint : d.timeHint;
+            ask = d.timeHint.contains(":") ? "Is that " + h + " AM or " + h + " PM?" : "Is " + h + " o'clock AM or PM?";
             field = "ampm";
+            choices = List.of(h + " AM", h + " PM");
         } else {
             ask = "What time does it start? You can add an end time too (for example \u201c7 to 8:30 pm\u201d), or say \u201cno time\u201d.";
             field = "time";
@@ -326,7 +401,77 @@ public class AiMeetingCreateService {
         m.put("missing", missingFields(d));
         m.put("asking", "ampm".equals(field) ? "time" : "locationPick".equals(field) ? "location" : field);
         m.put("pending", true);
+        if (choices != null && !choices.isEmpty()) m.put("choices", choices);
         return m;
+    }
+
+    private static Map<String, Object> field(String key, String label, String value, boolean required, String edit) {
+        Map<String, Object> f = new LinkedHashMap<>();
+        f.put("key", key); f.put("label", label); f.put("value", value == null || value.isBlank() ? null : value);
+        f.put("required", required); f.put("edit", edit);
+        return f;
+    }
+
+    /** "Bible Study" → "Bible Study meeting"; "Prayer Meeting" stays "Prayer Meeting" (never "Prayer Meeting meeting"). */
+    public static String meetingName(String typeName) {
+        String t = typeName == null ? "" : typeName.trim();
+        return t.matches("(?i).*\\bmeetings?$") ? t : t + " meeting";
+    }
+
+    /** Words that answer the review question with "ready". */
+    private static final Pattern READY = Pattern.compile(
+        "(?i)^\\s*(yes|yeah|yep|sure|ok|okay|no|nope|nothing|none|nothing else|that'?s (all|it|everything)|all good|looks good|ready|i'?m ready|"
+        + "review|review (it|them|the details)|let me review|show me|show (me )?the details|go ahead|proceed|continue|done|next)"
+        + "([,.! ]+(please|thanks?|thank you|ready|review|i'?m ready|let'?s review|go ahead))*[.!]?\\s*$");
+    private static final Pattern ADD_NOTE = Pattern.compile("(?i)^\\s*(?:yes,?\\s+)?(?:i(?:'d| would) like to\\s+|let me\\s+)?(?:add|include|put|write)\\s+(?:a\\s+|the\\s+)?notes?[.!]?\\s*$");
+    private static final Pattern KEEP_DATE = Pattern.compile("(?i)^\\s*(yes,? )?(keep|use) (it|that|this|that date|this date|the date)\\b.*|^\\s*yes,? keep\\b.*");
+    private static final Pattern CHANGE_DATE = Pattern.compile("(?i)^\\s*(use a different date|different date|change (it|the date)|another date|pick another date)[.!]?\\s*$");
+    private static final Pattern CORRECT = Pattern.compile(
+        "(?i)^\\s*(?:(?:no|oh|sorry|wait|actually)[,!.]?\\s+)?(?:please\\s+)?(?:change|set|make|update|edit|correct|switch|move)\\s+(?:the\\s+)?"
+        + "(category|meeting type|type|date|day|start time|time|location|place|venue|address|note|notes)\\b\\s*(?:to|into|as|is|:|=)?\\s*(.*)$");
+    private static final Pattern ACTUALLY = Pattern.compile("(?i)^\\s*(?:actually|i meant|sorry,? i meant|no,? i meant|make it)[,:]?\\s+(.+)$");
+
+    /**
+     * Applies a correction ("change the date to Dec 9", "set the location to the chapel", "actually 8 pm").
+     * The named field is cleared and filled from the rest of the sentence; an empty value just asks for it again.
+     */
+    boolean correct(Draft d, String text, LocalDate today, String clientId) {
+        Matcher c = CORRECT.matcher(text);
+        String field = null, value = null;
+        if (c.matches()) { field = c.group(1).toLowerCase(Locale.ROOT); value = c.group(2).trim(); }
+        else {
+            Matcher ac = ACTUALLY.matcher(text);
+            if (!ac.matches()) return false;
+            value = ac.group(1).trim();
+            if (parseTime(value) != null || AMBIGUOUS_HOUR.matcher(value).find() || AMBIGUOUS_CLOCK.matcher(value).find()) field = "time";
+            else if (parseDate(value, today) != null) field = "date";
+            else return false;
+        }
+        value = value.replaceAll("[.!]+$", "").trim();
+        switch (field) {
+            case "category", "meeting type", "type" -> { d.typeId = null; d.typeName = null; d.asked = "category"; }
+            case "date", "day" -> { d.date = null; d.pastConfirmed = false; d.asked = "date"; }
+            case "time", "start time" -> { d.start = null; d.end = null; d.timeSkipped = false; d.timeHint = null; d.asked = "time"; }
+            case "location", "place", "venue", "address" -> {
+                d.locMemberId = null; d.locLabel = null; d.addr1 = d.addr2 = d.city = d.state = d.country = d.pin = null;
+                d.locSkipped = false; d.locChoiceIds = null; d.locChoiceLabels = null; d.notFoundHome = null; d.asked = "location";
+            }
+            default -> {                                                   // note
+                d.note = value.isEmpty() || SKIP.matcher(value).matches() ? null : cap(value);
+                d.asked = null;
+                return true;
+            }
+        }
+        if (!value.isEmpty()) {
+            if (d.asked.equals("category")) {
+                List<MeetingType> hits = matchTypes(typeRepo.findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(clientId), cleanProbe(value));
+                if (hits.size() == 1) { d.typeId = hits.get(0).getId(); d.typeName = hits.get(0).getTypeName(); }
+                else if (hits.size() > 1) d.typeName = cleanProbe(value);
+            } else {
+                fill(d, value, today, clientId, false);
+            }
+        }
+        return true;
     }
 
     private static List<String> missingFields(Draft d) {
@@ -370,7 +515,8 @@ public class AiMeetingCreateService {
             if (mer.matches()) {
                 boolean pm = mer.group(1).toLowerCase(Locale.ROOT).startsWith("p") || mer.group(1).toLowerCase(Locale.ROOT).contains("evening")
                           || mer.group(1).toLowerCase(Locale.ROOT).contains("afternoon") || mer.group(1).toLowerCase(Locale.ROOT).contains("night");
-                LocalTime t = time(d.timeHint, null, pm ? "pm" : "am");
+                String[] hm = d.timeHint.split(":");
+                LocalTime t = time(hm[0], hm.length > 1 ? hm[1] : null, pm ? "pm" : "am");
                 if (t != null) { d.start = t; d.timeHint = null; return true; }
             }
         }
@@ -378,8 +524,10 @@ public class AiMeetingCreateService {
             Parsed<LocalTime[]> t = parseTime(rest);
             if (t != null) { d.start = t.value[0]; d.end = t.value[1]; d.timeHint = null; rest = t.rest; any = true; }
             else {
-                Matcher am = AMBIGUOUS_HOUR.matcher(rest);                // "at 7" — AM or PM?
-                if (am.find()) { d.timeHint = am.group(1); rest = cut(rest, am); any = true; }
+                Matcher am = AMBIGUOUS_HOUR.matcher(rest);                // "at 7" / "at 7:30" — AM or PM?
+                Matcher ck = AMBIGUOUS_CLOCK.matcher(rest);               // a bare "7:30" — never read as 07:30
+                if (am.find()) { d.timeHint = am.group(1) + (am.group(2) == null ? "" : ":" + am.group(2)); rest = cut(rest, am); any = true; }
+                else if (ck.find()) { d.timeHint = ck.group(1) + ":" + ck.group(2); rest = cut(rest, ck); any = true; }
                 else if ("time".equals(asked)) {
                     Matcher bare = BARE_HOUR.matcher(rest);                // the answer to "what time?" is just "7"
                     if (bare.matches()) { d.timeHint = bare.group(1); return true; }
@@ -553,6 +701,8 @@ public class AiMeetingCreateService {
         return hits;
     }
 
+    /** "7:30" with an hour 1–12 written without a leading zero and no AM/PM: asked, never guessed. */
+    private static final Pattern AMBIGUOUS_CLOCK = Pattern.compile("(?i)(?<![\\d:/])\\b([1-9]|1[0-2]):([0-5]\\d)\\b(?!\\s*(?:a\\.?m|p\\.?m|\\d|:))");
     private static final Pattern MERIDIEM_ONLY = Pattern.compile("(?i)^\\s*(?:in the\\s+)?(a\\.?m\\.?|p\\.?m\\.?|morning|afternoon|evening|night)[.!]?\\s*$");
     private static final Pattern AMBIGUOUS_HOUR = Pattern.compile("(?i)\\b(?:at|@)\\s*(\\d{1,2})(?::(\\d{2}))?\\b(?!\\s*(?:a\\.?m|p\\.?m|/|-|:|st|nd|rd|th|\\d))");
 
@@ -622,7 +772,7 @@ public class AiMeetingCreateService {
     private static final Pattern RANGE = Pattern.compile("(?i)\\b(?:from\\s+)?" + TIME + "\\s*(?:-|–|to|until|till|through)\\s*" + TIME + "\\b");
     private static final Pattern AT = Pattern.compile("(?i)\\b(?:at|@|starting(?: at)?|starts(?: at)?)\\s*" + TIME + "\\b");
     private static final Pattern BARE = Pattern.compile("(?i)\\b(\\d{1,2})(?::(\\d{2}))?\\s*(a\\.?m\\.?|p\\.?m\\.?)\\b");
-    private static final Pattern H24 = Pattern.compile("\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b");
+    private static final Pattern H24 = Pattern.compile("\\b(0\\d|1[3-9]|2[0-3]|0):([0-5]\\d)\\b");
     private static final Pattern WORDS = Pattern.compile("(?i)\\b(noon|midday|midnight)\\b");
 
     /** Start (+ optional end) time; null when none that is unambiguous. "at 7" without am/pm is not accepted. */
@@ -662,7 +812,8 @@ public class AiMeetingCreateService {
             if (hh == 12) hh = pm ? 12 : 0; else if (pm) hh += 12;
             return LocalTime.of(hh, mm);
         }
-        if (min != null && hh <= 23) return LocalTime.of(hh, mm);     // "19:00"
+        // "19:00" / "07:30" are clear 24-hour times; "7:30" (1–12, no leading zero) could be AM or PM → asked.
+        if (min != null && hh <= 23 && (hh == 0 || hh > 12 || h.startsWith("0"))) return LocalTime.of(hh, mm);
         return null;
     }
 

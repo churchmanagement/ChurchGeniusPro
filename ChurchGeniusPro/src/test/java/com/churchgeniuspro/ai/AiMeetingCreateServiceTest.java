@@ -74,6 +74,14 @@ class AiMeetingCreateServiceTest {
         return (Map<String, String>) ((Map<String, Object>) m.get("confirm")).get("summary");
     }
 
+    /** 2026-11-08: a draft completed over several messages first asks "missing anything, or ready to review?". */
+    Map<String, Object> card(MockHttpServletRequest r, Map<String, Object> m) {
+        assertThat(m.get("asking")).as("review question before the card").isEqualTo("review");
+        assertThat(String.valueOf(m.get("answer"))).isEqualTo("Are you missing anything, or are you ready to review the meeting details?");
+        assertThat(m).doesNotContainKey("confirm");
+        return svc.handle(same(r), MINE, "ready");
+    }
+
     static MeetingType type(int id, String name) { MeetingType t = new MeetingType(); t.setId(id); t.setTypeName(name); t.setAppClientId(MINE); return t; }
 
     static MockHttpServletRequest staff(String role, String privs) {
@@ -231,7 +239,7 @@ class AiMeetingCreateServiceTest {
         Map<String, Object> m2 = svc.handle(same(r), MINE, "Prayer Meeting");
         assertThat(m2.get("intent")).as("category given → the next missing thing, location").isEqualTo("meeting.ask");
         assertThat(m2.get("asking")).isEqualTo("location");
-        Map<String, Object> m3 = svc.handle(same(r), MINE, "no location");
+        Map<String, Object> m3 = card(r, svc.handle(same(r), MINE, "no location"));
         assertThat(m3.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(m3).get("Category")).isEqualTo("Prayer Meeting");
         assertThat(summary(m3).get("Location")).isEqualTo("Not set");
@@ -253,7 +261,7 @@ class AiMeetingCreateServiceTest {
     void dateReply() {
         MockHttpServletRequest r = staff("Admin", null);
         svc.handle(r, MINE, "Create a Bible Study meeting at 7pm in the fellowship hall");
-        Map<String, Object> m = svc.handle(same(r), MINE, "next Monday");
+        Map<String, Object> m = card(r, svc.handle(same(r), MINE, "next Monday"));
         assertThat(m.get("intent")).isEqualTo("meeting.confirm");
         LocalDate today = AppClock.today();
         LocalDate expected = today.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.MONDAY));
@@ -268,7 +276,7 @@ class AiMeetingCreateServiceTest {
         Map<String, Object> m = svc.handle(r, MINE, "Create a Bible Study meeting tomorrow at 7 in the hall");
         assertThat(m.get("intent")).isEqualTo("meeting.ask");
         assertThat(m.get("missing")).isEqualTo(List.of("time"));
-        Map<String, Object> m2 = svc.handle(same(r), MINE, "pm");
+        Map<String, Object> m2 = card(r, svc.handle(same(r), MINE, "pm"));
         assertThat(m2.get("intent")).isEqualTo("meeting.confirm");
         @SuppressWarnings("unchecked") Map<String, String> sum = (Map<String, String>) ((Map<String, Object>) m2.get("confirm")).get("summary");
         assertThat(sum.get("Time")).isEqualTo("7:00 PM");
@@ -292,7 +300,7 @@ class AiMeetingCreateServiceTest {
         assertThat(m.get("intent")).isEqualTo("meeting.ask");
         assertThat(m.get("asking")).isEqualTo("time");
         assertThat(String.valueOf(m.get("answer"))).contains("What time does it start");
-        Map<String, Object> c = svc.handle(same(r), MINE, "no time");
+        Map<String, Object> c = card(r, svc.handle(same(r), MINE, "no time"));
         assertThat(c.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(c).get("Time")).isEqualTo("Not set");
         svc.handle(same(r), MINE, "yes");
@@ -319,7 +327,7 @@ class AiMeetingCreateServiceTest {
         assertThat(String.valueOf(m.get("answer"))).contains("Where will it be held?");
         m = svc.handle(same(r), MINE, "the fellowship hall");
         assertThat(m.get("asking")).isEqualTo("time");
-        m = svc.handle(same(r), MINE, "7 to 8:30 pm");
+        m = card(r, svc.handle(same(r), MINE, "7 to 8:30 pm"));
         assertThat(m.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(m)).containsEntry("Category", "Bible Study").containsEntry("Location", "the fellowship hall")
                               .containsEntry("Time", "7:00 PM – 8:30 PM");
@@ -334,13 +342,13 @@ class AiMeetingCreateServiceTest {
         // Date + location in one reply to the date question: the location is not asked afterwards.
         MockHttpServletRequest r2 = staff("Admin", null);
         svc.handle(r2, MINE, "Create a Prayer Meeting at 6pm");
-        Map<String, Object> m2 = svc.handle(same(r2), MINE, "December 9 in the chapel");
+        Map<String, Object> m2 = card(r2, svc.handle(same(r2), MINE, "December 9 in the chapel"));
         assertThat(m2.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(m2)).containsEntry("Location", "the chapel").containsEntry("Time", "6:00 PM");
         // A time given while answering the location question is taken too.
         MockHttpServletRequest r3 = staff("Admin", null);
         svc.handle(r3, MINE, "Create a Bible Study meeting on December 5");
-        Map<String, Object> m3 = svc.handle(same(r3), MINE, "at the chapel at 7:30pm");
+        Map<String, Object> m3 = card(r3, svc.handle(same(r3), MINE, "at the chapel at 7:30pm"));
         assertThat(m3.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(m3)).containsEntry("Location", "the chapel").containsEntry("Time", "7:30 PM");
     }
@@ -367,7 +375,7 @@ class AiMeetingCreateServiceTest {
         assertThat(m.get("intent")).isEqualTo("meeting.ask");
         assertThat(m.get("asking")).isEqualTo("location");
         assertThat(String.valueOf(m.get("answer"))).contains("Mark Brooks", "Mark Lee");
-        Map<String, Object> c = svc.handle(same(r), MINE, "Lee");
+        Map<String, Object> c = card(r, svc.handle(same(r), MINE, "Lee"));
         assertThat(c.get("intent")).isEqualTo("meeting.confirm");
         assertThat(summary(c).get("Location")).startsWith("Mark Lee");
     }
@@ -378,7 +386,7 @@ class AiMeetingCreateServiceTest {
         Map<String, Object> m = svc.handle(r, MINE, "Create a Bible Study meeting on December 5 at 7pm at Zed's house");
         assertThat(m.get("asking")).isEqualTo("location");
         assertThat(String.valueOf(m.get("answer"))).contains("could not find a member named \u201cZed\u201d");
-        Map<String, Object> c = svc.handle(same(r), MINE, "100 Main Street, Dallas");
+        Map<String, Object> c = card(r, svc.handle(same(r), MINE, "100 Main Street, Dallas"));
         assertThat(summary(c).get("Location")).isEqualTo("100 Main Street, Dallas");
     }
 
@@ -387,7 +395,7 @@ class AiMeetingCreateServiceTest {
         for (String reply : new String[] { "no", "not sure", "skip", "TBD", "no location" }) {
             MockHttpServletRequest r = staff("Admin", null);
             svc.handle(r, MINE, "Create a Bible Study meeting on December 5 at 7pm");
-            Map<String, Object> c = svc.handle(same(r), MINE, reply);
+            Map<String, Object> c = card(r, svc.handle(same(r), MINE, reply));
             assertThat(c.get("intent")).as(reply).isEqualTo("meeting.confirm");
             assertThat(summary(c).get("Location")).as(reply).isEqualTo("Not set");
         }
@@ -478,5 +486,140 @@ class AiMeetingCreateServiceTest {
         r.getSession().setAttribute("privileges", "{\"general.meetings.edit\":false}");
         assertThat(svc.confirm(same(r), MINE, token).get("denied")).isEqualTo(true);
         verify(meetingService, never()).save(any(), anyString());
+    }
+
+    // ── 2026-11-08 guided conversation (Milestone 2) ───────────────────────────
+
+    @Test @DisplayName("bare \"7:30\" and \"at 7:30\" keep the minutes and ask AM or PM with two choices; 24-hour times stay clear")
+    void ambiguousClockTimes() {
+        for (String req : new String[] { "Create a Bible Study meeting on December 5 7:30 in the hall",
+                                         "Create a Bible Study meeting on December 5 at 7:30 in the hall" }) {
+            MockHttpServletRequest r = staff("Admin", null);
+            Map<String, Object> m = svc.handle(r, MINE, req);
+            assertThat(m.get("intent")).as(req).isEqualTo("meeting.ask");
+            assertThat(m.get("asking")).as(req).isEqualTo("time");
+            assertThat(String.valueOf(m.get("answer"))).as(req).contains("7:30 AM or 7:30 PM");
+            assertThat(m.get("choices")).as(req).isEqualTo(List.of("7:30 AM", "7:30 PM"));
+            Map<String, Object> c = card(r, svc.handle(same(r), MINE, "7:30 PM"));
+            assertThat(summary(c).get("Time")).as(req).isEqualTo("7:30 PM");
+            MockHttpServletRequest r2 = staff("Admin", null);
+            svc.handle(r2, MINE, req);
+            assertThat(summary(card(r2, svc.handle(same(r2), MINE, "am"))).get("Time")).isEqualTo("7:30 AM");
+        }
+        Map<String, Object> clear = svc.handle(staff("Admin", null), MINE, "Create a Bible Study meeting on December 5 at 19:30 in the hall");
+        assertThat(summary(clear).get("Time")).isEqualTo("7:30 PM");
+        Map<String, Object> lead = svc.handle(staff("Admin", null), MINE, "Create a Bible Study meeting on December 5 at 07:30 in the hall");
+        assertThat(summary(lead).get("Time")).isEqualTo("7:30 AM");
+    }
+
+    @Test @DisplayName("a past date is checked once: keep it → review; a different date → asked again")
+    void pastDateConfirmedOnce() {
+        LocalDate past = AppClock.today().minusDays(3);
+        String iso = past.toString();
+        MockHttpServletRequest r = staff("Admin", null);
+        Map<String, Object> m = svc.handle(r, MINE, "Create a Bible Study meeting on " + iso + " at 7pm in the hall");
+        assertThat(m.get("intent")).isEqualTo("meeting.ask");
+        assertThat(String.valueOf(m.get("answer"))).contains("is in the past");
+        assertThat(m).doesNotContainKey("confirm");
+        @SuppressWarnings("unchecked") List<String> ch = (List<String>) m.get("choices");
+        Map<String, Object> c = svc.handle(same(r), MINE, ch.get(0));                        // "Yes, keep …"
+        assertThat(c.get("intent")).isEqualTo("meeting.confirm");                            // one-shot request → card
+        assertThat(summary(c).get("Date")).isEqualTo(AiMeetingCreateService_fmt(past));
+        // changing to another past date asks again (the answer was for the old date)
+        Map<String, Object> again = svc.handle(same(r), MINE, "change the date to " + past.minusDays(1));
+        assertThat(String.valueOf(again.get("answer"))).contains("is in the past");
+
+        MockHttpServletRequest r2 = staff("Admin", null);
+        svc.handle(r2, MINE, "Create a Bible Study meeting on " + iso + " at 7pm in the hall");
+        Map<String, Object> d = svc.handle(same(r2), MINE, "Use a different date");
+        assertThat(d.get("asking")).isEqualTo("date");
+        Map<String, Object> e = svc.handle(same(r2), MINE, "December 9");
+        assertThat(e.get("intent")).as("the first message had everything → the card, no extra question").isEqualTo("meeting.confirm");
+        assertThat(summary(e).get("Date")).contains("December 9");
+        verify(meetingService, never()).save(any(), anyString());
+    }
+
+    @Test @DisplayName("corrections at every stage: ask, review question and card; an old card's token no longer creates")
+    void corrections() {
+        MockHttpServletRequest r = staff("Admin", null);
+        Map<String, Object> m = svc.handle(r, MINE, "Create a Bible Study meeting on December 5 at 7pm in the hall");
+        String oldToken = String.valueOf(((Map<?, ?>) m.get("confirm")).get("token"));
+        Map<String, Object> c = svc.handle(same(r), MINE, "Change the date to December 9");
+        assertThat(c.get("intent")).isEqualTo("meeting.confirm");
+        assertThat(summary(c).get("Date")).contains("December 9");
+        assertThat(svc.confirm(same(r), MINE, oldToken).get("intent")).isEqualTo("meeting.expired");
+        c = svc.handle(same(r), MINE, "actually 8 pm");
+        assertThat(summary(c).get("Time")).isEqualTo("8:00 PM");
+        c = svc.handle(same(r), MINE, "set the location to the chapel");
+        assertThat(summary(c).get("Location")).isEqualTo("the chapel");
+        c = svc.handle(same(r), MINE, "change category to Prayer Meeting");
+        assertThat(summary(c).get("Category")).isEqualTo("Prayer Meeting");
+        c = svc.handle(same(r), MINE, "change note to bring Bibles");
+        assertThat(summary(c).get("Note")).isEqualTo("bring Bibles");
+        Map<String, Object> asked = svc.handle(same(r), MINE, "change the time");
+        assertThat(asked.get("asking")).isEqualTo("time");
+        c = svc.handle(same(r), MINE, "6:30 pm");
+        assertThat(c.get("intent")).as("already reviewed → straight back to the card").isEqualTo("meeting.confirm");
+        Map<String, Object> done = svc.confirm(same(r), MINE, String.valueOf(((Map<?, ?>) c.get("confirm")).get("token")));
+        assertThat(done.get("intent")).isEqualTo("meeting.created");
+        ArgumentCaptor<MeetingBO> bo = ArgumentCaptor.forClass(MeetingBO.class);
+        verify(meetingService, times(1)).save(bo.capture(), eq(MINE));
+        assertThat(bo.getValue().getMeetingTypeId()).isEqualTo(2);
+        assertThat(bo.getValue().getStartTime()).isEqualTo("18:30");
+        assertThat(bo.getValue().getMeetingDate()).endsWith("-12-09");
+        assertThat(bo.getValue().getNote()).isEqualTo("bring Bibles");
+
+        // a correction while a question is open
+        MockHttpServletRequest r2 = staff("Admin", null);
+        svc.handle(r2, MINE, "Create a Bible Study meeting on December 5");
+        Map<String, Object> q = svc.handle(same(r2), MINE, "change the date to December 12");
+        assertThat(q.get("asking")).isEqualTo("location");
+        Map<String, Object> rv = svc.handle(same(r2), MINE, "no location");
+        rv = svc.handle(same(r2), MINE, "no time");
+        assertThat(rv.get("asking")).isEqualTo("review");
+        rv = svc.handle(same(r2), MINE, "change the time to 9am");                         // at the review question
+        assertThat(rv.get("intent")).isEqualTo("meeting.confirm");
+        assertThat(summary(rv).get("Date")).contains("December 12");
+        assertThat(summary(rv).get("Time")).isEqualTo("9:00 AM");
+    }
+
+    @Test @DisplayName("review question: \"Add a note\" asks for it; the card lists required and optional rows with Edit words")
+    void reviewQuestionAndCard() {
+        MockHttpServletRequest r = staff("Admin", null);
+        svc.handle(r, MINE, "Create a Prayer Meeting on December 5");
+        Map<String, Object> m = svc.handle(same(r), MINE, "no location");
+        m = svc.handle(same(r), MINE, "no time");
+        assertThat(m.get("choices")).isEqualTo(List.of("Review the details", "Add a note"));
+        m = svc.handle(same(r), MINE, "Add a note");
+        assertThat(m.get("asking")).isEqualTo("note");
+        m = svc.handle(same(r), MINE, "Fasting week");
+        assertThat(m.get("intent")).isEqualTo("meeting.confirm");
+        assertThat(m.get("pending")).isEqualTo(true);
+        assertThat(String.valueOf(m.get("answer"))).contains("one-time Prayer Meeting on").doesNotContain("Meeting meeting");
+        @SuppressWarnings("unchecked") List<Map<String, Object>> fields = (List<Map<String, Object>>) ((Map<String, Object>) m.get("confirm")).get("fields");
+        assertThat(fields).extracting(f -> f.get("key")).containsExactly("category", "date", "location", "time", "note");
+        assertThat(fields).extracting(f -> f.get("required")).containsExactly(true, true, false, false, false);
+        assertThat(fields.get(0).get("edit")).isEqualTo("Change category to ");
+        assertThat(fields.get(2).get("value")).isNull();
+        assertThat(fields.get(4).get("value")).isEqualTo("Fasting week");
+        verify(meetingService, never()).save(any(), anyString());
+        // "cancel" at the review question cancels; other questions leave the draft alone
+        MockHttpServletRequest r2 = staff("Admin", null);
+        svc.handle(r2, MINE, "Create a Prayer Meeting on December 5");
+        svc.handle(same(r2), MINE, "no location");
+        svc.handle(same(r2), MINE, "no time");
+        assertThat(svc.handle(same(r2), MINE, "what was the income last month")).isNull();
+        assertThat(svc.handle(same(r2), MINE, "cancel").get("intent")).isEqualTo("meeting.cancelled");
+    }
+
+    @Test @DisplayName("category question carries the church's categories as choices; wording never says \"Meeting meeting\"")
+    void categoryChoicesAndWording() {
+        MockHttpServletRequest r = staff("Admin", null);
+        Map<String, Object> m = svc.handle(r, MINE, "Create a meeting");
+        assertThat(m.get("choices")).isEqualTo(List.of("Bible Study", "Prayer Meeting", "Youth Bible Study"));
+        m = svc.handle(same(r), MINE, "Prayer Meeting");
+        assertThat(String.valueOf(m.get("answer"))).isEqualTo("What date is the Prayer Meeting?");
+        assertThat(AiMeetingCreateService.meetingName("Bible Study")).isEqualTo("Bible Study meeting");
+        assertThat(AiMeetingCreateService.meetingName("Elders Meetings")).isEqualTo("Elders Meetings");
     }
 }
