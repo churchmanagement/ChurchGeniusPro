@@ -362,6 +362,9 @@ public class AiActionService {
         } catch (RuntimeException e) {
             log.warn("[ai-actions] execute failed for {}: {}", p.getTool(), e.getClass().getSimpleName());
             decide(p, "FAILED", null);
+            // the page's own service refused a name that was added meanwhile (e.g. on the page in another tab)
+            if (e instanceof IllegalArgumentException && String.valueOf(e.getMessage()).contains("already exists"))
+                return base("action.refused", "An entry with that name already exists, so nothing was saved. Please choose a different name.");
             return base("action.failed", "The action could not be completed, so nothing was saved. Please try again or use the page directly.");
         }
         Map<String, Object> m = base("action.done", "Done — " + p.getSummary().replaceFirst("\\.$", "") + ".");

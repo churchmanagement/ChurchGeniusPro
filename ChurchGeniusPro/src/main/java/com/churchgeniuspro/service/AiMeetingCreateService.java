@@ -162,6 +162,37 @@ public class AiMeetingCreateService {
         return CREATE.matcher(q).find() && !NOT_CREATE.matcher(q).find();
     }
 
+    /** "Schedule a Bible Study next Sunday at 10 AM": a scheduling verb followed by one of the church's meeting categories (2026-11-08). */
+    private static final Pattern NAMED_START = Pattern.compile(
+        "(?i)^\\s*(?:please\\s+|can you\\s+|could you\\s+|i\\s+(?:want|need|would like)\\s+to\\s+|i'?d like to\\s+|let'?s\\s+|help me\\s+)?"
+        + "(?:schedule|create|set\\s?up|book|plan|arrange|organi[sz]e)\\s+(?:an?\\s+|the\\s+|our\\s+)?(?:new\\s+)?(.+)$");
+
+    /**
+     * A create request: the word "meeting" with a create verb ({@link #isCreateRequest(String)}), or a scheduling verb
+     * followed by the name of one of THIS church's meeting categories ("Schedule a Bible Study …", "Plan a Prayer …").
+     */
+    public boolean isCreateRequest(String q, String clientId) {
+        if (isCreateRequest(q)) return true;
+        if (q == null || clientId == null || NOT_CREATE.matcher(q).find()) return false;
+        Matcher m = NAMED_START.matcher(q.trim());
+        if (!m.matches()) return false;
+        String rest = " " + m.group(1).toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}' ]", " ").replaceAll("\\s+", " ").trim() + " ";
+        try {
+            for (MeetingType t : typeRepo.findByAppClientIdAndDeleteFlagFalseOrderByTypeNameAsc(clientId)) {
+                String n = t.getTypeName() == null ? "" : t.getTypeName().toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}' ]", " ").replaceAll("\\s+", " ").trim();
+                String bare = n.replaceAll("\\s*\\bmeetings?$", "").trim();
+                String after = null;
+                if (!n.isEmpty() && rest.startsWith(" " + n + " ")) after = rest.substring(n.length() + 2);
+                else if (bare.length() >= 3 && rest.startsWith(" " + bare + " ")) after = rest.substring(bare.length() + 2);
+                // "create a Youth group / team / fund …" is not a meeting even when a category is called "Youth"
+                if (after != null && !after.matches("(?:group|team|ministry|fund|sub-?fund|category|type|purpose|list|event|reminder|form|class|member|family)s?\\b.*")) return true;
+            }
+        } catch (RuntimeException e) {
+            return false;
+        }
+        return false;
+    }
+
     /**
      * Handles a Type/Voice/Converse message. Returns null when the message has nothing to do with
      * meeting creation (the caller continues with its normal routing).
@@ -174,7 +205,7 @@ public class AiMeetingCreateService {
         LocalDate today = AppClock.today();
         Draft pending = pending(session, clientId);
 
-        if (isCreateRequest(q)) {
+        if (isCreateRequest(q, clientId)) {
             AiAccess a = access.resolve(req, clientId);
             if (!a.meetingsEdit()) { clear(session); return denied(); }
             if (RECURRING.matcher(q).find()) {

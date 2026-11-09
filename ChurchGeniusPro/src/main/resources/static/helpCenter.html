@@ -327,6 +327,23 @@
       border-radius: 6px; padding: 8px 10px; margin: -6px 0 16px; line-height: 1.55;
     }
     .hc-note.warn { background: #fff5f5; border-left-color: #c62828; color: #7a1f1f; }
+
+    /* AI Search create examples + "manage existing records" list (2026-11-08) */
+    .hc-ai-examples { display: grid; gap: 8px; margin: 0 0 16px; }
+    .hc-ai-ex { display: grid; grid-template-columns: minmax(120px, 170px) 1fr; gap: 10px; align-items: start; background: #fbf7f9; border: 1px solid #eadfe6; border-radius: 9px; padding: 9px 12px; font-size: 13px; line-height: 1.5; }
+    .hc-ai-ex-what { font-weight: 700; color: #673147; }
+    .hc-ai-ex-say { color: #333; font-style: italic; overflow-wrap: anywhere; }
+    .hc-manage-list { display: grid; gap: 6px; margin: 0 0 16px; }
+    .hc-manage-row { display: grid; grid-template-columns: minmax(120px, 190px) 1fr auto; gap: 10px; align-items: center; border: 1px solid #eee; border-radius: 9px; padding: 8px 12px; font-size: 13px; }
+    .hc-manage-what { font-weight: 700; color: #333; }
+    .hc-manage-where { color: #666; }
+    .hc-manage-row a.hc-nav-gated { color: #673147; font-weight: 700; text-decoration: underline; white-space: nowrap; }
+    .hc-nav-noaccess { color: #999; font-size: 12px; }
+    .hc-nav-gated[hidden], .hc-nav-noaccess[hidden] { display: none !important; }
+    @media (max-width: 560px) {
+      .hc-ai-ex { grid-template-columns: 1fr; gap: 2px; }
+      .hc-manage-row { grid-template-columns: 1fr; gap: 2px; }
+    }
   </style>
 </head>
 <body>
@@ -3172,9 +3189,34 @@
             <p class="hc-desc">Ask the AI Search to <em>do</em> something and it proposes the exact change first: <strong>"Add Sarah Lee to Welcome Team"</strong>, <strong>"Mark the follow-up for the Lees as done"</strong>, <strong>"Add a note to the Smiths: new baby arrived"</strong>, <strong>"Assign John Moe as usher on Sunday"</strong>, <strong>"Remind me to call Pat by Friday"</strong>, <strong>"Create a deacons meeting on Nov 20 at 7 pm"</strong>. You see a card with every detail and a Confirm button — nothing is written until you confirm (typed or spoken "yes" works too), and the card expires after 10 minutes.</p>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">User</span></div>
             <div class="hc-mock" aria-label="AI action proposal"><span class="hc-mock-title">⚡ Add Sarah Lee to the group Welcome Team. Shall I go ahead?</span><span class="hc-ui">Add to group</span><span class="hc-ui lite">Cancel</span></div>
-            <div class="hc-section-label" id="hc-ai-guided">Guided conversations — meetings, income and expenses</div>
-            <p class="hc-desc">Type <strong>"Create a meeting"</strong>, <strong>"Add an income"</strong> or <strong>"Add an expense"</strong> (or give the details in one sentence, e.g. <em>"Add an income of $50 from John Smith to Tithe by check #1234"</em>). The assistant asks for one missing detail at a time — buttons offer your church's categories, funds and payment methods, and AM / PM for a time like 7:30 — and checks once about a past meeting date or a future income / expense date. For income and expenses it then offers the optional Reference Number and Notes, asks <em>"Are you missing anything, or are you ready to review …?"</em> and shows a review card with <strong>Required</strong> and <strong>Optional</strong> rows. <strong>Edit</strong> on a row puts "Change &lt;field&gt; to " in the bar; you can also type "change the fund to Building", "actually $60" or "cancel" at any time. Nothing is saved until you press <strong>Save</strong> (or say "yes"), and each card saves only once.</p>
-            <p class="hc-desc">Income and expenses follow their pages' permission: SuperAdmin, Admin or Accountant with the Income (or Expense) page and its Edit permission. The contributor is a member of your church or a guest name — <em>Anonymous</em> and <em>Loose Offering</em> are fine. The conversation stays in the bar while you move between pages in the same browser tab until it is saved or cancelled; <strong>New conversation</strong> starts over.</p>
+            <div class="hc-section-label" id="hc-ai-guided">Create new records with AI Search — type it or say it</div>
+            <p class="hc-desc">You can add new meetings, income, expenses, transaction types, funds and sub-funds just by asking. <strong>Type</strong> your request in the ✨ AI Search bar and press Enter, or click the <strong>🎤 microphone</strong> and say it out loud. Use everyday words — there are no special commands to learn. If something is missing, AI Search asks you, one question at a time.</p>
+            <div class="hc-ai-examples">
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">📅 Meetings</span><span class="hc-ai-ex-say">"Create a meeting"<br>"Schedule a Bible Study next Sunday at 10 AM."</span></div>
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">💵 Income</span><span class="hc-ai-ex-say">"Record an income of $500 for Sunday offerings."</span></div>
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">🧾 Expenses</span><span class="hc-ai-ex-say">"Record an expense of $150 for electricity."</span></div>
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">💳 Transaction types</span><span class="hc-ai-ex-say">"Create a transaction type called Mission Offering."</span></div>
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">🏦 Funds</span><span class="hc-ai-ex-say">"Create a fund called Building Fund."</span></div>
+              <div class="hc-ai-ex"><span class="hc-ai-ex-what">📂 Sub-funds</span><span class="hc-ai-ex-say">"Create a subfund called Youth Ministry under the Building Fund."</span></div>
+            </div>
+            <div class="hc-section-label">What happens next</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span><strong>Answer the questions.</strong> AI Search asks for anything it still needs — for example who the income is from, which fund, the date, or AM / PM. Tap a suggested button or type (or say) your answer.</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span><strong>Check the review card.</strong> It lists every detail, marked <strong>Required</strong> or <strong>Optional</strong>. Press <strong>Edit</strong> on a row, or just say what to change — "change the amount to 600", "actually Check".</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span><strong>Save.</strong> Nothing is saved until you press <strong>Save</strong> (or <strong>Create meeting</strong>) or say "yes". Say "cancel" at any time to stop — nothing is kept.</span></div>
+            </div>
+            <p class="hc-desc"><strong>Good to know</strong> — For a meeting, the category (such as Bible Study) must be one of your church's meeting categories, and only one-time meetings can be created here. Income can be from a member of your church or a guest name — <em>Anonymous</em> and <em>Loose Offering</em> are fine. The optional Reference Number (handy for checks) and Notes are offered before the review card. A fund is either a <strong>main fund</strong> or a <strong>sub-fund</strong> under a main fund (income is recorded to sub-funds; expenses are paid from main funds). A name that already exists is never created twice — AI Search tells you and asks for another name. Your conversation stays in the bar while you move between pages in the same browser tab, until it is saved or cancelled.</p>
+            <p class="hc-desc"><strong>Who can create what</strong> — the same people who can do it on the page: meetings need the Meetings page with edit permission; income and expenses need the Income or Expense page with its Edit permission (SuperAdmin, Admin or Accountant); transaction types, funds, sub-funds and purposes need Accounting Settings (SuperAdmin, Admin or Accountant). If you don't have the permission, AI Search tells you and saves nothing.</p>
+            <div class="hc-section-label" id="hc-ai-manage">Changing or deleting existing records</div>
+            <p class="hc-desc">AI Search only <strong>creates</strong> new records. It never changes or deletes an existing meeting, income or expense entry, transaction type, fund or sub-fund. If you ask it to (for example <em>"Delete the Building Fund"</em> or <em>"Change last Sunday's expense"</em>), it changes nothing and shows you a link to the right page instead. Make the change there — the page's usual checks and permissions apply.</p>
+            <div class="hc-manage-list">
+              <div class="hc-manage-row"><span class="hc-manage-what">Meetings</span><span class="hc-manage-where">Meetings</span><a class="hc-nav-gated" data-nav-path="/meetings" href="/meetings" hidden>Open Meetings →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+              <div class="hc-manage-row"><span class="hc-manage-what">Income entries</span><span class="hc-manage-where">Accounting → Income</span><a class="hc-nav-gated" data-nav-path="/income" href="/income" hidden>Open Income →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+              <div class="hc-manage-row"><span class="hc-manage-what">Expense entries</span><span class="hc-manage-where">Accounting → Expense</span><a class="hc-nav-gated" data-nav-path="/expense" href="/expense" hidden>Open Expense →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+              <div class="hc-manage-row"><span class="hc-manage-what">Transaction types</span><span class="hc-manage-where">Account Settings → Transaction Type</span><a class="hc-nav-gated" data-nav-path="/transactiontype" href="/transactiontype" hidden>Open Transaction Types →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+              <div class="hc-manage-row"><span class="hc-manage-what">Funds and sub-funds</span><span class="hc-manage-where">Account Settings → Fund</span><a class="hc-nav-gated" data-nav-path="/fund" href="/fund" hidden>Open Funds →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+              <div class="hc-manage-row"><span class="hc-manage-what">Purposes (expense categories)</span><span class="hc-manage-where">Account Settings → Purpose</span><a class="hc-nav-gated" data-nav-path="/purpose" href="/purpose" hidden>Open Purposes →</a><span class="hc-nav-noaccess" hidden>No access — ask your administrator</span></div>
+            </div>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span></div>
             <div class="hc-section-label">The six actions</div>
             <div class="hc-steps">
@@ -4537,12 +4579,21 @@ const HC_KB = [
   },
   {
     id: 'ai-guided',
-    q: ['add an income with ai','add income from search','add an expense with ai','record a donation with ai','guided conversation','review card','create a meeting with ai','change amount','new conversation'],
-    title: '💬 Guided conversations — Meetings, Income and Expenses',
-    answer: 'Type "Create a meeting", "Add an income" or "Add an expense" in the ✨ AI Search bar. The assistant asks for one missing detail at a time (buttons offer your categories, funds, methods and AM / PM), checks a past meeting date or a future income / expense date once, offers the optional Reference Number and Notes, asks "Are you missing anything, or are you ready to review …?" and shows a review card with Required and Optional rows. Edit puts "Change <field> to " in the bar; "cancel" stops. Nothing is saved until you press Save (or say "yes"); each card saves once. Income and expenses need the Income / Expense page with its Edit permission. The conversation stays in the bar across pages in the same tab until saved or cancelled.',
-    steps: ['Type "Add an income" (or give all the details in one sentence)','Answer each question — tap a suggested button or type','Add a reference number or notes, or skip them','Review the card, press Edit to change a row, then press Save'],
-    links: [{label:'AI Search (Home)', url:'/home', icon:'✨'},{label:'Income', url:'/income', icon:'💵'},{label:'Expense', url:'/expense', icon:'🧾'}],
+    q: ['add an income with ai','add income from search','add an expense with ai','record a donation with ai','record an income','record an expense','guided conversation','review card','create a meeting with ai','schedule a meeting with ai','schedule a bible study','change amount','new conversation','add a fund with ai','create a fund','add a sub-fund','create a subfund','add a transaction type','create a transaction type','add a purpose with ai','voice','microphone','speak','what can i type in ai search','what can i say'],
+    title: '💬 Create new records with AI Search — type it or say it',
+    answer: 'Type your request in the ✨ AI Search bar and press Enter, or click the 🎤 microphone and say it — everyday words are fine. Examples: "Create a meeting", "Schedule a Bible Study next Sunday at 10 AM.", "Record an income of $500 for Sunday offerings.", "Record an expense of $150 for electricity.", "Create a transaction type called Mission Offering.", "Create a fund called Building Fund.", "Create a subfund called Youth Ministry under the Building Fund." AI Search asks for anything missing one question at a time, shows a review card, and saves only when you press Save (or say "yes"). Say "cancel" to stop. You need the same permission as on the page. AI Search only creates new records — to change or delete an existing one, use its page.',
+    steps: ['Type or say what you want to create','Answer each question — tap a suggested button, type or speak','Check the review card (Edit changes a row)','Press Save, or say "yes"'],
+    links: [{label:'Meetings', url:'/meetings', icon:'📅', gated:true},{label:'Income', url:'/income', icon:'💵', gated:true},{label:'Expense', url:'/expense', icon:'🧾', gated:true},{label:'Funds', url:'/fund', icon:'🏦', gated:true},{label:'Transaction Types', url:'/transactiontype', icon:'💳', gated:true}],
     related: ['ai actions','income','expenses','meetings']
+  },
+  {
+    id: 'ai-manage-records',
+    q: ['delete a fund with ai','edit a fund with ai','rename a transaction type','delete a meeting with ai','edit an income with ai','delete an expense with ai','change an existing record','edit with ai search','delete with ai search','why can\'t ai search delete','remove a sub-fund'],
+    title: '✏️ Changing or deleting existing records',
+    answer: 'AI Search only creates new records. It never changes or deletes an existing meeting, income or expense entry, transaction type, fund or sub-fund. If you ask it to, it changes nothing and shows a link to the right page — Meetings, Income, Expense, Account Settings → Transaction Type, or Account Settings → Fund (funds and sub-funds) — where you make the change with the page\'s usual checks and permissions. A link is shown only for pages you can open; if you have no access, ask your church administrator.',
+    steps: ['Ask AI Search, or open the page from the links below','Find the record on that page','Edit or delete it there'],
+    links: [{label:'Meetings', url:'/meetings', icon:'📅', gated:true},{label:'Income', url:'/income', icon:'💵', gated:true},{label:'Expense', url:'/expense', icon:'🧾', gated:true},{label:'Transaction Types', url:'/transactiontype', icon:'💳', gated:true},{label:'Funds', url:'/fund', icon:'🏦', gated:true},{label:'Purposes', url:'/purpose', icon:'📂', gated:true}],
+    related: ['ai actions','meetings','income','expenses']
   },
   {
     id: 'workflows',
@@ -5577,9 +5628,10 @@ function renderHcResults(scored, q) {
     html += `</div>`;
   }
 
-  if (entry.links && entry.links.length) {
+  const navLinks = (entry.links || []).filter(lk => !lk.gated || (window.hcNavAllowed && window.hcNavAllowed(lk.url)));   // gated: only pages this login may open
+  if (navLinks.length) {
     html += `<div><strong style="font-size:12px;font-weight:700;color:#673147;text-transform:uppercase;letter-spacing:.5px;">Quick Navigation</strong><div class="hc-sr-links" style="margin-top:8px;">`;
-    entry.links.forEach(lk => {
+    navLinks.forEach(lk => {
       html += `<a class="hc-sr-link" href="${escHC(lk.url)}">${escHC(lk.icon || '')} ${escHC(lk.label)}</a>`;
     });
     html += `</div></div>`;
@@ -5946,6 +5998,30 @@ window.CGP_PAGE = (function () {
 })();
 </script>
 <script src="/shell.js"></script>
+<script>
+/* 2026-11-08 — "Open …" links in the Help Center appear only for pages this login may open: the server's
+   per-page answer from /api/session (window.CGP_NAV_ACCESS, set by session.js). No answer yet / none for this
+   kind of login → no link, never a guess. Re-checked while the page is open (permissions can change). */
+(function(){
+  function navAllowed(path){
+    var acc = window.CGP_NAV_ACCESS;
+    return !!(acc && acc[path] === true);
+  }
+  window.hcNavAllowed = navAllowed;
+  function apply(){
+    var known = !!window.CGP_NAV_ACCESS;
+    document.querySelectorAll('a.hc-nav-gated[data-nav-path]').forEach(function(a){
+      var ok = navAllowed(a.getAttribute('data-nav-path'));
+      a.hidden = !ok;
+      var note = a.nextElementSibling;
+      if (note && note.classList.contains('hc-nav-noaccess')) note.hidden = ok || !known;
+    });
+  }
+  window.hcApplyNavLinks = apply;
+  apply();
+  setInterval(apply, 2000);
+})();
+</script>
 <script src="/session.js"></script>
 </body>
 </html>

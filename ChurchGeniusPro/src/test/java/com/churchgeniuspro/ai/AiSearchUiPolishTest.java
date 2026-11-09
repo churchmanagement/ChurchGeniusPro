@@ -78,7 +78,12 @@ class AiSearchUiPolishTest {
         int a = e.indexOf("function searchHelpHtml(){"), b = e.indexOf("function injectUI(){");
         String help = e.substring(a, b);
         assertThat(help).contains("Church data", "Reports for a period", "Create a meeting", "How-to questions", "Navigation");
-        assertThat(help).contains("Create meeting", "Recurring meetings, locations and images are set up on the Meetings page");
+        assertThat(help).contains("Create meeting", "Recurring meetings and meeting images are set up on the Meetings page", "createHelpHtml()");
+        int c = e.indexOf("function createHelpHtml(){");
+        String create = e.substring(c, a);                                    // 2026-11-08: create examples + manage-existing guide
+        assertThat(create).contains("Schedule a Bible Study next Sunday at 10 AM.", "Record an income of $500 for Sunday offerings.",
+                "Record an expense of $150 for electricity.", "Create a transaction type called Mission Offering.", "Create a fund called Building Fund.",
+                "Create a subfund called Youth Ministry under the Building Fund.", "microphone", "Changing or deleting existing records", "navOk(m[2])");
         assertThat(help).contains("What you see depends on your access", "first 20 rows", "gross amount", "processing fees");
         assertThat(help).contains("within 30 seconds");
     }

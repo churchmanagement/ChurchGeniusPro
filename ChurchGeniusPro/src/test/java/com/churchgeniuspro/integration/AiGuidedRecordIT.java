@@ -61,6 +61,8 @@ class AiGuidedRecordIT {
     @Autowired AiGuidedRecordService guided;
     @Autowired AiActionService actions;
     @Autowired AiMeetingCreateService meetings;
+    @Autowired com.churchgeniuspro.ai.guided.AiGuidedSettingService settings;
+    @Autowired com.churchgeniuspro.ai.guided.AiManageRedirectService manage;
     @Autowired JdbcTemplate jdbc;
     @Autowired FamilyRepository familyRepo; @Autowired FamilyMemberRepository memberRepo;
     @Autowired MainSourceRepository mainRepo; @Autowired SubSourceRepository subRepo; @Autowired PurposeRepository purposeRepo;
@@ -196,4 +198,57 @@ class AiGuidedRecordIT {
         assertThat(meetings.handle(same(r), A, "yes").get("intent")).isEqualTo("meeting.created");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM meeting WHERE app_client_id = ? AND meeting_date = ? AND start_time = '19:30'", Long.class, A, java.sql.Date.valueOf(day))).isEqualTo(1);
     }
+
+    @Test @DisplayName("Account Settings: transaction type, purpose, main fund and sub-fund written once in A through the pages' services; B's main fund unknown to A")
+    void settingsEntries() {
+        MockHttpServletRequest r = staff(A, "Accountant", null);
+        Map<String, Object> m = settings.handle(r, A, "Create a new transaction type called Special Offering");
+        assertThat(m.get("intent")).isEqualTo("guided.confirm");
+        assertThat(settings.handle(same(r), A, "yes").get("intent")).isEqualTo("action.done");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM transaction_type WHERE app_client_id = ? AND type_name = 'Special Offering' AND delete_flag = false", Long.class, A)).isEqualTo(1);
+        assertThat(settings.handle(staff(A, "Accountant", null), A, "add a payment method called special offering").get("answer").toString()).contains("already exists");
+
+        MockHttpServletRequest r2 = staff(A, "SuperAdmin", null);
+        settings.handle(r2, A, "add a new purpose");
+        m = settings.handle(same(r2), A, "Youth Camp");
+        actions.confirm(same(r2), A, token(m));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM purpose WHERE app_client_id = ? AND purpose_name = 'Youth Camp'", Long.class, A)).isEqualTo(1);
+
+        MockHttpServletRequest r3 = staff(A, "Accountant", null);
+        m = settings.handle(r3, A, "Add a new fund called Building Fund");
+        assertThat(m.get("asking")).isEqualTo("level");
+        m = settings.handle(same(r3), A, "Main fund");
+        assertThat(settings.handle(same(r3), A, "save").get("intent")).isEqualTo("action.done");
+        Integer building = jdbc.queryForObject("SELECT id FROM main_source WHERE app_client_id = ? AND source_name = 'Building Fund' AND delete_flag = false", Integer.class, A);
+
+        MockHttpServletRequest r4 = staff(A, "Accountant", null);
+        m = settings.handle(r4, A, "add a sub-fund Roof Repair under Building Fund, not tax-deductible");
+        assertThat(m.get("intent")).isEqualTo("guided.confirm");
+        actions.confirm(same(r4), A, token(m));
+        Map<String, Object> sub = jdbc.queryForMap("SELECT main_source_id, app_client_id, tax_deductible FROM sub_source WHERE source_name = 'Roof Repair' AND app_client_id = ?", A);
+        assertThat(((Number) sub.get("main_source_id")).intValue()).isEqualTo(building);
+        assertThat(sub.get("app_client_id")).isEqualTo(A);
+        assertThat(sub.get("tax_deductible")).isEqualTo(false);
+        // B's only-there main fund is not offered to A
+        MockHttpServletRequest r5 = staff(A, "Accountant", null);
+        mainRepo.save(newMain(B, "Mission Base"));
+        m = settings.handle(r5, A, "add a sub-fund Wells under Mission Base");
+        assertThat(m.get("asking")).isEqualTo("parent");
+        assertThat(String.valueOf(m.get("answer"))).doesNotContain("Mission Base");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM transaction_type WHERE app_client_id = ? AND type_name = 'Special Offering'", Long.class, B)).isZero();
+        // Admin with the role defaults (no Accounting) is refused
+        assertThat(settings.handle(staff(A, "Admin", null), A, "add a new fund called X").get("intent")).isEqualTo("guided.denied");
+        // edit / delete through AI Search: nothing changes, the answer links to the page; the church's real names are recognised
+        String before = jdbc.queryForObject("SELECT COUNT(*) || '/' || COALESCE(SUM(LENGTH(type_name)),0) FROM transaction_type WHERE app_client_id = ? AND delete_flag = false", String.class, A);
+        Map<String, Object> d = manage.handle(staff(A, "Accountant", null), A, "delete Special Offering", false);
+        assertThat(d.get("intent")).isEqualTo("manage.redirect");
+        assertThat(d.get("record")).isEqualTo("Special Offering");
+        assertThat(((Map<?, ?>) d.get("link")).get("url")).isEqualTo("/transactiontype");
+        assertThat(((Map<?, ?>) manage.handle(staff(A, "Accountant", null), A, "rename Roof Repair to Roof Fund", false).get("link")).get("url")).isEqualTo("/fund");
+        assertThat(manage.handle(staff(B, "Accountant", null), B, "delete Roof Repair", false)).as("A's name means nothing in B").isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) || '/' || COALESCE(SUM(LENGTH(type_name)),0) FROM transaction_type WHERE app_client_id = ? AND delete_flag = false", String.class, A)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM sub_source WHERE source_name = 'Roof Repair' AND app_client_id = ? AND delete_flag = false", Long.class, A)).isEqualTo(1);
+    }
+
+    static MainSource newMain(String cid, String name) { MainSource ms = new MainSource(); ms.setSourceName(name); ms.setAppClientId(cid); return ms; }
 }

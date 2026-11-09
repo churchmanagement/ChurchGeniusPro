@@ -101,7 +101,9 @@ public class AiGuidedRecordService {
         "(?i)^\\s*(?:please\\s+|can you\\s+|could you\\s+|i\\s+(?:want|need|would like)\\s+to\\s+|i'?d like to\\s+|let'?s\\s+|help me\\s+)?"
         + "(?:create|add|record|enter|log|post|make|new)\\s+(?:an?\\s+|new\\s+|another\\s+|the\\s+|one\\s+)?"
         + "(?:\\$?\\d[\\d,]*(?:\\.\\d{1,2})?\\s*(?:dollars?\\s+)?)?(?:new\\s+)?"
-        + "(income|expense|donation|offering|contribution|gift|tithe)s?\\b");
+        + "(income|expense|donation|offering|contribution|gift|tithe)s?\\b"
+        // "add an expense category / purpose / fund / type …" is an Account Settings entry (AiGuidedSettingService), not a record
+        + "(?!\\s+(?:categor|purpose|type|fund|account|source))");
     static final Pattern YES = Pattern.compile(
         "(?i)^\\s*(yes|yeah|yep|yup|sure|ok|okay|confirm|confirmed|correct|go ahead|do it|proceed|please do|save|save it|save (the )?(income|expense)|that'?s right)"
         + "([,.! ]+(yes|please|save( it)?|go ahead|do it|confirm|thanks?|thank you))*[.!]?\\s*$");

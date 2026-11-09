@@ -510,7 +510,11 @@
     // A specific DATA question ("Show Anson's donations this month", "Open expenses for
     // September") is asked of the server first even when it starts with a command verb;
     // only if the server does not handle it does the direct-navigation shortcut run.
-    var dataFirst = looksLikeDataQuestion(query) && looksSpecific(query);
+    // 2026-11-08: "delete / rename / change <a record>" is asked of the server first too — AI Search never edits or
+    // deletes, the server answers with a link to the page that does; if it doesn't, the shortcut still runs below.
+    // Create requests ("Record an income of $500…", "Schedule a Bible Study next Sunday…") too, so Voice and Converse
+    // start the same guided conversation as Type instead of jumping to the page.
+    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query);
     if (!dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
 
     // ── Natural-language DATA questions ("When is Anson's birthday?",
@@ -597,8 +601,11 @@
   // AI Phase 4: a request to DO something ("add Sarah Lee to Welcome Team", "mark the Lees as followed up",
   // "note for the Smiths: …", "assign John as usher on Sunday", "remind me to call Pat") goes to the server
   // first — it proposes an action and asks for confirmation; nothing is written until the card is confirmed.
+  function looksLikeManage(q){
+    return /^\s*(please\s+)?(can you\s+|could you\s+)?(edit|change|update|modify|rename|delete|remove|erase|deactivate|archive)\b/i.test(q);
+  }
   function looksLikeAction(q){
-    return /^\s*(please\s+)?(add|put|enrol|enroll|include|assign|sign up|mark|complete|close|finish|log|record|note|write|remind me)\b/i.test(q)
+    return /^\s*(please\s+)?(add|put|enrol|enroll|include|assign|sign up|mark|complete|close|finish|log|record|note|write|remind me|create|new|define|register|set ?up|schedule|book|plan|arrange|organi[sz]e|edit|change|update|modify|rename|delete|remove|erase|deactivate|archive)\b/i.test(q)
         && !/^\s*(how|where|what|when|which|who|why|is|are|do|does|can|could|list|show|find)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
@@ -1595,6 +1602,45 @@
     document.addEventListener('keydown', escK);
     document.body.appendChild(ov);
   }
+  /* 2026-11-08 — may this login open the page? Only the server's answer counts (GET /api/ai-search/nav, else the
+     session's navAccess); with neither, no link is shown. */
+  function navOk(url){
+    if (serverNav && Object.prototype.hasOwnProperty.call(serverNav, url)) return serverNav[url] === true;
+    var acc = window.CGP_NAV_ACCESS;
+    return !!(acc && acc[url] === true);
+  }
+  function createHelpHtml(){
+    var ex = [
+      ['Meetings', ['Create a meeting', 'Schedule a Bible Study next Sunday at 10 AM.']],
+      ['Income', ['Record an income of $500 for Sunday offerings.']],
+      ['Expenses', ['Record an expense of $150 for electricity.']],
+      ['Transaction types', ['Create a transaction type called Mission Offering.']],
+      ['Funds', ['Create a fund called Building Fund.']],
+      ['Sub-funds', ['Create a subfund called Youth Ministry under the Building Fund.']]];
+    var manage = [
+      ['Meetings', 'Meetings', '/meetings'], ['Income entries', 'Income', '/income'], ['Expense entries', 'Expense', '/expense'],
+      ['Transaction types', 'Account Settings \u2192 Transaction Type', '/transactiontype'],
+      ['Funds and sub-funds', 'Account Settings \u2192 Fund', '/fund'], ['Purposes (expense categories)', 'Account Settings \u2192 Purpose', '/purpose']];
+    var h = '<h4>Create new records \u2014 type it or say it</h4>'
+      + '<p>Type your request and press Enter, or click the \ud83c\udfa4 microphone and say it. Use everyday words. '
+      + 'If anything is missing, AI Search asks you one question at a time, then shows a review card. '
+      + 'Nothing is saved until you press <b>Save</b> (or <b>Create meeting</b>) or say \u201cyes\u201d; say \u201ccancel\u201d to stop.</p>';
+    ex.forEach(function(e){
+      h += '<div class="aa-ex"><b style="font-style:normal;color:#673147;">' + esc(e[0]) + ':</b> '
+         + e[1].map(function(t){ return '\u201c' + esc(t) + '\u201d'; }).join(' \u00b7 ') + '</div>';
+    });
+    h += '<p style="font-size:12.5px;color:#666;">You need the same permission as on the page (for example Accounting Settings for funds and transaction types). '
+      + 'A meeting\u2019s category must be one of your church\u2019s meeting categories, and only one-time meetings are created here. A name that already exists is never created twice.</p>';
+    h += '<h4>Changing or deleting existing records</h4>'
+      + '<p>AI Search only <b>creates</b> new records. It never changes or deletes an existing meeting, income or expense entry, transaction type, fund or sub-fund \u2014 '
+      + 'ask it and it shows you the right page instead. Make the change there:</p><ul>';
+    manage.forEach(function(m){
+      h += '<li><b>' + esc(m[0]) + '</b> \u2014 ' + esc(m[1])
+         + (navOk(m[2]) ? ' \u00b7 <a href="' + esc(m[2]) + '">Open</a>' : '') + '</li>';
+    });
+    h += '</ul><p style="font-size:12.5px;color:#666;">An \u201cOpen\u201d link appears only for pages you can open. If one is missing, ask your church administrator for access.</p>';
+    return h;
+  }
   function searchHelpHtml(){
     return '<p>AI Search understands plain English. Ask it to open a page, look up your church\u2019s data, run a '
       +'report for a period, create a meeting, explain how to do something, or find help \u2014 it works the same on every page.</p>'
@@ -1605,11 +1651,12 @@
       +'\u201cUpcoming events\u201d, \u201cActive reminders\u201d, \u201cCampaign totals\u201d, \u201cKids Ministry children\u201d, \u201cPublic links\u201d.</li>'
       +'<li><b>Reports for a period</b> \u2014 \u201cIncome report for last quarter\u201d, \u201cExpense report for September\u201d, '
       +'\u201cFinancial report for 2026\u201d \u2014 the totals appear here and a link opens the report page pre-filled.</li>'
-      +'<li><b>Create a meeting</b> \u2014 \u201cCreate a Bible Study meeting on Nov 3 at 7pm\u201d. The assistant asks for anything missing '
-      +'(category, date), shows the draft and creates the one-time meeting only after you click <b>Create meeting</b> or say \u201cyes\u201d. '
-      +'Recurring meetings, locations and images are set up on the Meetings page.</li>'
+      +'<li><b>Create new records</b> \u2014 \u201cCreate a meeting\u201d, \u201cRecord an income of $500 for Sunday offerings\u201d, a fund, a sub-fund or a transaction type (more examples below). '
+      +'The assistant asks for anything missing and saves only after you press <b>Save</b> / <b>Create meeting</b> or say \u201cyes\u201d. '
+      +'Recurring meetings and meeting images are set up on the Meetings page.</li>'
       +'<li><b>How-to questions</b> \u2014 \u201cHow do I add a new member?\u201d, \u201cHow do I send SMS reminders?\u201d.</li>'
       +'<li><b>Public page links</b> \u2014 \u201cMember signup page\u201d, \u201cKids check-in link\u201d.</li></ul>'
+      +createHelpHtml()
       +'<h4>Example searches</h4>'
       +'<div class="aa-ex">\u201cGo to Family\u201d</div>'
       +'<div class="aa-ex">\u201cWhat was the income last month?\u201d</div>'

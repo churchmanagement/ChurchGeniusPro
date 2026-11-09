@@ -35,6 +35,12 @@ public class AiDataSearchController {
     /** 2026-11-08: guided "add an income / expense" conversation (between the meeting flow and the action agent). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.ai.guided.AiGuidedRecordService guided;
+    /** 2026-11-08: guided "add a fund / purpose / transaction type" (Account Settings entries). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedSettingService settings;
+    /** 2026-11-08: edit / delete requests are never carried out — answered with a link to the managing page. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiManageRedirectService manage;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
@@ -69,20 +75,40 @@ public class AiDataSearchController {
             // A new "add an income / expense" or "create a meeting" request starts over: the other
             // conversation's open draft is dropped so an answer never lands in the wrong one.
             jakarta.servlet.http.HttpSession hs = request.getSession(false);
+            // "Delete the Building Fund", "rename transaction type Zelle", "change the $50 expense": AI Search never edits
+            // or deletes an existing record — the answer links to the page that manages it. Checked first so no other
+            // route can read the request as a create or a data question; an open conversation's own correction
+            // ("change the fund to …") is left to that conversation, and its draft is kept.
+            if (manage != null) {
+                Map<String, Object> mr = manage.handle(request, clientId, question,
+                        com.churchgeniuspro.ai.guided.AiManageRedirectService.draftOpen(hs));
+                if (mr != null) return ResponseEntity.ok(audited(request, mr));
+            }
+            if (settings != null && com.churchgeniuspro.ai.guided.AiGuidedSettingService.isStartRequest(question)) {
+                if (hs != null) { hs.removeAttribute("aiMeetingDraft"); com.churchgeniuspro.ai.guided.AiGuidedRecordService.clear(hs); }
+                Map<String, Object> st = settings.handle(request, clientId, question);
+                if (st != null) return ResponseEntity.ok(audited(request, st));
+            }
             if (guided != null && com.churchgeniuspro.ai.guided.AiGuidedRecordService.isStartRequest(question)) {
-                if (hs != null) hs.removeAttribute("aiMeetingDraft");
+                if (hs != null) { hs.removeAttribute("aiMeetingDraft"); com.churchgeniuspro.ai.guided.AiGuidedSettingService.clear(hs); }
                 Map<String, Object> g = guided.handle(request, clientId, question);
                 if (g != null) return ResponseEntity.ok(audited(request, g));
             }
             if (meetingCreate != null) {
-                if (hs != null && com.churchgeniuspro.service.AiMeetingCreateService.isCreateRequest(question))
+                if (hs != null && meetingCreate.isCreateRequest(question, clientId)) {
                     com.churchgeniuspro.ai.guided.AiGuidedRecordService.clear(hs);
+                    com.churchgeniuspro.ai.guided.AiGuidedSettingService.clear(hs);
+                }
                 Map<String, Object> created = meetingCreate.handle(request, clientId, question);
                 if (created != null) return ResponseEntity.ok(audited(request, created));
             }
             if (guided != null) {                                   // an answer to the open income / expense question
                 Map<String, Object> g = guided.handle(request, clientId, question);
                 if (g != null) return ResponseEntity.ok(audited(request, g));
+            }
+            if (settings != null) {                                 // an answer to the open fund / purpose / transaction type question
+                Map<String, Object> st = settings.handle(request, clientId, question);
+                if (st != null) return ResponseEntity.ok(audited(request, st));
             }
             // AI Phase 4: "add Sarah Lee to Welcome Team", "mark the Lees as followed up", a yes/no to an open
             // proposal, or an answer to a clarifying question. Proposes only — the write happens on confirm.
