@@ -873,9 +873,25 @@
     if (typeof input.dispatchEvent==='function'){ try{ input.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){} }
   }
 
+  /*
+   * 2026-11-10: an income / expense was just SAVED (the server's confirmation carries a receipt) — tell any page
+   * that shows ledger figures (the Dashboard) to re-read them. Fired once, here, when the answer arrives: restored
+   * transcripts never pass through renderCard, so they never fire. Same tab = a window event; other open tabs of
+   * this app = a BroadcastChannel message. Listeners coalesce, so both arriving together means one refresh.
+   */
+  function announceLedgerChange(d){
+    if (!d || d.intent!=='action.done' || !d.receipt || typeof d.receipt!=='object') return;
+    var kind=d.receipt.kind;
+    if (kind!=='income' && kind!=='expense') return;
+    var detail={ kind:kind, at:Date.now() };
+    try{ window.dispatchEvent(new CustomEvent('cgp:ledger-changed', { detail:detail })); }catch(e){}
+    try{ if (typeof BroadcastChannel==='function'){ var bc=new BroadcastChannel('cgp-ledger'); bc.postMessage(detail); bc.close(); } }catch(e){}
+  }
+
   function renderCard(a){
     var wrap=results(); if(!wrap && !uiHook()) return;
     var d0=a.data;
+    announceLedgerChange(d0);
     var threaded=false, ending=false;
     if (_thread.active || isPendingAnswer(d0)){
       if (!_thread.active){ _thread={ active:true, items:[] }; }

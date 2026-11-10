@@ -2211,6 +2211,7 @@ async function loadAccountantDashboard() {
   const clientId = localStorage.getItem('clientId') || '';
   try {
     const data = await CGP_api(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`);
+    _acctDashLoaded = true;
     _cachedDashData = data;
     renderAcctBanner(data);
     renderAcctSummary(data);
@@ -2226,6 +2227,53 @@ async function loadAccountantDashboard() {
     renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
   } catch(e) { console.error('Accountant dashboard error', e); CGP_showError(e, 'The dashboard could not be loaded.'); }
 }
+
+/* ════════════════════════════════════
+   LIVE REFRESH after a Genius Assistant save (2026-11-10)
+════════════════════════════════════ */
+/* ai-assistant.js fires 'cgp:ledger-changed' (and a 'cgp-ledger' BroadcastChannel message for other tabs) when an
+   income or expense was saved through the Genius Assistant. The finance section re-reads its figures from the
+   server — the same API and render functions as the first load — so every card shows the saved database values.
+   Signals arriving close together are coalesced into ONE refresh; an older response never overwrites a newer one;
+   nothing happens when this login's dashboard has no finance section. */
+let _acctDashLoaded = false;
+let _ledgerRefreshTimer = null;
+let _ledgerRefreshSeq = 0;
+
+function onLedgerChanged() {
+  if (!_acctDashLoaded) return;
+  clearTimeout(_ledgerRefreshTimer);
+  _ledgerRefreshTimer = setTimeout(refreshFinanceDashboard, 250);
+}
+
+async function refreshFinanceDashboard() {
+  const seq = ++_ledgerRefreshSeq;
+  const thisYear = new Date().getFullYear();
+  const clientId = localStorage.getItem('clientId') || '';
+  let data;
+  try {
+    const res = await fetch(`/api/accountant/dashboard?clientId=${encodeURIComponent(clientId)}`, { cache: 'no-store' });
+    if (!res.ok) return;                      // non-critical: the figures stay as they were
+    data = await res.json();
+  } catch (e) { return; }
+  if (seq !== _ledgerRefreshSeq) return;      // a newer refresh already started
+  renderAcctSummary(data);                    // NET BALANCE card
+  renderAcctCatCards(data);                   // Net Balance by Main Category
+  renderRecentTxns(data.recentActivity || []);
+  // Income / Expense statistics and the bar chart keep the month / year the user is looking at
+  if (_statYear === thisYear) { _cachedDashData = data; renderStatPiesForMonth(data); }
+  else {
+    const other = await fetchDashDataForYear(_statYear);
+    if (seq === _ledgerRefreshSeq && other) { _cachedDashData = other; renderStatPiesForMonth(other); }
+  }
+  if (_barYear === thisYear) renderAcctBarChart(data.incomeByMonth || [], data.expenseByMonth || []);
+  else fetchAndRenderBarForYear(_barYear);
+}
+
+window.addEventListener('cgp:ledger-changed', onLedgerChanged);
+try {
+  if (typeof BroadcastChannel === 'function') new BroadcastChannel('cgp-ledger').onmessage = onLedgerChanged;
+} catch (e) { /* older browsers: the same-tab event still works */ }
 
 function renderAcctBanner(data) {
   const h    = new Date().getHours();
