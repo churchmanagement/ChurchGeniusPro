@@ -20,7 +20,7 @@
 
   var KEY = 'ga.chat', MAX_ITEMS = 50, MAX_HTML = 60000, DOCK_MIN = 1280, PHONE_MAX = 767;
   var api = null, el = {}, pageMode = false, busyOn = false, wrapObserver = null;
-  var st = { who: '', open: false, draft: null, nodes: [] };   // nodes: transcript elements in order
+  var st = { who: '', open: false, full: false, min: false, draft: null, nodes: [] };   // full = full-screen; min = minimized to the launcher   // nodes: transcript elements in order
 
   /* ───────────────────────────── helpers ───────────────────────────── */
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -36,7 +36,7 @@
   function save() {
     try {
       var items = st.nodes.slice(-MAX_ITEMS).map(function (n) { var h = n.outerHTML; return h.length > MAX_HTML ? '' : h; }).filter(Boolean);
-      sessionStorage.setItem(KEY, JSON.stringify({ who: st.who, open: st.open, draft: st.draft, items: items }));
+      sessionStorage.setItem(KEY, JSON.stringify({ who: st.who, open: st.open, full: st.full, min: st.min, draft: st.draft, items: items }));
     } catch (e) { /* private window / full storage: the panel still works for this page */ }
   }
   function load() {
@@ -49,13 +49,25 @@
     if (document.getElementById('ga-styles')) return;
     var css = [
       ':root{--ga-plum:#673147;--ga-plum-d:#4f2538;--ga-soft:#f6f1f4;--ga-line:#e7dee3;--ga-muted:#7a6f7e;--ga-ok:#1f7a45;--ga-okbg:#eaf6ef;--ga-warn:#8a4b0f;--ga-warnbg:#fff6e6;--ga-w:420px;}',
-      '.ga-panel{position:fixed;top:0;right:0;bottom:0;width:var(--ga-w);max-width:100vw;z-index:960;background:#fff;border-left:1px solid var(--ga-line);box-shadow:-10px 0 28px rgba(40,10,25,.08);display:none;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#26232b;}',
+      '.ga-panel{position:fixed;top:env(safe-area-inset-top,0px);right:0;bottom:0;width:var(--ga-w);max-width:100vw;z-index:960;background:#fff;border-left:1px solid var(--ga-line);box-shadow:-10px 0 28px rgba(40,10,25,.08);display:none;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#26232b;}',
       'html.ga-open .ga-panel{display:flex;}',
+      /* full screen: the whole browser window (below the status bar in the app); the page underneath does not scroll */
+      'html.ga-open.ga-full .ga-panel{left:0;right:0;width:auto;max-width:none;height:auto;bottom:0;border-left:0;box-shadow:none;z-index:990;}',
+      'html.ga-open.ga-full,html.ga-open.ga-full body{overflow:hidden;}',
+      'html.ga-open.ga-full .ga-backdrop{display:none !important;}',
+      'html.ga-full .ga-log,html.ga-full .ga-composer,html.ga-full .ga-draft,html.ga-full .ga-hint{padding-left:max(16px, calc((100% - 1100px) / 2));padding-right:max(16px, calc((100% - 1100px) / 2));}',
+      '.ga-full-btn .ga-i-exit{display:none;}',
+      'html.ga-full .ga-full-btn .ga-i-exit{display:inline;}',
+      'html.ga-full .ga-full-btn .ga-i-enter{display:none;}',
+      'html.ga-min:not(.ga-open) .ga-fab{display:flex;}',
       'html.ga-docked .app{padding-right:var(--ga-w);box-sizing:border-box;}',
       '.ga-backdrop{display:none;position:fixed;inset:0;background:rgba(30,10,20,.32);z-index:955;}',
       'html.ga-open.ga-overlay .ga-backdrop{display:block;}',
       '@media (min-width:768px) and (max-width:1279px){.ga-panel{--ga-w:480px;}}',
-      '@media (max-width:767px){.ga-panel{width:100vw;border-left:0;box-shadow:none;height:100dvh;bottom:auto;padding-bottom:env(safe-area-inset-bottom);}html.ga-open.ga-sheet,html.ga-open.ga-sheet body{overflow:hidden;}}',
+      /* 2026-11-10: in the Android / iOS app the page is drawn under the status bar (mobile.css pushes the app down by
+         env(safe-area-inset-top)); the panel starts below it too, so its header buttons are never under the status icons.
+         The inset is 0 in a browser. */
+      '@media (max-width:767px){.ga-panel{width:100vw;border-left:0;box-shadow:none;height:calc(100dvh - env(safe-area-inset-top,0px));bottom:auto;padding-bottom:env(safe-area-inset-bottom);}html.ga-open.ga-sheet,html.ga-open.ga-sheet body{overflow:hidden;}}',
       '.ga-panel.ga-page{position:relative;display:flex;width:auto;height:100%;max-width:none;border:1px solid var(--ga-line);border-radius:16px;box-shadow:0 2px 14px rgba(103,49,71,.08);z-index:auto;overflow:hidden;}',
       /* header */
       '.ga-head{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ga-line);background:#fff;flex-shrink:0;min-height:60px;}',
@@ -74,8 +86,8 @@
       '.ga-ib:focus-visible,.ga-new:focus-visible,.ga-submit:focus-visible,.ga-mic:focus-visible,.ga-panel button:focus-visible{outline:2px solid var(--ga-plum);outline-offset:2px;}',
       '.ga-menu{position:absolute;right:10px;top:56px;background:#fff;border:1px solid var(--ga-line);border-radius:12px;box-shadow:0 10px 28px rgba(40,10,25,.14);padding:6px;min-width:210px;z-index:5;}',
       '.ga-menu[hidden]{display:none;}',
-      '.ga-menu button{display:flex;width:100%;align-items:center;gap:8px;text-align:left;border:none;background:none;padding:9px 10px;border-radius:8px;font-size:13.5px;color:#333;cursor:pointer;}',
-      '.ga-menu button:hover{background:var(--ga-soft);}',
+      '.ga-menu button,.ga-menu a{display:flex;width:100%;align-items:center;gap:8px;text-align:left;border:none;background:none;padding:9px 10px;border-radius:8px;font-size:13.5px;color:#333;cursor:pointer;text-decoration:none;box-sizing:border-box;}',
+      '.ga-menu button:hover,.ga-menu a:hover{background:var(--ga-soft);}',
       '.ga-menu .ga-switch{margin-left:auto;font-size:11px;font-weight:700;color:var(--ga-muted);}',
       '.ga-menu .ga-switch.on{color:var(--ga-plum);}',
       /* transcript */
@@ -183,7 +195,7 @@
       'html.ga-has:not(.ga-open) .ga-fab{display:flex;}',
       '.ga-fab .ga-fdot{width:8px;height:8px;border-radius:50%;background:#ffd36e;display:none;}',
       'html.ga-drafting .ga-fab .ga-fdot{display:block;}',
-      '@media (max-width:767px){.ga-fab{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));}.ga-new span{display:none;}.ga-panel .aa-choices{grid-template-columns:1fr;}.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,1fr) auto;}.ga-panel .ga-review .aa-field-k{grid-column:1 / -1;}.ga-submit{padding:0 13px;}.ga-expand{display:none !important;}}',
+      '@media (max-width:767px){.ga-fab{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));}.ga-new span{display:none;}.ga-panel .aa-choices{grid-template-columns:1fr;}.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,1fr) auto;}.ga-panel .ga-review .aa-field-k{grid-column:1 / -1;}.ga-submit{padding:0 13px;}.ga-full-btn{display:none !important;}}',
       'html.ga-pagemode #aaHost,html.ga-pagemode .ga-fab{display:none !important;}'
     ].join('\n');
     var s = document.createElement('style'); s.id = 'ga-styles'; s.textContent = css; document.head.appendChild(s);
@@ -203,8 +215,10 @@
       + '<div class="ga-title"><b>Genius Assistant</b><span class="ga-status" id="gaStatus" role="status" aria-live="polite">Ready</span></div>'
       + '<div class="ga-tools">'
       + '<button type="button" class="ga-new" id="gaNew" title="Start a new conversation (nothing unsaved is kept)" aria-label="New conversation">↺ <span>New</span></button>'
-      + (pageMode ? '' : '<a class="ga-ib ga-expand" id="gaExpand" href="/ai-assistant" title="Open full screen" aria-label="Open full screen">⤢</a>')
+      + (pageMode ? '' : '<button type="button" class="ga-ib ga-full-btn" id="gaFull" title="Full screen" aria-label="Full screen" aria-pressed="false">'
+                         + '<span class="ga-i-enter" aria-hidden="true">⤢</span><span class="ga-i-exit" aria-hidden="true">⤡</span></button>')
       + '<button type="button" class="ga-ib" id="gaMenuBtn" title="More" aria-label="More options" aria-haspopup="true" aria-expanded="false">⋯</button>'
+      + (pageMode ? '' : '<button type="button" class="ga-ib" id="gaMin" title="Minimize" aria-label="Minimize the assistant">–</button>')
       + (pageMode ? '' : '<button type="button" class="ga-ib" id="gaClose" title="Close (Esc)" aria-label="Close the assistant">✕</button>')
       + '</div>'
       + '<div class="ga-menu" id="gaMenu" role="menu" hidden>'
@@ -212,6 +226,7 @@
       + '<button type="button" role="menuitem" id="gaMGuide">📖 Guide — all commands</button>'
       + '<button type="button" role="menuitem" id="gaMConverse">🗣 Converse (spoken replies)<span class="ga-switch" id="gaConvState">Off</span></button>'
       + '<button type="button" role="menuitem" id="gaMShare" hidden>🔐 AI data sharing</button>'
+      + (pageMode ? '' : '<a role="menuitem" id="gaMPage" href="/ai-assistant">↗ Open as a page</a>')
       + '</div>'
       + '</div>'
       + '<div class="ga-log" id="gaLog" role="log" aria-live="polite" aria-label="Conversation with Genius Assistant" tabindex="0"></div>'
@@ -254,6 +269,8 @@
     });
     document.getElementById('gaNew').addEventListener('click', newConversation);
     var cl = document.getElementById('gaClose'); if (cl) cl.addEventListener('click', close);
+    var mn = document.getElementById('gaMin'); if (mn) mn.addEventListener('click', minimize);
+    var fb = document.getElementById('gaFull'); if (fb) fb.addEventListener('click', function () { setFull(!st.full); });
     el.gaPill.addEventListener('click', function () { scrollEnd(true); });
     el.gaLog.addEventListener('scroll', function () { if (nearEnd()) el.gaPill.hidden = true; });
     document.getElementById('gaDraftCancel').addEventListener('click', cancelDraft);
@@ -290,6 +307,7 @@
       if (e.key !== 'Escape' || pageMode || !document.documentElement.classList.contains('ga-open')) return;
       if (document.querySelector('.aa-modal-ov')) return;          // the help window closes first
       if (!el.gaMenu.hidden) { toggleMenu(false); return; }
+      if (st.full) { setFull(false); return; }                       // Esc leaves full screen before it closes
       close();
     });
     window.addEventListener('resize', layout);
@@ -297,8 +315,9 @@
     if (window.visualViewport) {
       var fit = function () {
         if (pageMode || !isPhone() || !document.documentElement.classList.contains('ga-open')) { el.panel.style.height = ''; el.panel.style.top = ''; return; }
-        el.panel.style.height = window.visualViewport.height + 'px';
-        el.panel.style.top = window.visualViewport.offsetTop + 'px';
+        var top = safeTop();
+        el.panel.style.height = Math.max(0, window.visualViewport.height - top) + 'px';
+        el.panel.style.top = (window.visualViewport.offsetTop + top) + 'px';
         scrollEnd(false);
       };
       window.visualViewport.addEventListener('resize', fit);
@@ -339,17 +358,51 @@
   }
 
   /* ───────────────────────────── layout / open / close ───────────────────────────── */
+  /** The status-bar height the app draws under (env(safe-area-inset-top)); 0 in a browser. */
+  function safeTop() {
+    try {
+      var probe = document.getElementById('gaSafeProbe');
+      if (!probe) {
+        probe = document.createElement('div'); probe.id = 'gaSafeProbe'; probe.setAttribute('aria-hidden', 'true');
+        probe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:env(safe-area-inset-top,0px);';
+        document.body.appendChild(probe);
+      }
+      return probe.offsetHeight || 0;
+    } catch (e) { return 0; }
+  }
+  /** Full screen on / off (2026-11-10). Phones always use the whole screen, so there it changes nothing visible. */
+  function setFull(on) {
+    if (pageMode) return;
+    st.full = !!on;
+    document.documentElement.classList.toggle('ga-full', st.full && document.documentElement.classList.contains('ga-open'));
+    var b = document.getElementById('gaFull');
+    if (b) {
+      b.setAttribute('aria-pressed', String(st.full));
+      b.title = st.full ? 'Exit full screen (Esc)' : 'Full screen';
+      b.setAttribute('aria-label', st.full ? 'Exit full screen' : 'Full screen');
+    }
+    layout(); save(); scrollEnd(false);
+  }
+  /** Minimize: the panel folds into the "Genius" launcher (kept for this tab); the conversation stays. */
+  function minimize() {
+    if (pageMode) return;
+    st.min = true;
+    document.documentElement.classList.add('ga-min');
+    close();
+  }
   function layout() {
     var h = document.documentElement;
     if (pageMode) return;
     var on = h.classList.contains('ga-open');
+    h.classList.toggle('ga-full', on && st.full);
     h.classList.toggle('ga-docked', on && isDock());
     h.classList.toggle('ga-overlay', on && !isDock() && !isPhone());
     h.classList.toggle('ga-sheet', on && isPhone());
   }
   function open(focus) {
     document.documentElement.classList.add('ga-open');
-    st.open = true; layout(); save(); syncHint();
+    document.documentElement.classList.remove('ga-min');
+    st.open = true; st.min = false; layout(); save(); syncHint();
     if (focus) setTimeout(function () { try { el.gaInput.focus(); } catch (e) {} }, 30);
     scrollEnd(true);
   }
@@ -357,6 +410,7 @@
     if (pageMode) return;
     document.documentElement.classList.remove('ga-open');
     st.open = false; layout(); save(); toggleMenu(false);
+    try { if (document.activeElement && el.panel.contains(document.activeElement)) document.activeElement.blur(); } catch (e) {}
     var b = document.getElementById('aiSearchInput'); try { if (b && !isPhone()) b.focus(); } catch (e) {}
   }
   function status(kind) {
@@ -686,6 +740,8 @@
       }
       if (st.nodes.length) document.documentElement.classList.add('ga-has');
       renderDraft();
+      if (!pageMode && d.full) setFull(true);
+      if (!pageMode && d.min && !d.open) { st.min = true; document.documentElement.classList.add('ga-min'); }
       if (d.open || pageMode) open(false);
     } else if (pageMode) open(false);
     welcome();
