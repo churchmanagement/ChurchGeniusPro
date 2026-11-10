@@ -129,7 +129,7 @@
 
     /* ── Content editor ── */
     .content-toolbar {
-      display: flex; gap: 4px; padding: 6px 8px;
+      display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px;
       border: 1px solid #ddd; border-bottom: none;
       border-radius: 7px 7px 0 0; background: #f9f9f9;
     }
@@ -137,6 +137,9 @@
       padding: 3px 9px; font-size: 13px; border: 1px solid #ddd;
       border-radius: 4px; background: #fff; cursor: pointer; color: #444;
     }
+    .content-cleared { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; margin-top: 4px; }
+    .content-cleared[hidden] { display: none; }
+    .content-cleared button { padding: 2px 10px; font-size: 12px; border: 1px solid #673147; border-radius: 4px; background: #fff; color: #673147; cursor: pointer; font-weight: 600; }
     .content-toolbar button:hover { background: #eef0f8; border-color: #673147; color: #673147; }
     #contentEditor {
       border: 1px solid #ddd; border-radius: 0 0 7px 7px;
@@ -405,12 +408,17 @@
                   <button type="button" title="Underline" onclick="fmt('underline')"><u>U</u></button>
                   <button type="button" title="Unordered list" onclick="fmt('insertUnorderedList')">• List</button>
                   <button type="button" title="Ordered list"   onclick="fmt('insertOrderedList')">1. List</button>
-                  <button type="button" title="Clear formatting" onclick="fmt('removeFormat')" style="margin-left:auto;">✕ Clear</button>
+                  <button type="button" id="contentClearFmtBtn" title="Remove bold, italic, underline and lists (selected text, or all the content when nothing is selected)" onmousedown="event.preventDefault()" onclick="clearContentFormatting()"><s>T</s>&#x2093; Formatting</button>
+                  <button type="button" id="contentClearBtn" title="Clear the content" onclick="clearContent()" style="margin-left:auto;">✕ Clear</button>
                   <span id="aiWriteEmailAnchor"></span>
                 </div>
                 <div id="contentEditor" contenteditable="true"
                      data-placeholder="Write your email body here…"
                      oninput="onContentInput()"></div>
+                <div class="content-cleared" id="contentCleared" role="status" hidden>
+                  <span>Content cleared.</span>
+                  <button type="button" id="contentUndoBtn" onclick="undoClearContent()">Undo</button>
+                </div>
                 <span class="field-hint" id="contentHint"></span>
               </div>
 
@@ -703,6 +711,7 @@
   }
 
   function onContentInput() {
+    if (_clearedContentHtml != null && document.getElementById('contentEditor').innerText.trim()) hideClearedNotice();
     clearHint('contentHint');
     document.getElementById('contentEditor').classList.remove('invalid');
   }
@@ -710,6 +719,72 @@
   function fmt(command) {
     document.getElementById('contentEditor').focus();
     document.execCommand(command, false, null);
+  }
+
+  /* ✕ Clear empties the content box (2026-11-10: it used to run "remove formatting",
+     which does nothing visible on plain text, so it looked broken). The text can be
+     brought back with Undo (or Ctrl+Z) until something new is typed. */
+  let _clearedContentHtml = null, _clearedTimer = null;
+  function clearContent() {
+    const el = document.getElementById('contentEditor');
+    if (!el.innerText.trim() && !el.querySelector('img')) { el.innerHTML = ''; el.focus(); return; }
+    _clearedContentHtml = el.innerHTML;
+    el.focus();
+    const range = document.createRange(); range.selectNodeContents(el);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    let done = false;
+    try { done = document.execCommand('delete', false, null); } catch (e) { done = false; }
+    if (!done || el.innerText.trim()) el.innerHTML = '';
+    onContentInput();
+    const box = document.getElementById('contentCleared');
+    box.hidden = false;
+    clearTimeout(_clearedTimer);
+    _clearedTimer = setTimeout(hideClearedNotice, 15000);
+  }
+  function hideClearedNotice() {
+    const box = document.getElementById('contentCleared');
+    if (box) box.hidden = true;
+    _clearedContentHtml = null;
+  }
+  function undoClearContent() {
+    if (_clearedContentHtml == null) return;
+    const el = document.getElementById('contentEditor');
+    el.innerHTML = _clearedContentHtml;
+    hideClearedNotice();
+    onContentInput();
+    el.focus();
+  }
+  /* Remove formatting from the selected text, or from all the content when nothing in
+     the box is selected (lists become plain paragraphs). */
+  function clearContentFormatting() {
+    const el = document.getElementById('contentEditor');
+    const sel = window.getSelection();
+    const inside = sel.rangeCount && !sel.isCollapsed && el.contains(sel.getRangeAt(0).commonAncestorContainer);
+    el.focus();
+    if (!inside) {
+      const range = document.createRange(); range.selectNodeContents(el);
+      sel.removeAllRanges(); sel.addRange(range);
+    }
+    document.execCommand('removeFormat', false, null);
+    if (inside) {
+      ['insertUnorderedList', 'insertOrderedList'].forEach(function (cmd) {
+        if (document.queryCommandState(cmd)) document.execCommand(cmd, false, null);   // toggles the list off
+      });
+    } else {
+      // whole content: each list item becomes its own line
+      el.querySelectorAll('ul, ol').forEach(function (list) {
+        const frag = document.createDocumentFragment();
+        list.querySelectorAll(':scope > li').forEach(function (li) {
+          const line = document.createElement('div');
+          while (li.firstChild) line.appendChild(li.firstChild);
+          frag.appendChild(line);
+        });
+        list.replaceWith(frag);
+      });
+      sel.removeAllRanges();
+      const end = document.createRange(); end.selectNodeContents(el); end.collapse(false); sel.addRange(end);
+    }
+    onContentInput();
   }
 
   function getContentHtml() {
@@ -963,6 +1038,7 @@
     document.getElementById('eventSelector').value = '';
     document.getElementById('subject').value       = '';
     document.getElementById('contentEditor').innerHTML = '';
+    hideClearedNotice();
     document.getElementById('fileInput').value     = '';
     document.getElementById('eventSection').style.display      = 'none';
     document.getElementById('groupEmailSection').style.display = 'none';
