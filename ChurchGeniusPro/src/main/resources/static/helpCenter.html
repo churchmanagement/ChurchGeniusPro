@@ -650,26 +650,36 @@
           <div class="hc-card-head" onclick="toggleCard(this)">
             <span class="hc-card-icon">✨</span>
             <div class="hc-card-head-text">
-              <h3>AI Search &amp; AI Assistant</h3>
-              <div class="hc-card-nav">✨ bar at the top of every page · More → AI Assistant</div>
+              <h3>Genius Assistant (AI Search)</h3>
+              <div class="hc-card-nav">✨ bar at the top of every page · More → Genius Assistant</div>
             </div>
             <span class="hc-card-chevron">▼</span>
           </div>
           <div class="hc-card-body">
-            <p class="hc-desc">The ✨ AI Search bar sits at the top of every page. Ask in plain English to open a page, look up your church's data, get report totals for a period, create a one-time meeting, or learn how to do something. The AI Assistant page is the same assistant as a chat conversation.</p>
+            <p class="hc-desc">The ✨ AI Search bar sits at the top of every page. Ask in plain English to open a page, look up your church's data, get report totals for a period, create a one-time meeting, or learn how to do something. Your conversation opens in the <strong>Genius Assistant</strong> chat panel: your messages and the answers appear as chat bubbles, one under the other, and you type each new message in the box at the bottom and press <strong>Submit</strong> (or Enter).</p>
+            <div class="hc-section-label" id="hc-ai-assistant-panel">The chat panel</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Type in the ✨ bar at the top of any page and press Enter or <span class="hc-ui">Submit</span>. The panel opens on the right (on a phone it fills the screen) and shows your question and the answer.</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Keep going in the message box at the bottom of the panel — type, or tap 🎤 and speak. Earlier messages stay above; scroll up to read them. A <strong>↓ New message</strong> button appears if you have scrolled away.</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>When AI Search needs a choice, it shows the options as buttons (with a filter box for long lists) — tap one, or type your answer.</span></div>
+              <div class="hc-step"><span class="hc-step-num">4</span><span>Before anything is saved you get a review card marked <strong>Draft · not saved</strong>. Press <strong>Edit</strong> to change one detail, then <strong>Create Meeting</strong> / <strong>Save</strong>. The card then shows <strong>Saving…</strong> and a green <strong>Saved</strong> message. A bar above the message box reminds you while a draft is open — its <strong>Cancel</strong> stops it without saving.</span></div>
+              <div class="hc-step"><span class="hc-step-num">5</span><span><span class="hc-ui lite">↺ New</span> starts a fresh conversation (anything unsaved is dropped), <span class="hc-ui lite">⤢</span> opens the full-page view, <span class="hc-ui lite">⋯</span> has Help, the Guide and Converse (spoken replies), and <span class="hc-ui lite">✕</span> or Esc closes the panel — the conversation is still there when you reopen it from the bar or the <strong>✦ Genius</strong> button.</span></div>
+            </div>
+            <div class="hc-note">The conversation follows you from page to page in the same browser tab, and is cleared when you close the tab or sign in as someone else.</div>
             <div class="hc-note">The AI features (AI Search, Voice, Converse, check scanning, Draft with AI, Action Agent, Automations and AI Connections) are included in the <strong>Pro</strong> plan and the free <strong>Trial</strong>. On other plans they appear only when ChurchGeniusPro has turned them on for that plan — contact support@churchgeniuspro.com if you would like them.</div>
             <div class="hc-roles"><span class="hc-role">SuperAdmin</span><span class="hc-role">Admin</span><span class="hc-role">Accountant</span><span class="hc-role">User</span><span class="hc-role">Limited</span><span class="hc-role">Church</span><span class="hc-role">Member (when granted)</span></div>
-            <div class="hc-mock" aria-label="AI Search bar"><span class="hc-mock-title">✨ Ask anything…</span><span class="hc-ui">Search</span><span class="hc-ui lite">🔎</span><span class="hc-ui lite">🎤</span><span class="hc-ui lite">🗣</span><span class="hc-ui lite">❔</span><span class="hc-ui lite">?</span></div>
+            <div class="hc-mock" aria-label="AI Search bar"><span class="hc-mock-title">✨ Ask Genius anything…</span><span class="hc-ui">Submit</span><span class="hc-ui lite">🔎</span><span class="hc-ui lite">🎤</span><span class="hc-ui lite">🗣</span><span class="hc-ui lite">❔</span><span class="hc-ui lite">?</span></div>
             <div class="hc-toc">
               <a href="#" onclick="return hcGoSection('hc-ai-assistant-buttons')">The buttons</a>
               <a href="#" onclick="return hcGoSection('hc-ai-assistant-ask')">Ask a question</a>
               <a href="#" onclick="return hcGoSection('hc-ai-assistant-voice')">Voice &amp; Converse</a>
-              <a href="#" onclick="return hcGoSection('hc-ai-assistant-chat')">AI Assistant page</a>
+              <a href="#" onclick="return hcGoSection('hc-ai-assistant-panel')">The chat panel</a>
+              <a href="#" onclick="return hcGoSection('hc-ai-assistant-chat')">Full-page view</a>
             </div>
 
             <div class="hc-section-label" id="hc-ai-assistant-buttons">What each button does</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">🔎</span> <strong>Type</strong> — type a question and press Enter or click <span class="hc-ui">Search</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">🔎</span> <strong>Type</strong> — type a question and press Enter or click <span class="hc-ui">Submit</span></span></div>
               <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">🎤</span> <strong>Voice</strong> — speak instead of typing; click again to stop. Saying a page name (“Go to Events”) opens it straight away</span></div>
               <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">🗣</span> <strong>Converse</strong> — a back-and-forth: say what you want to do (“I need to send reminders”) and the assistant asks follow-up questions</span></div>
               <div class="hc-step"><span class="hc-step-num">•</span><span><span class="hc-ui lite">❔</span> <strong>Guide</strong> — every command available to your login, with a search box. Greyed-out items aren't available for your account</span></div>
@@ -693,11 +703,11 @@
             </div>
             <div class="hc-note">On the Income, Expense and Meeting screens the AI can also fill the form for you from a sentence such as <em>“Tithe from Sample Family, 100 dollars”</em> — check the fields before saving.</div>
 
-            <div class="hc-section-label" id="hc-ai-assistant-chat">The AI Assistant chat page</div>
+            <div class="hc-section-label" id="hc-ai-assistant-chat">The full-page view</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>More → AI Assistant</strong> (church owner login: <strong>Admin → AI Assistant</strong>)</span></div>
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Open <strong>More → Genius Assistant</strong> (church owner login: <strong>Admin → Genius Assistant</strong>), or press <span class="hc-ui lite">⤢</span> in the panel</span></div>
               <div class="hc-step"><span class="hc-step-num">2</span><span>Click a suggestion or type your question; Enter sends, Shift+Enter adds a new line. 🎤 Voice and 🗣 Converse work here too</span></div>
-              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">🗑 Clear conversation</span> to start again</span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>Click <span class="hc-ui lite">↺ New</span> to start again</span></div>
             </div>
             <div class="hc-note">The conversation is kept only in this browser tab and disappears when you close the tab.</div>
 

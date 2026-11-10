@@ -381,23 +381,23 @@ public class HelpContentCatalog {
             list("ticket","ticketing","support ticket","support","raise a ticket","contact support","tkt")).roles("SuperAdmin,Admin,Accountant,User,Church,Member"));
 
         // roles: SuperAdmin,Admin,Accountant,User,Limited,Church,Member
-        add(new HelpArticle("ai_assistant", "Getting Started", "AI Search & the AI Assistant", "more.aiassistant", false,
+        add(new HelpArticle("ai_assistant", "Getting Started", "Genius Assistant (AI Search)", "more.aiassistant", false,
             "Ask in plain English to open a page, look up church data, get report totals, create a meeting or learn how to do something — by typing, voice or conversation.",
-            "The AI features are included in the Pro plan and the free Trial (other plans only when ChurchGeniusPro turns them on). The ✨ AI Search bar is at the top of every page; More → AI Assistant (church owner login: Admin → AI Assistant) is the same assistant as a chat. "
+            "The AI features are included in the Pro plan and the free Trial (other plans only when ChurchGeniusPro turns them on). The ✨ AI Search bar is at the top of every page: type a question and press Enter or Submit, and the Genius Assistant chat panel opens (on the right; full screen on a phone) with your question and the answer as chat bubbles. Keep going in the message box at the bottom of the panel (type, or 🎤 to speak); choices appear as buttons, and anything to be saved is shown on a review card marked Draft · not saved with Edit on each row — nothing is saved until you press Create Meeting / Save. ↺ New starts again, ⤢ opens the full-page view (More → Genius Assistant; church owner login: Admin → Genius Assistant), ⋯ has Help, the Guide and Converse, ✕ or Esc closes it. "
           + "Buttons: 🔎 Type, 🎤 Voice (saying a page name opens it), 🗣 Converse (the assistant asks follow-up questions), ❔ Guide (every command available to your login) and ? Help. "
           + "It can navigate (\"Go to Payroll\"), answer data questions (\"What was the income last month?\"), give report totals for a period with a link to the pre-filled report, and create a one-time meeting after you confirm the draft. "
           + "Lists show the first 20 rows. Answers follow the same role, permission and plan rules as the pages. On Income, Expense and Meeting screens the AI can also fill the form from a sentence. "
-          + "The chat page keeps the conversation only in the current browser tab; 🗑 Clear conversation starts again. "
+          + "The conversation follows you from page to page in the same browser tab and is cleared when the tab closes or someone else signs in. "
           + "Staff have the AI Assistant permission unless it is unticked; Member Portal logins need it ticked; Kids Portal logins never have it. Voice and Converse can be limited by the church's plan and need microphone access in a recent Chrome, Edge or Safari.",
             list("Type a question in the ✨ bar and press Enter.",
                  "Click 🎤 to speak, or 🗣 to have a conversation.",
                  "Click ❔ to browse every command available to you.",
-                 "Open More → AI Assistant for a chat window."),
+                 "Answer the follow-up questions in the chat panel's message box, then press Create Meeting / Save on the review card."),
             list("Problem: no ✨ bar — Fix: the AI Assistant permission is off for your login.",
                  "Problem: Voice is not available — Fix: Voice is switched off for your church or plan, the limit is reached, or the browser lacks microphone permission; Type always works.",
                  "Problem: \"not enabled for your current role, permissions or plan\" — Fix: an administrator can enable the feature for you."),
-            "1.3", list("v1.3 — Plan note: AI features in Pro and Trial.", "v1.2 — Guide and Help buttons, report totals, meeting creation, chat page details, permission rules.", "v1.1 — Chat-style AI Assistant page; feature questions answered for every feature.", "v1.0 — AI Search bar with Type / Voice / Converse."),
-            list("ai","assistant","ai search","voice","converse","guide","ask","go to page","create meeting")).roles("SuperAdmin,Admin,Accountant,User,Church,Member"));
+            "1.4", list("v1.4 — Genius Assistant chat panel, Submit button, review card states (2026-11-09).", "v1.3 — Plan note: AI features in Pro and Trial.", "v1.2 — Guide and Help buttons, report totals, meeting creation, chat page details, permission rules.", "v1.1 — Chat-style AI Assistant page; feature questions answered for every feature.", "v1.0 — AI Search bar with Type / Voice / Converse."),
+            list("ai","assistant","genius","genius assistant","chat panel","ai search","voice","converse","guide","ask","go to page","create meeting","submit")).roles("SuperAdmin,Admin,Accountant,User,Church,Member"));
 
         // roles: SuperAdmin,Admin,Accountant
         add(new HelpArticle("donation_give", "Accounting", "Donation / Give — Online Giving", "accounting.donation", false,

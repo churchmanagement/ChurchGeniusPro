@@ -18,25 +18,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AiAssistantChatPageTest {
 
     private static String page() throws IOException { return Files.readString(Paths.get("src/main/resources/static/ai-assistant.html")); }
+    private static String panel() throws IOException { return Files.readString(Paths.get("src/main/resources/static/ai-chat.js")); }
     private static String engine() throws IOException { return Files.readString(Paths.get("src/main/resources/static/ai-assistant.js")); }
 
     @Test
-    @DisplayName("page: transcript, composer with Send, Enter sends / Shift+Enter newline, typing indicator, auto-scroll, clear, sessionStorage")
+    @DisplayName("page + panel (2026-11-09 Genius Assistant): host, transcript log, composer with Submit, Enter submits / Shift+Enter newline, typing indicator, auto-scroll, New conversation, sessionStorage per login")
     void chatStructure() throws IOException {
         String s = page();
-        assertThat(s).contains("id=\"chatLog\"", "role=\"log\"", "<textarea id=\"aiSearchInput\"", "id=\"aiSearchBtn\"", ">Send<", "id=\"chatClear\"")
-                .contains("e.key === 'Enter' && !e.shiftKey", "e.preventDefault(); send();")
-                .contains("id = 'chatTyping'", "class=\"dot\"", "log.scrollTop = log.scrollHeight")
-                .contains("sessionStorage.setItem(STORE_KEY", "sessionStorage.removeItem(STORE_KEY)")
-                .contains("window.CGP_ASSISTANT_UI = {", "question: function", "answer: function", "busy: function", "notice: function");
-        // The shared engine still finds its host and composer hooks.
-        assertThat(s).contains("class=\"ai-search-wrap\"", "class=\"ai-search-bar\"", "id=\"aiResultsWrap\"");
+        assertThat(s).contains("id=\"gaPageHost\"");
+        // The shared engine still finds its host (kept out of sight; the panel's 🎤 and menu press its buttons).
+        assertThat(s).contains("class=\"ai-search-wrap ga-engine-bar\"", "class=\"ai-search-bar\"", "id=\"aiResultsWrap\"", "id=\"aiSearchInput\"");
         // No placeholder runAiSearch: plain questions must reach the engine's data/LLM/help flow.
         assertThat(s).doesNotContain("window.runAiSearch = function () {}");
-        // Server text is escaped before formatting; the welcome examples are kept.
-        assertThat(s).contains("function esc(s)", "function formatAnswer(text)", "Who are our volunteers?", "How do I add a family?");
-        // Another user's transcript is never shown.
-        assertThat(s).contains("d.user !== user");
+        String c = panel();
+        assertThat(c).contains("role=\"log\"", "aria-live=\"polite\"", "id=\"gaInput\"", ">Submit</button>", "id=\"gaNew\"")
+                .contains("e.key === 'Enter' && !e.shiftKey", "submit();")
+                .contains("ga-typing", "l.scrollTop = l.scrollHeight")
+                .contains("sessionStorage.setItem(KEY", "sessionStorage.removeItem(KEY)")
+                .contains("var UI = {", "question: function", "answer: answer", "busy: setBusy", "notice: function", "prefill: function", "window.CGP_ASSISTANT_UI = UI;");
+        // User text is escaped; another user's transcript is never shown.
+        assertThat(c).contains("function esc(s)", "'<div class=\"ga-bub\">' + esc(text) + '</div>").contains("d.who !== who");
     }
 
     @Test

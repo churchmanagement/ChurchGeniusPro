@@ -88,7 +88,7 @@ class AssistantKnowledgeTest {
             assertThat(dests.substring(start, end)).as("desc for " + e.group(1)).contains("desc:");
         }
         assertThat(n).isGreaterThanOrEqualTo(60);
-        assertThat(dests).contains("label:'Ticketing'", "label:'AI Assistant'", "label:'Donation/Give'", "label:'Bank Sync'", "label:'Song Book'", "label:'Attendance'");
+        assertThat(dests).contains("label:'Ticketing'", "label:'Genius Assistant'", "label:'Donation/Give'", "label:'Bank Sync'", "label:'Song Book'", "label:'Attendance'");
     }
 
     @Test @DisplayName("AI Search context carries allFeatures with availability; the prompt explains unavailable features instead of denying their existence")

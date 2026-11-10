@@ -112,7 +112,7 @@ public final class AiNavigationCatalog {
         pg("Song Book Access","/admin/songbook-access","More", "Choose which members may open the church's Song Book, and see the Song Book activity log.", "song book access,songbook access,song book permissions", staff(ADMIN, null)),
         pg("Guess It",        "/guessIt",         "Activity", "Activity Corner quiz game members join from their phones.", "guess it,activity corner,quiz game", staff(ADMIN_OR_USER, null)),
         pg("Ticketing",       "/tickets",         "Support", "Support tickets to the ChurchGeniusPro team.", "ticketing,ticket,tickets,support ticket,contact support", optIn("more.ticketing")),
-        pg("AI Assistant",    "/ai-assistant",    "Support", "Chat with the assistant: church data, pages, how-to help; Type, Voice and Converse.", "ai assistant,assistant page,ai chat,ai search", optIn("more.aiassistant"))
+        pg("Genius Assistant", "/ai-assistant",    "Support", "The Genius Assistant chat at full width: church data, pages, creating records; type or speak.", "genius assistant,genius,ai assistant,assistant page,ai chat,ai search", optIn("more.aiassistant"))
     );
 
     private AiNavigationCatalog() {}

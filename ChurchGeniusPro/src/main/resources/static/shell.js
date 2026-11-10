@@ -152,7 +152,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         // are listed here for them (churchOnly: not rendered for any other role; staff
         // reach the same pages under More).
         { id: 'admin/ticketing',           label: 'Ticketing',           icon: '&#x1F3AB;', href: '/tickets',      churchOnly: true },
-        { id: 'admin/ai-assistant',        label: 'AI Assistant',        icon: '&#x2728;',  href: '/ai-assistant', churchOnly: true },
+        { id: 'admin/ai-assistant',        label: 'Genius Assistant',        icon: '&#x2728;',  href: '/ai-assistant', churchOnly: true },
         // Help Center for church logins (staff reach it under More → Help Center). Opens the
         // "Account & User Management" card, which covers the Users page step by step.
         { id: 'admin/help-center',         label: 'Help Center',         icon: '&#x1F4DA;', href: '/helpCenter#account-management', churchOnly: true },
@@ -195,7 +195,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'more/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true },   // D6, app only
         { id: 'more/account-privacy', label: 'Account & Privacy', icon: '&#x1F6E1;', href: '/accountPrivacy' },   // D7: privacy links + delete my login
         { id: 'more/ticketing',      label: 'Ticketing',      icon: '&#x1F3AB;', href: '/tickets'       },
-        { id: 'more/ai-assistant',   label: 'AI Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
+        { id: 'more/ai-assistant',   label: 'Genius Assistant',   icon: '&#x2728;',  href: '/ai-assistant'  },
         { id: 'more/saved-lists',    label: 'Saved Lists',    icon: '&#x1F4CB;', href: '/savedLists'    },
         { id: 'more/ministry-report',label: 'Ministry Report',icon: '&#x1F4C8;', href: '/ministryReport'},
         { id: 'more/api-tokens',     label: 'AI Connections', icon: '&#x1F517;', href: '/apiTokens'     },
