@@ -223,9 +223,12 @@ public class AiAccessPolicy {
             cut = path.indexOf('#'); if (cut > 0) path = path.substring(0, cut);
             out.merge(path, open.contains(p.url()), Boolean::logicalOr);
         }
-        // The Member Portal page serves member logins only: a staff session has no member record,
-        // so the page signs it out. Its MY PROFILE links are therefore not offered to staff.
-        out.put("/memberHome", false);
+        // MY PROFILE (Family, Contributions, Groups, Classes, Volunteer, Directory) opens tabs of
+        // /memberHome. That route admits a staff login unless its 'member' key is unticked
+        // (MembershipFormController.memberHomePage), and the portal APIs match the staff login to
+        // its own member record by e-mail (MemberSessionResolver). Same rule here; the individual
+        // tabs stay governed by the member.* keys in session.js applyMemberNavSections.
+        out.put("/memberHome", page(req, "member"));
         return out;
     }
 

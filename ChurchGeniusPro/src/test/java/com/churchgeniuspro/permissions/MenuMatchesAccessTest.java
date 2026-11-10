@@ -53,7 +53,7 @@ class MenuMatchesAccessTest {
         for (String p : new String[]{"/income", "/expense", "/payroll", "/viewfamily", "/meetings", "/events", "/helpCenter"}) {
             assertThat(nav.get(p)).as(p).isTrue();
         }
-        assertThat(nav.get("/memberHome")).isFalse();   // staff have no member record
+        assertThat(nav.get("/memberHome")).isTrue();    // MY PROFILE: the route admits staff unless 'member' is unticked
     }
 
     @Test @DisplayName("main section unticked hides its pages; one sub-page unticked hides only that page")
@@ -68,8 +68,19 @@ class MenuMatchesAccessTest {
         // SuperAdmin with nothing saved: every staff page
         Map<String, Boolean> sa = policy.navAccess(staff("SuperAdmin", null), "CHR-1");
         assertThat(sa.entrySet().stream().filter(e -> !e.getValue()).map(Map.Entry::getKey).toList())
-                .as("pages a never-saved SuperAdmin may not open: church-owner-only ones and the member page")
-                .containsExactlyInAnyOrder("/memberHome", "/viewusers", "/stripeIntegration", "/ntagAccess", "/temporaryAccess");
+                .as("pages a never-saved SuperAdmin may not open: church-owner-only ones")
+                .containsExactlyInAnyOrder("/viewusers", "/stripeIntegration", "/ntagAccess", "/temporaryAccess");
+    }
+
+    @Test @DisplayName("MY PROFILE (/memberHome tabs) follows the route rule: open for staff unless 'member' is unticked")
+    void myProfileForStaff() {
+        for (String role : new String[]{"SuperAdmin", "Admin", "Accountant", "User"}) {
+            assertThat(policy.navAccess(staff(role, null), "CHR-1").get("/memberHome")).as(role + " never saved").isTrue();
+        }
+        assertThat(policy.navAccess(staff("SuperAdmin", "{\"member\":true,\"member.family\":true}"), "CHR-1").get("/memberHome")).isTrue();
+        assertThat(policy.navAccess(staff("SuperAdmin", "{\"member\":false}"), "CHR-1").get("/memberHome"))
+                .as("whole MY PROFILE unticked").isFalse();
+        assertThat(policy.navAccess(staff("User", "{\"member\":false,\"general\":true}"), "CHR-1").get("/memberHome")).isFalse();
     }
 
     @Test @DisplayName("member, church and Kids Portal sessions get no staff menu map")
