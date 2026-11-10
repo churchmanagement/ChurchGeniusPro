@@ -224,6 +224,11 @@
     .expense-table tr:last-child td { border-bottom: none; }
     .expense-table tr:hover td { background: #fafbff; }
     .row-num { font-size: 13px; color: #ccc; }
+    /* Just-added row: shown in its normal date position, tinted for a few seconds, then fades back. */
+    .expense-table tr.row-new td { background: #e8f5e9; transition: background-color .8s ease; }
+    .expense-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #2e7d32; }
+    .expense-table tr.row-new-fade td { transition: background-color .8s ease; }
+    .row-new-tag { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 700; color: #2e7d32; background: #fff; border: 1px solid #c8e6c9; vertical-align: middle; }
     .cell-purpose { font-weight: 600; color: #673147; }
     .cell-amount  { font-weight: 600; color: #2e7d32; font-size: 14px; }
 
@@ -650,6 +655,7 @@
   }
 
   async function loadExpenses() {
+    clearNewRow();
     allExpenses   = [];
     nextPage      = 0;
     serverHasMore = false;
@@ -689,8 +695,8 @@
     }
 
     tbody.innerHTML = rows.map((e, idx) => `
-      <tr>
-        <td class="row-num">${idx + 1}${e.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}</td>
+      <tr${newRowAttrs(e.id)}>
+        <td class="row-num">${idx + 1}${e.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}${newRowTag(e.id)}</td>
         <td><span class="cell-purpose">${escHtml(e.purposeName)}</span></td>
         <td>${escHtml(e.mainSourceName)}</td>
         <td>${formatDate(e.expenseDate)}</td>
@@ -708,6 +714,66 @@
           </div>
         </td>
       </tr>`).join('');
+  }
+
+  /* ════════════════════════════════════
+     NEW ROW — highlight the record just added
+  ════════════════════════════════════ */
+  /* The list keeps its normal date order. After an add, the new row is found where that
+     order puts it (fetching further server pages if it is dated earlier), revealed with
+     Load More's own counter, scrolled into view and tinted for NEW_ROW_MS, then the tint
+     fades. Nothing is re-sorted and no date is changed. */
+  const NEW_ROW_MS        = 8000;
+  const NEW_ROW_MAX_PAGES = 20;     // look at most this many server pages (20 × PAGE_SIZE rows)
+  let newRowId    = null;
+  let newRowTimer = null;
+
+  function clearNewRow() {
+    if (newRowTimer) { clearTimeout(newRowTimer); newRowTimer = null; }
+    newRowId = null;
+  }
+
+  async function revealNewRow(id) {
+    clearNewRow();
+    id = Number(id);
+    if (!id) return;
+    let idx = allExpenses.findIndex(r => r.id === id);
+    for (let p = 1; idx < 0 && serverHasMore && p < NEW_ROW_MAX_PAGES; p++) {
+      if (!(await fetchExpensePage())) break;
+      idx = allExpenses.findIndex(r => r.id === id);
+    }
+    if (idx < 0) {
+      renderTable();
+      showFeedback('✅ Expense saved. It is further down the list (by its date) — use Load More to see it.', 'success');
+      return;
+    }
+    visibleExpenseCount = Math.max(visibleExpenseCount, Math.ceil((idx + 1) / 10) * 10);
+    newRowId = id;
+    renderTable();
+    const row = document.querySelector(`tr[data-row-id="${id}"]`);
+    if (row) {
+      if (idx >= 10) showFeedback(`✅ Expense saved — it is row ${idx + 1} (dated ${formatDate(allExpenses[idx].expenseDate)}), highlighted below.`, 'success');
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    }
+    newRowTimer = setTimeout(() => {
+      newRowTimer = null;
+      newRowId = null;
+      const r = document.querySelector(`tr[data-row-id="${id}"]`);
+      if (r) {
+        r.classList.add('row-new-fade');
+        r.classList.remove('row-new');
+        const tag = r.querySelector('.row-new-tag'); if (tag) tag.remove();
+        setTimeout(() => r.classList.remove('row-new-fade'), 900);
+      }
+    }, NEW_ROW_MS);
+  }
+
+  function newRowAttrs(id) {
+    return id === newRowId ? ` data-row-id="${id}" class="row-new"` : ` data-row-id="${id}"`;
+  }
+  function newRowTag(id) {
+    return id === newRowId ? ' <span class="row-new-tag">New</span>' : '';
   }
 
   /* ════════════════════════════════════
@@ -752,6 +818,7 @@
         }
         clearForm();
         await loadExpenses();
+        if (!isEdit && data && data.id) await revealNewRow(data.id);
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save expense.'}`, 'error');
       }

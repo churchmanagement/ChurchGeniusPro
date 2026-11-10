@@ -251,6 +251,11 @@
     .txn-table tr:hover td { background: #fafbff; }
     .txn-amount { font-weight: 600; color: #2e7d32; }
     .row-num { font-size: 13px; color: #ccc; }
+    /* Just-added row: shown in its normal date position, tinted for a few seconds, then fades back. */
+    .txn-table tr.row-new td { background: #e8f5e9; transition: background-color .8s ease; }
+    .txn-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #2e7d32; }
+    .txn-table tr.row-new-fade td { transition: background-color .8s ease; }
+    .row-new-tag { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 700; color: #2e7d32; background: #fff; border: 1px solid #c8e6c9; vertical-align: middle; }
 
     /* ── Row action buttons ──────────────────────────────── */
     .btn-action {
@@ -757,6 +762,7 @@
   }
 
   async function loadTransactions() {
+    clearNewRow();
     allTransactions    = [];
     nextPage           = 0;
     serverHasMore      = false;
@@ -809,8 +815,8 @@
         </thead>
         <tbody>
           ${rows.map((t, idx) => `
-            <tr>
-              <td class="row-num">${idx + 1}${t.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}</td>
+            <tr${newRowAttrs(t.id)}>
+              <td class="row-num">${idx + 1}${t.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}${newRowTag(t.id)}</td>
               <td>${escHtml(t.memberName || t.guestName || '')}</td>
               <td>${localStorage.getItem('showMainWithSub') !== 'false' ? escHtml(t.mainSourceName) + ' / ' + escHtml(t.subSourceName) : escHtml(t.subSourceName)}</td>
               <td>${formatDate(t.incomeDate)}</td>
@@ -830,6 +836,66 @@
             </tr>`).join('')}
         </tbody>
       </table>`;
+  }
+
+  /* ════════════════════════════════════
+     NEW ROW — highlight the record just added
+  ════════════════════════════════════ */
+  /* The list keeps its normal date order. After an add, the new row is found where that
+     order puts it (fetching further server pages if it is dated earlier), revealed with
+     Load More's own counter, scrolled into view and tinted for NEW_ROW_MS, then the tint
+     fades. Nothing is re-sorted and no date is changed. */
+  const NEW_ROW_MS        = 8000;
+  const NEW_ROW_MAX_PAGES = 20;     // look at most this many server pages (20 × PAGE_SIZE rows)
+  let newRowId    = null;
+  let newRowTimer = null;
+
+  function clearNewRow() {
+    if (newRowTimer) { clearTimeout(newRowTimer); newRowTimer = null; }
+    newRowId = null;
+  }
+
+  async function revealNewRow(id) {
+    clearNewRow();
+    id = Number(id);
+    if (!id) return;
+    let idx = allTransactions.findIndex(r => r.id === id);
+    for (let p = 1; idx < 0 && serverHasMore && p < NEW_ROW_MAX_PAGES; p++) {
+      if (!(await fetchIncomePage())) break;
+      idx = allTransactions.findIndex(r => r.id === id);
+    }
+    if (idx < 0) {
+      renderTransactions();
+      showFeedback('✅ Income record saved. It is further down the list (by its date) — use Load More to see it.', 'success');
+      return;
+    }
+    visibleIncomeCount = Math.max(visibleIncomeCount, Math.ceil((idx + 1) / 10) * 10);
+    newRowId = id;
+    renderTransactions();
+    const row = document.querySelector(`tr[data-row-id="${id}"]`);
+    if (row) {
+      if (idx >= 10) showFeedback(`✅ Income record saved — it is row ${idx + 1} (dated ${formatDate(allTransactions[idx].incomeDate)}), highlighted below.`, 'success');
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    }
+    newRowTimer = setTimeout(() => {
+      newRowTimer = null;
+      newRowId = null;
+      const r = document.querySelector(`tr[data-row-id="${id}"]`);
+      if (r) {
+        r.classList.add('row-new-fade');
+        r.classList.remove('row-new');
+        const tag = r.querySelector('.row-new-tag'); if (tag) tag.remove();
+        setTimeout(() => r.classList.remove('row-new-fade'), 900);
+      }
+    }, NEW_ROW_MS);
+  }
+
+  function newRowAttrs(id) {
+    return id === newRowId ? ` data-row-id="${id}" class="row-new"` : ` data-row-id="${id}"`;
+  }
+  function newRowTag(id) {
+    return id === newRowId ? ' <span class="row-new-tag">New</span>' : '';
   }
 
   /* ════════════════════════════════════
@@ -869,6 +935,7 @@
       const data = await res.json();
       if (res.ok) {
         const verb = editingId !== null ? 'updated' : 'saved';
+        const isNew = editingId === null;
         showFeedback(`✅ Income record ${verb} successfully.`, 'success');
         if (window.CHECKSCAN && data && data.id) {
           try { await CHECKSCAN.afterSave(data.id); }
@@ -876,6 +943,7 @@
         }
         clearForm();
         await loadTransactions();
+        if (isNew && data && data.id) await revealNewRow(data.id);
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save income record.'}`, 'error');
       }
