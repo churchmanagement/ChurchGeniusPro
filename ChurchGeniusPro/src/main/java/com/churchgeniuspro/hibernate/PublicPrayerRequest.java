@@ -56,6 +56,10 @@ public class PublicPrayerRequest {
     @Column(name = "assigned_to", length = 150)
     private String assignedTo;
 
+    /** Church member assigned when they are not on the Prayer Team (2026-11-10); null otherwise. */
+    @Column(name = "assigned_member_id")
+    private Integer assignedMemberId;
+
     /** Linked Follow-Up record id (auto-created on submission). */
     @Column(name = "follow_up_id")
     private Long followUpId;

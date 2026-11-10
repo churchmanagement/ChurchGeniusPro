@@ -81,6 +81,22 @@
     .mg-fu { border-left:3px solid #673147; background:#faf7f9; padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:12.5px; }
     .mg-fu .meta { font-size:11px; color:#999; margin-top:3px; }
     @media (max-width:640px){ .mg-grid { grid-template-columns:1fr; } }
+    /* Manage window fields — same look as the page's other forms (2026-11-10) */
+    #mgBody select, #mgBody input[type="text"], #mgBody input[type="date"], #mgBody textarea {
+      border:1.5px solid #ddd; border-radius:8px; padding:9px 12px; font-size:14px; color:#333;
+      background-color:#fff; font-family:inherit; outline:none; min-height:42px; box-sizing:border-box;
+      transition:border-color .2s, box-shadow .2s; }
+    #mgBody textarea { min-height:64px; resize:vertical; width:100%; }
+    #mgBody select { appearance:none; -webkit-appearance:none; padding-right:36px; cursor:pointer;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23673147' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 12px center; }
+    #mgBody select:focus, #mgBody input:focus, #mgBody textarea:focus { border-color:#673147; box-shadow:0 0 0 3px rgba(103,49,71,.12); }
+    #mgBody select:disabled { background-color:#f5f5f5; color:#999; cursor:not-allowed; }
+    #mgBody input[type="text"] { width:100%; }
+    .mg-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .mg-row select { flex:1 1 220px; min-width:0; max-width:380px; }
+    .mg-assign-hint { font-size:12px; color:#777; margin-top:6px; }
+    .mg-assign-hint.err { color:#c62828; }
 
     /* ── Table card ── */
     .table-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
@@ -815,7 +831,7 @@
 <script>
 /* ════════ Connect With Us + Prayer Requests inside Follow-Ups ════════ */
 (function(){
-  var CONN=[], PRAY=[], ASSIGNEES=[], PVOLS=[], mgCur=null, mgKind=null;
+  var CONN=[], PRAY=[], ASSIGNEES=[], PASSIGN=[], PASSIGN_STATE='loading', mgCur=null, mgKind=null;
   function E(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function fdt(iso){ if(!iso) return '—'; var d=new Date(iso); return isNaN(d)?iso:d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
   function note(msg, ok){ try{ showFeedback(msg, ok?'success':'error'); }catch(e){ alert(msg); } }
@@ -931,10 +947,40 @@
     CGP_api('/api/followups/assignees').then(function(d){
       ASSIGNEES = Array.isArray(d) ? d : (d.assignees||[]);
     }).catch(function(){});
-    CGP_api('/api/ppr/volunteers').then(function(d){
-      PVOLS = Array.isArray(d) ? d : [];
-    }).catch(function(){});
+    loadPrayerAssignees();
   }
+  // Prayer Team + church members (2026-11-10; was the Prayer Team only, which stayed empty
+  // in a church without one, and a failed load was ignored).
+  function loadPrayerAssignees(){
+    PASSIGN_STATE = 'loading';
+    return CGP_api('/api/ppr/assignees').then(function(d){
+      PASSIGN = Array.isArray(d) ? d : []; PASSIGN_STATE = 'ok';
+    }).catch(function(e){ PASSIGN = []; PASSIGN_STATE = CGP_errorMessage(e, 'The list of people could not be loaded.'); })
+      .then(function(){ if (mgCur && mgKind==='prayer') mgRenderPrayerAssign(); });
+  }
+  function prayerOptions(cur){
+    var sel = cur.assignedVolunteerId ? 'v:'+cur.assignedVolunteerId : (cur.assignedMemberId ? 'm:'+cur.assignedMemberId : '');
+    var groups = {}, order = [];
+    PASSIGN.forEach(function(a){ if(!groups[a.group]){ groups[a.group]=[]; order.push(a.group); } groups[a.group].push(a); });
+    return order.map(function(g){
+      return '<optgroup label="'+E(g)+'">'+groups[g].map(function(a){
+        return '<option value="'+E(a.key)+'"'+(a.key===sel?' selected':'')+'>'+E(a.name)+(a.detail?' ('+E(a.detail)+')':'')+'</option>';
+      }).join('')+'</optgroup>';
+    }).join('');
+  }
+  function mgRenderPrayerAssign(){
+    var box = document.getElementById('mgAssignBox'); if (!box || !mgCur) return;
+    var busy = PASSIGN_STATE==='loading', failed = PASSIGN_STATE!=='ok' && !busy, empty = PASSIGN_STATE==='ok' && !PASSIGN.length;
+    box.innerHTML = '<div class="mg-row">'
+      +'<select id="mgAssign" aria-label="Assign volunteer or staff"'+(busy||failed||empty?' disabled':'')+'>'
+      +'<option value="">'+(busy?'Loading people…':(empty?'No volunteers or members yet':'— Select a person —'))+'</option>'+(busy||failed?'':prayerOptions(mgCur))+'</select>'
+      +'<button class="btn-primary" id="mgAssignBtn" onclick="mgAssign()"'+(busy||failed||empty?' disabled':'')+'>Assign</button>'
+      +(mgCur.assignedTo?' <button class="btn-secondary" id="mgUnassignBtn" onclick="mgUnassign()">Unassign</button>':'')+'</div>'
+      +(failed?'<div class="mg-assign-hint err">'+E(PASSIGN_STATE)+' <a href="#" onclick="event.preventDefault();loadPrayerAssignees();">Try again</a></div>'
+        :(empty?'<div class="mg-assign-hint">Add Prayer Team volunteers on the Prayer page, or members on the Families page.</div>'
+          :'<div class="mg-assign-hint">Prayer Team volunteers are listed first, then church members.</div>'));
+  }
+  window.loadPrayerAssignees = loadPrayerAssignees;
 
   /* ── Connect ── */
   function loadConnect(){
@@ -1098,19 +1144,21 @@
          ['Source',mgCur.source],['Share w/ Team',mgCur.shareWithTeam?'Yes':'No'],['Request',mgCur.requestText],['Assigned To',mgCur.assignedTo]];
     var opts = kind==='connect'
       ? ASSIGNEES.map(function(a){return '<option value="'+a.id+'" data-name="'+E(a.name)+'"'+(mgCur.assignedMemberId==a.id?' selected':'')+'>'+E(a.name)+(a.type?' ('+E(a.type)+')':'')+'</option>';}).join('')
-      : PVOLS.map(function(v){return '<option value="'+v.id+'"'+(mgCur.assignedVolunteerId==v.id?' selected':'')+'>'+E(v.name)+(v.role?' ('+E(v.role)+')':'')+'</option>';}).join('');
+      : '';
     var statuses = kind==='connect'
       ? ['New','Assigned','InProgress','Contacted','Closed'] : ['New','Assigned','InProgress','PrayedFor','FollowedUp','Closed'];
     document.getElementById('mgBody').innerHTML =
-      '<div class="mg-grid">'+g.map(function(p){return '<div class="k">'+E(p[0])+'</div><div>'+E(p[1]||'—')+'</div>';}).join('')+'</div>'
+      '<div class="mg-grid">'+g.map(function(p){return '<div class="k">'+E(p[0])+'</div><div'+(p[0]==='Assigned To'?' id="mgAssignedTo"':(p[0]==='Status'?' id="mgStatusVal"':''))+'>'+E(p[1]||'—')+'</div>';}).join('')+'</div>'
       +'<div class="mg-sect">Assign Volunteer / Staff</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
-      +'<select id="mgAssign" style="min-width:220px;"><option value="">— Select —</option>'+opts+'</select>'
-      +'<button class="btn-primary" onclick="mgAssign()">Assign</button>'
-      +(kind==='connect'?' <button class="btn-secondary" onclick="mgUnassign()">Unassign</button>':'')+'</div>'
+      +(kind==='connect'
+        ? '<div class="mg-row">'
+          +'<select id="mgAssign" aria-label="Assign volunteer or staff"><option value="">— Select a person —</option>'+opts+'</select>'
+          +'<button class="btn-primary" onclick="mgAssign()">Assign</button>'
+          +' <button class="btn-secondary" onclick="mgUnassign()">Unassign</button></div>'
+        : '<div id="mgAssignBox"></div>')
       +'<div class="mg-sect">Status</div>'
-      +'<div style="display:flex;gap:8px;align-items:center;">'
-      +'<select id="mgStatus">'+statuses.map(function(s){return '<option'+(mgCur.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'
+      +'<div class="mg-row">'
+      +'<select id="mgStatus" aria-label="Status">'+statuses.map(function(s){return '<option'+(mgCur.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'
       +'<button class="btn-primary" onclick="mgStatus()">Update</button></div>'
       +'<div class="mg-sect">'+(mgKind==='connect'?'Follow-Up History':'Activity & Notes')+'</div>'
       +'<div id="mgHist" style="max-height:200px;overflow-y:auto;"><span style="color:#999;font-size:12px;">Loading…</span></div>'
@@ -1123,6 +1171,7 @@
         +'</div>':'')
       +'<div><button class="btn-primary" onclick="mgAddNote()">'+(mgKind==='connect'?'+ Add Follow-Up':'+ Add Note')+'</button></div></div>';
     document.getElementById('mgOverlay').classList.add('open');
+    if (kind==='prayer') { mgRenderPrayerAssign(); if (PASSIGN_STATE!=='ok' && PASSIGN_STATE!=='loading') loadPrayerAssignees(); }
     mgLoadHist();
   };
   window.mgClose = function(){ document.getElementById('mgOverlay').classList.remove('open'); mgCur=null; };
@@ -1156,13 +1205,41 @@
     if(!mgCur) return;
     var sel=document.getElementById('mgAssign');
     if(!sel.value){ note('Choose a person first.', false); return; }
-    var p = mgKind==='connect'
-      ? post('/api/connect-admin/'+mgCur.id+'/assign', { memberId: sel.value, memberName: sel.selectedOptions[0].getAttribute('data-name') })
-      : post('/api/ppr/'+mgCur.id+'/assign', { volunteerId: sel.value });
-    p.then(function(res){ if(res.ok){ note('Assigned.', true); mgClose(); mgKind==='connect'?loadConnect():loadPrayer(); } else note(res.j.error||'Failed.', false); });
+    if (mgKind==='prayer') { prayerAssign(sel.value); return; }
+    var p = post('/api/connect-admin/'+mgCur.id+'/assign', { memberId: sel.value, memberName: sel.selectedOptions[0].getAttribute('data-name') });
+    p.then(function(res){ if(res.ok){ note('Assigned.', true); mgClose(); loadConnect(); } else note(res.j.error||'Failed.', false); });
   };
+  // Prayer: save, then show the saved row in the open window and in the table (no reload).
+  function prayerAssign(key){
+    var cur = mgCur, body = {};
+    if (key) { var kv = key.split(':'); body[kv[0]==='v' ? 'volunteerId' : 'memberId'] = kv[1]; }
+    var btns = ['mgAssignBtn','mgUnassignBtn'].map(function(i){ return document.getElementById(i); }).filter(Boolean);
+    btns.forEach(function(b){ b.disabled = true; });
+    var ab = document.getElementById('mgAssignBtn'); if (ab && key) ab.textContent = 'Assigning…';
+    post('/api/ppr/'+cur.id+'/assign', body).then(function(res){
+      if (!res.ok) throw new Error((res.j && res.j.error) || 'The assignment was not saved.');
+      var row = res.j && res.j.request;
+      if (row) {
+        ['assignedTo','assignedVolunteerId','assignedMemberId','status'].forEach(function(k){ cur[k] = row[k]; });
+        var i = PRAY.findIndex(function(x){ return x.id===cur.id; });
+        if (i >= 0 && PRAY[i] !== cur) ['assignedTo','assignedVolunteerId','assignedMemberId','status'].forEach(function(k){ PRAY[i][k] = row[k]; });
+      }
+      renderPrayer();
+      if (mgCur === cur) {
+        var at = document.getElementById('mgAssignedTo'); if (at) at.textContent = cur.assignedTo || '—';
+        var sv = document.getElementById('mgStatusVal'); if (sv) sv.textContent = cur.status || '—';
+        var ss = document.getElementById('mgStatus'); if (ss && cur.status) ss.value = cur.status;
+        mgRenderPrayerAssign(); mgLoadHist();
+      }
+      note(key ? 'Assigned to ' + (cur.assignedTo || 'the selected person') + '.' : 'Unassigned.', true);
+    }).catch(function(e){
+      note(CGP_errorMessage(e, 'The assignment was not saved.'), false);
+      if (mgCur === cur) mgRenderPrayerAssign();
+    });
+  }
   window.mgUnassign = function(){
-    if(!mgCur || mgKind!=='connect') return;
+    if(!mgCur) return;
+    if (mgKind==='prayer') { prayerAssign(''); return; }
     post('/api/connect-admin/'+mgCur.id+'/assign', {})
       .then(function(res){ if(res.ok){ note('Unassigned.', true); mgClose(); loadConnect(); } else note(res.j.error||'Failed.', false); })
       .catch(function(e){ note(CGP_errorMessage(e, 'Network error.'), false); });

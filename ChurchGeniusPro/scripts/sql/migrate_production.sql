@@ -2666,3 +2666,15 @@ CREATE TABLE IF NOT EXISTS entry_alert_setting (
     updated_at     TIMESTAMP,
     CONSTRAINT ux_entry_alert_login_role_kind UNIQUE (app_client_id, username, role, kind)
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2026-11-10: Prayer requests can be assigned to any church member, not only the
+-- Prayer Team (public_prayer_request.assigned_member_id). Additive, nullable;
+-- Hibernate adds it too. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'public_prayer_request') THEN
+        ALTER TABLE public_prayer_request ADD COLUMN IF NOT EXISTS assigned_member_id INTEGER;
+    END IF;
+END $$;
