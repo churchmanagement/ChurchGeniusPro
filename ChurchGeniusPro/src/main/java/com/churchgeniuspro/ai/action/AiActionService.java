@@ -370,6 +370,9 @@ public class AiActionService {
         Map<String, Object> m = base("action.done", "Done — " + p.getSummary().replaceFirst("\\.$", "") + ".");
         m.put("executed", true); m.put("proposalId", p.getId()); m.put("tool", p.getTool());
         if (result != null && result.get("link") instanceof Map<?, ?> link) m.put("link", link);
+        // 2026-11-09: a tool may give its own confirmation (income / expense: details + fund totals), shown only now that it is saved
+        if (result != null && result.get("answer") instanceof String text && !text.isBlank()) m.put("answer", text);
+        if (result != null && result.get("receipt") instanceof Map<?, ?> receipt) m.put("receipt", receipt);
         return m;
     }
 

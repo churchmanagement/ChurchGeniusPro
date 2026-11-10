@@ -919,7 +919,12 @@
   function cardBody(a, old){
     var pages=a.pages||[];
     var dis = old ? ' disabled aria-disabled="true" tabindex="-1"' : '';
-    var html='<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(a.answer||'')+'</div>';
+    // 2026-11-09: a saved entry shows its confirmation title (details below); an alerts question shows its
+    // sentence without the bullet lines (they are listed below as warnings).
+    var answerText = a.answer||'';
+    if (a.data && a.data.receipt && a.data.receipt.title) answerText = a.data.receipt.title;
+    else if (a.data && Array.isArray(a.data.alerts) && a.data.alerts.length) answerText = String(answerText).split('\n').filter(function(l){ return !/^\s*\u2022/.test(l); }).join(' ');
+    var html='<div class="ai-answer'+(a.data && a.data.denied ? ' ai-denied' : '')+'">'+esc(answerText)+'</div>';
     // Structured data answers (Phase B): a summary strip and/or a bounded table.
     if (a.data && !a.data.denied){
       var d=a.data;
@@ -975,6 +980,31 @@
         });
         html+='</ul>';
         if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.publicLinks.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open Public Screens for the full list.</div>';
+      }
+      // 2026-11-09: the login's own Income / Expense alerts that were triggered (warnings, not errors).
+      if (Array.isArray(d.alerts) && d.alerts.length){
+        html+='<ul class="aa-alerts" aria-label="Alerts">';
+        d.alerts.forEach(function(x){ html+='<li>'+esc((x && x.message) || '')+'</li>'; });
+        html+='</ul>';
+      }
+      // 2026-11-09: saved income / expense — what was saved and the fund total before and after (only when the
+      // server could read both reliably; otherwise its note says why no total is shown).
+      if (d.receipt && typeof d.receipt === 'object'){
+        var rc = d.receipt;
+        html+='<div class="aa-receipt" role="group" aria-label="Saved '+esc(rc.kind||'entry')+'">'
+          +'<div class="aa-receipt-h"><span class="aa-receipt-ok" aria-hidden="true">\u2713</span> Saved</div><dl class="aa-receipt-rows">';
+        (Array.isArray(rc.rows) ? rc.rows : []).forEach(function(r){ html+='<div><dt>'+esc(r.label||'')+'</dt><dd>'+esc(r.value||'')+'</dd></div>'; });
+        html+='</dl>';
+        if (rc.totals && typeof rc.totals === 'object'){
+          var t = rc.totals;
+          html+='<div class="aa-receipt-tot"><div class="aa-receipt-tl">'+esc(t.label||'Fund total')+'</div>'
+            +'<div class="aa-tot-row"><span>Previous total</span><span>'+esc(t.previous||'')+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-add"><span>'+esc(t.addedLabel||'Added')+'</span><span>+ '+esc(t.added||'')+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-new"><span>New total</span><span>'+esc(t.next||'')+'</span></div></div>';
+        } else if (rc.totalsNote){
+          html+='<div class="aa-receipt-note">'+esc(rc.totalsNote)+'</div>';
+        }
+        html+='</div>';
       }
       // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
       // The token is single-use on the server, so a double click cannot create two meetings.
@@ -1519,6 +1549,21 @@
       '.aa-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}',
       '.aa-choice{border:1.5px solid #c5a0b5;background:#fbf7f9;color:#673147;font-size:13px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer;min-height:34px;}',
       '.aa-choice:disabled,.aa-edit:disabled,.aa-open:disabled{opacity:.55;cursor:default;}',
+      '.aa-alerts{margin:10px 0 0;padding:8px 12px 8px 30px;border:1px solid #f0d9a8;background:#fff8e6;border-radius:9px;color:#7a5a12;font-size:13px;line-height:1.5;}',
+      '.aa-alerts li{margin:2px 0;}',
+      '.aa-receipt{margin-top:10px;border:1.5px solid #c8e6c9;background:#f4faf4;border-radius:10px;padding:10px 12px;font-size:13px;color:#24402a;}',
+      '.aa-receipt-h{font-weight:700;color:#2e7d32;margin-bottom:6px;}',
+      '.aa-receipt-ok{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#2e7d32;color:#fff;font-size:11px;margin-right:4px;}',
+      '.aa-receipt-rows{margin:0;display:grid;gap:3px;}',
+      '.aa-receipt-rows>div{display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);gap:8px;}',
+      '.aa-receipt-rows dt{color:#4e6a52;font-weight:600;}',
+      '.aa-receipt-rows dd{margin:0;overflow-wrap:anywhere;}',
+      '.aa-receipt-tot{margin-top:9px;padding-top:8px;border-top:1px dashed #b7d8b9;}',
+      '.aa-receipt-tl{font-weight:700;margin-bottom:4px;}',
+      '.aa-tot-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0;font-variant-numeric:tabular-nums;}',
+      '.aa-tot-add{color:#2e7d32;}',
+      '.aa-tot-new{font-weight:700;border-top:1px solid #b7d8b9;margin-top:3px;padding-top:4px;}',
+      '.aa-receipt-note{margin-top:8px;color:#5f6b61;font-size:12.5px;}',
       '.aa-fields{margin-top:10px;border:1px solid #eadfe6;border-radius:9px;overflow:hidden;}',
       '.aa-field{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid #f3edf0;font-size:13px;}',
       '.aa-field:first-child{border-top:none;}',

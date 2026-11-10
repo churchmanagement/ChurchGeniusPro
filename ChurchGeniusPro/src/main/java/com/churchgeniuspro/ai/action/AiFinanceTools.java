@@ -68,6 +68,48 @@ public final class AiFinanceTools {
     static String cap(String v, int n) { return v == null ? null : v.length() > n ? v.substring(0, n) : v; }
     static String opt(String v) { return v == null || v.isBlank() ? null : v.trim(); }
 
+    static final java.time.format.DateTimeFormatter US = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy");
+
+    /**
+     * 2026-11-09 — the saved-entry confirmation (spec §3): what was saved and the fund's total before and after.
+     * Totals are shown only when both were read and differ by exactly the saved amount — otherwise (another entry
+     * saved at the same moment, a lookup failure) the confirmation says the total could not be shown rather than
+     * showing a misleading figure.
+     */
+    static Map<String, Object> receipt(String kind, BigDecimal amount, java.util.List<String[]> rows,
+                                       String totalLabel, BigDecimal before, BigDecimal after) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        boolean income = "income".equals(kind);
+        r.put("kind", kind);
+        r.put("title", (income ? "Income of " : "Expense of ") + money(amount) + " was added successfully.");
+        java.util.List<Map<String, String>> list = new java.util.ArrayList<>();
+        for (String[] row : rows) if (row[1] != null && !row[1].isBlank()) list.add(Map.of("label", row[0], "value", row[1]));
+        r.put("rows", list);
+        if (before != null && after != null && after.subtract(before).compareTo(amount) == 0) {
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("label", totalLabel);
+            t.put("previous", money(before));
+            t.put("addedLabel", income ? "Added income" : "Added expense");
+            t.put("added", money(amount));
+            t.put("next", money(after));
+            r.put("totals", t);
+        } else {
+            r.put("totalsNote", "The fund total could not be shown reliably right now, so it is left out. The entry itself was saved.");
+        }
+        return r;
+    }
+
+    /** The plain-text version of the confirmation (voice, logs, older clients). */
+    static String receiptText(Map<String, Object> r) {
+        StringBuilder b = new StringBuilder(String.valueOf(r.get("title")));
+        Object rows = r.get("rows");
+        if (rows instanceof java.util.List<?> l) for (Object o : l) if (o instanceof Map<?, ?> m) b.append(" ").append(m.get("label")).append(": ").append(m.get("value")).append(".");
+        if (r.get("totals") instanceof Map<?, ?> t)
+            b.append(" ").append(t.get("label")).append(": previous ").append(t.get("previous")).append(", ")
+             .append(String.valueOf(t.get("addedLabel")).toLowerCase(Locale.ROOT)).append(" ").append(t.get("added")).append(", new total ").append(t.get("next")).append(".");
+        return b.toString();
+    }
+
     /* ─────────────────────────── create_income ─────────────────────────── */
     @Component
     public static class CreateIncome implements AiTool {
@@ -118,12 +160,22 @@ public final class AiFinanceTools {
         }
         public Map<String, Object> execute(Map<String, Object> r, String cid, String username) {
             Long memberId = l(r, "memberId");
+            BigDecimal amt = new BigDecimal(s(r, "amount"));
+            BigDecimal before = lookup.incomeFundTotal(cid, l(r, "fundId"));
             Income saved = incomes.createIncome(memberId == null ? null : memberId.intValue(), l(r, "fundId").intValue(), LocalDate.parse(s(r, "date")),
                     l(r, "methodId").intValue(), opt(s(r, "refNo")), new BigDecimal(s(r, "amount")), opt(s(r, "note")),
                     memberId == null ? opt(s(r, "guestName")) : null, false, cid, username);
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("incomeId", saved.getId());
             res.put("link", Map.of("label", "Open Income", "url", "/income"));
+            BigDecimal after = lookup.incomeFundTotal(cid, l(r, "fundId"));
+            Map<String, Object> receipt = receipt("income", amt, java.util.List.of(
+                    new String[]{"Contributor", s(r, "contributorLabel")}, new String[]{"Fund", s(r, "fundLabel")},
+                    new String[]{"Payment Method", s(r, "methodLabel")}, new String[]{"Transaction Date", US.format(LocalDate.parse(s(r, "date")))},
+                    new String[]{"Reference Number", opt(s(r, "refNo"))}),
+                    "Total income recorded to " + s(r, "fundLabel") + " (all dates)", before, after);
+            res.put("receipt", receipt);
+            res.put("answer", receiptText(receipt));
             return res;
         }
     }
@@ -172,11 +224,21 @@ public final class AiFinanceTools {
                  + " by " + r.get("methodLabel") + " on " + AiTools.D.format(LocalDate.parse(String.valueOf(r.get("date")))) + ".";
         }
         public Map<String, Object> execute(Map<String, Object> r, String cid, String username) {
+            BigDecimal amt = new BigDecimal(s(r, "amount"));
+            BigDecimal before = lookup.expenseFundTotal(cid, l(r, "fundId"));
             Expense saved = expenses.createExpense(l(r, "categoryId").intValue(), l(r, "fundId").intValue(), LocalDate.parse(s(r, "date")),
                     l(r, "methodId").intValue(), opt(s(r, "refNo")), new BigDecimal(s(r, "amount")), opt(s(r, "note")), false, cid, username);
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("expenseId", saved.getId());
             res.put("link", Map.of("label", "Open Expenses", "url", "/expense"));
+            BigDecimal after = lookup.expenseFundTotal(cid, l(r, "fundId"));
+            Map<String, Object> receipt = receipt("expense", amt, java.util.List.of(
+                    new String[]{"Expense Category", s(r, "categoryLabel")}, new String[]{"Fund", s(r, "fundLabel")},
+                    new String[]{"Payment Method", s(r, "methodLabel")}, new String[]{"Transaction Date", US.format(LocalDate.parse(s(r, "date")))},
+                    new String[]{"Reference Number", opt(s(r, "refNo"))}),
+                    "Total expenses paid from " + s(r, "fundLabel") + " (all dates)", before, after);
+            res.put("receipt", receipt);
+            res.put("answer", receiptText(receipt));
             return res;
         }
     }

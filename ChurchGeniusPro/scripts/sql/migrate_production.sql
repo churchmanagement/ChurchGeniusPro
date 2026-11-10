@@ -2642,3 +2642,27 @@ CREATE TABLE IF NOT EXISTS church_deletion_request (
 );
 CREATE INDEX IF NOT EXISTS idx_cdr_church ON church_deletion_request (church_client_id, status);
 CREATE INDEX IF NOT EXISTS idx_cdr_token  ON church_deletion_request (token_hash);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Income & Expense alerts (2026-11-09): each login's own warning thresholds, one row per
+-- church + login + role + kind. Additive; Hibernate creates the same table on start.
+-- No row = no alerts. Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS entry_alert_setting (
+    id             BIGSERIAL PRIMARY KEY,
+    app_client_id  VARCHAR(100)   NOT NULL,
+    username       VARCHAR(150)   NOT NULL,
+    role           VARCHAR(40)    NOT NULL,
+    kind           VARCHAR(10)    NOT NULL,
+    app_user_id    INTEGER,
+    future_enabled BOOLEAN        NOT NULL DEFAULT false,
+    future_days    INTEGER,
+    past_enabled   BOOLEAN        NOT NULL DEFAULT false,
+    past_days      INTEGER,
+    max_enabled    BOOLEAN        NOT NULL DEFAULT false,
+    max_amount     NUMERIC(15,2),
+    min_enabled    BOOLEAN        NOT NULL DEFAULT false,
+    min_amount     NUMERIC(15,2),
+    updated_at     TIMESTAMP,
+    CONSTRAINT ux_entry_alert_login_role_kind UNIQUE (app_client_id, username, role, kind)
+);

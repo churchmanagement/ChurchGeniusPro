@@ -394,7 +394,11 @@ class AiGuidedRecordTest {
         verify(openAi, times(1)).chatJson(sys.capture(), user.capture(), eq(0.0));
         assertThat(sys.getValue()).contains("Missions", "Building Fund", "Cash", "Zelle").doesNotContain("John Smith", "Mark Lee", "Mark Brooks");
         assertThat(user.getValue()).isEqualTo("forty five bucks for the missionaries");
-        assertThat(m.get("asking")).as("amount + fund taken; \"Venmo\" is not a method of this church").isEqualTo("date");
+        // 2026-11-09 (spec §4): the model may read the fund, never the amount — "forty five bucks" is not a numeric amount
+        assertThat(m.get("asking")).as("fund taken; amount refused; \"Venmo\" is not a method of this church").isEqualTo("amount");
+        assertThat(m.get("answer")).isEqualTo("The amount is invalid. Please enter a valid numeric amount, such as $100.");
+        m = say(r, "45");
+        assertThat(m.get("asking")).isEqualTo("date");
         m = say(r, "today"); m = say(r, "cash"); m = say(r, "skip");
         assertThat(summary(m)).containsEntry("Amount", "$45.00").containsEntry("Fund", "Missions").containsEntry("Contributor", "John Smith");
         // a contributor the model names but the user never wrote is ignored

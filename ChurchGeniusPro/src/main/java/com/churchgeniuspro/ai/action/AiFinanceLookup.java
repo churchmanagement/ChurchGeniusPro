@@ -110,4 +110,39 @@ public class AiFinanceLookup {
                 new MapSqlParameterSource().addValue("cid", cid).addValue("d", date).addValue("a", amount).addValue("p", categoryId).addValue("f", fundId), Integer.class);
         return n == null ? 0 : n;
     }
+
+    // ── fund totals for the saved-entry confirmation (2026-11-09) ───────────────
+    /*
+     * Same rule as the fund totals on the Accountant dashboard (ledger_month_summary, kept by the V5 triggers):
+     * every ACTIVE row (delete_flag = false) of this church, all dates — income per fund (sub-fund), expense per
+     * fund it is paid from (main fund). Read straight from the ledger so the figure includes the row just saved
+     * in the same transaction. Null when it cannot be read (the confirmation then shows no totals).
+     */
+
+    /** Writes the JPA changes of the current transaction (the row just saved) so the ledger query sees them. */
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager em;
+    private void flushPending() {
+        try { if (em != null && em.isJoinedToTransaction()) em.flush(); } catch (RuntimeException ignore) { /* read what is there */ }
+    }
+
+    /** Total of all active income of this church recorded to the fund (sub-fund). */
+    public BigDecimal incomeFundTotal(String cid, long fundId) {
+        if (blank(cid)) return null;
+        flushPending();
+        try {
+            return jdbc.queryForObject("SELECT COALESCE(SUM(i.amount), 0) FROM income i WHERE i.app_client_id = :cid AND i.delete_flag = false "
+                + "AND i.sub_source_id = :f", new MapSqlParameterSource().addValue("cid", cid).addValue("f", fundId), BigDecimal.class);
+        } catch (RuntimeException e) { return null; }
+    }
+
+    /** Total of all active expenses of this church paid from the fund (main fund). */
+    public BigDecimal expenseFundTotal(String cid, long fundId) {
+        if (blank(cid)) return null;
+        flushPending();
+        try {
+            return jdbc.queryForObject("SELECT COALESCE(SUM(e.amount), 0) FROM expense e WHERE e.app_client_id = :cid AND e.delete_flag = false "
+                + "AND e.main_source_id = :f", new MapSqlParameterSource().addValue("cid", cid).addValue("f", fundId), BigDecimal.class);
+        } catch (RuntimeException e) { return null; }
+    }
 }

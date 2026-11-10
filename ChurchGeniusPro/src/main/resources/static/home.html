@@ -989,6 +989,7 @@ window.CGP_applyPerms = function(p) {
 };
 window.CGP_PAGE = { activePage: '', pageTitle: 'Home', openSection: '', customTopbar: true };
 </script>
+<script src="/entry-alerts.js"></script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
 <script src="/voice-openai.js"></script>
@@ -2468,6 +2469,20 @@ function resetQaiRow(id) {
   if (msg) { msg.style.display = 'none'; }
 }
 
+/* 2026-11-09: a new income / expense from the quick add goes through the login's own alerts like the Income /
+   Expense pages — on 409 ENTRY_ALERTS the reasons are shown and it is sent again only after "Save anyway". */
+async function quickAddPost(url, payload, noun) {
+  const send = body => CGP_api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  try { return await send(payload); }
+  catch (e) {
+    if (e && e.status === 409 && e.body && e.body.code === 'ENTRY_ALERTS' && Array.isArray(e.body.alerts) && window.CGP_entryAlerts) {
+      if (!(await CGP_entryAlerts.review(e.body.alerts, noun))) { const c = new Error('Not saved.'); c.cancelled = true; throw c; }
+      return await send(Object.assign({}, payload, { alertsConfirmed: true }));
+    }
+    throw e;
+  }
+}
+
 async function submitQuickAddIncome(templateId) {
   const template = quickAddIncomeTemplates.find(t => t.id === templateId);
   if (!template) return;
@@ -2487,12 +2502,8 @@ async function submitQuickAddIncome(templateId) {
   if (!confirm('Do you want to add this contribution?')) return;
   btn.disabled = true; btn.textContent = '…';
   try {
-    await CGP_api('/api/income', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: template.memberId, subSourceId: template.subSourceId,
-        incomeDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
-    });
+    await quickAddPost('/api/income', { memberId: template.memberId, subSourceId: template.subSourceId,
+        incomeDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false }, 'income');
     {
       btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
       if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
@@ -2502,7 +2513,7 @@ async function submitQuickAddIncome(templateId) {
       await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
     }
   } catch(e) {
-    alert(CGP_errorMessage(e, 'Failed to save income.'));
+    if (!(e && e.cancelled)) alert(CGP_errorMessage(e, 'Failed to save income.'));
     btn.disabled = false; btn.textContent = 'Add';
   }
 }
@@ -2616,12 +2627,8 @@ async function submitQuickAddExpense(templateId) {
   if (!confirm('Do you want to add this expense?')) return;
   btn.disabled = true; btn.textContent = '…';
   try {
-    await CGP_api('/api/expense', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purposeId: template.purposeId, mainSourceId: template.mainSourceId,
-        expenseDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false })
-    });
+    await quickAddPost('/api/expense', { purposeId: template.purposeId, mainSourceId: template.mainSourceId,
+        expenseDate, transactionTypeId: template.transactionTypeId, refNo: refNo || null, note, amount, quickAdd: false }, 'expense');
     {
       btn.textContent = '✓ Added'; btn.style.background = '#66bb6a';
       if (amtEl)  amtEl.value  = template.amount != null ? Number(template.amount).toFixed(2) : '';
@@ -2631,7 +2638,7 @@ async function submitQuickAddExpense(templateId) {
       await Promise.all([refreshRecentTxns(), refreshNetBalance()]);
     }
   } catch(e) {
-    alert(CGP_errorMessage(e, 'Failed to save expense.'));
+    if (!(e && e.cancelled)) alert(CGP_errorMessage(e, 'Failed to save expense.'));
     btn.disabled = false; btn.textContent = 'Add';
   }
 }

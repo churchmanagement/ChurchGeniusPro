@@ -5,6 +5,8 @@ import com.churchgeniuspro.model.PageSlice;
 import com.churchgeniuspro.service.DuplicateImportException;
 import com.churchgeniuspro.service.IncomeService;
 import com.churchgeniuspro.util.MoneyAmounts;
+import com.churchgeniuspro.entryalert.EntryAlertService;
+import com.churchgeniuspro.util.AppClock;
 import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +51,26 @@ import java.util.Map;
  */
 @Controller
 public class IncomeController {
+
+    /**
+     * 2026-11-09 — the login's own Income / Expense alerts (shared with the Genius Assistant). Optional so the
+     * hand-built controllers of older tests keep working without it (= no alerts).
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private EntryAlertService entryAlerts;
+
+    /**
+     * A new entry that raises one of the login's alerts is not saved until the user confirms
+     * ({@code alertsConfirmed:true}): 409 {@code ENTRY_ALERTS} with the reasons. Null = go ahead.
+     */
+    private ResponseEntity<Map<String, Object>> alertsFirst(Map<String, Object> body, HttpServletRequest request,
+                                                            LocalDate date, BigDecimal amount) {
+        if (entryAlerts == null || Boolean.TRUE.equals(body.get("alertsConfirmed"))) return null;
+        List<EntryAlertService.Alert> alerts = entryAlerts.check(EntryAlertService.owner(request),
+                EntryAlertService.Kind.INCOME, date, amount, AppClock.today());
+        if (alerts.isEmpty()) return null;
+        return ResponseEntity.status(409).body(EntryAlertService.conflictBody(EntryAlertService.Kind.INCOME, alerts));
+    }
 
     /** Largest amount the ledger column (numeric(15,2)) can hold. */
     public static final BigDecimal AMOUNT_MAX = new BigDecimal("9999999999999.99");
@@ -165,6 +187,9 @@ public class IncomeController {
                 return bad("Amount must be greater than zero.");
             if (amount.compareTo(AMOUNT_MAX) > 0)
                 return bad("Amount is too large (maximum " + AMOUNT_MAX.toPlainString() + ").");
+
+            ResponseEntity<Map<String, Object>> held = alertsFirst(body, request, incomeDate, amount);
+            if (held != null) return held;
 
             String createdBy   = SessionUtil.getUsername(request);
             Income saved = incomeService.createIncome(

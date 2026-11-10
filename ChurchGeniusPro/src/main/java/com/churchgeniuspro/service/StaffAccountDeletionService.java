@@ -76,6 +76,10 @@ public class StaffAccountDeletionService {
         this.notifications = notifications; this.email = email; this.jdbc = jdbc;
     }
 
+    /** 2026-11-09 — the login's own Income / Expense alert settings are removed with it (optional for older tests). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.EntryAlertSettingRepository entryAlerts;
+
     public record Outcome(boolean ok, int status, String code, String error, String email, String name) {
         static Outcome fail(int status, String code, String error) { return new Outcome(false, status, code, error, null, null); }
     }
@@ -157,6 +161,7 @@ public class StaffAccountDeletionService {
             favorites.findByClientIdAndUserRefOrderBySortOrderAscIdAsc(appClientId, "user:" + username).forEach(favorites::delete);
             dashboardPrefs.findByUsernameAndClientId(username, appClientId).ifPresent(dashboardPrefs::delete);
             tipState.findByClientIdAndUsername(appClientId, username).forEach(tipState::delete);
+            if (entryAlerts != null) entryAlerts.deleteForLogin(appClientId, username);
         }
 
         // 4. Tell the church owner (bell on /viewusers) — never blocks.

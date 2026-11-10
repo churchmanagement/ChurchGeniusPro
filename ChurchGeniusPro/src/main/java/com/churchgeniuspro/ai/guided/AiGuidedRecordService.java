@@ -73,6 +73,11 @@ public class AiGuidedRecordService {
         this.access = access; this.actions = actions; this.people = people; this.lookup = lookup; this.openAi = openAi;
     }
 
+    /** 2026-11-09 — the login's own Income / Expense alerts, the same service the Income / Expense pages use. */
+    private com.churchgeniuspro.entryalert.EntryAlertService entryAlerts;
+    @Autowired(required = false)
+    public void setEntryAlerts(com.churchgeniuspro.entryalert.EntryAlertService entryAlerts) { this.entryAlerts = entryAlerts; }
+
     // ── draft ─────────────────────────────────────────────────────────────────
 
     static final class Draft implements java.io.Serializable {
@@ -85,6 +90,10 @@ public class AiGuidedRecordService {
         String amount; LocalDate date;
         String refNo; String note;
         boolean futureConfirmed, optionalAsked, reviewOffered, oneShot, duplicateConfirmed;
+        /** 2026-11-09: the user chose to continue despite their own Income / Expense alerts (reset by any correction). */
+        boolean alertsConfirmed;
+        /** 2026-11-09: what was wrong with the last value given (said once, before the question for that field). */
+        String problem; String problemField; String suggestedDate;
         /** The question just asked: contributor, guestConfirm, amount, fund, category, date, futureDate, method, refNo, note, duplicate. */
         String asked;
         List<String> choices; List<Long> choiceIds;
@@ -140,6 +149,20 @@ public class AiGuidedRecordService {
     static final Pattern FILLER = Pattern.compile(
         "(?i)\\b(please|create|add|record|enter|log|post|make|new|an?|the|another|one|income|expense|donation|offering|contribution|gift|entry|record|transaction|"
         + "from|to|for|by|via|using|on|in|into|with|paid|through|towards?|of|it|was|is|and|fund|dated|today|i|want|need|would|like|can|could|you|let'?s|me|help|s)\\b");
+
+    /** 2026-11-09 — the exact sentences of the spec (§4). */
+    static final String AMOUNT_INVALID = "The amount is invalid. Please enter a valid numeric amount, such as $100.";
+    static final String DATE_INVALID = "The date format is invalid. Please enter the date in MM/DD/YYYY format.";
+    static final DateTimeFormatter US = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    /** "income of Anson", "an expense of rent", "amount is fifty", "$abc" — an amount was meant but no number was given. */
+    static final Pattern AMOUNT_WORDS = Pattern.compile(
+        "(?i)\\b(?:(?:income|expense|donation|offering|contribution|gift|tithe)s?\\s+of|amount\\s+(?:of|is|was|=|:))\\s+(?!\\$?\\s*\\d)\\S"
+        + "|\\$\\s*(?!\\d)\\p{L}");
+    /** A negative amount ("-50", "$-50", "- $50") — refused, never read as 50. */
+    static final Pattern AMOUNT_NEGATIVE = Pattern.compile("(?<![\\w$/.-])-\\s*\\$?\\s*\\d|\\$\\s*-\\s*\\d");
+    /** "to the Mission Fund" — a fund named in the text (checked only when none of the church's funds matched). */
+    static final Pattern FUND_NAMED = Pattern.compile(
+        "(?i)\\b(?:to|for|into|in|on|from|under)\\s+(?:the\\s+|our\\s+)?((?:[\\p{L}\\p{N}'&-]+\\s+){1,4})fund\\b");
 
     // ── entry point ───────────────────────────────────────────────────────────
 
@@ -248,7 +271,7 @@ public class AiGuidedRecordService {
     private Map<String, Object> answer(HttpServletRequest req, HttpSession session, Draft d, String q, LocalDate today) {
         String asked = d.asked == null ? "" : d.asked;
         String t = q.replaceAll("[.!]+$", "").trim();
-        if (QUESTION.matcher(q).find() && !asked.matches("guestConfirm|futureDate|duplicate")) return null;   // another question — the draft waits
+        if (QUESTION.matcher(q).find() && !asked.matches("guestConfirm|futureDate|duplicate|alerts")) return null;   // another question — the draft waits
         switch (asked) {
             case "guestConfirm" -> {
                 if (YES.matcher(q).matches() || t.toLowerCase(Locale.ROOT).startsWith("yes")) {
@@ -259,6 +282,14 @@ public class AiGuidedRecordService {
                 }
                 d.pendingGuest = null;
                 if (contributor(d, t)) return advance(req, session, d);
+            }
+            case "alerts" -> {
+                // 2026-11-09: the login's own alerts were shown — continue only on an explicit yes
+                if (YES.matcher(q).matches() || t.toLowerCase(Locale.ROOT).matches("^(yes|continue|keep|save anyway|review|go ahead|proceed).*")) {
+                    d.alertsConfirmed = true; return advance(req, session, d);
+                }
+                if (NO.matcher(q).matches()) return cancel(req, session, d);
+                return null;
             }
             case "futureDate", "duplicate" -> {
                 boolean keep = YES.matcher(q).matches() || t.toLowerCase(Locale.ROOT).matches("^(yes|keep|save anyway|use it).*");
@@ -288,6 +319,9 @@ public class AiGuidedRecordService {
             filled |= contributor(d, name);
         }
         if (!filled && llmFallback) filled = llmFill(d, q, today, asked);
+        // 2026-11-09: an answer to "What is the amount?" with no valid number is said to be invalid — never guessed
+        // (the model may still read names from the reply, but never the amount)
+        if ("amount".equals(asked) && d.amount == null && d.problem == null) { d.problem = AMOUNT_INVALID; d.problemField = "amount"; filled = true; }
         if (!filled) {
             Map<String, Object> m = advance(req, session, d);
             m.put("answer", "I couldn't match “" + cap(t, 60) + "”. " + m.get("answer"));
@@ -325,6 +359,7 @@ public class AiGuidedRecordService {
             else return false;
         }
         d.duplicateConfirmed = false;
+        d.alertsConfirmed = false;
         if (field.matches("contributor|giver|donor|name|member|guest|from")) {
             if (d.kind != Kind.INCOME) return false;
             d.memberId = null; d.guestName = null; d.contributorLabel = null; d.pendingGuest = null;
@@ -339,10 +374,17 @@ public class AiGuidedRecordService {
             if (!value.isEmpty()) pickCategory(d, value);
         } else if (field.matches("amount|total")) {
             d.amount = null; d.asked = "amount";
-            if (!value.isEmpty()) { BigDecimal a = amountOf(value, true); if (a != null) d.amount = a.toPlainString(); }
+            if (!value.isEmpty()) {
+                BigDecimal a = amountOf(value, true);
+                if (a != null) d.amount = a.toPlainString(); else { d.problem = AMOUNT_INVALID; d.problemField = "amount"; }
+            }
         } else if (field.matches("date|day")) {
             d.date = null; d.futureConfirmed = false; d.asked = "date";
-            if (!value.isEmpty()) { Parsed p = parseDate(value, today); if (p != null) d.date = p.date; }
+            if (!value.isEmpty()) {
+                String[] bad = badDate(value, today);
+                if (bad != null) setDateProblem(d, bad);
+                else { Parsed p = parseDate(value, today); if (p != null) d.date = p.date; }
+            }
         } else if (field.matches("method|payment method|payment")) {
             d.methodId = null; d.methodLabel = null; d.asked = "method";
             if (!value.isEmpty()) pickMethod(d, value);
@@ -375,25 +417,47 @@ public class AiGuidedRecordService {
         }
         // date
         if (d.date == null) {
-            Parsed p = parseDate(rest, today);
-            if (p != null) { d.date = p.date; rest = p.rest; any = true; }
+            String[] bad = badDate(rest, today);
+            if (bad != null) { setDateProblem(d, bad); rest = rest.replace(bad[0], " "); any = true; }   // never read as another date
+            else {
+                Parsed p = parseDate(rest, today);
+                if (p != null) { d.date = p.date; rest = p.rest; any = true; }
+            }
         }
         // amount
         if (d.amount == null) {
             BigDecimal a = null; Matcher m;
-            if ((m = AMOUNT_CUR.matcher(rest)).find() || (m = AMOUNT_WORD.matcher(rest)).find() || (m = AMOUNT_LEAD.matcher(text)).find()
+            boolean seen = false;
+            if (AMOUNT_NEGATIVE.matcher(rest).find()) seen = true;           // "-50" is invalid, never read as 50
+            else if ((m = AMOUNT_CUR.matcher(rest)).find() || (m = AMOUNT_WORD.matcher(rest)).find() || (m = AMOUNT_LEAD.matcher(text)).find()
                     || (m = AMOUNT_OF.matcher(rest)).find()) {
-                a = number(m.group(1));
+                a = number(m.group(1)); seen = true;
                 if (m.pattern() != AMOUNT_LEAD) rest = cut(rest, m);
             } else if ("amount".equals(asked) && (m = AMOUNT_BARE.matcher(rest)).matches()) {
-                a = number(m.group(1)); rest = " ";
+                a = number(m.group(1)); rest = " "; seen = true;
             }
+            if (a == null && !seen && AMOUNT_WORDS.matcher(rest).find()) seen = true;   // "income of Anson", "$abc" — never a guess
             if (a != null) { d.amount = a.toPlainString(); any = true; }
+            else if (seen) { d.problem = AMOUNT_INVALID; d.problemField = "amount"; any = true; }
         }
         // method, funds, category (the church's own names, longest first, whole words)
         if (d.methodId == null) { String hit = pickMethod(d, rest); if (hit != null) { rest = removeWords(rest, hit); any = true; } }
         if (d.kind == Kind.EXPENSE && d.categoryId == null) { String hit = pickCategory(d, rest); if (hit != null) { rest = removeWords(rest, hit); any = true; } }
-        if (d.fundId == null) { String hit = pickFund(d, rest); if (hit != null) { rest = removeWords(rest, hit); any = true; } }
+        if (d.fundId == null) {
+            String hit = pickFund(d, rest);
+            if (hit != null) { rest = removeWords(rest, hit); any = true; }
+            else if (d.problem == null) {
+                // 2026-11-09: a fund was named but it is not one of this church's — said, never guessed
+                Matcher fm = FUND_NAMED.matcher(rest);
+                if (fm.find()) {
+                    String named = fm.group(1).trim();
+                    if (!named.matches("(?i)(?:the|a|an|this|that|which|any|some|my|our|its|income|expense|expenses|same|other|another|one)")) {
+                        d.problem = "I couldn't find a fund called “" + cap(named, 60) + " Fund” in this church's funds.";
+                        d.problemField = "fund"; any = true;
+                    }
+                }
+            }
+        }
         // contributor
         if (d.kind == Kind.INCOME && d.memberId == null && d.guestName == null && d.pendingGuest == null) {
             Matcher g = GUEST_WORDS.matcher(rest);
@@ -532,6 +596,34 @@ public class AiGuidedRecordService {
         return out;
     }
 
+    // ── 2026-11-09: invalid values (spec §4) ──────────────────────────────────
+
+    /**
+     * A date written with slashes (or as YYYY-MM-DD) that is not a real MM/DD/YYYY date — "30/11/2026", "13/45",
+     * "02/30/2026". Returns {the text as written, the MM/DD/YYYY reading with day and month swapped when THAT is a
+     * real date (else null)}; null when every such date in the text is valid. Never fixes it silently.
+     */
+    public static String[] badDate(String text, LocalDate today) {
+        Matcher m = SLASH.matcher(text);
+        while (m.find()) {
+            int a = i(m.group(1)), b = i(m.group(2));
+            int y = m.group(3) == null ? -1 : i(m.group(3)); if (y >= 0 && y < 100) y += 2000;
+            if (md(a, b, y, today) != null) continue;
+            LocalDate swapped = md(b, a, y, today);
+            return new String[]{m.group(), swapped == null ? null : US.format(swapped)};
+        }
+        Matcher iso = ISO.matcher(text);
+        while (iso.find()) {
+            if (safe(i(iso.group(1)), i(iso.group(2)), i(iso.group(3))) == null) return new String[]{iso.group(), null};
+        }
+        return null;
+    }
+
+    private static void setDateProblem(Draft d, String[] bad) {
+        d.problem = DATE_INVALID + (bad[1] != null ? " Did you mean " + bad[1] + "?" : "");
+        d.problemField = "date"; d.suggestedDate = bad[1];
+    }
+
     // ── the next step ─────────────────────────────────────────────────────────
 
     static List<String> missing(Draft d) {
@@ -549,7 +641,32 @@ public class AiGuidedRecordService {
         return "Who is the income from? Give a member's name, or a guest name (Anonymous and Loose Offering are fine).";
     }
 
+    /**
+     * The next step. 2026-11-09: when the last value given was invalid (date, amount, unknown fund) that field is
+     * asked first and the question starts with what was wrong; the rest of the request is kept.
+     */
     Map<String, Object> advance(HttpServletRequest req, HttpSession session, Draft d) {
+        String problem = d.problem, field = d.problemField, suggested = d.suggestedDate;
+        d.problem = null; d.problemField = null; d.suggestedDate = null;
+        if (problem != null && field != null && !missing(d).contains(field)) problem = null;    // fixed meanwhile
+        Map<String, Object> m = advanceInner(req, session, d, problem == null ? null : field);
+        if (problem != null && field.equals(m.get("asking"))) {
+            String question = String.valueOf(m.get("answer"));
+            m.put("answer", field.equals("fund") ? problem + " " + question : problem);
+            m.put("invalid", field);
+            if (field.equals("date")) {
+                List<String> ch = new ArrayList<>();
+                if (suggested != null) ch.add(suggested);
+                ch.add("Today");
+                m.put("choices", ch);
+                d.choices = new ArrayList<>(ch);
+                session.setAttribute(SESSION_KEY, d);
+            }
+        }
+        return m;
+    }
+
+    private Map<String, Object> advanceInner(HttpServletRequest req, HttpSession session, Draft d, String first) {
         LocalDate today = AppClock.today();
         d.created = Instant.now();
         // an open contributor question (several members / record as a guest?) comes first
@@ -563,6 +680,7 @@ public class AiGuidedRecordService {
             }
         }
         List<String> miss = missing(d);
+        if (first != null && miss.remove(first)) miss.add(0, first);
         if (!miss.isEmpty()) {
             String f = miss.get(0);
             switch (f) {
@@ -600,6 +718,29 @@ public class AiGuidedRecordService {
         if (d.date.isAfter(today) && !d.futureConfirmed) {
             return ask(session, d, "futureDate", D.format(d.date) + " is in the future. Do you want to record the " + d.noun() + " on that date anyway, or use a different date?",
                 List.of("Yes, keep " + D.format(d.date), "Use a different date"));
+        }
+        // 2026-11-09: the login's own Income / Expense alerts — the same check the Income / Expense pages make;
+        // asked as soon as the date and amount are known (before the optional fields and the review)
+        if (!d.alertsConfirmed && entryAlerts != null) {
+            List<com.churchgeniuspro.entryalert.EntryAlertService.Alert> alerts = entryAlerts.check(
+                com.churchgeniuspro.entryalert.EntryAlertService.owner(req),
+                d.kind == Kind.INCOME ? com.churchgeniuspro.entryalert.EntryAlertService.Kind.INCOME : com.churchgeniuspro.entryalert.EntryAlertService.Kind.EXPENSE,
+                d.date, amt, today);
+            if (!alerts.isEmpty()) {
+                StringBuilder b = new StringBuilder("Please check this " + d.noun() + " before saving — " + (alerts.size() == 1 ? "one of your alerts was" : alerts.size() + " of your alerts were") + " triggered:");
+                for (var a : alerts) b.append("\n• ").append(a.message());
+                b.append("\nDo you want to continue to the review, or change it?");
+                List<String> ch = new ArrayList<>(List.of("Yes, continue to review"));
+                boolean dateAlert = alerts.stream().anyMatch(a -> a.code().endsWith("DATE"));
+                boolean amountAlert = alerts.stream().anyMatch(a -> a.code().startsWith("AMOUNT"));
+                if (dateAlert) ch.add("Change the date");
+                if (amountAlert) ch.add("Change the amount");
+                ch.add("Cancel");
+                Map<String, Object> m = ask(session, d, "alerts", b.toString(), ch);
+                m.put("alerts", alerts.stream().map(com.churchgeniuspro.entryalert.EntryAlertService.Alert::toMap).toList());
+                m.put("question", "Please check this " + d.noun() + " before saving. Do you want to continue to the review, or change it?");
+                return m;
+            }
         }
         if (!d.optionalAsked && d.refNo == null && d.note == null) {
             d.optionalAsked = true;
@@ -767,8 +908,8 @@ public class AiGuidedRecordService {
             JsonNode n = openAi.chatJson(system, cap(text, 500), 0);
             if (n == null || !n.isObject()) return false;
             boolean any = false;
-            if (d.amount == null && n.hasNonNull("amount")) { BigDecimal a = number(n.get("amount").asText()); if (a != null) { d.amount = a.toPlainString(); any = true; } }
-            if (d.date == null && n.hasNonNull("date")) { try { d.date = LocalDate.parse(n.get("date").asText()); any = true; } catch (Exception ignore) { } }
+            // 2026-11-09 (spec §4 "never guess an amount or a date"): the model never supplies the amount or the date —
+            // those come only from the rules, and an unclear one is asked for.
             if (d.fundId == null && n.hasNonNull("fund")) any |= exact(fundList(d), n.get("fund").asText(), h -> { d.fundId = h.id(); d.fundLabel = h.label(); });
             if (d.methodId == null && n.hasNonNull("method")) any |= exact(methodList(d), n.get("method").asText(), h -> { d.methodId = h.id(); d.methodLabel = h.label(); });
             if (d.kind == Kind.EXPENSE && d.categoryId == null && n.hasNonNull("category"))

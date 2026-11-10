@@ -720,11 +720,13 @@
      NEW ROW — highlight the record just added
   ════════════════════════════════════ */
   /* The list keeps its normal date order. After an add, the new row is found where that
-     order puts it (fetching further server pages if it is dated earlier), revealed with
+     order puts it (fetching the next server page if it is dated earlier), revealed with
      Load More's own counter, scrolled into view and tinted for NEW_ROW_MS, then the tint
-     fades. Nothing is re-sorted and no date is changed. */
-  const NEW_ROW_MS        = 8000;
-  const NEW_ROW_MAX_PAGES = 20;     // look at most this many server pages (20 × PAGE_SIZE rows)
+     fades. Nothing is re-sorted and no date is changed.
+     2026-11-09: only within the FIRST NEW_ROW_LIMIT entries of the sorted list — an older
+     entry is not highlighted or moved; a message says it is further down the list. */
+  const NEW_ROW_MS    = 8000;
+  const NEW_ROW_LIMIT = 100;        // highlight only when the new row is among the first 100 entries
   let newRowId    = null;
   let newRowTimer = null;
 
@@ -733,18 +735,19 @@
     newRowId = null;
   }
 
-  async function revealNewRow(id) {
+  async function revealNewRow(id, dateStr) {
     clearNewRow();
     id = Number(id);
     if (!id) return;
     let idx = allExpenses.findIndex(r => r.id === id);
-    for (let p = 1; idx < 0 && serverHasMore && p < NEW_ROW_MAX_PAGES; p++) {
+    while (idx < 0 && serverHasMore && allExpenses.length < NEW_ROW_LIMIT) {
       if (!(await fetchExpensePage())) break;
       idx = allExpenses.findIndex(r => r.id === id);
     }
-    if (idx < 0) {
+    if (idx < 0 || idx >= NEW_ROW_LIMIT) {
       renderTable();
-      showFeedback('✅ Expense saved. It is further down the list (by its date) — use Load More to see it.', 'success');
+      showFeedback(`✅ ${'Expense'} saved. It is an older transaction${dateStr ? ' (dated ' + formatDate(dateStr) + ')' : ''}, `
+        + 'so it is further down the list, past the first ' + NEW_ROW_LIMIT + ' entries — use Load More to find it.', 'success');
       return;
     }
     visibleExpenseCount = Math.max(visibleExpenseCount, Math.ceil((idx + 1) / 10) * 10);
@@ -804,12 +807,20 @@
     btn.textContent = isEdit ? '⏳ Updating…' : '⏳ Saving…';
 
     try {
-      const res  = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
+      let res, data;
+      if (!isEdit && window.CGP_entryAlerts) {
+        // 2026-11-09: the login's own alerts — the server holds the entry and the user decides
+        const r = await CGP_entryAlerts.post(url, payload, { noun: 'expense' });
+        if (r.cancelled) { showFeedback('⚠️ Not saved yet — review the entry, then press Save again.', 'error'); return; }
+        res = r.res; data = r.data;
+      } else {
+        res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        data = await res.json();
+      }
       if (res.ok) {
         showFeedback(`✅ ${data.message}`, 'success');
         if (window.CHECKSCAN && data && data.id) {
@@ -818,7 +829,7 @@
         }
         clearForm();
         await loadExpenses();
-        if (!isEdit && data && data.id) await revealNewRow(data.id);
+        if (!isEdit && data && data.id) await revealNewRow(data.id, payload.expenseDate);
       } else {
         showFeedback(`❌ ${data.error || 'Failed to save expense.'}`, 'error');
       }
@@ -1381,11 +1392,15 @@ window.CHECKSCAN = (function () {
 <script src="/voice-core.js"></script>
 <script src="/voice-openai.js"></script>
 <script src="/expense-voice.js"></script>
+<script src="/entry-alerts.js"></script>
 <script src="/form-collapse.js"></script>
 <script>
   // Minimise / expand the entry form (display only; 2026-11-03).
   document.addEventListener('DOMContentLoaded', function () {
     CGP_formCollapse.init({ card: 'expenseFormCard', head: '.form-card-head', key: 'expense', label: 'Expense form' });
+    // 2026-11-09: this login's own alert settings (hidden when the login cannot add expense)
+    if (window.CGP_entryAlerts && !(window.CGP_PERMS && window.CGP_PERMS['accounting.expense.edit'] === false))
+      CGP_entryAlerts.mountSettings({ kind: 'expense', anchor: 'expenseFormCard' });
   });
 </script>
 <script src="/shell.js"></script>

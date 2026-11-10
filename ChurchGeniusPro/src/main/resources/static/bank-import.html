@@ -716,11 +716,20 @@
     var url = overwriteId ? (spec.url+'/'+overwriteId) : spec.url;
     var method = overwriteId ? 'PUT' : 'POST';
     var payload = Object.assign({}, spec.payload, { force: !!force });
+    if (spec.alertsConfirmed && !overwriteId) payload.alertsConfirmed = true;   // 2026-11-09: already agreed for this line
     fetch(url, { method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
       .then(function(r){ return r.json().then(function(j){ return {status:r.status, ok:r.ok, j:j}; }); })
       .then(function(res){
         saveBtn.disabled=false; saveBtn.innerHTML='Save to <span id="mSaveType">'+spec.label+'</span>';
         if(res.status===409 && res.j.duplicate){ showDup(spec, res.j.duplicate); return; }
+        // 2026-11-09: the login's own Income / Expense alerts — shown, and saved only after "Save anyway"
+        if(res.status===409 && res.j.code==='ENTRY_ALERTS' && Array.isArray(res.j.alerts) && window.CGP_entryAlerts){
+          CGP_entryAlerts.review(res.j.alerts, spec.label.toLowerCase()).then(function(ok){
+            if(!ok){ showErr('Not saved yet — review the values, then press Save again.'); return; }
+            spec.alertsConfirmed = true; doSave(spec, overwriteId, force);
+          });
+          return;
+        }
         if(!res.ok || res.j.error){ showErr(res.j.error || 'Save failed.'); return; }
         SAVED[editingId] = { type:spec.label, id:(res.j.id||overwriteId||null) };
         closeEditor(); applyFilters();
@@ -770,6 +779,7 @@
 <script>
 window.CGP_PAGE = { activePage: 'accounting/bank-import', pageTitle: 'Bank Import', openSection: 'accounting' };
 </script>
+<script src="/entry-alerts.js"></script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
 </body>

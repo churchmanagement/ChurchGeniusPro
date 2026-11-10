@@ -2445,6 +2445,14 @@
               <div class="hc-step"><span class="hc-step-num">2</span><span>Your choice is remembered on that device. Values you typed are kept, and the form opens by itself when you click Edit or Scan Check, or start Voice or Converse</span></div>
             </div>
 
+            <div class="hc-section-label" id="hc-income-expense-alerts">Alert settings (your own warnings)</div>
+            <div class="hc-steps">
+              <div class="hc-step"><span class="hc-step-num">1</span><span>Click <span class="hc-ui lite">🔔 Income alert settings</span> (or <span class="hc-ui lite">🔔 Expense alert settings</span>) above the form</span></div>
+              <div class="hc-step"><span class="hc-step-num">2</span><span>Tick the alerts you want and enter the numbers: a future date more than ___ days ahead, an old date more than ___ days in the past, an amount greater than $___, an amount less than $___. Click <span class="hc-ui">Save alert settings</span></span></div>
+              <div class="hc-step"><span class="hc-step-num">3</span><span>When a new entry meets one of your alerts, nothing is saved yet: you see why, then choose <span class="hc-ui lite">Go back and review</span> or <span class="hc-ui">Save anyway</span></span></div>
+            </div>
+            <div class="hc-note">Alerts are yours only — each login (and each role it signs in with) has its own, and Income and Expense are set separately. They are warnings, never blockers, and they also apply to the Home quick add, Bank Import and entries you add through the Genius Assistant. After a save, the new row is highlighted when it is among the first 100 entries of the list; an older entry is not moved — a message says it is further down.</div>
+
             <div class="hc-section-label" id="hc-income-expense-list">Edit, delete and Load More</div>
             <div class="hc-steps">
               <div class="hc-step"><span class="hc-step-num">1</span><span>The list under the form shows the newest 10 entries. Click <span class="hc-ui lite">Load More ↓</span> to see 10 more.</span></div>
@@ -4280,6 +4288,15 @@ const HC_KB = [
     steps: ['Go to Admin → Families','Read the badges on each family card','Click View members on a card','Click ▸ beside a person for their volunteering, follow-ups and groups'],
     links: [{label:'Families', url:'/viewfamily', icon:'👪'}],
     related: ['family report','group email']
+  },
+  {
+    id: 'entry-alerts',
+    q: ['income alert','expense alert','alert settings','warn me','large amount warning','old date warning','future date warning','save anyway','alert me if'],
+    title: '🔔 Income & Expense Alert Settings',
+    answer: 'Set your own warnings for new Income or Expense entries: a future date more than N days ahead, an old date more than N days in the past, an amount greater than or less than a dollar figure. When an entry meets one, nothing is saved until you choose Save anyway (or go back and change it). Each login and role has its own settings; they apply on the Income and Expense pages, the Home quick add, Bank Import and the Genius Assistant.',
+    steps: ['Open Accounting → Income or Accounting → Expense','Click 🔔 Income alert settings (or Expense alert settings) above the form','Tick the alerts, enter the numbers, click Save alert settings'],
+    links: [{label:'Income', url:'/income', icon:'💰'},{label:'Expense', url:'/expense', icon:'💸'}],
+    related: ['genius assistant','minimize form']
   },
   {
     id: 'minimize-form',
