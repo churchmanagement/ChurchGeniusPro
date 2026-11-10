@@ -194,14 +194,38 @@ public class PublicEngagementController {
         return ResponseEntity.ok(svc.volunteers(SessionUtil.getAppClientId(request)));
     }
 
+    /** Prayer Team volunteers + church members who can take a prayer request (2026-11-10). */
+    @ResponseBody
+    @GetMapping("/api/ppr/assignees")
+    public ResponseEntity<?> assignees(HttpServletRequest request) {
+        String deny = guard(request);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
+        return ResponseEntity.ok(svc.assignees(SessionUtil.getAppClientId(request)));
+    }
+
+    /** Body {volunteerId} (Prayer Team), {memberId} (church member) or {} (unassign). Returns the updated row. */
     @ResponseBody
     @PostMapping("/api/ppr/{id}/assign")
     public ResponseEntity<?> assign(@PathVariable Long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
         String deny = guard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", deny));
-        Integer vid = body.get("volunteerId") == null || str(body, "volunteerId").isBlank() ? null : Integer.valueOf(str(body, "volunteerId"));
-        try { svc.assign(SessionUtil.getAppClientId(request), id, vid, SessionUtil.getUsername(request)); return ResponseEntity.ok(Map.of("success", true)); }
-        catch (IllegalArgumentException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
+        try {
+            Integer vid = intOrNull(body, "volunteerId");
+            Integer mid = intOrNull(body, "memberId");
+            String cid = SessionUtil.getAppClientId(request), who = SessionUtil.getUsername(request);
+            Map<String, Object> row = (vid == null && mid != null)
+                    ? svc.assignMember(cid, id, mid, who)
+                    : svc.assign(cid, id, vid, who);
+            return ResponseEntity.ok(Map.of("success", true, "request", row));
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Choose a person from the list."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    private static Integer intOrNull(Map<String, Object> b, String k) {
+        String v = str(b, k);
+        return v == null || v.isBlank() ? null : Integer.valueOf(v);
     }
 
     @ResponseBody

@@ -379,25 +379,99 @@ public class PublicEngagementService {
         m.put("source", p.getSource());
         m.put("status", p.getStatus());
         m.put("assignedVolunteerId", p.getAssignedVolunteerId());
+        m.put("assignedMemberId", p.getAssignedMemberId());
         m.put("assignedTo", p.getAssignedTo());
         m.put("followUpId", p.getFollowUpId());
         m.put("createdAt", p.getCreatedAt() != null ? p.getCreatedAt().toString() : null);
         return m;
     }
 
+    /** Assign a Prayer Team volunteer (null = unassign). Returns the updated row. */
     @Transactional
-    public void assign(String clientId, Long id, Integer volunteerId, String actor) {
+    public Map<String, Object> assign(String clientId, Long id, Integer volunteerId, String actor) {
         PublicPrayerRequest p = mustFind(clientId, id);
-        if (volunteerId == null) { p.setAssignedVolunteerId(null); p.setAssignedTo(null); }
-        else {
-            PrayerVolunteer v = volunteerRepo.findByIdAndClientId(volunteerId, clientId).orElse(null);
-            p.setAssignedVolunteerId(volunteerId);
-            p.setAssignedTo(v == null ? null : (nz(v.getFirstName()) + " " + nz(v.getLastName())).trim());
-            if ("New".equals(p.getStatus())) p.setStatus("Assigned");
+        if (volunteerId == null) {
+            p.setAssignedVolunteerId(null); p.setAssignedMemberId(null); p.setAssignedTo(null);
+        } else {
+            PrayerVolunteer v = volunteerRepo.findByIdAndClientId(volunteerId, clientId)
+                    .filter(x -> !x.isDeleteFlag())
+                    .orElseThrow(() -> new IllegalArgumentException("That volunteer was not found."));
+            setAssigned(p, v.getId(), v.getFamilyMemberId(), volName(v));
         }
         prayerRepo.save(p);
         addNoteInternal(clientId, id, "NOTE",
                 volunteerId == null ? "Unassigned." : ("Assigned to " + nz(p.getAssignedTo()) + "."), actor);
+        return prayerMap(p);
+    }
+
+    /**
+     * Assign a church member (2026-11-10). A member who is on the Prayer Team is stored as
+     * that volunteer; anyone else by member id. Only a live member of this church.
+     */
+    @Transactional
+    public Map<String, Object> assignMember(String clientId, Long id, Integer memberId, String actor) {
+        PublicPrayerRequest p = mustFind(clientId, id);
+        FamilyMember fm = memberRepo.findByIdAndTenant(memberId, clientId)
+                .orElseThrow(() -> new IllegalArgumentException("That member was not found."));
+        PrayerVolunteer v = volunteerRepo.findByMember(clientId, memberId)
+                .filter(x -> !x.isDeleteFlag()).orElse(null);
+        if (v != null) setAssigned(p, v.getId(), memberId, volName(v));
+        else setAssigned(p, null, memberId, memberName(fm));
+        prayerRepo.save(p);
+        addNoteInternal(clientId, id, "NOTE", "Assigned to " + nz(p.getAssignedTo()) + ".", actor);
+        return prayerMap(p);
+    }
+
+    private static void setAssigned(PublicPrayerRequest p, Integer volunteerId, Integer memberId, String name) {
+        p.setAssignedVolunteerId(volunteerId);
+        p.setAssignedMemberId(memberId);
+        p.setAssignedTo(name == null || name.isBlank() ? null : (name.length() > 150 ? name.substring(0, 150) : name));
+        if ("New".equals(p.getStatus())) p.setStatus("Assigned");
+    }
+    private static String volName(PrayerVolunteer v) { return (nz(v.getFirstName()) + " " + nz(v.getLastName())).trim(); }
+    private static String memberName(FamilyMember m) {
+        String n = (nz(m.getFirstName()) + " " + nz(m.getLastName())).trim();
+        return n.isEmpty() ? nz(m.getOtherName()).trim() : n;
+    }
+
+    /**
+     * Who can be assigned a prayer request (2026-11-10): the active Prayer Team first, then
+     * every active member of this church who is not already on the team. key = "v:&lt;id&gt;" |
+     * "m:&lt;id&gt;". Before, the window offered only the Prayer Team — empty in a church that
+     * had never added one, so nobody could be assigned.
+     */
+    public List<Map<String, Object>> assignees(String clientId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        java.util.Set<Integer> onTeam = new java.util.HashSet<>();
+        for (PrayerVolunteer v : volunteerRepo.findByClient(clientId)) {
+            if (!v.isActive()) continue;
+            String name = volName(v);
+            if (name.isEmpty()) continue;
+            if (v.getFamilyMemberId() != null) onTeam.add(v.getFamilyMemberId());
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("key", "v:" + v.getId());
+            m.put("group", "Prayer Team");
+            m.put("name", name);
+            m.put("detail", v.getRole());
+            m.put("volunteerId", v.getId());
+            m.put("memberId", v.getFamilyMemberId());
+            out.add(m);
+        }
+        if (clientId != null && !clientId.isBlank()) {
+            for (FamilyMember fm : memberRepo.findAllWithFamilyByAppUser(clientId)) {
+                if (fm.getId() == null || onTeam.contains(fm.getId())) continue;
+                String name = memberName(fm);
+                if (name.isEmpty()) continue;
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("key", "m:" + fm.getId());
+                m.put("group", "Church Members");
+                m.put("name", name);
+                m.put("detail", null);
+                m.put("memberId", fm.getId());
+                out.add(m);
+            }
+        }
+        return out;
     }
 
     @Transactional
