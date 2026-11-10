@@ -64,8 +64,8 @@ class EntryAlertsAndValidationTest {
     AiActionLookup people; AiFinanceLookup fin; IncomeService incomes; ExpenseService expenses;
     AiActionProposalRepository repo; Map<Long, AiActionProposal> store = new LinkedHashMap<>(); AtomicLong ids = new AtomicLong();
     AiActionService actions; AiAccessPolicy policy; AiGuidedRecordService svc;
-    /** Running fund totals, as the ledger would answer: before the save, then after it. */
-    Map<Long, BigDecimal> incomeTotals = new HashMap<>(), expenseTotals = new HashMap<>();
+    /** The running Net Balance, as the summary table would answer: before the save, then after it. */
+    AtomicReference<BigDecimal> netBalance = new AtomicReference<>();
 
     static String key(String cid, String user, String role, String kind) { return cid + "|" + user + "|" + role + "|" + kind; }
 
@@ -92,14 +92,13 @@ class EntryAlertsAndValidationTest {
         when(fin.expenseFundById(eq(CID), anyLong())).thenAnswer(i -> AiGuidedRecordTest.byId(xfunds, i.getArgument(1)));
         when(fin.expenseCategoryById(eq(CID), anyLong())).thenAnswer(i -> AiGuidedRecordTest.byId(cats, i.getArgument(1)));
         when(fin.methodById(eq(CID), anyLong())).thenAnswer(i -> AiGuidedRecordTest.byId(methods, i.getArgument(1)));
-        incomeTotals.put(1L, new BigDecimal("5000.00"));
-        expenseTotals.put(21L, new BigDecimal("1200.00"));
-        when(fin.incomeFundTotal(eq(CID), anyLong())).thenAnswer(i -> incomeTotals.get((Long) i.getArgument(1)));
-        when(fin.expenseFundTotal(eq(CID), anyLong())).thenAnswer(i -> expenseTotals.get((Long) i.getArgument(1)));
+        // the church's Net Balance as the dashboard shows it (the user's example: $3,402.26 before a $100 income)
+        netBalance.set(new BigDecimal("3402.26"));
+        when(fin.netBalance(CID)).thenAnswer(i -> netBalance.get());
         when(incomes.createIncome(any(), anyInt(), any(), anyInt(), any(), any(), any(), any(), anyBoolean(), anyString(), anyString()))
-            .thenAnswer(i -> { incomeTotals.merge((long) (int) i.getArgument(1), (BigDecimal) i.getArgument(5), BigDecimal::add); Income x = new Income(); x.setId(501); return x; });
+            .thenAnswer(i -> { netBalance.set(netBalance.get().add(i.getArgument(5))); Income x = new Income(); x.setId(501); return x; });
         when(expenses.createExpense(anyInt(), anyInt(), any(), anyInt(), any(), any(), any(), anyBoolean(), anyString(), anyString()))
-            .thenAnswer(i -> { expenseTotals.merge((long) (int) i.getArgument(1), (BigDecimal) i.getArgument(5), BigDecimal::add); Expense x = new Expense(); x.setId(601); return x; });
+            .thenAnswer(i -> { netBalance.set(netBalance.get().subtract(i.getArgument(5))); Expense x = new Expense(); x.setId(601); return x; });
         repo = mock(AiActionProposalRepository.class);
         when(repo.save(any())).thenAnswer(i -> { AiActionProposal p = i.getArgument(0); if (p.getId() == null) p.setId(ids.incrementAndGet()); store.put(p.getId(), p); return p; });
         when(repo.findByTokenAndAppClientIdAndStatus(anyString(), anyString(), anyString())).thenAnswer(i ->
@@ -390,7 +389,7 @@ class EntryAlertsAndValidationTest {
 
     // ── 6. the saved confirmation ─────────────────────────────────────────────
 
-    @Test @DisplayName("saved confirmation: details + previous / added / new fund total — only after the save; no total when it cannot be read reliably")
+    @Test @DisplayName("saved confirmation: details + Previous / Added / New Net Balance (the dashboard figure) — only after the save; no total when it cannot be read reliably")
     void confirmation() {
         MockHttpServletRequest r = req("pat", "Accountant");
         LocalDate d = today.minusDays(3);
@@ -403,11 +402,13 @@ class EntryAlertsAndValidationTest {
         assertThat(rc).containsEntry("title", "Income of $100.00 was added successfully.");
         assertThat(list(rc.get("rows"))).extracting(x -> x.get("label") + ": " + x.get("value"))
             .containsExactly("Contributor: Anson Mathew", "Fund: Tithe Fund", "Payment Method: Cash", "Transaction Date: " + US.format(d));
-        assertThat(m(rc.get("totals"))).containsEntry("label", "Total income recorded to Tithe Fund (all dates)")
-            .containsEntry("previous", "$5,000.00").containsEntry("added", "$100.00").containsEntry("addedLabel", "Added income")
-            .containsEntry("next", "$5,100.00");
+        // 2026-11-10: the dashboard's Net Balance (income minus expenses, all funds), not the fund's income total
+        assertThat(m(rc.get("totals"))).containsEntry("label", "Net Balance (income minus expenses, all funds)")
+            .containsEntry("previousLabel", "Previous Net Balance").containsEntry("previous", "$3,402.26")
+            .containsEntry("addedLabel", "Added Income").containsEntry("added", "+$100.00")
+            .containsEntry("nextLabel", "New Net Balance").containsEntry("next", "$3,502.26");
         assertThat(String.valueOf(m.get("answer"))).startsWith("Income of $100.00 was added successfully.")
-            .contains("previous $5,000.00", "new total $5,100.00");
+            .contains("Previous Net Balance: $3,402.26", "Added Income: +$100.00", "New Net Balance: $3,502.26");
         // expense
         MockHttpServletRequest r2 = req("pat", "Accountant");
         say(r2, "Add an expense of $250.50 for Utilities from the General Fund by check today");
@@ -416,9 +417,10 @@ class EntryAlertsAndValidationTest {
         rc = m(m.get("receipt"));
         assertThat(rc).containsEntry("title", "Expense of $250.50 was added successfully.");
         assertThat(list(rc.get("rows"))).extracting(x -> x.get("label")).containsExactly("Expense Category", "Fund", "Payment Method", "Transaction Date");
-        assertThat(m(rc.get("totals"))).containsEntry("previous", "$1,200.00").containsEntry("next", "$1,450.50").containsEntry("addedLabel", "Added expense");
+        assertThat(m(rc.get("totals"))).containsEntry("previous", "$3,502.26").containsEntry("addedLabel", "Added Expense")
+            .containsEntry("added", "\u2212$250.50").containsEntry("next", "$3,251.76");
         // totals that do not differ by exactly the amount (another entry at the same moment) → no figures, a note instead
-        when(fin.incomeFundTotal(eq(CID), eq(2L))).thenReturn(new BigDecimal("10.00"), new BigDecimal("999.00"));
+        when(fin.netBalance(CID)).thenReturn(new BigDecimal("10.00"), new BigDecimal("999.00"));
         MockHttpServletRequest r3 = req("pat", "Accountant");
         say(r3, "Add an income of $100 from Anson Mathew to the Building Fund by cash today");
         say(r3, "Skip and review");
@@ -426,7 +428,7 @@ class EntryAlertsAndValidationTest {
         assertThat(rc).doesNotContainKey("totals");
         assertThat(String.valueOf(rc.get("totalsNote"))).contains("could not be shown reliably");
         // a lookup that fails → same
-        when(fin.incomeFundTotal(eq(CID), eq(2L))).thenReturn(null);
+        when(fin.netBalance(CID)).thenReturn(null);
         MockHttpServletRequest r4 = req("pat", "Accountant");
         say(r4, "Add an income of $100 from Anson Mathew to the Building Fund by cash today");
         say(r4, "Skip and review");
