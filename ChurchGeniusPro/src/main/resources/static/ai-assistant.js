@@ -873,9 +873,25 @@
     if (typeof input.dispatchEvent==='function'){ try{ input.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){} }
   }
 
+  /*
+   * 2026-11-10: an income / expense was just SAVED (the server's confirmation carries a receipt) — tell any page
+   * that shows ledger figures (the Dashboard) to re-read them. Fired once, here, when the answer arrives: restored
+   * transcripts never pass through renderCard, so they never fire. Same tab = a window event; other open tabs of
+   * this app = a BroadcastChannel message. Listeners coalesce, so both arriving together means one refresh.
+   */
+  function announceLedgerChange(d){
+    if (!d || d.intent!=='action.done' || !d.receipt || typeof d.receipt!=='object') return;
+    var kind=d.receipt.kind;
+    if (kind!=='income' && kind!=='expense') return;
+    var detail={ kind:kind, at:Date.now() };
+    try{ window.dispatchEvent(new CustomEvent('cgp:ledger-changed', { detail:detail })); }catch(e){}
+    try{ if (typeof BroadcastChannel==='function'){ var bc=new BroadcastChannel('cgp-ledger'); bc.postMessage(detail); bc.close(); } }catch(e){}
+  }
+
   function renderCard(a){
     var wrap=results(); if(!wrap && !uiHook()) return;
     var d0=a.data;
+    announceLedgerChange(d0);
     var threaded=false, ending=false;
     if (_thread.active || isPendingAnswer(d0)){
       if (!_thread.active){ _thread={ active:true, items:[] }; }
@@ -997,10 +1013,12 @@
         html+='</dl>';
         if (rc.totals && typeof rc.totals === 'object'){
           var t = rc.totals;
-          html+='<div class="aa-receipt-tot"><div class="aa-receipt-tl">'+esc(t.label||'Fund total')+'</div>'
-            +'<div class="aa-tot-row"><span>Previous total</span><span>'+esc(t.previous||'')+'</span></div>'
-            +'<div class="aa-tot-row aa-tot-add"><span>'+esc(t.addedLabel||'Added')+'</span><span>+ '+esc(t.added||'')+'</span></div>'
-            +'<div class="aa-tot-row aa-tot-new"><span>New total</span><span>'+esc(t.next||'')+'</span></div></div>';
+          // 2026-11-10: the server names the rows (Previous Net Balance / Added Income|Expense / New Net Balance)
+          // and signs the change (+ income, − expense)
+          html+='<div class="aa-receipt-tot"><div class="aa-receipt-tl">'+esc(t.label||'Net Balance')+'</div>'
+            +'<div class="aa-tot-row"><span>'+esc(t.previousLabel||'Previous total')+'</span><span>'+esc(t.previous||'')+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-add'+(/^\u2212|^-/.test(String(t.added||'')) ? ' aa-tot-sub' : '')+'"><span>'+esc(t.addedLabel||'Added')+'</span><span>'+esc(t.added||'')+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-new"><span>'+esc(t.nextLabel||'New total')+'</span><span>'+esc(t.next||'')+'</span></div></div>';
         } else if (rc.totalsNote){
           html+='<div class="aa-receipt-note">'+esc(rc.totalsNote)+'</div>';
         }
@@ -1562,6 +1580,7 @@
       '.aa-receipt-tl{font-weight:700;margin-bottom:4px;}',
       '.aa-tot-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0;font-variant-numeric:tabular-nums;}',
       '.aa-tot-add{color:#2e7d32;}',
+      '.aa-tot-add.aa-tot-sub{color:#c62828;}',
       '.aa-tot-new{font-weight:700;border-top:1px solid #b7d8b9;margin-top:3px;padding-top:4px;}',
       '.aa-receipt-note{margin-top:8px;color:#5f6b61;font-size:12.5px;}',
       '.aa-fields{margin-top:10px;border:1px solid #eadfe6;border-radius:9px;overflow:hidden;}',

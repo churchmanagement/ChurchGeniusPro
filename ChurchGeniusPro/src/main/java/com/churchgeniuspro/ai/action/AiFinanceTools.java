@@ -71,13 +71,14 @@ public final class AiFinanceTools {
     static final java.time.format.DateTimeFormatter US = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
     /**
-     * 2026-11-09 — the saved-entry confirmation (spec §3): what was saved and the fund's total before and after.
-     * Totals are shown only when both were read and differ by exactly the saved amount — otherwise (another entry
-     * saved at the same moment, a lookup failure) the confirmation says the total could not be shown rather than
-     * showing a misleading figure.
+     * 2026-11-09 — the saved-entry confirmation (spec §3): what was saved and the church's Net Balance before and
+     * after (2026-11-10: the dashboard's NET BALANCE = income minus expenses, all funds — was the fund's own total).
+     * Shown only when both were read and differ by EXACTLY the entry (+ for income, − for an expense); otherwise
+     * (another entry saved at the same moment, a lookup failure) a note says it could not be shown, never a
+     * misleading figure.
      */
     static Map<String, Object> receipt(String kind, BigDecimal amount, java.util.List<String[]> rows,
-                                       String totalLabel, BigDecimal before, BigDecimal after) {
+                                       BigDecimal before, BigDecimal after) {
         Map<String, Object> r = new LinkedHashMap<>();
         boolean income = "income".equals(kind);
         r.put("kind", kind);
@@ -85,16 +86,19 @@ public final class AiFinanceTools {
         java.util.List<Map<String, String>> list = new java.util.ArrayList<>();
         for (String[] row : rows) if (row[1] != null && !row[1].isBlank()) list.add(Map.of("label", row[0], "value", row[1]));
         r.put("rows", list);
-        if (before != null && after != null && after.subtract(before).compareTo(amount) == 0) {
+        BigDecimal change = income ? amount : amount.negate();
+        if (before != null && after != null && after.subtract(before).compareTo(change) == 0) {
             Map<String, Object> t = new LinkedHashMap<>();
-            t.put("label", totalLabel);
+            t.put("label", "Net Balance (income minus expenses, all funds)");
+            t.put("previousLabel", "Previous Net Balance");
             t.put("previous", money(before));
-            t.put("addedLabel", income ? "Added income" : "Added expense");
-            t.put("added", money(amount));
+            t.put("addedLabel", income ? "Added Income" : "Added Expense");
+            t.put("added", (income ? "+" : "\u2212") + money(amount));
+            t.put("nextLabel", "New Net Balance");
             t.put("next", money(after));
             r.put("totals", t);
         } else {
-            r.put("totalsNote", "The fund total could not be shown reliably right now, so it is left out. The entry itself was saved.");
+            r.put("totalsNote", "The Net Balance could not be shown reliably right now, so it is left out. The entry itself was saved.");
         }
         return r;
     }
@@ -105,8 +109,9 @@ public final class AiFinanceTools {
         Object rows = r.get("rows");
         if (rows instanceof java.util.List<?> l) for (Object o : l) if (o instanceof Map<?, ?> m) b.append(" ").append(m.get("label")).append(": ").append(m.get("value")).append(".");
         if (r.get("totals") instanceof Map<?, ?> t)
-            b.append(" ").append(t.get("label")).append(": previous ").append(t.get("previous")).append(", ")
-             .append(String.valueOf(t.get("addedLabel")).toLowerCase(Locale.ROOT)).append(" ").append(t.get("added")).append(", new total ").append(t.get("next")).append(".");
+            b.append(" ").append(t.get("previousLabel")).append(": ").append(t.get("previous")).append(". ")
+             .append(t.get("addedLabel")).append(": ").append(t.get("added")).append(". ")
+             .append(t.get("nextLabel")).append(": ").append(t.get("next")).append(".");
         return b.toString();
     }
 
@@ -161,19 +166,18 @@ public final class AiFinanceTools {
         public Map<String, Object> execute(Map<String, Object> r, String cid, String username) {
             Long memberId = l(r, "memberId");
             BigDecimal amt = new BigDecimal(s(r, "amount"));
-            BigDecimal before = lookup.incomeFundTotal(cid, l(r, "fundId"));
+            BigDecimal before = lookup.netBalance(cid);
             Income saved = incomes.createIncome(memberId == null ? null : memberId.intValue(), l(r, "fundId").intValue(), LocalDate.parse(s(r, "date")),
                     l(r, "methodId").intValue(), opt(s(r, "refNo")), new BigDecimal(s(r, "amount")), opt(s(r, "note")),
                     memberId == null ? opt(s(r, "guestName")) : null, false, cid, username);
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("incomeId", saved.getId());
             res.put("link", Map.of("label", "Open Income", "url", "/income"));
-            BigDecimal after = lookup.incomeFundTotal(cid, l(r, "fundId"));
+            BigDecimal after = lookup.netBalance(cid);
             Map<String, Object> receipt = receipt("income", amt, java.util.List.of(
                     new String[]{"Contributor", s(r, "contributorLabel")}, new String[]{"Fund", s(r, "fundLabel")},
                     new String[]{"Payment Method", s(r, "methodLabel")}, new String[]{"Transaction Date", US.format(LocalDate.parse(s(r, "date")))},
-                    new String[]{"Reference Number", opt(s(r, "refNo"))}),
-                    "Total income recorded to " + s(r, "fundLabel") + " (all dates)", before, after);
+                    new String[]{"Reference Number", opt(s(r, "refNo"))}), before, after);
             res.put("receipt", receipt);
             res.put("answer", receiptText(receipt));
             return res;
@@ -225,18 +229,17 @@ public final class AiFinanceTools {
         }
         public Map<String, Object> execute(Map<String, Object> r, String cid, String username) {
             BigDecimal amt = new BigDecimal(s(r, "amount"));
-            BigDecimal before = lookup.expenseFundTotal(cid, l(r, "fundId"));
+            BigDecimal before = lookup.netBalance(cid);
             Expense saved = expenses.createExpense(l(r, "categoryId").intValue(), l(r, "fundId").intValue(), LocalDate.parse(s(r, "date")),
                     l(r, "methodId").intValue(), opt(s(r, "refNo")), new BigDecimal(s(r, "amount")), opt(s(r, "note")), false, cid, username);
             Map<String, Object> res = new LinkedHashMap<>();
             res.put("expenseId", saved.getId());
             res.put("link", Map.of("label", "Open Expenses", "url", "/expense"));
-            BigDecimal after = lookup.expenseFundTotal(cid, l(r, "fundId"));
+            BigDecimal after = lookup.netBalance(cid);
             Map<String, Object> receipt = receipt("expense", amt, java.util.List.of(
                     new String[]{"Expense Category", s(r, "categoryLabel")}, new String[]{"Fund", s(r, "fundLabel")},
                     new String[]{"Payment Method", s(r, "methodLabel")}, new String[]{"Transaction Date", US.format(LocalDate.parse(s(r, "date")))},
-                    new String[]{"Reference Number", opt(s(r, "refNo"))}),
-                    "Total expenses paid from " + s(r, "fundLabel") + " (all dates)", before, after);
+                    new String[]{"Reference Number", opt(s(r, "refNo"))}), before, after);
             res.put("receipt", receipt);
             res.put("answer", receiptText(receipt));
             return res;

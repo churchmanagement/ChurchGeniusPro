@@ -112,15 +112,21 @@ class EntryAlertsIT {
     static MockHttpServletRequest same(MockHttpServletRequest r) { MockHttpServletRequest n = new MockHttpServletRequest(); n.setSession(r.getSession()); return n; }
     @SuppressWarnings("unchecked") static Map<String, Object> m(Object o) { return (Map<String, Object>) o; }
     static String usd(BigDecimal a) { return NumberFormat.getCurrencyInstance(Locale.US).format(a); }
-    BigDecimal ledgerIncome(String cid, int fund) { return jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM income WHERE app_client_id = ? AND delete_flag = false AND sub_source_id = ?", BigDecimal.class, cid, fund); }
-    BigDecimal summaryIncome(String cid, int fund) { return jdbc.queryForObject("SELECT COALESCE(SUM(total_amount),0) FROM ledger_month_summary WHERE app_client_id = ? AND kind = 'I' AND sub_source_id = ?", BigDecimal.class, cid, fund); }
-    BigDecimal summaryExpense(String cid, int fund) { return jdbc.queryForObject("SELECT COALESCE(SUM(total_amount),0) FROM ledger_month_summary WHERE app_client_id = ? AND kind = 'E' AND main_source_id = ?", BigDecimal.class, cid, fund); }
+    /** The Accountant dashboard's NET BALANCE card, computed exactly as AccountantDashboardController does. */
+    BigDecimal dashboardNet(String cid) {
+        BigDecimal inc = jdbc.queryForObject("SELECT COALESCE(SUM(total_amount),0) FROM ledger_month_summary WHERE app_client_id = ? AND kind = 'I'", BigDecimal.class, cid);
+        BigDecimal exp = jdbc.queryForObject("SELECT COALESCE(SUM(s.total_amount),0) FROM ledger_month_summary s JOIN main_source ms ON ms.id = s.main_source_id "
+            + "WHERE s.app_client_id = ? AND s.kind = 'E'", BigDecimal.class, cid);
+        return inc.subtract(exp);
+    }
+    BigDecimal ledgerIncome(String cid) { return jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM income WHERE app_client_id = ? AND delete_flag = false", BigDecimal.class, cid); }
+    BigDecimal ledgerExpense(String cid) { return jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM expense WHERE app_client_id = ? AND delete_flag = false", BigDecimal.class, cid); }
     long rows(String table, String cid) { return jdbc.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE app_client_id = ? AND delete_flag = false", Long.class, cid); }
 
-    @Test @Order(1) @DisplayName("saved confirmation: previous / new totals equal the ledger and the dashboard summary (active rows of this church only)")
+    @Test @Order(1) @DisplayName("saved confirmation: Previous / New Net Balance = the dashboard's NET BALANCE (all income − all expenses of this church)")
     void totals() {
-        BigDecimal before = ledgerIncome(A, titheA);
-        assertThat(before).isEqualByComparingTo("5000.00");                       // deleted row and church B not counted
+        BigDecimal before = dashboardNet(A);
+        assertThat(before).isEqualByComparingTo("3800.00");                       // 5,000 − 1,200 (deleted row and church B not counted)
         MockHttpServletRequest r = staff(A, "pat", "Accountant");
         guided.handle(r, A, "Add an income of $100 from Anna Varghese to the Tithe Fund by cash today");
         Map<String, Object> card = guided.handle(same(r), A, "Skip and review");
@@ -128,19 +134,21 @@ class EntryAlertsIT {
         Map<String, Object> done = guided.handle(same(r), A, "yes");
         assertThat(done.get("intent")).isEqualTo("action.done");
         Map<String, Object> t = m(m(done.get("receipt")).get("totals"));
-        BigDecimal after = ledgerIncome(A, titheA);
-        assertThat(after).isEqualByComparingTo("5100.00");
-        assertThat(summaryIncome(A, titheA)).as("the dashboard's figure").isEqualByComparingTo(after);
-        assertThat(t).containsEntry("previous", usd(before)).containsEntry("added", "$100.00").containsEntry("next", usd(after));
-        assertThat(ledgerIncome(B, titheB)).isEqualByComparingTo("70000.00");
-        // expense: the fund it is paid from
+        BigDecimal after = dashboardNet(A);
+        assertThat(after).isEqualByComparingTo("3900.00");
+        assertThat(t).containsEntry("previous", usd(before)).containsEntry("added", "+$100.00").containsEntry("next", usd(after))
+                     .containsEntry("previousLabel", "Previous Net Balance").containsEntry("nextLabel", "New Net Balance");
+        // the ledger agrees with the summary table the dashboard reads
+        assertThat(after).isEqualByComparingTo(ledgerIncome(A).subtract(ledgerExpense(A)));
+        assertThat(dashboardNet(B)).isEqualByComparingTo("70000.00");
+        // an expense lowers the Net Balance
         MockHttpServletRequest r2 = staff(A, "pat", "Accountant");
         guided.handle(r2, A, "Add an expense of $300.25 for Utilities from the General Fund by cash today");
         guided.handle(same(r2), A, "Skip and review");
         Map<String, Object> ex = guided.handle(same(r2), A, "yes");
         Map<String, Object> et = m(m(ex.get("receipt")).get("totals"));
-        assertThat(et).containsEntry("previous", "$1,200.00").containsEntry("next", "$1,500.25");
-        assertThat(summaryExpense(A, generalA)).isEqualByComparingTo("1500.25");
+        assertThat(et).containsEntry("previous", "$3,900.00").containsEntry("added", "\u2212$300.25").containsEntry("next", "$3,599.75");
+        assertThat(dashboardNet(A)).isEqualByComparingTo("3599.75");
     }
 
     @Test @Order(2) @DisplayName("alerts: stored per login / role / kind; page endpoint and Genius Assistant raise the same alert from the same row; saved once after confirming")

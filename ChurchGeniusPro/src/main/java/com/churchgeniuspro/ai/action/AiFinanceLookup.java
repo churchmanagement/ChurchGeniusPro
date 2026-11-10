@@ -111,38 +111,33 @@ public class AiFinanceLookup {
         return n == null ? 0 : n;
     }
 
-    // ── fund totals for the saved-entry confirmation (2026-11-09) ───────────────
+    // ── Net Balance for the saved-entry confirmation (2026-11-09, corrected 2026-11-10) ──
     /*
-     * Same rule as the fund totals on the Accountant dashboard (ledger_month_summary, kept by the V5 triggers):
-     * every ACTIVE row (delete_flag = false) of this church, all dates — income per fund (sub-fund), expense per
-     * fund it is paid from (main fund). Read straight from the ledger so the figure includes the row just saved
-     * in the same transaction. Null when it cannot be read (the confirmation then shows no totals).
+     * The figure on the Accountant dashboard's NET BALANCE card: all income of this church minus all expenses of
+     * this church, every date, read from the same summary table the dashboard reads (ledger_month_summary — kept
+     * by the database triggers in the same transaction as the saved row): income = SUM of kind 'I'; expense =
+     * SUM of kind 'E' over existing main funds (the dashboard's expense-by-main-fund total). Null when it cannot
+     * be read (the confirmation then shows no figures).
      */
 
-    /** Writes the JPA changes of the current transaction (the row just saved) so the ledger query sees them. */
+    /** Writes the JPA changes of the current transaction (the row just saved) so the triggers have run. */
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager em;
     private void flushPending() {
         try { if (em != null && em.isJoinedToTransaction()) em.flush(); } catch (RuntimeException ignore) { /* read what is there */ }
     }
 
-    /** Total of all active income of this church recorded to the fund (sub-fund). */
-    public BigDecimal incomeFundTotal(String cid, long fundId) {
-        if (blank(cid)) return null;
-        flushPending();
-        try {
-            return jdbc.queryForObject("SELECT COALESCE(SUM(i.amount), 0) FROM income i WHERE i.app_client_id = :cid AND i.delete_flag = false "
-                + "AND i.sub_source_id = :f", new MapSqlParameterSource().addValue("cid", cid).addValue("f", fundId), BigDecimal.class);
-        } catch (RuntimeException e) { return null; }
-    }
+    static final String NET_BALANCE_SQL =
+        "SELECT (SELECT COALESCE(SUM(i.total_amount), 0) FROM ledger_month_summary i WHERE i.app_client_id = :cid AND i.kind = 'I') "
+      + "     - (SELECT COALESCE(SUM(e.total_amount), 0) FROM ledger_month_summary e JOIN main_source ms ON ms.id = e.main_source_id "
+      + "        WHERE e.app_client_id = :cid AND e.kind = 'E')";
 
-    /** Total of all active expenses of this church paid from the fund (main fund). */
-    public BigDecimal expenseFundTotal(String cid, long fundId) {
+    /** The church's Net Balance (income minus expenses, all funds, all dates) — the dashboard's NET BALANCE card. */
+    public BigDecimal netBalance(String cid) {
         if (blank(cid)) return null;
         flushPending();
         try {
-            return jdbc.queryForObject("SELECT COALESCE(SUM(e.amount), 0) FROM expense e WHERE e.app_client_id = :cid AND e.delete_flag = false "
-                + "AND e.main_source_id = :f", new MapSqlParameterSource().addValue("cid", cid).addValue("f", fundId), BigDecimal.class);
+            return jdbc.queryForObject(NET_BALANCE_SQL, new MapSqlParameterSource().addValue("cid", cid), BigDecimal.class);
         } catch (RuntimeException e) { return null; }
     }
 }
