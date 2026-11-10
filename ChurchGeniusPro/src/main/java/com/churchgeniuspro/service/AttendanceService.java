@@ -291,8 +291,16 @@ public class AttendanceService {
     }
 
     // ── Dashboard ────────────────────────────────────────────────────────────────
-    public Map<String, Object> dashboard(String clientId) {
-        LocalDate today = AppClock.today();
+    public Map<String, Object> dashboard(String clientId) { return dashboard(clientId, AppClock.today()); }
+
+    /**
+     * Summary cards + the date windows every dashboard figure is computed over. The cards cover the CURRENT
+     * church week (Mon–Sun) and the CURRENT calendar month; the charts cover the last 8 weeks, the last 12
+     * months and the last 3 months — all from the same {@code attendance_record} rows with the same
+     * Present/Late rule, so the page can show each window and explain why a card can be 0 while a chart
+     * still shows earlier weeks or months.
+     */
+    public Map<String, Object> dashboard(String clientId, LocalDate today) {
         LocalDate weekStart = today.with(DayOfWeek.MONDAY), weekEnd = weekStart.plusDays(6);
         LocalDate monthStart = today.withDayOfMonth(1), monthEnd = today.withDayOfMonth(today.lengthOfMonth());
 
@@ -322,14 +330,48 @@ public class AttendanceService {
         m.put("returningVisitors", returningVisitors);
         m.put("membersPresent", presentMembersWeek.size());
         m.put("volunteersPresent", volunteersPresent);
+
+        // The windows behind every figure on the page (cards AND charts), so the page can label them.
+        LocalDate weeklyEnd = today.with(DayOfWeek.SUNDAY), weeklyStart = weeklyEnd.minusWeeks(7).minusDays(6);
+        LocalDate monthlyStart = today.minusMonths(11).withDayOfMonth(1);
+        LocalDate byFieldStart = today.minusMonths(3);
+        Map<String, Object> windows = new LinkedHashMap<>();
+        windows.put("week",    window(weekStart, weekEnd,       "This week"));
+        windows.put("month",   window(monthStart, monthEnd,     "This month"));
+        windows.put("weekly",  window(weeklyStart, weeklyEnd,   "Last 8 weeks"));
+        windows.put("monthly", window(monthlyStart, monthEnd,   "Last 12 months"));
+        windows.put("byField", window(byFieldStart, today,      "Last 3 months"));
+        m.put("windows", windows);
+        m.put("today", today.toString());
+        m.put("asOf", java.time.ZonedDateTime.now(AppClock.ZONE).toString());
+
+        // Where the data comes from: how many Present/Late rows sit in the widest chart window (12 months),
+        // the latest attendance date, and how many of those rows were written by the trial demo seeder —
+        // so the page can say "these figures include demo records" instead of leaving the mismatch unexplained.
+        List<AttendanceRecord> widest = recordRepo.findByClientIdAndAttendanceDateBetweenAndDeleteFlagFalse(clientId, monthlyStart, monthEnd)
+                .stream().filter(this::isPresent).collect(Collectors.toList());
+        m.put("recordsInCharts", widest.size());
+        m.put("demoRecordsInCharts", widest.stream().filter(a -> DEMO_CREATED_BY.equals(a.getCreatedBy())).count());
+        m.put("latestRecordDate", widest.stream().map(AttendanceRecord::getAttendanceDate)
+                .filter(Objects::nonNull).max(Comparator.naturalOrder()).map(LocalDate::toString).orElse(null));
         return m;
+    }
+
+    /** {@code created_by} written by {@link TrialDemoDataSeeder} on every demo attendance row. */
+    public static final String DEMO_CREATED_BY = "demo";
+
+    private static Map<String, Object> window(LocalDate from, LocalDate to, String label) {
+        Map<String, Object> w = new LinkedHashMap<>();
+        w.put("from", from.toString()); w.put("to", to.toString()); w.put("label", label);
+        return w;
     }
 
     private boolean isPresent(AttendanceRecord a) { return "PRESENT".equals(a.getStatus()) || "LATE".equals(a.getStatus()); }
 
     // ── Trends ───────────────────────────────────────────────────────────────────
-    public List<Map<String, Object>> weeklyTrend(String clientId) {
-        LocalDate today = AppClock.today();
+    public List<Map<String, Object>> weeklyTrend(String clientId) { return weeklyTrend(clientId, AppClock.today()); }
+
+    public List<Map<String, Object>> weeklyTrend(String clientId, LocalDate today) {
         LocalDate end = today.with(DayOfWeek.SUNDAY);
         List<Map<String, Object>> out = new ArrayList<>();
         for (int i = 7; i >= 0; i--) {
@@ -341,8 +383,9 @@ public class AttendanceService {
         return out;
     }
 
-    public List<Map<String, Object>> monthlyTrend(String clientId) {
-        LocalDate today = AppClock.today();
+    public List<Map<String, Object>> monthlyTrend(String clientId) { return monthlyTrend(clientId, AppClock.today()); }
+
+    public List<Map<String, Object>> monthlyTrend(String clientId, LocalDate today) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (int i = 11; i >= 0; i--) {
             LocalDate mStart = today.minusMonths(i).withDayOfMonth(1);
@@ -355,7 +398,11 @@ public class AttendanceService {
     }
 
     public List<Map<String, Object>> byField(String clientId, boolean ministry) {
-        return byField(clientId, ministry, AppClock.today().minusMonths(3), AppClock.today());
+        return byField(clientId, ministry, AppClock.today());
+    }
+
+    public List<Map<String, Object>> byField(String clientId, boolean ministry, LocalDate today) {
+        return byField(clientId, ministry, today.minusMonths(3), today);
     }
 
     public List<Map<String, Object>> byField(String clientId, boolean ministry, LocalDate from, LocalDate to) {

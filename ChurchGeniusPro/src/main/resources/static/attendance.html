@@ -32,6 +32,15 @@
     .stat { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
     .stat .n { font-size:28px; font-weight:800; color:#673147; }
     .stat .l { font-size:12.5px; color:#888; margin-top:3px; }
+    .stat .w { font-size:11px; color:#aaa; margin-top:2px; }
+    .at-card h3 .win { font-size:11.5px; font-weight:600; color:#999; margin-left:6px; white-space:nowrap; }
+    .chart-box { position:relative; }
+    .chart-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:12px; font-size:13px; color:#888; background:rgba(255,255,255,.85); border-radius:10px; }
+    .chart-empty[hidden] { display:none; }
+    .dash-note { background:#fff8e6; border:1px solid #f1dca6; border-radius:10px; padding:9px 12px; font-size:12.5px; color:#6b4f00; margin-bottom:14px; line-height:1.45; }
+    .dash-note[hidden] { display:none; }
+    .dash-note.info { background:#f3f6fb; border-color:#d8e2f2; color:#4a5a73; }
+    .dash-updated { font-size:11.5px; color:#aaa; text-align:right; margin-top:-6px; }
     .charts { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
     @media (max-width:760px){ .charts { grid-template-columns:1fr; } }
     .ctrl-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
@@ -150,13 +159,15 @@
 
       <!-- ───────── Dashboard ───────── -->
       <section id="tab-dashboard">
+        <div class="dash-note" id="dashNote" hidden></div>
         <div class="stats" id="statCards"></div>
         <div class="charts">
-          <div class="at-card"><h3>Weekly attendance trend</h3><canvas id="cWeekly" height="160"></canvas></div>
-          <div class="at-card"><h3>Monthly attendance trend</h3><canvas id="cMonthly" height="160"></canvas></div>
-          <div class="at-card"><h3>Attendance by service</h3><canvas id="cService" height="160"></canvas></div>
-          <div class="at-card"><h3>Attendance by ministry</h3><canvas id="cMinistry" height="160"></canvas></div>
+          <div class="at-card"><h3>Weekly attendance trend <span class="win" id="winWeekly"></span></h3><div class="chart-box"><canvas id="cWeekly" height="160"></canvas><div class="chart-empty" id="emptyWeekly" hidden></div></div></div>
+          <div class="at-card"><h3>Monthly attendance trend <span class="win" id="winMonthly"></span></h3><div class="chart-box"><canvas id="cMonthly" height="160"></canvas><div class="chart-empty" id="emptyMonthly" hidden></div></div></div>
+          <div class="at-card"><h3>Attendance by service <span class="win" id="winService"></span></h3><div class="chart-box"><canvas id="cService" height="160"></canvas><div class="chart-empty" id="emptyService" hidden></div></div></div>
+          <div class="at-card"><h3>Attendance by ministry <span class="win" id="winMinistry"></span></h3><div class="chart-box"><canvas id="cMinistry" height="160"></canvas><div class="chart-empty" id="emptyMinistry" hidden></div></div></div>
         </div>
+        <div class="dash-updated" id="dashUpdated"></div>
       </section>
 
       <!-- ───────── Check-In ───────── -->
@@ -453,36 +464,90 @@
     el('rStatus').innerHTML    = '<option value="">All</option>' + el('ciStatus').innerHTML;
   });
 
-  /* ── Dashboard ── */
-  var charts = {};
+  /* ── Dashboard ──
+     Every figure here comes from the same attendance_record rows (Present/Late only) through
+     /api/attendance/dashboard and /api/attendance/trends/*; nothing is hard-coded. The cards cover the
+     CURRENT week and month, the charts cover the last 8 weeks / 12 months / 3 months — the server sends
+     each window ("windows") so it can be shown next to the figure, and a chart whose values are all 0
+     shows an empty-state message instead of a flat line. The dashboard reloads after every successful
+     check-in / visitor / record change, when the tab regains focus and every 60 s while it is visible. */
+  var charts = {}, DASH = { windows:null, dirty:false, loading:false, timer:null };
+  function fmtDay(iso, withYear){ var p=(iso||'').split('-'); if(p.length!==3) return iso||''; var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); var o={month:'short',day:'numeric',timeZone:'UTC'}; if(withYear) o.year='numeric'; return d.toLocaleDateString(undefined,o); }
+  function fmtRange(w){ if(!w) return ''; var y = String(w.from).slice(0,4) !== String(w.to).slice(0,4); return fmtDay(w.from, y)+' – '+fmtDay(w.to, y); }
+  function dashboardVisible(){ return !document.hidden && !el('tab-dashboard').classList.contains('hide'); }
   function loadDashboard(){
+    if (DASH.loading) { DASH.dirty = true; return; }
+    DASH.loading = true; DASH.dirty = false;
     get('/api/attendance/dashboard').then(function(d){
-      d = d||{};
+      d = d||{}; DASH.windows = d.windows||{};
+      var W = DASH.windows;
       var cards = [
-        ['weekCount',"This week's attendance"],['monthCount',"This month's attendance"],
-        ['firstTimeVisitors','First-time visitors'],['returningVisitors','Returning visitors'],
-        ['membersPresent','Members present'],['volunteersPresent','Volunteers present']
+        ['weekCount',"This week's attendance",'week'],['monthCount',"This month's attendance",'month'],
+        ['firstTimeVisitors','First-time visitors','month'],['returningVisitors','Returning visitors','month'],
+        ['membersPresent','Members present','week'],['volunteersPresent','Volunteers present','week']
       ];
-      el('statCards').innerHTML = cards.map(function(c){ return '<div class="stat"><div class="n">'+(d[c[0]]||0)+'</div><div class="l">'+c[1]+'</div></div>'; }).join('');
-    });
-    drawChart('cWeekly','line','/api/attendance/trends/weekly','Attendance');
-    drawChart('cMonthly','line','/api/attendance/trends/monthly','Attendance');
-    drawChart('cService','bar','/api/attendance/trends/by-service','By service');
-    drawChart('cMinistry','bar','/api/attendance/trends/by-ministry','By ministry');
+      el('statCards').innerHTML = cards.map(function(c){
+        var w = W[c[2]];
+        return '<div class="stat"><div class="n">'+(Number(d[c[0]])||0)+'</div><div class="l">'+c[1]+'</div>'
+             + (w ? '<div class="w">'+esc(w.label)+' · '+esc(fmtRange(w))+'</div>' : '') + '</div>';
+      }).join('');
+      el('winWeekly').textContent   = W.weekly  ? W.weekly.label+' · '+fmtRange(W.weekly)   : '';
+      el('winMonthly').textContent  = W.monthly ? W.monthly.label+' · '+fmtRange(W.monthly) : '';
+      el('winService').textContent  = W.byField ? W.byField.label+' · '+fmtRange(W.byField) : '';
+      el('winMinistry').textContent = el('winService').textContent;
+      renderDashNote(d);
+      el('dashUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) + ' · refreshes automatically';
+    }).catch(function(){ el('dashUpdated').textContent = 'The summary could not be loaded. It will retry automatically.'; })
+    .then(function(){ return Promise.all([
+      drawChart('cWeekly','line','/api/attendance/trends/weekly','Attendance','weekly','emptyWeekly'),
+      drawChart('cMonthly','line','/api/attendance/trends/monthly','Attendance','monthly','emptyMonthly'),
+      drawChart('cService','bar','/api/attendance/trends/by-service','By service','byField','emptyService'),
+      drawChart('cMinistry','bar','/api/attendance/trends/by-ministry','By ministry','byField','emptyMinistry')
+    ]); }).then(function(){ DASH.loading = false; if (DASH.dirty) loadDashboard(); });
   }
-  function drawChart(canvasId, type, url, label){
-    get(url).then(function(rows){
-      rows = rows||[];
+  function renderDashNote(d){
+    var n = el('dashNote'), W = d.windows||{}, total = Number(d.recordsInCharts)||0, demo = Number(d.demoRecordsInCharts)||0;
+    var week = Number(d.weekCount)||0, month = Number(d.monthCount)||0;
+    var parts = [];
+    if (total === 0) {
+      parts.push('No attendance has been recorded' + (W.monthly ? ' between '+fmtRange(W.monthly) : ' in the last 12 months') + '. Check people in under the Check-In tab and the figures and charts will update here.');
+      n.className = 'dash-note info';
+    } else {
+      if (week === 0 && month === 0 && d.latestRecordDate)
+        parts.push('Nothing has been recorded yet this week or this month — the most recent attendance is dated ' + fmtDay(d.latestRecordDate) + ', which is why the cards show 0 while the charts still show earlier weeks and months.');
+      if (demo > 0)
+        parts.push(demo + ' of the ' + total + ' records in the charts ' + (demo===1?'is a':'are') + ' trial demo record' + (demo===1?'':'s') + ' (added automatically when this account was created, marked “demo”). To remove them, open Records, widen the date range and delete them.');
+      n.className = 'dash-note' + (demo > 0 ? '' : ' info');
+    }
+    if (!parts.length) { n.hidden = true; n.textContent = ''; return; }
+    n.textContent = parts.join(' '); n.hidden = false;
+  }
+  function drawChart(canvasId, type, url, label, windowKey, emptyId){
+    return get(url).then(function(rows){
+      rows = Array.isArray(rows) ? rows : [];
       var labels = rows.map(function(r){ return r.label; });
-      var data   = rows.map(function(r){ return r.value; });
+      var data   = rows.map(function(r){ return Number(r.value)||0; });
+      var allZero = !data.some(function(v){ return v > 0; });
+      var empty = el(emptyId);
+      if (empty) {
+        var w = DASH.windows && DASH.windows[windowKey];
+        empty.textContent = 'No attendance recorded' + (w ? ' between '+fmtRange(w) : '') + '.';
+        empty.hidden = !allZero;
+      }
       if (charts[canvasId]) charts[canvasId].destroy();
       charts[canvasId] = new Chart(el(canvasId).getContext('2d'), {
         type: type,
         data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: 'rgba(103,49,71,.55)', borderColor: '#673147', borderWidth: 2, tension: .3, fill: type==='line' }] },
         options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
       });
-    });
+    }).catch(function(){ var empty = el(emptyId); if (empty) { empty.textContent = 'This chart could not be loaded. It will retry automatically.'; empty.hidden = false; } });
   }
+  /* A record changed (check-in, visitor, edit, delete): refresh the dashboard now if it is on screen,
+     otherwise the next time it is shown. */
+  function dashboardChanged(){ DASH.dirty = true; if (dashboardVisible()) loadDashboard(); }
+  window.CGP_attendanceDashboardChanged = dashboardChanged;
+  document.addEventListener('visibilitychange', function(){ if (dashboardVisible()) loadDashboard(); });
+  DASH.timer = setInterval(function(){ if (dashboardVisible()) loadDashboard(); }, 60000);
 
   /* ── Check-in context ── */
   function ctx(){
@@ -619,7 +684,7 @@
   window.checkInMember = function(memberId, name){
     if (needTarget()) return;
     var c = ctx(); c.memberId = memberId; c.name = name; c.method = 'manual';
-    post('/api/attendance/check-in', c).then(function(res){ ciMsg(res.ok?('✓ '+name+' checked in for '+c.serviceType+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); });
+    post('/api/attendance/check-in', c).then(function(res){ ciMsg(res.ok?('✓ '+name+' checked in for '+c.serviceType+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); if (res.ok) dashboardChanged(); });
   };
 
   /* ── Member code (QR + barcode) ── */
@@ -706,7 +771,7 @@
     if(!ids.length){ ciMsg('Select at least one family member.', 'err'); return; }
     if (needTarget()) return;
     var c = ctx(); c.familyId = familyId; c.memberIds = ids;
-    post('/api/attendance/family-check-in', c).then(function(res){ ciMsg(res.ok?('✓ Checked in '+res.j.checkedIn+' family member(s)'+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); el('familyMembers').innerHTML=''; });
+    post('/api/attendance/family-check-in', c).then(function(res){ ciMsg(res.ok?('✓ Checked in '+res.j.checkedIn+' family member(s)'+dateNote(c)):(res.j.error||'Failed'), res.ok?'ok':'err'); el('familyMembers').innerHTML=''; if (res.ok) dashboardChanged(); });
   };
 
   /* ── Visitor registration: individual / family / group ── */
@@ -806,6 +871,7 @@
         VR.busy = false; btn.disabled = false; btn.textContent = 'Check in visitor';
         var n = (r.visitors||[]).length;
         ciMsg('✓ Checked in '+n+' visitor'+(n===1?'':'s')+' for '+r.target.name+(r.date !== churchToday() ? ' on '+r.date : '')+(r.followUpId ? ' — follow-up task created' : ''), 'ok');
+        dashboardChanged();
         el('vrResults').innerHTML = (r.visitors||[]).map(function(v){
           return '<div>'+esc(v.name)+' — '+esc(v.classification)
             + (v.matchedExisting ? '<span class="tag">matched existing visitor</span>' : '<span class="tag new">new visitor</span>')
@@ -847,7 +913,7 @@
   window.deleteVisitor = function(id){
     var b = el('vlYes'); if (b) b.disabled = true;
     CGP_api('/api/attendance/visitors/'+id, { method:'DELETE' })
-      .then(function(){ VL.confirmId = null; vlMsg('Visitor deleted.', 'ok'); loadVisitors(); })
+      .then(function(){ VL.confirmId = null; vlMsg('Visitor deleted.', 'ok'); loadVisitors(); dashboardChanged(); })
       .catch(function(e){ if (b) b.disabled = false; vlMsg(CGP_errorMessage(e, 'The visitor was not deleted.'), 'err'); });
   };
   var VM_MAP = { vmFirst:'firstName', vmLast:'lastName', vmGender:'gender', vmRel:'relationship', vmPhone:'phone', vmEmail:'email',
@@ -868,7 +934,7 @@
     if (!b.firstName || !b.lastName) { var m=el('vmMsg'); m.textContent='First and last name are required.'; m.className='msg err'; return; }
     var btn = el('vmSave'); btn.disabled = true;
     CGP_api('/api/attendance/visitors/'+el('vmId').value, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) })
-      .then(function(){ btn.disabled = false; el('visitorModal').classList.remove('open'); vlMsg('Visitor saved.', 'ok'); loadVisitors(); })
+      .then(function(){ btn.disabled = false; el('visitorModal').classList.remove('open'); vlMsg('Visitor saved.', 'ok'); loadVisitors(); dashboardChanged(); })
       .catch(function(e){ btn.disabled = false; var m=el('vmMsg'); m.textContent=CGP_errorMessage(e, 'The visitor was not saved.'); m.className='msg err'; });
   };
 
@@ -909,12 +975,12 @@
     var id = el('eId').value;
     CGP_api('/api/attendance/records/'+id, { method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ attendanceDate:el('eDate').value, serviceType:el('eService').value, status:el('eStatus').value, ministry:el('eMinistry').value.trim() }) })
-      .then(function(){ el('editModal').classList.remove('open'); applyRecords(); })
+      .then(function(){ el('editModal').classList.remove('open'); applyRecords(); dashboardChanged(); })
       .catch(function(e){ CGP_showError(e, 'The record was not saved.'); });
   };
   window.delRec = function(id){
     if(!confirm('Delete this attendance record?')) return;
-    CGP_api('/api/attendance/records/'+id, { method:'DELETE' }).then(function(){ applyRecords(); })
+    CGP_api('/api/attendance/records/'+id, { method:'DELETE' }).then(function(){ applyRecords(); dashboardChanged(); })
       .catch(function(e){ CGP_showError(e, 'The record was not deleted.'); });
   };
   window.exportRecords = function(fmt){ window.open('/api/attendance/records/export?format='+fmt+'&'+recParams(), '_blank'); };
