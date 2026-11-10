@@ -355,7 +355,7 @@ public class AiMeetingCreateService {
             session.setAttribute(SESSION_KEY, d);
             Map<String, Object> m = base("meeting.ask", "Are you missing anything, or are you ready to review the meeting details?", false);
             m.put("asking", "review"); m.put("missing", List.of()); m.put("pending", true);
-            m.put("choices", List.of("Review the details", "Add a note"));
+            m.put("choices", List.of("Review the details", "Add a note", "Cancel"));
             return m;
         }
         if (d.complete()) {
@@ -379,8 +379,10 @@ public class AiMeetingCreateService {
             fields.add(field("location", "Location", d.locLabel, false, "Change location to "));
             fields.add(field("time", "Time", d.start == null ? null : fmtTime(d.start) + (d.end == null ? "" : " – " + fmtTime(d.end)), false, "Change time to "));
             fields.add(field("note", "Note", d.note, false, "Change note to "));
+            // 2026-11-09: Edit on a field with choices re-asks it with those choices (the correction with no value)
+            fields.forEach(f -> { if ("category".equals(f.get("key"))) f.put("ask", "Change the category"); });
             c.put("fields", fields);
-            c.put("label", "Create meeting");
+            c.put("label", "Create Meeting");
             m.put("confirm", c);
             m.put("pending", true);
             return m;

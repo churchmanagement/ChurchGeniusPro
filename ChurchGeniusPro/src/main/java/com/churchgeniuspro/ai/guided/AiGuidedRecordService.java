@@ -617,7 +617,7 @@ public class AiGuidedRecordService {
             session.setAttribute(SESSION_KEY, d);
             Map<String, Object> m = base("guided.ask", "Are you missing anything, or are you ready to review the " + d.noun() + " details?", d.noun());
             m.put("asking", "review"); m.put("pending", true); m.put("missing", List.of());
-            m.put("choices", List.of("Review the details"));
+            m.put("choices", List.of("Review the details", "Cancel"));
             return m;
         }
         if (!d.duplicateConfirmed) {
@@ -677,6 +677,15 @@ public class AiGuidedRecordService {
         for (Map<String, Object> f : fields)
             summary.put(String.valueOf(f.get("label")), f.get("value") == null ? "Not entered (optional)" : String.valueOf(f.get("value")));
         c.put("summary", summary);
+        // 2026-11-09: Edit on a field with choices re-asks it with the church's choices (the correction with no value)
+        for (Map<String, Object> f : fields) {
+            switch (String.valueOf(f.get("key"))) {
+                case "fund" -> f.put("ask", "Change the fund");
+                case "category" -> f.put("ask", "Change the expense category");
+                case "method" -> f.put("ask", "Change the payment method");
+                default -> { }
+            }
+        }
         c.put("fields", fields);
         m.put("confirm", c);
         m.put("pending", true);

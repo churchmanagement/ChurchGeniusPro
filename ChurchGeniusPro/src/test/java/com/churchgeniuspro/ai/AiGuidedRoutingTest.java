@@ -370,4 +370,82 @@ class AiGuidedRoutingTest {
         verifyNoInteractions(incomes, expenses, typeService, purposeService, sourceService, meetingService);
     }
     MockHttpServletRequest withAsk(MockHttpServletRequest r, String q) { ask(r, q); return r; }
+
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> field(Map<String, Object> card, String key) {
+        for (Map<String, Object> f : (List<Map<String, Object>>) ((Map<String, Object>) card.get("confirm")).get("fields"))
+            if (key.equals(f.get("key"))) return f;
+        return null;
+    }
+
+    @Test @DisplayName("9. Genius Assistant additions: short question above the choices (S1), Cancel on the review question (S2), Edit re-asks a field with its choices (S3)")
+    void geniusAssistantAdditions() {
+        // meeting — the user's example shape
+        MockHttpServletRequest r = staff("Admin", null);
+        Map<String, Object> m = ask(r, "Create a meeting at 7:30 PM.");
+        assertThat(m.get("asking")).isEqualTo("category");
+        assertThat(m.get("question")).as("S1 short question").isEqualTo("Which category is this meeting?");
+        assertThat(String.valueOf(m.get("answer"))).as("the full sentence still lists them (voice)").contains("Bible Study").contains("Prayer Meeting");
+        assertThat((List<String>) m.get("choices")).containsExactly("Bible Study", "Prayer Meeting");
+        m = ask(r, "Prayer Meeting");
+        assertThat(m.get("asking")).isEqualTo("date");
+        m = ask(r, "11/20/2026");
+        for (int i = 0; i < 4 && !"review".equals(m.get("asking")) && !"meeting.confirm".equals(m.get("intent")); i++)
+            m = ask(r, "location".equals(m.get("asking")) ? "no location" : "no");
+        assertThat(m.get("asking")).isEqualTo("review");
+        assertThat((List<String>) m.get("choices")).as("S2").containsExactly("Review the details", "Add a note", "Cancel");
+        ask(r, "Add a note");
+        m = ask(r, "Please come and attend.");
+        assertThat(m.get("intent")).isEqualTo("meeting.confirm");
+        assertThat(((Map<String, Object>) m.get("confirm")).get("label")).isEqualTo("Create Meeting");
+        assertThat(field(m, "category").get("ask")).as("S3").isEqualTo("Change the category");
+        assertThat(field(m, "date").get("ask")).as("a free field keeps the message-box words").isNull();
+        m = ask(r, "Change the category");
+        assertThat(m.get("asking")).isEqualTo("category");
+        assertThat((List<String>) m.get("choices")).containsExactly("Bible Study", "Prayer Meeting");
+        m = ask(r, "Bible Study");
+        assertThat(m.get("intent")).as("straight back to the card").isEqualTo("meeting.confirm");
+        assertThat(field(m, "category").get("value")).isEqualTo("Bible Study");
+        assertThat(field(m, "note").get("value")).as("the rest is kept").isEqualTo("Please come and attend.");
+        // Cancel from the review question saves nothing
+        MockHttpServletRequest rc = staff("Admin", null);
+        ask(rc, "Create a meeting at 7:30 PM."); ask(rc, "Prayer Meeting");
+        m = ask(rc, "11/20/2026");
+        for (int i = 0; i < 4 && !"review".equals(m.get("asking")); i++) m = ask(rc, "location".equals(m.get("asking")) ? "no location" : "no");
+        m = ask(rc, "Cancel");
+        assertThat(String.valueOf(m.get("intent"))).contains("cancel");
+        assertThat(meetingDraft(rc)).isFalse();
+        verifyNoInteractions(meetingService);
+
+        // income — Edit on the fund re-asks with the church's sub-funds; Cancel offered at review
+        MockHttpServletRequest ri = staff("Accountant", null);
+        m = ask(ri, "Add an income of $50 from John Smith to Tithe by cash today");
+        for (int i = 0; i < 6 && !"guided.confirm".equals(m.get("intent")); i++) {
+            if ("review".equals(m.get("asking"))) assertThat((List<String>) m.get("choices")).contains("Cancel");
+            m = ask(ri, "review".equals(m.get("asking")) ? "Review the details" : "Skip and review");
+        }
+        assertThat(m.get("intent")).isEqualTo("guided.confirm");
+        assertThat(field(m, "fund").get("ask")).isEqualTo("Change the fund");
+        assertThat(field(m, "method").get("ask")).isEqualTo("Change the payment method");
+        m = ask(ri, "Change the fund");
+        assertThat(m.get("asking")).isEqualTo("fund");
+        assertThat((List<String>) m.get("choices")).contains("Tithe", "Building Fund");
+        assertThat(m.get("question")).isNotNull();
+        m = ask(ri, "Building Fund");
+        for (int i = 0; i < 3 && !"guided.confirm".equals(m.get("intent")); i++) m = ask(ri, "Review the details");
+        assertThat(field(m, "fund").get("value")).isEqualTo("Building Fund");
+
+        // settings — Edit on the main fund of a sub-fund re-asks with the main funds
+        MockHttpServletRequest rs = staff("Accountant", null);
+        m = ask(rs, "Create a subfund called Youth Ministry under the Building Fund.");
+        assertThat(m.get("intent")).isEqualTo("guided.confirm");
+        assertThat(field(m, "parent").get("ask")).isEqualTo("Change the main fund");
+        m = ask(rs, "Change the main fund");
+        assertThat(m.get("asking")).isEqualTo("parent");
+        assertThat((List<String>) m.get("choices")).contains("General Fund", "Building Fund");
+        m = ask(rs, "General Fund");
+        assertThat(m.get("intent")).isEqualTo("guided.confirm");
+        assertThat(field(m, "parent").get("value")).isEqualTo("General Fund");
+        verifyNoInteractions(incomes, typeService, purposeService, sourceService);
+    }
 }

@@ -589,7 +589,7 @@ class AiMeetingCreateServiceTest {
         svc.handle(r, MINE, "Create a Prayer Meeting on December 5");
         Map<String, Object> m = svc.handle(same(r), MINE, "no location");
         m = svc.handle(same(r), MINE, "no time");
-        assertThat(m.get("choices")).isEqualTo(List.of("Review the details", "Add a note"));
+        assertThat(m.get("choices")).isEqualTo(List.of("Review the details", "Add a note", "Cancel"));   // Cancel added 2026-11-09
         m = svc.handle(same(r), MINE, "Add a note");
         assertThat(m.get("asking")).isEqualTo("note");
         m = svc.handle(same(r), MINE, "Fasting week");

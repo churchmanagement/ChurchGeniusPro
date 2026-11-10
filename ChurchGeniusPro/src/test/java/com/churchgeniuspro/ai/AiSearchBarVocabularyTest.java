@@ -82,8 +82,12 @@ class AiSearchBarVocabularyTest {
         assertThat(safe.matcher("/donate/abc").matches()).isTrue();
         for (String bad : new String[] { "javascript:alert(1)", "//evil.example/x", "https://evil.example", "/x\" onmouseover=\"y", "" })
             assertThat(safe.matcher(bad).matches()).as(bad).isFalse();
+        // 2026-11-09: the chat (panel and /ai-assistant page) moves the WHOLE card into the bubble — every part of it
+        // (summary, table, public links, chips, choices, review rows, filter JSON) — instead of copying a list of parts.
         String chat = Files.readString(Paths.get("src/main/resources/static/ai-assistant.html"));
-        assertThat(chat).contains(".aa-summary, .aa-fields, .aa-tablewrap, .aa-publinks, .aa-more, .aa-chips, .aa-choices, .aa-actions, .aa-filter-json");   // + chips / filter JSON (AI Phase 1), review rows + suggested answers (2026-11-08)
+        assertThat(chat).contains("id=\"gaPageHost\"");
+        String panel = Files.readString(Paths.get("src/main/resources/static/ai-chat.js"));
+        assertThat(panel).contains("while (src.firstChild) extra.appendChild(src.firstChild)").contains("api.wireCard(n)");
     }
 
     @Test @DisplayName("the Meetings page opens the meeting the AI link names (?meetingId=), digits only, via its own editMeeting()")

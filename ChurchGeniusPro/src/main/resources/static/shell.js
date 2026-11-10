@@ -839,6 +839,7 @@ window.CGP_memberNameHtml = function (first, last, nick) {
     add('/devices.js', 'devices-script');             // "Signed-in devices" modal (opened from the notification bell)
     add('/voice-flags.js', 'voice-flags-script'); // per-church Voice feature gating (hides disabled buttons)
     add('/voice-openai.js', 'aa-voice');   // shared recorder engine (Voice/Converse)
+    add('/ai-chat.js', 'ai-chat-script');  // Genius Assistant chat panel (attached by ai-assistant.js)
     add('/ai-assistant.js', 'aa-script');  // the assistant itself
     add('/temp-session.js', 'temp-session-script');  // temporary-access countdown banner (self-activates only for temp sessions)
     add('/ntag-session.js', 'ntag-session-script');  // NTAG restricted-access sidebar (self-activates only for NTAG sessions)

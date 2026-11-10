@@ -675,9 +675,9 @@
         <div class="ai-search-bar">
           <span class="ai-search-icon">✨</span>
           <input type="text" id="aiSearchInput" class="ai-search-input"
-                 placeholder="Ask anything…"
+                 placeholder="Ask Genius anything — questions, reports, pages, or what to create…"
                  onkeydown="if(event.key==='Enter') runAiSearch()" />
-          <button class="ai-search-btn" id="aiSearchBtn" onclick="runAiSearch()">Search</button>
+          <button class="ai-search-btn" id="aiSearchBtn" onclick="runAiSearch()">Submit</button>
         </div>
         <div id="aiResultsWrap" style="display:none;"></div>
       </div>
@@ -2782,7 +2782,7 @@ async function runAiSearch() {
   const wrap  = document.getElementById('aiResultsWrap');
   const query = (input.value || '').trim();
   if (!query) { input.focus(); return; }
-  btn.disabled = true; btn.textContent = '⏳ Searching…';
+  btn.disabled = true; btn.textContent = '⏳ Working…';
   wrap.style.display = 'none';
   clearTimeout(_aiTimer);
   const timeoutPromise = new Promise((_, reject) => {
@@ -2806,7 +2806,7 @@ async function runAiSearch() {
       : CGP_errorMessage(err, 'An error occurred. Please try again.');
     renderAiResults({ intent: 'error', answer: msg, results: [], links: [] }, query);
   } finally {
-    btn.disabled = false; btn.textContent = 'Search';
+    btn.disabled = false; btn.textContent = 'Submit';
   }
 }
 

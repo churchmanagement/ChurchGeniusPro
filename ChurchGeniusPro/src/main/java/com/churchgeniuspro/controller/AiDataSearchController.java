@@ -158,6 +158,23 @@ public class AiDataSearchController {
     static Map<String, Object> audited(HttpServletRequest request, Map<String, Object> answer) {
         com.churchgeniuspro.ai.audit.AiAuditService.intentFrom(request, answer);
         if (answer != null && Boolean.TRUE.equals(answer.get("denied"))) request.setAttribute("ai.denied", Boolean.TRUE);
+        withShortQuestion(answer);
         return answer;
+    }
+
+    /**
+     * 2026-11-09 (Genius Assistant S1): a question that lists its choices in the sentence ("Which category is this
+     * meeting? Baptism, Bible Study, …") also carries the question alone as {@code question}, so the chat shows the
+     * short question above the choice cards. {@code answer} is unchanged (read aloud in Converse, older clients).
+     */
+    static void withShortQuestion(Map<String, Object> answer) {
+        if (answer == null || answer.containsKey("question") || !(answer.get("choices") instanceof java.util.List<?> ch) || ch.isEmpty()) return;
+        String text = String.valueOf(answer.getOrDefault("answer", ""));
+        String first = String.valueOf(ch.get(0));
+        int i = first.isBlank() ? -1 : text.indexOf(first);
+        String head = (i > 0 ? text.substring(0, i) : text).trim();
+        if (i > 0 && !(head.endsWith("?") || head.endsWith(":"))) head = text.trim();
+        if (head.endsWith(":")) head = head.substring(0, head.length() - 1).trim();
+        if (!head.isEmpty() && head.length() <= 400) answer.put("question", head);
     }
 }

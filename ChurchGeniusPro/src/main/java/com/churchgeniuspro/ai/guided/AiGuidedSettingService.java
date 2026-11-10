@@ -331,6 +331,15 @@ public class AiGuidedSettingService {
         }
         Map<String, String> summary = new LinkedHashMap<>();
         for (Map<String, Object> f : fields) summary.put(String.valueOf(f.get("label")), String.valueOf(f.get("value")));
+        // 2026-11-09: Edit on a field with choices re-asks it with its choices
+        for (Map<String, Object> f : fields) {
+            switch (String.valueOf(f.get("key"))) {
+                case "parent" -> f.put("ask", "Change the main fund");
+                case "tax" -> f.put("ask", "Change tax-deductible");
+                case "level" -> f.put("ask", "Make it a sub-fund");
+                default -> { }
+            }
+        }
         c.put("summary", summary); c.put("fields", fields);
         m.put("confirm", c); m.put("pending", true);
         return m;

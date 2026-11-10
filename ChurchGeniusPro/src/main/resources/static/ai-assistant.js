@@ -861,10 +861,11 @@
   /* A suggested answer (chip) is sent as if typed; Edit puts "Change <field> to " in the bar. */
   function chooseAnswer(text){
     var input=document.getElementById('aiSearchInput');
-    if (input) input.value=text;
+    if (input && !uiHook()) input.value=text;
     runAssist(text);
   }
   function prefillEdit(text){
+    if (uiCall('prefill', text)) return;                 // the chat panel's own message box
     var input=document.getElementById('aiSearchInput'); if(!input) return;
     input.value=text; try{ input.focus(); input.setSelectionRange(text.length, text.length); }catch(e){}
     if (typeof input.dispatchEvent==='function'){ try{ input.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){} }
@@ -984,7 +985,7 @@
             html+='<div class="aa-field" role="row"><div class="aa-field-k" role="rowheader">'+esc(f.label||'')
               + ' <span class="'+(f.required?'aa-req':'aa-opt')+'">'+(f.required?'Required':'Optional')+'</span></div>'
               + '<div class="aa-field-v'+(has?'':' aa-empty')+'" role="cell">'+(has?esc(f.value):'Not entered')+'</div>'
-              + (f.edit ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit)+'" aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
+              + (f.edit ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit)+'"'+(f.ask ? ' data-ask="'+esc(f.ask)+'"' : '')+' aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
               + '</div>';
           });
           html+='</div>';
@@ -1040,7 +1041,13 @@
     });
     wrap.querySelectorAll('.aa-edit').forEach(function(b){
       if (b.disabled) return;
-      b.addEventListener('click', function(){ prefillEdit(b.getAttribute('data-edit')||''); });
+      // 2026-11-09: a field with choices (category, fund, payment method, main fund…) is asked again with its
+      // choices; any other field puts "Change … to " in the message box.
+      b.addEventListener('click', function(){
+        var ask=b.getAttribute('data-ask');
+        if (ask){ wrap.querySelectorAll('.aa-edit').forEach(function(x){ x.disabled=true; }); chooseAnswer(ask); }
+        else prefillEdit(b.getAttribute('data-edit')||'');
+      });
     });
     var nc=wrap.querySelector('.aa-newconv');
     if (nc) nc.addEventListener('click', newConversation);
@@ -1341,7 +1348,7 @@
   }
 
   function curMode(){ return mode.charAt(0).toUpperCase()+mode.slice(1); }
-  function busy(on){ if (uiCall('busy', !!on)) return; var b=document.getElementById('aiSearchBtn'); if(b){ b.disabled=!!on; b.textContent=on?'⏳ Searching…':'Search'; } }
+  function busy(on){ if (uiCall('busy', !!on)) return; var b=document.getElementById('aiSearchBtn'); if(b){ b.disabled=!!on; b.textContent=on?'⏳ Working…':'Submit'; } }
   function persist(){ try{ localStorage.setItem('aa.mode',mode); localStorage.setItem('aa.debug', document.getElementById('aaDebug') && !document.getElementById('aaDebug').classList.contains('hidden') ? '1':'0'); }catch(e){} }
   function persistConv(){ try{ sessionStorage.setItem('aa.conv', JSON.stringify(conv)); sessionStorage.setItem('aa.convlog', JSON.stringify(_convLog.slice(-12))); }catch(e){} }
   function restoreConv(){ try{ var c=JSON.parse(sessionStorage.getItem('aa.conv')||'null'); if(c) conv=c; var l=JSON.parse(sessionStorage.getItem('aa.convlog')||'null'); if(l) _convLog=l; }catch(e){} }
@@ -1724,8 +1731,8 @@
       host.setAttribute('data-perm','more.aiassistant');   // session.js hides it the moment the permission is switched off
       var sb=document.createElement('div'); sb.className='aa-searchbar';
       sb.innerHTML='<span class="aa-ic">✨</span>'
-        + '<input id="aiSearchInput" class="aa-input" type="text" autocomplete="off" aria-label="Ask the AI assistant" placeholder="Ask anything — navigation, reports, how-to, help…">'
-        + '<button id="aiSearchBtn" class="aa-searchbtn" type="button" aria-label="Search">Search</button>';
+        + '<input id="aiSearchInput" class="aa-input" type="text" autocomplete="off" aria-label="Ask the AI assistant" placeholder="Ask Genius anything — questions, reports, pages, or tell me what to create…">'
+        + '<button id="aiSearchBtn" class="aa-searchbtn" type="button" aria-label="Submit">Submit</button>';
       sb.appendChild(bar);                           // mode buttons inside the bar → one row
       var resWrap=document.createElement('div'); resWrap.id='aiResultsWrap'; resWrap.style.display='none';
       resWrap.setAttribute('role','region'); resWrap.setAttribute('aria-label','Assistant results'); resWrap.setAttribute('aria-live','polite');
@@ -1762,6 +1769,19 @@
     return true;
   }
 
+  /* 2026-11-09 — Genius Assistant: ai-chat.js draws the conversation as a chat panel. It becomes the page adapter
+     (window.CGP_ASSISTANT_UI) BEFORE the stored thread is restored, so every answer goes to the panel. The engine
+     keeps every decision (routing, server calls, voice, saving); the panel only shows and sends. */
+  function attachChat(){
+    if (session.aiChatUi===false || !window.CGP_CHAT || typeof window.CGP_CHAT.attach!=='function') return;
+    try{
+      window.CGP_CHAT.attach({ ask:function(q){ return runAssist(q); }, wireCard:wireCard, newConversation:newConversation,
+        user:function(){ return String(session.user||''); }, inFlight:function(){ return !!_inFlight; },
+        helpHtml:function(){ return searchHelpHtml(); }, showHelp:function(){ showHelpModal('Genius Assistant — Help', searchHelpHtml()); },
+        setMode:function(m){ var b=document.getElementById('aaMode_'+m); if(b) b.click(); }, mode:function(){ return mode; } });
+    }catch(e){ /* the classic results box stays */ }
+  }
+
   /* ── Override the page's search entry point (preserve original for data lookups) ── */
   function captureOriginal(){
     if (typeof window.runAiSearch==='function' && window.runAiSearch.__aa!==true){ _origRunAiSearch=window.runAiSearch; }
@@ -1784,6 +1804,8 @@
       // session, a Member without the opt-in, or staff with the permission off. Only
       // an explicit true draws the assistant — an unknown answer is treated as "no".
       session.aiAssistant=(s.aiAssistant===true);
+      // 2026-11-09: Genius Assistant chat panel (ai-chat.js) unless the server switched it off (ai.chat.ui=false).
+      session.aiChatUi=(s.aiChatUi!==false);
       session.user=String(s.username||s.memberId||s.clientId||'');
       session.ready=true;
     }).catch(function(){ session.role=safeLS('role')||'User'; session.aiAssistant=false; session.ready=true; });
@@ -1796,8 +1818,26 @@
   function init(){
     loadSession().then(function(){
       if (session.aiAssistant!==true){ hideHomeBar(); return; }   // nothing is injected for a session the server refuses
+      return ensureChat().then(start);
+    });
+  }
+  /* The chat panel script (ai-chat.js) must be in place before the first answer is drawn; shell.js adds it too,
+     but a dynamically added script may arrive after this one. Waits at most 4 s, then the classic box is used. */
+  function ensureChat(){
+    if (session.aiChatUi===false || window.CGP_CHAT) return Promise.resolve();
+    return new Promise(function(res){
+      var done=false; function fin(){ if(!done){ done=true; res(); } }
+      var ex=document.getElementById('ai-chat-script');
+      if (!ex){ ex=document.createElement('script'); ex.src='/ai-chat.js'; ex.id='ai-chat-script'; document.body.appendChild(ex); }
+      ex.addEventListener('load', fin); ex.addEventListener('error', fin);
+      var t0=Date.now(); (function poll(){ if (window.CGP_CHAT || Date.now()-t0>4000) return fin(); setTimeout(poll, 50); })();
+    });
+  }
+  function start(){
+    {
       if(!injectUI()) return;
       captureOriginal();
+      attachChat();
       loadServerNav();
       loadPublicLinks();
       restoreState();
@@ -1805,7 +1845,7 @@
       if (window.VoiceOpenAI && window.VoiceOpenAI.getStatus){
         window.VoiceOpenAI.getStatus().then(function(st){ if(st && st.voiceAvailable===false){ /* voice gated — errors surfaced on use */ } }).catch(function(){});
       }
-    });
+    }
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,300); });
   else setTimeout(init,200);
@@ -1815,7 +1855,7 @@
     resolveLocal:resolveLocal, classify:classify, buildContext:buildContext, converseStart:converseStart, converseStep:converseStep,
     matchAccountSwitch:matchAccountSwitch, directNav:directNav, open:open, confirmMeeting:confirmMeeting, cancelMeeting:cancelMeeting,
     rerunFilterWithout:rerunFilterWithout, saveFilterAsList:saveFilterAsList, chooseAnswer:chooseAnswer, prefillEdit:prefillEdit,
-    newConversation:newConversation, _thread:function(){ return _thread; }, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
+    newConversation:newConversation, ask:function(q){ return runAssist(q); }, wireCard:wireCard, _thread:function(){ return _thread; }, _dests:DESTS, _reports:REPORTS, _conv:function(){return conv;},
     _setSession:function(r,c){ session.role=r; session.church=!!c; }, _setMode:function(m){ mode=m; speaking=(m==='voice'||m==='converse'); },
     _setTimeoutMs:function(ms){ AA_TIMEOUT_MS=ms; }, _inFlight:function(){ return _inFlight; } };
 })();

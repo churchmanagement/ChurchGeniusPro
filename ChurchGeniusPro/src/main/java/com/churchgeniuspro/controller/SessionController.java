@@ -30,6 +30,10 @@ public class SessionController {
 
     private final AppUserRepository appUserRepository;
 
+    /** 2026-11-09: the Genius Assistant chat panel (ai-chat.js); false = the classic results box under the search bar. */
+    @org.springframework.beans.factory.annotation.Value("${ai.chat.ui:true}")
+    private boolean aiChatUi = true;
+
     /**
      * The plan, for the two flags below. Field-injected and null-checked so this
      * controller's existing construction sites (and their tests) are unchanged.
@@ -134,6 +138,7 @@ public class SessionController {
         // server's own requireFeature verdict (Kids Portal never; Members opt-in; staff
         // unless switched off), so the search bar is not drawn on the client's guess.
         res.put("aiAssistant", com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT));
+        res.put("aiChatUi", aiChatUi);
 
         // ── Plan state, for pages that do not load session.js ─────────────────
         // The Member and Kids portals render their own sidebar and never load
