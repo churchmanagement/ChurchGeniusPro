@@ -65,7 +65,7 @@ class AiSearchBarVocabularyTest {
     @Test @DisplayName("specific data questions are asked of the server before the direct-navigation shortcut, which runs only if unhandled")
     void dataFirstOrder() throws IOException {
         String js = engine();
-        assertThat(js).contains("var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query);")
+        assertThat(js).contains("var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || _aaServerPending;")
                       .contains("if (!dataFirst && directNav(query)){")
                       .contains("if (dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }");
         assertThat(js.indexOf("if (!dataFirst && directNav(query)){")).isLessThan(js.indexOf("tryDataSearch(query).then("));

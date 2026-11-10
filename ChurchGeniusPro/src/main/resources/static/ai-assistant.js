@@ -514,7 +514,9 @@
     // deletes, the server answers with a link to the page that does; if it doesn't, the shortcut still runs below.
     // Create requests ("Record an income of $500…", "Schedule a Bible Study next Sunday…") too, so Voice and Converse
     // start the same guided conversation as Type instead of jumping to the page.
-    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query);
+    // 2026-11-09: an open conversation's answer ("Prayer Meeting" to "Which category?") goes to the server first in
+    // every mode — spoken, it used to match the Meetings page name and open the page instead of answering.
+    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || _aaServerPending;
     if (!dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
 
     // ── Natural-language DATA questions ("When is Anson's birthday?",
@@ -1773,7 +1775,12 @@
      (window.CGP_ASSISTANT_UI) BEFORE the stored thread is restored, so every answer goes to the panel. The engine
      keeps every decision (routing, server calls, voice, saving); the panel only shows and sends. */
   function attachChat(){
-    if (session.aiChatUi===false || !window.CGP_CHAT || typeof window.CGP_CHAT.attach!=='function') return;
+    if (session.aiChatUi===false){
+      // Panel switched off on the server: the full-page view falls back to the classic bar + results box.
+      var eb=document.querySelector('.ai-search-wrap.ga-engine-bar'); if (eb){ eb.classList.remove('ga-engine-bar'); eb.removeAttribute('aria-hidden'); }
+      return;
+    }
+    if (!window.CGP_CHAT || typeof window.CGP_CHAT.attach!=='function') return;
     try{
       window.CGP_CHAT.attach({ ask:function(q){ return runAssist(q); }, wireCard:wireCard, newConversation:newConversation,
         user:function(){ return String(session.user||''); }, inFlight:function(){ return !!_inFlight; },

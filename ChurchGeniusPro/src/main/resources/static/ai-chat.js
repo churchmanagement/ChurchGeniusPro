@@ -245,7 +245,13 @@
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }
     });
     el.gaInput.addEventListener('input', autosize);
-    el.gaMic.addEventListener('click', function () { if (api && api.setMode) api.setMode('voice'); });
+    el.gaMic.addEventListener('click', function () {
+      if (!api || !api.setMode) return;
+      var m = api.mode ? api.mode() : 'type';
+      // While listening the mic is a Stop button (the engine's own button does the stopping)
+      api.setMode(m === 'converse' ? 'converse' : 'voice');
+      setTimeout(syncMode, 60);
+    });
     document.getElementById('gaNew').addEventListener('click', newConversation);
     var cl = document.getElementById('gaClose'); if (cl) cl.addEventListener('click', close);
     el.gaPill.addEventListener('click', function () { scrollEnd(true); });
@@ -287,6 +293,17 @@
       close();
     });
     window.addEventListener('resize', layout);
+    // Phone keyboard: keep the message box above it (iOS does not shrink 100dvh for the keyboard).
+    if (window.visualViewport) {
+      var fit = function () {
+        if (pageMode || !isPhone() || !document.documentElement.classList.contains('ga-open')) { el.panel.style.height = ''; el.panel.style.top = ''; return; }
+        el.panel.style.height = window.visualViewport.height + 'px';
+        el.panel.style.top = window.visualViewport.offsetTop + 'px';
+        scrollEnd(false);
+      };
+      window.visualViewport.addEventListener('resize', fit);
+      window.visualViewport.addEventListener('scroll', fit);
+    }
     // The engine's mode buttons (🎤 / 🗣) live in the search bar; keep the panel's mic and menu in step with them.
     ['aaMode_type', 'aaMode_voice', 'aaMode_converse'].forEach(function (id) {
       var b = document.getElementById(id);
@@ -302,10 +319,17 @@
   }
   function syncMode() {
     var m = api && api.mode ? api.mode() : 'type';
-    el.gaMic.classList.toggle('ga-rec', m === 'voice' || m === 'converse');
+    // The engine's 🎤 / 🗣 button carries the live state: .rec = listening, .aa-proc = working on the recording.
+    var vb = document.getElementById('aaMode_' + m), rec = !!(vb && vb.classList.contains('rec')), proc = !!(vb && vb.classList.contains('aa-proc'));
+    var live = (m === 'voice' || m === 'converse') && (rec || proc);
+    el.gaMic.classList.toggle('ga-rec', live);
+    el.gaMic.textContent = live ? '\u23f9' : '\ud83c\udfa4';
+    el.gaMic.setAttribute('aria-label', live ? 'Stop listening' : 'Speak your request');
+    el.gaMic.title = live ? 'Stop listening' : 'Speak your request';
+    el.gaMic.setAttribute('aria-pressed', live ? 'true' : 'false');
     var cs = document.getElementById('gaConvState');
     if (cs) { cs.textContent = m === 'converse' ? 'On' : 'Off'; cs.classList.toggle('on', m === 'converse'); }
-    if (!busyOn) status(m === 'voice' || m === 'converse' ? 'listening' : 'ready');
+    if (!busyOn) status(rec ? 'listening' : proc ? 'thinking' : 'ready');
   }
   function syncHint() {
     var h = document.getElementById('aaHint'); var t = h ? (h.textContent || '').trim() : '';
@@ -565,7 +589,9 @@
   }
   var UI = {
     question: function (text) {
-      if (!document.documentElement.classList.contains('ga-open')) open(false);
+      var fromBar = document.activeElement && document.activeElement.id === 'aiSearchInput';
+      if (!document.documentElement.classList.contains('ga-open')) open(fromBar && !isPhone());
+      else if (fromBar && !isPhone()) setTimeout(function () { try { el.gaInput.focus(); } catch (e) {} }, 30);
       push(userBubble(text), true);
     },
     answer: answer,
