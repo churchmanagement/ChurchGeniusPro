@@ -61,6 +61,9 @@
       'html.ga-full .ga-full-btn .ga-i-enter{display:none;}',
       'html.ga-min:not(.ga-open) .ga-fab{display:flex;}',
       'html.ga-docked .app{padding-right:var(--ga-w);box-sizing:border-box;}',
+      /* grid / flex children holding a chart canvas must be allowed to shrink beside the docked panel (Attendance charts) */
+      'html.ga-docked .page-content .charts > *{min-width:0;}',
+      'html.ga-docked .page-content canvas{max-width:100%;}',
       '.ga-backdrop{display:none;position:fixed;inset:0;background:rgba(30,10,20,.32);z-index:955;}',
       'html.ga-open.ga-overlay .ga-backdrop{display:block;}',
       '@media (min-width:768px) and (max-width:1279px){.ga-panel{--ga-w:480px;}}',
@@ -197,6 +200,10 @@
       /* room to scroll the last rows / buttons of a page clear of the launcher */
       'html.ga-on:not(.ga-pagemode) .page-content::after{content:"";display:block;height:68px;flex:0 0 68px;grid-column:1/-1;}',
       '.ga-help-btn{margin-left:4px;font-weight:700;}',
+      /* the side panel is narrow: "New" is its ↺ icon there (the word stays in the full-page and full-screen views) so the title is not cut */
+      'html:not(.ga-full) .ga-panel:not(.ga-page) #gaNew span{display:none;}',
+      'html:not(.ga-full) .ga-panel:not(.ga-page) .ga-tools .ga-ib{width:29px;}',
+      'html:not(.ga-full) .ga-panel:not(.ga-page) .ga-new{padding:5px 8px;}',
       '.ga-conv{width:auto;padding:0 10px;display:inline-flex;align-items:center;gap:6px;font-size:16px;color:#4a4250;}',
       '.ga-conv .ga-conv-t{font-size:12.5px;font-weight:700;}',
       '.ga-conv.on{background:var(--ga-plum);border-color:var(--ga-plum);color:#fff;}',
@@ -241,7 +248,7 @@
       + '<div class="ga-draft" id="gaDraft" hidden><span class="ga-dot" aria-hidden="true"></span><span id="gaDraftText">Draft — not saved yet</span><button type="button" id="gaDraftCancel">Cancel</button></div>'
       + '<div class="ga-hint" id="gaHint" role="status" hidden></div>'
       + '<form class="ga-composer" id="gaForm" autocomplete="off">'
-      + '<textarea class="ga-input" id="gaInput" rows="1" placeholder="Ask a question or tell me what to do…" aria-label="Message to Genius Assistant"></textarea>'
+      + '<textarea class="ga-input" id="gaInput" rows="1" placeholder="Ask anything…" aria-label="Message to Genius Assistant"></textarea>'
       + '<button type="button" class="ga-mic" id="gaMic" title="Speak your request" aria-label="Speak your request">🎤</button>'
       + '<button type="button" class="ga-mic ga-conv" id="gaConv" title="Converse mode — talk back and forth; replies are spoken" aria-label="Converse mode" aria-pressed="false">'
       + '<span aria-hidden="true">🗣</span><span class="ga-conv-t">Converse</span></button>'
