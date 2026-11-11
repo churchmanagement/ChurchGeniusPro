@@ -607,8 +607,10 @@
     return /^\s*(please\s+)?(can you\s+|could you\s+)?(edit|change|update|modify|rename|delete|remove|erase|deactivate|archive)\b/i.test(q);
   }
   function looksLikeAction(q){
-    return /^\s*(please\s+)?(add|put|enrol|enroll|include|assign|sign up|mark|complete|close|finish|log|record|note|write|remind me|create|new|define|register|set ?up|schedule|book|plan|arrange|organi[sz]e|edit|change|update|modify|rename|delete|remove|erase|deactivate|archive)\b/i.test(q)
-        && !/^\s*(how|where|what|when|which|who|why|is|are|do|does|can|could|list|show|find)\b/i.test(q);
+    // 2026-11-11: + compose / draft / send an e-mail, make / start / form a group or campaign, and the page-link
+    // requests (run payroll, import a bank statement, print a certificate…), with a polite lead ("I want to …").
+    return /^\s*(please\s+|can you\s+|could you\s+|can i\s+|i\s+(?:want|need|would like)\s+to\s+|i'?d like to\s+|let'?s\s+|help me\s+(?:to\s+)?)?(add|put|enrol|enroll|include|assign|sign up|mark|complete|close|finish|log|record|note|write|remind me|create|new|define|register|set ?up|schedule|book|plan|arrange|organi[sz]e|edit|change|update|modify|rename|delete|remove|erase|deactivate|archive|compose|draft|send|prepare|make|start|launch|begin|form|e-?mail|run|process|import|upload|sync|synchroni[sz]e|connect|print|generate|issue|raise|submit|publish)\b/i.test(q)
+        && !/^\s*(how|where|what|when|which|who|why|is|are|do|does|(?:can|could)(?!\s+(?:you|i)\b)|list|show|find)\b/i.test(q);
   }
   // Names a person ("Anson's", "did Anson") or a period ("this month", "in September", "2026")
   // — i.e. asks for data rather than for a page.
@@ -813,8 +815,8 @@
      (sessionStorage) across pages until the record is saved or cancelled, then cleared. */
   var THREAD_KEY='aa.thread';
   var _thread={ active:false, items:[] };
-  function isConvIntent(i){ return /^(meeting|action|guided)\./.test(String(i||'')); }
-  function isPendingAnswer(d){ return !!(d && d.handled && (d.pending===true || /^(meeting|action|guided)\.(ask|confirm)$/.test(String(d.intent||'')))); }
+  function isConvIntent(i){ return /^(meeting|action|guided|email)\./.test(String(i||'')); }
+  function isPendingAnswer(d){ return !!(d && d.handled && (d.pending===true || /^(meeting|action|guided)\.(ask|confirm)$/.test(String(d.intent||'')) || d.intent==='email.review')); }
   function threadOwner(){ return String(session.user||''); }
   function saveThread(){
     try{
@@ -1024,6 +1026,33 @@
         }
         html+='</div>';
       }
+      // 2026-11-11 e-mail conversation: the draft as it stands (text only), and at the end the review card —
+      // recipients / subject, optional attachments, and the ONE button that sends (one-time token).
+      if (d.preview && typeof d.preview === 'object' && (d.preview.subject || d.preview.body)){
+        html+='<div class="aa-preview" role="group" aria-label="Email draft">'
+          +(d.preview.subject ? '<div class="aa-preview-s"><span>Subject</span>'+esc(d.preview.subject)+'</div>' : '')
+          +(d.preview.body ? '<div class="aa-preview-b">'+esc(d.preview.body)+'</div>' : '')+'</div>';
+      }
+      if (d.email && d.email.token){
+        var em=d.email;
+        html+='<div class="aa-fields aa-email-fields" role="table" aria-label="Email to review">';
+        (Array.isArray(em.fields) ? em.fields : []).forEach(function(f){
+          var has = f && f.value != null && String(f.value) !== '';
+          html+='<div class="aa-field" role="row"><div class="aa-field-k" role="rowheader">'+esc(f.label||'')+'</div>'
+            + '<div class="aa-field-v'+((has||f.long)?'':' aa-empty')+'" role="cell">'+(has?esc(f.value):(f.long?'Shown above':'Not entered'))+'</div>'
+            + ((f.edit||f.ask) ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit||'')+'"'+(f.ask ? ' data-ask="'+esc(f.ask)+'"' : '')+' aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
+            + '</div>';
+        });
+        html+='</div>'
+          +'<div class="aa-attach" data-maxfiles="'+esc(String(em.maxFiles||10))+'" data-maxfilemb="'+esc(String(em.maxFileMb||15))+'" data-maxtotalmb="'+esc(String(em.maxTotalMb||20))+'">'
+          +'<label class="aa-attach-btn'+(old?' aa-off':'')+'">\ud83d\udcce Attach files<input type="file" class="aa-files" multiple'+dis+'></label>'
+          +'<span class="aa-attach-hint">Optional \u2014 up to '+esc(String(em.maxFiles||10))+' files, '+esc(String(em.maxFileMb||15))+' MB each.</span>'
+          +'<ul class="aa-filelist" aria-label="Attached files"></ul><div class="aa-attach-err" role="alert"></div></div>'
+          +'<div class="aa-actions">'
+          +'<button type="button" class="aa-open aa-send" data-token="'+esc(em.token)+'" data-endpoint="'+esc(em.endpoint||'/api/ai/email/send')+'"'+dis+'>Send email</button>'
+          +'<button type="button" class="aa-open alt aa-send-cancel"'+dis+'>Cancel</button>'
+          +'<span class="aa-actions-note">'+(old ? 'Replaced by a newer card.' : 'Nothing is sent until you press Send email.')+'</span></div>';
+      }
       // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
       // The token is single-use on the server, so a double click cannot create two meetings.
       if (d.confirm && d.confirm.token){
@@ -1035,7 +1064,7 @@
             html+='<div class="aa-field" role="row"><div class="aa-field-k" role="rowheader">'+esc(f.label||'')
               + ' <span class="'+(f.required?'aa-req':'aa-opt')+'">'+(f.required?'Required':'Optional')+'</span></div>'
               + '<div class="aa-field-v'+(has?'':' aa-empty')+'" role="cell">'+(has?esc(f.value):'Not entered')+'</div>'
-              + (f.edit ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit)+'"'+(f.ask ? ' data-ask="'+esc(f.ask)+'"' : '')+' aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
+              + ((f.edit||f.ask) ? '<button type="button" class="aa-edit" data-edit="'+esc(f.edit||'')+'"'+(f.ask ? ' data-ask="'+esc(f.ask)+'"' : '')+' aria-label="Edit '+esc(f.label||'')+'"'+dis+'>Edit</button>' : '')
               + '</div>';
           });
           html+='</div>';
@@ -1077,6 +1106,8 @@
   function wireCard(wrap){
     wrap.querySelectorAll('.aa-open').forEach(function(b){
       if (b.disabled) return;
+      if (b.classList.contains('aa-send')) { b.addEventListener('click', function(){ sendEmail(b, wrap); }); return; }
+      if (b.classList.contains('aa-send-cancel')) { b.addEventListener('click', function(){ wrap.querySelectorAll('.aa-send,.aa-send-cancel,.aa-edit,.aa-files').forEach(function(x){ x.disabled=true; }); chooseAnswer('Cancel'); }); return; }
       if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
       if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
       if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(b.closest('.aa-turn') || wrap, b); }); return; }
@@ -1099,8 +1130,78 @@
         else prefillEdit(b.getAttribute('data-edit')||'');
       });
     });
+    wrap.querySelectorAll('.aa-attach').forEach(wireAttach);
     var nc=wrap.querySelector('.aa-newconv');
     if (nc) nc.addEventListener('click', newConversation);
+  }
+  /* 2026-11-11: attachments of the e-mail review card. The chosen files live on the element only (never stored);
+     a card restored after a reload starts with none. The server applies the same limits again. */
+  function fmtSize(n){ return n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1, Math.round(n/1024))+' KB'; }
+  function wireAttach(box){
+    var input=box.querySelector('.aa-files'), list=box.querySelector('.aa-filelist'), err=box.querySelector('.aa-attach-err');
+    if (!input || !list) return;
+    var maxFiles=parseInt(box.getAttribute('data-maxfiles'),10)||10, maxEach=(parseFloat(box.getAttribute('data-maxfilemb'))||15)*1048576,
+        maxAll=(parseFloat(box.getAttribute('data-maxtotalmb'))||20)*1048576;
+    box._aaFiles=[]; list.innerHTML=''; if (err) err.textContent='';
+    function draw(){
+      list.innerHTML='';
+      box._aaFiles.forEach(function(f, i){
+        var li=document.createElement('li'), nm=document.createElement('span'), x=document.createElement('button');
+        nm.textContent=f.name+' ('+fmtSize(f.size)+')';
+        x.type='button'; x.className='aa-file-x'; x.textContent='\u2715'; x.setAttribute('aria-label','Remove '+f.name);
+        x.addEventListener('click', function(){ box._aaFiles.splice(i,1); if (err) err.textContent=''; draw(); });
+        li.appendChild(nm); li.appendChild(x); list.appendChild(li);
+      });
+    }
+    if (input.disabled) return;
+    input.addEventListener('change', function(){
+      var problems=[];
+      Array.prototype.forEach.call(input.files||[], function(f){
+        var total=box._aaFiles.reduce(function(t,x){ return t+x.size; }, 0);
+        if (box._aaFiles.some(function(x){ return x.name===f.name && x.size===f.size; })) return;
+        if (box._aaFiles.length >= maxFiles) problems.push('At most '+maxFiles+' files can be attached.');
+        else if (f.size > maxEach) problems.push('\u201c'+f.name+'\u201d is larger than '+Math.round(maxEach/1048576)+' MB.');
+        else if (total + f.size > maxAll) problems.push('The attachments together are larger than '+Math.round(maxAll/1048576)+' MB.');
+        else box._aaFiles.push(f);
+      });
+      try{ input.value=''; }catch(e){}
+      if (err) err.textContent=problems.filter(function(p,i){ return problems.indexOf(p)===i; }).join(' ');
+      draw();
+    });
+  }
+  /* The review card's "Send email": the one-time token and the chosen files go to the server, which sends through the
+     Email page's own service. Disabled at once; the server refuses a second use of the token. */
+  function sendEmail(btn, wrap){
+    var token=btn.getAttribute('data-token'), endpoint=btn.getAttribute('data-endpoint')||'/api/ai/email/send';
+    if (!token) return;
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question \u2014 one moment\u2026'); return; }
+    var box=wrap.querySelector('.aa-attach'), files=(box && box._aaFiles) || [];
+    var row=btn.closest ? btn.closest('.aa-actions') : null;
+    wrap.querySelectorAll('.aa-send,.aa-send-cancel,.aa-edit,.aa-files,.aa-file-x').forEach(function(x){ x.disabled=true; });
+    btn.textContent='Sending\u2026';
+    var fd=new FormData(); fd.append('token', token);
+    files.forEach(function(f){ fd.append('files', f, f.name); });
+    lastQ='Send email (confirmed)';
+    reportQuestion('Send the email', 'type');
+    var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true); busy(true);   // no turn timer: an upload may take longer
+    fetch(endpoint, { method:'POST', body:fd, signal:aaSignal() })
+      .then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ return { status:r.status, j:j }; }); }).catch(function(){ return null; })
+      .then(function(res){
+        if (!aaLive(g)) return;
+        busy(false); endTurn();
+        var d=res && res.j && res.j.handled ? res.j : null;
+        if (!d){
+          var why = res && res.status===413 ? 'The attachments are too large, so the email was not sent. Remove a file and say \u201ccompose an email\u201d again if the draft has closed.'
+                  : (res && res.j && (res.j.error || res.j.message)) || 'The email could not be sent. Please try again, or use the Email page.';
+          d={ handled:true, denied:false, intent:'email.failed', answer:String(why) };
+        }
+        _aaServerPending=isPendingAnswer(d);
+        if (row && !_thread.active && !uiHook()){ row.remove(); }
+        renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
+          pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
+        setDebug({ intent:'Data: '+(d.intent||'email'), source:'Church Data', result: d.intent==='email.sent' ? 'Done' : 'Not done' });
+        if (speaking) speak(stripUrls(d.answer||''));
+      });
   }
   /* Phase E: the "Create meeting" button. Disabled at once (client side), and the server consumes
      the token on first use, so a repeat click or a stale transcript button creates nothing. */
@@ -1123,14 +1224,15 @@
       .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){
         if (!aaLive(g)) return;
-        busy(false); _aaServerPending=false; endTurn();
+        busy(false); endTurn();
+        _aaServerPending=isPendingAnswer(d);               // 2026-11-11: a follow-up question keeps the conversation open
         if (!d || !d.handled){ d= isAction ? { handled:true, denied:false, intent:'action.failed', answer:'The action could not be completed, so nothing was saved. Please try again or use the page directly.' }
                                            : { handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
         if (row && !_thread.active){ row.remove(); }
         renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
           pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
         setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: (d.created || d.executed) ? 'Done' : (d.denied ? 'Permission denied' : 'Not done') });
-        if (speaking) speak(stripUrls(d.answer||''));
+        if (speaking) speak(stripUrls(d.answer||'') + (Array.isArray(d.choices) && d.choices.length && d.choices.length <= 4 ? ' ' + d.choices.join(', ') + '.' : ''));
       });
   }
   /* AI Phase 1: the filter JSON the card carries (what the server understood). */
@@ -1184,11 +1286,23 @@
     _aaServerPending=false;
     var isAction = endpoint.indexOf('/api/ai/actions/') === 0 && token;
     if (isAction){
-      // AI Phase 4: reject the proposal itself (the server marks it REJECTED; the token can never be used)
-      fetch('/api/ai/actions/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) }).catch(function(){});
-    } else {
-      fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
+      // AI Phase 4: reject the proposal itself (the server marks it REJECTED; the token can never be used).
+      // 2026-11-11: a guided conversation may answer with its next question ("add a different member?").
+      fetch('/api/ai/actions/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:token }) })
+        .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+        .then(function(d){
+          if (d && d.handled && d.pending===true){
+            _aaServerPending=true; lastQ='Cancel';
+            renderCard({ intent:d.intent||'action.cancelled', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'', pages:[], suggestedAction:'none', data:d });
+            if (speaking) speak(stripUrls(d.answer||''));
+          } else cancelDone(true, threaded);
+        });
+      return;
     }
+    fetch('/api/ai-search/data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query:'cancel' }) }).catch(function(){});
+    cancelDone(false, threaded);
+  }
+  function cancelDone(isAction, threaded){
     var msg = isAction ? 'Okay — nothing was saved.' : 'Okay — the meeting was not created.';
     if (threaded){
       lastQ='Cancel';
@@ -1590,6 +1704,20 @@
       '.aa-tot-new{font-weight:700;border-top:1px solid #b7d8b9;margin-top:3px;padding-top:4px;}',
       '.aa-receipt-note{margin-top:8px;color:#5f6b61;font-size:12.5px;}',
       '.aa-fields{margin-top:10px;border:1px solid #eadfe6;border-radius:9px;overflow:hidden;}',
+      '.aa-preview{margin-top:10px;border:1px solid #eadfe6;border-radius:10px;background:#fff;overflow:hidden;font-size:13.5px;color:#2b2730;}',
+      '.aa-preview-s{padding:9px 12px;border-bottom:1px solid #f0e8ed;font-weight:700;overflow-wrap:anywhere;}',
+      '.aa-preview-s span{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a7a84;margin-bottom:2px;}',
+      '.aa-preview-b{padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;max-height:320px;overflow:auto;}',
+      '.aa-attach{margin-top:10px;font-size:13px;color:#4a4350;}',
+      '.aa-attach-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1.5px solid #d9c9d3;border-radius:8px;background:#fff;color:#673147;font-weight:700;cursor:pointer;}',
+      '.aa-attach-btn:focus-within{outline:2px solid #673147;outline-offset:2px;}',
+      '.aa-attach-btn.aa-off{opacity:.55;cursor:default;}',
+      '.aa-attach-btn input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}',
+      '.aa-attach-hint{margin-left:8px;font-size:12px;color:#8a7a84;}',
+      '.aa-filelist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;}',
+      '.aa-filelist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 9px;border:1px solid #eadfe6;border-radius:7px;background:#fbf9fa;overflow-wrap:anywhere;}',
+      '.aa-file-x{border:none;background:none;color:#8a2c2c;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:5px;}',
+      '.aa-attach-err{color:#a12626;font-size:12.5px;margin-top:4px;}',
       '.aa-field{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid #f3edf0;font-size:13px;}',
       '.aa-field:first-child{border-top:none;}',
       '.aa-field-k{color:#5a4450;font-weight:600;}',
@@ -1695,7 +1823,10 @@
       ['Expenses', ['Record an expense of $150 for electricity.']],
       ['Transaction types', ['Create a transaction type called Mission Offering.']],
       ['Funds', ['Create a fund called Building Fund.']],
-      ['Sub-funds', ['Create a subfund called Youth Ministry under the Building Fund.']]];
+      ['Sub-funds', ['Create a subfund called Youth Ministry under the Building Fund.']],
+      ['Groups', ['Add a group', 'Add a member to the Youth group']],
+      ['Pledge campaigns', ['Create a pledge campaign called Building Fund 2027.']],
+      ['Email', ['Compose an email', 'Send an email to the members']]];
     var manage = [
       ['Meetings', 'Meetings', '/meetings'], ['Income entries', 'Income', '/income'], ['Expense entries', 'Expense', '/expense'],
       ['Transaction types', 'Account Settings \u2192 Transaction Type', '/transactiontype'],
@@ -1710,6 +1841,8 @@
     });
     h += '<p style="font-size:12.5px;color:#666;">You need the same permission as on the page (for example Accounting Settings for funds and transaction types). '
       + 'A meeting\u2019s category must be one of your church\u2019s meeting categories, and only one-time meetings are created here. A name that already exists is never created twice.</p>';
+    h += '<p style="font-size:12.5px;color:#666;"><b>Email:</b> write it with AI or yourself, choose the recipients, attach files on the review card \u2014 it is sent only when you press <b>Send email</b>. '
+      + '<b>Families, Bank Import, Bank Sync, Payroll, Events, Ministry, Certificates, Public Screens, Ticketing</b> and <b>Account &amp; Privacy</b> are done on their own pages: ask (\u201cadd a family\u201d, \u201crun payroll\u201d) and you get a link to the page.</p>';
     h += '<h4>Changing or deleting existing records</h4>'
       + '<p>AI Search only <b>creates</b> new records. It never changes or deletes an existing meeting, income or expense entry, transaction type, fund or sub-fund \u2014 '
       + 'ask it and it shows you the right page instead. Make the change there:</p><ul>';

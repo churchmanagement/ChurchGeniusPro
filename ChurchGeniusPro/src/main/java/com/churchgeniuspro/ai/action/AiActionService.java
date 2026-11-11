@@ -320,9 +320,25 @@ public class AiActionService {
     /** The one-time confirmation. Re-checks everything, executes in one transaction, records the outcome. */
     public Map<String, Object> confirm(HttpServletRequest req, String clientId, String token) {
         if (token != null && !inFlight.add(token)) return expired();
-        try { return confirmOnce(req, clientId, token); }
+        try {
+            Map<String, Object> m = confirmOnce(req, clientId, token);
+            Object result = m.remove(RESULT_KEY);
+            if (Boolean.TRUE.equals(m.get("executed")) && followUps != null) {
+                @SuppressWarnings("unchecked") Map<String, Object> res = result instanceof Map<?, ?> r ? (Map<String, Object>) r : Map.of();
+                for (AiActionFollowUp f : followUps.orderedStream().toList()) {
+                    try { f.confirmed(req, clientId, token, String.valueOf(m.get("tool")), res, m); }
+                    catch (RuntimeException e) { log.warn("[ai-actions] follow-up after confirm failed: {}", e.getClass().getSimpleName()); }
+                }
+            }
+            return m;
+        }
         finally { if (token != null) inFlight.remove(token); }
     }
+
+    /** Guided conversations that continue after their card was saved / cancelled (2026-11-11). Lazy: they depend on this service. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.beans.factory.ObjectProvider<AiActionFollowUp> followUps;
+    private static final String RESULT_KEY = "_toolResult";
 
     private Map<String, Object> confirmOnce(HttpServletRequest req, String clientId, String token) {
         HttpSession session = req.getSession(false);
@@ -373,6 +389,7 @@ public class AiActionService {
         // 2026-11-09: a tool may give its own confirmation (income / expense: details + fund totals), shown only now that it is saved
         if (result != null && result.get("answer") instanceof String text && !text.isBlank()) m.put("answer", text);
         if (result != null && result.get("receipt") instanceof Map<?, ?> receipt) m.put("receipt", receipt);
+        if (result != null) m.put(RESULT_KEY, result);          // for the follow-up hooks only; removed before the response leaves
         return m;
     }
 
@@ -381,7 +398,14 @@ public class AiActionService {
         if (session != null) session.removeAttribute(SESSION_PENDING);
         if (token == null || clientId == null) return base("action.cancelled", "Okay — nothing was done.");
         proposals.findByTokenAndAppClientIdAndStatus(token, clientId, "PROPOSED").ifPresent(p -> decide(p, "REJECTED", null));
-        return base("action.cancelled", "Okay — nothing was done.");
+        Map<String, Object> m = base("action.cancelled", "Okay — nothing was done.");
+        if (followUps != null) {
+            for (AiActionFollowUp f : followUps.orderedStream().toList()) {
+                try { f.rejected(req, clientId, token, m); }
+                catch (RuntimeException e) { log.warn("[ai-actions] follow-up after cancel failed: {}", e.getClass().getSimpleName()); }
+            }
+        }
+        return m;
     }
 
     private void decide(AiActionProposal p, String status, String resultJson) {

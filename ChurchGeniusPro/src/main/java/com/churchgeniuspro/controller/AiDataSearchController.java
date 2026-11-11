@@ -42,6 +42,16 @@ public class AiDataSearchController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.ai.guided.AiManageRedirectService manage;
 
+    /** 2026-11-11: guided group, pledge campaign and e-mail conversations, and "this is done on a page" links. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedGroupService groups;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedPledgeService pledges;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedEmailService emails;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiPageLinkService pageLinks;
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
         this.service = service;
@@ -84,23 +94,53 @@ public class AiDataSearchController {
                         com.churchgeniuspro.ai.guided.AiManageRedirectService.draftOpen(hs));
                 if (mr != null) return ResponseEntity.ok(audited(request, mr));
             }
+            // 2026-11-11 — while the e-mail conversation is waiting for TEXT (subject, what to say, the message), whatever
+            // is typed is that text: "Create a group for the youth" as a subject line must not start a group.
+            if (emails != null && hs != null && hs.getAttribute(com.churchgeniuspro.ai.guided.GuidedDrafts.EMAIL) != null) {
+                Map<String, Object> em = emails.handle(request, clientId, question);
+                if (em != null) return ResponseEntity.ok(audited(request, em));
+            }
+            // A new start request of one conversation drops every other conversation's open draft (GuidedDrafts).
+            if (emails != null && com.churchgeniuspro.ai.guided.AiGuidedEmailService.isStartRequest(question)) {
+                com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.EMAIL);
+                Map<String, Object> em = emails.handle(request, clientId, question);
+                if (em != null) return ResponseEntity.ok(audited(request, em));
+            }
+            if (pledges != null && com.churchgeniuspro.ai.guided.AiGuidedPledgeService.isStartRequest(question)) {
+                com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.PLEDGE);
+                Map<String, Object> pl = pledges.handle(request, clientId, question);
+                if (pl != null) return ResponseEntity.ok(audited(request, pl));
+            }
+            if (groups != null && com.churchgeniuspro.ai.guided.AiGuidedGroupService.isStartRequest(question)) {
+                Map<String, Object> gr = groups.handle(request, clientId, question);
+                if (gr != null) {
+                    if (gr.get("pending") != null) com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.GROUP);
+                    return ResponseEntity.ok(audited(request, gr));
+                }
+            }
             if (settings != null && com.churchgeniuspro.ai.guided.AiGuidedSettingService.isStartRequest(question)) {
-                if (hs != null) { hs.removeAttribute("aiMeetingDraft"); com.churchgeniuspro.ai.guided.AiGuidedRecordService.clear(hs); }
+                com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.SETTING);
                 Map<String, Object> st = settings.handle(request, clientId, question);
                 if (st != null) return ResponseEntity.ok(audited(request, st));
             }
             if (guided != null && com.churchgeniuspro.ai.guided.AiGuidedRecordService.isStartRequest(question)) {
-                if (hs != null) { hs.removeAttribute("aiMeetingDraft"); com.churchgeniuspro.ai.guided.AiGuidedSettingService.clear(hs); }
+                com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.RECORD);
                 Map<String, Object> g = guided.handle(request, clientId, question);
                 if (g != null) return ResponseEntity.ok(audited(request, g));
             }
             if (meetingCreate != null) {
-                if (hs != null && meetingCreate.isCreateRequest(question, clientId)) {
-                    com.churchgeniuspro.ai.guided.AiGuidedRecordService.clear(hs);
-                    com.churchgeniuspro.ai.guided.AiGuidedSettingService.clear(hs);
-                }
+                if (hs != null && meetingCreate.isCreateRequest(question, clientId))
+                    com.churchgeniuspro.ai.guided.GuidedDrafts.clearOthers(hs, com.churchgeniuspro.ai.guided.GuidedDrafts.MEETING);
                 Map<String, Object> created = meetingCreate.handle(request, clientId, question);
                 if (created != null) return ResponseEntity.ok(audited(request, created));
+            }
+            if (groups != null) {                                   // an answer to the open group question
+                Map<String, Object> gr = groups.handle(request, clientId, question);
+                if (gr != null) return ResponseEntity.ok(audited(request, gr));
+            }
+            if (pledges != null) {                                  // an answer to the open pledge campaign question
+                Map<String, Object> pl = pledges.handle(request, clientId, question);
+                if (pl != null) return ResponseEntity.ok(audited(request, pl));
             }
             if (guided != null) {                                   // an answer to the open income / expense question
                 Map<String, Object> g = guided.handle(request, clientId, question);
@@ -109,6 +149,12 @@ public class AiDataSearchController {
             if (settings != null) {                                 // an answer to the open fund / purpose / transaction type question
                 Map<String, Object> st = settings.handle(request, clientId, question);
                 if (st != null) return ResponseEntity.ok(audited(request, st));
+            }
+            // 2026-11-11: "add a family", "run payroll", "create an event", "import a bank statement" … — done on a page;
+            // the answer links to it when this login may open it. After every conversation had its turn.
+            if (pageLinks != null) {
+                Map<String, Object> pl = pageLinks.handle(request, clientId, question, com.churchgeniuspro.ai.guided.GuidedDrafts.anyOpen(hs));
+                if (pl != null) return ResponseEntity.ok(audited(request, pl));
             }
             // AI Phase 4: "add Sarah Lee to Welcome Team", "mark the Lees as followed up", a yes/no to an open
             // proposal, or an answer to a clarifying question. Proposes only — the write happens on confirm.

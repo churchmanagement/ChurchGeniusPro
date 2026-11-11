@@ -112,7 +112,7 @@ public final class SubscriptionFeatureCatalog {
         new Feature("privatePages",   "Private Page Access",    "Admin",      List.of(
                 "/private-access-settings")),
         new Feature("composeEmail",   "Compose Emails",         "Communication", List.of(
-                "/notifyEmail")),
+                "/notifyEmail", "/api/ai/email")),
         new Feature("reminders",      "Reminders",              "Communication", List.of(
                 "/reminders", "/eventReminders", "/autoReminders", "/oneReminders", "/api/reminders")),
         new Feature("certificates",   "Certificates",           "More",       List.of(

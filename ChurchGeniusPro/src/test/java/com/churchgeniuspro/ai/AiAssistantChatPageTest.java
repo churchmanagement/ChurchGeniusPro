@@ -50,9 +50,9 @@ class AiAssistantChatPageTest {
                 .contains("if (uiCall('notice', msg)) return;")
                 .contains("if (uiCall('busy', !!on)) return;");
         // Exactly one place reports a question (reportQuestion, called by runAssist and by the Phase E
-        // confirm click — each a turn of its own) and one renders answers (renderCard).
+        // confirm click and the e-mail card's Send click (2026-11-11) — each a turn of its own) and one renders answers (renderCard).
         assertThat(e.split("uiCall\\('question'", -1)).hasSize(2);
-        assertThat(e.split("reportQuestion\\(", -1)).hasSize(4);
+        assertThat(e.split("reportQuestion\\(", -1)).hasSize(5);
         assertThat(e.split("uiCall\\('answer'", -1)).hasSize(2);
         // Default path still writes the panel into #aiResultsWrap and wires its buttons.
         assertThat(e).contains("wrap.innerHTML=html; wrap.style.display='block';")

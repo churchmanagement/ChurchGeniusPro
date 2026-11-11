@@ -42,6 +42,7 @@ public class AiAuditService {
         CHANNELS.put("/api/ai/write",                     "WRITE");     // AI Phase 3: drafts (never sends)
         CHANNELS.put("/api/ai/forms",                     "FORMS");     // AI Phase 3: describe-to-build
         CHANNELS.put("/api/ai/actions",                   "ACTIONS");
+        CHANNELS.put("/api/ai/email",                     "EMAIL");     // 2026-11-11: the Send button of the Genius e-mail review card
         CHANNELS.put("/api/workflows/draft",              "WORKFLOWS"); // AI Phase 6: describe-to-build rule drafting (the only model call of the engine)   // AI Phase 4: confirm / reject / list (proposals come through /api/ai-search)
         CHANNELS.put("/api/expense/check-scan",           "VISION");
         CHANNELS.put("/api/expense/check-parse",          "VISION");

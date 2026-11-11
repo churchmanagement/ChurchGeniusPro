@@ -103,6 +103,54 @@ public class AiActionLookup {
         return n != null && n > 0;
     }
 
+    /** A directory person offered to the user: id, "First Last", e-mail (may be blank). */
+    public record Person(long id, String firstName, String lastName, String email) {
+        public String name() { return (firstName + " " + lastName).trim(); }
+    }
+
+    /**
+     * 2026-11-11 — live people of THIS church whose first name, last name, nickname, full name or e-mail contains
+     * the text (the Groups page's own "pick a member" search, by the same fields). Up to {@code limit} rows.
+     */
+    public List<Person> searchPeople(String cid, String text, int limit) {
+        String n = norm(text);
+        if (n.isBlank() || cid == null) return List.of();
+        MapSqlParameterSource p = new MapSqlParameterSource().addValue("cid", cid).addValue("like", "%" + n.replace("%", "").replace("_", "") + "%").addValue("lim", Math.max(1, Math.min(limit, 25)));
+        return jdbc.query("SELECT fm.id, COALESCE(fm.first_name,''), COALESCE(fm.last_name,''), COALESCE(fm.email,'') "
+                + "FROM family_member fm JOIN family f ON fm.family_id = f.id AND f.app_client_id = :cid "
+                + "WHERE fm.delete_flag = false AND f.delete_flag = false AND fm.inactive = false AND f.inactive = false "
+                + "AND (LOWER(COALESCE(fm.first_name,'')) LIKE :like OR LOWER(COALESCE(fm.last_name,'')) LIKE :like OR LOWER(COALESCE(fm.other_name,'')) LIKE :like "
+                + "OR LOWER(TRIM(COALESCE(fm.first_name,'') || ' ' || COALESCE(fm.last_name,''))) LIKE :like OR LOWER(COALESCE(fm.email,'')) LIKE :like) "
+                + "ORDER BY fm.last_name, fm.first_name, fm.id LIMIT :lim", p,
+                (rs, i) -> new Person(rs.getLong(1), rs.getString(2).trim(), rs.getString(3).trim(), rs.getString(4).trim()));
+    }
+
+    /** One live person of this church by id (name parts + e-mail), or null. */
+    public Person personById(String cid, long id) {
+        List<Person> r = jdbc.query("SELECT fm.id, COALESCE(fm.first_name,''), COALESCE(fm.last_name,''), COALESCE(fm.email,'') "
+                + "FROM family_member fm JOIN family f ON fm.family_id = f.id AND f.app_client_id = :cid "
+                + "WHERE fm.id = :id AND fm.delete_flag = false AND f.delete_flag = false AND fm.inactive = false AND f.inactive = false",
+                new MapSqlParameterSource().addValue("cid", cid).addValue("id", id),
+                (rs, i) -> new Person(rs.getLong(1), rs.getString(2).trim(), rs.getString(3).trim(), rs.getString(4).trim()));
+        return r.isEmpty() ? null : r.get(0);
+    }
+
+    /** Is someone with this name (and the same e-mail, when one is given) already in the group? Used for people who are not in the directory. */
+    public boolean nameInGroup(String cid, long groupId, String firstName, String lastName, String email) {
+        String em = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM group_member gm JOIN app_group g ON g.id = gm.group_id WHERE g.app_client_id = :cid AND gm.group_id = :g AND gm.delete_flag = false "
+                + "AND LOWER(TRIM(gm.first_name)) = :fn AND LOWER(TRIM(gm.last_name)) = :ln AND (:em = '' OR LOWER(TRIM(COALESCE(gm.email,''))) = :em)",
+                new MapSqlParameterSource().addValue("cid", cid).addValue("g", groupId).addValue("fn", norm(firstName)).addValue("ln", norm(lastName)).addValue("em", em), Long.class);
+        return n != null && n > 0;
+    }
+
+    /** Members currently in the group. */
+    public int groupSize(String cid, long groupId) {
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM group_member gm JOIN app_group g ON g.id = gm.group_id WHERE g.app_client_id = :cid AND gm.group_id = :g AND gm.delete_flag = false",
+                new MapSqlParameterSource().addValue("cid", cid).addValue("g", groupId), Long.class);
+        return n == null ? 0 : n.intValue();
+    }
+
     /** Member contact fields the group row stores (e-mail only). */
     public String memberEmail(String cid, long memberId) {
         List<String> r = jdbc.query("SELECT fm.email FROM family_member fm JOIN family f ON f.id = fm.family_id WHERE fm.id = :m AND f.app_client_id = :cid",

@@ -132,6 +132,7 @@ class MemberApiScopeTest {
                     "/api/users",            // session.js: staff permissions (members have no appUserId)
                     "/api/public-screens",   // ai-assistant.js: lists public links for staff; r.ok checked
                     "/api/ai/actions",       // ai-assistant.js: confirm/reject of an action proposal — members never receive a proposal (AI Phase 4)
+                    "/api/ai/email",         // ai-assistant.js: Send on the e-mail review card — only staff who may use the Email page ever get that card (2026-11-11)
                     "/api/tokens",           // apiTokens.html: personal access tokens are staff-only by construction (AI Phase 5)
                     "/api/workflows",        // workflows.html: automations are SuperAdmin/Admin staff only (AI Phase 6)
                     "/api/guess-it/admin");  // guessIt.html host panel — staff only, hidden for members

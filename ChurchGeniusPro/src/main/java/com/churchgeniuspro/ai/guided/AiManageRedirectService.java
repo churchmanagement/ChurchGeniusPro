@@ -45,7 +45,9 @@ public class AiManageRedirectService {
     static final Pattern MANAGE = Pattern.compile("(?i)^\\s*" + LEAD + VERBS + "\\b\\s*(.*)$");
     static final Pattern DESTRUCTIVE = Pattern.compile("(?i)^(delete|remove|erase|drop|deactivate|disable|inactivate|archive|hide|get\\s+rid\\s+of|take\\s+out)$");
     /** A field of an open conversation right after the verb: "change the fund to …", "rename it", "remove the note". */
-    static final Pattern OWN_FIELD = Pattern.compile("(?i)^(?:the\\s+|my\\s+|this\\s+|that\\s+)?(?:(?:meeting|income|expense|entry|fund|sub-?fund)(?:'s)?\\s+)?(it|that|this|name|title|main\\s+fund|parent(?:\\s+fund)?|fund|"
+    static final Pattern OWN_FIELD = Pattern.compile("(?i)^(?:the\\s+|my\\s+|this\\s+|that\\s+)?(?:(?:meeting|income|expense|entry|fund|sub-?fund|campaign|group|person|e-?mail)(?:'s)?\\s+)?(it|that|this|name|title|main\\s+fund|parent(?:\\s+fund)?|fund|"
+        // 2026-11-11: the pledge campaign, group and e-mail conversations' own fields
+        + "subject|recipients?|message|text|body|content|e-?mail(?:\\s+address)?|target(?:\\s+amount)?|goal|end\\s+date|end|description|other\\s+gifts|gifts|"
         + "tax[- ]?deductible(?:\\s+status)?|deductible|contributor|giver|donor|member|guest|from|account|category|expense\\s+category|purpose|"
         + "amount|total|date|day|method|payment\\s+method|payment|reference(?:\\s+number)?|ref(?:\\s*(?:number|no\\.?|#))?|check\\s+number|"
         + "notes?|memo|meeting\\s+type|type|start\\s+time|time|location|place|venue|address)\\b\\s*(?:to|into|as|is|:|=|$|[.!?])");
@@ -178,9 +180,7 @@ public class AiManageRedirectService {
     /** True while a meeting, income / expense or Account Settings conversation (or an action card) waits for an answer. */
     public static boolean draftOpen(HttpSession s) {
         if (s == null) return false;
-        return s.getAttribute("aiMeetingDraft") != null || AiGuidedRecordService.hasDraft(s)
-            || s.getAttribute(AiGuidedSettingService.SESSION_KEY) != null
-            || s.getAttribute("aiActionDraft") != null || s.getAttribute("aiActionPendingToken") != null;
+        return GuidedDrafts.anyOpen(s);   // 2026-11-11: one list of every conversation's draft
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

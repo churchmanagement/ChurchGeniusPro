@@ -29,8 +29,16 @@
   function isPhone() { return width() <= PHONE_MAX; }
   function isDock() { return !pageMode && width() >= DOCK_MIN; }
   function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
-  function conv(intent) { return /^(meeting|action|guided|manage)\./.test(String(intent || '')); }
+  function conv(intent) { return /^(meeting|action|guided|manage|email)\./.test(String(intent || '')); }
   function pendingOf(d) { return !!(d && d.handled !== false && (d.pending === true || /^(meeting|action|guided)\.(ask|confirm)$/.test(String(d.intent || '')))); }
+  /* 2026-11-11: how a turn ends a review card — also when the conversation goes on ("Group created. Add a member?"). */
+  function outcomeOf(d) {
+    var i = String((d && d.intent) || '');
+    if (/\.(done|created|sent)$/.test(i) || d.created || d.executed) return 'saved';
+    if (/cancel/.test(i)) return 'cancelled';
+    if (/\.(failed|error|expired|refused)$/.test(i)) return 'failed';
+    return null;
+  }
 
   /* ───────────────────────────── persistence ───────────────────────────── */
   function save() {
@@ -165,6 +173,7 @@
       '.ga-panel .ga-review .aa-fields{margin:0;border:none;border-radius:0;}',
       '.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,34%) minmax(0,1fr) auto;padding:9px 13px;}',
       '.ga-panel .ga-review .aa-actions{margin:0;padding:10px 13px;background:#fbf9fa;border-top:1px solid var(--ga-line);}',
+      '.ga-panel .ga-review .aa-attach{margin:0;padding:10px 13px;border-top:1px solid var(--ga-line);}',
       '.ga-panel .aa-confirm{background:var(--ga-plum);color:#fff;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;}',
       '.ga-panel .aa-cancel{border-radius:10px;padding:9px 14px;}',
       '.ga-panel .aa-edit{min-height:30px;}',
@@ -489,7 +498,7 @@
     st.nodes.forEach(function (n) {
       if (n === except || !n.classList || !n.classList.contains('ga-ai')) return;
       var any = false;
-      n.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel, .ga-filter').forEach(function (b) {
+      n.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel, .ga-filter, .aa-send, .aa-send-cancel, .aa-files, .aa-file-x').forEach(function (b) {
         if (!b.disabled) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); any = true; }
       });
       if (any) {
@@ -502,7 +511,7 @@
   /* ───────────────────────────── answers ───────────────────────────── */
   function kindOf(a) {
     var d = (a && a.data) || {}, i = String(d.intent || a.intent || '');
-    if (d.created || d.executed || /\.(done|created)$/.test(i)) return 'ga-ok';
+    if (d.created || d.executed || /\.(done|created|sent)$/.test(i)) return 'ga-ok';
     if (/cancel/.test(i)) return 'ga-muted';
     if (i === 'manage.redirect') return 'ga-info';
     if (d.denied || /\.(denied|refused|unavailable|expired|failed|error)$/.test(i)) return 'ga-warn';
@@ -513,6 +522,7 @@
   function draftLabel(d) {
     var i = String(d.intent || '');
     if (/^meeting\./.test(i)) return 'Meeting';
+    if (/^email\./.test(i)) return 'Email';
     if (d.kind) return cap(String(d.kind).replace(/[_-]+/g, ' '));
     if (d.confirm && d.confirm.label) return String(d.confirm.label).replace(/^(save|create)\s+/i, '').replace(/^./, function (c) { return c.toUpperCase(); });
     return 'Action';
@@ -561,6 +571,15 @@
       card.appendChild(acts);
       extra.appendChild(card);
       watchReview(card);
+    } else if (d.email && d.email.token && acts && acts.querySelector('.aa-send')) {
+      // 2026-11-11: the e-mail review card — recipients / subject, attachments, Send email + Cancel.
+      var ec = document.createElement('div'); ec.className = 'ga-review ga-review-email';
+      ec.innerHTML = '<div class="ga-review-h"><b>\u2709\ufe0f Email to send</b><span class="ga-badge">Draft \u00b7 not sent</span></div>';
+      if (fields) ec.appendChild(fields);
+      var att = extra.querySelector('.aa-attach'); if (att) ec.appendChild(att);
+      ec.appendChild(acts);
+      extra.appendChild(ec);
+      watchReview(ec);
     }
     // Choices: selection cards (2 columns; a filter above 8 options); 3 or fewer short ones stay as buttons.
     var ch = extra.querySelector('.aa-choices');
@@ -583,7 +602,7 @@
         ch.parentNode.insertBefore(f, ch);
       }
     }
-    if (conv(d.intent) || extra.querySelector('.aa-choice, .aa-confirm')) retireOld(n);
+    if (conv(d.intent) || extra.querySelector('.aa-choice, .aa-confirm, .aa-send')) retireOld(n);
     push(n, true);
     if (api && api.wireCard) { try { api.wireCard(n); } catch (e) {} }
     updateDraft(d);
@@ -597,24 +616,24 @@
     if (!window.MutationObserver) return;
     var mo = new MutationObserver(function () {
       if (card.classList.contains('ga-saving') || card.classList.contains('ga-saved') || card.classList.contains('ga-cancelled')) return;   // set once (no loop)
-      var cf = card.querySelector('.aa-confirm');
+      var cf = card.querySelector('.aa-confirm, .aa-send');
       if (cf && cf.disabled && /…|\.\.\./.test(cf.textContent || '') && !card.classList.contains('ga-saved')) {
-        card.classList.add('ga-saving'); var b = card.querySelector('.ga-badge'); if (b) b.textContent = 'Saving…';
+        card.classList.add('ga-saving'); var b = card.querySelector('.ga-badge'); if (b) b.textContent = card.classList.contains('ga-review-email') ? 'Sending…' : 'Saving…';
       }
     });
     mo.observe(card, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['disabled'] });
   }
   function settleReviews(state) {
     el.gaLog.querySelectorAll('.ga-review.ga-saving, .ga-review:not(.ga-saved):not(.ga-cancelled)').forEach(function (c) {
-      var cf = c.querySelector('.aa-confirm');
+      var cf = c.querySelector('.aa-confirm, .aa-send'), mail = c.classList.contains('ga-review-email');
       if (state === 'saved' && c.classList.contains('ga-saving')) {
-        c.classList.remove('ga-saving'); c.classList.add('ga-saved'); var b = c.querySelector('.ga-badge'); if (b) b.textContent = '✓ Saved';
-        if (cf) cf.textContent = 'Saved';
+        c.classList.remove('ga-saving'); c.classList.add('ga-saved'); var b = c.querySelector('.ga-badge'); if (b) b.textContent = mail ? '✓ Sent' : '✓ Saved';
+        if (cf) cf.textContent = mail ? 'Sent' : 'Saved';
       } else if (state === 'cancelled' && (!cf || !cf.disabled || c.classList.contains('ga-saving'))) {
-        c.classList.remove('ga-saving'); c.classList.add('ga-cancelled'); var b2 = c.querySelector('.ga-badge'); if (b2) b2.textContent = 'Cancelled · not saved';
+        c.classList.remove('ga-saving'); c.classList.add('ga-cancelled'); var b2 = c.querySelector('.ga-badge'); if (b2) b2.textContent = mail ? 'Cancelled · not sent' : 'Cancelled · not saved';
         c.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
       } else if (state === 'failed' && c.classList.contains('ga-saving')) {
-        c.classList.remove('ga-saving'); var b3 = c.querySelector('.ga-badge'); if (b3) b3.textContent = 'Not saved';
+        c.classList.remove('ga-saving'); var b3 = c.querySelector('.ga-badge'); if (b3) b3.textContent = mail ? 'Not sent' : 'Not saved';
       }
     });
   }
@@ -622,9 +641,11 @@
   function updateDraft(d) {
     var i = String((d && d.intent) || '');
     if (pendingOf(d)) {
+      var fin = conv(i) ? outcomeOf(d) : null;          // saved / cancelled, and the conversation carries on
+      if (fin) settleReviews(fin);
       st.draft = draftLabel(d);
     } else if (conv(i) && !(d.pending === true)) {
-      if (/\.(done|created)$/.test(i) || d.created || d.executed) settleReviews('saved');
+      if (/\.(done|created|sent)$/.test(i) || d.created || d.executed) settleReviews('saved');
       else if (/cancel/.test(i)) settleReviews('cancelled');
       else if (/\.(failed|error|expired|refused)$/.test(i)) settleReviews('failed');
       if (i !== 'manage.redirect') st.draft = null;
@@ -634,7 +655,7 @@
   function renderDraft() {
     var on = !!st.draft;
     el.gaDraft.hidden = !on;
-    if (on) el.gaDraftText.textContent = 'Draft · ' + st.draft + ' — not saved yet';
+    if (on) el.gaDraftText.textContent = 'Draft · ' + st.draft + (st.draft === 'Email' ? ' — not sent yet' : ' — not saved yet');
     document.documentElement.classList.toggle('ga-drafting', on);
   }
   function cancelDraft() {
