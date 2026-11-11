@@ -120,6 +120,13 @@ class ForgotPasswordFlowTest {
         verify(email).sendAccountEmailOrThrow(eq("mary@home.org"), anyString(), anyString(), isNull());
     }
 
+    @Test @DisplayName("staff login with an older id (no USR prefix, e.g. the original SuperAdmin) gets the mail — production 2026-11-11 said NO_EMAIL_ON_FILE")
+    void staffWithoutUsrPrefix() throws Exception {
+        login(6, "superadmin", "4f1c2a9e-legacy-id", false); staff("4f1c2a9e-legacy-id", "owner@grace.org");
+        request("superadmin", "owner@grace.org");
+        verify(email).sendAccountEmailOrThrow(eq("owner@grace.org"), anyString(), contains("Reset My Password"), isNull());
+    }
+
     @Test @DisplayName("members: Son/Daughter go to the Head of Household; a member whose member_ref was never filled is found by e-mail")
     void memberEdges() throws Exception {
         Family f = family(20);

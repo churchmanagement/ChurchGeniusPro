@@ -328,13 +328,16 @@ public class ForgotPasswordController {
 
         } else {
             // Non-church: distinguish by clientId prefix
-            if (clientId.startsWith("USR")) {
+            if (!isMemberLogin(clientId)) {
+                // Staff: signup.client_id = app_user.user_id. Sign-in treats EVERY non-church, non-MBR login as staff
+                // whatever the id looks like (older ids have no "USR" prefix — e.g. the original SuperAdmin), so this
+                // does too (2026-11-11: those logins got NO_EMAIL_ON_FILE).
                 return appUserRepo.findByUserIdAndDeleteFlagFalse(clientId)
                                   .filter(AppUser::isEnabled)
                                   .map(AppUser::getEmail)
                                   .orElse(null);
 
-            } else if (clientId.startsWith("MBR")) {
+            } else {
                 // findByMemberRef already filters deleteFlag=false AND inactive=false
                 FamilyMember member = memberFor(clientId, user, typedEmail);
                 if (member == null) return null;
@@ -349,7 +352,6 @@ public class ForgotPasswordController {
                 return member.getEmail();
             }
         }
-        return null;
     }
 
     /**
@@ -401,13 +403,13 @@ public class ForgotPasswordController {
             return clientId; // signup.client_id = service_client.client_id for churches
 
         } else {
-            if (clientId.startsWith("USR")) {
+            if (!isMemberLogin(clientId)) {
                 return appUserRepo.findByUserIdAndDeleteFlagFalse(clientId)
                                   .filter(AppUser::isEnabled)
                                   .map(AppUser::getClientId)
                                   .orElse(null);
 
-            } else if (clientId.startsWith("MBR")) {
+            } else {
                 // Same as sign-in (LoginController.resolveMemberOrgClientId): the FAMILY's church, else the member's.
                 FamilyMember fm = memberFor(clientId, user, typedEmail);
                 if (fm == null) return null;
@@ -415,7 +417,6 @@ public class ForgotPasswordController {
                         ? fm.getFamily().getAppClientId() : fm.getAppClientId();
             }
         }
-        return null;
     }
 
     /**
@@ -452,6 +453,11 @@ public class ForgotPasswordController {
         if (byEmail == null) return null;
         var candidates = familyMemberRepo.findActiveByEmail(byEmail.trim());
         return candidates.size() == 1 ? candidates.get(0) : null;
+    }
+
+    /** Same test as LoginController: a member portal login's client id starts with MBR (any case). */
+    private static boolean isMemberLogin(String clientId) {
+        return clientId != null && clientId.toUpperCase(java.util.Locale.ROOT).startsWith("MBR");
     }
 
     private static String escape(String s) {
