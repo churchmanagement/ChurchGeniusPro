@@ -55,7 +55,7 @@ class ChurchHelpCenterNavTest {
         assertThat(page.substring(page.lastIndexOf("<div", start), start)).contains("hc-church-only");
         assertThat(card).contains("data-keywords=\"account-management ");   // matched by openFromHash
         for (String topic : List.of("How to Add a User", "How to Invite a User", "How to Set Permissions",
-                "How to Configure Temporary Access", "How to Link Accounts", "How to Use the AI Search Screen",
+                "How to Configure Temporary Access", "How to Link Accounts", "How to Use Genius Assistant",
                 "How to View Member Accounts"))
             assertThat(card).as(topic).contains(topic);
         assertThat(card).contains("href=\"/viewusers\"", "href=\"/temporaryAccess\"", "href=\"/ai-assistant\"");

@@ -7,6 +7,9 @@ import com.churchgeniuspro.repository.ChurchRegistrationRepository;
 import com.churchgeniuspro.repository.FamilyMemberRepository;
 import com.churchgeniuspro.repository.FamilyRepository;
 import com.churchgeniuspro.repository.MeetingRepository;
+import com.churchgeniuspro.service.DashboardGlanceService;
+import com.churchgeniuspro.util.AppClock;
+import com.churchgeniuspro.util.RoleGuard;
 import com.churchgeniuspro.util.SessionUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,18 @@ import java.util.stream.Collectors;
 /**
  * Provides aggregated statistics for the Admin home dashboard.
  * <p>GET /api/admin/dashboard?clientId={clientId}
+ *
+ * <p>ACCESS (2026-11-10, user rule). The endpoint used to answer any signed-in session. Now:
+ * <ul>
+ *   <li>the dashboard itself — SuperAdmin, Admin, or the church owner login ({@link RoleGuard#requireAdminOrChurch},
+ *       the roles the Home page shows these sections to); everyone else gets 403;</li>
+ *   <li>the STATISTICS block (Members, New Members, Guests, Families, Groups, Attendance %, Events, Visitors,
+ *       Birthdays, Anniversaries, Meetings) — additionally the existing Admin → Family permission
+ *       ({@code admin.family}, {@link RoleGuard#requirePagePermission}: the saved map, the role defaults when
+ *       nothing was saved, the Admin main-menu rule). Without it the figures are NOT in the response at all
+ *       ({@code statsAllowed:false}) and the page hides the block.</li>
+ * </ul>
+ * No new permission key; the church is always the session's.
  */
 @RestController
 public class AdminDashboardController {
@@ -41,13 +56,32 @@ public class AdminDashboardController {
         this.meetingRepo = meetingRepo;
     }
 
+    /** Optional so hand-built tests keep the four-argument constructor; absent = no "at a glance" figures. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DashboardGlanceService glanceService;
+
+    /** The permission behind the statistics block: Permissions screen → Admin → Family. */
+    public static final String STATS_PERMISSION = "admin.family";
+
+    /** True when this session may see the dashboard statistics: SuperAdmin / Admin / church owner AND Admin → Family. */
+    public static boolean statsAllowed(HttpServletRequest request) {
+        return RoleGuard.requireAdminOrChurch(request) == null
+            && RoleGuard.requirePagePermission(request, STATS_PERMISSION) == null;
+    }
+
     @GetMapping("/api/admin/dashboard")
     public ResponseEntity<Map<String, Object>> dashboard(
             @RequestParam(required = false, defaultValue = "") String clientId,
             HttpServletRequest request) {
 
         String appClientId = SessionUtil.getAppClientId(request);
+        if (appClientId == null || appClientId.isBlank())
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        if (RoleGuard.requireAdminOrChurch(request) != null)
+            return ResponseEntity.status(403).body(Map.of("error", "Permission denied", "code", "PERMISSION_DENIED"));
+        boolean statsAllowed = statsAllowed(request);
         Map<String, Object> res = new LinkedHashMap<>();
+        res.put("statsAllowed", statsAllowed);
 
         // ── Church name ───────────────────────────────────────────────────
         String churchName = "";
@@ -84,19 +118,23 @@ public class AdminDashboardController {
         // Families (all active)
         long families = familyRepo.findAllActiveForLocationByAppUser(appClientId).size();
 
-        res.put("totalMembers", totalMembers);
-        res.put("newMembers",   newMembers);
-        res.put("guests",       guests);
-        res.put("families",     families);
+        if (statsAllowed) {
+            res.put("totalMembers", totalMembers);
+            res.put("newMembers",   newMembers);
+            res.put("guests",       guests);
+            res.put("families",     families);
+            // Groups, Attendance %, Events, Visitors, Birthdays / Anniversaries / Meetings (month · week · today)
+            if (glanceService != null) res.put("glance", glanceService.glance(appClientId, allMembers, AppClock.today()));
+        }
 
         // ── Congregation breakdown by family role ─────────────────────────
         Set<String> menRoles   = Set.of("Head", "Father", "Father-in-Law");
         Set<String> womenRoles = Set.of("Wife", "Mother", "Mother-in-Law");
         Set<String> kidsRoles  = Set.of("Son", "Daughter");
 
-        long men   = allMembers.stream().filter(m -> menRoles.contains(m.getRole())).count();
-        long women = allMembers.stream().filter(m -> womenRoles.contains(m.getRole())).count();
-        long kids  = allMembers.stream().filter(m -> kidsRoles.contains(m.getRole())).count();
+        long men   = allMembers.stream().filter(m -> m.getRole() != null && menRoles.contains(m.getRole())).count();
+        long women = allMembers.stream().filter(m -> m.getRole() != null && womenRoles.contains(m.getRole())).count();
+        long kids  = allMembers.stream().filter(m -> m.getRole() != null && kidsRoles.contains(m.getRole())).count();
 
         res.put("men",   men);
         res.put("women", women);

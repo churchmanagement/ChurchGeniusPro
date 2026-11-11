@@ -98,6 +98,8 @@
 
     /* ── AI Search bar ────────────────────────────── */
     .ai-search-wrap { padding: 18px 24px 0; }
+    .ga-engine-bar { position: fixed !important; left: -9999px !important; top: 0 !important; width: 1px !important; height: 1px !important;
+                     overflow: hidden !important; visibility: hidden !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
     .ai-search-bar {
       display: flex; align-items: center; gap: 10px;
       background: #fff; border: 2px solid #c5cae9; border-radius: 14px;
@@ -185,40 +187,51 @@
     /* ── Banner ──────────────────────────────────── */
     .banner {
       background: #f5f6fa;
-      padding: 24px 28px 0;
+      padding: 16px 24px 0;
       position: relative; overflow: hidden;
     }
     .banner::before, .banner::after { display: none; }
     .banner-greeting { font-size: 22px; font-weight: 700; color: #673147; margin-bottom: 20px; }
 
-    /* ── Stat cards (inside banner) ──────────────── */
+    /* ── Stat cards (inside banner) ────────────────
+       2026-11-10: about one third smaller than before (padding 18/20 → 11/10, figure 30 → 20 px, icon 32 → 22 px,
+       gap 16 → 10 px) and laid out as many per row as fit, so all eleven statistics show without scrolling.
+       Birthdays / Anniversaries / Meetings are one card each with three figures (month · week · today). */
     .stat-cards {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 16px; position: relative; z-index: 1;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+      gap: 10px; position: relative; z-index: 1;
     }
     .stat-card {
+      display: block; text-decoration: none; color: inherit; min-width: 0;
       background: #fff;
       border: 1px solid #e8eaf0;
-      border-radius: 12px; padding: 18px 20px 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
-      transition: box-shadow .2s;
+      border-radius: 10px; padding: 11px 10px 10px;
+      box-shadow: 0 1px 5px rgba(0,0,0,.05);
+      transition: box-shadow .2s, border-color .2s;
     }
-    .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
-    .stat-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    a.stat-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); border-color: #d9c7d1; }
+    a.stat-card:focus-visible { outline: 2px solid #673147; outline-offset: 2px; }
+    .stat-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; min-width: 0; }
     .stat-icon {
-      width: 32px; height: 32px; border-radius: 8px;
+      width: 22px; height: 22px; border-radius: 6px;
       background: #eef0fb;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0;
+      font-size: 12px; flex-shrink: 0;
     }
-    .stat-label { font-size: 13px; color: #888; font-weight: 500; }
-    .stat-value { font-size: 30px; font-weight: 700; color: #673147; line-height: 1; margin-bottom: 6px; }
-    .stat-trend { font-size: 11px; color: #aaa; }
+    .stat-label { font-size: 11.5px; color: #777; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-value { font-size: 20px; font-weight: 700; color: #673147; line-height: 1; margin-bottom: 4px; }
+    .stat-trend { font-size: 10.5px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stat-trend .up   { color: #2e7d32; font-weight: 600; }
     .stat-trend .down { color: #c62828; font-weight: 600; }
+    .stat-card.trio { grid-column: span 2; }
+    .stat-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .stat-trio > div { min-width: 0; }
+    .stat-trio .stat-value { font-size: 18px; margin-bottom: 3px; }
+    .stat-trio .stat-trend { font-size: 10.5px; }
+    .stat-trio > div + div { border-left: 1px solid #f0f1f5; padding-left: 8px; }
 
     /* wave below banner */
-    .banner-wave { display: block; width: 100%; height: 30px; }
+    .banner-wave { display: block; width: 100%; height: 18px; }
 
     /* ── Dashboard body ──────────────────────────── */
     .dash-body { padding: 0 24px 28px; }
@@ -228,11 +241,11 @@
     .cols-6-4 { grid-template-columns: 6fr 4fr; }
     .cols-1   { grid-template-columns: 1fr; }
     @media (max-width: 1100px) {
-      .stat-cards { grid-template-columns: repeat(2, 1fr); }
       .cols-6-4   { grid-template-columns: 1fr; }
     }
     @media (max-width: 700px) {
-      .stat-cards { grid-template-columns: 1fr; }
+      .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .banner { padding: 14px 14px 0; }
     }
 
     /* ── Cards ───────────────────────────────────── */
@@ -670,8 +683,11 @@
 
     <main class="page-content" id="pageContent">
 
-      <!-- ── AI Search Bar ── -->
-      <div class="ai-search-wrap" data-perm="more.aiassistant">
+      <!-- ── Assistant engine controls (2026-11-10) ──
+           The AI Search bar is no longer shown: Genius Assistant (the floating button, bottom right) is the one
+           place to ask. These controls stay in the page, off-screen and out of the layout, because the engine
+           (ai-assistant.js) reads its input and results box through them. -->
+      <div class="ai-search-wrap ga-engine-bar" data-perm="more.aiassistant" aria-hidden="true">
         <div class="ai-search-bar">
           <span class="ai-search-icon">✨</span>
           <input type="text" id="aiSearchInput" class="ai-search-input"
@@ -682,9 +698,6 @@
         <div id="aiResultsWrap" style="display:none;"></div>
       </div>
 
-      <!-- ── Banner Greeting (above all dashboard sections) ── -->
-      <div class="banner-greeting" id="bannerGreeting" style="display:none; padding: 18px 24px 0;"></div>
-      <div class="banner-sub" id="bannerSub" style="padding: 0 24px 12px; font-size:13px; color:#888;"></div>
 
       <!-- ── Trial / demo portal sign-ins ────────────────────────────────────
            Only rendered for a demo or trial tenant, and only for a staff session:
@@ -704,9 +717,8 @@
         <!-- ─── Admin: Banner + Stats ─── -->
         <div class="dash-section" data-sid="s-admin-banner">
           <div class="banner">
-            <div class="acct-section-hdr">
-              <div class="acct-section-title">People</div>
-              <div class="acct-section-sub">Members · New Members · Guests · Families</div>
+            <div class="acct-section-hdr" style="margin-bottom:8px;">
+              <div class="acct-section-title">At a glance</div>
             </div>
             <div class="stat-cards" id="statCards"></div>
             <svg class="banner-wave" viewBox="0 0 1440 30" preserveAspectRatio="none"
@@ -788,7 +800,6 @@
         <!-- ─── Accountant: Greeting Banner (Accountant-only, hidden for SuperAdmin) ─── -->
         <div class="dash-section" data-sid="s-acct-banner">
           <div class="banner">
-            <div class="banner-greeting" id="acctGreeting">Good morning</div>
             <div class="banner-sub" id="acctSub">Here's your financial overview for today.</div>
             <svg class="banner-wave" viewBox="0 0 1440 30" preserveAspectRatio="none"
                  xmlns="http://www.w3.org/2000/svg">
@@ -1032,7 +1043,7 @@ async function doLogout() {
    DASHBOARD SECTION DEFINITIONS & PREFERENCES
 ══════════════════════════════════════════════ */
 const SECTION_DEFS = [
-  { sid: 's-admin-banner',                label: 'People',                      roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-banner',                label: 'At a glance (statistics)',    roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-admin-growth-calendar',       label: 'Church Growth & Calendar',    roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-admin-events-distribution',   label: 'Events & Distribution',       roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-acct-banner',                 label: 'Financial Greeting',          roles: ['Accountant'] },
@@ -1123,10 +1134,28 @@ async function loadPrefsFromDb(role, isChurch) {
   applyDashPrefs(role, isChurch);
 }
 
+/* The statistics block (2026-11-10): Admin / SuperAdmin (or the church owner login) AND the Admin → Family
+   permission. The SERVER decides (/api/admin/dashboard → statsAllowed; without it the figures are not even in
+   the response); the page only follows that answer. Until the answer arrives the block stays hidden — the last
+   answer for this login is remembered for this tab so it does not flicker on every visit. */
+const STATS_SID = 's-admin-banner';
+function _statsKey() { return 'dash_stats_ok_' + (localStorage.getItem('clientId') || '') + '_' + (localStorage.getItem('appUserId') || localStorage.getItem('username') || 'u'); }
+let _statsAllowed = (function () { try { return sessionStorage.getItem(_statsKey()) === '1'; } catch (e) { return false; } })();
+function setStatsAllowed(ok) {
+  ok = ok === true;
+  try { sessionStorage.setItem(_statsKey(), ok ? '1' : '0'); } catch (e) {}
+  if (ok === _statsAllowed) return;
+  _statsAllowed = ok;
+  if (!ok) { const c = document.getElementById('statCards'); if (c) c.innerHTML = ''; }
+  applyDashPrefs(localStorage.getItem('role') || '', localStorage.getItem('church') === 'true');
+}
+
 /* Returns section IDs the current user role can see */
 function allowedSids(role, isChurch) {
   const effectiveRole = isChurch ? 'Church' : (role || 'User');
-  return SECTION_DEFS.filter(s => s.roles.includes(effectiveRole)).map(s => s.sid);
+  return SECTION_DEFS.filter(s => s.roles.includes(effectiveRole))
+                     .filter(s => s.sid !== STATS_SID || _statsAllowed)
+                     .map(s => s.sid);
 }
 
 /* Applies visibility + order to the #dashSections container */
@@ -1885,7 +1914,8 @@ async function loadDashboard() {
   try {
     const data = await CGP_api(`/api/admin/dashboard?clientId=${encodeURIComponent(clientId)}`);
     renderBanner(data);
-    renderStatCards(data);
+    setStatsAllowed(data && data.statsAllowed === true);   // the server's verdict: role AND Admin → Family
+    if (data && data.statsAllowed === true) renderStatCards(data);
     renderGrowthChart(data.membersByMonth || []);
     // Congregation panel removed
     renderDistribution(data);
@@ -1896,37 +1926,57 @@ async function loadDashboard() {
   }
 }
 
-/* ── Banner greeting ─────────────────────────── */
-function renderBanner(data) {
-  const hour  = new Date().getHours();
-  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const name  = localStorage.getItem('firstName') || data.churchName || '';
-  const greetEl = document.getElementById('bannerGreeting');
-  greetEl.textContent = `${greet}${name ? ', ' + name : ''}`;
-  greetEl.style.display = '';
-  const _bannerSub = document.getElementById('bannerSub');
-  if (data.churchName && _bannerSub) {
-    _bannerSub.textContent = `Here's what's happening at ${data.churchName} today.`;
-  }
-}
+/* ── Banner ──────────────────────────────────── */
+/* 2026-11-10: the "Good evening, <name>" greeting and its sub-line were removed (user request) — the dashboard
+   starts with its sections. */
+function renderBanner(data) { }
 
 /* ── Stat cards ──────────────────────────────── */
+/* A card links to its page only when the server says this login may open it (session navAccess). */
+function _statHref(path) {
+  const acc = window.CGP_NAV_ACCESS;
+  return (acc && acc[path] === false) ? null : path;
+}
+function _statNum(v) { const n = Number(v); return (isFinite(n) ? n : 0).toLocaleString(); }
+function _statEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function renderStatCards(data) {
+  const g = data.glance || {}, att = g.attendance || {};
+  const b = g.birthdays || {}, an = g.anniversaries || {}, mt = g.meetings || {};
   const cards = [
-    { icon:'👥', label:'Members',     value: data.totalMembers ?? 0, trend: `+${data.newMembers ?? 0} this month` },
-    { icon:'✨', label:'New Members', value: data.newMembers    ?? 0, trend: 'last 30 days' },
-    { icon:'👋', label:'Guests',      value: data.guests        ?? 0, trend: 'registered guests' },
-    { icon:'🏠', label:'Families',    value: data.families      ?? 0, trend: 'family units' },
+    { icon:'👥', label:'Members',     value: _statNum(data.totalMembers), trend: `+${_statNum(data.newMembers)} this month`, href:'/viewfamily' },
+    { icon:'✨', label:'New Members', value: _statNum(data.newMembers),   trend: 'last 30 days',      href:'/viewfamily' },
+    { icon:'👋', label:'Guests',      value: _statNum(data.guests),       trend: 'registered guests', href:'/viewfamily' },
+    { icon:'🏠', label:'Families',    value: _statNum(data.families),     trend: 'family units',      href:'/viewfamily' },
   ];
-  document.getElementById('statCards').innerHTML = cards.map(c => `
-    <div class="stat-card">
+  if (data.glance) cards.push(
+    { icon:'🧩', label:'Groups',     value: _statNum(g.groups), trend: 'active groups', href:'/groups' },
+    { icon:'📊', label:'Attendance', value: _statNum(att.percent) + '%', trend: `${_statNum(att.attended)} of ${_statNum(att.people)} · ${_statNum(att.days || 30)} days`,
+      title: `${_statNum(att.attended)} of ${_statNum(att.people)} people were checked in at least once in the last ${_statNum(att.days || 30)} days`, href:'/attendance' },
+    { icon:'🎉', label:'Events',     value: _statNum(g.events),   trend: 'upcoming',        href:'/events' },
+    { icon:'🙋', label:'Visitors',   value: _statNum(g.visitors), trend: 'open follow-ups', title: 'Open visitor follow-ups — the number on the Follow-Ups page, Visitors tab', href:'/followups' },
+    { icon:'🎂', label:'Birthdays',     trio: b,  href:'/viewfamily' },
+    { icon:'💍', label:'Anniversaries', trio: an, href:'/viewfamily' },
+    { icon:'📅', label:'Meetings',      trio: mt, href:'/meetings' }
+  );
+  document.getElementById('statCards').innerHTML = cards.map(c => {
+    const href = c.href ? _statHref(c.href) : null;
+    const tag  = href ? 'a' : 'div';
+    const body = c.trio
+      ? `<div class="stat-trio" role="group" aria-label="${_statEsc(c.label)}">
+           <div><div class="stat-value">${_statNum(c.trio.month)}</div><div class="stat-trend">This month</div></div>
+           <div><div class="stat-value">${_statNum(c.trio.week)}</div><div class="stat-trend">This week</div></div>
+           <div><div class="stat-value">${_statNum(c.trio.today)}</div><div class="stat-trend">Today</div></div>
+         </div>`
+      : `<div class="stat-value">${_statEsc(c.value)}</div>
+         <div class="stat-trend">${_statEsc(c.trend)}</div>`;
+    return `
+    <${tag} class="stat-card${c.trio ? ' trio' : ''}" data-stat="${_statEsc(c.label)}"${href ? ` href="${href}"` : ''}${c.title ? ` title="${_statEsc(c.title)}"` : ''}>
       <div class="stat-card-top">
-        <div class="stat-icon">${c.icon}</div>
-        <div class="stat-label">${c.label}</div>
+        <div class="stat-icon" aria-hidden="true">${c.icon}</div>
+        <div class="stat-label">${_statEsc(c.label)}</div>
       </div>
-      <div class="stat-value">${c.value.toLocaleString()}</div>
-      <div class="stat-trend">${c.trend}</div>
-    </div>`).join('');
+      ${body}
+    </${tag}>`; }).join('');
 }
 
 /* ── Church Growth line chart (SVG) ──────────── */
@@ -2276,12 +2326,7 @@ try {
 } catch (e) { /* older browsers: the same-tab event still works */ }
 
 function renderAcctBanner(data) {
-  const h    = new Date().getHours();
-  const g    = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  const name = localStorage.getItem('firstName') || '';
-  const grEl = document.getElementById('acctGreeting');
-  const subEl = document.getElementById('acctSub');
-  if (grEl)  grEl.textContent  = `${g}${name ? ', ' + name : ''}`;
+  const subEl = document.getElementById('acctSub');   // the "Good evening, <name>" greeting was removed 2026-11-10
   if (subEl && data.churchName) subEl.textContent = `Financial overview for ${data.churchName}.`;
 }
 

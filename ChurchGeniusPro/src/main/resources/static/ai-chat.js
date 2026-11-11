@@ -192,7 +192,15 @@
       '.ga-ex button:hover{border-color:var(--ga-plum);color:var(--ga-plum);}',
       /* launcher */
       '.ga-fab{position:fixed;right:18px;bottom:18px;z-index:950;display:none;align-items:center;gap:8px;background:var(--ga-plum);color:#fff;border:none;border-radius:999px;padding:11px 16px 11px 12px;font-size:13.5px;font-weight:700;box-shadow:0 8px 22px rgba(70,20,45,.3);cursor:pointer;}',
-      'html.ga-has:not(.ga-open) .ga-fab{display:flex;}',
+      /* 2026-11-10: the launcher is on every page from the start (it is the only way in now), not only after a first message */
+      'html.ga-on:not(.ga-open) .ga-fab{display:flex;}',
+      /* room to scroll the last rows / buttons of a page clear of the launcher */
+      'html.ga-on:not(.ga-pagemode) .page-content::after{content:"";display:block;height:68px;flex:0 0 68px;grid-column:1/-1;}',
+      '.ga-help-btn{margin-left:4px;font-weight:700;}',
+      '.ga-conv{width:auto;padding:0 10px;display:inline-flex;align-items:center;gap:6px;font-size:16px;color:#4a4250;}',
+      '.ga-conv .ga-conv-t{font-size:12.5px;font-weight:700;}',
+      '.ga-conv.on{background:var(--ga-plum);border-color:var(--ga-plum);color:#fff;}',
+      '@media (max-width:767px){.ga-conv .ga-conv-t{display:none;}.ga-conv{width:42px;padding:0;justify-content:center;}.ga-help-btn{padding:5px 8px;margin-left:2px;}.ga-new{padding:5px 8px;}.ga-tools .ga-ib{width:29px;}.ga-title b{font-size:14px;}}',
       '.ga-fab .ga-fdot{width:8px;height:8px;border-radius:50%;background:#ffd36e;display:none;}',
       'html.ga-drafting .ga-fab .ga-fdot{display:block;}',
       '@media (max-width:767px){.ga-fab{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));}.ga-new span{display:none;}.ga-panel .aa-choices{grid-template-columns:1fr;}.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,1fr) auto;}.ga-panel .ga-review .aa-field-k{grid-column:1 / -1;}.ga-submit{padding:0 13px;}.ga-full-btn{display:none !important;}}',
@@ -215,6 +223,7 @@
       + '<div class="ga-title"><b>Genius Assistant</b><span class="ga-status" id="gaStatus" role="status" aria-live="polite">Ready</span></div>'
       + '<div class="ga-tools">'
       + '<button type="button" class="ga-new" id="gaNew" title="Start a new conversation (nothing unsaved is kept)" aria-label="New conversation">↺ <span>New</span></button>'
+      + '<button type="button" class="ga-new ga-help-btn" id="gaHelp" title="Help — what you can ask and how it works" aria-label="Help">Help</button>'
       + (pageMode ? '' : '<button type="button" class="ga-ib ga-full-btn" id="gaFull" title="Full screen" aria-label="Full screen" aria-pressed="false">'
                          + '<span class="ga-i-enter" aria-hidden="true">⤢</span><span class="ga-i-exit" aria-hidden="true">⤡</span></button>')
       + '<button type="button" class="ga-ib" id="gaMenuBtn" title="More" aria-label="More options" aria-haspopup="true" aria-expanded="false">⋯</button>'
@@ -222,9 +231,7 @@
       + (pageMode ? '' : '<button type="button" class="ga-ib" id="gaClose" title="Close (Esc)" aria-label="Close the assistant">✕</button>')
       + '</div>'
       + '<div class="ga-menu" id="gaMenu" role="menu" hidden>'
-      + '<button type="button" role="menuitem" id="gaMHelp">❓ Help — what you can ask</button>'
       + '<button type="button" role="menuitem" id="gaMGuide">📖 Guide — all commands</button>'
-      + '<button type="button" role="menuitem" id="gaMConverse">🗣 Converse (spoken replies)<span class="ga-switch" id="gaConvState">Off</span></button>'
       + '<button type="button" role="menuitem" id="gaMShare" hidden>🔐 AI data sharing</button>'
       + (pageMode ? '' : '<a role="menuitem" id="gaMPage" href="/ai-assistant">↗ Open as a page</a>')
       + '</div>'
@@ -236,6 +243,8 @@
       + '<form class="ga-composer" id="gaForm" autocomplete="off">'
       + '<textarea class="ga-input" id="gaInput" rows="1" placeholder="Ask a question or tell me what to do…" aria-label="Message to Genius Assistant"></textarea>'
       + '<button type="button" class="ga-mic" id="gaMic" title="Speak your request" aria-label="Speak your request">🎤</button>'
+      + '<button type="button" class="ga-mic ga-conv" id="gaConv" title="Converse mode — talk back and forth; replies are spoken" aria-label="Converse mode" aria-pressed="false">'
+      + '<span aria-hidden="true">🗣</span><span class="ga-conv-t">Converse</span></button>'
       + '<button type="submit" class="ga-submit" id="gaSubmit">Submit</button>'
       + '</form>';
     if (pageMode) { host.appendChild(panel); document.documentElement.classList.add('ga-pagemode', 'ga-open'); }
@@ -277,15 +286,15 @@
     // menu
     el.gaMenuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleMenu(); });
     document.addEventListener('click', function (e) { if (!el.gaMenu.hidden && !el.gaMenu.contains(e.target)) toggleMenu(false); });
-    document.getElementById('gaMHelp').addEventListener('click', function () { toggleMenu(false); if (api && api.showHelp) api.showHelp(); });
+    document.getElementById('gaHelp').addEventListener('click', function () { toggleMenu(false); if (api && api.showHelp) api.showHelp(); });
     document.getElementById('gaMGuide').addEventListener('click', function () {
       toggleMenu(false);
       var g = document.getElementById('aaGuideBtn'); if (!g) return;
-      if (!isDock() && !pageMode) close();
-      g.click();
-      var gd = document.getElementById('aaGuide'); try { if (gd) gd.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+      g.click();   // opens in a window over the panel; choosing a command sends it into this conversation
     });
-    document.getElementById('gaMConverse').addEventListener('click', function () {
+    // Converse mode on / off — the SAME engine switch the old bar's 🗣 button used (one voice implementation);
+    // the transcript, a draft and anything typed stay as they are.
+    document.getElementById('gaConv').addEventListener('click', function () {
       toggleMenu(false);
       if (!api || !api.setMode) return;
       api.setMode(api.mode && api.mode() === 'converse' ? 'type' : 'converse');
@@ -346,8 +355,12 @@
     el.gaMic.setAttribute('aria-label', live ? 'Stop listening' : 'Speak your request');
     el.gaMic.title = live ? 'Stop listening' : 'Speak your request';
     el.gaMic.setAttribute('aria-pressed', live ? 'true' : 'false');
-    var cs = document.getElementById('gaConvState');
-    if (cs) { cs.textContent = m === 'converse' ? 'On' : 'Off'; cs.classList.toggle('on', m === 'converse'); }
+    var cb = document.getElementById('gaConv');
+    if (cb) {
+      var on = m === 'converse';
+      cb.classList.toggle('on', on); cb.setAttribute('aria-pressed', on ? 'true' : 'false');
+      cb.title = on ? 'Converse mode is on — click to go back to typing' : 'Converse mode — talk back and forth; replies are spoken';
+    }
     if (!busyOn) status(rec ? 'listening' : proc ? 'thinking' : 'ready');
   }
   function syncHint() {
@@ -411,7 +424,7 @@
     document.documentElement.classList.remove('ga-open');
     st.open = false; layout(); save(); toggleMenu(false);
     try { if (document.activeElement && el.panel.contains(document.activeElement)) document.activeElement.blur(); } catch (e) {}
-    var b = document.getElementById('aiSearchInput'); try { if (b && !isPhone()) b.focus(); } catch (e) {}
+    var b = document.getElementById('gaFab'); try { if (b && !isPhone()) b.focus(); } catch (e) {}   // back to the launcher (the old bar is gone)
   }
   function status(kind) {
     var s = el.gaStatus; if (!s) return;
@@ -755,6 +768,7 @@
     injectStyles();
     build();
     window.CGP_ASSISTANT_UI = UI;
+    document.documentElement.classList.add('ga-on');
     watchClassicBox();
     restore();
     layout();

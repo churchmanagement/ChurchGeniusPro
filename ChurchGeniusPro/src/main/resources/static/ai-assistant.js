@@ -1209,7 +1209,10 @@
   /* ════════════════════════ Guide ════════════════════════ */
   function openGuide(){
     var el=document.getElementById('aaGuide'); if(!el) return;
-    if(!el.classList.contains('hidden')){ el.classList.add('hidden'); return; }
+    // 2026-11-10: with the bar off-screen (Genius Assistant is the interface) the guide opens in a window instead.
+    var inModal=!!(el.closest && el.closest('.ga-engine-bar'));
+    if (inModal){ showHelpModal('Guide \u2014 all commands', '<div id="aaGuideModal"></div>'); el=document.getElementById('aaGuideModal'); if(!el) return; }
+    else if(!el.classList.contains('hidden')){ el.classList.add('hidden'); return; }
     var cats=['Profile','Member','Admin','Finance','Reports','Payroll','Ministry','Communications','Administration','Public'];
     var html='<input id="aaGuideSearch" type="text" placeholder="Search the guide… (income, payroll, family, report)">'
       + '<div class="aa-g-note">Type or speak any of these. Greyed-out items aren’t available for your account.</div>'
@@ -1238,12 +1241,13 @@
       + '<span class="aa-cmd" data-run="switch account to Accountant">Switch Account to Accountant</span>'
       + '<span class="aa-cmd" data-run="switch account to Member">Switch Account to Member</span></div>';
     el.innerHTML=html; el.classList.remove('hidden');
-    var search=document.getElementById('aaGuideSearch');
+    var search=el.querySelector('#aaGuideSearch');
     if(search) search.addEventListener('input', function(){ var q=this.value.toLowerCase().trim();
       el.querySelectorAll('.aa-cmd').forEach(function(c){ var hay=(c.textContent+' '+(c.getAttribute('data-keys')||'')).toLowerCase();
         c.style.display=(!q||hay.indexOf(q)>=0)?'':'none'; }); });
     el.querySelectorAll('.aa-cmd').forEach(function(c){ c.addEventListener('click', function(){
       var inp=document.getElementById('aiSearchInput'); var run=c.getAttribute('data-run');
+      if (inModal){ var ov=document.querySelector('.aa-modal-ov'); if(ov && ov.parentNode) ov.parentNode.removeChild(ov); }
       if(inp) inp.value=run; runAssist(run);
     }); });
   }
@@ -1356,7 +1360,7 @@
       if (p === 'done')       return 'Ready. Click Converse to keep the conversation going.';
       return 'Speak when listening mode is displayed. Click the Stop button at any time to stop.';
     }
-    return 'Type a question, e.g. \u201cWhere is the Tax Report?\u201d';
+    return '';   // 2026-11-10: no idle instruction text — Genius Assistant is the only entry point
   }
 
   function setPhase(p){
@@ -1504,6 +1508,8 @@
       // Match the home page (.ai-search-wrap / .ai-search-bar / .ai-search-btn)
       // exactly so the AI search box is identical on every page.
       '.aa-host{padding:18px 24px 0;margin-bottom:18px;}',
+      // the engine's controls when Genius Assistant is the interface: in the page, never on screen, no space taken
+      '.ga-engine-bar{position:fixed !important;left:-9999px !important;top:0 !important;width:1px !important;height:1px !important;overflow:hidden !important;visibility:hidden !important;margin:0 !important;padding:0 !important;border:0 !important;}',
       // Single-row toolbar: ✨ input (grows) · Search · Type · Voice · Converse · Guide.
       // The mode buttons live INSIDE the search bar so every control shares one row
       // and one height; on narrow screens flex-wrap lets them drop gracefully.
@@ -1715,7 +1721,7 @@
     return h;
   }
   function searchHelpHtml(){
-    return '<p>AI Search understands plain English. Ask it to open a page, look up your church\u2019s data, run a '
+    return '<p>Genius Assistant understands plain English. Ask it to open a page, look up your church\u2019s data, run a '
       +'report for a period, create a meeting, explain how to do something, or find help \u2014 it works the same on every page.</p>'
       +'<h4>What you can ask</h4>'
       +'<ul><li><b>Navigation</b> \u2014 \u201cGo to Payroll\u201d, \u201cOpen the event calendar\u201d, \u201cWhere do I set the email display name?\u201d.</li>'
@@ -1737,9 +1743,9 @@
       +'<div class="aa-ex">\u201cCreate a Prayer Meeting tomorrow at 6:30 pm\u201d</div>'
       +'<div class="aa-ex">\u201cI need to send reminders\u201d (Converse mode \u2014 the assistant asks follow-up questions)</div>'
       +'<h4>\ud83d\udd0e Type \u00b7 \ud83c\udfa4 Voice \u00b7 \ud83d\udde3 Converse</h4>'
-      +'<ul><li><b>Type</b> \u2014 enter your question in the box and press Enter or click Search.</li>'
+      +'<ul><li><b>Type</b> \u2014 enter your question in the message box and press Enter or click Submit.</li>'
       +'<li><b>Voice</b> \u2014 click the microphone and speak naturally; your speech is converted to text and searched. Click again to stop. In Voice mode, saying a page name (e.g. \u201cGo to Events\u201d) navigates immediately.</li>'
-      +'<li><b>Converse</b> \u2014 a back-and-forth conversation: describe what you want to do (e.g. \u201cI need to send reminders\u201d) and the assistant asks follow-up questions to get you to the right place.</li></ul>'
+      +'<li><b>Converse</b> \u2014 click the \ud83d\udde3 Converse button beside the microphone to switch it on or off (your conversation stays). A back-and-forth conversation: describe what you want to do (e.g. \u201cI need to send reminders\u201d) and the assistant asks follow-up questions to get you to the right place.</li></ul>'
       +'<h4>What you see depends on your access</h4>'
       +'<ul><li>Answers follow the same permissions and plan as the pages themselves: data you cannot open on its page is not shown here either, and the assistant says so.</li>'
       +'<li>Lists are kept short (the first 20 rows) with a link to the full page; very long date ranges are narrowed first.</li>'
@@ -1748,7 +1754,7 @@
       +'<ul><li>Use full, natural sentences \u2014 no special syntax is needed.</li>'
       +'<li>Start with a verb (<b>Go to</b>, <b>Open</b>, <b>Show me</b>) when you want to navigate straight to a page.</li>'
       +'<li>One question at a time: while an answer is on its way, Enter waits; if nothing comes back within 30 seconds the assistant says so and you can try again.</li>'
-      +'<li>Click the \u2754 Guide button to browse every available command for your account.</li>'
+      +'<li>Open \u22ef \u2192 Guide to browse every available command for your account.</li>'
       +'<li>Voice and Converse need microphone access; Type mode always works.</li></ul>';
   }
 
@@ -1791,9 +1797,15 @@
       else { homeWrap.appendChild(hintRow); homeWrap.appendChild(guide); }
     } else {
       // Other pages: build the single-row search bar at the top of the content area.
+      // 2026-11-10: the AI Search bar is no longer shown. Its input, mode buttons and results box stay in the
+      // page as the ENGINE's controls (voice, Converse, routing and saving all run through them), kept
+      // off-screen and out of the layout (.ga-engine-bar) — Genius Assistant (ai-chat.js) is the interface.
+      // Only when the server switched the panel off (ai.chat.ui=false) is the classic bar drawn instead.
+      var chatUi=(session.aiChatUi!==false);
       var main=document.querySelector('main.page-content')||document.querySelector('.page-content');
-      if (!main) return false;                       // not an app content page → skip
-      var host=document.createElement('div'); host.className='aa-host'; host.id='aaHost';
+      if (!main){ if (!chatUi) return false; main=document.body; }   // classic bar needs a content area; the panel does not
+      var host=document.createElement('div'); host.className='aa-host'+(chatUi?' ga-engine-bar':''); host.id='aaHost';
+      if (chatUi) host.setAttribute('aria-hidden','true');
       host.setAttribute('data-perm','more.aiassistant');   // session.js hides it the moment the permission is switched off
       var sb=document.createElement('div'); sb.className='aa-searchbar';
       sb.innerHTML='<span class="aa-ic">✨</span>'
@@ -1803,7 +1815,7 @@
       var resWrap=document.createElement('div'); resWrap.id='aiResultsWrap'; resWrap.style.display='none';
       resWrap.setAttribute('role','region'); resWrap.setAttribute('aria-label','Assistant results'); resWrap.setAttribute('aria-live','polite');
       host.appendChild(sb); host.appendChild(hintRow); host.appendChild(guide); host.appendChild(resWrap);
-      main.insertBefore(host, main.firstChild);
+      if (main===document.body) main.appendChild(host); else main.insertBefore(host, main.firstChild);
       // Wire the input + button we just created (the home page already has inline
       // handlers that call the overridden window.runAiSearch, so skip there).
       var input=document.getElementById('aiSearchInput');
@@ -1829,7 +1841,7 @@
       if (window.CGP_aiConsent) window.CGP_aiConsent.openSettings(); else window.location.href = '/aiDataSharing';
     });
     document.getElementById('aaHelpBtn').addEventListener('click', function(){
-      showHelpModal('AI Search — Help', searchHelpHtml());
+      showHelpModal('Genius Assistant — Help', searchHelpHtml());
     });
 
     return true;
@@ -1841,7 +1853,7 @@
   function attachChat(){
     if (session.aiChatUi===false){
       // Panel switched off on the server: the full-page view falls back to the classic bar + results box.
-      var eb=document.querySelector('.ai-search-wrap.ga-engine-bar'); if (eb){ eb.classList.remove('ga-engine-bar'); eb.removeAttribute('aria-hidden'); }
+      document.querySelectorAll('.ga-engine-bar').forEach(function(eb){ eb.classList.remove('ga-engine-bar'); eb.removeAttribute('aria-hidden'); });
       return;
     }
     if (!window.CGP_CHAT || typeof window.CGP_CHAT.attach!=='function') return;
