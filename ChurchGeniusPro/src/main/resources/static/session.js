@@ -882,7 +882,8 @@
                         url.indexOf('/api/logout')  === -1) {
                     /* Kids Portal 13+ rule: a member session ended for age says why. */
                     response.clone().json().catch(function () { return null; }).then(function (b) {
-                        var r = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason : 'expired';
+                        var r = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason
+                              : (b && b.code === 'PASSWORD_CHANGED') ? 'password' : 'expired';
                         logout(r);
                     });
                 }
@@ -1456,7 +1457,7 @@
         '/groups': 'groups', '/certificates': 'certificates', '/publicScreens': 'publicScreens',
         '/followups': 'followUps', '/songbook': 'songbook', '/admin/songbook-access': 'songbook',
         '/private-access-settings': 'privatePages', '/ntagAccess': 'ntag',
-        '/savedLists': 'aiSearch',
+        '/savedLists': 'aiSearch', '/ai-assistant': 'aiSearch',
         '/apiTokens': 'mcp',
         '/workflows': 'workflows',
         '/worshipPlanning': 'worship', '/event-volunteers': 'volunteers', '/volunteers': 'volunteers',
@@ -1585,7 +1586,9 @@
         try {
             var res = await fetch(SESSION_URL);
             if (res.status === 401) {
-                window.location.replace(LOGIN_URL);
+                // 2026-11-11: the password was changed on another browser/device — the server ended this session.
+                var b401 = await res.json().catch(function () { return null; });
+                window.location.replace(b401 && b401.code === 'PASSWORD_CHANGED' ? LOGIN_URL + '?reason=password' : LOGIN_URL);
                 return;
             }
             sessionData = await res.json();

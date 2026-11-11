@@ -70,6 +70,14 @@ public class ForgotPasswordController {
     private final LoginProtectionService       loginProtection;
     private final com.churchgeniuspro.service.RememberMeService rememberMe;
 
+    /** Per-IP limit on reset requests (2026-11-11); field-injected so the constructor is unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.util.PublicSendLimiter sendLimiter;
+
+    /** Ends sessions / revokes tokens on a new password (2026-11-11); field-injected so the constructor is unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.CredentialChangeService credentialChanges;
+
     @Value("${app.base-url}")
     private String baseUrl;
 
@@ -141,54 +149,28 @@ public class ForgotPasswordController {
             return bad("Username and email are required.");
         }
 
-        try {
-            // findActiveByUsername handles rows where deleted IS NULL (not just false)
-            SignUp user = loginRepo.findActiveByUsername(username).orElse(null);
-            log.debug("[ForgotPassword] lookup found={}", user != null);
-
-            if (user != null && Boolean.TRUE.equals(user.getActive())) {
-                log.debug("[ForgotPassword] clientId={} church={} active={} deleted={}",
-                        user.getClientId(), user.getChurch(), user.getActive(), user.getDeleted());
-
-                // For Child members the "expected" email is the HoH email, and
-                // the reset link is sent to that HoH address (not the child's own).
-                String actualEmail     = resolveEmail(user);
-                String sendToEmail     = resolveSendToEmail(user, actualEmail);
-                String serviceClientId = resolveServiceClientId(user);
-
-                log.debug("[ForgotPassword] resolvedEmail={} sendTo={} provided={} serviceClientId={}",
-                        EmailMask.mask(actualEmail), EmailMask.mask(sendToEmail), EmailMask.mask(email), serviceClientId);
-
-                boolean emailMatches = actualEmail != null && actualEmail.equalsIgnoreCase(email);
-                boolean subscriptionOk = serviceClientId != null
-                        && serviceClientRepo.isActiveSubscription(serviceClientId, LocalDate.now());
-
-                log.debug("[ForgotPassword] emailMatches={} subscriptionOk={}", emailMatches, subscriptionOk);
-
-                if (emailMatches && subscriptionOk) {
-                    // Delegate to service so @Transactional is applied via Spring proxy.
-                    // Returns null when a link was already emailed inside the cooldown —
-                    // that earlier link is still valid, so we simply send nothing.
-                    String token = passwordResetService.createToken(username, sendToEmail);
-                    if (token != null) {
-                        String resetLink = baseUrl + "/resetPassword?token=" + token;
-                        String churchName = resolveChurchName(user);
-                        log.info("[ForgotPassword] sending reset email to {}", EmailMask.mask(sendToEmail));
-                        // Email is sent AFTER the transaction commits (token is already in DB)
-                        // Account recovery: delivered whatever the tenant's plan says.
-                        emailService.sendAccountEmail(
-                                sendToEmail,
-                                "Password Reset — " + churchName,
-                                buildResetEmail(username, resetLink, churchName));
-                        log.info("[ForgotPassword] reset email sent");
-                    } else {
-                        log.info("[ForgotPassword] suppressed duplicate reset email (cooldown active)");
-                    }
-                }
+        // 2026-11-11: per-IP limit on reset requests (abuse / inbox flooding from one host). Deliberately NOT keyed on
+        // the username or address — that would let anyone deny the real owner their recovery path.
+        if (sendLimiter != null) {
+            String limited = sendLimiter.check(com.churchgeniuspro.util.PublicSendLimiter.FORGOT_PASSWORD, request, null, null);
+            if (limited != null) {
+                log.info("[ForgotPassword] request refused — reason=RATE_LIMITED");
+                return ResponseEntity.status(429).body(Map.of("error", limited));
             }
+        }
+
+        // Why no e-mail went out is logged at INFO with the masked username only (never the address, never the
+        // token), so "I didn't get the e-mail" can be answered from the production log. The response is the same
+        // generic sentence whatever happened, so the existence of an account is never revealed.
+        String who = LoginProtectionService.mask(username);
+        try {
+            String reason = sendResetEmail(username, email);
+            if (reason == null) log.info("[ForgotPassword] reset e-mail sent for {}", who);
+            else log.info("[ForgotPassword] no reset e-mail for {} — reason={}", who, reason);
         } catch (Exception ex) {
             // Log but do not expose — always return the same generic message
-            log.error("[ForgotPassword] error processing reset request", ex);
+            log.error("[ForgotPassword] error processing reset request for {} — {}", who,
+                    com.churchgeniuspro.util.LogSafe.exception(ex));
         }
 
         // Generic response regardless of whether the username/email matched
@@ -214,7 +196,7 @@ public class ForgotPasswordController {
             return bad(pwPolicyError);
         }
 
-        PasswordResetToken prt = tokenRepo.findByToken(token).orElse(null);
+        PasswordResetToken prt = tokenRepo.findByToken(PasswordResetService.hash(token)).orElse(null);
         if (prt == null || prt.isUsed()) {
             return bad("This reset link is invalid or has already been used.");
         }
@@ -229,6 +211,8 @@ public class ForgotPasswordController {
         }
         user.setPassword(PasswordUtil.encode(newPassword));
         user.setUpdated(new Date());
+        if (credentialChanges != null) credentialChanges.beforeSave(user);
+        else user.markCredentialChanged();                 // hand-built controller (tests): still end the sessions
         loginRepo.save(user);
 
         // Mark token as used so it cannot be replayed
@@ -244,9 +228,12 @@ public class ForgotPasswordController {
 
         // A new password means every remembered device must prove itself again — the
         // reset may well be because one of them was lost or shared (Phase 1, M2).
-        int revoked = rememberMe.revokeAllFor(user.getId());
-        if (revoked > 0) {
-            log.info("Password reset for username='{}' revoked {} remembered device(s)", prt.getUsername(), revoked);
+        // 2026-11-11: and every open session (credential version above) and personal access token goes with them.
+        if (credentialChanges != null) {
+            credentialChanges.afterSave(user, "reset");
+        } else {
+            int revoked = rememberMe.revokeAllFor(user.getId());
+            if (revoked > 0) log.info("Password reset for username='{}' revoked {} remembered device(s)", prt.getUsername(), revoked);
         }
 
         return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
@@ -259,7 +246,7 @@ public class ForgotPasswordController {
     @ResponseBody
     @GetMapping("/api/reset-password/validate")
     public ResponseEntity<Map<String, Object>> validateToken(@RequestParam String token) {
-        PasswordResetToken prt = tokenRepo.findByToken(token).orElse(null);
+        PasswordResetToken prt = tokenRepo.findByToken(PasswordResetService.hash(token)).orElse(null);
         if (prt == null || prt.isUsed() || prt.getExpiryTime().before(new Date())) {
             return ResponseEntity.ok(Map.of("valid", false,
                     "message", "This reset link is invalid or has expired."));
@@ -269,6 +256,53 @@ public class ForgotPasswordController {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * The whole decision for one request. Returns {@code null} when a reset e-mail was handed to the mail server,
+     * otherwise the reason nothing was sent (for the log only). The same rules as sign-in decide which accounts are
+     * live: an account that can sign in can also recover its password.
+     */
+    String sendResetEmail(String username, String email) throws Exception {
+        // findActiveByUsername handles rows where deleted IS NULL (not just false); case-insensitive
+        SignUp user = loginRepo.findActiveByUsername(username).orElse(null);
+        if (user == null) return "NO_ACCOUNT";
+        // Same rule as /login: only an explicit active=false is refused (a NULL flag signs in, so it can reset too).
+        if (Boolean.FALSE.equals(user.getActive())) return "ACCOUNT_INACTIVE";
+
+        // For Child members the "expected" email is the HoH email, and the reset link is sent to that HoH address.
+        String actualEmail = resolveEmail(user, email);
+        if (actualEmail == null || actualEmail.isBlank()) return "NO_EMAIL_ON_FILE";
+        if (!actualEmail.trim().equalsIgnoreCase(email.trim())) return "EMAIL_MISMATCH";
+        String sendToEmail = resolveSendToEmail(user, actualEmail.trim());
+
+        String serviceClientId = resolveServiceClientId(user, email);
+        if (serviceClientId == null) return "NO_CHURCH";
+        if (!serviceClientRepo.isActiveSubscription(serviceClientId, com.churchgeniuspro.util.AppClock.today()))
+            return "SUBSCRIPTION_INACTIVE";
+
+        // The token is recorded under the account's own username (not the spelling typed), so the cooldown and the
+        // supersede-older-tokens rule cannot be sidestepped by changing letter case.
+        String accountUsername = user.getUsername();
+        String token = passwordResetService.createToken(accountUsername, sendToEmail);
+        if (token == null) return "COOLDOWN";   // a link was e-mailed moments ago and is still valid
+
+        String resetLink = baseUrl + "/resetPassword?token=" + token;
+        String churchName = resolveChurchName(user, email);
+        try {
+            // Account recovery: delivered whatever the tenant's plan says. The THROWING variant — a delivery failure
+            // must not be reported as sent, and must not leave a token behind whose cooldown would then swallow the
+            // user's retry once mail works again.
+            emailService.sendAccountEmailOrThrow(sendToEmail, "Password Reset — " + churchName,
+                    buildResetEmail(accountUsername, resetLink, churchName), null);
+        } catch (Exception sendFailure) {
+            passwordResetService.discard(accountUsername);
+            log.error("[ForgotPassword] reset e-mail could NOT be delivered to {} — {} (token discarded; check the "
+                    + "SMTP settings CG_MAIL_USERNAME / CG_MAIL_PASSWORD)", EmailMask.mask(sendToEmail),
+                    com.churchgeniuspro.util.LogSafe.exception(sendFailure));
+            return "SEND_FAILED";
+        }
+        return null;
+    }
 
     /**
      * Resolves the email address that the user must supply on the forgot-password form.
@@ -282,7 +316,7 @@ public class ForgotPasswordController {
      *       email for the same family (user must enter the HoH email to pass validation)</li>
      * </ul>
      */
-    private String resolveEmail(SignUp user) {
+    private String resolveEmail(SignUp user, String typedEmail) {
         String clientId = user.getClientId();
         if (clientId == null) return null;
 
@@ -302,11 +336,13 @@ public class ForgotPasswordController {
 
             } else if (clientId.startsWith("MBR")) {
                 // findByMemberRef already filters deleteFlag=false AND inactive=false
-                FamilyMember member = familyMemberRepo.findByMemberRef(clientId).orElse(null);
+                FamilyMember member = memberFor(clientId, user, typedEmail);
                 if (member == null) return null;
 
-                // Child accounts: the expected email is the Head of Household's email
-                if ("Child".equalsIgnoreCase(member.getRole()) && member.getFamily() != null) {
+                // Child accounts (child / son / daughter / kid… — FamilyRoles): the expected email is the
+                // Head of Household's email
+                if (com.churchgeniuspro.util.FamilyRoles.CHILD.equals(com.churchgeniuspro.util.FamilyRoles.canonical(member.getRole()))
+                        && member.getFamily() != null) {
                     return resolveHohEmail(member.getFamily().getId());
                 }
 
@@ -340,8 +376,7 @@ public class ForgotPasswordController {
                 .stream()
                 .filter(m -> {
                     String r = m.getRole();
-                    return r != null && (r.equalsIgnoreCase("Head")
-                            || r.equalsIgnoreCase("Head of Household"));
+                    return com.churchgeniuspro.util.FamilyRoles.HEAD.equals(com.churchgeniuspro.util.FamilyRoles.canonical(r));
                 })
                 .map(FamilyMember::getEmail)
                 .filter(e -> e != null && !e.isBlank())
@@ -358,7 +393,7 @@ public class ForgotPasswordController {
      *   <li>church=false, MBR → family_member.appClientId IS the service_client clientId</li>
      * </ul>
      */
-    private String resolveServiceClientId(SignUp user) {
+    private String resolveServiceClientId(SignUp user, String typedEmail) {
         String clientId = user.getClientId();
         if (clientId == null) return null;
 
@@ -373,9 +408,11 @@ public class ForgotPasswordController {
                                   .orElse(null);
 
             } else if (clientId.startsWith("MBR")) {
-                return familyMemberRepo.findByMemberRef(clientId)
-                                       .map(FamilyMember::getAppClientId)
-                                       .orElse(null);
+                // Same as sign-in (LoginController.resolveMemberOrgClientId): the FAMILY's church, else the member's.
+                FamilyMember fm = memberFor(clientId, user, typedEmail);
+                if (fm == null) return null;
+                return fm.getFamily() != null && fm.getFamily().getAppClientId() != null
+                        ? fm.getFamily().getAppClientId() : fm.getAppClientId();
             }
         }
         return null;
@@ -384,7 +421,7 @@ public class ForgotPasswordController {
     /**
      * Resolves the church name for display in the reset email.
      */
-    private String resolveChurchName(SignUp user) {
+    private String resolveChurchName(SignUp user, String typedEmail) {
         String clientId = user.getClientId();
         if (clientId == null) return "Church Genius Pro";
 
@@ -395,12 +432,31 @@ public class ForgotPasswordController {
                     .orElse("Church Genius Pro");
         } else {
             // For USR / MBR accounts, derive the org clientId then look up church name
-            String orgClientId = resolveServiceClientId(user);
+            String orgClientId = resolveServiceClientId(user, typedEmail);
             if (orgClientId != null) {
                 return emailService.getChurchName(orgClientId);
             }
         }
         return "Church Genius Pro";
+    }
+
+    /**
+     * The member record behind a portal login: by {@code member_ref}, else — as sign-in does for members whose
+     * {@code member_ref} was never filled in — the one live member with the login's own e-mail address (the
+     * username), and only when exactly one member has it.
+     */
+    private FamilyMember memberFor(String memberRef, SignUp user, String typedEmail) {
+        FamilyMember fm = familyMemberRepo.findByMemberRef(memberRef).orElse(null);
+        if (fm != null) return fm;
+        String byEmail = user.getUsername() != null && user.getUsername().contains("@") ? user.getUsername() : null;
+        if (byEmail == null) return null;
+        var candidates = familyMemberRepo.findActiveByEmail(byEmail.trim());
+        return candidates.size() == 1 ? candidates.get(0) : null;
+    }
+
+    private static String escape(String s) {
+        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     private static String trim(String s) {
@@ -428,7 +484,7 @@ public class ForgotPasswordController {
              + "</td></tr>"
              + "<tr><td style='padding:36px 40px;'>"
              +   "<p style='margin:0 0 16px;font-size:16px;color:#1a1a2e;font-weight:600;'>"
-             +       "Hi <strong>" + username + "</strong>,</p>"
+             +       "Hi <strong>" + escape(username) + "</strong>,</p>"
              +   "<p style='margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;'>"
              +       "We received a request to reset your password. "
              +       "Click the button below to set a new password. "

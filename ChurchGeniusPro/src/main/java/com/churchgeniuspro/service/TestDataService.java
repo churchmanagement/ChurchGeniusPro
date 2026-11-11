@@ -94,6 +94,11 @@ import java.util.Random;
 @Service
 public class TestDataService {
 
+    /** A new password on an existing login ends its sessions and tokens (2026-11-11); optional for hand-built tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CredentialChangeService credentialChanges;
+
+
     /** Optional: drops cached send permissions when a tenant's plan changes. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private MessagingPolicy messagingPolicy;
@@ -1145,7 +1150,14 @@ public class TestDataService {
         su.setDemoPassword(newPwd);
         su.setLocked(false);
         su.setActive(true);
+        String oldUsername = username;
+        if (credentialChanges != null) credentialChanges.beforeSave(su); else su.markCredentialChanged();
         loginRepo.save(su);
+        if (credentialChanges != null) {
+            credentialChanges.afterSave(su, "reissue");
+            // tokens are recorded under the username they were issued to — the old one
+            SignUp old = new SignUp(); old.setUsername(oldUsername); credentialChanges.afterSave(old, "reissue");
+        }
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("username", newUsername);
@@ -1201,7 +1213,9 @@ public class TestDataService {
         su.setLocked(false);
         su.setActive(true);
         su.setUpdated(new Date());
+        if (credentialChanges != null) credentialChanges.beforeSave(su); else su.markCredentialChanged();
         loginRepo.save(su);
+        if (credentialChanges != null) credentialChanges.afterSave(su, "admin-reset");
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("username", su.getUsername());

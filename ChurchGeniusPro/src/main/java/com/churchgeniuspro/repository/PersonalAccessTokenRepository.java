@@ -27,4 +27,9 @@ public interface PersonalAccessTokenRepository extends JpaRepository<PersonalAcc
     @Modifying
     @Query("UPDATE PersonalAccessToken t SET t.revokedAt = :now, t.revokedBy = :by WHERE t.appClientId = :cid AND t.revokedAt IS NULL")
     int revokeAll(@Param("cid") String appClientId, @Param("by") String by, @Param("now") LocalDateTime now);
+
+    /** Every live token of one login (by its username), whatever church — used when that login's password changes. */
+    @Modifying
+    @Query("UPDATE PersonalAccessToken t SET t.revokedAt = :now, t.revokedBy = :by WHERE LOWER(t.username) = LOWER(:username) AND t.revokedAt IS NULL")
+    int revokeAllForUsername(@Param("username") String username, @Param("by") String by, @Param("now") LocalDateTime now);
 }

@@ -45,6 +45,11 @@ import java.util.Map;
 @Controller
 public class SignupController {
 
+    /** Ends sessions / tokens of a provisioned login when its registrant claims it (2026-11-11). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.CredentialChangeService credentialChanges;
+
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SignupController.class);
 
     private final SignupService                 signupService;
@@ -316,7 +321,10 @@ public class SignupController {
             provisioned.setActive(true);
             provisioned.setLocked(false);
             provisioned.setUpdated(new Date());
+            // Whoever signed in with the generated password must not stay signed in (2026-11-11).
+            if (credentialChanges != null) credentialChanges.beforeSave(provisioned); else provisioned.markCredentialChanged();
             loginRepository.save(provisioned);
+            if (credentialChanges != null) credentialChanges.afterSave(provisioned, "claim");
             demoRoleAccessRepository.findBySignupId(provisioned.getId()).ifPresent(dra -> {
                 dra.setUsername(username.trim());
                 demoRoleAccessRepository.save(dra);

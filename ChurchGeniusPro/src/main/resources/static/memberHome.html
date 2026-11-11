@@ -926,7 +926,8 @@ setInterval(pollMbrNotifications, 60000);
         try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
         /* Kids Portal 13+ rule: an ended session says why (reason is from a fixed list). */
         response.clone().json().catch(function () { return null; }).then(function (b) {
-          var ageReason = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason : null;
+          var ageReason = b && b.code === 'KIDS_PORTAL_AGE' && /^(dob|age|age-member)$/.test(b.reason || '') ? b.reason
+                        : (b && b.code === 'PASSWORD_CHANGED') ? 'password' : null;
           window.location.href = ageReason ? '/?reason=' + ageReason
                                            : '/?reason=expired&next=' + encodeURIComponent('/memberHome');
         });
@@ -1444,6 +1445,8 @@ window.applyMemberNavFilter = function(privMap) {
       if (onclick.indexOf("'" + href + "'") !== -1 || onclick.indexOf('"' + href + '"') !== -1) {
         var p = (typeof privMap === 'string') ? (function(){ try { return JSON.parse(privMap); } catch(e) { return null; } })() : privMap;
         if (!p || p[OPT_IN_HREFS[href]] !== true) btn.style.display = 'none';
+        // 2026-11-11: Genius Assistant also needs the plan's AI Type feature (off on Free).
+        if (href === '/ai-assistant' && typeof window.CGP_hasFeature === 'function' && !window.CGP_hasFeature('aiSearch')) btn.style.display = 'none';
       }
     });
   });
@@ -3013,6 +3016,15 @@ function urlBase64ToUint8Array(base64String) {
   // Pre-fill name from session so welcome banner shows immediately
   try {
     var sr = await fetch('/api/session');
+    if (sr.status === 401) {
+      // 2026-11-11: password changed on another browser/device — the server ended this session.
+      var sb401 = await sr.json().catch(function () { return null; });
+      if (sb401 && sb401.code === 'PASSWORD_CHANGED') {
+        try { sessionStorage.setItem('cgpExplicitLogout', '1'); } catch (_) {}
+        window.location.href = '/?reason=password';
+        return;
+      }
+    }
     if (sr.ok) {
       var sd = await sr.json();
       if (sd.firstName) {

@@ -245,7 +245,9 @@ class AiSearchEndpointSecurityTest {
                       .contains("if (session.aiAssistant!==true){ hideHomeBar(); return; }")
                       .contains("host.setAttribute('data-perm','more.aiassistant');");
         String ctrl = Files.readString(Paths.get("src/main/java/com/churchgeniuspro/controller/SessionController.java"));
-        assertThat(ctrl).contains("res.put(\"aiAssistant\", com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT));");
+        // 2026-11-11: the permission verdict AND the plan's AI Type feature (Free → no assistant).
+        assertThat(ctrl).contains("boolean aiAssistantAllowed = com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT);")
+                        .contains("res.put(\"aiAssistant\", aiAssistantAllowed && !Boolean.FALSE.equals(features.get(\"aiSearch\")));");
         // and the rule the flag comes from
         assertThat(RoleGuard.featureAllowed(member("Son", "{\"more.aiassistant\":true}"), RoleGuard.PERM_AI_ASSISTANT)).isFalse();
         assertThat(RoleGuard.featureAllowed(member("Spouse", "{\"more.aiassistant\":true}"), RoleGuard.PERM_AI_ASSISTANT)).isTrue();

@@ -178,6 +178,9 @@ class PermissionRefresherTest {
         when(userRepo.findById(7)).thenReturn(Optional.of(u));
         AuthFilter filter = new AuthFilter(userRepo, loginRepo);
         MockHttpSession s = staff(OLD); s.setAttribute("clientId", "USR-7");
+        // 2026-11-11: a staff session belongs to a live login on its current password (CredentialSessions).
+        s.setAttribute("loginId", 70);
+        when(loginRepo.findLiveCredentialVersion(70)).thenReturn(0);
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/families");
         req.setSession(s);
         MockFilterChain chain = new MockFilterChain();

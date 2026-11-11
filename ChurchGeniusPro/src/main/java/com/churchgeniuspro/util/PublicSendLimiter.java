@@ -142,6 +142,13 @@ public class PublicSendLimiter {
     public static final Policy GUESSIT_JOIN = new Policy("guessit-join", List.of(
             ip(120, MIN10), ip(400, HOUR), tenant(2000, DAY)));
 
+    /**
+     * Forgot Password (2026-11-11): per-IP only. Never per username or address — keying on those would let anyone
+     * stop the real owner from recovering the account; the per-account e-mail cooldown in PasswordResetService
+     * already stops one inbox being flooded.
+     */
+    public static final Policy FORGOT_PASSWORD = new Policy("forgot-password", List.of(ip(5, MIN10), ip(20, HOUR)));
+
     /** App Store D7: the public church-deletion confirmation link (token guessing guard). */
     public static final Policy CHURCH_DELETION_VERIFY = new Policy("church-deletion-verify", List.of(
             ip(10, MIN10), ip(30, HOUR)));

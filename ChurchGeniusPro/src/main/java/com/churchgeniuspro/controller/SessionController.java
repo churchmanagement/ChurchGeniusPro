@@ -137,7 +137,7 @@ public class SessionController {
         // Whether the AI Search / Assistant may be shown at all for this session — the
         // server's own requireFeature verdict (Kids Portal never; Members opt-in; staff
         // unless switched off), so the search bar is not drawn on the client's guess.
-        res.put("aiAssistant", com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT));
+        boolean aiAssistantAllowed = com.churchgeniuspro.util.RoleGuard.featureAllowed(request, com.churchgeniuspro.util.RoleGuard.PERM_AI_ASSISTANT);
         res.put("aiChatUi", aiChatUi);
 
         // ── Plan state, for pages that do not load session.js ─────────────────
@@ -163,6 +163,13 @@ public class SessionController {
         }
         res.put("evaluationAccount", evaluation);
         res.put("features",          features);
+        // 2026-11-11 Genius Assistant by plan: the assistant itself needs AI Type (aiSearch — off on Free), and its
+        // 🎤 Voice and 🗣 Converse controls need aiVoice / aiConverse (off on Standard; on for Pro and Trial).
+        // Same values the plan filter enforces on /api/ai-search, /api/voice and /api/ai-assist, so the client
+        // only draws what the server will answer. A lookup error leaves the map empty (fail open, as above).
+        res.put("aiAssistant", aiAssistantAllowed && !Boolean.FALSE.equals(features.get("aiSearch")));
+        res.put("aiVoice",     !Boolean.FALSE.equals(features.get("aiVoice")));
+        res.put("aiConverse",  !Boolean.FALSE.equals(features.get("aiConverse")));
 
         // Side menu: page path → may this staff login open it (2026-11-06). Computed by the
         // server from the same rules the page routes apply, so the menu never offers a link

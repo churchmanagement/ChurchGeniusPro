@@ -43,6 +43,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class FilterConfig {
 
+    /** For ServiceAdminAuthFilter's password-version check (2026-11-11); field-injected so the constructor is unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.ServiceAdminRepository serviceAdminRepository;
+
     private final AppUserRepository appUserRepository;
     private final LoginRepository   loginRepository;
     private final TemporaryAccessService temporaryAccessService;
@@ -226,7 +230,7 @@ public class FilterConfig {
     @Bean
     public FilterRegistrationBean<ServiceAdminAuthFilter> serviceAdminAuthFilter() {
         FilterRegistrationBean<ServiceAdminAuthFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new ServiceAdminAuthFilter());
+        registration.setFilter(new ServiceAdminAuthFilter(serviceAdminRepository));
         registration.addUrlPatterns("/api/serviceadmin/*");
         registration.setName("serviceAdminAuthFilter");
         registration.setOrder(1);

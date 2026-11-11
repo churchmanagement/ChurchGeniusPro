@@ -76,4 +76,19 @@ public class SignUp {
      */
     @Column(name = "link_group")
     private String linkGroup;
+
+    /**
+     * Credential version (2026-11-11, App Store security review): raised by one every time this login's password is
+     * set. A session records the version it signed in with ({@code util.CredentialSessions}); AuthFilter and
+     * /api/session refuse a session whose version no longer matches, so a password change or reset ends every
+     * other open session on every browser, device and app instance. Existing rows start at 0.
+     */
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(name = "credential_version", nullable = false)
+    private Integer credentialVersion = 0;
+
+    /** Call whenever the password is set to a new value (reset, claim, admin reset). */
+    public void markCredentialChanged() {
+        credentialVersion = (credentialVersion == null ? 0 : credentialVersion) + 1;
+    }
 }

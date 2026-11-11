@@ -152,6 +152,8 @@ public class ServiceAdminController {
         session.setAttribute("serviceAdminId",       admin.get().getId());
         session.setAttribute("serviceAdminUsername", admin.get().getUsername());
         session.setAttribute("role",                 "ServiceAdmin");
+        session.setAttribute(com.churchgeniuspro.util.CredentialSessions.SERVICE_ADMIN_ATTR,
+                com.churchgeniuspro.util.CredentialSessions.version(admin.get().getCredentialVersion()));
 
         log.info("ServiceAdmin login successful for username='{}'", username);
         response.put("status",  "success");
@@ -208,6 +210,7 @@ public class ServiceAdminController {
         }
 
         admin.get().setPassword(PasswordUtil.encode(newPassword));
+        admin.get().markCredentialChanged();     // every open service-admin session for this login now ends
         serviceAdminRepository.save(admin.get());
         log.info("ServiceAdmin password changed for username='{}'", username);
 

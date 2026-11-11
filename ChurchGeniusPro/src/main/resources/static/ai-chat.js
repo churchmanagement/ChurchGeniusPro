@@ -800,7 +800,17 @@
     watchClassicBox();
     restore();
     layout();
+    applyModes();
     syncMode();
+  }
+  /* 2026-11-11: the plan decides whether 🎤 Voice and 🗣 Converse are offered (Standard: text only). */
+  function applyModes() {
+    var m = api && api.modes ? api.modes() : { voice: true, converse: true };
+    [['gaMic', m.voice !== false], ['gaConv', m.converse !== false]].forEach(function (x) {
+      var b = document.getElementById(x[0]); if (!b) return;
+      b.hidden = !x[1]; b.disabled = !x[1];
+      if (!x[1]) { b.style.display = 'none'; b.setAttribute('aria-hidden', 'true'); }
+    });
   }
 
   window.CGP_CHAT = { attach: attach, open: open, close: close, send: send, newConversation: newConversation,

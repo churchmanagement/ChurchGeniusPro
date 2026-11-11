@@ -53,6 +53,10 @@ public interface LoginRepository extends JpaRepository<SignUp, Integer> {
     @Query("SELECT s FROM SignUp s WHERE s.clientId = :clientId AND (s.deleted = false OR s.deleted IS NULL)")
     java.util.Optional<SignUp> findByClientId(@Param("clientId") String clientId);
 
+    /** Credential version of one live login (null when the row is gone or deleted) — one indexed PK read per request. */
+    @Query("SELECT s.credentialVersion FROM SignUp s WHERE s.id = :id AND (s.deleted = false OR s.deleted IS NULL)")
+    Integer findLiveCredentialVersion(@Param("id") Integer id);
+
     /**
      * Every signup row sharing a client-ID, including deleted ones.
      *

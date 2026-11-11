@@ -133,8 +133,10 @@ public final class SubscriptionFeatureCatalog {
                 "/ntagAccess", "/api/ntag", "/api/ntag-landing")),
 
         // Saved Lists (AI Phase 1) are saved AI-Search filters, so they share the AI Search feature.
+        // 2026-11-11: the Genius Assistant full-page view (/ai-assistant) is the text assistant, so it follows
+        // AI Type too — a plan without it (Free) gets neither the page nor the menu link (navAccess reads this).
         new Feature("aiSearch",       "AI Type (Search)",       "AI",         List.of(
-                "/api/ai-search", "/savedLists")),
+                "/api/ai-search", "/savedLists", "/ai-assistant")),
         new Feature("aiVoice",        "AI Voice",               "AI",         List.of(
                 "/api/voice")),
         // The Help Center's conversational assistant is the same gpt-4o-mini call as Converse

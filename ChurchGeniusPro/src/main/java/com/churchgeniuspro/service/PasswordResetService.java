@@ -85,15 +85,36 @@ public class PasswordResetService {
         // Remove any previous (potentially expired) tokens for this username
         tokenRepo.deleteByUsername(username);
 
+        // 2026-11-11: only the SHA-256 of the token is stored; the raw value exists only in the e-mailed link.
+        // Someone who can read the table (a backup, a log of SQL) cannot use what they read.
+        String raw = generateToken();
         PasswordResetToken prt = new PasswordResetToken();
         prt.setUsername(username);
         prt.setEmail(email.toLowerCase());
-        prt.setToken(generateToken());
+        prt.setToken(hash(raw));
         prt.setCreatedAt(new Date());
         prt.setExpiryTime(new Date(System.currentTimeMillis() + TOKEN_VALIDITY_MS));
         tokenRepo.save(prt);
 
-        return prt.getToken();
+        return raw;
+    }
+
+    /** Removes the account's outstanding tokens — used when the reset e-mail could not be delivered. */
+    @Transactional
+    public void discard(String username) {
+        tokenRepo.deleteByUsername(username);
+    }
+
+    /** What is stored for a token and what a submitted token is looked up by: SHA-256, lower-case hex. */
+    public static String hash(String rawToken) {
+        if (rawToken == null) return null;
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(d);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     /**

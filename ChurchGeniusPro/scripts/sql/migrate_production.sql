@@ -2678,3 +2678,20 @@ BEGIN
         ALTER TABLE public_prayer_request ADD COLUMN IF NOT EXISTS assigned_member_id INTEGER;
     END IF;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2026-11-11: App Store security review — a password change / reset ends every
+-- other open session. Each login carries a credential version raised by every
+-- password set; a session signed in with an older version is refused.
+-- Additive (NOT NULL DEFAULT 0 fills existing rows); Hibernate adds it too.
+-- Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'signup') THEN
+        ALTER TABLE signup ADD COLUMN IF NOT EXISTS credential_version INTEGER NOT NULL DEFAULT 0;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'serviceadmin') THEN
+        ALTER TABLE serviceadmin ADD COLUMN IF NOT EXISTS credential_version INTEGER NOT NULL DEFAULT 0;
+    END IF;
+END $$;

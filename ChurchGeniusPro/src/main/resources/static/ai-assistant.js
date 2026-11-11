@@ -152,7 +152,11 @@
     'User':       ['general','more','members','activity'],
     'Member':     ['general','members','activity','more']
   };
-  var session = { role:(safeLS('role')||'User'), church:(safeLS('church')==='true'), ready:false, aiAssistant:null };
+  var session = { role:(safeLS('role')||'User'), church:(safeLS('church')==='true'), ready:false, aiAssistant:null, voice:true, converse:true };
+  // 2026-11-11: may this plan use 🎤 Voice / 🗣 Converse? From /api/session (aiVoice / aiConverse) — Standard: no,
+  // Pro and Trial: yes. The server refuses /api/voice and /api/ai-assist on its own; this only keeps the controls away.
+  function modeAllowed(m){ return m==='voice' ? session.voice!==false : m==='converse' ? session.converse!==false : true; }
+  var MODE_OFF_MSG = 'Voice and Converse are not included in your subscription plan. You can type your question instead.';
   // Server verdict per catalogue page (GET /api/ai-search/nav): url → available. When present
   // it overrides the client-side role guesses below, so a link is only offered for a page the
   // server says this login can open. Loaded after the session; absent until then.
@@ -1523,6 +1527,7 @@
 
   function setMode(m,opts){
     opts=opts||{};
+    if (!modeAllowed(m)){ toast(MODE_OFF_MSG); m='type'; opts.silent=true; }
     if (m!=='converse' && mode==='converse'){ resetConv(); _convLog=[]; persistConv(); }
     // Leaving a live Voice/Converse mode must actually release the microphone
     // and drop whatever is in flight, not merely repaint the toolbar.
@@ -1565,7 +1570,7 @@
     if (speaking) speak('Converse mode is on. What would you like to do?');
   }
 
-  function canVoice(){ return !!window.VoiceOpenAI; }
+  function canVoice(){ return !!window.VoiceOpenAI && session.voice!==false; }
   // Returns true if listening started, false (with voiceErr set) otherwise.
   function startVoice(){
     voiceErr='';
@@ -1957,6 +1962,11 @@
       if (btn){ btn.addEventListener('click', function(){ runAssist(); }); }
     }
 
+    // 2026-11-11: plan without Voice / Converse (Standard) → those buttons are not offered at all.
+    ['voice','converse'].forEach(function(k){
+      var mb=document.getElementById('aaMode_'+k);
+      if (mb && !modeAllowed(k)){ mb.style.display='none'; mb.disabled=true; mb.setAttribute('aria-hidden','true'); }
+    });
     document.getElementById('aaMode_type').addEventListener('click', function(){ setMode('type'); });
     document.getElementById('aaMode_voice').addEventListener('click', function(){
       // While Voice is listening or processing this button IS the Stop button.
@@ -1994,7 +2004,8 @@
       window.CGP_CHAT.attach({ ask:function(q){ return runAssist(q); }, wireCard:wireCard, newConversation:newConversation,
         user:function(){ return String(session.user||''); }, inFlight:function(){ return !!_inFlight; },
         helpHtml:function(){ return searchHelpHtml(); }, showHelp:function(){ showHelpModal('Genius Assistant — Help', searchHelpHtml()); },
-        setMode:function(m){ var b=document.getElementById('aaMode_'+m); if(b) b.click(); }, mode:function(){ return mode; } });
+        setMode:function(m){ if(!modeAllowed(m)){ setMode(m); return; } var b=document.getElementById('aaMode_'+m); if(b) b.click(); }, mode:function(){ return mode; },
+        modes:function(){ return { voice:modeAllowed('voice'), converse:modeAllowed('converse') }; } });
     }catch(e){ /* the classic results box stays */ }
   }
 
@@ -2022,6 +2033,8 @@
       session.aiAssistant=(s.aiAssistant===true);
       // 2026-11-09: Genius Assistant chat panel (ai-chat.js) unless the server switched it off (ai.chat.ui=false).
       session.aiChatUi=(s.aiChatUi!==false);
+      session.voice=(s.aiVoice!==false);
+      session.converse=(s.aiConverse!==false);
       session.user=String(s.username||s.memberId||s.clientId||'');
       session.ready=true;
     }).catch(function(){ session.role=safeLS('role')||'User'; session.aiAssistant=false; session.ready=true; });

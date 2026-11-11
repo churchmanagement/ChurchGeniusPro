@@ -129,6 +129,20 @@ public class AuthFilter implements Filter {
         // "/api/public-screens", which is the admin API for minting public links.
         // Whitelisting is by segment only — never by string prefix.
         if (isPublicPath(uri)) {
+            // A signed-in session whose password has since changed must not survive on the public paths either:
+            // /api/session is what every page checks on load, and /api/auth/switch-account or linked-accounts
+            // would otherwise swap a stale session for a fresh one. The stale session is destroyed here; the
+            // request then continues as signed-out (login, check-remember, device-login work as before), except
+            // /api/session, which says why (401 PASSWORD_CHANGED) so the page can tell the user.
+            HttpSession existing = req.getSession(false);
+            if (existing != null && existing.getAttribute("clientId") != null
+                    && !com.churchgeniuspro.util.CredentialSessions.isCurrent(existing, loginRepository, null)) {
+                if ("/api/session".equals(uri)) {
+                    com.churchgeniuspro.util.CredentialSessions.reject(existing, res);
+                    return;
+                }
+                try { existing.invalidate(); } catch (IllegalStateException ignored) { /* already gone */ }
+            }
             chain.doFilter(request, response);
             return;
         }
@@ -172,6 +186,11 @@ public class AuthFilter implements Filter {
                         "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
                 return;
             }
+            // Password changed since this session signed in (any browser, device or instance) → session ends.
+            if (!com.churchgeniuspro.util.CredentialSessions.isCurrent(session, loginRepository, null)) {
+                com.churchgeniuspro.util.CredentialSessions.reject(session, res);
+                return;
+            }
         } else if (clientId != null && !clientId.isBlank() && !"null".equals(clientId)) {
             // ── Church / Member account: validate against signup table ─────
             // Skip the re-validation for non-staff accounts that have no app_user row.
@@ -185,6 +204,11 @@ public class AuthFilter implements Filter {
                 res.setContentType("application/json;charset=UTF-8");
                 res.getWriter().write(
                         "{\"status\":\"error\",\"message\":\"Your account has been disabled or removed. Please contact your administrator.\"}");
+                return;
+            }
+            // Same row, already read: no extra query for church and member logins.
+            if (!com.churchgeniuspro.util.CredentialSessions.isCurrent(session, loginRepository, signup)) {
+                com.churchgeniuspro.util.CredentialSessions.reject(session, res);
                 return;
             }
         }

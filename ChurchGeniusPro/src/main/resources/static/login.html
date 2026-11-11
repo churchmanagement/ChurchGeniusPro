@@ -490,7 +490,9 @@
         var AGE_REASONS = {
           'dob':        'Kids Portal needs your child\'s full date of birth in the church\'s records. Please contact your church office (Admin) to update it.',
           'age':        'Kids Portal is available for children aged 13 and older. If the date of birth in the church\'s records is wrong, please contact your church office.',
-          'age-member': 'Online accounts are available only to people aged 13 and older. If the date of birth in the church\'s records is wrong, please contact your church office.'
+          'age-member': 'Online accounts are available only to people aged 13 and older. If the date of birth in the church\'s records is wrong, please contact your church office.',
+          // 2026-11-11: the password of this login was changed or reset, so every other session was ended.
+          'password':   'Your password was changed. Please sign in again with your new password.'
         };
         if (Object.prototype.hasOwnProperty.call(AGE_REASONS, reason)) {
           errorMsg.style.color = '#8a6d3b';

@@ -39,6 +39,13 @@ public class ServiceAdminAuthFilter implements Filter {
     static final String SESSION_ATTR = "serviceAdminId";
     private static final String LOGIN_PATH = "/api/serviceadmin/login";
 
+    /** Service-admin password version check (2026-11-11); null in tests that build the filter without it. */
+    private final com.churchgeniuspro.repository.ServiceAdminRepository admins;
+
+    public ServiceAdminAuthFilter() { this(null); }
+
+    public ServiceAdminAuthFilter(com.churchgeniuspro.repository.ServiceAdminRepository admins) { this.admins = admins; }
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -57,6 +64,16 @@ public class ServiceAdminAuthFilter implements Filter {
             res.setContentType("application/json;charset=UTF-8");
             res.getWriter().write("{\"status\":\"error\",\"message\":\"Service admin login required.\"}");
             return;
+        }
+        // A service admin whose password changed since this session signed in — or who no longer exists — is out.
+        if (admins != null && session.getAttribute(SESSION_ATTR) instanceof Integer adminId) {
+            Integer current = admins.findLiveCredentialVersion(adminId);
+            if (current == null || current != com.churchgeniuspro.util.CredentialSessions.sessionVersion(
+                    session, com.churchgeniuspro.util.CredentialSessions.SERVICE_ADMIN_ATTR)) {
+                log.warn("[ServiceAdminAuth] refused {} {} — service-admin password changed or account removed", req.getMethod(), req.getRequestURI());
+                com.churchgeniuspro.util.CredentialSessions.reject(session, res);
+                return;
+            }
         }
         chain.doFilter(request, response);
     }

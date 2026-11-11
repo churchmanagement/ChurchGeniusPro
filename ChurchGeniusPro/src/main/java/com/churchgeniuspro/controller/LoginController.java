@@ -1226,6 +1226,9 @@ public class LoginController {
         session.setAttribute("username",  user.getUsername());
         // App Store readiness D6: the individual login (signup.id) AI consent is recorded against.
         session.setAttribute(com.churchgeniuspro.ai.consent.AiConsentService.SESSION_LOGIN_ID, user.getId());
+        // The password version this session signs in with (see util.CredentialSessions): a later password change
+        // or reset ends it. Every way in — password, remember-me / device token, switch account — passes here.
+        com.churchgeniuspro.util.CredentialSessions.stamp(session, user);
         session.setAttribute("church",    isChurch);
         session.setAttribute("churchId",  user.getChurchId() != null ? String.valueOf(user.getChurchId()) : "");
 
