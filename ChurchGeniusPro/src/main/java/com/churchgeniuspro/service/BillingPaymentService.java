@@ -522,10 +522,15 @@ public class BillingPaymentService {
              + "<p style='margin:0 0 16px;font-size:14px;color:#555;line-height:1.7;'>Thank you — we received your payment.</p>"
              + "<table style='font-size:13.5px;color:#444;margin:0 0 16px;'>"
              + row("Invoice", BillingService.esc(inv.getInvoiceNumber()))
+             + (BillingService.hasPromotion(inv)
+                     ? row(BillingService.esc(inv.getPromotionLabel()), "−" + BillingService.money(inv.getPromotionDiscount())) : "")
              + row("Amount paid", BillingService.money(inv.getTotal()))
              + row("Paid on", paid)
              + row("Payment method", method)
-             + "</table><p style='margin:0;font-size:12px;color:#888;line-height:1.6;'>Questions? Contact "
+             + "</table>"
+             + (BillingService.promotionNote(inv) != null ? "<p style='margin:0 0 14px;font-size:13px;color:#256b38;line-height:1.6;'>"
+                     + BillingService.esc(BillingService.promotionNote(inv)) + "</p>" : "")
+             + "<p style='margin:0;font-size:12px;color:#888;line-height:1.6;'>Questions? Contact "
              + BillingService.esc(settings.supportEmail()) + ".</p></td></tr></table></td></tr></table></body></html>";
     }
 

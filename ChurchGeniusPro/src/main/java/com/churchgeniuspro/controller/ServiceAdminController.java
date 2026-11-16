@@ -264,6 +264,22 @@ public class ServiceAdminController {
         }
     }
 
+    /**
+     * Customer discounts (promotions phase 2). Field-injected and null-checked so this
+     * controller's construction sites are unchanged; without it every client action
+     * behaves exactly as before.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ClientPromotionService clientPromotions;
+
+    /** Test seam. */
+    public void setClientPromotions(com.churchgeniuspro.service.ClientPromotionService s) { this.clientPromotions = s; }
+
+    /** Promotions phase 5: the "promotional pricing applied" email after Convert. Optional. */
+    private com.churchgeniuspro.service.PromotionExpiryScheduler promotionMails;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPromotionMails(com.churchgeniuspro.service.PromotionExpiryScheduler s) { this.promotionMails = s; }
+
     // ── Client List ───────────────────────────────────────────────────────────
 
     @ResponseBody
@@ -304,11 +320,24 @@ public class ServiceAdminController {
                                                              jakarta.servlet.http.HttpServletRequest req) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // A plan / billing-frequency change on a client with a discount needs the Service
+            // Admin's decision first (keep it when still eligible, or cancel it). Nothing is saved until then.
+            if (clientPromotions != null) clientPromotions.checkEdit(id, bo);
             ServiceClient updated = serviceClientService.update(id, bo, ServiceAdminPlatformSettingsController.actor(req));
+            if (clientPromotions != null) {
+                clientPromotions.afterEdit(id, bo, updated, ServiceAdminPlatformSettingsController.actor(req));
+            }
             response.put("status",  "success");
             response.put("message", "Client updated successfully.");
             response.put("data",    updated);
             return ResponseEntity.ok(response);
+        } catch (com.churchgeniuspro.service.ClientPromotionService.DecisionRequired e) {
+            // Not an error: the page asks Keep / Cancel and resends with promotionDecision.
+            response.put("status",   "confirm");
+            response.put("code",     "PROMOTION_DECISION_REQUIRED");
+            response.put("eligible", e.eligible());
+            response.put("message",  e.getMessage());
+            return ResponseEntity.status(409).body(response);
         } catch (ServiceClientService.StartDateConfirmationRequired e) {
             // Not an error: the page shows this and resends with confirmStartDateChange=true.
             response.put("status",  "confirm");
@@ -374,10 +403,32 @@ public class ServiceAdminController {
                     str(body.get("startDate")), str(body.get("endDate")), str(body.get("paymentStatus")),
                     Boolean.TRUE.equals(body.get("sendConfirmation")) || "true".equals(String.valueOf(body.get("sendConfirmation"))),
                     rid == null || String.valueOf(rid).isBlank() ? null : Long.valueOf(String.valueOf(rid)));
+            // A trial with a waiting discount: the Service Admin must have chosen Apply or
+            // Do not apply. Validated here, before anything is converted; written after.
+            com.churchgeniuspro.service.ClientPromotionService.ConversionPlan promo = clientPromotions == null ? null
+                    : clientPromotions.prepareConversion(id, conversionChoice(body.get("promotion")),
+                            cmd.planCode(), cmd.billingFrequency(), cmd.customPrice(), cmd.startDate());
             ServiceClientService.ConvertResult r = serviceClientService.convert(id, cmd,
                     ServiceAdminPlatformSettingsController.actor(req));
+            String promoNote = "";
+            if (promo != null) {
+                try {
+                    clientPromotions.completeConversion(promo, r.client(), ServiceAdminPlatformSettingsController.actor(req));
+                    promoNote = promo.apply()
+                            ? " The discount was applied from " + promo.start() + " through " + promo.end() + "."
+                            : " The discount was not applied.";
+                    if (promo.apply() && cmd.sendConfirmation() && promotionMails != null
+                            && promotionMails.sendAppliedConfirmation(r.client())) {
+                        promoNote += " The church was emailed its promotional price and end date.";
+                    }
+                } catch (Exception e) {
+                    log.error("Conversion of client {} succeeded but its discount could not be recorded", id, e);
+                    promoNote = " The discount could not be recorded — open Discount for this client to review it.";
+                }
+            }
             response.put("status",  "success");
             response.put("message", "Converted to the " + r.planName() + " plan. The church keeps its account, logins and data."
+                    + promoNote
                     + (r.emailSent() ? " A confirmation email was sent to " + r.client().getEmail() + "." : "")
                     + (r.emailError() != null ? " " + r.emailError() : ""));
             response.put("emailSent", r.emailSent());
@@ -400,14 +451,37 @@ public class ServiceAdminController {
         return s.isEmpty() ? null : s;
     }
 
+    /** The Convert dialog's choice for a trial's waiting discount ({@code promotion} in the request), or null. */
+    private static com.churchgeniuspro.service.ClientPromotionService.ConversionChoice conversionChoice(Object o) {
+        if (!(o instanceof Map<?, ?> m)) return null;
+        com.churchgeniuspro.service.ClientPromotionService.Terms adjust = null;
+        if (m.get("adjust") instanceof Map<?, ?> a) {
+            Integer amount = null;
+            String n = str(a.get("durationAmount"));
+            if (n != null) {
+                try { amount = Integer.valueOf(n.contains(".") ? n.substring(0, n.indexOf('.')) : n); }
+                catch (NumberFormatException e) { throw new IllegalArgumentException("Enter the duration as a number."); }
+            }
+            adjust = new com.churchgeniuspro.service.ClientPromotionService.Terms(str(a.get("discountType")),
+                    str(a.get("discountValue")), amount, str(a.get("durationUnit")), str(a.get("endDate")));
+        }
+        return new com.churchgeniuspro.service.ClientPromotionService.ConversionChoice(
+                str(m.get("decision")), str(m.get("reason")), adjust, str(m.get("notes")));
+    }
+
     // ── Soft Delete ───────────────────────────────────────────────────────────
 
     @ResponseBody
     @PatchMapping("/api/serviceadmin/clients/{id}/delete")
-    public ResponseEntity<Map<String, Object>> deleteClient(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> deleteClient(@PathVariable Integer id,
+                                                            jakarta.servlet.http.HttpServletRequest req) {
         Map<String, Object> response = new HashMap<>();
         try {
             serviceClientService.softDelete(id);
+            // A deleted client's live discount is cancelled (history kept). Never fails the delete.
+            if (clientPromotions != null) {
+                clientPromotions.cancelForDeletedClient(id, ServiceAdminPlatformSettingsController.actor(req));
+            }
             response.put("status",  "success");
             response.put("message", "Client deleted.");
             return ResponseEntity.ok(response);

@@ -2695,3 +2695,108 @@ BEGIN
         ALTER TABLE serviceadmin ADD COLUMN IF NOT EXISTS credential_version INTEGER NOT NULL DEFAULT 0;
     END IF;
 END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2026-11-14: Promotional deals, phase 1 — the deal catalogue the Service Admin
+-- maintains (Service Admin → Promotional Deals) and its append-only history.
+-- Two NEW tables only; no existing table or row is touched, and nothing in billing
+-- or subscriptions reads them yet. Hibernate creates the same tables on start.
+-- Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS promotion (
+    id                BIGSERIAL      PRIMARY KEY,
+    version           BIGINT,
+    code              VARCHAR(30)    NOT NULL,
+    name              VARCHAR(100)   NOT NULL,
+    billing_frequency VARCHAR(10)    NOT NULL,
+    discount_type     VARCHAR(12)    NOT NULL,
+    discount_value    NUMERIC(10,2)  NOT NULL,
+    duration_amount   INTEGER        NOT NULL,
+    duration_unit     VARCHAR(6)     NOT NULL,
+    plan_codes        VARCHAR(400)   NOT NULL,
+    assign_from       DATE,
+    assign_until      DATE,
+    notes             TEXT,
+    active            BOOLEAN        NOT NULL DEFAULT true,
+    created_at        TIMESTAMP      NOT NULL,
+    created_by        VARCHAR(100),
+    updated_at        TIMESTAMP,
+    updated_by        VARCHAR(100),
+    CONSTRAINT ux_promotion_code_frequency UNIQUE (code, billing_frequency)
+);
+
+CREATE TABLE IF NOT EXISTS promotion_history (
+    id             BIGSERIAL     PRIMARY KEY,
+    promotion_id   BIGINT,
+    promotion_code VARCHAR(30),
+    client_id      VARCHAR(100),
+    event          VARCHAR(40)   NOT NULL,
+    actor          VARCHAR(100)  NOT NULL,
+    occurred_at    TIMESTAMP     NOT NULL,
+    notes          TEXT,
+    before_json    TEXT,
+    after_json     TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_promotion_history_promotion ON promotion_history (promotion_id, occurred_at);
+CREATE INDEX IF NOT EXISTS ix_promotion_history_client    ON promotion_history (client_id, occurred_at);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2026-11-14: Promotional deals, phase 2 — discounts given to customers
+-- (client_promotion), a link from promotion history to the discount, and one live
+-- (SCHEDULED or ACTIVE) discount per client. NEW table + one nullable column on the
+-- phase 1 history table; no existing row is changed, and no invoice reads these yet.
+-- Hibernate creates the same on start (index: Flyway V24). Safe to run twice.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS client_promotion (
+    id                   BIGSERIAL      PRIMARY KEY,
+    version              BIGINT,
+    client_id            VARCHAR(100)   NOT NULL,
+    kind                 VARCHAR(10)    NOT NULL,
+    promotion_id         BIGINT,
+    promotion_code       VARCHAR(30),
+    promotion_name       VARCHAR(100),
+    plan_code            VARCHAR(40),
+    billing_frequency    VARCHAR(10),
+    deal_discount_type   VARCHAR(12),
+    deal_discount_value  NUMERIC(10,2),
+    deal_duration_amount INTEGER,
+    deal_duration_unit   VARCHAR(6),
+    discount_type        VARCHAR(12),
+    discount_value       NUMERIC(10,2),
+    duration_amount      INTEGER,
+    duration_unit        VARCHAR(6),
+    manually_adjusted    BOOLEAN        NOT NULL DEFAULT false,
+    notes                TEXT,
+    status               VARCHAR(10)    NOT NULL,
+    start_date           DATE,
+    end_date             DATE,
+    regular_price        NUMERIC(10,2),
+    promotional_price    NUMERIC(10,2),
+    assigned_by          VARCHAR(100),
+    assigned_at          TIMESTAMP      NOT NULL,
+    applied_by           VARCHAR(100),
+    applied_at           TIMESTAMP,
+    cancelled_by         VARCHAR(100),
+    cancelled_at         TIMESTAMP,
+    cancel_reason        VARCHAR(500),
+    restored_on          DATE,
+    updated_at           TIMESTAMP,
+    updated_by           VARCHAR(100)
+);
+CREATE INDEX IF NOT EXISTS ix_client_promotion_client_status ON client_promotion (client_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_client_promotion_one_live ON client_promotion (client_id) WHERE status IN ('SCHEDULED', 'ACTIVE');
+ALTER TABLE promotion_history ADD COLUMN IF NOT EXISTS client_promotion_id BIGINT;
+
+-- ── Promotional deals, phase 3 (2026-11-14): which part of an invoice's discount is a promotion ──
+-- Additive, nullable; existing invoices are not changed.
+DO $$
+BEGIN
+    IF to_regclass('public.billing_invoice') IS NOT NULL THEN
+        ALTER TABLE billing_invoice ADD COLUMN IF NOT EXISTS client_promotion_id BIGINT;
+        ALTER TABLE billing_invoice ADD COLUMN IF NOT EXISTS promotion_label VARCHAR(120);
+        ALTER TABLE billing_invoice ADD COLUMN IF NOT EXISTS promotion_discount NUMERIC(12,2);
+        ALTER TABLE billing_invoice ADD COLUMN IF NOT EXISTS promotion_end_date DATE;
+        ALTER TABLE billing_invoice ADD COLUMN IF NOT EXISTS regular_price NUMERIC(12,2);
+        CREATE INDEX IF NOT EXISTS ix_billing_invoice_client_promotion ON billing_invoice (client_promotion_id);
+    END IF;
+END $$;

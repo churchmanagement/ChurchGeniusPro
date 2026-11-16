@@ -241,6 +241,12 @@
           </div>
         </div>
 
+        <!-- ── Promotional pricing (read-only; shown only while a promotional price is in force) ── -->
+        <div class="settings-card" id="promoPricingCard" style="margin-top:28px;display:none;">
+          <h2>Your Subscription Pricing</h2>
+          <div id="promoPricingBody" style="font-size:14px;line-height:1.8;color:#333;"></div>
+        </div>
+
         <!-- ── Data imports (read-only; shown only when ChurchGeniusPro support has imported data) ── -->
         <div class="settings-card" id="importHistoryCard" style="margin-top:28px;display:none;">
           <h2>Data Imported for Your Church</h2>
@@ -483,5 +489,27 @@ window.CGP_PAGE = { activePage: 'admin-settings/logo', pageTitle: 'Logo', openSe
 </script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
+<script>
+/* Promotional pricing card (read-only): this church's own promotion, only while it is in force. */
+(async function () {
+  try {
+    const r = await fetch('/api/subscription/promotion', { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || d.active !== true) return;
+    const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+    const per = d.billingFrequency === 'YEARLY' ? 'year' : 'month';
+    const day = s => { const p = String(s || '').split('-'); return p.length === 3
+      ? new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''; };
+    const body = document.getElementById('promoPricingBody');
+    const line = (k, v) => { const div = document.createElement('div'); const b = document.createElement('strong');
+      b.textContent = k + ': '; div.appendChild(b); div.appendChild(document.createTextNode(v)); body.appendChild(div); };
+    line('Promotion', d.label + (d.name ? ' — ' + d.name : ''));
+    line('Promotional price', money.format(Number(d.promotionalPrice)) + ' per ' + per + (d.endDate ? ' through ' + day(d.endDate) : ''));
+    line('Regular price', money.format(Number(d.regularPrice)) + ' per ' + per + (d.regularPriceFrom ? ' from ' + day(d.regularPriceFrom) : ''));
+    document.getElementById('promoPricingCard').style.display = '';
+  } catch (e) { /* the card simply stays hidden */ }
+})();
+</script>
 </body>
 </html>

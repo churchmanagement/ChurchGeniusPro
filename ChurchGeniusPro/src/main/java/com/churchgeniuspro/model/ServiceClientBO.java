@@ -64,4 +64,13 @@ public class ServiceClientBO {
     private String note;
     /** Active | Hold | Inactive */
     private String status;
+
+    /**
+     * Edit Client, when the plan or billing frequency of a client with a discount is
+     * changing: KEEP (only when the discount is still eligible) or CANCEL. Sent only
+     * after the server asked (409 PROMOTION_DECISION_REQUIRED).
+     */
+    private String promotionDecision;
+    /** The reason, required with promotionDecision = CANCEL. */
+    private String promotionCancelReason;
 }

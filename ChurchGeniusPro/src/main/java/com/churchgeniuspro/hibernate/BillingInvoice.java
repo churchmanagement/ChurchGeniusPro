@@ -81,6 +81,23 @@ public class BillingInvoice {
 
     @Column(name = "subtotal", nullable = false, precision = 12, scale = 2) private BigDecimal subtotal;
     @Column(name = "discount", nullable = false, precision = 12, scale = 2) private BigDecimal discount;
+
+    /*
+     * Promotional pricing (all nullable; null on every invoice without a promotion).
+     * The promotion's amount is PART OF {@code discount} — totals, sending and payment
+     * read only subtotal / discount / total and are unchanged. These columns say which
+     * part of the discount is the promotion, for display and for the promotion report.
+     */
+    /** {@code client_promotion.id} this invoice's promotional discount comes from. */
+    @Column(name = "client_promotion_id")                          private Long clientPromotionId;
+    /** Customer-facing label, e.g. "Promotion THANKS2026". */
+    @Column(name = "promotion_label", length = 120)                private String promotionLabel;
+    /** The part of {@code discount} that is the promotion. */
+    @Column(name = "promotion_discount", precision = 12, scale = 2) private BigDecimal promotionDiscount;
+    /** Last day of the promotional pricing (inclusive). */
+    @Column(name = "promotion_end_date")                           private LocalDate promotionEndDate;
+    /** The regular subscription price for one billing period — what applies after the promotion. */
+    @Column(name = "regular_price", precision = 12, scale = 2)     private BigDecimal regularPrice;
     @Column(name = "total", nullable = false, precision = 12, scale = 2)    private BigDecimal total;
 
     /** Shown on the invoice. */

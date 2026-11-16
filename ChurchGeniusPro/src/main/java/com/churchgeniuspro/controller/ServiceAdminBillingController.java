@@ -142,7 +142,7 @@ public class ServiceAdminBillingController {
             }
             BillingInvoice inv = billing.updateDraft(id, new BillingService.DraftForm(lng(body.get("version")),
                     str(body, "billToName"), str(body, "billToEmail"), date(body, "dueDate"), str(body, "note"),
-                    str(body, "discount"), lines), actor(req));
+                    str(body, "discount"), lines, str(body, "promotion")), actor(req));
             return ok(Map.of("message", "Draft saved.", "version", inv.getVersion()));
         });
     }

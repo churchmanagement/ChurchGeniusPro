@@ -103,6 +103,76 @@ public class BillingService {
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
 
     /**
+     * Promotional pricing (phase 3). Optional: without it — and for every client that
+     * has no discount — invoices are built exactly as before.
+     */
+    private ClientPromotionService promotions;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPromotions(@org.springframework.context.annotation.Lazy ClientPromotionService promotions) {
+        this.promotions = promotions;
+    }
+
+    /** Puts a promotion on a new draft: the subscription line stays at the regular price, the promotion is a discount. */
+    private static void applyPromotion(BillingInvoice inv, ClientPromotionService.InvoicePromotion p) {
+        if (p == null || p.discount() == null || p.discount().signum() <= 0) return;
+        inv.setClientPromotionId(p.id());
+        inv.setPromotionLabel(p.label());
+        inv.setPromotionDiscount(p.discount());
+        inv.setPromotionEndDate(p.endDate());
+        inv.setRegularPrice(p.regularPrice());
+        inv.setDiscount(p.discount());
+    }
+
+    private static void clearPromotion(BillingInvoice inv) {
+        inv.setClientPromotionId(null);
+        inv.setPromotionLabel(null);
+        inv.setPromotionDiscount(null);
+        inv.setPromotionEndDate(null);
+        inv.setRegularPrice(null);
+    }
+
+    static boolean hasPromotion(BillingInvoice inv) {
+        return inv.getClientPromotionId() != null && inv.getPromotionDiscount() != null && inv.getPromotionDiscount().signum() > 0;
+    }
+
+    /** The promotion on a renewal for this billing date, or null. A failure never blocks billing: regular price. */
+    private ClientPromotionService.InvoicePromotion renewalPromotion(ServiceClient sc, LocalDate periodStart) {
+        if (promotions == null) return null;
+        try {
+            return promotions.forInvoice(sc, periodStart);
+        } catch (RuntimeException e) {
+            log.warn("Billing: promotion lookup failed for {} — regular price used ({})", sc.getClientId(), e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    /** Customer-facing sentence about the end of the promotional pricing; null when the invoice has none. */
+    static String promotionNote(BillingInvoice inv) {
+        if (!hasPromotion(inv) || inv.getPromotionEndDate() == null) return null;
+        String per = SubscriptionLifecycleService.YEARLY.equals(inv.getBillingFrequency()) ? "year" : "month";
+        String s = "Promotional pricing ends " + inv.getPromotionEndDate().format(LONG_DAY) + ".";
+        if (inv.getRegularPrice() != null) {
+            s += " From " + inv.getPromotionEndDate().plusDays(1).format(LONG_DAY) + " the regular price of "
+               + money(inv.getRegularPrice()) + " per " + per + " applies.";
+        }
+        return s;
+    }
+
+    /** Promotion fields for the invoice maps (admin detail and the public page). */
+    private static void putPromotion(Map<String, Object> m, BillingInvoice inv) {
+        if (!hasPromotion(inv)) return;
+        BigDecimal all = inv.getDiscount() == null ? BigDecimal.ZERO : inv.getDiscount();
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("label", inv.getPromotionLabel());
+        p.put("discount", inv.getPromotionDiscount());
+        p.put("otherDiscount", all.subtract(inv.getPromotionDiscount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        p.put("endDate", str(inv.getPromotionEndDate()));
+        p.put("regularPrice", inv.getRegularPrice());
+        p.put("note", promotionNote(inv));
+        m.put("promotion", p);
+    }
+
+    /**
      * Programmatic transactions for the steps that must be all-or-nothing but cannot
      * be a single {@code @Transactional} method: the send transaction and its
      * compensation (the email goes out BETWEEN them), and the renewal-draft insert
@@ -266,6 +336,7 @@ public class BillingService {
         List<BillingInvoiceLine> ls = new ArrayList<>();
         ls.add(line(BillingInvoiceLine.SUBSCRIPTION,
                 subscriptionText(plan.map(SubscriptionPlan::getPlanName).orElse(inv.getPlanCode()), freq, due, end), price, null));
+        applyPromotion(inv, renewalPromotion(sc, due));   // no discount for this client / period → nothing changes
         try {
             return new Draft(inTransaction(() -> persistDraft(inv, ls, YearMonth.from(due), actor)), true);
         } catch (DataIntegrityViolationException race) {
@@ -311,6 +382,14 @@ public class BillingService {
         if (!blank(r.getRegisteredEmail())) inv.setBillToEmail(r.getRegisteredEmail());
         List<BillingInvoiceLine> ls = new ArrayList<>();
         ls.add(line(BillingInvoiceLine.SUBSCRIPTION, subscriptionText(plan.getPlanName(), freq, start, end), price, null));
+        if (promotions != null) {
+            // A trial's waiting discount, as Convert would apply it — so the first payment carries it.
+            try {
+                applyPromotion(inv, promotions.forRequest(sc, plan, freq, price, start));
+            } catch (RuntimeException e) {
+                log.warn("Billing: promotion lookup failed for {} — list price used ({})", sc.getClientId(), e.getClass().getSimpleName());
+            }
+        }
         return new Draft(persistDraft(inv, ls, YearMonth.from(start), actor), true);
     }
 
@@ -380,8 +459,20 @@ public class BillingService {
 
     public record LineForm(String kind, String description, String amount, Long chargeId) {}
 
+    /**
+     * {@code promotion} matters only for a draft that carries a promotion:
+     * "KEEP" — {@code discount} is the OTHER (manual) discount, the promotion stays;
+     * "REMOVE" — the promotion is taken off, {@code discount} is the whole discount;
+     * null (older callers) — {@code discount} is the whole discount; the promotion stays
+     * while the discount still covers it and the subscription line is unchanged.
+     */
     public record DraftForm(Long version, String billToName, String billToEmail, LocalDate dueDate, String note,
-                            String discount, List<LineForm> lines) {}
+                            String discount, List<LineForm> lines, String promotion) {
+        public DraftForm(Long version, String billToName, String billToEmail, LocalDate dueDate, String note,
+                         String discount, List<LineForm> lines) {
+            this(version, billToName, billToEmail, dueDate, note, discount, lines, null);
+        }
+    }
 
     /**
      * Replaces a draft's editable fields and lines. A charge line bills its charge at
@@ -444,6 +535,27 @@ public class BillingService {
 
         BigDecimal subtotal = sum(fresh);
         BigDecimal discount = blank(f.discount()) ? BigDecimal.ZERO : amount(f.discount(), "Discount");
+        if (hasPromotion(inv)) {
+            String choice = blank(f.promotion()) ? "" : f.promotion().trim().toUpperCase();
+            BigDecimal promo = inv.getPromotionDiscount();
+            boolean lineIntact = inv.getRegularPrice() != null && fresh.stream().anyMatch(l ->
+                    BillingInvoiceLine.SUBSCRIPTION.equals(l.getKind()) && l.getAmount().compareTo(inv.getRegularPrice()) == 0);
+            if ("KEEP".equals(choice)) {
+                if (!lineIntact) {
+                    throw new IllegalArgumentException("This invoice carries " + inv.getPromotionLabel() + " (−" + money(promo)
+                            + "), worked out on the regular subscription price of " + money(inv.getRegularPrice())
+                            + ". Put the subscription line back to that amount, or remove the promotion from this invoice.");
+                }
+                discount = discount.add(promo);
+            } else if ("REMOVE".equals(choice)) {
+                log.info("Billing: promotion {} removed from draft {} by {}", inv.getPromotionLabel(), inv.getInvoiceNumber(), actor);
+                clearPromotion(inv);
+            } else if (!lineIntact || discount.compareTo(promo) < 0) {
+                // Older caller: the whole discount was typed. It no longer covers the promotion.
+                log.info("Billing: promotion {} dropped from draft {} by an edit ({})", inv.getPromotionLabel(), inv.getInvoiceNumber(), actor);
+                clearPromotion(inv);
+            }
+        }
         if (discount.compareTo(subtotal) > 0) {
             throw new IllegalArgumentException("Discount cannot be more than the subtotal (" + money(subtotal) + ").");
         }
@@ -528,6 +640,16 @@ public class BillingService {
             BigDecimal subtotal = sum(ls);
             BigDecimal discount = inv.getDiscount() == null ? BigDecimal.ZERO : inv.getDiscount();
             if (discount.compareTo(subtotal) > 0) throw new IllegalArgumentException("Discount is more than the subtotal. Edit the invoice.");
+            if (hasPromotion(inv)) {
+                // Never send a promotional discount the customer no longer has.
+                String problem = promotions == null ? "promotions are not available"
+                        : promotions.invoiceProblem(inv.getClientPromotionId(), clients.findByClientId(inv.getClientId()).orElse(null),
+                                inv.getPlanCode(), inv.getBillingFrequency(), inv.getPeriodStart(), inv.getRegularPrice(), inv.getPromotionDiscount());
+                if (problem != null) {
+                    throw new IllegalArgumentException("This draft carries " + inv.getPromotionLabel() + ", but " + problem
+                            + ". Open the invoice and remove the promotion, or void this draft and create a new one.");
+                }
+            }
             BigDecimal total = subtotal.subtract(discount).setScale(2, RoundingMode.HALF_UP);
 
             // Every charge line must bill a charge this draft still holds, unbilled.
@@ -690,6 +812,7 @@ public class BillingService {
         m.put("lines", ls);
         m.put("subtotal", inv.getSubtotal());
         m.put("discount", inv.getDiscount());
+        putPromotion(m, inv);
         m.put("total", inv.getTotal());
         m.put("note", inv.getNote());
         boolean paid = BillingInvoice.PAID.equals(inv.getStatus());
@@ -731,6 +854,10 @@ public class BillingService {
         m.put("note", inv.getNote());
         m.put("subtotal", inv.getSubtotal());
         m.put("discount", inv.getDiscount());
+        putPromotion(m, inv);
+        if (hasPromotion(inv) && BillingInvoice.KIND_REQUEST.equals(inv.getKind()) && BillingInvoice.DRAFT.equals(inv.getStatus())) {
+            ((Map<String, Object>) m.get("promotion")).put("tentative", true);
+        }
         m.put("periodStart", str(inv.getPeriodStart()));
         m.put("periodEnd", str(inv.getPeriodEnd()));
         m.put("planCode", inv.getPlanCode());
@@ -836,7 +963,14 @@ public class BillingService {
             m.put("churchName", sc.getChurchName());
             m.put("plan", plan.map(SubscriptionPlan::getPlanName).orElse(sc.getSubscriptionType()));
             m.put("billingFrequency", freq);
-            m.put("price", effectivePrice(sc, plan.orElse(null), freq));
+            BigDecimal regular = effectivePrice(sc, plan.orElse(null), freq);
+            ClientPromotionService.InvoicePromotion promo = renewalPromotion(sc, sc.getEndDate());
+            m.put("price", promo != null ? promo.price() : regular);
+            if (promo != null) {
+                m.put("regularPrice", regular);
+                m.put("promotionLabel", promo.label());
+                m.put("promotionEndDate", str(promo.endDate()));
+            }
             m.put("priceOverridden", Boolean.TRUE.equals(sc.getPriceOverridden()));
             m.put("dueDate", str(sc.getEndDate()));
             m.put("daysLeft", ChronoUnit.DAYS.between(today, sc.getEndDate()));
@@ -880,7 +1014,8 @@ public class BillingService {
     /** The amount a renewal would bill: the client's own price, else the plan's list price, else 0. */
     BigDecimal renewalAmount(ServiceClient sc) {
         String freq = frequencyOf(sc);
-        return effectivePrice(sc, lifecycle.planFor(sc.getSubscriptionType()).orElse(null), freq);
+        ClientPromotionService.InvoicePromotion promo = renewalPromotion(sc, sc.getEndDate());
+        return promo != null ? promo.price() : effectivePrice(sc, lifecycle.planFor(sc.getSubscriptionType()).orElse(null), freq);
     }
 
     static boolean isPaidPlanClient(ServiceClient sc) {
@@ -911,10 +1046,18 @@ public class BillingService {
                 .append("</td><td style='padding:6px 0;text-align:right;color:#444;white-space:nowrap;'>")
                 .append(money(l.getAmount())).append("</td></tr>");
         }
-        if (inv.getDiscount() != null && inv.getDiscount().signum() > 0) {
-            rows.append("<tr><td style='padding:6px 0;color:#256b38;'>Discount</td><td style='padding:6px 0;text-align:right;color:#256b38;'>−")
-                .append(money(inv.getDiscount())).append("</td></tr>");
+        BigDecimal other = inv.getDiscount() == null ? BigDecimal.ZERO : inv.getDiscount();
+        if (hasPromotion(inv)) {
+            rows.append("<tr><td style='padding:6px 0;color:#256b38;'>").append(esc(inv.getPromotionLabel()))
+                .append("</td><td style='padding:6px 0;text-align:right;color:#256b38;white-space:nowrap;'>−")
+                .append(money(inv.getPromotionDiscount())).append("</td></tr>");
+            other = other.subtract(inv.getPromotionDiscount());
         }
+        if (other.signum() > 0) {
+            rows.append("<tr><td style='padding:6px 0;color:#256b38;'>Discount</td><td style='padding:6px 0;text-align:right;color:#256b38;'>−")
+                .append(money(other)).append("</td></tr>");
+        }
+        String promoNote = promotionNote(inv);
         String safeLink = esc(link);
         return "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f5f6fa;font-family:-apple-system,Segoe UI,Roboto,sans-serif;'>"
              + "<table width='100%' cellpadding='0' cellspacing='0' style='padding:36px 16px;'><tr><td align='center'>"
@@ -933,6 +1076,8 @@ public class BillingService {
              + rows + "<tr><td style='padding:8px 0;font-weight:700;color:#1a1a2e;border-top:1px solid #eee;'>Amount due</td>"
              + "<td style='padding:8px 0;text-align:right;font-weight:700;color:#1a1a2e;border-top:1px solid #eee;'>" + money(inv.getTotal())
              + "</td></tr></table>"
+             + (promoNote != null ? "<p style='margin:0 0 18px;font-size:13px;color:#256b38;background:#eef8f0;border:1px solid #cfe9d5;"
+                     + "border-radius:8px;padding:10px 12px;line-height:1.6;'>" + esc(promoNote) + "</p>" : "")
              + "<p style='margin:0 0 20px;text-align:center;'><a href='" + safeLink + "' style='background:#673147;color:#fff;"
              + "padding:12px 26px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;'>View invoice</a></p>"
              + "<p style='margin:0 0 10px;font-size:12px;color:#888;line-height:1.6;'>Or copy this link: " + safeLink + "</p>"

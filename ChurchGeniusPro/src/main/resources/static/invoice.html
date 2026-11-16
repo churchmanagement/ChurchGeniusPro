@@ -75,9 +75,11 @@
         </table>
         <div class="totals">
           <div><span>Subtotal</span><span id="subtotal"></span></div>
+          <div class="disc" id="promoRow" hidden><span id="promoLabel"></span><span id="promoAmt"></span></div>
           <div class="disc" id="discRow"><span>Discount</span><span id="discount"></span></div>
           <div class="due"><span id="dueLabel">Amount Due</span><span id="total"></span></div>
         </div>
+        <div class="msg ok" id="promoNote" hidden style="margin-top:14px;"></div>
         <div class="note" id="note" hidden></div>
         <div class="pay noprint" id="payBox" hidden>
           <h3>Pay online</h3>
@@ -154,7 +156,15 @@ function cgpOpenInSafari(url) {
         tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
       });
       $('subtotal').textContent = amt(d.subtotal);
-      if (Number(d.discount || 0) > 0) $('discount').textContent = '−' + amt(d.discount); else $('discRow').hidden = true;
+      var promo = d.promotion && Number(d.promotion.discount || 0) > 0 ? d.promotion : null;
+      var otherDisc = promo ? Number(promo.otherDiscount || 0) : Number(d.discount || 0);
+      if (promo) {
+        $('promoLabel').textContent = promo.label || 'Promotion';
+        $('promoAmt').textContent = '−' + amt(promo.discount);
+        $('promoRow').hidden = false;
+        if (promo.note) { $('promoNote').textContent = promo.note; $('promoNote').hidden = false; }
+      }
+      if (otherDisc > 0) $('discount').textContent = '−' + amt(otherDisc); else $('discRow').hidden = true;
       $('total').textContent = amt(d.total);
       if (d.note) { $('note').textContent = d.note; $('note').hidden = false; }
       var se = d.supportEmail || 'support@churchgeniuspro.com';

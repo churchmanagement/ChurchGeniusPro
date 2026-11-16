@@ -121,4 +121,7 @@ public interface BillingInvoiceRepository extends JpaRepository<BillingInvoice, 
          + "WHERE i.id = :id AND i.status IN ('DRAFT', 'SENT')")
     int markVoid(@Param("id") Long id, @Param("reason") String reason, @Param("actor") String actor,
                  @Param("at") LocalDateTime at);
+
+    /** Invoices that carry a promotional discount (promotion report). */
+    List<BillingInvoice> findByClientPromotionIdIsNotNull();
 }

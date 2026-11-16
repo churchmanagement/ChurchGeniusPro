@@ -752,6 +752,11 @@
             </div>
           </div>
 
+          <label id="promoAfterRegisterWrap" style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:13px;margin:4px 0 12px;">
+            <input type="checkbox" id="promoAfterRegister" style="width:auto;" />
+            Give this client a promotional deal or a manual discount after registering
+          </label>
+
           <div class="form-actions">
             <button type="button" class="btn-cancel-form" id="btnCancelForm">Cancel</button>
             <button type="submit" class="btn-submit-form" id="btnSubmitForm">Register Client</button>
@@ -980,6 +985,132 @@
           <button class="btn-primary" style="font-size:13px;padding:8px 22px;" onclick="savePlan()">💾 Save Plan</button>
           <button style="font-size:13px;padding:8px 18px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;" onclick="document.getElementById('planEditor').style.display='none'">Cancel</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Promotional Deals (promotions phase 1: the deal catalogue) ───────── -->
+  <div class="list-card" id="promoCard">
+    <div class="list-card-header">
+      <span class="list-card-title">🏷 Promotional Deals</span>
+      <button class="btn-primary" style="font-size:12px;padding:6px 16px;" id="promoNewBtn">＋ New Deal</button>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        A deal is a discount on the subscription price for a fixed length of time, for <strong>Monthly</strong> or
+        <strong>Yearly</strong> billing (never both — use the same code once per frequency). Customers never see or enter a
+        code — give a deal to a client with the 🏷 Discount button on its row. A deal is never deleted,
+        only deactivated.
+      </div>
+      <div class="form-feedback" id="promoListFeedback"></div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;" id="promoTable">
+          <thead>
+            <tr id="promoHeadRow"></tr>
+          </thead>
+          <tbody id="promoBody">
+            <tr><td colspan="9" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Deal editor -->
+      <div id="promoEditor" style="display:none;margin-top:18px;border:1.5px solid #d0b8c6;border-radius:12px;padding:18px 20px;background:#fdf9fb;">
+        <h4 style="color:#673147;margin:0 0 14px;" id="promoEditorTitle">New Deal</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:#555;">Code<br/>
+            <input type="text" id="prCode" maxlength="30" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;text-transform:uppercase;" placeholder="e.g. THANKS2026" />
+            <span style="font-weight:400;color:#999;font-size:11px;">Letters, digits, dashes. Cannot be changed later.</span></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Name<br/>
+            <input type="text" id="prName" maxlength="100" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" placeholder="e.g. Thanksgiving 2026" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Billing frequency<br/>
+            <select id="prFrequency" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+              <option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option>
+            </select></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Discount type<br/>
+            <select id="prType" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+              <option value="PERCENT">Percentage off</option>
+              <option value="AMOUNT_OFF">Dollar amount off</option>
+              <option value="FIXED_PRICE">Fixed promotional price</option>
+            </select></label>
+          <label style="font-size:12px;font-weight:600;color:#555;"><span id="prValueLabel">Percentage off (%)</span><br/>
+            <input type="number" id="prValue" min="0" step="0.01" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" /></label>
+          <label style="font-size:12px;font-weight:600;color:#555;">Duration<br/>
+            <select id="prDuration" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></select></label>
+          <label style="font-size:12px;font-weight:600;color:#555;" title="Optional. The deal can be given to a customer only from this date.">Assignable from<br/>
+            <input type="date" id="prFrom" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" />
+            <span style="font-weight:400;color:#999;font-size:11px;">Optional</span></label>
+          <label style="font-size:12px;font-weight:600;color:#555;" title="Optional. The deal can be given to a customer only until this date.">Assignable until<br/>
+            <input type="date" id="prUntil" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;" />
+            <span style="font-weight:400;color:#999;font-size:11px;">Optional</span></label>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#673147;margin:0 0 6px;">Plans covered <span style="font-weight:400;color:#999;">(active paid plans; Free and Trial are never eligible)</span></div>
+        <div id="prPlans" style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;margin-bottom:12px;"></div>
+        <label style="font-size:12px;font-weight:600;color:#555;">Notes <span style="font-weight:400;color:#999;">(optional — kept in the deal's history)</span><br/>
+          <textarea id="prNotes" rows="2" maxlength="2000" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"></textarea></label>
+        <div id="prPreview" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#f5f0f3;font-size:13px;color:#4a2233;"></div>
+        <div class="form-feedback" id="promoFeedback" style="margin-top:12px;"></div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn-primary" style="font-size:13px;padding:8px 22px;" id="promoSaveBtn">💾 Save Deal</button>
+          <button style="font-size:13px;padding:8px 18px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;" id="promoCancelBtn">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Deal history -->
+      <div id="promoHistory" style="display:none;margin-top:18px;border:1px solid #e8eaf0;border-radius:12px;padding:16px 18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <h4 style="color:#673147;margin:0;" id="promoHistoryTitle">History</h4>
+          <button style="font-size:12px;padding:5px 14px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;" id="promoHistoryClose">Close</button>
+        </div>
+        <div id="promoHistoryBody" style="margin-top:10px;font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Promotion report (promotions phase 5; read-only) ═══════════════════ -->
+  <div class="list-card" id="promoReportCard">
+    <div class="list-card-header">
+      <span class="list-card-title">📊 Promotion Report</span>
+      <span>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 14px;" id="prRun" type="button">Show report</button>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 14px;" id="prCsv" type="button">⬇ Download CSV</button>
+      </span>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
+        Every discount ever given to a client — scheduled, active, expired and cancelled. <strong>Discount provided</strong> is the
+        promotion amount on <strong>paid</strong> invoices; the amount on invoices that were sent but are not paid yet is shown separately.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:600;color:#555;">Deal code
+          <input id="prCode" type="text" maxlength="30" placeholder="e.g. THANKS2026 or MANUAL" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"/></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">Customer
+          <input id="prClient" type="text" maxlength="100" placeholder="Church name or client ID" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"/></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">Plan
+          <input id="prPlan" type="text" maxlength="40" placeholder="e.g. PRO" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"/></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">Billing
+          <select id="prFreq" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+            <option value="">All</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">Status
+          <select id="prStatus" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+            <option value="">All</option><option value="SCHEDULED">Scheduled</option><option value="ACTIVE">Active</option>
+            <option value="EXPIRED">Expired</option><option value="CANCELLED">Cancelled</option></select></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">From
+          <input id="prFrom" type="date" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"/></label>
+        <label style="font-size:12px;font-weight:600;color:#555;">To
+          <input id="prTo" type="date" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;"/></label>
+      </div>
+      <div id="prMsg" style="font-size:13px;margin:6px 0;"></div>
+      <div id="prTotals" style="font-size:13px;margin:8px 0;display:none;"></div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;display:none;" id="prTable">
+          <thead><tr style="text-align:left;color:#777;border-bottom:1px solid #eee;">
+            <th style="padding:6px;">Customer</th><th style="padding:6px;">Promotion</th><th style="padding:6px;">Plan</th>
+            <th style="padding:6px;">Discount</th><th style="padding:6px;">Status</th><th style="padding:6px;">Dates</th>
+            <th style="padding:6px;">Prices</th><th style="padding:6px;text-align:right;">Discount provided</th>
+            <th style="padding:6px;">Assigned / applied / cancelled</th><th style="padding:6px;">Notes</th></tr></thead>
+          <tbody id="prBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -1304,11 +1435,16 @@
         </div>
         <div style="margin-left:auto;max-width:300px;margin-top:10px;">
           <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Subtotal</span><span id="blInvSubtotal">$0.00</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#256b38;"><span>Discount ($)</span>
+          <div id="blInvPromoRow" style="display:none;justify-content:space-between;align-items:center;padding:4px 0;color:#256b38;gap:8px;">
+            <span><span id="blInvPromoLabel"></span>
+              <button type="button" id="blInvPromoRemove" title="Take the promotion off this invoice only" style="border:0;background:none;color:#a5322a;font-size:11px;cursor:pointer;text-decoration:underline;padding:0 0 0 6px;">remove</button></span>
+            <span id="blInvPromoAmt"></span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:#256b38;"><span id="blInvDiscountLabel">Discount ($)</span>
             <input id="blInvDiscount" type="number" min="0" step="0.01" style="width:110px;padding:4px;text-align:right;"/></div>
           <div style="display:flex;justify-content:space-between;padding:8px 0 4px;border-top:2px solid #673147;font-weight:700;color:#673147;font-size:15px;">
             <span>Amount Due</span><span id="blInvTotal">$0.00</span></div>
         </div>
+        <div id="blInvPromoNote" style="display:none;margin-top:10px;font-size:12.5px;color:#256b38;background:#eef8f0;border:1px solid #cfe9d5;border-radius:8px;padding:8px 10px;line-height:1.5;"></div>
         <div id="blInvMsg" style="margin-top:10px;font-size:13px;"></div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
           <button class="btn-secondary" id="blInvClose" type="button">Close</button>
@@ -1335,6 +1471,43 @@
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button class="btn-secondary" id="blPaidCancel" type="button">Cancel</button>
           <button class="btn-primary" id="blPaidOk" type="button">Mark paid</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client discount (promotions phase 2): a promotional deal or a manual discount for one client -->
+  <div id="cdDialog" style="display:none;position:fixed;inset:0;z-index:5100;background:rgba(15,23,42,.55);
+       align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:12px;max-width:640px;width:100%;max-height:92vh;overflow:auto;
+         box-shadow:0 20px 50px rgba(0,0,0,.3);" role="dialog" aria-modal="true" aria-labelledby="cdTitle">
+      <div style="padding:16px 20px;background:#673147;color:#fff;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:12px;">
+        <span id="cdTitle">Discount</span>
+        <button type="button" id="cdClose" aria-label="Close" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="padding:18px 20px;font-size:14px;">
+        <div id="cdClient" style="color:#555;font-size:13px;margin-bottom:12px;"></div>
+        <div class="form-feedback" id="cdFeedback"></div>
+        <div id="cdBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Client: the plan or billing frequency of a client with a discount is changing -->
+  <div id="cdDecision" style="display:none;position:fixed;inset:0;z-index:5200;background:rgba(15,23,42,.55);
+       align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:12px;max-width:520px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);"
+         role="dialog" aria-modal="true" aria-labelledby="cdDecisionTitle">
+      <div id="cdDecisionTitle" style="padding:14px 20px;background:#673147;color:#fff;font-weight:600;">This client has a discount</div>
+      <div style="padding:18px 20px;font-size:14px;">
+        <div id="cdDecisionMsg" style="margin-bottom:12px;line-height:1.5;"></div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;">Reason for cancelling the discount
+          <textarea id="cdDecisionReason" rows="2" maxlength="500" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;margin-top:4px;"></textarea></label>
+        <div id="cdDecisionErr" style="color:#b91c1c;font-size:13px;margin-top:8px;"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">
+          <button class="btn-secondary" type="button" id="cdDecisionBack">Go back</button>
+          <button class="btn-primary" type="button" id="cdDecisionKeep">Keep the discount</button>
+          <button class="btn-primary" type="button" id="cdDecisionCancel" style="background:#b91c1c;">Cancel the discount and save</button>
         </div>
       </div>
     </div>
@@ -1367,6 +1540,7 @@
         </div>
         <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-weight:400;">
           <input type="checkbox" id="cvSend" checked style="width:auto;"/> Send a confirmation email to the church</label>
+        <div id="cvPromo" style="display:none;margin-top:14px;padding:12px 14px;border:1.5px solid #d0b8c6;border-radius:10px;background:#fdf9fb;font-size:13px;"></div>
         <div id="cvMsg" style="margin-top:12px;font-size:13px;"></div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
           <button class="btn-secondary" id="cvCancel" type="button">Cancel</button>
@@ -2677,6 +2851,28 @@
       });
       let data = await res.json().catch(() => ({}));
 
+      // A plan / billing-frequency change on a client with a discount: the Service Admin
+      // decides (keep it when still eligible, or cancel it with a reason) before anything is saved.
+      if (res.status === 409 && data.code === 'PROMOTION_DECISION_REQUIRED' && window.promoEditDecision) {
+        const choice = await window.promoEditDecision(data);
+        if (!choice) {
+          showFormFeedback('Not saved — no decision was made about this client\'s discount.', 'error');
+          return;
+        }
+        payload.promotionDecision     = choice.decision;
+        payload.promotionCancelReason = choice.reason;
+        res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload)
+        });
+        data = await res.json().catch(() => ({}));
+        if (!res.ok && res.status !== 409) {
+          showFormFeedback(data.message || 'An error occurred. Please try again.', 'error');
+          return;
+        }
+      }
+
       // A changed start date needs explicit confirmation (it moves the end date and
       // re-anchors the 30-day usage period). The server asks only when it changed.
       if (res.status === 409 && data.code === 'START_DATE_CONFIRMATION_REQUIRED') {
@@ -2695,8 +2891,13 @@
 
       if (res.ok) {
         showToast(isEdit ? 'Client updated successfully.' : 'Client registered successfully.');
+        const offerBox = document.getElementById('promoAfterRegister');
+        const offerDiscount = !isEdit && window.promoAfterRegister && offerBox && offerBox.checked;   // read before the form is reset
+        const registered = data && data.data;
         closePanel();
         loadClients();
+        if (offerDiscount) window.promoAfterRegister(registered);
+        else if (window.promoRefreshSummary) window.promoRefreshSummary();
       } else {
         showFormFeedback(data.message || 'An error occurred. Please try again.', 'error');
       }
@@ -2796,6 +2997,7 @@
             <button class="btn-action" style="background:#5c6bc0;color:#fff;" onclick="openAiSettings(${c.id})" title="OpenAI voice & vision limits">🤖 AI</button>
             <button class="btn-action" style="background:#00897b;color:#fff;" onclick="openVoiceSettings(${c.id})" title="Voice feature controls">🎙 Voice</button>
             <button class="btn-action" style="background:#673147;color:#fff;" onclick="openPlaidSettings(${c.id})" title="Bank sync (Plaid) controls">🏦 Bank</button>
+            <button class="btn-action" style="background:#8e3b5e;color:#fff;" data-promo-client="${c.clientId ? esc(c.clientId) : ''}" onclick="openClientDiscount(${c.id})" title="Promotional deal or manual discount for this client">🏷 Discount</button>
             <button class="btn-action btn-delete" onclick="doDelete(${c.id})" title="Delete">🗑</button>
           </div>
         </td>
@@ -5200,6 +5402,14 @@
     var btn = this, msg = document.getElementById('cvMsg');
     btn.disabled = true; msg.style.color = '#555'; msg.textContent = 'Converting…';
     var custom = document.getElementById('cvCustom').checked;
+    // A trial with a waiting discount: Apply or Do not apply must be chosen first.
+    var promoChoice = window.promoConvertChoice ? window.promoConvertChoice() : null;
+    if (promoChoice === false) {
+      msg.style.color = '#b91c1c';
+      msg.textContent = 'This trial has a discount waiting. Choose Apply the discount or Do not apply.';
+      btn.disabled = false;
+      return;
+    }
     try {
       var res = await fetch('/api/serviceadmin/clients/' + CONVERT_STATE.clientId + '/convert', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5211,7 +5421,8 @@
           endDate: document.getElementById('cvEnd').value,
           paymentStatus: document.getElementById('cvPayment').value,
           sendConfirmation: document.getElementById('cvSend').checked,
-          requestId: CONVERT_STATE.requestId
+          requestId: CONVERT_STATE.requestId,
+          promotion: promoChoice
         })
       });
       var data = await res.json().catch(function () { return {}; });
@@ -5219,6 +5430,7 @@
       document.getElementById('convertDialog').style.display = 'none';
       showToast(data.message || 'Converted.', data.message && data.message.indexOf('could not') >= 0 ? 'error' : 'success');
       loadClients();
+      if (window.promoRefreshSummary) window.promoRefreshSummary();
       if (window.loadSubscriptionRequests) window.loadSubscriptionRequests();
     } catch (e) {
       msg.style.color = '#b91c1c'; msg.textContent = 'Unable to connect.'; btn.disabled = false;
@@ -5312,7 +5524,9 @@
         return '<tr style="border-bottom:1px solid #f0e9ed;vertical-align:top;">'
           + '<td style="padding:8px 6px;">' + esc(c.churchName) + '<div style="color:#aaa;font-size:11px;">' + esc(c.clientId) + '</div></td>'
           + '<td style="padding:8px 6px;">' + esc(c.plan) + '<div style="color:#888;font-size:11px;">' + (c.billingFrequency === 'YEARLY' ? 'Yearly' : 'Monthly') + '</div></td>'
-          + '<td style="padding:8px 6px;white-space:nowrap;">' + amt(c.price) + (c.priceOverridden ? ' <span style="color:#888;font-size:11px;">custom</span>' : '') + '</td>'
+          + '<td style="padding:8px 6px;white-space:nowrap;">' + amt(c.price) + (c.priceOverridden ? ' <span style="color:#888;font-size:11px;">custom</span>' : '')
+          + (c.promotionLabel ? '<div style="color:#256b38;font-size:11px;">' + esc(c.promotionLabel) + ' · regular ' + amt(c.regularPrice)
+              + (c.promotionEndDate ? ' · ends ' + day(c.promotionEndDate) : '') + '</div>' : '') + '</td>'
           + '<td style="padding:8px 6px;white-space:nowrap;">' + day(c.dueDate) + '<div style="color:#888;font-size:11px;">'
           + (c.daysLeft === 0 ? 'today' : 'in ' + esc(c.daysLeft) + ' day' + (c.daysLeft === 1 ? '' : 's')) + '</div></td>'
           + '<td style="padding:8px 6px;">' + inv + '</td><td style="padding:8px 6px;white-space:nowrap;">' + act + '</td></tr>';
@@ -5409,10 +5623,30 @@
         + (isCharge ? ' readonly style="width:100%;padding:5px;text-align:right;background:#f7f7fa;"' : ' style="width:100%;padding:5px;text-align:right;"') + '/></td>'
         + '<td style="padding:4px;text-align:center;"><button type="button" data-rm title="Remove line" style="border:0;background:none;color:#a5322a;font-size:16px;cursor:pointer;">×</button></td></tr>';
     }
+    // Promotional pricing on the open invoice (null when it has none, or after "remove").
+    var PROMO = null, PROMO_REMOVED = false;
+    function promoAmount() { return PROMO && !PROMO_REMOVED ? Number(PROMO.discount || 0) : 0; }
+    function renderPromo(draft) {
+      var on = !!PROMO && !PROMO_REMOVED;
+      $('blInvPromoRow').style.display = on ? 'flex' : 'none';
+      $('blInvDiscountLabel').textContent = on ? 'Other discount ($)' : 'Discount ($)';
+      $('blInvPromoRemove').style.display = draft ? '' : 'none';
+      var note = $('blInvPromoNote');
+      if (on) {
+        $('blInvPromoLabel').textContent = PROMO.label || 'Promotion';
+        $('blInvPromoAmt').textContent = '−' + amt(PROMO.discount);
+        note.textContent = (PROMO.note || '') + (PROMO.tentative
+          ? ' This trial’s discount is still waiting: it becomes active only when you apply it at Convert, and its dates are set then.' : '');
+        note.style.display = note.textContent.trim() ? 'block' : 'none';
+      } else if (PROMO && PROMO_REMOVED) {
+        note.textContent = 'The promotion will be taken off this invoice when you save. The customer’s discount itself is not changed.';
+        note.style.display = 'block';
+      } else { note.style.display = 'none'; }
+    }
     function recalc() {
       var sub = 0;
       $('blInvLines').querySelectorAll('[data-amt]').forEach(function (i) { sub += Number(i.value || 0); });
-      var disc = Number($('blInvDiscount').value || 0);
+      var disc = Number($('blInvDiscount').value || 0) + promoAmount();
       $('blInvSubtotal').textContent = amt(sub);
       $('blInvTotal').textContent = amt(Math.max(0, sub - disc));
       $('blInvMsg').textContent = disc > sub + 0.0001 ? 'Discount cannot be more than the subtotal.' : '';
@@ -5449,7 +5683,9 @@
       $('blInvBillEmail').value = CUR.billToEmail || '';
       $('blInvDue').value = CUR.dueDate || '';
       $('blInvNote').value = CUR.note || '';
-      $('blInvDiscount').value = Number(CUR.discount || 0).toFixed(2);
+      PROMO = CUR.promotion || null; PROMO_REMOVED = false;
+      $('blInvDiscount').value = Number(PROMO ? (PROMO.otherDiscount || 0) : (CUR.discount || 0)).toFixed(2);
+      renderPromo(draft);
       $('blInvLines').innerHTML = (CUR.lines || []).map(lineRow).join('');
       ['blInvBillName', 'blInvBillEmail', 'blInvDue', 'blInvNote', 'blInvDiscount'].forEach(function (k) { $(k).disabled = !draft; });
       $('blInvLines').querySelectorAll('input,button').forEach(function (e) { e.disabled = !draft; });
@@ -5463,6 +5699,10 @@
     $('blInvClose').addEventListener('click', closeInvoice);
     $('blInvLines').addEventListener('input', recalc);
     $('blInvDiscount').addEventListener('input', recalc);
+    $('blInvPromoRemove').addEventListener('click', function () {
+      if (!PROMO || !CUR || CUR.status !== 'DRAFT') return;
+      PROMO_REMOVED = true; renderPromo(true); recalc();
+    });
     $('blInvLines').addEventListener('click', function (ev) {
       var rm = ev.target.closest('[data-rm]');
       if (!rm) return;
@@ -5497,10 +5737,12 @@
       });
       var x = await call(API + '/invoices/' + CUR.id, 'PUT', {
         version: CUR.version, billToName: $('blInvBillName').value, billToEmail: $('blInvBillEmail').value,
-        dueDate: $('blInvDue').value, note: $('blInvNote').value, discount: $('blInvDiscount').value, lines: lines });
+        dueDate: $('blInvDue').value, note: $('blInvNote').value, discount: $('blInvDiscount').value, lines: lines,
+        promotion: PROMO ? (PROMO_REMOVED ? 'REMOVE' : 'KEEP') : null });
       $('blInvMsg').textContent = x.d.message || (x.ok ? 'Saved.' : 'Failed.');
       $('blInvMsg').style.color = x.ok ? '#256b38' : '#b91c1c';
       if (x.ok) CUR.version = x.d.version;
+      if (x.ok && PROMO && PROMO_REMOVED) { PROMO = null; PROMO_REMOVED = false; CUR.promotion = null; renderPromo(true); recalc(); }
       return x.ok;
     }
     $('blInvSave').addEventListener('click', async function () { if (await saveDraft()) { var id = CUR.id; loadInvoices(); openInvoice(id); } });
@@ -6321,5 +6563,936 @@
     </div>
   </div>
 </div>
+<!-- Promotional Deals card (promotions phase 1). Self-contained; talks only to /api/serviceadmin/promotions. -->
+<script>
+(function () {
+  'use strict';
+  var card = document.getElementById('promoCard');
+  if (!card) return;
+
+  var DEALS = [], PLANS = [], editing = null, armed = null, armedTimer = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var TH = 'padding:8px 10px;background:#f5f6fa;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e8eaf0;text-align:left;';
+  var TD = 'padding:9px 10px;border-bottom:1px solid #f0f0f4;vertical-align:top;';
+  var EVENT_LABEL = { DEAL_CREATED: 'Deal created', DEAL_EDITED: 'Deal edited',
+                      DEAL_DEACTIVATED: 'Deal deactivated', DEAL_REACTIVATED: 'Deal reactivated' };
+  var FIELD_LABEL = { name: 'Name', billingFrequency: 'Billing frequency', discountType: 'Discount type',
+                      discountValue: 'Discount value', durationAmount: 'Duration', durationUnit: 'Duration unit',
+                      planCodes: 'Plans', assignFrom: 'Assignable from', assignUntil: 'Assignable until',
+                      notes: 'Notes', active: 'Active' };
+
+  $('promoHeadRow').innerHTML = ['Code', 'Name', 'Frequency', 'Discount', 'Duration', 'Plans and price', 'Assignable', 'Status', '']
+      .map(function (h) { return '<th style="' + TH + '">' + h + '</th>'; }).join('');
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function money(v) { var n = Number(v); return isFinite(n) ? '$' + n.toFixed(2) : '—'; }
+  function freqWord(f) { return f === 'YEARLY' ? 'Yearly' : 'Monthly'; }
+  function per(f) { return f === 'YEARLY' ? '/year' : '/month'; }
+  function durationText(amount, unit) {
+    var n = Number(amount);
+    return n + ' ' + (unit === 'YEARS' ? 'year' : 'month') + (n === 1 ? '' : 's');
+  }
+  function discountText(d) {
+    if (d.discountType === 'PERCENT') return Number(d.discountValue) + '% off';
+    if (d.discountType === 'AMOUNT_OFF') return money(d.discountValue) + ' off';
+    return money(d.discountValue) + per(d.billingFrequency) + ' fixed price';
+  }
+  function dayText(iso) {
+    if (!iso) return '';
+    var p = String(iso).slice(0, 10).split('-');
+    return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : iso;
+  }
+  function whenText(iso) {
+    if (!iso) return '';
+    var s = String(iso);
+    return dayText(s) + (s.length >= 16 ? ' ' + s.slice(11, 16) : '');
+  }
+  function feedback(el, msg, ok) {
+    el.textContent = msg || '';
+    el.className = 'form-feedback' + (msg ? (ok ? ' success' : ' error') : '');
+  }
+  function errText(e) {
+    return (window.CGP_errorMessage ? window.CGP_errorMessage(e, 'Something went wrong. Please try again.')
+                                    : (e && e.message) || 'Something went wrong. Please try again.');
+  }
+  function api(url, method, body) {
+    var opts = { cache: 'no-store' };
+    if (method) {
+      opts.method = method;
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(body || {});
+    }
+    return window.CGP_api(url, opts);
+  }
+
+  /* Same rule as PromotionService.promotionalPrice — display only; the server decides. */
+  function promoPrice(type, value, regular) {
+    var r = Math.round(Number(regular) * 100), v = Number(value), cents;
+    if (!isFinite(r) || !isFinite(v)) return null;
+    if (type === 'PERCENT') cents = r - Math.round(r * v / 100);
+    else if (type === 'AMOUNT_OFF') cents = r - Math.round(v * 100);
+    else cents = Math.round(v * 100);
+    return Math.max(0, cents) / 100;
+  }
+  function regularOf(plan, freq) {
+    var p = freq === 'YEARLY' ? plan.yearlyPrice : plan.monthlyPrice;
+    return p == null ? null : Number(p);
+  }
+
+  // ── list ────────────────────────────────────────────────────────────────
+  function render() {
+    var body = $('promoBody');
+    if (!DEALS.length) {
+      body.innerHTML = '<tr><td colspan="9" style="padding:16px;color:#aaa;text-align:center;">No deals yet. Choose New Deal to create one.</td></tr>';
+      return;
+    }
+    body.innerHTML = DEALS.map(function (d) {
+      var prices = (d.preview || []).map(function (r) {
+        if (r.regularPrice == null) return esc(r.planName) + ': <span style="color:#c62828;">plan no longer eligible</span>';
+        return esc(r.planName) + ': ' + money(r.regularPrice) + ' → <strong>' + money(r.promotionalPrice) + '</strong>' + per(d.billingFrequency);
+      }).join('<br/>');
+      var win = (d.assignFrom || d.assignUntil)
+          ? (d.assignFrom ? dayText(d.assignFrom) : 'any time') + ' – ' + (d.assignUntil ? dayText(d.assignUntil) : 'no end')
+          : 'Any time';
+      var status = d.active
+          ? '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">Active</span>'
+          : '<span style="background:#eee;color:#777;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">Inactive</span>';
+      var btn = 'font-size:12px;padding:4px 10px;border:1px solid #d0b8c6;background:#fff;color:#673147;border-radius:6px;cursor:pointer;margin:0 4px 4px 0;';
+      return '<tr style="' + (d.active ? '' : 'color:#999;') + '">'
+          + '<td style="' + TD + 'font-weight:700;font-family:monospace;">' + esc(d.code) + '</td>'
+          + '<td style="' + TD + '">' + esc(d.name) + '</td>'
+          + '<td style="' + TD + '">' + freqWord(d.billingFrequency) + '</td>'
+          + '<td style="' + TD + '">' + esc(discountText(d)) + '</td>'
+          + '<td style="' + TD + '">' + esc(durationText(d.durationAmount, d.durationUnit)) + '</td>'
+          + '<td style="' + TD + '">' + prices + '</td>'
+          + '<td style="' + TD + '">' + esc(win) + '</td>'
+          + '<td style="' + TD + '">' + status + '</td>'
+          + '<td style="' + TD + 'white-space:nowrap;">'
+          +   '<button style="' + btn + '" data-promo-act="edit" data-id="' + d.id + '">Edit</button>'
+          +   '<button style="' + btn + '" data-promo-act="toggle" data-id="' + d.id + '">'
+          +     (armed === d.id ? 'Confirm' : (d.active ? 'Deactivate' : 'Reactivate')) + '</button>'
+          +   '<button style="' + btn + '" data-promo-act="history" data-id="' + d.id + '">History</button>'
+          + '</td></tr>';
+    }).join('');
+  }
+
+  function load() {
+    return api('/api/serviceadmin/promotions').then(function (data) {
+      DEALS = (data && data.deals) || [];
+      PLANS = (data && data.plans) || [];
+      feedback($('promoListFeedback'), '');
+      render();
+    }).catch(function (e) {
+      $('promoBody').innerHTML = '<tr><td colspan="9" style="padding:16px;color:#c62828;text-align:center;">'
+          + esc(errText(e)) + ' <button id="promoRetry" style="margin-left:8px;padding:3px 12px;border:1px solid #d0b8c6;background:#fff;border-radius:6px;cursor:pointer;">Retry</button></td></tr>';
+      var r = $('promoRetry');
+      if (r) r.addEventListener('click', load);
+    });
+  }
+
+  function dealById(id) {
+    for (var i = 0; i < DEALS.length; i++) if (String(DEALS[i].id) === String(id)) return DEALS[i];
+    return null;
+  }
+
+  // ── editor ──────────────────────────────────────────────────────────────
+  function fillDurations(selected) {
+    var yearly = $('prFrequency').value === 'YEARLY';
+    var opts = [];
+    if (!yearly) [1, 3, 6].forEach(function (n) { opts.push([n + ':MONTHS', durationText(n, 'MONTHS')]); });
+    [1, 2, 3, 4, 5].forEach(function (n) { opts.push([n + ':YEARS', durationText(n, 'YEARS')]); });
+    var sel = $('prDuration');
+    sel.innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
+    if (selected && opts.some(function (o) { return o[0] === selected; })) sel.value = selected;
+  }
+  function fillPlans(checked) {
+    var freq = $('prFrequency').value;
+    if (!PLANS.length) {
+      $('prPlans').innerHTML = '<span style="color:#c62828;">There are no active paid plans. Create one under Subscription Plans first.</span>';
+      return;
+    }
+    $('prPlans').innerHTML = PLANS.map(function (p) {
+      var regular = regularOf(p, freq);
+      var usable = regular != null && regular > 0;
+      var on = usable && checked.indexOf(p.planCode) >= 0;
+      return '<label style="' + (usable ? '' : 'color:#aaa;') + '"><input type="checkbox" class="pr-plan" value="' + esc(p.planCode) + '"'
+          + (on ? ' checked' : '') + (usable ? '' : ' disabled') + ' /> ' + esc(p.planName)
+          + ' <span style="color:#999;font-size:12px;">(' + (usable ? money(regular) + per(freq) : 'no ' + freqWord(freq).toLowerCase() + ' price') + ')</span></label>';
+    }).join('');
+  }
+  function checkedPlans() {
+    return Array.prototype.slice.call(document.querySelectorAll('#prPlans .pr-plan:checked')).map(function (c) { return c.value; });
+  }
+  function syncValueLabel() {
+    var t = $('prType').value, f = $('prFrequency').value;
+    $('prValueLabel').textContent = t === 'PERCENT' ? 'Percentage off (%)'
+        : t === 'AMOUNT_OFF' ? 'Amount off ($' + per(f) + ')' : 'Promotional price ($' + per(f) + ')';
+  }
+  function preview() {
+    var box = $('prPreview'), freq = $('prFrequency').value, type = $('prType').value, value = $('prValue').value.trim();
+    var codes = checkedPlans(), dur = ($('prDuration').value || '').split(':');
+    if (value === '' || !codes.length) { box.textContent = 'Enter the discount and choose a plan to see what the customer would pay.'; return; }
+    var lines = codes.map(function (code) {
+      var plan = PLANS.filter(function (p) { return p.planCode === code; })[0];
+      var regular = plan ? regularOf(plan, freq) : null;
+      if (regular == null) return '';
+      var price = promoPrice(type, value, regular);
+      var warn = (price != null && price >= regular) ? ' <span style="color:#c62828;">— not lower than the regular price</span>' : '';
+      return esc(plan.planName) + ', ' + freqWord(freq).toLowerCase() + ': ' + money(regular) + ' regular, <strong>'
+          + money(price) + '</strong> for ' + esc(durationText(dur[0], dur[1])) + ', then ' + money(regular) + '.' + warn;
+    }).filter(Boolean);
+    box.innerHTML = lines.join('<br/>') || 'Choose a plan to see what the customer would pay.';
+  }
+
+  function openEditor(d) {
+    editing = d || null;
+    $('promoEditorTitle').textContent = d ? 'Edit Deal — ' + d.code + ' (' + freqWord(d.billingFrequency) + ')' : 'New Deal';
+    $('prCode').value = d ? d.code : '';
+    $('prCode').disabled = !!d;
+    $('prName').value = d ? d.name : '';
+    $('prFrequency').value = d ? d.billingFrequency : 'MONTHLY';
+    $('prType').value = d ? d.discountType : 'PERCENT';
+    $('prValue').value = d ? Number(d.discountValue) : '';
+    $('prFrom').value = d && d.assignFrom ? d.assignFrom : '';
+    $('prUntil').value = d && d.assignUntil ? d.assignUntil : '';
+    $('prNotes').value = d && d.notes ? d.notes : '';
+    fillDurations(d ? d.durationAmount + ':' + d.durationUnit : '2:YEARS');
+    fillPlans(d ? (d.planCodes || []) : []);
+    syncValueLabel();
+    preview();
+    feedback($('promoFeedback'), '');
+    $('promoHistory').style.display = 'none';
+    $('promoEditor').style.display = 'block';
+    $('promoEditor').scrollIntoView({ block: 'nearest' });
+  }
+
+  function save() {
+    var fb = $('promoFeedback'), btn = $('promoSaveBtn');
+    var dur = ($('prDuration').value || '').split(':');
+    var body = {
+      code: $('prCode').value.trim().toUpperCase(),
+      name: $('prName').value.trim(),
+      billingFrequency: $('prFrequency').value,
+      discountType: $('prType').value,
+      discountValue: $('prValue').value.trim(),
+      durationAmount: dur[0] ? parseInt(dur[0], 10) : null,
+      durationUnit: dur[1] || null,
+      planCodes: checkedPlans(),
+      assignFrom: $('prFrom').value || null,
+      assignUntil: $('prUntil').value || null,
+      notes: $('prNotes').value.trim(),
+      version: editing ? editing.version : null
+    };
+    if (!editing && !body.code) return feedback(fb, 'Enter a code for the deal.');
+    if (!body.name) return feedback(fb, 'Enter a name for the deal.');
+    if (body.discountValue === '') return feedback(fb, 'Enter the discount value.');
+    if (!body.planCodes.length) return feedback(fb, 'Choose at least one plan the deal covers.');
+    btn.disabled = true;
+    api(editing ? '/api/serviceadmin/promotions/' + editing.id : '/api/serviceadmin/promotions', editing ? 'PUT' : 'POST', body)
+      .then(function (data) {
+        $('promoEditor').style.display = 'none';
+        if (typeof showToast === 'function') showToast((data && data.message) || 'Deal saved.');
+        return load();
+      })
+      .catch(function (e) { feedback(fb, errText(e)); })
+      .then(function () { btn.disabled = false; });
+  }
+
+  // ── deactivate / reactivate (two presses, no browser dialog) ────────────
+  function toggle(d) {
+    if (armed !== d.id) {
+      armed = d.id;
+      clearTimeout(armedTimer);
+      armedTimer = setTimeout(function () { armed = null; render(); }, 5000);
+      render();
+      return;
+    }
+    armed = null;
+    clearTimeout(armedTimer);
+    api('/api/serviceadmin/promotions/' + d.id + '/active', 'POST', { active: !d.active, version: d.version })
+      .then(function (data) {
+        if (typeof showToast === 'function') showToast((data && data.message) || 'Deal updated.');
+        return load();
+      })
+      .catch(function (e) { feedback($('promoListFeedback'), errText(e)); render(); });
+  }
+
+  // ── history ─────────────────────────────────────────────────────────────
+  function valueText(key, v) {
+    if (v == null || v === '') return '(blank)';
+    if (Array.isArray(v)) return v.join(', ');
+    if (key === 'active') return v ? 'Yes' : 'No';
+    return String(v);
+  }
+  function showHistory(d) {
+    var box = $('promoHistoryBody');
+    $('promoHistoryTitle').textContent = 'History — ' + d.code + ' (' + freqWord(d.billingFrequency) + ')';
+    box.textContent = 'Loading…';
+    $('promoEditor').style.display = 'none';
+    $('promoHistory').style.display = 'block';
+    $('promoHistory').scrollIntoView({ block: 'nearest' });
+    api('/api/serviceadmin/promotions/' + d.id + '/history').then(function (data) {
+      var rows = (data && data.history) || [];
+      if (!rows.length) { box.textContent = 'No history yet.'; return; }
+      box.innerHTML = rows.map(function (h) {
+        var changes = '';
+        if (h.before && h.after) {
+          changes = Object.keys(FIELD_LABEL).filter(function (k) {
+            return JSON.stringify(h.before[k]) !== JSON.stringify(h.after[k]);
+          }).map(function (k) {
+            return '<div style="color:#555;margin-left:14px;">' + FIELD_LABEL[k] + ': ' + esc(valueText(k, h.before[k]))
+                + ' → <strong>' + esc(valueText(k, h.after[k])) + '</strong></div>';
+          }).join('');
+        }
+        return '<div style="padding:8px 0;border-bottom:1px solid #f0f0f4;">'
+            + '<strong>' + esc(EVENT_LABEL[h.event] || h.event) + '</strong>'
+            + ' <span style="color:#888;">by ' + esc(h.actor) + ' on ' + esc(whenText(h.occurredAt)) + '</span>'
+            + changes + '</div>';
+      }).join('');
+    }).catch(function (e) { box.textContent = errText(e); });
+  }
+
+  // ── wiring ──────────────────────────────────────────────────────────────
+  $('promoNewBtn').addEventListener('click', function () { openEditor(null); });
+  $('promoCancelBtn').addEventListener('click', function () { $('promoEditor').style.display = 'none'; });
+  $('promoSaveBtn').addEventListener('click', save);
+  $('promoHistoryClose').addEventListener('click', function () { $('promoHistory').style.display = 'none'; });
+  $('prFrequency').addEventListener('change', function () {
+    fillDurations($('prDuration').value); fillPlans(checkedPlans()); syncValueLabel(); preview();
+  });
+  $('prType').addEventListener('change', function () { syncValueLabel(); preview(); });
+  ['prValue', 'prDuration'].forEach(function (id) { $(id).addEventListener('input', preview); });
+  $('prPlans').addEventListener('change', preview);
+  $('promoBody').addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('[data-promo-act]') : null;
+    if (!b) return;
+    var d = dealById(b.getAttribute('data-id'));
+    if (!d) return;
+    var act = b.getAttribute('data-promo-act');
+    if (act === 'edit') {
+      // Plans may have changed since the list was loaded: refresh first so the editor shows today's prices.
+      load().then(function () { var fresh = dealById(d.id); if (fresh) openEditor(fresh); });
+    } else if (act === 'toggle') toggle(d);
+    else if (act === 'history') showHistory(d);
+  });
+
+  load();
+})();
+</script>
+<!-- Client discounts (promotions phase 2). Self-contained; talks only to /api/serviceadmin/clients/{id}/promotion
+     and /api/serviceadmin/client-promotions/summary. No invoice is changed by anything here. -->
+<script>
+(function () {
+  'use strict';
+  var dialog = document.getElementById('cdDialog');
+  if (!dialog) return;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var VIEW = null, CLIENT_ID = null, SUMMARY = {}, MODE = 'view';
+  var INPUT = 'width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;';
+  var LABEL = 'font-size:12px;font-weight:600;color:#555;display:block;';
+  var GRID = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:10px 0;';
+  var BOX = 'border:1px solid #e8eaf0;border-radius:10px;padding:14px 16px;margin-bottom:14px;';
+  var BTN2 = 'font-size:13px;padding:7px 16px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;';
+  var EVENTS = { ASSIGNED: 'Assigned', TERMS_CHANGED: 'Terms changed', APPLIED: 'Applied at conversion',
+                 NOT_APPLIED: 'Not applied at conversion', ACTIVATED: 'Started', KEPT_AFTER_CHANGE: 'Kept after a plan or billing change',
+                 CANCELLED: 'Cancelled', EXPIRED: 'Expired — regular pricing restored' };
+  var STATUS_STYLE = { SCHEDULED: 'background:#fff3e0;color:#b45309;', ACTIVE: 'background:#e8f5e9;color:#2e7d32;',
+                       EXPIRED: 'background:#eee;color:#666;', CANCELLED: 'background:#ffebee;color:#b91c1c;' };
+  var CHANGED = { discountType: 'Discount type', discountValue: 'Discount value', duration: 'Duration', startDate: 'Start date',
+                  endDate: 'End date', status: 'Status', planCode: 'Plan', billingFrequency: 'Billing frequency',
+                  promotionalPrice: 'Promotional price', regularPrice: 'Regular price', notes: 'Notes', cancelReason: 'Cancel reason' };
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function money(v) { var n = Number(v); return (v == null || !isFinite(n)) ? '—' : '$' + n.toFixed(2); }
+  function per(f) { return f === 'YEARLY' ? '/year' : f === 'MONTHLY' ? '/month' : ''; }
+  function freqWord(f) { return f === 'YEARLY' ? 'Yearly' : 'Monthly'; }
+  function day(iso) {
+    if (!iso) return '';
+    var p = String(iso).slice(0, 10).split('-');
+    return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : String(iso);
+  }
+  function when(iso) { var s = String(iso || ''); return day(s) + (s.length >= 16 ? ' ' + s.slice(11, 16) : ''); }
+  function durText(amount, unit) {
+    if (amount == null || amount === '') return '';
+    var n = Number(amount);
+    return n + ' ' + (unit === 'YEARS' ? 'year' : 'month') + (n === 1 ? '' : 's');
+  }
+  function discText(type, value, freq) {
+    if (!type || value == null) return '';
+    if (type === 'PERCENT') return Number(value) + '% off';
+    if (type === 'AMOUNT_OFF') return money(value) + ' off';
+    return money(value) + per(freq) + ' fixed price';
+  }
+  function pill(status) {
+    var word = status ? status.charAt(0) + status.slice(1).toLowerCase() : '';
+    return '<span style="' + (STATUS_STYLE[status] || '') + 'padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">' + esc(word) + '</span>';
+  }
+  function feedback(msg, ok) {
+    var el = $('cdFeedback');
+    el.textContent = msg || '';
+    el.className = 'form-feedback' + (msg ? (ok ? ' success' : ' error') : '');
+  }
+  function errText(e) {
+    return window.CGP_errorMessage ? window.CGP_errorMessage(e, 'Something went wrong. Please try again.')
+                                   : ((e && e.message) || 'Something went wrong. Please try again.');
+  }
+  function api(url, method, body) {
+    var opts = { cache: 'no-store' };
+    if (method) { opts.method = method; opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body || {}); }
+    return window.CGP_api(url, opts);
+  }
+  function toast(msg) { if (typeof showToast === 'function') showToast(msg); }
+  /* Same rule as the server's promotionalPrice — display only. */
+  function promoPrice(type, value, regular) {
+    var r = Math.round(Number(regular) * 100), v = Number(value), c;
+    if (!isFinite(r) || !isFinite(v) || value === '' || value == null) return null;
+    if (type === 'PERCENT') c = r - Math.round(r * v / 100);
+    else if (type === 'AMOUNT_OFF') c = r - Math.round(v * 100);
+    else c = Math.round(v * 100);
+    return Math.max(0, c) / 100;
+  }
+  function addPeriod(iso, amount, unit) {
+    if (!iso || !amount) return '';
+    var p = iso.split('-'), y = +p[0], m = +p[1] - 1, d = +p[2], n = Number(amount);
+    if (unit === 'YEARS') y += n; else m += n;
+    var dt = new Date(y, m, 1), last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+    dt.setDate(Math.min(d, last));
+    dt.setDate(dt.getDate() - 1);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  }
+
+  // ── terms fields (shared by assign, change terms and the Convert dialog) ───
+  function termsHtml(p, opts) {
+    opts = opts || {};
+    return '<div style="' + GRID + '">'
+      + '<label style="' + LABEL + '">Discount type<select id="' + p + 'Type" style="' + INPUT + '">'
+      +   '<option value="PERCENT">Percentage off</option><option value="AMOUNT_OFF">Dollar amount off</option>'
+      +   '<option value="FIXED_PRICE">Fixed promotional price</option></select></label>'
+      + '<label style="' + LABEL + '">Value<input type="number" id="' + p + 'Value" min="0" step="0.01" style="' + INPUT + '"/></label>'
+      + '<label style="' + LABEL + '">Lasts<select id="' + p + 'Mode" style="' + INPUT + '">'
+      +   '<option value="DURATION">For a duration</option>'
+      +   (opts.noEndDate ? '' : '<option value="DATE">Until an expiration date</option>') + '</select></label>'
+      + '<label style="' + LABEL + '" id="' + p + 'DurWrap">Duration<span style="display:flex;gap:6px;">'
+      +   '<input type="number" id="' + p + 'Amount" min="1" max="60" step="1" style="' + INPUT + '"/>'
+      +   '<select id="' + p + 'Unit" style="' + INPUT + '"><option value="MONTHS">months</option><option value="YEARS">years</option></select></span></label>'
+      + '<label style="' + LABEL + 'display:none;" id="' + p + 'EndWrap">Expiration date<input type="date" id="' + p + 'End" style="' + INPUT + '"/></label>'
+      + '</div>';
+  }
+  function wireTerms(p, onChange) {
+    var mode = $(p + 'Mode');
+    function sync() {
+      var date = mode.value === 'DATE';
+      $(p + 'DurWrap').style.display = date ? 'none' : 'block';
+      $(p + 'EndWrap').style.display = date ? 'block' : 'none';
+      if (onChange) onChange();
+    }
+    mode.addEventListener('change', sync);
+    [p + 'Type', p + 'Value', p + 'Amount', p + 'Unit', p + 'End'].forEach(function (id) {
+      $(id).addEventListener('input', function () { if (onChange) onChange(); });
+      $(id).addEventListener('change', function () { if (onChange) onChange(); });
+    });
+    sync();
+  }
+  function setTerms(p, t) {
+    if (t.discountType) $(p + 'Type').value = t.discountType;
+    $(p + 'Value').value = t.discountValue != null ? Number(t.discountValue) : '';
+    if (t.durationAmount) { $(p + 'Amount').value = t.durationAmount; $(p + 'Unit').value = t.durationUnit || 'MONTHS'; }
+    else if (t.endDate && $(p + 'Mode').querySelector('option[value="DATE"]')) {
+      $(p + 'Mode').value = 'DATE'; $(p + 'End').value = t.endDate; $(p + 'Mode').dispatchEvent(new Event('change'));
+    }
+  }
+  function readTerms(p) {
+    var date = $(p + 'Mode').value === 'DATE';
+    return { discountType: $(p + 'Type').value, discountValue: $(p + 'Value').value.trim(),
+             durationAmount: date || $(p + 'Amount').value === '' ? null : parseInt($(p + 'Amount').value, 10),
+             durationUnit: date ? null : $(p + 'Unit').value, endDate: date ? ($(p + 'End').value || null) : null };
+  }
+
+  // ── the dialog ──────────────────────────────────────────────────────────
+  function describe(a) {
+    var isManual = a.kind === 'MANUAL';
+    var head = isManual ? 'Manual Discount – No Promotion Code' : esc(a.promotionCode) + (a.promotionName ? ' — ' + esc(a.promotionName) : '');
+    var lines = [];
+    var terms = discText(a.discountType, a.discountValue, a.billingFrequency);
+    var dur = a.duration || '';
+    if (terms) lines.push(esc(terms) + (dur ? ' for ' + esc(dur) : ''));
+    else if (!isManual) lines.push('The deal’s terms are set when the trial is converted (monthly or yearly deal, by the billing chosen then).');
+    if (a.startDate) {
+      lines.push('From ' + day(a.startDate) + ' through ' + day(a.endDate)
+          + (a.restoredOn ? ' · regular pricing restored ' + day(a.restoredOn) : ''));
+      if (a.regularPrice != null) {
+        lines.push('Regular ' + money(a.regularPrice) + per(a.billingFrequency) + ' → <strong>' + money(a.promotionalPrice)
+            + per(a.billingFrequency) + '</strong>, then ' + money(a.regularPrice) + per(a.billingFrequency));
+      }
+    } else if (a.status === 'SCHEDULED') {
+      lines.push('Waiting for the trial to be converted. No discount applies during the trial.');
+    }
+    if (a.manuallyAdjusted && !isManual) {
+      lines.push('Manually adjusted — the deal’s standard terms: ' + esc(discText(a.dealDiscountType, a.dealDiscountValue, a.billingFrequency))
+          + (a.dealDuration ? ' for ' + esc(a.dealDuration) : ''));
+    }
+    if (a.notes) lines.push('Notes: ' + esc(a.notes));
+    lines.push('<span style="color:#888;">Assigned by ' + esc(a.assignedBy) + ' on ' + esc(when(a.assignedAt))
+        + (a.appliedBy ? ' · started by ' + esc(a.appliedBy) + ' on ' + esc(when(a.appliedAt)) : '')
+        + (a.cancelledBy ? ' · cancelled by ' + esc(a.cancelledBy) + ' on ' + esc(when(a.cancelledAt)) + (a.cancelReason ? ' (' + esc(a.cancelReason) + ')' : '') : '')
+        + '</span>');
+    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><strong>' + head + '</strong>' + pill(a.status) + '</div>'
+        + lines.map(function (l) { return '<div style="margin-top:5px;">' + l + '</div>'; }).join('');
+  }
+
+  function render() {
+    var c = VIEW.client, cur = VIEW.current, body = $('cdBody'), html = '';
+    $('cdTitle').textContent = 'Discount — ' + (c.churchName || '');
+    $('cdClient').innerHTML = c.trial
+        ? 'Trial plan. A discount given now waits as <strong>Scheduled</strong> and starts only when you apply it at Convert.'
+        : esc(c.planName) + ' · ' + freqWord(c.billingFrequency) + ' · regular price <strong>' + money(c.regularPrice) + per(c.billingFrequency) + '</strong>'
+          + (c.negotiatedPrice ? ' (negotiated)' : '') + ' · next billing date ' + day(c.nextBillingDate);
+
+    if (cur) {
+      html += '<div style="' + BOX + 'background:#fdf9fb;">' + describe(cur);
+      if (MODE === 'view') {
+        html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">'
+          + (cur.kind === 'DEAL' && !cur.startDate ? '' : '<button style="' + BTN2 + '" id="cdChangeBtn">Change terms</button>')
+          + '<button style="' + BTN2 + 'color:#b91c1c;" id="cdCancelBtn">Cancel discount</button></div>';
+      }
+      html += '</div>';
+      if (MODE === 'change') {
+        html += '<div style="' + BOX + '"><strong>Change terms</strong>'
+          + '<div style="font-size:12px;color:#888;margin-top:4px;">The end date can be shortened, never extended. Past invoices are never changed.</div>'
+          + termsHtml('cdM', { noEndDate: !cur.startDate })
+          + '<label style="' + LABEL + '">Note (required)<textarea id="cdMNotes" rows="2" maxlength="2000" style="' + INPUT + '"></textarea></label>'
+          + '<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-primary" style="font-size:13px;padding:7px 18px;" id="cdMSave">Save terms</button>'
+          + '<button style="' + BTN2 + '" id="cdBack">Back</button></div></div>';
+      } else if (MODE === 'cancel') {
+        html += '<div style="' + BOX + '"><strong>Cancel this discount</strong>'
+          + '<div style="font-size:12px;color:#888;margin-top:4px;">It stays in the client’s history. The regular price applies from the next invoice.</div>'
+          + '<label style="' + LABEL + 'margin-top:10px;">Reason (required)<textarea id="cdCReason" rows="2" maxlength="500" style="' + INPUT + '"></textarea></label>'
+          + '<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-primary" style="font-size:13px;padding:7px 18px;background:#b91c1c;" id="cdCSave">Cancel the discount</button>'
+          + '<button style="' + BTN2 + '" id="cdBack">Back</button></div></div>';
+      }
+    } else if (!c.eligible) {
+      html += '<div style="' + BOX + 'background:#fff8e1;">' + esc(c.ineligibleReason) + '</div>';
+    } else {
+      var codes = [];
+      (VIEW.deals || []).forEach(function (d) { if (codes.indexOf(d.code) < 0) codes.push(d.code); });
+      html += '<div style="' + BOX + '"><strong>Give this client a discount</strong>'
+        + '<div style="display:flex;gap:18px;margin:10px 0;flex-wrap:wrap;">'
+        + '<label><input type="radio" name="cdKind" value="DEAL" checked/> Promotional deal</label>'
+        + '<label><input type="radio" name="cdKind" value="MANUAL"/> Manual discount (no promotion code)</label></div>'
+        + '<div id="cdDealPane">'
+        + (codes.length
+            ? '<label style="' + LABEL + '">Deal<select id="cdDeal" style="' + INPUT + '">' + codes.map(function (code) {
+                return '<option value="' + esc(code) + '">' + esc(dealOption(code)) + '</option>'; }).join('') + '</select></label>'
+              + (c.trial ? '' : '<label style="display:block;margin-top:10px;"><input type="checkbox" id="cdAdjust"/> Adjust the terms for this customer '
+                  + '<span style="color:#888;font-size:12px;">(never longer than the deal)</span></label><div id="cdAdjustPane" style="display:none;">' + termsHtml('cdA') + '</div>')
+            : '<div style="color:#b45309;">No promotional deal can be given to this client today'
+              + (c.trial ? '.' : ' (none is active for ' + esc(c.planName) + ', ' + freqWord(c.billingFrequency).toLowerCase() + ' billing).')
+              + ' Create one under Promotional Deals, or use a manual discount.</div>')
+        + '<label style="' + LABEL + 'margin-top:10px;">Notes <span style="font-weight:400;color:#999;" id="cdDealNotesHint">(optional)</span>'
+        + '<textarea id="cdDealNotes" rows="2" maxlength="2000" style="' + INPUT + '"></textarea></label></div>'
+        + '<div id="cdManualPane" style="display:none;">' + termsHtml('cdN', { noEndDate: c.trial })
+        + '<label style="' + LABEL + '">Reason / Notes (required)<textarea id="cdManualNotes" rows="2" maxlength="2000" style="' + INPUT + '" '
+        + 'placeholder="Why this customer receives a special discount, and what was agreed"></textarea></label></div>'
+        + '<div id="cdPreview" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#f5f0f3;font-size:13px;color:#4a2233;"></div>'
+        + '<div style="margin-top:12px;"><button class="btn-primary" style="font-size:13px;padding:8px 22px;" id="cdAssign">Save discount</button></div></div>';
+    }
+
+    if ((VIEW.past || []).length) {
+      html += '<div style="font-weight:700;color:#673147;margin:6px 0;">Earlier discounts</div>'
+        + VIEW.past.map(function (a) { return '<div style="' + BOX + 'color:#555;">' + describe(a) + '</div>'; }).join('');
+    }
+    if ((VIEW.history || []).length) {
+      html += '<div style="font-weight:700;color:#673147;margin:6px 0;">History</div><div style="font-size:13px;">'
+        + VIEW.history.map(function (h) {
+            var changes = '';
+            if (h.before && h.after) {
+              changes = Object.keys(CHANGED).filter(function (k) { return JSON.stringify(h.before[k]) !== JSON.stringify(h.after[k]); })
+                .map(function (k) {
+                  return '<div style="color:#555;margin-left:14px;">' + CHANGED[k] + ': ' + esc(h.before[k] == null ? '(blank)' : h.before[k])
+                      + ' → <strong>' + esc(h.after[k] == null ? '(blank)' : h.after[k]) + '</strong></div>';
+                }).join('');
+            }
+            return '<div style="padding:7px 0;border-bottom:1px solid #f0f0f4;"><strong>' + esc(EVENTS[h.event] || h.event) + '</strong>'
+                + (h.promotionCode ? ' · ' + esc(h.promotionCode) : (h.after && h.after.kind === 'MANUAL' ? ' · Manual discount' : ''))
+                + ' <span style="color:#888;">by ' + esc(h.actor) + ' on ' + esc(when(h.occurredAt)) + '</span>'
+                + (h.notes ? '<div style="color:#555;margin-left:14px;">Note: ' + esc(h.notes) + '</div>' : '') + changes + '</div>';
+          }).join('') + '</div>';
+    }
+    body.innerHTML = html;
+    wire();
+  }
+
+  function dealOption(code) {
+    var c = VIEW.client;
+    var variants = (VIEW.deals || []).filter(function (d) { return d.code === code; });
+    if (c.trial) {
+      return code + ' — ' + variants[0].name + ' (' + variants.map(function (d) {
+        return freqWord(d.billingFrequency).toLowerCase() + ': ' + discText(d.discountType, d.discountValue, d.billingFrequency)
+            + ' for ' + durText(d.durationAmount, d.durationUnit);
+      }).join('; ') + ')';
+    }
+    var d = variants[0];
+    return code + ' — ' + d.name + ' (' + discText(d.discountType, d.discountValue, d.billingFrequency) + ' for '
+        + durText(d.durationAmount, d.durationUnit) + ')';
+  }
+
+  function assignPreview() {
+    var box = $('cdPreview');
+    if (!box) return;
+    var c = VIEW.client, manual = kind() === 'MANUAL';
+    if (c.trial) {
+      box.textContent = manual ? 'Saved as Scheduled. The dates are set when you apply it at Convert.'
+                               : 'Saved as Scheduled by its code. At Convert, the monthly or yearly deal matching the billing you choose is used, if you apply it.';
+      return;
+    }
+    var t = null, start = c.nextBillingDate, end = '';
+    if (manual) t = readTerms('cdN');
+    else {
+      var d = (VIEW.deals || []).filter(function (x) { return $('cdDeal') && x.code === $('cdDeal').value; })[0];
+      if (!d) { box.textContent = 'Use a manual discount, or create a deal first.'; return; }
+      t = { discountType: d.discountType, discountValue: d.discountValue, durationAmount: d.durationAmount, durationUnit: d.durationUnit, endDate: null };
+      if ($('cdAdjust') && $('cdAdjust').checked) {
+        var a = readTerms('cdA');
+        t = { discountType: a.discountType, discountValue: a.discountValue === '' ? d.discountValue : a.discountValue,
+              durationAmount: a.durationAmount || (a.endDate ? null : d.durationAmount),
+              durationUnit: a.durationAmount ? a.durationUnit : (a.endDate ? null : d.durationUnit), endDate: a.endDate };
+      }
+    }
+    end = t.endDate || addPeriod(start, t.durationAmount, t.durationUnit);
+    var price = promoPrice(t.discountType, t.discountValue, c.regularPrice);
+    if (price == null) { box.textContent = 'Enter the discount to see what the customer would pay.'; return; }
+    box.innerHTML = 'Starts with the next billing period: <strong>' + money(price) + per(c.billingFrequency) + '</strong> from ' + day(start)
+        + (end ? ' through ' + day(end) : '') + ', then ' + money(c.regularPrice) + per(c.billingFrequency) + '.'
+        + (price >= Number(c.regularPrice) ? ' <span style="color:#c62828;">This is not lower than the regular price.</span>' : '')
+        + ' Invoices already sent or paid are not changed.';
+  }
+  function kind() {
+    var r = document.querySelector('input[name="cdKind"]:checked');
+    return r ? r.value : 'DEAL';
+  }
+
+  function wire() {
+    var cur = VIEW.current;
+    if ($('cdChangeBtn')) $('cdChangeBtn').addEventListener('click', function () { MODE = 'change'; feedback(''); render(); });
+    if ($('cdCancelBtn')) $('cdCancelBtn').addEventListener('click', function () { MODE = 'cancel'; feedback(''); render(); });
+    if ($('cdBack')) $('cdBack').addEventListener('click', function () { MODE = 'view'; feedback(''); render(); });
+    if ($('cdMSave')) {
+      wireTerms('cdM');
+      setTerms('cdM', cur);
+      $('cdMSave').addEventListener('click', function () {
+        send(this, 'PUT', '', { terms: readTerms('cdM'), notes: $('cdMNotes').value.trim() });
+      });
+    }
+    if ($('cdCSave')) $('cdCSave').addEventListener('click', function () {
+      send(this, 'POST', '/cancel', { reason: $('cdCReason').value.trim() });
+    });
+    if ($('cdAssign')) {
+      wireTerms('cdN', assignPreview);
+      if ($('cdAdjust')) {
+        wireTerms('cdA', assignPreview);
+        $('cdAdjust').addEventListener('change', function () {
+          $('cdAdjustPane').style.display = this.checked ? 'block' : 'none';
+          $('cdDealNotesHint').textContent = this.checked ? '(required when the terms are adjusted)' : '(optional)';
+          assignPreview();
+        });
+      }
+      if ($('cdDeal')) $('cdDeal').addEventListener('change', assignPreview);
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="cdKind"]'), function (r) {
+        r.addEventListener('change', function () {
+          $('cdDealPane').style.display = kind() === 'DEAL' ? 'block' : 'none';
+          $('cdManualPane').style.display = kind() === 'MANUAL' ? 'block' : 'none';
+          assignPreview();
+        });
+      });
+      $('cdAssign').addEventListener('click', function () { assign(this, false); });
+      assignPreview();
+    }
+  }
+
+  function assign(btn, confirmRepeat) {
+    var body;
+    if (kind() === 'MANUAL') {
+      body = { kind: 'MANUAL', terms: readTerms('cdN'), notes: $('cdManualNotes').value.trim() };
+      if (!body.notes) return feedback('Enter the reason for this manual discount in Reason / Notes.');
+    } else {
+      if (!$('cdDeal')) return feedback('There is no promotional deal to give. Use a manual discount, or create a deal first.');
+      body = { kind: 'DEAL', promotionCode: $('cdDeal').value, notes: $('cdDealNotes').value.trim(),
+               terms: $('cdAdjust') && $('cdAdjust').checked ? readTerms('cdA') : null };
+    }
+    body.confirmRepeat = !!confirmRepeat;
+    btn.disabled = true;
+    api('/api/serviceadmin/clients/' + CLIENT_ID + '/promotion', 'POST', body).then(function (data) {
+      toast((data && data.message) || 'Discount saved.');
+      return reload();
+    }).catch(function (e) {
+      if (e && e.status === 409 && e.body && e.body.code === 'REPEAT_DEAL_CONFIRMATION_REQUIRED') {
+        var el = $('cdFeedback');
+        el.className = 'form-feedback error';
+        el.textContent = (e.body.message || 'This customer has already had this deal.') + ' ';
+        var yes = document.createElement('button');
+        yes.textContent = 'Yes, give it again';
+        yes.style.cssText = BTN2 + 'margin-left:6px;';
+        yes.addEventListener('click', function () { feedback(''); assign(btn, true); });
+        el.appendChild(yes);
+      } else feedback(errText(e));
+    }).then(function () { btn.disabled = false; });
+  }
+
+  function send(btn, method, path, body) {
+    btn.disabled = true;
+    api('/api/serviceadmin/clients/' + CLIENT_ID + '/promotion' + path, method, body).then(function (data) {
+      toast((data && data.message) || 'Saved.');
+      MODE = 'view';
+      return reload();
+    }).catch(function (e) { feedback(errText(e)); }).then(function () { btn.disabled = false; });
+  }
+
+  function reload() {
+    return api('/api/serviceadmin/clients/' + CLIENT_ID + '/promotion').then(function (data) {
+      VIEW = data;
+      feedback('');
+      render();
+      loadSummary();
+    });
+  }
+
+  window.openClientDiscount = function (clientNumericId) {
+    CLIENT_ID = clientNumericId;
+    MODE = 'view';
+    VIEW = null;
+    $('cdTitle').textContent = 'Discount';
+    $('cdClient').textContent = '';
+    $('cdBody').textContent = 'Loading…';
+    feedback('');
+    dialog.style.display = 'flex';
+    reload().catch(function (e) { $('cdBody').textContent = ''; feedback(errText(e)); });
+  };
+  function close() { dialog.style.display = 'none'; }
+  $('cdClose').addEventListener('click', close);
+  dialog.addEventListener('click', function (ev) { if (ev.target === dialog) close(); });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && dialog.style.display === 'flex' && $('cdDecision').style.display !== 'flex') close();
+  });
+
+  // ── badge on the client list ────────────────────────────────────────────
+  function decorate() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-promo-client]'), function (b) {
+      var s = SUMMARY[b.getAttribute('data-promo-client')];
+      var text = s ? '🏷 ' + s.label + ' · ' + (s.status === 'ACTIVE' ? 'Active' + (s.endDate ? ' to ' + day(s.endDate) : '') : 'Scheduled') : '🏷 Discount';
+      if (b.textContent !== text) b.textContent = text;
+      b.style.background = s ? (s.status === 'ACTIVE' ? '#2e7d32' : '#b45309') : '#8e3b5e';
+    });
+  }
+  function loadSummary() {
+    return api('/api/serviceadmin/client-promotions/summary').then(function (data) {
+      SUMMARY = (data && data.discounts) || {};
+      decorate();
+    }).catch(function () { /* the list still works without badges */ });
+  }
+  var wrap = document.getElementById('tableWrap');
+  if (wrap && window.MutationObserver) new MutationObserver(decorate).observe(wrap, { childList: true, subtree: true });
+  loadSummary();
+
+  // ── Register Client: offer the discount straight after registering ──────
+  window.promoAfterRegister = function (client) {
+    if (client && client.id != null) setTimeout(function () { window.openClientDiscount(client.id); }, 150);
+    loadSummary();
+  };
+  /* The offer is for new registrations only: hidden while an existing client is being edited. */
+  var offerWrap = $('promoAfterRegisterWrap');
+  if (offerWrap && typeof window.doEdit === 'function' && typeof window.resetForm === 'function') {
+    var doEditOrig = window.doEdit, resetFormOrig = window.resetForm;
+    window.resetForm = function () { var r = resetFormOrig.apply(this, arguments); offerWrap.style.display = 'flex'; return r; };
+    window.doEdit = function () { var r = doEditOrig.apply(this, arguments); offerWrap.style.display = 'none'; return r; };
+  }
+  window.promoRefreshSummary = loadSummary;
+
+  // ── Edit Client: plan / billing-frequency change on a client with a discount ─
+  window.promoEditDecision = function (data) {
+    return new Promise(function (resolve) {
+      var d = $('cdDecision'), eligible = !!(data && data.eligible);
+      $('cdDecisionMsg').textContent = (data && data.message) || 'This client has a discount.';
+      $('cdDecisionReason').value = '';
+      $('cdDecisionErr').textContent = '';
+      $('cdDecisionKeep').style.display = eligible ? '' : 'none';
+      d.style.display = 'flex';
+      function done(v) {
+        d.style.display = 'none';
+        $('cdDecisionKeep').onclick = $('cdDecisionCancel').onclick = $('cdDecisionBack').onclick = null;
+        resolve(v);
+      }
+      $('cdDecisionBack').onclick = function () { done(null); };
+      $('cdDecisionKeep').onclick = function () { done({ decision: 'KEEP', reason: null }); };
+      $('cdDecisionCancel').onclick = function () {
+        var reason = $('cdDecisionReason').value.trim();
+        if (!reason) { $('cdDecisionErr').textContent = 'Enter the reason for cancelling the discount.'; return; }
+        done({ decision: 'CANCEL', reason: reason });
+      };
+    });
+  };
+
+  // ── Convert: a trial's waiting discount must be applied or not, explicitly ─
+  var CV = null;
+  function cvVariant() {
+    if (!CV || CV.current.kind !== 'DEAL') return null;
+    var freq = $('cvFreq').value || 'MONTHLY', plan = $('cvPlan').value;
+    var d = (CV.deals || []).filter(function (x) { return x.code === CV.current.promotionCode && x.billingFrequency === freq; })[0];
+    if (!d) return { problem: 'There is no ' + freqWord(freq).toLowerCase() + ' deal with code ' + CV.current.promotionCode + '.' };
+    if ((d.planCodes || []).indexOf(plan) < 0) return { problem: 'The ' + d.code + ' deal does not cover the plan chosen above.' };
+    return { deal: d };
+  }
+  function cvSync() {
+    var box = $('cvPromo');
+    if (!box || !CV) return;
+    var cur = CV.current, freq = $('cvFreq').value || 'MONTHLY', start = $('cvStart').value, regular = $('cvPrice').value;
+    var t = null, problem = null;
+    if (cur.kind === 'DEAL') {
+      var v = cvVariant();
+      if (v.problem) problem = v.problem;
+      else t = { discountType: v.deal.discountType, discountValue: v.deal.discountValue, durationAmount: v.deal.durationAmount, durationUnit: v.deal.durationUnit };
+    } else {
+      t = { discountType: cur.discountType, discountValue: cur.discountValue, durationAmount: cur.durationAmount, durationUnit: cur.durationUnit };
+    }
+    if (t && $('cvPAdjust').checked) {
+      var a = readTerms('cvP');
+      t = { discountType: a.discountType, discountValue: a.discountValue === '' ? t.discountValue : a.discountValue,
+            durationAmount: a.durationAmount || (a.endDate ? null : t.durationAmount),
+            durationUnit: a.durationAmount ? a.durationUnit : (a.endDate ? null : t.durationUnit), endDate: a.endDate };
+    }
+    var apply = $('cvPApply');
+    apply.disabled = !!problem;
+    if (problem && apply.checked) apply.checked = false;
+    var line = $('cvPLine');
+    if (problem) {
+      line.innerHTML = '<span style="color:#b91c1c;">' + esc(problem) + ' It cannot be applied to this plan and billing frequency. Change them, or choose Do not apply.</span>';
+    } else {
+      var end = t.endDate || addPeriod(start, t.durationAmount, t.durationUnit), price = promoPrice(t.discountType, t.discountValue, regular);
+      line.innerHTML = 'If applied: <strong>' + money(price) + per(freq) + '</strong> from ' + day(start) + (end ? ' through ' + day(end) : '')
+          + ', then ' + money(regular) + per(freq) + '.'
+          + (price != null && price >= Number(regular) ? ' <span style="color:#b91c1c;">This is not lower than the regular price.</span>' : '');
+    }
+    $('cvPReasonWrap').style.display = $('cvPSkip').checked ? 'block' : 'none';
+    $('cvPAdjustWrap').style.display = apply.checked ? 'block' : 'none';
+    $('cvPAdjustPane').style.display = apply.checked && $('cvPAdjust').checked ? 'block' : 'none';
+  }
+  function cvShow(view) {
+    var box = $('cvPromo');
+    if (!box) return;
+    CV = (view && view.current && view.current.status === 'SCHEDULED' && !view.current.startDate) ? view : null;
+    if (!CV) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    var cur = CV.current;
+    box.innerHTML = '<div style="font-weight:700;color:#673147;">This trial has a discount waiting</div>'
+      + '<div style="margin-top:4px;">' + (cur.kind === 'MANUAL'
+          ? 'Manual Discount – No Promotion Code: ' + esc(discText(cur.discountType, cur.discountValue, '')) + ' for ' + esc(cur.duration || '')
+          : 'Promotional deal <strong>' + esc(cur.promotionCode) + '</strong>' + (cur.promotionName ? ' — ' + esc(cur.promotionName) : ''))
+      + (cur.notes ? '<div style="color:#555;">Notes: ' + esc(cur.notes) + '</div>' : '') + '</div>'
+      + '<div id="cvPLine" style="margin-top:8px;"></div>'
+      + '<div style="display:flex;gap:18px;margin-top:10px;flex-wrap:wrap;">'
+      + '<label style="font-weight:600;"><input type="radio" name="cvPDecision" id="cvPApply" value="APPLY" style="width:auto;"/> Apply the discount</label>'
+      + '<label style="font-weight:600;"><input type="radio" name="cvPDecision" id="cvPSkip" value="DO_NOT_APPLY" style="width:auto;"/> Do not apply</label></div>'
+      + '<label id="cvPReasonWrap" style="' + LABEL + 'display:none;margin-top:8px;">Reason for not applying (required)'
+      + '<textarea id="cvPReason" rows="2" maxlength="500" style="' + INPUT + '"></textarea></label>'
+      + '<div id="cvPAdjustWrap" style="display:none;margin-top:8px;"><label style="font-weight:400;"><input type="checkbox" id="cvPAdjust" style="width:auto;"/> '
+      + 'Adjust the terms for this customer' + (cur.kind === 'DEAL' ? ' <span style="color:#888;font-size:12px;">(never longer than the deal)</span>' : '') + '</label>'
+      + '<div id="cvPAdjustPane" style="display:none;">' + termsHtml('cvP')
+      + '<label style="' + LABEL + '">Note (required when the terms are adjusted)<textarea id="cvPNotes" rows="2" maxlength="2000" style="' + INPUT + '"></textarea></label></div></div>';
+    box.style.display = 'block';
+    wireTerms('cvP', cvSync);
+    ['cvPApply', 'cvPSkip', 'cvPAdjust'].forEach(function (id) { $(id).addEventListener('change', cvSync); });
+    cvSync();
+  }
+  ['cvPlan', 'cvFreq', 'cvStart', 'cvPrice', 'cvCustom'].forEach(function (id) {
+    var el = $(id);
+    if (el) { el.addEventListener('change', function () { setTimeout(cvSync, 0); }); el.addEventListener('input', function () { setTimeout(cvSync, 0); }); }
+  });
+  /* Called by the Convert button: null = nothing to decide, false = no choice made yet, otherwise the choice. */
+  window.promoConvertChoice = function () {
+    if (!CV) return null;
+    if ($('cvPApply').checked) {
+      var adjust = $('cvPAdjust').checked;
+      return { decision: 'APPLY', adjust: adjust ? readTerms('cvP') : null, notes: adjust ? $('cvPNotes').value.trim() : null };
+    }
+    if ($('cvPSkip').checked) return { decision: 'DO_NOT_APPLY', reason: $('cvPReason').value.trim() };
+    return false;
+  };
+  var openConvert = window.openConvertDialog;
+  if (typeof openConvert === 'function') {
+    window.openConvertDialog = function (clientNumericId, request) {
+      cvShow(null);
+      return Promise.resolve(openConvert.apply(this, arguments)).then(function () {
+        return api('/api/serviceadmin/clients/' + clientNumericId + '/promotion').then(cvShow, function () { cvShow(null); });
+      });
+    };
+  }
+  window.__clientDiscount = { cvShow: cvShow, addPeriod: addPeriod, promoPrice: promoPrice };
+})();
+</script>
+<!-- Promotion report (promotions phase 5). Self-contained; read-only. -->
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  if (!$('promoReportCard')) return;
+  var money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  function amt(v) { return v == null ? '—' : money.format(Number(v)); }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function day(s) { if (!s) return ''; var p = String(s).substring(0, 10).split('-'); return p.length === 3 ? p[1] + '/' + p[2] + '/' + p[0] : esc(s); }
+  var STATUS = { SCHEDULED: ['Scheduled', 'background:#fff8e1;color:#7a5b16;'], ACTIVE: ['Active', 'background:#e8f5e9;color:#2e7d32;'],
+                 EXPIRED: ['Expired', 'background:#eee;color:#666;'], CANCELLED: ['Cancelled', 'background:#ffebee;color:#b91c1c;'] };
+  function query() {
+    var p = new URLSearchParams();
+    [['code', 'prCode'], ['client', 'prClient'], ['plan', 'prPlan'], ['frequency', 'prFreq'], ['status', 'prStatus'], ['from', 'prFrom'], ['to', 'prTo']]
+      .forEach(function (k) { var v = $(k[1]).value.trim(); if (v) p.set(k[0], v); });
+    var q = p.toString();
+    return q ? '?' + q : '';
+  }
+  function say(text, bad) { $('prMsg').textContent = text || ''; $('prMsg').style.color = bad ? '#b91c1c' : '#555'; }
+  function who(label, by, at) { return by || at ? '<div>' + label + ': ' + esc(by || '—') + (at ? ' · ' + day(at) : '') + '</div>' : ''; }
+  async function run() {
+    say('Loading…');
+    var d;
+    try { d = await window.CGP_api('/api/serviceadmin/promotions/report' + query()); }
+    catch (e) { say(window.CGP_errorMessage ? window.CGP_errorMessage(e, 'The report could not be loaded.') : 'The report could not be loaded.', true); return; }
+    var rows = d.rows || [], t = d.totals || {}, bs = t.byStatus || {};
+    say(rows.length ? '' : 'No promotions match these filters.');
+    $('prTotals').style.display = 'block';
+    $('prTotals').innerHTML = '<strong>' + esc(t.count || 0) + '</strong> promotion(s) — Scheduled ' + esc(bs.SCHEDULED || 0) + ' · Active ' + esc(bs.ACTIVE || 0)
+      + ' · Expired ' + esc(bs.EXPIRED || 0) + ' · Cancelled ' + esc(bs.CANCELLED || 0)
+      + '<br/>Discount provided (paid invoices): <strong>' + amt(t.discountProvided) + '</strong> · on unpaid invoices: ' + amt(t.discountOnUnpaidInvoices)
+      + '<div style="color:#888;font-size:12px;">' + esc(d.filters || '') + '</div>';
+    $('prTable').style.display = rows.length ? 'table' : 'none';
+    $('prBody').innerHTML = rows.map(function (r) {
+      var st = STATUS[r.status] || [r.status, ''];
+      var per = r.billingFrequency === 'YEARLY' ? '/year' : r.billingFrequency === 'MONTHLY' ? '/month' : '';
+      return '<tr style="border-bottom:1px solid #f0e9ed;vertical-align:top;">'
+        + '<td style="padding:8px 6px;">' + esc(r.churchName || '—') + (r.clientDeleted ? ' <span style="color:#b91c1c;font-size:11px;">deleted</span>' : '')
+        + '<div style="color:#aaa;font-size:11px;">' + esc(r.clientId) + '</div></td>'
+        + '<td style="padding:8px 6px;">' + esc(r.label) + (r.dealName ? '<div style="color:#888;font-size:11px;">' + esc(r.dealName) + '</div>' : '')
+        + (r.manuallyAdjusted ? '<div style="color:#8e44ad;font-size:11px;">adjusted for this customer</div>' : '') + '</td>'
+        + '<td style="padding:8px 6px;">' + esc(r.planCode || '—') + '<div style="color:#888;font-size:11px;">'
+        + (r.billingFrequency === 'YEARLY' ? 'Yearly' : r.billingFrequency === 'MONTHLY' ? 'Monthly' : '') + '</div></td>'
+        + '<td style="padding:8px 6px;">' + esc(r.discount || '—') + '<div style="color:#888;font-size:11px;">' + esc(r.duration || '') + '</div></td>'
+        + '<td style="padding:8px 6px;"><span style="padding:2px 8px;border-radius:10px;font-size:11px;' + st[1] + '">' + esc(st[0]) + '</span></td>'
+        + '<td style="padding:8px 6px;white-space:nowrap;">' + (r.startDate ? day(r.startDate) + ' – ' + day(r.endDate) : '<span style="color:#888;">set at Convert</span>')
+        + (r.regularPricingRestoredOn ? '<div style="color:#888;font-size:11px;">regular price from ' + day(r.regularPricingRestoredOn) + '</div>' : '') + '</td>'
+        + '<td style="padding:8px 6px;white-space:nowrap;">' + (r.promotionalPrice != null ? amt(r.promotionalPrice) + per
+            + '<div style="color:#888;font-size:11px;">regular ' + amt(r.regularPrice) + per + '</div>' : '—') + '</td>'
+        + '<td style="padding:8px 6px;text-align:right;white-space:nowrap;">' + amt(r.discountProvided)
+        + '<div style="color:#888;font-size:11px;">' + esc(r.paidInvoices || 0) + ' paid invoice(s)</div>'
+        + (Number(r.discountOnUnpaidInvoices || 0) > 0 ? '<div style="color:#7a5b16;font-size:11px;">' + amt(r.discountOnUnpaidInvoices) + ' on ' + esc(r.unpaidInvoices) + ' unpaid</div>' : '') + '</td>'
+        + '<td style="padding:8px 6px;font-size:12px;">' + who('Assigned', r.assignedBy, r.assignedAt) + who('Applied', r.appliedBy, r.appliedAt)
+        + who('Cancelled', r.cancelledBy, r.cancelledAt) + (r.cancelReason ? '<div style="color:#b91c1c;">' + esc(r.cancelReason) + '</div>' : '') + '</td>'
+        + '<td style="padding:8px 6px;font-size:12px;max-width:220px;">' + esc(r.notes || '') + '</td></tr>';
+    }).join('');
+  }
+  $('prRun').addEventListener('click', run);
+  $('prCsv').addEventListener('click', function () { window.location.href = '/api/serviceadmin/promotions/report-csv' + query(); });
+})();
+</script>
 </body>
 </html>
