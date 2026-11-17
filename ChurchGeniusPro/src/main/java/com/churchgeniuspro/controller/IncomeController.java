@@ -106,11 +106,22 @@ public class IncomeController {
     @ResponseBody
     @GetMapping("/api/income/sub-sources")
     public ResponseEntity<List<Map<String, Object>>> getSubSources(HttpServletRequest request) {
+        boolean includeDeleted = "true".equalsIgnoreCase(request.getParameter("includeDeleted"));
         if (RoleGuard.requireAccountantOrAdmin(request) != null) return ResponseEntity.status(403).build();
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).build();
-        return ResponseEntity.ok(incomeService.getAllSubSources(appClientId));
+        List<Map<String, Object>> out = incomeService.getAllSubSources(appClientId);
+        // 2026-11-16 — report filters only: deleted sub-categories follow the active ones, flagged deleted=true, so
+        // old transactions can still be found. Entry forms never ask for them.
+        if (includeDeleted && referenceData != null) {
+            out = new java.util.ArrayList<>(out);
+            out.addAll(referenceData.deletedSubCategories(appClientId));
+        }
+        return ResponseEntity.ok(out);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ReferenceDataService referenceData;
 
     @ResponseBody
     @GetMapping("/api/income/member/{memberId}/last")

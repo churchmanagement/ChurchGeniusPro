@@ -272,6 +272,9 @@ public class ServiceAdminController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.service.ClientPromotionService clientPromotions;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.plaid.service.PlaidLinkService plaidLinks;
+
     /** Test seam. */
     public void setClientPromotions(com.churchgeniuspro.service.ClientPromotionService s) { this.clientPromotions = s; }
 
@@ -481,6 +484,17 @@ public class ServiceAdminController {
             // A deleted client's live discount is cancelled (history kept). Never fails the delete.
             if (clientPromotions != null) {
                 clientPromotions.cancelForDeletedClient(id, ServiceAdminPlatformSettingsController.actor(req));
+            }
+            // 2026-11-16 — a removed church's bank connections are closed with it (revoked at Plaid, audit kept),
+            // so they never stay behind as "needs attention". Never fails the delete.
+            if (plaidLinks != null) {
+                try {
+                    String cid = clientIdForServiceClient(id);
+                    if (cid != null) plaidLinks.disconnectForRemovedChurch(cid, ServiceAdminPlatformSettingsController.actor(req));
+                } catch (Exception e) {
+                    log.warn("Bank connections of deleted client {} could not be closed: {}", id,
+                            com.churchgeniuspro.util.LogSafe.exception(e));
+                }
             }
             response.put("status",  "success");
             response.put("message", "Client deleted.");

@@ -669,6 +669,20 @@ async function loadSettings() {
 function applySettingsUi() {
   const banner = document.getElementById('settingsBanner');
   if (banner) banner.classList.toggle('on', !settingsComplete);
+  // 2026-11-16 — say WHY the buttons are off and what is still needed (the server refuses these saves as well).
+  const bt = document.getElementById('settingsBannerText');
+  if (bt && !settingsComplete) {
+    const MISSING_LABEL = { incomeSubSourceId: 'Income fund', incomeTransactionTypeId: 'Income payment method',
+      expensePurposeId: 'Fee expense category', expenseMainSourceId: 'Fee expense fund',
+      expenseTransactionTypeId: 'Fee expense payment method', accountingMode: 'Accounting method', dateMode: 'Posting date' };
+    const miss = ((settingsInfo && Array.isArray(settingsInfo.missing)) ? settingsInfo.missing.filter(Boolean) : [])
+      .map(function (k) { return MISSING_LABEL[k] || k; });
+    const never = !settingsInfo || settingsInfo.configured === false;
+    bt.textContent = 'Review & Save, Save and "Save selected to accounting" are turned off until the required Donation Settings are '
+      + (never ? 'filled in and saved' : 'completed and saved') + '. '
+      + (miss.length ? 'Still needed: ' + miss.join(', ') + '. ' : '')
+      + 'Open Donation Settings, fill in the required fields and choose Save settings — the buttons turn on straight away.';
+  }
   const gear = document.getElementById('btnSettings');
   if (gear) gear.classList.toggle('warn', !settingsComplete);
   updateSelectionUi();
@@ -782,8 +796,9 @@ function accountingCell(d) {
       '</span>';
   }
   const dis = (postBusy || !settingsComplete) ? ' disabled' : '';
-  return '<button type="button" class="row-btn ghost" onclick="openReview(' + idNum + ')"' + dis + ' title="See the proposed Income and Expense entries, adjust, then save">Review &amp; Save</button>' +
-         '<button type="button" class="row-btn primary" onclick="postOne(' + idNum + ')"' + dis + ' title="Save using the configured Donation Settings">Save</button>' +
+  const offWhy = 'Turned off until the required Donation Settings are saved';
+  return '<button type="button" class="row-btn ghost" onclick="openReview(' + idNum + ')"' + dis + ' title="' + (settingsComplete ? 'See the proposed Income and Expense entries, adjust, then save' : offWhy) + '">Review &amp; Save</button>' +
+         '<button type="button" class="row-btn primary" onclick="postOne(' + idNum + ')"' + dis + ' title="' + (settingsComplete ? 'Save using the configured Donation Settings' : offWhy) + '">Save</button>' +
          feeSrcBadge(d);
 }
 

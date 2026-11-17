@@ -555,11 +555,16 @@ public class FamilyController {
                                                              HttpServletRequest request) {
         String deny = familyPageGuard(request);
         if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
+        // 2026-11-16 — whoever may delete a family may restore one (same key as Delete; never via "own family").
+        if (changeGuard(request, "admin.family.delete", null) != null) {
+            return ResponseEntity.status(403).body(Map.of("error", "You don't have permission to restore families."));
+        }
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         try {
-            familyService.restore(id, appClientId);
-            return ResponseEntity.ok(Map.of("success", true));
+            Map<String, Object> out = new java.util.LinkedHashMap<>(familyService.restoreWithSummary(id, appClientId));
+            out.put("success", true);
+            return ResponseEntity.ok(out);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }

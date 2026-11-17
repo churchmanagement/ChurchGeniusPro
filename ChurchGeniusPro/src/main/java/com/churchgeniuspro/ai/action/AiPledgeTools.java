@@ -65,6 +65,13 @@ public final class AiPledgeTools {
             if (fid != null) {
                 Hit f = funds.incomeFundById(cid, fid);
                 if (f == null) return Resolution.refuse("That fund is no longer one of this church's funds.");
+                // 2026-11-16 — a fund used exclusively by an active campaign cannot carry a second active campaign
+                // (the same rule the Pledges page applies).
+                java.util.List<PledgeCampaign> onFund = repo.findLiveActiveOnFund(cid, (int) f.id());
+                if (onFund != null) for (PledgeCampaign other : onFund) {
+                    if (other.isFundExclusive()) return Resolution.refuse("That fund is used exclusively by the active campaign “"
+                            + other.getName() + "”. Choose another fund, or close that campaign first on the Pledges page.");
+                }
                 r.put("fundId", f.id()); r.put("fundLabel", f.label());
             }
             if (raw.get("targetAmount") != null && !String.valueOf(raw.get("targetAmount")).isBlank()) {

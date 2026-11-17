@@ -54,6 +54,15 @@ public class PledgeCampaign {
     @Column(name = "status", length = 30)
     private String status;
 
+    /**
+     * "Use this Fund exclusively for this Campaign" (2026-11-16). When true, EVERY gift recorded to the fund inside
+     * the campaign's window counts toward the campaign — from pledgers, other members and guests alike. False (the
+     * default, and every campaign created before this option) keeps the original calculation: pledgers' gifts only.
+     */
+    @Column(name = "fund_exclusive", nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean fundExclusive;
+
     @Column(name = "delete_flag", nullable = false)
     private boolean deleteFlag;
 

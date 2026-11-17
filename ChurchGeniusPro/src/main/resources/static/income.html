@@ -252,6 +252,10 @@
     .txn-amount { font-weight: 600; color: #2e7d32; }
     .row-num { font-size: 13px; color: #ccc; }
     /* Just-added row: shown in its normal date position, tinted for a few seconds, then fades back. */
+    /* "Deleted" tag beside a contributor / fund / method that has since been deleted */
+    .ref-del-tag { display:inline-block; margin-left:5px; padding:1px 7px; border-radius:10px; border:1px solid #f5c6c1 !important;
+      background:#fdecea !important; color:#a5322a !important; font-size:11px; font-weight:700; line-height:1.5; cursor:pointer; vertical-align:middle; font-family:inherit; }
+    .ref-del-tag:hover { background:#f9d6d2 !important; }
     .txn-table tr.row-new td { background: #e8f5e9; transition: background-color .8s ease; }
     .txn-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #2e7d32; }
     .txn-table tr.row-new-fade td { transition: background-color .8s ease; }
@@ -817,10 +821,10 @@
           ${rows.map((t, idx) => `
             <tr${newRowAttrs(t.id)}>
               <td class="row-num">${idx + 1}${t.quickAdd ? ' <span title="Recurring" style="font-size:11px;">🔁</span>' : ''}${newRowTag(t.id)}</td>
-              <td>${escHtml(t.memberName || t.guestName || '')}</td>
-              <td>${localStorage.getItem('showMainWithSub') !== 'false' ? escHtml(t.mainSourceName) + ' / ' + escHtml(t.subSourceName) : escHtml(t.subSourceName)}</td>
+              <td>${escHtml(t.memberName || t.guestName || '')}${delTag(t.memberDeleted, t.id, 'contributor')}</td>
+              <td>${localStorage.getItem('showMainWithSub') !== 'false' ? escHtml(t.mainSourceName) + ' / ' + escHtml(t.subSourceName) : escHtml(t.subSourceName)}${delTag(t.subSourceDeleted, t.id, 'fund')}</td>
               <td>${formatDate(t.incomeDate)}</td>
-              <td>${escHtml(t.method)}</td>
+              <td>${escHtml(t.method)}${delTag(t.methodDeleted, t.id, 'transaction type')}</td>
               <td>${escHtml(t.refNo || '—')}</td>
               <td class="txn-amount" style="text-align:right;">$${formatAmount(t.amount)}</td>
               <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
@@ -969,9 +973,42 @@
   /* ════════════════════════════════════
      EDIT — load record into form
   ════════════════════════════════════ */
+  /* ── Deleted references (2026-11-16) ─────────────────────────────────────────
+     An entry can still refer to a contributor, fund or transaction type that was deleted later. The list shows a
+     "Deleted" tag beside the original name; clicking it opens the entry so an active one can be chosen. Nothing is
+     replaced automatically. While editing, the deleted entry stays selectable for THIS record only. */
+  function delTag(on, id, what) {
+    if (on && window.CGP_PERMS && window.CGP_PERMS['accounting.income.edit'] === false) return ` <span class="ref-del-tag" style="cursor:default;" title="This ${what} has been deleted.">Deleted</span>`;
+    return on ? ` <button type="button" class="ref-del-tag" onclick="event.stopPropagation(); editIncome(${id})" title="This ${what} has been deleted. Click to open the entry and choose an active one." aria-label="Deleted ${what} — open the entry to choose an active one">Deleted</button>` : '';
+  }
+  function clearDeletedOptions() {
+    document.querySelectorAll('option[data-deleted-ref]').forEach(o => o.remove());
+    const n = document.getElementById('refDeletedNote'); if (n) n.remove();
+  }
+  function keepDeletedOption(selectId, id, label) {
+    const sel = document.getElementById(selectId);
+    if (!sel || id == null || [...sel.options].some(o => String(o.value) === String(id))) return;
+    const o = document.createElement('option');
+    o.value = id; o.textContent = label + ' (Deleted)'; o.setAttribute('data-deleted-ref', '1');
+    sel.appendChild(o);
+  }
+  function showDeletedNote(cardId, parts) {
+    if (!parts.length) return;
+    const card = document.getElementById(cardId); if (!card) return;
+    const n = document.createElement('div');
+    n.id = 'refDeletedNote'; n.setAttribute('role', 'status');
+    n.style.cssText = 'margin:10px 0;padding:10px 14px;border:1px solid #f5c6c1;background:#fdecea;color:#7a2018;border-radius:8px;font-size:13px;line-height:1.5;';
+    n.textContent = 'This entry uses a deleted ' + parts.join(' and a deleted ') + '. You can keep it as it is, or choose an active one and save. Nothing is changed until you save.';
+    const head = card.firstElementChild;
+    card.insertBefore(n, head ? head.nextSibling : null);
+  }
+
   function editIncome(id) {
     const txn = allTransactions.find(t => t.id === id);
     if (!txn) return;
+    clearDeletedOptions();
+    if (txn.subSourceDeleted) keepDeletedOption('fFund', txn.subSourceId, (txn.mainSourceName ? txn.mainSourceName + ' / ' : '') + (txn.subSourceName || ''));
+    if (txn.methodDeleted)    keepDeletedOption('fMethod', txn.transactionTypeId, txn.method || '');
 
     editingId = id;
     document.getElementById('formCardTitle').textContent = 'Edit Income';
@@ -996,6 +1033,8 @@
     document.getElementById('fAmount').value    = txn.amount      || '';
     document.getElementById('fNote').value      = txn.note        || '';
     document.getElementById('fQuickAdd').checked = !!txn.quickAdd;
+
+    showDeletedNote('formCard', [txn.memberDeleted ? 'contributor' : '', txn.subSourceDeleted ? 'fund' : '', txn.methodDeleted ? 'transaction type' : ''].filter(Boolean));
 
     // Scroll to form
     document.getElementById('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1083,6 +1122,7 @@
      CLEAR FORM
   ════════════════════════════════════ */
   function clearForm() {
+    clearDeletedOptions();
     editingId             = null;
     selectedContributorId = null;
 

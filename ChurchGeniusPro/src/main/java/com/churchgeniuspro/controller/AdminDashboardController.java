@@ -116,7 +116,8 @@ public class AdminDashboardController {
                 .count();
 
         // Families (all active)
-        long families = familyRepo.findAllActiveForLocationByAppUser(appClientId).size();
+        List<com.churchgeniuspro.hibernate.Family> activeFamilies = familyRepo.findAllActiveForLocationByAppUser(appClientId);
+        long families = activeFamilies.size();
 
         if (statsAllowed) {
             res.put("totalMembers", totalMembers);
@@ -125,6 +126,8 @@ public class AdminDashboardController {
             res.put("families",     families);
             // Groups, Attendance %, Events, Visitors, Birthdays / Anniversaries / Meetings (month · week · today)
             if (glanceService != null) res.put("glance", glanceService.glance(appClientId, allMembers, AppClock.today()));
+            // 2026-11-16 — the figures beside the Church Growth chart (same permission as the statistics).
+            res.put("growth", growthFigures(allMembers, activeFamilies, LocalDate.now().getYear()));
         }
 
         // ── Congregation breakdown by family role ─────────────────────────
@@ -193,5 +196,65 @@ public class AdminDashboardController {
         res.put("upcomingMeetings", meetingList);
 
         return ResponseEntity.ok(res);
+    }
+
+    /**
+     * Members and Families figures shown beside the Church Growth chart.
+     * Members = people whose type is Member (active, not deleted): total, added in {@code year}, male, female,
+     * adults and children (role Child). Families = active families: total, added in {@code year}, and those whose
+     * primary member is a Guest / a Visitor (the Families page rule for a family's type).
+     */
+    public static Map<String, Object> growthFigures(List<FamilyMember> people, List<com.churchgeniuspro.hibernate.Family> families, int year) {
+        long total = 0, added = 0, male = 0, female = 0, adults = 0, children = 0;
+        for (FamilyMember m : people) {
+            if (!"member".equalsIgnoreCase(m.getMemberType())) continue;
+            total++;
+            if (inYear(m.getCreatedDate(), year)) added++;
+            if ("male".equalsIgnoreCase(m.getGender())) male++;
+            else if ("female".equalsIgnoreCase(m.getGender())) female++;
+            if ("Child".equalsIgnoreCase(com.churchgeniuspro.util.FamilyRoles.canonical(m.getRole()))) children++;
+            else adults++;
+        }
+        Map<String, Object> members = new LinkedHashMap<>();
+        members.put("total", total);
+        members.put("added", added);
+        members.put("male", male);
+        members.put("female", female);
+        members.put("adults", adults);
+        members.put("children", children);
+
+        long famAdded = 0, guests = 0, visitors = 0;
+        for (com.churchgeniuspro.hibernate.Family f : families) {
+            if (inYear(f.getCreatedDate(), year)) famAdded++;
+            FamilyMember primary = null;
+            if (f.getMembers() != null) {
+                for (FamilyMember m : f.getMembers()) {
+                    if (m == null || m.isDeleteFlag()) continue;
+                    String role = com.churchgeniuspro.util.FamilyRoles.canonical(m.getRole());
+                    boolean head = com.churchgeniuspro.util.FamilyRoles.HEAD.equals(role);
+                    if (head) { primary = m; break; }
+                    if (primary == null || (m.getId() != null && primary.getId() != null && m.getId() < primary.getId())) primary = m;
+                }
+            }
+            String type = primary == null || primary.getMemberType() == null ? "" : primary.getMemberType().trim();
+            if ("guest".equalsIgnoreCase(type)) guests++;
+            else if ("visitor".equalsIgnoreCase(type)) visitors++;
+        }
+        Map<String, Object> fam = new LinkedHashMap<>();
+        fam.put("total", (long) families.size());
+        fam.put("added", famAdded);
+        fam.put("guests", guests);
+        fam.put("visitors", visitors);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("year", year);
+        out.put("members", members);
+        out.put("families", fam);
+        return out;
+    }
+
+    private static boolean inYear(Date d, int year) {
+        if (d == null) return false;
+        return new java.util.Date(d.getTime()).toInstant().atZone(ZoneId.systemDefault()).getYear() == year;
     }
 }

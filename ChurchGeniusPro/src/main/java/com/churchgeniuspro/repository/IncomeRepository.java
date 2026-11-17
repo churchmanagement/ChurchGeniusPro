@@ -445,6 +445,65 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
                                            @Param("appClientId") String  appClientId,
                                            @Param("startDate")   LocalDate startDate);
 
+    // ── Campaign-specific fund (2026-11-16): all gifts to one fund inside a campaign's window ──
+    // Always this church; active rows only. A campaign without an end date uses the "From" form
+    // (a null date parameter cannot be typed by the PostgreSQL driver).
+
+    /** Everything given to the fund in the window, by anyone (members and guests). */
+    default BigDecimal campaignFundTotal(Integer subSourceId, String appClientId, LocalDate startDate, LocalDate endDate) {
+        BigDecimal v = endDate == null ? campaignFundTotalFrom(subSourceId, appClientId, startDate)
+                                       : campaignFundTotalBetween(subSourceId, appClientId, startDate, endDate);
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    @Query("SELECT SUM(i.amount) FROM Income i WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId AND i.incomeDate >= :startDate AND i.incomeDate <= :endDate")
+    BigDecimal campaignFundTotalBetween(@Param("subSourceId") Integer subSourceId, @Param("appClientId") String appClientId,
+                                        @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT SUM(i.amount) FROM Income i WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId AND i.incomeDate >= :startDate")
+    BigDecimal campaignFundTotalFrom(@Param("subSourceId") Integer subSourceId, @Param("appClientId") String appClientId,
+                                     @Param("startDate") LocalDate startDate);
+
+    /** The part of {@link #campaignFundTotal} given by the listed members (the campaign's pledgers), each row once. */
+    default BigDecimal campaignFundTotalForMembers(Integer subSourceId, String appClientId, java.util.Collection<Integer> memberIds,
+                                                   LocalDate startDate, LocalDate endDate) {
+        if (memberIds == null || memberIds.isEmpty()) return BigDecimal.ZERO;
+        BigDecimal v = endDate == null ? campaignFundMembersFrom(subSourceId, appClientId, memberIds, startDate)
+                                       : campaignFundMembersBetween(subSourceId, appClientId, memberIds, startDate, endDate);
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    @Query("SELECT SUM(i.amount) FROM Income i WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId AND i.member.id IN :memberIds " +
+           "AND i.incomeDate >= :startDate AND i.incomeDate <= :endDate")
+    BigDecimal campaignFundMembersBetween(@Param("subSourceId") Integer subSourceId, @Param("appClientId") String appClientId,
+                                          @Param("memberIds") java.util.Collection<Integer> memberIds,
+                                          @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT SUM(i.amount) FROM Income i WHERE i.deleteFlag = false AND i.appClientId = :appClientId " +
+           "AND i.subSource.id = :subSourceId AND i.member.id IN :memberIds AND i.incomeDate >= :startDate")
+    BigDecimal campaignFundMembersFrom(@Param("subSourceId") Integer subSourceId, @Param("appClientId") String appClientId,
+                                       @Param("memberIds") java.util.Collection<Integer> memberIds,
+                                       @Param("startDate") LocalDate startDate);
+
+    /**
+     * Outside contributions: gifts to the fund in the window from anyone who is NOT one of the listed pledgers
+     * (other members, and guests with no member). Rows of [id, income_date, amount, first, last, guest_name],
+     * newest first. {@code memberIds} must not be empty — pass a list holding -1 when there are no pledgers.
+     */
+    @Query(value = "SELECT i.id, i.income_date, i.amount, fm.first_name, fm.last_name, i.guest_name " +
+           "FROM income i LEFT JOIN family_member fm ON fm.id = i.member_id " +
+           "WHERE i.delete_flag = false AND i.app_client_id = :appClientId AND i.sub_source_id = :subSourceId " +
+           "AND (i.member_id IS NULL OR i.member_id NOT IN (:memberIds)) " +
+           "AND i.income_date >= :startDate AND i.income_date <= :endDate " +
+           "ORDER BY i.income_date DESC, i.id DESC LIMIT :limit", nativeQuery = true)
+    List<Object[]> campaignOutsideRows(@Param("subSourceId") Integer subSourceId, @Param("appClientId") String appClientId,
+                                       @Param("memberIds") java.util.Collection<Integer> memberIds,
+                                       @Param("startDate") java.sql.Date startDate, @Param("endDate") java.sql.Date endDate,
+                                       @Param("limit") int limit);
+
     // ── Tenant-scoped lookups (security audit, week 1) ─────────────────────
 
     java.util.Optional<Income> findByIdAndAppClientIdAndDeleteFlagFalse(Integer id, String appClientId);

@@ -133,7 +133,9 @@ window.CGP_memberNameHtml = function (first, last, nick) {
         { id: 'members/ai-data-sharing', label: 'AI Data Sharing', icon: '&#x1F510;', href: '/aiDataSharing', appOnly: true }
     ]},
     { id: 'admin', label: 'Admin', icon: '&#x1F451;', children: [
-        { id: 'admin/users',               label: 'Users',               icon: '&#x1F464;', href: '/viewusers'            },
+        // 2026-11-16: church login only (the page and its APIs already refuse every other role). churchOnly keeps
+        // it out of the menu at render time, so it never shows even on a page where the role filter has not run.
+        { id: 'admin/users',               label: 'Users',               icon: '&#x1F464;', href: '/viewusers',   churchOnly: true },
         // Temporary Access is reachable from the Users page (button next to "Add User"),
         // so it is intentionally NOT a side-nav item.
         // Meetings moved to General (general/meetings) per product change.

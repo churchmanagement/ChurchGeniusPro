@@ -28,4 +28,11 @@ public interface PledgeCampaignRepository extends JpaRepository<PledgeCampaign, 
     List<PledgeCampaign> findActiveByClientIdAndSubSource(
             @Param("clientId") String clientId,
             @Param("subSourceId") Integer subSourceId);
+
+    /** Every live (not deleted) Active campaign of the church on this fund — for the one-campaign-per-fund rule. */
+    @Query("SELECT c FROM PledgeCampaign c " +
+           "WHERE c.clientId = :clientId AND c.deleteFlag = false " +
+           "AND c.status = 'Active' AND c.subSourceId = :subSourceId ORDER BY c.id")
+    List<PledgeCampaign> findLiveActiveOnFund(@Param("clientId") String clientId,
+                                              @Param("subSourceId") Integer subSourceId);
 }

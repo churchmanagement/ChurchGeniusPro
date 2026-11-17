@@ -131,8 +131,13 @@ public class AppUserController {
         // Every session type resolves to its own tenant; a null tenant is 401, never
         // "list everyone". (Previously only church sessions were scoped and any staff
         // or member session received every church's user directory.)
-        String clientId = RoleGuard.clientId(request);
-        if (clientId == null) return ResponseEntity.status(401).body(List.of());
+        // 2026-11-16: the staff-user list is for the church login only, like every other call of the Users page
+        // (it used to answer any signed-in session of the church, SuperAdmin and Member Portal logins included).
+        if (request.getSession(false) == null || RoleGuard.clientId(request) == null) {
+            return ResponseEntity.status(401).body(List.of());
+        }
+        String clientId = ownerClientId(request);
+        if (clientId == null) return ResponseEntity.status(403).body(List.of());
         return ResponseEntity.ok(userService.getAll(clientId));
     }
 

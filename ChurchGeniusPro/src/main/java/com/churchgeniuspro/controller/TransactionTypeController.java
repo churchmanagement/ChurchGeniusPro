@@ -39,6 +39,13 @@ public class TransactionTypeController {
 
     private final TransactionTypeService transactionTypeService;
 
+    /**
+     * 2026-11-16 — records who deleted an entry and when (and, for a main category, which sub-categories went with
+     * it) so it can be restored. Optional: without it the delete works exactly as before.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ReferenceDataService referenceData;
+
     public TransactionTypeController(TransactionTypeService transactionTypeService) {
         this.transactionTypeService = transactionTypeService;
     }
@@ -116,7 +123,8 @@ public class TransactionTypeController {
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
-            transactionTypeService.delete(id, appClientId);
+            if (referenceData != null) referenceData.softDelete(com.churchgeniuspro.service.ReferenceDataService.TYPE, id, appClientId, com.churchgeniuspro.util.SessionUtil.getUsername(request));
+            else transactionTypeService.delete(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());

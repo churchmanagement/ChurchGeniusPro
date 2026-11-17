@@ -218,6 +218,8 @@
       '.ga-conv.on{background:var(--ga-plum);border-color:var(--ga-plum);color:#fff;}',
       '@media (max-width:767px){.ga-conv .ga-conv-t{display:none;}.ga-conv{width:42px;padding:0;justify-content:center;}.ga-help-btn{padding:5px 8px;margin-left:2px;}.ga-new{padding:5px 8px;}.ga-tools .ga-ib{width:29px;}.ga-title b{font-size:14px;}}',
       '.ga-fab .ga-fdot{width:8px;height:8px;border-radius:50%;background:#ffd36e;display:none;}',
+      '.ga-fab{touch-action:none;-webkit-user-select:none;user-select:none;}',
+      '.ga-fab.ga-fab-drag{cursor:grabbing;box-shadow:0 12px 30px rgba(70,20,45,.45);opacity:.94;transition:none;}',
       'html.ga-drafting .ga-fab .ga-fdot{display:block;}',
       '@media (max-width:767px){.ga-fab{right:12px;bottom:calc(12px + env(safe-area-inset-bottom));}.ga-new span{display:none;}.ga-panel .aa-choices{grid-template-columns:1fr;}.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,1fr) auto;}.ga-panel .ga-review .aa-field-k{grid-column:1 / -1;}.ga-submit{padding:0 13px;}.ga-full-btn{display:none !important;}}',
       'html.ga-pagemode #aaHost,html.ga-pagemode .ga-fab{display:none !important;}'
@@ -272,11 +274,105 @@
       fab.innerHTML = '<span class="ga-av" style="width:24px;height:24px;font-size:12px;border-radius:8px;" aria-hidden="true">✦</span>Genius<span class="ga-fdot" aria-hidden="true"></span>';
       document.body.appendChild(fab);
       bd.addEventListener('click', close);
-      fab.addEventListener('click', function () { open(true); });
+      fab.addEventListener('click', function (e) {
+        if (fab._dragged) { fab._dragged = false; e.preventDefault(); e.stopPropagation(); return; }   // the end of a drag is not a tap
+        open(true);
+      });
+      makeFabDraggable(fab);
     }
     ['gaLog', 'gaInput', 'gaSubmit', 'gaMic', 'gaForm', 'gaStatus', 'gaDraft', 'gaDraftText', 'gaHint', 'gaPill', 'gaMenu', 'gaMenuBtn'].forEach(function (id) { el[id] = document.getElementById(id); });
     el.panel = panel;
     wire();
+  }
+
+  /* ── The ✦ Genius launcher can be moved (2026-11-16) ─────────────────────────────────────────────────────────
+     It sometimes sat on top of a page's own buttons. Drag it with the mouse or a finger (or Shift + arrow keys when
+     it has focus) to any spot; it stays inside the visible screen, clear of the phone's notch / home bar, and the
+     spot is remembered on this device (as a share of the screen, so it survives rotation and other window sizes).
+     A short tap still opens the assistant. Double-click, or Shift + Home, puts it back in the bottom-right corner. */
+  var FAB_KEY = 'ga.fabPos', FAB_MARGIN = 8, FAB_DRAG_PX = 6;
+  function fabInsets() {
+    var probe = document.getElementById('gaSafeProbe');
+    if (!probe) {
+      probe = document.createElement('div'); probe.id = 'gaSafeProbe';
+      probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;'
+        + 'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+      document.body.appendChild(probe);
+    }
+    var cs = getComputedStyle(probe);
+    return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+  }
+  function fabBounds(fab) {
+    var i = fabInsets(), w = fab.offsetWidth || 110, h = fab.offsetHeight || 46;
+    var vw = document.documentElement.clientWidth || window.innerWidth, vh = window.innerHeight;
+    return { minX: FAB_MARGIN + i.l, minY: FAB_MARGIN + i.t,
+             maxX: Math.max(FAB_MARGIN + i.l, vw - w - FAB_MARGIN - i.r), maxY: Math.max(FAB_MARGIN + i.t, vh - h - FAB_MARGIN - i.b) };
+  }
+  function fabPlace(fab, x, y) {
+    var b = fabBounds(fab);
+    x = Math.min(b.maxX, Math.max(b.minX, x)); y = Math.min(b.maxY, Math.max(b.minY, y));
+    fab.style.left = Math.round(x) + 'px'; fab.style.top = Math.round(y) + 'px'; fab.style.right = 'auto'; fab.style.bottom = 'auto';
+    return { x: x, y: y, b: b };
+  }
+  function fabSave(fab, pos) {
+    var sx = pos.b.maxX - pos.b.minX, sy = pos.b.maxY - pos.b.minY;
+    try { localStorage.setItem(FAB_KEY, JSON.stringify({ fx: sx > 0 ? (pos.x - pos.b.minX) / sx : 1, fy: sy > 0 ? (pos.y - pos.b.minY) / sy : 1 })); } catch (e) {}
+  }
+  function fabRestore(fab) {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(FAB_KEY) || 'null'); } catch (e) { saved = null; }
+    if (!saved || typeof saved.fx !== 'number' || typeof saved.fy !== 'number' || !isFinite(saved.fx) || !isFinite(saved.fy)) { fabReset(fab, false); return; }
+    if (!fab.offsetWidth) return;                         // hidden right now — placed when it is next shown
+    var b = fabBounds(fab);
+    fabPlace(fab, b.minX + Math.min(1, Math.max(0, saved.fx)) * (b.maxX - b.minX), b.minY + Math.min(1, Math.max(0, saved.fy)) * (b.maxY - b.minY));
+  }
+  function fabReset(fab, forget) {
+    fab.style.left = fab.style.top = fab.style.right = fab.style.bottom = '';      // back to the stylesheet's bottom-right corner
+    if (forget) { try { localStorage.removeItem(FAB_KEY); } catch (e) {} }
+  }
+  function makeFabDraggable(fab) {
+    fab.style.touchAction = 'none';                        // a finger on the launcher moves it instead of scrolling the page
+    fab.title = 'Genius Assistant — drag to move';
+    var start = null;
+    fab.addEventListener('pointerdown', function (e) {
+      if (e.button != null && e.button !== 0) return;
+      var r = fab.getBoundingClientRect();
+      start = { id: e.pointerId, px: e.clientX, py: e.clientY, ox: r.left, oy: r.top, moved: false, last: null };
+      try { fab.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    fab.addEventListener('pointermove', function (e) {
+      if (!start || e.pointerId !== start.id) return;
+      var dx = e.clientX - start.px, dy = e.clientY - start.py;
+      if (!start.moved && Math.abs(dx) < FAB_DRAG_PX && Math.abs(dy) < FAB_DRAG_PX) return;
+      start.moved = true; fab.classList.add('ga-fab-drag');
+      start.last = fabPlace(fab, start.ox + dx, start.oy + dy);
+      e.preventDefault();
+    });
+    function end(e) {
+      if (!start || (e && e.pointerId !== start.id)) return;
+      try { fab.releasePointerCapture(start.id); } catch (x) {}
+      fab.classList.remove('ga-fab-drag');
+      if (start.moved) { fab._dragged = true; if (start.last) fabSave(fab, start.last); setTimeout(function () { fab._dragged = false; }, 350); }
+      start = null;
+    }
+    fab.addEventListener('pointerup', end);
+    fab.addEventListener('pointercancel', function (e) { if (start && start.moved && start.last) fabSave(fab, start.last); if (start) { fab.classList.remove('ga-fab-drag'); start = null; } });
+    fab.addEventListener('dblclick', function (e) { e.preventDefault(); fabReset(fab, true); });
+    fab.addEventListener('keydown', function (e) {
+      if (!e.shiftKey) return;
+      var step = 24, r = fab.getBoundingClientRect(), x = r.left, y = r.top;
+      if (e.key === 'ArrowLeft') x -= step; else if (e.key === 'ArrowRight') x += step;
+      else if (e.key === 'ArrowUp') y -= step; else if (e.key === 'ArrowDown') y += step;
+      else if (e.key === 'Home') { e.preventDefault(); fabReset(fab, true); return; }
+      else return;
+      e.preventDefault(); fabSave(fab, fabPlace(fab, x, y));
+    });
+    var again = function () { fabRestore(fab); };
+    window.addEventListener('resize', again);
+    window.addEventListener('orientationchange', function () { setTimeout(again, 250); });
+    // The launcher is hidden while the panel is open; put it back in its remembered spot whenever it shows again.
+    try { new MutationObserver(again).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
+    setTimeout(again, 0);
   }
 
   function wire() {

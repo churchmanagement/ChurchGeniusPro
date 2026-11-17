@@ -510,20 +510,12 @@
   async function deletePurpose(id) {
     const p    = purposeMap[id];
     const name = p ? p.purposeName : String(id);
-    if (!confirm('Are you sure you want to delete this purpose?')) return;
-
-    try {
-      const res  = await fetch(`/api/purposes/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        showFeedback(`"${escHtml(name)}" has been deleted.`, 'success');
-        await loadPurposes();
-      } else {
-        showFeedback(`❌ ${data.error || 'Failed to delete purpose.'}`, 'error');
-      }
-    } catch {
-      showFeedback('❌ Network error — could not delete purpose.', 'error');
-    }
+    CGP_refDelete.ask({ kind: 'purpose', id, name, onDone: async (r) => {
+      showFeedback(r.mode === 'permanent' ? `"${name}" has been permanently deleted.`
+                                          : `"${name}" has been deleted. You can restore it under "Deleted" below.`, 'success');
+      await loadPurposes();
+      if (window._rdDeleted) window._rdDeleted.refresh();
+    }});
   }
 
   /* ════════════════════════════════════
@@ -559,6 +551,13 @@
 window.CGP_PAGE = { activePage: 'account-settings/purpose', pageTitle: 'Purpose', openSection: 'account-settings' };
 </script>
 <script src="/shell.js"></script>
+<script src="/ref-delete.js"></script>
+<script>
+  window._rdDeleted = CGP_refDelete.mountDeleted({ list: 'purpose', onChange: function (msg) {
+    if (typeof showFeedback === 'function') showFeedback(msg, 'success');
+    if (typeof loadPurposes === 'function') loadPurposes();
+  }});
+</script>
 <script src="/session.js"></script>
 </body>
 </html>

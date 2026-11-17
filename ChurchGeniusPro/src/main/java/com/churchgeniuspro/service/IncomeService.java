@@ -314,11 +314,18 @@ public class IncomeService {
         String     origClientId    = income.getAppClientId();
         LocalDate  origIncomeDate  = income.getIncomeDate();
 
-        FamilyMember member = memberId != null ? findMemberOrThrow(memberId, appClientId) : null;
+        // 2026-11-16 — an entry that already refers to a DELETED contributor, fund or transaction type may keep
+        // that reference while other fields are corrected (history is never rewritten silently). Choosing a
+        // DIFFERENT one must be an active entry, exactly as for a new transaction.
+        FamilyMember member = memberId == null ? null
+                : (income.getMember() != null && memberId.equals(income.getMember().getId())
+                        ? income.getMember() : findMemberOrThrow(memberId, appClientId));
         income.setMember(member);
-        income.setSubSource(findSubSourceOrThrow(subSourceId, appClientId));
+        income.setSubSource(income.getSubSource() != null && income.getSubSource().getId().equals(subSourceId)
+                ? income.getSubSource() : findSubSourceOrThrow(subSourceId, appClientId));
         income.setIncomeDate(incomeDate);
-        income.setTransactionType(findTransactionTypeOrThrow(transactionTypeId, appClientId));
+        income.setTransactionType(income.getTransactionType() != null && income.getTransactionType().getId().equals(transactionTypeId)
+                ? income.getTransactionType() : findTransactionTypeOrThrow(transactionTypeId, appClientId));
         income.setRefNo(refNo != null ? refNo.trim() : null);
         income.setAmount(amount);
         income.setNote(note != null ? note.trim() : null);
@@ -423,6 +430,10 @@ public class IncomeService {
         map.put("subSourceId",    i.getSubSource().getId());
         map.put("subSourceName",  i.getSubSource().getSourceName());
         map.put("mainSourceName", i.getSubSource().getMainSource().getSourceName());
+        // 2026-11-16 — the entry still refers to something that has since been deleted (shown as a tag in the list)
+        map.put("subSourceDeleted", i.getSubSource().isDeleteFlag() || i.getSubSource().getMainSource().isDeleteFlag());
+        map.put("memberDeleted", memberDeleted(m));
+        map.put("methodDeleted", i.getTransactionType() != null && i.getTransactionType().isDeleteFlag());
         map.put("incomeDate",         i.getIncomeDate() != null ? i.getIncomeDate().toString() : null);
         TransactionType tt = i.getTransactionType();
         map.put("transactionTypeId",  tt != null ? tt.getId()       : null);
@@ -435,6 +446,17 @@ public class IncomeService {
         map.put("updatedBy",      i.getUpdatedBy());
         map.put("updatedDate",    i.getUpdatedDate() != null ? i.getUpdatedDate().toString() : null);
         return map;
+    }
+
+    /** A contributor counts as deleted when the member, or the whole family, is deleted. Never fails the list. */
+    private static boolean memberDeleted(FamilyMember m) {
+        if (m == null) return false;
+        if (m.isDeleteFlag()) return true;
+        try {
+            return m.getFamily() != null && m.getFamily().isDeleteFlag();
+        } catch (RuntimeException lazy) {
+            return false;
+        }
     }
 
     // All lookups are tenant-scoped: an id that exists in another church yields the

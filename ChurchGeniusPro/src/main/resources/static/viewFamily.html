@@ -467,6 +467,20 @@
     }
     .fam-act svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
     .fam-act:hover { background: #673147; color: #fff; border-color: #673147; }
+    .fam-act-restore { color: #1b6e3a; border-color: #b9dcc6; background: #eef8f1; }
+    .fam-act-restore:hover { background: #1b6e3a; border-color: #1b6e3a; color: #fff; }
+    /* ── Confirmation dialog (delete / restore) ── */
+    .cf-box { background:#fff; border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.22); width:480px; max-width:calc(100vw - 32px); overflow:hidden; }
+    .cf-head { background:#673147; color:#fff; font-size:15px; font-weight:700; padding:14px 20px; }
+    .cf-body { padding:18px 20px 6px; font-size:14px; line-height:1.55; color:#333; }
+    .cf-body p { margin:0 0 10px; }
+    .cf-body ul { margin:0 0 10px 18px; padding:0; }
+    .cf-body .cf-names { font-weight:600; color:#4a2233; }
+    .cf-foot { display:flex; justify-content:flex-end; gap:10px; padding:12px 20px 18px; flex-wrap:wrap; }
+    .cf-btn { border:1px solid #d9cdd3 !important; background:#fff !important; color:#444; border-radius:8px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; min-height:40px; }
+    .cf-btn.cf-danger { background:#b3261e !important; border-color:#b3261e !important; color:#fff; }
+    .cf-btn.cf-ok { background:#1b6e3a !important; border-color:#1b6e3a !important; color:#fff; }
+    .cf-btn:disabled { opacity:.6; cursor:default; }
     .fam-foot {
       display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
       padding: 9px 16px; border-top: 1px dashed #eadfe5; background: #fcfafb;
@@ -696,6 +710,18 @@
   </div>
 </div>
 
+<!-- ════════════ CONFIRMATION DIALOG (delete / restore a family) ════════════ -->
+<div class="modal-overlay" id="cfOverlay" style="z-index:600;">
+  <div class="cf-box" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" aria-describedby="cfBody">
+    <div class="cf-head" id="cfTitle"></div>
+    <div class="cf-body" id="cfBody"></div>
+    <div class="cf-foot">
+      <button type="button" class="cf-btn" id="cfCancel">Cancel</button>
+      <button type="button" class="cf-btn" id="cfOk"></button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════ MEMBERS MODAL ════════════ -->
 <div class="modal-overlay" id="membersModal" onclick="onModalOverlayClick(event)">
   <div class="modal-box">
@@ -853,6 +879,7 @@
   const ICON = {
     phone:  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>',
     people: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
+    restore:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z"/></svg>',
     edit:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
     bell:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>',
     bellOff:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 18.69 7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03zM12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-7.32V11c0-3.08-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68c-.15.03-.29.08-.42.12L18 14.68z"/></svg>'
@@ -892,6 +919,7 @@
     const photo     = safePhotoSrc(f.primaryPhotoData);
     const alertsOff = f.primaryAlertsDisabled === true;
     const canEdit   = !(window.CGP_PERMS && window.CGP_PERMS['admin.family.edit'] === false);
+    const canRestore = !(window.CGP_PERMS && window.CGP_PERMS['admin.family.delete'] === false);
     const phoneHtml = f.primaryPhone
       ? `<span>${formatPhone(f.primaryPhone)}</span>`
       : `<span class="fam-muted">No phone</span>`;
@@ -919,6 +947,9 @@
               ? `<button type="button" class="fam-act fam-act-edit" onclick="postNavigate('/family', {id:${f.id}, mode:'edit'})" title="Edit family" aria-label="Edit ${escHtml(name)}">${ICON.edit}</button>`
               : ''}
             <button type="button" class="fam-act fam-act-members" onclick="showMembers(${f.id})" title="View members" aria-label="View members of ${escHtml(name)}">${ICON.people}</button>
+            ${f.deleted && canRestore
+              ? `<button type="button" class="fam-act fam-act-restore" onclick="askRestoreFamily(${f.id})" title="Restore family" aria-label="Restore ${escHtml(name)}">${ICON.restore}</button>`
+              : ''}
           </div>
         </div>
         <div class="fam-inv" aria-label="Involvement">${involvementChips(involvementCounts[f.id])}</div>
@@ -1064,7 +1095,7 @@
     const f = familyMap[id];
     const primaryName = f ? (((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || f.familyName) : id;
     const name = f ? f.familyName : id;
-    if (!confirm(`Are you sure you want to delete "${primaryName}" and family members?`)) return;
+    if (!(await confirmDeleteFamilies([id]))) return;
     try {
       const res  = await fetch(`/api/families/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1079,13 +1110,98 @@
     }
   }
 
+  /* 2026-11-16 — this page called showFeedback() in eleven places but never defined it, so no success or error
+     message was ever shown here (and the missing function stopped the code that followed). Text only. */
+  function showFeedback(msg, type) {
+    const el = document.getElementById('feedbackMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.className   = 'feedback ' + (type || 'success');
+    el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+    clearTimeout(showFeedback._t);
+    showFeedback._t = setTimeout(() => { if (el.textContent === msg) el.className = 'feedback'; }, 8000);
+  }
+
+  /* In-page confirmation (2026-11-16): replaces the browser's confirm box for deleting and restoring families.
+     build(body) fills the message with DOM nodes (text only — names are never written as markup).
+     Resolves true on the confirm button, false on Cancel / Escape / a click outside. */
+  function confirmDialog(opts) {
+    return new Promise(resolve => {
+      const ov = document.getElementById('cfOverlay'), ok = document.getElementById('cfOk'), no = document.getElementById('cfCancel');
+      const body = document.getElementById('cfBody');
+      document.getElementById('cfTitle').textContent = opts.title;
+      body.textContent = ''; opts.build(body);
+      ok.textContent = opts.okText; ok.className = 'cf-btn ' + (opts.danger ? 'cf-danger' : 'cf-ok');
+      const prev = document.activeElement;
+      function done(v) {
+        ov.classList.remove('open'); document.removeEventListener('keydown', key, true);
+        ok.onclick = no.onclick = ov.onclick = null;
+        if (prev && prev.focus) { try { prev.focus(); } catch (_) {} }
+        resolve(v);
+      }
+      function key(e) {
+        if (e.key === 'Escape') { e.preventDefault(); done(false); }
+        else if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === no ? ok : no).focus(); }
+      }
+      ok.onclick = () => done(true); no.onclick = () => done(false);
+      ov.onclick = e => { if (e.target === ov) done(false); };
+      document.addEventListener('keydown', key, true);
+      ov.classList.add('open'); no.focus();
+    });
+  }
+  function cfP(parent, text, cls) { const p = document.createElement('p'); p.textContent = text; if (cls) p.className = cls; parent.appendChild(p); return p; }
+  function cfList(parent, items) { const ul = document.createElement('ul'); items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); parent.appendChild(ul); }
+
+  function familyLabel(id) {
+    const f = familyMap[id];
+    return f ? (f.familyName || ((f.primaryFirstName || '') + ' ' + (f.primaryLastName || '')).trim() || ('Family ' + id)) : ('Family ' + id);
+  }
+
+  function confirmDeleteFamilies(ids) {
+    const one = ids.length === 1;
+    const people = ids.reduce((n, id) => n + (familyMap[id] && Number(familyMap[id].memberCount) || 0), 0);
+    return confirmDialog({
+      title: one ? 'Delete this family?' : 'Delete ' + ids.length + ' families?',
+      okText: one ? 'Delete family' : 'Delete ' + ids.length + ' families', danger: true,
+      build(body) {
+        cfP(body, one ? 'Are you sure you want to delete this family?' : 'Are you sure you want to delete these families?');
+        cfP(body, ids.slice(0, 6).map(familyLabel).join(', ') + (ids.length > 6 ? ' and ' + (ids.length - 6) + ' more' : ''), 'cf-names');
+        cfList(body, [
+          (one ? 'The family' : 'Each family') + ' and ' + (people ? (one ? 'its ' : 'their ') + people + ' member' + (people === 1 ? '' : 's') : (one ? 'its members' : 'their members'))
+            + ' will be marked as deleted and hidden from the family list, the directory and reminders.',
+          'Nothing is erased. Giving, attendance and other records are kept.',
+          'You can bring ' + (one ? 'the family' : 'them') + ' back later: tick "Deleted" above the list and choose Restore.'
+        ]);
+      }
+    });
+  }
+
+  async function askRestoreFamily(id) {
+    const f = familyMap[id]; const count = f && Number(f.memberCount) || 0;
+    const yes = await confirmDialog({
+      title: 'Restore this family?', okText: 'Restore family', danger: false,
+      build(body) {
+        cfP(body, familyLabel(id), 'cf-names');
+        cfList(body, [
+          'The family' + (count ? ' and its member' + (count === 1 ? '' : 's') : '') + ' will be active again, with all their details as they were.',
+          'A member who was deleted on their own before the family was deleted stays deleted.'
+        ]);
+      }
+    });
+    if (yes) await restoreFamily(id);
+  }
+
   async function restoreFamily(id) {
     const name = familyMap[id] ? familyMap[id].familyName : id;
     try {
       const res  = await fetch(`/api/families/${id}/restore`, { method: 'PATCH' });
       const data = await res.json();
       if (res.ok) {
-        showFeedback(`"${name}" has been restored.`, 'success');
+        const n = Number(data.membersRestored) || 0, kept = Number(data.stillDeleted) || 0;
+        showFeedback(`✅ ${name} has been restored`
+          + (n ? ` with ${n} member${n === 1 ? '' : 's'}` : '') + '.'
+          + (kept ? ` ${kept} member${kept === 1 ? '' : 's'} deleted earlier ${kept === 1 ? 'was' : 'were'} left deleted.` : ''), 'success');
         await loadFamilies();
       } else {
         showFeedback(`❌ ${data.error || 'Failed to restore.'}`, 'error');
@@ -1101,7 +1217,7 @@
   async function bulkDelete() {
     const ids = [...selectedIds];
     if (!ids.length) return;
-    if (!confirm(`Are you sure you want to delete ${ids.length} selected famil${ids.length === 1 ? 'y' : 'ies'} and their members?`)) return;
+    if (!(await confirmDeleteFamilies(ids))) return;
     await sendBulk(ids, 'delete');
   }
 

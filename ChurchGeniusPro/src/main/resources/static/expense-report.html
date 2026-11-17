@@ -187,12 +187,12 @@ function toggleMenu(id){if (openMenus.has(id)) { openMenus.delete(id); } else { 
 
   // Load purpose dropdown
   try{
-    const res=await fetch(`/api/reports/purposes?clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
+    const res=await fetch(`/api/reports/purposes?includeDeleted=true&clientId=${encodeURIComponent(localStorage.getItem('clientId')||'')}`);
     const purposes=await res.json();
     const sel=document.getElementById('purposeFilter');
     (purposes||[]).forEach(p=>{
       const opt=document.createElement('option');
-      opt.value=p.id; opt.textContent=p.name||'';
+      opt.value=p.id; opt.textContent=(p.name||'')+(p.deleted?' (Deleted)':'');
       sel.appendChild(opt);
     });
   }catch(e){console.warn('Could not load purposes:',e);}

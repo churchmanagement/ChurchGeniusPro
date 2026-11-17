@@ -473,6 +473,18 @@
     }
     .btn-confirm-delete:hover { opacity: 0.88; }
 
+    /* 2026-11-16 — Service Admin tabs */
+    .sa-tabs { display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:6px;
+               background:#fff; border:1px solid #eadfe5; border-radius:12px; scrollbar-width:thin; }
+    .sa-tab  { flex:0 0 auto; border:none; background:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700;
+               color:#673147; padding:10px 16px; border-radius:8px; white-space:nowrap; min-height:42px; }
+    .sa-tab:hover { background:#f6eef2; }
+    .sa-tab[aria-selected="true"] { background:#673147; color:#fff; }
+    .sa-tab:focus-visible { outline:3px solid rgba(103,49,71,.35); outline-offset:1px; }
+    .sa-tab-hidden { display:none !important; }
+    .ah-login-none td { background:#fff8e1; }
+    @media (max-width: 600px) { .sa-tab { padding:9px 12px; font-size:13px; } }
+
     @media (max-width: 768px) {
       .form-grid        { grid-template-columns: 1fr; }
       .form-grid.cols-3 { grid-template-columns: 1fr; }
@@ -510,8 +522,18 @@
 
 <div class="main">
 
+  <!-- ── 2026-11-16: the page is organised in six tabs (see the "Service Admin tabs" script at the end) ── -->
+  <div class="sa-tabs" id="saTabs" role="tablist" aria-label="Service Admin sections">
+    <button type="button" class="sa-tab" role="tab" id="saTab_client"   data-tab="client">Client Management</button>
+    <button type="button" class="sa-tab" role="tab" id="saTab_data"     data-tab="data">Data Management</button>
+    <button type="button" class="sa-tab" role="tab" id="saTab_platform" data-tab="platform">Platform Management</button>
+    <button type="button" class="sa-tab" role="tab" id="saTab_health"   data-tab="health">Account Health</button>
+    <button type="button" class="sa-tab" role="tab" id="saTab_billing"  data-tab="billing">Billing and Subscriptions</button>
+    <button type="button" class="sa-tab" role="tab" id="saTab_support"  data-tab="support">Support and Messaging</button>
+  </div>
+
   <!-- ── Register Panel ─────────────────────────────────── -->
-  <div>
+  <div id="registerPanelWrap">
     <div class="section-header">
       <span class="section-title">Client Management</span>
       <button class="btn-primary" id="btnNewClient">+ Register New Client</button>
@@ -767,7 +789,7 @@
   </div>
 
   <!-- ── Registered Clients List ────────────────────────── -->
-  <div class="list-card">
+  <div class="list-card" id="registeredClientsCard">
     <div class="list-card-header">
       <span class="list-card-title">Registered Clients</span>
       <span class="client-count" id="clientCount">0</span>
@@ -790,6 +812,17 @@
         Bank Sync are skipped — nothing is deleted or disconnected, and everything resumes on renewal.
       </p>
       <div id="ahSummary" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+
+      <!-- 2026-11-16 — client login overview (successful sign-ins only) -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 4px;">
+        <strong style="font-size:13px;color:#673147;">Client login overview</strong>
+        <span style="flex:1;"></span>
+        <label style="font-size:12px;color:#555;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="ahLoginOnlyNone" /> Only churches with no recent login
+        </label>
+      </div>
+      <p id="ahLoginNote" style="font-size:12px;color:#777;margin:0 0 8px;line-height:1.5;"></p>
+      <div class="table-wrap" id="ahLogins" style="margin-bottom:18px;"><div class="loading">Loading…</div></div>
 
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 8px;">
         <strong style="font-size:13px;color:#673147;">Accounts</strong>
@@ -865,34 +898,6 @@
         <input id="erRestoreId" type="number" min="1" style="width:110px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;" />
         <button class="btn-primary" style="font-size:12px;padding:6px 14px;" onclick="restoreArchivedEvent()">Restore</button>
         <span id="erRestoreMsg" style="font-size:12px;"></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Public Website Visitors ───────────────────────── -->
-  <div class="list-card" id="webStatsCard">
-    <div class="list-card-header">
-      <span class="list-card-title">🌐 Public Website Visitors</span>
-      <button class="btn-primary" style="font-size:12px;padding:6px 16px;" onclick="loadWebStats()">↻ Refresh</button>
-    </div>
-    <div style="padding:0 24px 20px;">
-      <div style="font-size:12px;color:#888;padding:12px 0 10px;">
-        Visits to the public marketing pages (<code>/web/home</code>, <code>/web/features</code>, …). Counted on every page view.
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Page</th>
-              <th style="text-align:right;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Visitors</th>
-              <th style="text-align:right;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Last 30 Days</th>
-              <th style="text-align:left;padding:8px 12px;background:#f5f6fa;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#888;border-bottom:2px solid #e8eaf0;">Last Visit</th>
-            </tr>
-          </thead>
-          <tbody id="webStatsBody">
-            <tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -3166,41 +3171,6 @@
   /* ── Init clients ────────────────────────────────────── */
   loadClients();
 
-  /* ════════════════════════════════════════════════════════
-     PUBLIC WEBSITE VISITOR STATISTICS
-     ════════════════════════════════════════════════════════ */
-  async function loadWebStats() {
-    const tbody = document.getElementById('webStatsBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">Loading…</td></tr>';
-    try {
-      const res  = await fetch('/api/serviceadmin/public-page-stats');
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
-      const pages = data.pages || [];
-      if (!pages.length) {
-        tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#aaa;text-align:center;">No visits recorded yet.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = pages.map(p => {
-        const last = p.lastVisit ? new Date(p.lastVisit).toLocaleString() : '—';
-        return '<tr>'
-          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;font-weight:600;">' + p.page + '</td>'
-          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#673147;">' + Number(p.visitors || 0).toLocaleString() + '</td>'
-          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;text-align:right;color:#666;">' + Number(p.last30Days || 0).toLocaleString() + '</td>'
-          + '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;">' + last + '</td>'
-          + '</tr>';
-      }).join('')
-      + '<tr><td style="padding:9px 12px;font-weight:700;">Total</td>'
-      + '<td style="padding:9px 12px;text-align:right;font-weight:800;color:#673147;">' + Number(data.total || 0).toLocaleString() + '</td>'
-      + '<td colspan="2"></td></tr>';
-    } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;color:#c62828;text-align:center;">'
-        + (e.message || 'Failed to load statistics.') + '</td></tr>';
-    }
-  }
-  window.loadWebStats = loadWebStats;
-  loadWebStats();
-
   /* ── Data Migrations card (GET /api/serviceadmin/etl/overview) ── */
   async function loadEtlOverview() {
     const el = document.getElementById('etlOverviewBody');
@@ -4586,6 +4556,65 @@
     return '<span style="padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;background:#faf6f8;'
          + 'border:1px solid #efe6eb;color:' + color + ';">' + n + ' ' + label + '</span>';
   }
+  /* 2026-11-16 — every registered church with its last SUCCESSFUL sign-in. Built with textContent. */
+  function ahWhen(iso) {
+    if (!iso) return '';
+    var t = new Date(String(iso).length > 19 ? String(iso).substring(0, 19) : iso);
+    if (isNaN(t.getTime())) return String(iso).replace('T', ' ').substring(0, 16);
+    return t.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+         + ', ' + t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  function ahRenderLogins(d) {
+    var box = document.getElementById('ahLogins'); if (!box) return;
+    var days = d.recentLoginDays || 30;
+    var all = d.logins || [];
+    var only = document.getElementById('ahLoginOnlyNone').checked;
+    var rows = all.filter(function (x) { return !only || !x.loggedInRecently; });
+    var none = all.filter(function (x) { return !x.loggedInRecently; }).length;
+    var note = document.getElementById('ahLoginNote');
+    note.textContent = all.length + ' registered church' + (all.length === 1 ? '' : 'es') + ' · ' + none
+      + ' with no successful login in the last ' + days + ' days (highlighted). Failed sign-in attempts are not counted.'
+      + (d.loginHistoryDays ? ' Sign-in history is kept for ' + d.loginHistoryDays + ' days, so an older login shows as "No login recorded".' : '');
+    box.textContent = '';
+    if (!rows.length) {
+      var e = document.createElement('div'); e.className = 'empty-state'; e.style.padding = '18px';
+      var p = document.createElement('p');
+      p.textContent = all.length ? 'Every church has logged in during the last ' + days + ' days.' : 'No registered churches.';
+      e.appendChild(p); box.appendChild(e); return;
+    }
+    var table = document.createElement('table');
+    var head = document.createElement('thead'), hr = document.createElement('tr');
+    ['Church', 'Account status', 'Last successful login', 'Last login user', 'Logged in (last ' + days + ' days)'].forEach(function (h) {
+      var th = document.createElement('th'); th.textContent = h; hr.appendChild(th);
+    });
+    head.appendChild(hr); table.appendChild(head);
+    var body = document.createElement('tbody');
+    rows.forEach(function (x) {
+      var tr = document.createElement('tr');
+      if (!x.loggedInRecently) tr.className = 'ah-login-none';
+      var c1 = document.createElement('td');
+      c1.appendChild(document.createTextNode(x.churchName || '—'));
+      var sub = document.createElement('div'); sub.style.cssText = 'font-size:11px;color:#888;';
+      sub.textContent = (x.clientId || '') + (x.kind && x.kind !== 'CLIENT' ? ' · ' + x.kind : '');
+      c1.appendChild(sub);
+      var c2 = document.createElement('td');
+      c2.textContent = (x.status || '—') + (x.accountActive ? '' : (x.status === 'Active' ? ' (expired)' : ''));
+      var c3 = document.createElement('td');
+      c3.textContent = x.lastLogin ? ahWhen(x.lastLogin) : 'No login recorded';
+      if (!x.lastLogin) c3.style.color = '#b26a00';
+      var c4 = document.createElement('td'); c4.textContent = x.lastLoginUser || '—';
+      var c5 = document.createElement('td');
+      var pill = document.createElement('span');
+      pill.style.cssText = 'display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;'
+        + (x.loggedInRecently ? 'background:#e8f5e9;color:#2e7d32;' : 'background:#ffecb3;color:#8a5a00;');
+      pill.textContent = x.loggedInRecently ? 'Yes' : 'No';
+      c5.appendChild(pill);
+      [c1, c2, c3, c4, c5].forEach(function (c) { tr.appendChild(c); });
+      body.appendChild(tr);
+    });
+    table.appendChild(body); box.appendChild(table);
+  }
+
   async function ahLoad() {
     var acc = document.getElementById('ahAccounts'), bank = document.getElementById('ahBanks');
     if (!acc) return;
@@ -4612,6 +4641,8 @@
       + ahChip(c.unused || 0, 'unused (no sign-in in ' + d.unusedDays + ' days)', '#546e7a')
       + ahChip(c.bankIssues || 0, 'bank connections need attention', '#673147')
       + ahChip(c.bankPaused || 0, 'bank syncs paused', '#e65100');
+
+    ahRenderLogins(d);
 
     var f = document.getElementById('ahFilter').value;
     var rows = (d.accounts || []).filter(function (a) { return !f || a.state === f; });
@@ -4645,11 +4676,54 @@
               + '<td>' + (b.reasons || []).map(function (x) { return ahPill(AH_REASON[x] || ['#eee', '#555', x]); }).join('') + '</td>'
               + '<td><div class="actions">' + act + '</div></td></tr>';
           }).join('') + '</tbody></table>';
+
+    // 2026-11-16 — connections left behind by churches that were removed: not an active issue, shown apart.
+    var gone = d.removedChurchBankSyncs || [];
+    var note = document.getElementById('ahRemovedBanks');
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'ahRemovedBanks';
+      note.style.cssText = 'margin-top:10px;padding:10px 14px;border:1px solid #eadfe5;border-radius:8px;background:#faf6f8;font-size:13px;color:#555;';
+      document.getElementById('ahBanks').insertAdjacentElement('afterend', note);
+    }
+    if (!gone.length) { note.style.display = 'none'; note.textContent = ''; }
+    else {
+      note.style.display = '';
+      note.textContent = '';
+      var t = document.createElement('span');
+      var ids = []; gone.forEach(function (g) { if (ids.indexOf(g.clientId) < 0) ids.push(g.clientId); });
+      t.textContent = gone.length + ' bank connection' + (gone.length === 1 ? '' : 's') + ' belong' + (gone.length === 1 ? 's' : '')
+        + ' to ' + (ids.length === 1 ? 'a church that has' : 'churches that have') + ' been removed (' + ids.join(', ') + '). '
+        + 'They are not active issues. Closing them also tells Plaid to drop the bank link; accounting and audit records are kept. ';
+      var b2 = document.createElement('button');
+      b2.type = 'button'; b2.id = 'ahCloseRemoved'; b2.className = 'btn-action';
+      b2.style.cssText = 'background:#673147;color:#fff;margin-left:6px;';
+      b2.textContent = 'Close these connections';
+      var armed = false;
+      b2.addEventListener('click', async function () {
+        if (!armed) { armed = true; b2.textContent = 'Click again to confirm'; setTimeout(function () { if (armed) { armed = false; b2.textContent = 'Close these connections'; } }, 6000); return; }
+        armed = false; b2.disabled = true; b2.textContent = 'Closing…';
+        try {
+          var r = await fetch('/api/serviceadmin/account-health/removed-church-bank-syncs/disconnect', { method: 'POST' });
+          var j = await r.json().catch(function () { return {}; });
+          if (!r.ok) throw new Error(j.message || 'Could not close the connections.');
+          note.textContent = j.disconnected + ' connection' + (j.disconnected === 1 ? '' : 's') + ' closed.';
+          setTimeout(ahLoad, 1200);
+        } catch (e) {
+          b2.disabled = false; b2.textContent = 'Close these connections';
+          var er = document.createElement('div'); er.style.color = '#a5322a'; er.textContent = e.message || 'Could not close the connections.';
+          note.appendChild(er);
+        }
+      });
+      note.appendChild(t); note.appendChild(b2);
+    }
   }
   (function () {
     var btn = document.getElementById('ahRefresh');
     if (btn) btn.addEventListener('click', ahLoad);
     var f = document.getElementById('ahFilter');
+    var lo = document.getElementById('ahLoginOnlyNone');
+    if (lo) lo.addEventListener('change', function () { if (AH_DATA) ahRenderLogins(AH_DATA); });
     if (f) f.addEventListener('change', ahRender);
     // First load happens from loadClients(), which also re-runs it after every client save.
   })();
@@ -7492,6 +7566,141 @@
   }
   $('prRun').addEventListener('click', run);
   $('prCsv').addEventListener('click', function () { window.location.href = '/api/serviceadmin/promotions/report-csv' + query(); });
+})();
+</script>
+<script>
+/* ═══ 2026-11-16 — Service Admin tabs ═══════════════════════════════════════════
+   Every card keeps its own markup, ids, buttons and loaders; a tab only decides which
+   cards are on screen. Dialogs are outside the cards, so they open from any tab.
+   Direct links: /serviceadminhome#billing (a tab) or #billingCard (a card). */
+(function () {
+  var TABS = {
+    client:   ['registerPanelWrap', 'registeredClientsCard', 'trialRequestCard', 'trialLinkCard', 'subscriptionRequestCard', 'testDataCard'],
+    data:     ['etlOverviewCard', 'backupCard', 'trialBackfillCard'],
+    platform: ['churchDeletionCard', 'eventRetentionCard', 'platformSettingsCard'],
+    health:   ['acctHealthCard'],
+    billing:  ['billingCard', 'plansCard', 'promoCard', 'promoReportCard'],
+    support:  ['ticketCard', 'messagingCard']
+  };
+  var KEY = 'sa.tab';
+  var main = document.querySelector('.main');
+  var bar = document.getElementById('saTabs');
+  if (!main || !bar) return;
+
+  var owner = {};                       // card id → tab
+  Object.keys(TABS).forEach(function (t) {
+    TABS[t].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      owner[id] = t;
+      el.setAttribute('data-sa-tab', t);
+      el.setAttribute('role', 'tabpanel');
+    });
+  });
+  // Put the cards in the order of the lists above (moving a card keeps its listeners and state).
+  var anchor = bar;
+  Object.keys(TABS).forEach(function (t) {
+    TABS[t].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (anchor.nextElementSibling !== el) main.insertBefore(el, anchor.nextElementSibling);
+      anchor = el;
+    });
+  });
+  // A card nobody listed (added later) stays visible in Client Management rather than disappearing.
+  Array.prototype.forEach.call(main.children, function (el) {
+    if (el.classList && el.classList.contains('list-card') && !el.getAttribute('data-sa-tab')) {
+      el.setAttribute('data-sa-tab', 'client');
+      if (el.id) owner[el.id] = 'client';
+    }
+  });
+
+  var current = null;
+  function show(tab, opts) {
+    if (!TABS[tab]) tab = 'client';
+    current = tab;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sa-tab]'), function (el) {
+      el.classList.toggle('sa-tab-hidden', el.getAttribute('data-sa-tab') !== tab);
+    });
+    Array.prototype.forEach.call(bar.querySelectorAll('.sa-tab'), function (b) {
+      var on = b.getAttribute('data-tab') === tab;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      if (on && b.scrollIntoView && !(opts && opts.quiet)) {
+        try { nativeScroll.call(b, { block: 'nearest', inline: 'nearest' }); } catch (e) {}
+      }
+    });
+    try { sessionStorage.setItem(KEY, tab); } catch (e) {}
+    if (!(opts && opts.keepHash)) {
+      try { history.replaceState(null, '', location.pathname + location.search + '#' + tab); } catch (e) {}
+    }
+    // Account Health is read again when its tab is opened, so the login overview is current.
+    if (tab === 'health' && !(opts && opts.initial) && typeof window.ahLoad === 'function') window.ahLoad();
+  }
+  function tabOf(el) {
+    while (el && el !== document.body) {
+      if (el.getAttribute && el.getAttribute('data-sa-tab')) return el.getAttribute('data-sa-tab');
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  // Anything that scrolls to a card in another tab (Edit from Account Health, "Create invoice" …) opens that tab first.
+  var nativeScroll = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function () {
+    var t = tabOf(this);
+    if (t && t !== current) show(t);
+    return nativeScroll.apply(this, arguments);
+  };
+  // The client form opens without scrolling in some paths (＋ Register New Client, pre-fill from a request).
+  var form = document.getElementById('formPanel');
+  if (form && window.MutationObserver) {
+    new MutationObserver(function () {
+      var open = form.classList.contains('open') || (form.style.display && form.style.display !== 'none');
+      if (open && current !== 'client') show('client');
+    }).observe(form, { attributes: true, attributeFilter: ['class', 'style'] });
+  }
+
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.sa-tab') : null;
+    if (b) show(b.getAttribute('data-tab'));
+  });
+  bar.addEventListener('keydown', function (e) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1 };
+    var list = Array.prototype.slice.call(bar.querySelectorAll('.sa-tab'));
+    var i = list.indexOf(document.activeElement);
+    if (i < 0) return;
+    var next = null;
+    if (keys[e.key]) next = list[(i + keys[e.key] + list.length) % list.length];
+    else if (e.key === 'Home') next = list[0];
+    else if (e.key === 'End') next = list[list.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
+    show(next.getAttribute('data-tab'));
+  });
+
+  function fromHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    if (TABS[h]) return { tab: h };
+    if (owner[h]) return { tab: owner[h], card: h };
+    var el = document.getElementById(h);
+    var t = el ? tabOf(el) : null;
+    return t ? { tab: t, card: h } : null;
+  }
+  function start(initial) {
+    var want = fromHash(), saved = null;
+    try { saved = sessionStorage.getItem(KEY); } catch (e) {}
+    show(want ? want.tab : (saved || 'client'), { initial: initial, keepHash: !!(want && want.card), quiet: initial });
+    if (want && want.card) {
+      var el = document.getElementById(want.card);
+      if (el) setTimeout(function () { nativeScroll.call(el, { behavior: 'smooth', block: 'start' }); }, 60);
+    }
+  }
+  window.addEventListener('hashchange', function () { if (fromHash()) start(false); });
+  window.CGP_saTab = { show: show, current: function () { return current; }, tabs: TABS };
+  start(true);
 })();
 </script>
 </body>

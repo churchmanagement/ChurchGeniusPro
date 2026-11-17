@@ -235,6 +235,34 @@ public class PlaidLinkService {
         if (item.isDeleteFlag()) {
             throw new IllegalArgumentException("This bank is already disconnected.");
         }
+        return removeItem(item, clientId, actor, "Bank deleted after OTP confirmation");
+    }
+
+    /**
+     * 2026-11-16 — closes every live bank connection of a church that has been REMOVED (its registration is
+     * deleted or gone), through the same steps as {@link #deleteItem}: revoked at Plaid (best effort), staged rows and
+     * account rows removed, token and cursor cleared, item kept as a DISCONNECTED audit stub, audit row written.
+     * Posted income / expense rows and the audit log are untouched. One failing connection does not stop the others.
+     *
+     * @return how many connections were closed
+     */
+    @Transactional
+    public int disconnectForRemovedChurch(String clientId, String actor) {
+        if (clientId == null || clientId.isBlank()) return 0;
+        int n = 0;
+        for (PlaidItem item : itemRepo.findByClientIdAndDeleteFlagFalse(clientId)) {
+            try {
+                removeItem(item, clientId, actor, "Bank disconnected because the church was removed");
+                n++;
+            } catch (Exception e) {
+                log.warn("Could not disconnect bank connection {} of removed church {}: {}",
+                        item.getId(), clientId, com.churchgeniuspro.util.LogSafe.exception(e));
+            }
+        }
+        return n;
+    }
+
+    private Map<String, Object> removeItem(PlaidItem item, String clientId, String actor, String why) {
 
         // 1) Revoke the connection at Plaid (best effort — local cleanup proceeds
         //    even if Plaid is unreachable or the token is unusable; the item is
@@ -266,7 +294,7 @@ public class PlaidLinkService {
         itemRepo.save(item);
 
         audit.record(clientId, actor, "ITEM_DELETED", item.getItemId(),
-                "Bank deleted after OTP confirmation (" + institution + "): removed "
+                why + " (" + institution + "): removed "
                         + removedTxns + " staged transaction(s), " + removedAccts + " account(s).");
 
         Map<String, Object> out = new java.util.LinkedHashMap<>();

@@ -92,6 +92,18 @@
     .field input:focus, .field select:focus, .field textarea:focus { border-color: #c5a0b5; }
     .field textarea { resize: vertical; min-height: 60px; }
     .field-hint { font-size: 11px; color: #aaa; }
+    /* Campaign-specific fund (2026-11-16) */
+    .cf-check { display: flex !important; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #4a2233; cursor: pointer; text-transform: none; letter-spacing: 0; }
+    .cf-check input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: #673147; }
+    .cf-note { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: #faf6f8; border: 1px solid #eadfe5; font-size: 12.5px; line-height: 1.55; color: #555; }
+    .cf-note strong { color: #4a2233; }
+    .cf-note ul { margin: 6px 0 0 18px; padding: 0; }
+    .excl-tag { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; color: #4a2233; background: #f1e6ec; border-radius: 10px; padding: 2px 8px; }
+    .stat.stat-total { background: #673147; }
+    .stat.stat-total .stat-label { color: #e9d9e1; } .stat.stat-total .stat-value { color: #fff; }
+    .out-list { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .out-list th, .out-list td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #f1e9ed; }
+    .out-list td.num, .out-list th.num { text-align: right; }
 
     /* Pledge list inside the campaign detail modal */
     .pledge-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -162,7 +174,7 @@
           <select id="cf_subSourceId">
             <option value="">— Select fund —</option>
           </select>
-          <div class="field-hint">Contributions to this fund will auto-credit pledges.</div>
+          <div class="field-hint">Choose the Income fund this campaign collects into.</div>
         </div>
         <div class="field">
           <label>Status</label>
@@ -179,6 +191,14 @@
         <div class="field">
           <label>End Date</label>
           <input type="date" id="cf_endDate" />
+        </div>
+        <!-- 2026-11-16: how the fund relates to the campaign, and the campaign-specific fund option -->
+        <div class="field full" id="cf_fundBox">
+          <label class="cf-check" for="cf_fundExclusive">
+            <input type="checkbox" id="cf_fundExclusive" />
+            <span>Use this Fund exclusively for this Campaign</span>
+          </label>
+          <div class="cf-note" id="cf_fundNote" role="note"></div>
         </div>
         <div class="field full">
           <label>Other Gifts (non-cash)</label>
@@ -356,10 +376,28 @@
           '<div class="card-title">' + esc(c.name || '(unnamed)') + '</div>' +
           '<div class="card-sub">' + esc(subName || 'No fund linked') +
             (endTxt ? ' · Ends ' + esc(endTxt) : '') + '</div>' +
+          (t.fundExclusive ? '<span class="excl-tag" title="Every gift to this fund between the campaign\'s start and end date counts toward this campaign">Fund used exclusively for this campaign</span>' : '') +
         '</div>' +
         '<span class="status-pill status-' + esc(c.status || 'Active') + '">' +
           esc(c.status || 'Active') + '</span>' +
       '</div>' +
+      (t.fundExclusive ?
+      // Fund used exclusively: pledges, pledgers' payments and outside contributions shown apart (each gift counted once)
+      '<div class="stats">' +
+        '<div class="stat"><div class="stat-label">Total Pledged</div>' +
+          '<div class="stat-value">' + money(t.pledged) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Collected from Pledgers</div>' +
+          '<div class="stat-value">' + money(t.collectedFromPledgers) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Pending Pledge</div>' +
+          '<div class="stat-value">' + money(t.pending) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Pledgers</div>' +
+          '<div class="stat-value">' + (t.pledgers || 0) + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Outside Contributions</div>' +
+          '<div class="stat-value">' + money(t.outsideContributions) + '</div></div>' +
+        '<div class="stat stat-total"><div class="stat-label">Total Collected</div>' +
+          '<div class="stat-value">' + money(t.totalCollected) + '</div></div>' +
+      '</div>'
+      :
       '<div class="stats">' +
         '<div class="stat"><div class="stat-label">Pledged</div>' +
           '<div class="stat-value">' + money(t.pledged) + '</div></div>' +
@@ -369,20 +407,23 @@
           '<div class="stat-value">' + money(t.pending) + '</div></div>' +
         '<div class="stat"><div class="stat-label">Pledgers</div>' +
           '<div class="stat-value">' + (t.pledgers || 0) + '</div></div>' +
-      '</div>' +
+      '</div>') +
       (c.targetAmount ?
         '<div class="progress-wrap">' +
           '<div class="progress-bar"><div class="progress-fill" style="width:' +
               Math.min(100, Math.max(0, pct || 0)) + '%"></div></div>' +
-          '<div class="progress-label">' + esc(pctTxt) +
+          '<div class="progress-label">' + esc(t.fundExclusive && pct != null ? pct + '% of target collected' : pctTxt) +
             ' · Target ' + money(c.targetAmount) + '</div>' +
         '</div>' : '') +
       '<div class="card-actions">' +
         '<button class="btn-secondary" data-act="pledges">Manage Pledges</button>' +
+        (t.fundExclusive ? '<button class="btn-link" data-act="outside">Outside contributions</button>' : '') +
         '<button class="btn-link"      data-act="edit"   data-perm="accounting.pledges.edit">Edit</button>' +
         '<button class="btn-danger"    data-act="delete" data-perm="accounting.pledges.delete">Delete</button>' +
       '</div>';
     div.querySelector('[data-act="pledges"]').addEventListener('click', function () { openPledgesModal(c); });
+    var ob = div.querySelector('[data-act="outside"]');
+    if (ob) ob.addEventListener('click', function () { openOutsideModal(c); });
     div.querySelector('[data-act="edit"]')   .addEventListener('click', function () { openCampaignModal(c); });
     div.querySelector('[data-act="delete"]') .addEventListener('click', function () { deleteCampaign(c); });
     return div;
@@ -411,7 +452,82 @@
     $('cf_endDate').value      = c ? (c.endDate || '')      : '';
     $('cf_otherGifts').value   = c ? (c.otherGifts || '')   : '';
     $('cf_description').value  = c ? (c.description || '')  : '';
+    $('cf_fundExclusive').checked = !!(c && c.fundExclusive);
+    $('cf_fundBox').setAttribute('data-created', c && c.createdDate ? String(c.createdDate).substring(0, 10) : '');
+    updateFundNote();
     $('campaignModal').classList.add('open');
+  }
+
+  /* How the selected fund relates to the campaign — rewritten whenever the fund, the option or the end date changes.
+     Built with DOM nodes; the fund name is text. */
+  function updateFundNote() {
+    var note = $('cf_fundNote'), sel = $('cf_subSourceId'), box = $('cf_fundExclusive');
+    var has = !!sel.value;
+    var fund = has ? sel.options[sel.selectedIndex].textContent : 'the selected fund';
+    box.disabled = !has; if (!has) box.checked = false;
+    var created = $('cf_fundBox').getAttribute('data-created');
+    var d = function (iso) { var p = String(iso).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+    var from = created ? d(created) : 'the day this campaign is created';
+    var to = $('cf_endDate').value ? d($('cf_endDate').value) : 'no end date (until you close the campaign)';
+    note.textContent = '';
+    function p(text, strong) { var e = document.createElement('p'); e.style.margin = '0 0 6px'; if (strong) { var b = document.createElement('strong'); b.textContent = strong; e.appendChild(b); } e.appendChild(document.createTextNode(text)); note.appendChild(e); return e; }
+    function ul(items) { var u = document.createElement('ul'); items.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; u.appendChild(li); }); note.appendChild(u); }
+    if (!has) { p('Choose a Subcategory (Fund) to link Income to this campaign. Without a fund, collected amounts are not calculated from Income.'); return; }
+    if (box.checked) {
+      p(' Every Income entry recorded to “' + fund + '” counts toward this campaign — whoever gave it and whoever entered it.', 'How collections are calculated:');
+      ul(['Collected from Pledgers: gifts to this fund from members who have a pledge in this campaign.',
+          'Outside Contributions: gifts to this fund from anyone else — members without a pledge, and guests.',
+          'Total Collected = Collected from Pledgers + Outside Contributions. Each gift is counted once.',
+          'Counted period: ' + from + ' to ' + to + ' (by the Income date).',
+          'Example: an Income entry of $100.00 to this fund from a member with no pledge adds $100.00 to Outside Contributions and to Total Collected.',
+          'One active campaign at a time can use a fund this way.']);
+    } else {
+      p(' Only gifts from this campaign’s pledgers count. When a member who has a pledge here gives to “' + fund + '”, the gift is credited to that pledge automatically.', 'How collections are calculated:');
+      ul(['Gifts to this fund from people without a pledge in this campaign are not counted.',
+          'Counted period: ' + from + ' to ' + to + ' (by the Income date).',
+          'Tick the box above to count every gift to this fund toward the campaign, including gifts from people who have not pledged.']);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    ['cf_subSourceId', 'cf_fundExclusive', 'cf_endDate'].forEach(function (id) { var e = $(id); if (e) e.addEventListener('change', updateFundNote); });
+  });
+
+  /* Outside contributions of a campaign that uses its fund exclusively (read-only list). */
+  function openOutsideModal(c) {
+    var old = document.getElementById('outsideModal'); if (old) old.remove();
+    var back = document.createElement('div'); back.className = 'modal-backdrop open'; back.id = 'outsideModal';
+    var m = document.createElement('div'); m.className = 'modal'; m.style.maxWidth = '640px';
+    m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+    var h = document.createElement('div'); h.className = 'modal-header';
+    var ht = document.createElement('div'); ht.className = 'modal-title'; ht.textContent = 'Outside contributions — ' + (c.name || '');
+    var x = document.createElement('button'); x.className = 'modal-close'; x.innerHTML = '&times;'; x.setAttribute('aria-label', 'Close');
+    h.appendChild(ht); h.appendChild(x);
+    var b = document.createElement('div'); b.className = 'modal-body'; b.textContent = 'Loading…';
+    m.appendChild(h); m.appendChild(b); back.appendChild(m); document.body.appendChild(back);
+    function close() { back.remove(); document.removeEventListener('keydown', key); }
+    function key(e) { if (e.key === 'Escape') close(); }
+    x.addEventListener('click', close); back.addEventListener('click', function (e) { if (e.target === back) close(); }); document.addEventListener('keydown', key);
+    CGP_api('/api/pledges/campaigns/' + c.id + '/outside').then(function (rows) {
+      b.textContent = '';
+      var intro = document.createElement('p'); intro.style.cssText = 'font-size:13px;color:#555;margin:0 0 10px;';
+      intro.textContent = 'Gifts to this campaign’s fund from people who do not have a pledge in it. They are part of Total Collected. To change one, edit it on the Income page.';
+      b.appendChild(intro);
+      rows = Array.isArray(rows) ? rows : [];
+      if (!rows.length) { var e = document.createElement('p'); e.textContent = 'No outside contributions yet.'; b.appendChild(e); return; }
+      var t = document.createElement('table'); t.className = 'out-list';
+      var hr = t.insertRow(); ['Date', 'Contributor', 'Amount'].forEach(function (n, i) { var th = document.createElement('th'); th.textContent = n; if (i === 2) th.className = 'num'; hr.appendChild(th); });
+      var sum = 0;
+      rows.forEach(function (r) {
+        var tr = t.insertRow(); sum += Number(r.amount) || 0;
+        var p = String(r.date || '').split('-');
+        tr.insertCell().textContent = p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString() : '';
+        tr.insertCell().textContent = r.contributor || '';
+        var a = tr.insertCell(); a.className = 'num'; a.textContent = money(r.amount);
+      });
+      var f = t.insertRow(); f.insertCell().textContent = ''; var ft = f.insertCell(); ft.textContent = rows.length >= 200 ? 'Newest 200 shown' : 'Total'; ft.style.fontWeight = '700';
+      var fa = f.insertCell(); fa.className = 'num'; fa.style.fontWeight = '700'; fa.textContent = money(sum);
+      b.appendChild(t);
+    }).catch(function (e) { b.textContent = 'Could not load the outside contributions: ' + (window.CGP_errorMessage ? CGP_errorMessage(e, 'please try again.') : e); });
   }
   function closeCampaignModal() { $('campaignModal').classList.remove('open'); }
 
@@ -421,6 +537,7 @@
       subSourceId:  $('cf_subSourceId').value || null,
       status:       $('cf_status').value,
       targetAmount: $('cf_targetAmount').value || null,
+      fundExclusive: $('cf_fundExclusive').checked && !!$('cf_subSourceId').value,
       endDate:      $('cf_endDate').value || null,
       otherGifts:   $('cf_otherGifts').value.trim(),
       description:  $('cf_description').value.trim()
@@ -509,9 +626,13 @@
       if (p.pledgeAmount    != null) totalPledged   += Number(p.pledgeAmount);
       if (p.amountCollected != null) totalCollected += Number(p.amountCollected);
     });
+    // A campaign that uses its fund exclusively also shows what came from people without a pledge.
+    var live = CURRENT_CAMPAIGN && ALL_CAMPAIGNS.find(function (x) { return x.id === CURRENT_CAMPAIGN.id; });
+    var lt = (live && live.totals) || {};
     $('pledgeTotals').textContent =
       CURRENT_PLEDGES.length + ' pledger' + (CURRENT_PLEDGES.length === 1 ? '' : 's') +
-      ' · ' + money(totalPledged) + ' pledged · ' + money(totalCollected) + ' collected';
+      ' · ' + money(totalPledged) + ' pledged · ' + money(totalCollected) + ' collected' +
+      (lt.fundExclusive ? ' from pledgers · ' + money(lt.outsideContributions) + ' outside contributions · ' + money(lt.totalCollected) + ' total collected' : '');
   }
 
   /* ── Single Pledge form ────────────────────────────────────────────── */
@@ -561,7 +682,7 @@
         if (!res.ok) { flash(res.body.error || 'Save failed', 'error'); return; }
         closePledgeFormModal();
         flash('Pledge saved');
-        return loadPledges().then(loadAll); // refresh card totals too
+        return loadPledges().then(loadAll).then(function () { if (CURRENT_CAMPAIGN) renderPledges(); }); // refresh card totals too
       })
       .catch(function (e) { flash('Save failed: ' + e, 'error'); });
   }
@@ -574,7 +695,7 @@
       .then(function (res) {
         if (!res.ok) { flash(res.body.error || 'Delete failed', 'error'); return; }
         flash('Pledge deleted');
-        return loadPledges().then(loadAll);
+        return loadPledges().then(loadAll).then(function () { if (CURRENT_CAMPAIGN) renderPledges(); });
       })
       .catch(function (e) { flash('Delete failed: ' + e, 'error'); });
   }

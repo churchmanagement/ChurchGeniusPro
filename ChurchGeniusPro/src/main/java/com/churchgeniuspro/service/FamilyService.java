@@ -625,9 +625,46 @@ public class FamilyService {
 
     @Transactional
     public void restore(Integer id, String appClientId) {
+        restoreWithSummary(id, appClientId);
+    }
+
+    /**
+     * Restores a deleted family and says what came back (2026-11-16).
+     *
+     * <p>Deleting a family only flags the FAMILY — its members are hidden with it and keep their own state, so
+     * clearing the flag brings back exactly the members who were there, with their family links untouched. A
+     * member who was deleted on their own stays deleted. One exception: deleting the primary member (Head) is
+     * what deletes a family in the first place, and a family cannot be shown without its primary, so a deleted
+     * Head is restored with the family.
+     *
+     * @return {@code membersRestored} (people visible again), {@code primaryRestored}, {@code stillDeleted}
+     *         (members deleted on their own, left as they are), {@code alreadyActive}
+     */
+    @Transactional
+    public Map<String, Object> restoreWithSummary(Integer id, String appClientId) {
         Family family = findOrThrow(id, appClientId);
+        boolean wasDeleted = family.isDeleteFlag();
+        boolean primaryRestored = false;
+        int live = 0, stillDeleted = 0;
+        if (family.getMembers() != null) {
+            boolean liveHead = family.getMembers().stream().anyMatch(m -> !m.isDeleteFlag() && isHead(m.getRole()));
+            for (FamilyMember m : family.getMembers()) {
+                if (m.isDeleteFlag() && wasDeleted && !liveHead && !primaryRestored && isHead(m.getRole())) {
+                    m.setDeleteFlag(false);
+                    familyMemberRepository.save(m);
+                    primaryRestored = true;
+                }
+                if (m.isDeleteFlag()) stillDeleted++; else live++;
+            }
+        }
         family.setDeleteFlag(false);
         familyRepository.save(family);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("membersRestored", wasDeleted ? live : 0);
+        out.put("primaryRestored", primaryRestored);
+        out.put("stillDeleted", stillDeleted);
+        out.put("alreadyActive", !wasDeleted);
+        return out;
     }
 
     // ── Inactive ──────────────────────────────────────────────────────────

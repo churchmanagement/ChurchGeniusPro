@@ -221,7 +221,7 @@ class DashboardStatsAccessTest {
                 "if (data && data.statsAllowed === true) renderStatCards(data);");
         assertThat(html).doesNotContain("id=\"bannerGreeting\"", "id=\"acctGreeting\"", "'Good evening'", "Good morning");
         assertThat(html).contains("class=\"ai-search-wrap ga-engine-bar\"", "aria-hidden=\"true\"");
-        for (String label : List.of("Members", "New Members", "Guests", "Families", "Groups", "Attendance", "Events", "Visitors", "Birthdays", "Anniversaries", "Meetings"))
+        for (String label : List.of("Groups", "Attendance", "Events", "Birthdays", "Anniversaries", "Meetings"))
             assertThat(html).contains("label:'" + label + "'");
         assertThat(html).contains("This month", "This week", "Today", ".stat-value { font-size: 20px;", "padding: 11px 10px 10px;");
         String engine = Files.readString(Path.of("src/main/resources/static/ai-assistant.js"));

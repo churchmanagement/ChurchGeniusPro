@@ -2800,3 +2800,29 @@ BEGIN
         CREATE INDEX IF NOT EXISTS ix_billing_invoice_client_promotion ON billing_invoice (client_promotion_id);
     END IF;
 END $$;
+
+-- ── Reference data delete tracking (2026-11-16, Flyway V25) ──
+-- Funds, purposes, transaction types: who deleted an entry and when; which sub-categories went with their
+-- main category. Additive, nullable; no existing row is changed.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['main_source', 'sub_source', 'purpose', 'transaction_type'] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP', t);
+      EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100)', t);
+    END IF;
+  END LOOP;
+  IF to_regclass('public.sub_source') IS NOT NULL THEN
+    ALTER TABLE sub_source ADD COLUMN IF NOT EXISTS deleted_with_parent BOOLEAN;
+  END IF;
+END $$;
+
+-- ── Pledge campaigns: fund used exclusively for one campaign (2026-11-16, Flyway V26) ──
+-- Off for every existing campaign; additive.
+DO $$
+BEGIN
+  IF to_regclass('public.pledge_campaign') IS NOT NULL THEN
+    ALTER TABLE pledge_campaign ADD COLUMN IF NOT EXISTS fund_exclusive BOOLEAN NOT NULL DEFAULT false;
+  END IF;
+END $$;

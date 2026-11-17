@@ -511,20 +511,12 @@
   async function deleteType(id) {
     const t    = typeMap[id];
     const name = t ? t.typeName : String(id);
-    if (!confirm('Are you sure you want to delete this transaction type?')) return;
-
-    try {
-      const res  = await fetch(`/api/transaction-types/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        showFeedback(`"${escHtml(name)}" has been deleted.`, 'success');
-        await loadTypes();
-      } else {
-        showFeedback(`❌ ${data.error || 'Failed to delete transaction type.'}`, 'error');
-      }
-    } catch {
-      showFeedback('❌ Network error — could not delete transaction type.', 'error');
-    }
+    CGP_refDelete.ask({ kind: 'transaction-type', id, name, onDone: async (r) => {
+      showFeedback(r.mode === 'permanent' ? `"${name}" has been permanently deleted.`
+                                          : `"${name}" has been deleted. You can restore it under "Deleted" below.`, 'success');
+      await loadTypes();
+      if (window._rdDeleted) window._rdDeleted.refresh();
+    }});
   }
 
   /* ════════════════════════════════════
@@ -560,6 +552,13 @@
 window.CGP_PAGE = { activePage: 'account-settings/transaction-type', pageTitle: 'Transaction Type', openSection: 'account-settings' };
 </script>
 <script src="/shell.js"></script>
+<script src="/ref-delete.js"></script>
+<script>
+  window._rdDeleted = CGP_refDelete.mountDeleted({ list: 'transaction-type', onChange: function (msg) {
+    if (typeof showFeedback === 'function') showFeedback(msg, 'success');
+    if (typeof loadTypes === 'function') loadTypes();
+  }});
+</script>
 <script src="/session.js"></script>
 </body>
 </html>

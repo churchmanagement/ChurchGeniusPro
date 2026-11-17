@@ -111,18 +111,25 @@ public class AccountingReportController {
      */
     @GetMapping("/purposes")
     public ResponseEntity<?> getPurposes(HttpServletRequest request) {
+        boolean includeDeleted = "true".equalsIgnoreCase(request.getParameter("includeDeleted"));
         ResponseEntity<Map<String, Object>> denied = gate(request);
         if (denied != null) return denied;
         String appClientId = SessionUtil.getAppClientId(request);
-        return ResponseEntity.ok(purposeRepo.findActiveByAppUser(appClientId).stream()
+        List<Map<String, Object>> out = purposeRepo.findActiveByAppUser(appClientId).stream()
                 .map(p -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id",   p.getId());
                     m.put("name", p.getPurposeName());
                     return m;
                 })
-                .collect(Collectors.toList()));
+                .collect(Collectors.toCollection(ArrayList::new));
+        // 2026-11-16 — deleted purposes follow, flagged, so old expenses can still be filtered by them.
+        if (includeDeleted && referenceData != null && appClientId != null) out.addAll(referenceData.deletedPurposes(appClientId));
+        return ResponseEntity.ok(out);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ReferenceDataService referenceData;
 
     // ── 1. Income Report ───────────────────────────────────────────────────
     /**

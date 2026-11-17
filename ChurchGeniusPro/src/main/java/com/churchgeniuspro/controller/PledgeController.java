@@ -144,6 +144,8 @@ public class PledgeController {
         if (c.getName() == null || c.getName().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Campaign name is required"));
         }
+        String fundProblem = fundRuleProblem(c, cid);
+        if (fundProblem != null) return ResponseEntity.status(409).body(Map.of("error", fundProblem, "code", "FUND_IN_USE"));
         return ResponseEntity.ok(toCampaignMap(campaignRepo.save(c),
                 totalsForCampaign(cid, c)));
     }
@@ -161,9 +163,47 @@ public class PledgeController {
         String cid = SessionUtil.getAppClientId(req);
         PledgeCampaign c = campaignRepo.findByIdAndClientId(id, cid).orElse(null);
         if (c == null) return ResponseEntity.status(404).body(Map.of("error", "Campaign not found"));
+        // Checked on a copy BEFORE the campaign is touched, so a refused change leaves it exactly as it was.
+        // Only a change to the fund, the option or the status can break the one-campaign-per-fund rule; an edit
+        // of anything else (name, target, description …) is never held up by it.
+        PledgeCampaign probe = new PledgeCampaign();
+        probe.setId(c.getId()); probe.setClientId(cid); probe.setName(c.getName());
+        probe.setSubSourceId(c.getSubSourceId()); probe.setFundExclusive(c.isFundExclusive()); probe.setStatus(c.getStatus());
+        applyCampaignBody(probe, body);
+        boolean ruleRelevantChange = !java.util.Objects.equals(probe.getSubSourceId(), c.getSubSourceId())
+                || probe.isFundExclusive() != c.isFundExclusive() || !java.util.Objects.equals(probe.getStatus(), c.getStatus());
+        if (ruleRelevantChange) {
+            String fundProblem = fundRuleProblem(probe, cid);
+            if (fundProblem != null) return ResponseEntity.status(409).body(Map.of("error", fundProblem, "code", "FUND_IN_USE"));
+        }
         applyCampaignBody(c, body);
         return ResponseEntity.ok(toCampaignMap(campaignRepo.save(c),
                 totalsForCampaign(cid, c)));
+    }
+
+    /**
+     * 2026-11-16 — "Use this Fund exclusively for this Campaign" (user decision: one active campaign per fund).
+     * An exclusive campaign claims every gift to its fund, so while it is Active no other Active campaign may use
+     * that fund — otherwise two campaigns would count the same gifts. Returns the sentence to show, or null.
+     * A campaign that is not Active (Closed / Archived) is never checked, and neither are two ordinary campaigns
+     * sharing a fund (allowed before, still allowed).
+     */
+    String fundRuleProblem(PledgeCampaign c, String cid) {
+        if (c.isFundExclusive() && c.getSubSourceId() == null) {
+            return "Choose a Subcategory (Fund) to use the fund exclusively for this campaign.";
+        }
+        if (c.getSubSourceId() == null || !"Active".equals(c.getStatus() == null || c.getStatus().isBlank() ? "Active" : c.getStatus())) return null;
+        for (PledgeCampaign other : campaignRepo.findLiveActiveOnFund(cid, c.getSubSourceId())) {
+            if (other.getId() != null && other.getId().equals(c.getId())) continue;
+            if (c.isFundExclusive()) {
+                return "The campaign “" + other.getName() + "” is active on this fund. A fund can be used exclusively by one active campaign only — "
+                        + "close that campaign, choose another fund, or untick the option.";
+            }
+            if (other.isFundExclusive()) {
+                return "This fund is used exclusively by the active campaign “" + other.getName() + "”. Choose another fund, or close that campaign first.";
+            }
+        }
+        return null;
     }
 
     @ResponseBody
@@ -370,6 +410,10 @@ public class PledgeController {
         if (body.containsKey("otherGifts"))   c.setOtherGifts(str(body.get("otherGifts")));
         if (body.containsKey("description"))  c.setDescription(str(body.get("description")));
         if (body.containsKey("targetAmount")) c.setTargetAmount(toBd(body.get("targetAmount")));
+        if (body.containsKey("fundExclusive")) {
+            Object v = body.get("fundExclusive");
+            c.setFundExclusive(Boolean.TRUE.equals(v) || "true".equalsIgnoreCase(String.valueOf(v)));
+        }
         if (body.containsKey("endDate"))      c.setEndDate(toDate(body.get("endDate")));
         if (body.containsKey("status")) {
             String s = str(body.get("status"));
@@ -418,7 +462,11 @@ public class PledgeController {
             pct = collected.multiply(BigDecimal.valueOf(100))
                     .divide(c.getTargetAmount(), 1, RoundingMode.HALF_UP);
         }
+        if (c.isFundExclusive() && c.getSubSourceId() != null) {
+            return exclusiveTotals(cid, c, rows, pledged);
+        }
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("fundExclusive",   false);
         m.put("pledged",         pledged);
         m.put("collected",       collected);
         m.put("pending",         pending);
@@ -426,6 +474,91 @@ public class PledgeController {
         m.put("percent",         pct);
         m.put("pledgers",        rows.size());
         return m;
+    }
+
+    /** First day whose gifts count for a campaign (a safe floor for the rare legacy row with no created date). */
+    private static LocalDate windowStart(PledgeCampaign c) {
+        LocalDate s = campaignStart(c);
+        return s.isBefore(LocalDate.of(1900, 1, 1)) ? LocalDate.of(1900, 1, 1) : s;
+    }
+
+    /** The distinct members who hold a pledge in the campaign (a member with two pledges counts once). */
+    private static java.util.Set<Integer> pledgerIds(List<PledgeMember> rows) {
+        java.util.Set<Integer> ids = new java.util.LinkedHashSet<>();
+        for (PledgeMember p : rows) if (p.getFamilyMemberId() != null) ids.add(p.getFamilyMemberId());
+        return ids;
+    }
+
+    /**
+     * Totals of a campaign that uses its fund exclusively (2026-11-16). Every figure comes from the income rows of
+     * the fund inside the campaign's window, each row counted exactly once:
+     * <pre>
+     *   Total Collected         = all gifts to the fund in the window (anyone)
+     *   Collected from Pledgers = the part given by members who hold a pledge in this campaign
+     *   Outside Contributions   = Total Collected − Collected from Pledgers   (other members, guests)
+     *   Pending Pledge          = Total Pledged − Collected from Pledgers     (never below 0)
+     *   Percentage of Target    = Total Collected ÷ Target × 100
+     * </pre>
+     * Nothing is stored: editing, deleting or moving an income row changes the figures on the next read.
+     */
+    private Map<String, Object> exclusiveTotals(String cid, PledgeCampaign c, List<PledgeMember> rows, BigDecimal pledged) {
+        LocalDate from = windowStart(c);
+        BigDecimal total = incomeRepo.campaignFundTotal(c.getSubSourceId(), cid, from, c.getEndDate());
+        BigDecimal fromPledgers = incomeRepo.campaignFundTotalForMembers(c.getSubSourceId(), cid, pledgerIds(rows), from, c.getEndDate());
+        BigDecimal outside = total.subtract(fromPledgers);
+        BigDecimal pending = pledged.subtract(fromPledgers);
+        if (pending.signum() < 0) pending = BigDecimal.ZERO;
+        BigDecimal remaining = c.getTargetAmount() != null ? c.getTargetAmount().subtract(total) : null;
+        if (remaining != null && remaining.signum() < 0) remaining = BigDecimal.ZERO;
+        BigDecimal pct = null;
+        if (c.getTargetAmount() != null && c.getTargetAmount().signum() > 0) {
+            pct = total.multiply(BigDecimal.valueOf(100)).divide(c.getTargetAmount(), 1, RoundingMode.HALF_UP);
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("fundExclusive",         true);
+        m.put("pledged",               pledged);
+        m.put("collected",             total);          // what the progress bar and older readers show
+        m.put("collectedFromPledgers", fromPledgers);
+        m.put("outsideContributions",  outside);
+        m.put("totalCollected",        total);
+        m.put("pending",               pending);
+        m.put("remainingTarget",       remaining);
+        m.put("percent",               pct);
+        m.put("pledgers",              rows.size());
+        m.put("windowStart",           from.toString());
+        m.put("windowEnd",             c.getEndDate() == null ? null : c.getEndDate().toString());
+        return m;
+    }
+
+    /**
+     * {@code GET /api/pledges/campaigns/{id}/outside} — the gifts counted as Outside Contributions (newest 200):
+     * date, contributor, amount. Empty for a campaign that does not use its fund exclusively.
+     */
+    @ResponseBody
+    @GetMapping("/api/pledges/campaigns/{id}/outside")
+    public ResponseEntity<?> outsideContributions(@PathVariable Integer id, HttpServletRequest req) {
+        String deny = RoleGuard.requireAccountantOrAdmin(req);
+        if (deny != null) return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        String cid = SessionUtil.getAppClientId(req);
+        PledgeCampaign c = campaignRepo.findByIdAndClientId(id, cid).orElse(null);
+        if (c == null || c.isDeleteFlag()) return ResponseEntity.status(404).body(Map.of("error", "Campaign not found"));
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (c.isFundExclusive() && c.getSubSourceId() != null) {
+            java.util.Set<Integer> ids = pledgerIds(pledgeRepo.findByCampaign(cid, c.getId()));
+            if (ids.isEmpty()) ids = java.util.Set.of(-1);
+            LocalDate end = c.getEndDate() == null ? LocalDate.of(9999, 12, 31) : c.getEndDate();
+            for (Object[] r : incomeRepo.campaignOutsideRows(c.getSubSourceId(), cid, ids,
+                    java.sql.Date.valueOf(windowStart(c)), java.sql.Date.valueOf(end), 200)) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("incomeId", r[0]);
+                m.put("date", r[1] == null ? null : r[1].toString());
+                m.put("amount", r[2]);
+                String name = ((r[3] == null ? "" : r[3]) + " " + (r[4] == null ? "" : r[4])).trim();
+                m.put("contributor", !name.isEmpty() ? name : (r[5] == null || String.valueOf(r[5]).isBlank() ? "Guest" : String.valueOf(r[5])));
+                out.add(m);
+            }
+        }
+        return ResponseEntity.ok(out);
     }
 
     private Map<String, Object> toCampaignMap(PledgeCampaign c, Map<String, Object> totals) {
@@ -436,6 +569,7 @@ public class PledgeController {
         m.put("otherGifts",   c.getOtherGifts());
         m.put("description",  c.getDescription());
         m.put("targetAmount", c.getTargetAmount());
+        m.put("fundExclusive", c.isFundExclusive());
         m.put("endDate",      c.getEndDate() != null ? c.getEndDate().toString() : null);
         m.put("status",       c.getStatus());
         m.put("createdDate",  c.getCreatedDate() != null ? c.getCreatedDate().toString() : null);

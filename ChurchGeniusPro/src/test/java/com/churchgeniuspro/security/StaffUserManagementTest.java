@@ -186,15 +186,22 @@ class StaffUserManagementTest {
     @Nested
     @DisplayName("listing")
     class Listing {
-        @Test void staffSessionsSeeOnlyTheirOwnChurch() {
-            controller.getAll(staffOf(OURS, "Admin", 1));
+        // 2026-11-16 (user decision): the staff-user list is for the church login only.
+        @Test void theChurchLoginSeesOnlyItsOwnChurch() {
+            assertThat(controller.getAll(ownerOf(OURS)).getStatusCode().value()).isEqualTo(200);
             verify(userRepo).findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(OURS);
             verify(userRepo, never()).findByDeleteFlagFalseOrderByLastNameAscFirstNameAsc();
         }
-        @Test void memberSessionsSeeOnlyTheirOwnChurch() {
-            controller.getAll(memberOf(OURS));
-            verify(userRepo).findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(OURS);
+        @Test void staffSessionsAreRefused() {
+            for (String role : new String[] { "SuperAdmin", "Admin", "Accountant", "User" }) {
+                assertThat(controller.getAll(staffOf(OURS, role, 1)).getStatusCode().value()).as(role).isEqualTo(403);
+            }
+            verify(userRepo, never()).findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(anyString());
             verify(userRepo, never()).findByDeleteFlagFalseOrderByLastNameAscFirstNameAsc();
+        }
+        @Test void memberSessionsAreRefused() {
+            assertThat(controller.getAll(memberOf(OURS)).getStatusCode().value()).isEqualTo(403);
+            verify(userRepo, never()).findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(anyString());
         }
         @Test void noSessionIs401() {
             assertThat(controller.getAll(new MockHttpServletRequest()).getStatusCode().value()).isEqualTo(401);

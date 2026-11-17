@@ -63,6 +63,25 @@ public class AiAuditService {
         return null;
     }
 
+    /**
+     * 2026-11-16 — set-up lookups that pages make on their own (which pages may this login open, are the voice
+     * buttons shown, which lists / tools exist). They sit under AI addresses but are NOT AI usage: nothing is asked,
+     * no model is called. They are not written to the AI activity log and do not count toward the AI rate limits.
+     * GET only, exact paths — anything else under the AI addresses stays an AI request.
+     */
+    public static final java.util.Set<String> LOOKUP_PATHS = java.util.Set.of(
+            "/api/ai-search/nav",
+            "/api/ai-search/saved-lists",
+            "/api/voice/status",
+            "/api/voice/features",
+            "/api/ai/actions",
+            "/api/ai/actions/tools");
+
+    /** True for a page's own set-up lookup (see {@link #LOOKUP_PATHS}); never for a POST / PUT / DELETE. */
+    public static boolean isLookup(String method, String path) {
+        return path != null && "GET".equalsIgnoreCase(method) && LOOKUP_PATHS.contains(path);
+    }
+
     /** Services call this to record what they decided the request was (an intent key, never text). */
     public static void intent(HttpServletRequest request, Object intent) {
         if (request == null || intent == null) return;

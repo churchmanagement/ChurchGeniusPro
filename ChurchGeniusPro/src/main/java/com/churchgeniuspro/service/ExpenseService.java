@@ -233,10 +233,14 @@ public class ExpenseService {
                                  String     appClientId,
                                  String     updatedBy) {
         Expense expense = findExpenseOrThrow(id, appClientId);
-        expense.setPurpose(findPurposeOrThrow(purposeId, appClientId));
-        expense.setMainSource(findMainSourceOrThrow(mainSourceId, appClientId));
+        // 2026-11-16 — keep an unchanged reference even when it has been deleted since; a different one must be active.
+        expense.setPurpose(expense.getPurpose() != null && expense.getPurpose().getId().equals(purposeId)
+                ? expense.getPurpose() : findPurposeOrThrow(purposeId, appClientId));
+        expense.setMainSource(expense.getMainSource() != null && expense.getMainSource().getId().equals(mainSourceId)
+                ? expense.getMainSource() : findMainSourceOrThrow(mainSourceId, appClientId));
         expense.setExpenseDate(expenseDate);
-        expense.setTransactionType(findTransactionTypeOrThrow(transactionTypeId, appClientId));
+        expense.setTransactionType(expense.getTransactionType() != null && expense.getTransactionType().getId().equals(transactionTypeId)
+                ? expense.getTransactionType() : findTransactionTypeOrThrow(transactionTypeId, appClientId));
         expense.setRefNo(refNo != null ? refNo.trim() : null);
         expense.setAmount(amount);
         expense.setNote(note != null ? note.trim() : null);
@@ -287,6 +291,9 @@ public class ExpenseService {
         map.put("purposeName",    e.getPurpose().getPurposeName());
         map.put("mainSourceId",   e.getMainSource().getId());
         map.put("mainSourceName", e.getMainSource().getSourceName());
+        map.put("purposeDeleted",    e.getPurpose().isDeleteFlag());          // 2026-11-16: tags in the list
+        map.put("mainSourceDeleted", e.getMainSource().isDeleteFlag());
+        map.put("methodDeleted",     e.getTransactionType() != null && e.getTransactionType().isDeleteFlag());
         map.put("expenseDate",        e.getExpenseDate() != null ? e.getExpenseDate().toString() : null);
         TransactionType tt = e.getTransactionType();
         map.put("transactionTypeId",  tt != null ? tt.getId()       : null);

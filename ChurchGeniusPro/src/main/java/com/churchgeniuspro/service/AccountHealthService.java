@@ -67,6 +67,19 @@ public class AccountHealthService {
         return (int) Math.max(1, Math.min(UNUSED_DAYS, kept));
     }
 
+    /** Client ids that still hold a live bank connection although the church itself has been removed. */
+    public java.util.Set<String> removedChurchesWithBankSync() {
+        java.util.Set<String> live = new java.util.HashSet<>();
+        for (ServiceClient sc : clientRepo.findAllByDeleteFlagFalseOrderByIdDesc()) {
+            if (sc.getClientId() != null) live.add(sc.getClientId());
+        }
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (PlaidItem item : itemRepo.findByDeleteFlagFalse()) {
+            if (item.getClientId() != null && !live.contains(item.getClientId())) out.add(item.getClientId());
+        }
+        return out;
+    }
+
     public Map<String, Object> report() {
         return report(LocalDate.now());
     }
@@ -74,7 +87,12 @@ public class AccountHealthService {
     Map<String, Object> report(LocalDate today) {
         int unusedDays = unusedWindowDays();
         LocalDateTime unusedCutoff = today.minusDays(unusedDays).atStartOfDay();
-        Map<String, LocalDateTime> lastSignIn = lastSuccessfulSignInByChurch();
+        Map<String, LastLogin> lastLogin = lastSuccessfulLoginByChurch();
+        Map<String, LocalDateTime> lastSignIn = new HashMap<>();
+        lastLogin.forEach((k, v) -> lastSignIn.put(k, v.at()));
+        LocalDateTime recentCutoff = today.minusDays(UNUSED_DAYS).atStartOfDay();
+        List<Map<String, Object>> logins = new ArrayList<>();
+        int noRecentLogin = 0;
 
         List<ServiceClient> clients = clientRepo.findAllByDeleteFlagFalseOrderByIdDesc();
         Map<String, ServiceClient> byClientId = new HashMap<>();
@@ -86,6 +104,22 @@ public class AccountHealthService {
             byClientId.put(sc.getClientId(), sc);
             boolean active = SubscriptionService.isAccountActive(sc, today);
             LocalDateTime last = lastSignIn.get(sc.getClientId());
+
+            // 2026-11-16 — login overview: every registered church, successful sign-ins only.
+            LastLogin ll = lastLogin.get(sc.getClientId());
+            boolean recent = ll != null && !ll.at().isBefore(recentCutoff);
+            if (!recent) noRecentLogin++;
+            Map<String, Object> lo = new LinkedHashMap<>();
+            lo.put("id",            sc.getId());
+            lo.put("clientId",      sc.getClientId());
+            lo.put("kind",          kindOf(sc.getClientId()));
+            lo.put("churchName",    sc.getChurchName());
+            lo.put("status",        sc.getStatus());
+            lo.put("accountActive", active);
+            lo.put("lastLogin",     ll == null ? null : ll.at().toString());
+            lo.put("lastLoginUser", ll == null ? null : ll.username());
+            lo.put("loggedInRecently", recent);
+            logins.add(lo);
 
             String state;
             if (!active) {
@@ -117,8 +151,20 @@ public class AccountHealthService {
         List<Map<String, Object>> banks = new ArrayList<>();
         int paused = 0;
         LocalDate staleCutoff = today.minusDays(STALE_SYNC_DAYS);
+        // 2026-11-16 — a connection whose church has been removed is not an active issue: nobody can act on it.
+        // It is listed apart (removedChurchBankSyncs) so it can be closed, and stays out of the attention list.
+        List<Map<String, Object>> orphaned = new ArrayList<>();
         for (PlaidItem item : itemRepo.findByDeleteFlagFalse()) {
             ServiceClient sc = byClientId.get(item.getClientId());
+            if (sc == null) {
+                Map<String, Object> o = new LinkedHashMap<>();
+                o.put("itemDbId",    item.getId());
+                o.put("clientId",    item.getClientId());
+                o.put("institution", item.getInstitutionName());
+                o.put("status",      item.getStatus());
+                orphaned.add(o);
+                continue;
+            }
             boolean churchActive = SubscriptionService.isAccountActive(sc, today);
             String st = item.getStatus() == null ? "" : item.getStatus();
             LocalDate lastSync = toLocalDate(item.getLastSyncedDate());
@@ -154,6 +200,8 @@ public class AccountHealthService {
         counts.put("unused",   unused);
         counts.put("bankIssues", banks.size());
         counts.put("bankPaused", paused);
+        counts.put("removedChurchBankSyncs", orphaned.size());
+        counts.put("noRecentLogin", noRecentLogin);
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("generatedOn",   today.toString());
@@ -161,7 +209,22 @@ public class AccountHealthService {
         out.put("staleSyncDays", STALE_SYNC_DAYS);
         out.put("counts",        counts);
         out.put("accounts",      accounts);
+        // Churches with no recent sign-in first, then the most recent sign-in first.
+        logins.sort((a, b) -> {
+            boolean ra = Boolean.TRUE.equals(a.get("loggedInRecently")), rb = Boolean.TRUE.equals(b.get("loggedInRecently"));
+            if (ra != rb) return ra ? 1 : -1;
+            String la = (String) a.get("lastLogin"), lb = (String) b.get("lastLogin");
+            if (la == null && lb == null) return 0;
+            if (la == null) return -1;
+            if (lb == null) return 1;
+            return lb.compareTo(la);
+        });
+        out.put("logins",        logins);
+        out.put("recentLoginDays", UNUSED_DAYS);
+        out.put("loginHistoryDays", loginProps == null || loginProps.getRetention() == null
+                ? null : loginProps.getRetention().toDays());
         out.put("bankSyncs",     banks);
+        out.put("removedChurchBankSyncs", orphaned);
         return out;
     }
 
@@ -173,16 +236,29 @@ public class AccountHealthService {
      */
     Map<String, LocalDateTime> lastSuccessfulSignInByChurch() {
         Map<String, LocalDateTime> out = new HashMap<>();
+        lastSuccessfulLoginByChurch().forEach((k, v) -> out.put(k, v.at()));
+        return out;
+    }
+
+    /** The most recent successful sign-in of a church: when, and which login it was. */
+    record LastLogin(LocalDateTime at, String username) {}
+
+    /**
+     * 2026-11-16 — same mapping as above, and also WHO signed in last. Successful sign-ins only:
+     * failed, blocked and refused attempts are never read.
+     */
+    Map<String, LastLogin> lastSuccessfulLoginByChurch() {
+        Map<String, LastLogin> out = new HashMap<>();
         try {
             List<Map<String, Object>> rows = jdbc.queryForList(
                     "SELECT COALESCE(sc.client_id, au.client_id, fm.app_client_id) AS church, "
-                  + "       MAX(l.attempted_at) AS last_at "
+                  + "       l.username AS username, MAX(l.attempted_at) AS last_at "
                   + "FROM login_attempt_log l "
                   + "LEFT JOIN service_client sc ON sc.client_id = l.client_id "
                   + "LEFT JOIN app_user      au ON au.user_id   = l.client_id "
                   + "LEFT JOIN family_member fm ON fm.member_ref = l.client_id "
                   + "WHERE l.outcome = 'SUCCESS' AND l.client_id IS NOT NULL "
-                  + "GROUP BY COALESCE(sc.client_id, au.client_id, fm.app_client_id)");
+                  + "GROUP BY COALESCE(sc.client_id, au.client_id, fm.app_client_id), l.username");
             for (Map<String, Object> r : rows) {
                 Object church = r.get("church");
                 Object at = r.get("last_at");
@@ -190,7 +266,9 @@ public class AccountHealthService {
                 LocalDateTime t = at instanceof java.sql.Timestamp ts ? ts.toLocalDateTime()
                                 : at instanceof LocalDateTime ldt ? ldt
                                 : LocalDateTime.parse(at.toString().replace(' ', 'T'));
-                out.merge(church.toString(), t, (a, b) -> a.isAfter(b) ? a : b);
+                Object user = r.get("username");
+                LastLogin mine = new LastLogin(t, user == null ? null : user.toString());
+                out.merge(church.toString(), mine, (a, b) -> a.at().isAfter(b.at()) ? a : b);
             }
         } catch (Exception e) {
             log.warn("Account health: could not read sign-in history — {}", e.getMessage());

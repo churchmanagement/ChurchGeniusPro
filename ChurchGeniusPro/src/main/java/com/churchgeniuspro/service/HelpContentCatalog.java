@@ -451,13 +451,15 @@ public class HelpContentCatalog {
         // roles: SuperAdmin,Admin,Accountant
         add(new HelpArticle("pledges", "Accounting", "Pledges", "accounting.pledges", false,
             "Run pledge campaigns and track each person's pledge against what they have given.",
-            "Accounting → Pledges lists campaigns with Pledged, Collected, Pending, Pledgers and progress toward the Target Amount. A campaign has a name, a Subcategory (Fund), Status (Active / Closed / Archived), optional Target Amount, End Date, Other Gifts (non-cash) and Description. Manage Pledges → + Add Pledge records a member (or a walk-up guest name) with a Pledge Amount and optional Monthly Amount. Collected for a member pledge is the member's income to the campaign's fund dated from the day the campaign was created up to its End Date; guest pledges are not matched automatically. Members see 🤝 My Pledges in the Member Portal.",
+            "Accounting → Pledges lists campaigns with Pledged, Collected, Pending, Pledgers and progress toward the Target Amount. A campaign has a name, a Subcategory (Fund), Status (Active / Closed / Archived), optional Target Amount, End Date, Other Gifts (non-cash) and Description. Manage Pledges → + Add Pledge records a member (or a walk-up guest name) with a Pledge Amount and optional Monthly Amount. Collected for a member pledge is the member's income to the campaign's fund dated from the day the campaign was created up to its End Date; guest pledges are not matched automatically. Ticking \"Use this Fund exclusively for this Campaign\" counts EVERY gift to the fund in that period: the card then shows Total Pledged, Collected from Pledgers, Pending Pledge, Outside Contributions (gifts from members without a pledge, and guests) and Total Collected, each gift counted once; one active campaign at a time can use a fund this way. Members see 🤝 My Pledges in the Member Portal.",
             list("Open Accounting → Pledges and click + New Campaign.",
                  "Enter the Campaign Name and Subcategory (Fund); set Target Amount / End Date if wanted; Save.",
                  "Click Manage Pledges → + Add Pledge, pick the member and enter the Pledge Amount; Save."),
             list("Problem: Collected stays at zero — Fix: the income must be recorded to the campaign's fund, for that member, on or after the date the campaign was created.",
+                 "Problem: a gift from someone without a pledge is not counted — Fix: edit the campaign and tick Use this Fund exclusively for this Campaign; it then appears under Outside Contributions.",
+                 "Problem: the exclusive option is refused — Fix: another active campaign uses the same fund; close it or choose another fund.",
                  "Problem: deleting a campaign — Fix: its pledges are hidden too; confirm before deleting."),
-            "1.1", list("v1.1 — Documented campaign fields, guest pledges and how Collected is counted (campaign window).", "v1.0 — Initial release."),
+            "1.2", list("v1.2 — Use this Fund exclusively for this Campaign: outside contributions and total collected.", "v1.1 — Documented campaign fields, guest pledges and how Collected is counted (campaign window).", "v1.0 — Initial release."),
             list("pledge","pledges","campaign","building fund","collected","target")).roles("SuperAdmin,Accountant"));
 
         // roles: SuperAdmin,Admin,Accountant
@@ -870,7 +872,7 @@ public class HelpContentCatalog {
         // roles: SuperAdmin,Admin,Accountant,User,Limited
         add(new HelpArticle("home_dashboard", "Getting Started", "The Home Dashboard", null, false,
             "What the Home page shows for each role, and how to move, remove, add back or reset its sections.",
-            "Admins see People (Members, New Members in the last 30 days, Guests, Families), Church Growth & Calendar, and Events & Distribution. "
+            "Admins see At a glance (Groups, Attendance, Events, Birthdays, Anniversaries, Meetings), Church Growth — the chart with Members (Total, New, Male, Female, Adults, Children) and Families (Total, New, Guests, Visitors) beside it — and Upcoming Events & Calendar. "
           + "Accountants see Financial Greeting, Net Balance, Recurring Income, Recurring Expense, Income & Expense Stats and Recent Transactions & Chart. SuperAdmins see both sets; User and Limited logins see a welcome message. "
           + "Press and hold a section still for about 1 second, then drag it to a new place. ✏️ Customize layout opens edit mode: ✕ removes a section, ＋ Add section brings one back to its old place, Done finishes, and ↺ Reset to default layout restores the original. "
           + "The layout is saved to your login, follows you to other devices and never changes what other staff see. Removing a section deletes nothing.",
@@ -1124,10 +1126,12 @@ public class HelpContentCatalog {
                  "Add a Main Category (＋ Add), select it, and add its Sub Categories.",
                  "💼 ACCOUNT SETTINGS → Purpose: add expense categories.",
                  "💼 ACCOUNT SETTINGS → Transaction Type: add payment methods."),
-            list("Problem: deleting a main category removed its sub categories — Fix: this is by design; the confirmation warns about it.",
+            list("Problem: deleting a main category removed its sub categories — Fix: this is by design; restore the main category from the Deleted list at the bottom of the Fund page and they come back with it.",
+                 "Problem: a transaction shows a Deleted tag — Fix: it still uses a fund, purpose, transaction type or contributor deleted later; nothing was changed. Click the tag, choose an active one and save if you want to move it.",
+                 "Problem: Permanently delete is not available — Fix: a record still uses the entry; history is never removed, so use Delete (it hides the entry from new transactions and can be restored).",
                  "Problem: no 💼 ACCOUNT SETTINGS button — Fix: only Accountant/SuperAdmin see it, and only with the Account Settings permission."),
-            "1.0", list("v1.0 — Initial release."),
-            list("fund","funds","main category","sub category","purpose","transaction type","method","account settings","setup")).roles("SuperAdmin,Accountant"));
+            "1.1", list("v1.1 — Delete (restorable) or Permanently delete; Deleted list with Restore; Deleted tags on transactions and in report filters.", "v1.0 — Initial release."),
+            list("fund","funds","main category","sub category","purpose","transaction type","method","account settings","setup","delete fund","restore fund","permanently delete","deleted tag")).roles("SuperAdmin,Accountant"));
 
         // roles: SuperAdmin,Accountant
         add(new HelpArticle("accountant_dashboard", "Accounting", "Accountant Dashboard (Home)", null, false,

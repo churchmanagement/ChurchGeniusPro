@@ -49,6 +49,13 @@ public class SourceController {
 
     private final SourceService sourceService;
 
+    /**
+     * 2026-11-16 — records who deleted an entry and when (and, for a main category, which sub-categories went with
+     * it) so it can be restored. Optional: without it the delete works exactly as before.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.ReferenceDataService referenceData;
+
     public SourceController(SourceService sourceService) {
         this.sourceService = sourceService;
     }
@@ -135,7 +142,8 @@ public class SourceController {
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
-            sourceService.deleteMainSource(id, appClientId);
+            if (referenceData != null) referenceData.softDelete(com.churchgeniuspro.service.ReferenceDataService.MAIN, id, appClientId, com.churchgeniuspro.util.SessionUtil.getUsername(request));
+            else sourceService.deleteMainSource(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());
@@ -238,7 +246,8 @@ public class SourceController {
         String appClientId = SessionUtil.getAppClientId(request);
         if (appClientId == null) return ResponseEntity.status(401).body(Map.of("error", "Please sign in."));
         try {
-            sourceService.deleteSubSource(id, appClientId);
+            if (referenceData != null) referenceData.softDelete(com.churchgeniuspro.service.ReferenceDataService.SUB, id, appClientId, com.churchgeniuspro.util.SessionUtil.getUsername(request));
+            else sourceService.deleteSubSource(id, appClientId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException ex) {
             return bad(ex.getMessage());

@@ -83,7 +83,8 @@ public class AiGuardFilter implements Filter {
                 if (enforceTempAccess) {
                     writeJson(response, 403, "{\"error\":\"AI features are not available to temporary-access sessions.\","
                             + "\"code\":\"" + CODE_TEMP_ACCESS + "\"}");
-                    record(clientId, actor, role, channel, path, request, 403, "DENIED", started);
+                    if (!AiAuditService.isLookup(request.getMethod(), path))
+                        record(clientId, actor, role, channel, path, request, 403, "DENIED", started);
                     return;
                 }
                 log.warn("[AiGuard] temporary-access session reached {} (enforcement off)", path);
@@ -91,6 +92,11 @@ public class AiGuardFilter implements Filter {
         } catch (Exception e) {
             log.warn("[AiGuard] gate failed open on {}: {}", path, com.churchgeniuspro.util.LogSafe.exception(e));
         }
+
+        // 2026-11-16 — a page's own set-up lookup (navigation verdicts, voice button flags, list of saved lists /
+        // tools) is not AI usage: no consent notice, no rate-limit count, no activity row. The temporary-access
+        // refusal above still applies. Opening a page used to add an "AI Search" and a "Voice" row every time.
+        if (AiAuditService.isLookup(request.getMethod(), path)) { chain.doFilter(req, res); return; }
 
         // D6 — AI data-sharing consent, app only, fails CLOSED.
         com.churchgeniuspro.ai.consent.AiConsentPaths.Requirement need =

@@ -778,26 +778,20 @@
   async function deleteMainSource(id) {
     const s    = mainMap[id];
     const name = s ? s.sourceName : String(id);
-    if (!confirm('Are you sure you want to delete this category? This will also delete all its sub-categories.')) return;
-
-    try {
-      const res  = await fetch(`/api/sources/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        showFeedback(`"${escHtml(name)}" and its sub categories have been deleted.`, 'success');
-        if (selectedMainId === id) {
-          selectedMainId = null;
-          allSubSources  = [];
-          updateRightPanelHeader();
-          renderSubContent();
-        }
-        await loadMainSources();
-      } else {
-        showFeedback(`❌ ${data.error || 'Failed to delete main category.'}`, 'error');
+    // 2026-11-16 — two choices in one dialog: Delete (soft, restorable) or Permanently delete (only when unused).
+    CGP_refDelete.ask({ kind: 'main-source', id, name, onDone: async (r) => {
+      showFeedback(r.mode === 'permanent'
+        ? `"${name}" and its sub categories have been permanently deleted.`
+        : `"${name}" and its sub categories have been deleted. You can restore them under "Deleted" below.`, 'success');
+      if (selectedMainId === id) {
+        selectedMainId = null;
+        allSubSources  = [];
+        updateRightPanelHeader();
+        renderSubContent();
       }
-    } catch {
-      showFeedback('❌ Network error — could not delete main category.', 'error');
-    }
+      await loadMainSources();
+      if (window._rdDeleted) window._rdDeleted.refresh();
+    }});
   }
 
   /* ════════════════════════════════════
@@ -816,20 +810,12 @@
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this sub-category?')) return;
-
-    try {
-      const res  = await fetch(`/api/sub-sources/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        showFeedback(`"${escHtml(name)}" has been deleted.`, 'success');
-        await loadSubSources(selectedMainId);
-      } else {
-        showFeedback(`❌ ${data.error || 'Failed to delete sub category.'}`, 'error');
-      }
-    } catch {
-      showFeedback('❌ Network error — could not delete sub category.', 'error');
-    }
+    CGP_refDelete.ask({ kind: 'sub-source', id, name, onDone: async (r) => {
+      showFeedback(r.mode === 'permanent' ? `"${name}" has been permanently deleted.`
+                                          : `"${name}" has been deleted. You can restore it under "Deleted" below.`, 'success');
+      await loadSubSources(selectedMainId);
+      if (window._rdDeleted) window._rdDeleted.refresh();
+    }});
   }
 
   /* ════════════════════════════════════
@@ -875,6 +861,15 @@
 window.CGP_PAGE = { activePage: 'account-settings/fund', pageTitle: 'Fund', openSection: 'account-settings' };
 </script>
 <script src="/shell.js"></script>
+<script src="/ref-delete.js"></script>
+<script>
+  /* Deleted main categories and sub-categories: Restore / Delete permanently (2026-11-16). */
+  window._rdDeleted = CGP_refDelete.mountDeleted({ list: 'fund', onChange: function (msg) {
+    if (typeof showFeedback === 'function') showFeedback(msg, 'success');
+    if (typeof loadMainSources === 'function') loadMainSources();
+    if (typeof selectedMainId !== 'undefined' && selectedMainId && typeof loadSubSources === 'function') loadSubSources(selectedMainId);
+  }});
+</script>
 <script src="/session.js"></script>
 </body>
 </html>

@@ -239,6 +239,19 @@
     /* ── Row layouts ─────────────────────────────── */
     .dash-row { display: grid; gap: 20px; margin-bottom: 20px; }
     .cols-6-4 { grid-template-columns: 6fr 4fr; }
+    /* 2026-11-16 — Church Growth: chart, with the Members / Families figures on its right (stacked on phones) */
+    .growth-row { grid-template-columns: 1fr; }
+    .growth-row.with-figures { grid-template-columns: minmax(0, 6fr) minmax(0, 4fr); }
+    #growthFiguresCard[hidden] { display: none !important; }
+    .growth-figures { display: flex; flex-direction: column; gap: 16px; }
+    .gf-title { display: block; font-size: 13px; font-weight: 700; color: #673147; text-decoration: none;
+                text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+    a.gf-title:hover { text-decoration: underline; }
+    .gf-grid  { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .gf-cell  { background: #faf6f8; border: 1px solid #efe6eb; border-radius: 10px; padding: 9px 6px; text-align: center; min-width: 0; }
+    .gf-value { font-size: 20px; font-weight: 800; color: #3a1c29; line-height: 1.15; }
+    .gf-label { font-size: 11px; color: #777; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 900px) { .growth-row.with-figures { grid-template-columns: 1fr; } }
     .cols-1   { grid-template-columns: 1fr; }
     @media (max-width: 1100px) {
       .cols-6-4   { grid-template-columns: 1fr; }
@@ -728,9 +741,9 @@
           </div>
         </div>
 
-        <!-- ─── Admin: Church Growth + Event Calendar ─── -->
+        <!-- ─── Admin: Church Growth (chart + Members / Families figures) — 2026-11-16 ─── -->
         <div class="dash-section dash-body-section" data-sid="s-admin-growth-calendar" style="padding-top:20px;">
-          <div class="dash-row" style="grid-template-columns:1fr 1fr;">
+          <div class="dash-row growth-row" id="growthRow">
             <!-- Church Growth -->
             <div class="card">
               <div class="card-hdr">
@@ -745,6 +758,29 @@
                   <div style="width:24px;height:3px;background:#673147;border-radius:2px;"></div>
                   <span style="font-size:11px;color:#888;">Members added</span>
                 </div>
+              </div>
+            </div>
+            <!-- Members / Families figures (shown only when the server sends them) -->
+            <div class="card" id="growthFiguresCard" hidden>
+              <div class="card-body growth-figures" id="growthFigures"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Admin: Upcoming Events + Calendar — 2026-11-16 ─── -->
+        <div class="dash-section dash-body-section" data-sid="s-admin-events-distribution">
+          <div class="dash-row cols-6-4">
+            <!-- Upcoming Events -->
+            <div class="card">
+              <div class="card-hdr">
+                <div>
+                  <div class="card-title">Upcoming Events</div>
+                  <div class="card-sub">Scheduled meetings and services</div>
+                </div>
+                <a class="card-link" href="/meetings">View all ↗</a>
+              </div>
+              <div class="card-body">
+                <div class="evt-list" id="upcomingList"></div>
               </div>
             </div>
             <!-- Event Calendar -->
@@ -764,35 +800,6 @@
                 </div>
                 <div class="cal-grid" id="miniCal"></div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── Admin: Upcoming Events + Member Distribution ─── -->
-        <div class="dash-section dash-body-section" data-sid="s-admin-events-distribution">
-          <div class="dash-row cols-6-4">
-            <!-- Upcoming Events -->
-            <div class="card">
-              <div class="card-hdr">
-                <div>
-                  <div class="card-title">Upcoming Events</div>
-                  <div class="card-sub">Scheduled meetings and services</div>
-                </div>
-                <a class="card-link" href="/meetings">View all ↗</a>
-              </div>
-              <div class="card-body">
-                <div class="evt-list" id="upcomingList"></div>
-              </div>
-            </div>
-            <!-- Member Distribution -->
-            <div class="card">
-              <div class="card-hdr">
-                <div>
-                  <div class="card-title">Member Distribution</div>
-                  <div class="card-sub">Male · Female · Adults · Children</div>
-                </div>
-              </div>
-              <div class="card-body" id="distPanel"></div>
             </div>
           </div>
         </div>
@@ -1044,8 +1051,8 @@ async function doLogout() {
 ══════════════════════════════════════════════ */
 const SECTION_DEFS = [
   { sid: 's-admin-banner',                label: 'At a glance (statistics)',    roles: ['Admin','SuperAdmin','Church'] },
-  { sid: 's-admin-growth-calendar',       label: 'Church Growth & Calendar',    roles: ['Admin','SuperAdmin','Church'] },
-  { sid: 's-admin-events-distribution',   label: 'Events & Distribution',       roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-growth-calendar',       label: 'Church Growth',               roles: ['Admin','SuperAdmin','Church'] },
+  { sid: 's-admin-events-distribution',   label: 'Upcoming Events & Calendar',   roles: ['Admin','SuperAdmin','Church'] },
   { sid: 's-acct-banner',                 label: 'Financial Greeting',          roles: ['Accountant'] },
   { sid: 's-acct-net-balance',            label: 'Net Balance',                 roles: ['Accountant','SuperAdmin'] },
   { sid: 's-acct-income-qa',              label: 'Recurring Income',            roles: ['Accountant','SuperAdmin'] },
@@ -1918,7 +1925,7 @@ async function loadDashboard() {
     if (data && data.statsAllowed === true) renderStatCards(data);
     renderGrowthChart(data.membersByMonth || []);
     // Congregation panel removed
-    renderDistribution(data);
+    renderGrowthFigures(data);
     renderUpcoming(data.upcomingMeetings || []);
   } catch (e) {
     console.error('Dashboard load failed', e);
@@ -1942,18 +1949,14 @@ function _statEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').r
 function renderStatCards(data) {
   const g = data.glance || {}, att = g.attendance || {};
   const b = g.birthdays || {}, an = g.anniversaries || {}, mt = g.meetings || {};
-  const cards = [
-    { icon:'👥', label:'Members',     value: _statNum(data.totalMembers), trend: `+${_statNum(data.newMembers)} this month`, href:'/viewfamily' },
-    { icon:'✨', label:'New Members', value: _statNum(data.newMembers),   trend: 'last 30 days',      href:'/viewfamily' },
-    { icon:'👋', label:'Guests',      value: _statNum(data.guests),       trend: 'registered guests', href:'/viewfamily' },
-    { icon:'🏠', label:'Families',    value: _statNum(data.families),     trend: 'family units',      href:'/viewfamily' },
-  ];
+  /* 2026-11-16: Members / New Members / Guests / Families moved beside the Church Growth chart; the open
+     visitor follow-ups figure is on the Follow-Ups page. Six cards remain. */
+  const cards = [];
   if (data.glance) cards.push(
     { icon:'🧩', label:'Groups',     value: _statNum(g.groups), trend: 'active groups', href:'/groups' },
     { icon:'📊', label:'Attendance', value: _statNum(att.percent) + '%', trend: `${_statNum(att.attended)} of ${_statNum(att.people)} · ${_statNum(att.days || 30)} days`,
       title: `${_statNum(att.attended)} of ${_statNum(att.people)} people were checked in at least once in the last ${_statNum(att.days || 30)} days`, href:'/attendance' },
     { icon:'🎉', label:'Events',     value: _statNum(g.events),   trend: 'upcoming',        href:'/events' },
-    { icon:'🙋', label:'Visitors',   value: _statNum(g.visitors), trend: 'open follow-ups', title: 'Open visitor follow-ups — the number on the Follow-Ups page, Visitors tab', href:'/followups' },
     { icon:'🎂', label:'Birthdays',     trio: b,  href:'/viewfamily' },
     { icon:'💍', label:'Anniversaries', trio: an, href:'/viewfamily' },
     { icon:'📅', label:'Meetings',      trio: mt, href:'/meetings' }
@@ -2038,34 +2041,46 @@ function renderGrowthChart(byMonth) {
 }
 
 
-/* ── Member Distribution ─── */
-function renderDistribution(data) {
-  const male    = Number(data.maleCount   || 0);
-  const female  = Number(data.femaleCount || 0);
-  const adults  = Number(data.adultCount  || 0);
-  const children= Number(data.childCount  || 0);
-  const total   = male + female || 1;         // base for gender %
-  const totAC   = adults + children || 1;     // base for age %
-  const rows = [
-    { label:'Male',     count: male,     pct: Math.round(male     / total  * 100), color:'#673147' },
-    { label:'Female',   count: female,   pct: Math.round(female   / total  * 100), color:'#ec407a' },
-    { label:'Adults',   count: adults,   pct: Math.round(adults   / totAC  * 100), color:'#26c6da' },
-    { label:'Children', count: children, pct: Math.round(children / totAC  * 100), color:'#ffa726' },
-  ];
-  document.getElementById('distPanel').innerHTML = rows.map(r => `
-    <div class="dist-row">
-      <span class="dist-label">${r.label}</span>
-      <div class="dist-bar-wrap">
-        <div class="dist-bar" style="width:${r.pct}%;background:${r.color};"></div>
-      </div>
-      <span class="dist-pct">${r.count.toLocaleString()} <span style="color:#bbb;font-weight:400;">(${r.pct}%)</span></span>
-    </div>`).join('') +
-    `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #f4f4f4;">
-       <div style="display:flex;justify-content:space-between;font-size:13px;color:#888;">
-         <span>Total registered</span>
-         <strong style="color:#673147;">${(male + female).toLocaleString()}</strong>
-       </div>
-     </div>`;
+/* ── Members / Families figures beside the Church Growth chart (2026-11-16) ───
+   The server sends `growth` only to a login that may see the statistics; without it the chart takes the row. */
+function renderGrowthFigures(data) {
+  const card = document.getElementById('growthFiguresCard');
+  const row  = document.getElementById('growthRow');
+  const box  = document.getElementById('growthFigures');
+  const gr = data && data.statsAllowed === true ? data.growth : null;
+  box.textContent = '';
+  if (!gr) { card.hidden = true; row.classList.remove('with-figures'); return; }
+  const m = gr.members || {}, f = gr.families || {};
+  const famHref = _statHref('/viewfamily');
+  const group = (title, items) => {
+    const wrap = document.createElement('div'); wrap.className = 'gf-group';
+    wrap.setAttribute('role', 'group'); wrap.setAttribute('aria-label', title);
+    const h = document.createElement(famHref ? 'a' : 'div'); h.className = 'gf-title'; h.textContent = title;
+    if (famHref) h.href = famHref;
+    wrap.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'gf-grid';
+    items.forEach(it => {
+      const cell = document.createElement('div'); cell.className = 'gf-cell'; cell.setAttribute('data-figure', title + ':' + it[0]);
+      if (it[2]) cell.title = it[2];
+      const v = document.createElement('div'); v.className = 'gf-value'; v.textContent = _statNum(it[1]);
+      const l = document.createElement('div'); l.className = 'gf-label'; l.textContent = it[0];
+      cell.appendChild(v); cell.appendChild(l); grid.appendChild(cell);
+    });
+    wrap.appendChild(grid);
+    return wrap;
+  };
+  const yr = gr.year || new Date().getFullYear();
+  box.appendChild(group('Members', [
+    ['Total', m.total], ['New', m.added, 'Members added in ' + yr], ['Male', m.male], ['Female', m.female],
+    ['Adults', m.adults], ['Children', m.children]
+  ]));
+  box.appendChild(group('Families', [
+    ['Total', f.total], ['New', f.added, 'Families added in ' + yr],
+    ['Guests', f.guests, 'Families whose primary member is a Guest'],
+    ['Visitors', f.visitors, 'Families whose primary member is a Visitor']
+  ]));
+  card.hidden = false;
+  row.classList.add('with-figures');
 }
 
 /* ── Upcoming Events list ─────────────────────── */

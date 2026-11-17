@@ -280,7 +280,7 @@ function initMemberDropdown(items) {
   try {
     const [membersRes, subRes] = await Promise.all([
       fetch(`/api/income/contributors?clientId=${encodeURIComponent(clientId)}`),
-      fetch(`/api/income/sub-sources?clientId=${encodeURIComponent(clientId)}`)
+      fetch(`/api/income/sub-sources?includeDeleted=true&clientId=${encodeURIComponent(clientId)}`)
     ]);
     const members = await membersRes.json();
     const subs    = await subRes.json();
@@ -299,7 +299,9 @@ function initMemberDropdown(items) {
       opt.value = s.id;
       const subName  = s.sourceName || s.name || '';
       const mainName = s.mainSourceName || '';
-      opt.textContent = (showMain && mainName) ? `${mainName} / ${subName}` : subName;
+      // 2026-11-16: deleted sub-categories stay in this filter (for old transactions), clearly marked; always with their main category
+      opt.textContent = s.deleted ? `${mainName ? mainName + '/' : ''}${subName} (Deleted)`
+                                  : ((showMain && mainName) ? `${mainName} / ${subName}` : subName);
       sSel.appendChild(opt);
     });
   } catch(e){ console.warn('Could not load filter dropdowns:', e); }

@@ -64,6 +64,21 @@ public class SubSource {
     @Column(name = "created_date", nullable = false, updatable = false)
     private Date createdDate;
 
+    /** When this entry was deleted (soft delete); null while active, and on rows deleted before 2026-11-16. */
+    @Column(name = "deleted_at")
+    private Date deletedAt;
+
+    /** Login that deleted it; null while active. */
+    @Column(name = "deleted_by", length = 100)
+    private String deletedBy;
+
+    /**
+     * True when this sub-category was deleted BECAUSE its main category was deleted — restoring the main category
+     * brings exactly these back. A sub-category deleted on its own stays deleted. Null on older rows.
+     */
+    @Column(name = "deleted_with_parent")
+    private Boolean deletedWithParent;
+
     @PrePersist
     protected void onCreate() {
         this.createdDate = new Date();

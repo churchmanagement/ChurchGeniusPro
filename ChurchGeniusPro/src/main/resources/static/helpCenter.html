@@ -555,9 +555,9 @@
 
             <div class="hc-section-label" id="hc-home-dashboard-sections">What you see</div>
             <div class="hc-steps">
-              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>People</strong> — Members, New Members (last 30 days), Guests and Families (Admin, SuperAdmin)</span></div>
-              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Church Growth &amp; Calendar</strong> — members added per month, and a month calendar with <strong>View full ↗</strong> (Admin, SuperAdmin)</span></div>
-              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Events &amp; Distribution</strong> — upcoming meetings and services, and Male / Female / Adults / Children (Admin, SuperAdmin)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>At a glance</strong> — Groups, Attendance, Events, Birthdays, Anniversaries and Meetings (Admin, SuperAdmin with Admin → Family)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Church Growth</strong> — members added per month, with the <strong>Members</strong> (Total, New, Male, Female, Adults, Children) and <strong>Families</strong> (Total, New, Guests, Visitors) figures beside the chart (Admin, SuperAdmin)</span></div>
+              <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Upcoming Events &amp; Calendar</strong> — upcoming meetings and services, and a month calendar with <strong>View full ↗</strong> (Admin, SuperAdmin)</span></div>
               <div class="hc-step"><span class="hc-step-num">•</span><span><strong>Net Balance</strong>, <strong>Recurring Income</strong>, <strong>Recurring Expense</strong>, <strong>Income &amp; Expense Stats</strong>, <strong>Recent Transactions &amp; Chart</strong> (Accountant, SuperAdmin)</span></div>
               <div class="hc-step"><span class="hc-step-num">•</span><span>User and Limited logins see a welcome message — use the left menu to get started</span></div>
             </div>
@@ -2506,6 +2506,8 @@
             </div>
             <div class="hc-section-label">Common questions</div>
             <div class="hc-faq">
+              <div class="hc-faq-item" id="hc-settings-delete"><div class="hc-faq-q">What happens when I delete a fund, purpose or transaction type?</div><div class="hc-faq-a">The 🗑 button offers two choices. <strong>Delete (recommended)</strong> hides the entry from new transactions; every existing transaction keeps it and shows a small <strong>Deleted</strong> tag, and it stays in the report filters marked “(Deleted)”. Deleting a main category also deletes its sub categories. You can bring an entry back from the <strong>Deleted</strong> list at the bottom of the page with <span class="hc-ui">Restore</span>. <strong>Permanently delete</strong> removes the entry completely and is only possible when no transaction or other record uses it — your income and expense history is never removed or changed.</div></div>
+              <div class="hc-faq-item"><div class="hc-faq-q">A transaction shows a “Deleted” tag. What do I do?</div><div class="hc-faq-a">The transaction still uses a contributor, fund or transaction type that was deleted later. Nothing is wrong and nothing was changed. If you want it on an active fund, click the tag (or ✏️ Edit), choose an active one and save.</div></div>
               <div class="hc-faq-item"><div class="hc-faq-q">I can't see the 💼 ACCOUNT SETTINGS button.</div><div class="hc-faq-a">It is shown only to Accountant and SuperAdmin logins, and only when the <strong>Account Settings</strong> permission is on.</div></div>
             </div>
             <div class="hc-quick-links">
@@ -2551,6 +2553,8 @@
               <div class="hc-faq-item"><div class="hc-faq-q">Do guest pledges update automatically?</div><div class="hc-faq-a">No. Only pledges linked to a member are matched to income automatically.</div></div>
               <div class="hc-faq-item"><div class="hc-faq-q">Can members see their pledges?</div><div class="hc-faq-a">Yes. Members see a <strong>🤝 My Pledges</strong> card in the Member Portal giving area.</div></div>
             </div>
+            <div class="hc-section-label" id="hc-pledges-fund">Campaign fund: how collections are calculated</div>
+            <p class="hc-desc">The <strong>Subcategory (Fund)</strong> of a campaign links it to Income. By default only gifts from the campaign's <strong>pledgers</strong> to that fund count: when a member who has a pledge gives to the fund, the gift is credited to the pledge. Tick <span class="hc-ui">Use this Fund exclusively for this Campaign</span> to count <strong>every</strong> gift to the fund between the day the campaign was created and its End Date. The campaign card then shows <strong>Total Pledged</strong>, <strong>Collected from Pledgers</strong>, <strong>Pending Pledge</strong>, <strong>Outside Contributions</strong> (gifts from members without a pledge, and guests) and <strong>Total Collected</strong>. Each gift is counted once, and the figures follow any later change on the Income page. One active campaign at a time can use a fund this way.</p>
             <div class="hc-quick-links">
               <a class="hc-qlink" href="/pledges">🤝 Pledges</a>
               <a class="hc-qlink sec" href="/income">💵 Income</a>
@@ -4801,7 +4805,7 @@ const HC_KB = [
     id: 'home-dashboard',
     q: ['home','dashboard','customize dashboard','customize layout','edit layout','move section','reorder dashboard','add section','remove section','reset dashboard'],
     title: '🏠 Customize the Home Dashboard',
-    answer: 'The Home dashboard shows People stats, Church Growth & Calendar and Events & Distribution for Admins, the financial overview for Accountants, and both for SuperAdmins. Press and hold a section for 1 second and drag it to move it. Click ✏️ Customize layout to remove sections (✕), bring them back (＋ Add section) or ↺ Reset to default layout. Your layout is saved to your login.',
+    answer: 'The Home dashboard shows At a glance, Church Growth (with Members and Families figures) and Upcoming Events & Calendar for Admins, the financial overview for Accountants, and both for SuperAdmins. Press and hold a section for 1 second and drag it to move it. Click ✏️ Customize layout to remove sections (✕), bring them back (＋ Add section) or ↺ Reset to default layout. Your layout is saved to your login.',
     steps: ['Press and hold a section for about 1 second, then drag it up or down and let go','Click ✏️ Customize layout','Click ✕ on a section to remove it, or ＋ Add section to bring one back','Click Done','↺ Reset to default layout restores the original order'],
     links: [{label:'Home', url:'/home', icon:'🏠'}],
     related: ['favorites','notification bell']
