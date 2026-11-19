@@ -268,7 +268,7 @@
 
   /* Login / forgot / signup cards */
   .card { padding: 28px 20px !important; border-radius: 12px !important; }
-  .logo-box { width: 160px !important; margin-bottom: 20px !important; }
+  .logo-box { width: 84px !important; margin-bottom: 20px !important; }
   .btn-login { padding: 12px !important; }
 
   /* membershipForm */
