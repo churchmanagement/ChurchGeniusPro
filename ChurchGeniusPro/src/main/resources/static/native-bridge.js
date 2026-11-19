@@ -610,5 +610,54 @@
 
   log('active on', window.CGP_NATIVE.platform);
   // session.js may have run before this file (shell.js injects it deferred): let it know.
+  /* ── 10. links that open the app (Android App Links / iOS Universal Links) ──
+     2026-11-17 — the app is registered for every churchgeniuspro.net link, but it always
+     started at its own first page (sign-in), so a tapped public link (/donate/…, an event
+     registration, a prayer or Connect page …) showed the sign-in screen. Now the app goes
+     to the page in the link: at a cold start (getLaunchUrl) and while it is already
+     running (appUrlOpen). Same site only; the page's own rules still decide who may see it. */
+  var LAUNCH_KEY = 'cgp_launch_link';
+  function sameSiteTarget(raw) {
+    try {
+      var u = new URL(String(raw || ''), location.href);
+      if (u.origin !== location.origin) return null;
+      if (u.pathname === '/' || /^\/(login|index)(\.html)?$/.test(u.pathname)) return null;
+      return u;
+    } catch (_) { return null; }
+  }
+  function samePage(u) { return u.pathname === location.pathname && u.search === location.search; }
+  function readLaunch() { try { return JSON.parse(sessionStorage.getItem(LAUNCH_KEY) || 'null'); } catch (_) { return null; } }
+  function writeLaunch(v) { try { sessionStorage.setItem(LAUNCH_KEY, JSON.stringify(v)); } catch (_) {} }
+  function followLaunchLink(raw) {
+    var u = sameSiteTarget(raw);
+    if (!u) return false;
+    var st = readLaunch();
+    if (!st || st.url !== u.href) st = { url: u.href, tries: 0, at: 0 };
+    if (samePage(u)) return false;
+    // Followed once per link. The only repeat: the first page sent a remembered user on to Home while
+    // this navigation was still starting (seen as another app page loading within a few seconds).
+    var overridden = st.tries === 1 && (Date.now() - (st.at || 0)) < 8000;
+    if (st.tries >= 1 && !overridden) return false;
+    st.tries++; st.at = Date.now(); writeLaunch(st);
+    location.href = u.href;
+    return true;
+  }
+  if (P.App) {
+    try {
+      if (typeof P.App.getLaunchUrl === 'function') {
+        P.App.getLaunchUrl().then(function (r) { if (r && r.url) followLaunchLink(r.url); }).catch(function () {});
+      }
+      if (typeof P.App.addListener === 'function') {
+        P.App.addListener('appUrlOpen', function (ev) {
+          var u = sameSiteTarget(ev && ev.url);
+          if (!u) return;
+          writeLaunch({ url: u.href, tries: 0, at: 0 });   // a new tap is always followed
+          followLaunchLink(u.href);
+        });
+      }
+    } catch (_) {}
+  }
+  window.CGP_NATIVE.followLaunchLink = followLaunchLink;
+
   try { document.dispatchEvent(new CustomEvent('cgp:native-ready')); } catch (_) {}
 })();

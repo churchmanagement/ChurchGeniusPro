@@ -91,6 +91,47 @@ public class MemberAccountDeletionService {
     }
 
     /**
+     * The church removes a member's Member Portal login from Accounts → Member Portal Users
+     * (user decision 2026-11-19: "remove only the member's portal login").
+     *
+     * <p>Only the login goes: the sign-in row is closed exactly as in {@link #deleteOwnAccount}
+     * (deleted + inactive, password erased, username and member reference released so the
+     * person can register again later), remembered sign-ins and push subscriptions for it end.
+     * The {@code family_member} row is NOT touched — the person stays in Families with their
+     * giving, pledges, attendance, groups, messages and preferences exactly as they were.
+     *
+     * @return 404 when the member is not this church's or has no live portal login
+     */
+    @Transactional
+    public Outcome removeLoginByChurch(Integer memberId, String appClientId) {
+        if (memberId == null || appClientId == null || appClientId.isBlank()) return Outcome.fail(404, "Member not found.");
+        FamilyMember member = members.findByIdAndTenant(memberId, appClientId).orElse(null);
+        if (member == null) return Outcome.fail(404, "Member not found.");
+        String memberRef = member.getMemberRef();
+        SignUp login = memberRef == null || memberRef.isBlank() ? null
+                : logins.findByClientId(memberRef).filter(s -> !Boolean.TRUE.equals(s.getDeleted())).orElse(null);
+        if (login == null) return Outcome.fail(404, "This member has no Member Portal login.");
+
+        login.setDeleted(true);
+        login.setActive(false);
+        login.setPassword("");
+        login.setUsername("deleted-" + login.getId() + "-" + hex(4));
+        login.setClientId(login.getClientId() + "#deleted-" + login.getId());
+        login.setLinkGroup(null);
+        login.setRemember(null);
+        login.setUpdated(new Date());
+        logins.save(login);
+
+        rememberMe.revokeAllFor(login.getId());
+        for (PushSubscription ps : pushSubs.findByUserKeyAndActiveTrue(memberRef)) {
+            ps.setActive(false);
+            pushSubs.save(ps);
+        }
+        log.info("Member portal login removed by the church: signup id={} member id={} church={}", login.getId(), memberId, appClientId);
+        return new Outcome(true, 200, null, member.getEmail(), MemberSafetyService.displayName(member));
+    }
+
+    /**
      * Deletes the login identified by {@code memberRef} (the session's clientId) after
      * checking {@code password}. {@code memberId} / {@code appClientId} come from the
      * session too; the family_member row must belong to that church.

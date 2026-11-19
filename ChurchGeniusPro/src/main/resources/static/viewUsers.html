@@ -184,7 +184,9 @@
     /* ── Modal overlay ───────────────────────────────────── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.45); z-index: 500;
+      /* Above the Genius Assistant panel (z-index 960) and its launcher (950): with the panel
+         docked the right edge of a dialog — its ✕ — sat underneath it and could not be clicked. */
+      background: rgba(0,0,0,.45); z-index: 1000;
       align-items: center; justify-content: center;
     }
     .modal-overlay.open { display: flex; }
@@ -204,7 +206,11 @@
     .modal-close {
       font-size: 20px; color: rgba(255,255,255,.8); cursor: pointer;
       line-height: 1; padding: 2px 6px; border-radius: 4px; transition: background .18s;
+      min-width: 32px; min-height: 32px; flex-shrink: 0; margin-left: 10px;
     }
+    .modal-close:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+    .page-header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .btn-action.btn-email[disabled] { opacity: .55; cursor: progress; }
     .modal-close:hover { background: rgba(255,255,255,.18); color: #fff; }
     .modal-body { flex: 1; overflow-y: auto; padding: 24px; }
     .modal-footer {
@@ -468,7 +474,8 @@
           <div class="page-title">Accounts</div>
           <div class="page-subtitle">Manage application accounts and their roles</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;">
+        <div class="page-header-actions">
+          <button type="button" class="btn-link-accounts" id="btnUsersHelp" onclick="openUsersHelp()" title="How to add a user, assign privileges, add a Member Portal account and create a public link">❓ Help</button>
           <a class="btn-link-accounts" href="/churchSettings" title="View &amp; edit your church name, address, website and social links">⛪ Church Settings</a>
           <a class="btn-link-accounts" href="/temporaryAccess" title="Create time-limited badge + code access">⏱️ Temporary Access</a>
           <button class="btn-link-accounts" id="btnLinkAccounts" onclick="openLinkModal()" title="Link multiple accounts for role switching" style="display:none;">🔗 Link Accounts</button>
@@ -559,7 +566,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title" id="modalTitle">Add User</span>
-      <button class="modal-close" onclick="closeModal()" title="Close">✕</button>
+      <button type="button" class="modal-close" onclick="closeModal()" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
 
@@ -723,7 +730,7 @@
   <div class="modal-box" style="max-width:480px;">
     <div class="modal-header">
       <span class="modal-title">✏️ Edit Member Account</span>
-      <button class="modal-close" onclick="closeMemberEditModal()" title="Close">✕</button>
+      <button type="button" class="modal-close" onclick="closeMemberEditModal()" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-grid">
@@ -756,7 +763,7 @@
   <div class="modal-box" style="max-width:560px;">
     <div class="modal-header">
       <span class="modal-title">🔗 Link Accounts</span>
-      <button class="modal-close" onclick="closeLinkModal()" title="Close">✕</button>
+      <button type="button" class="modal-close" onclick="closeLinkModal()" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:16px;">
@@ -788,7 +795,7 @@
   <div class="perm-modal-box">
     <div class="modal-header">
       <span class="modal-title" id="permModalTitle">🔐 Permissions</span>
-      <button class="modal-close" onclick="closePermModal()" title="Close">✕</button>
+      <button type="button" class="modal-close" onclick="closePermModal()" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="perm-toolbar">
       <span class="perm-toolbar-hint">Grant or revoke access for each section</span>
@@ -1053,10 +1060,17 @@
       const safeName = (u.firstName + ' ' + u.lastName).replace(/'/g, "\\'");
       const safeRole = (u.role || '').replace(/'/g, "\\'");
 
-      // Invite button: disabled when account is inactive; "ReInvite" when already invited
-      const inviteLabel = u.hasActiveLogin ? 'ReInvite' : 'Invite';
+      // Invite button. The label follows the invitation status the SERVER reports for the row
+      // (inviteStatus, read from the database on every load — so it is the same after a refresh):
+      //   NOT_INVITED → "Invite";  INVITED (sent, not accepted yet) or ACCEPTED → "ReInvite".
+      // Disabled when the account is inactive. Nothing is ever sent without a click.
+      const invited     = isInvited(u);
+      const inviteLabel = invited ? 'ReInvite' : 'Invite';
+      const inviteTitle = u.hasActiveLogin ? 'This person has already signed up. Click to e-mail a new sign-up link.'
+                        : invited          ? 'Invitation sent — waiting for the person to sign up. Click to send it again.'
+                        :                    'E-mail this person their invitation to sign up.';
       const inviteBtn = u.enabled
-        ? `<button class="btn-action btn-email" onclick="sendEmail(${u.id})">${inviteLabel}</button>`
+        ? `<button class="btn-action btn-email" id="inviteBtn_${u.id}" data-invite-status="${escHtml(u.inviteStatus || (invited ? 'INVITED' : 'NOT_INVITED'))}" onclick="sendEmail(${u.id})" title="${inviteTitle}">${inviteLabel}</button>`
         : `<button class="btn-action btn-email" disabled style="opacity:.45;cursor:not-allowed;" title="Account is disabled">${inviteLabel}</button>`;
 
       // Permissions button: disabled when account is inactive
@@ -1315,19 +1329,60 @@
   /* ════════════════════════════════════
      SEND EMAIL
   ════════════════════════════════════ */
+  /* True once an invitation has gone out for this user (sent and waiting, or already accepted). */
+  function isInvited(u) {
+    if (!u) return false;
+    if (u.inviteStatus) return u.inviteStatus === 'INVITED' || u.inviteStatus === 'ACCEPTED';
+    return !!(u.invited || u.hasActiveLogin);
+  }
+
+  /* Invite / ReInvite. One e-mail per click: the button is locked while the request is in
+     flight, and the label changes only after the server confirms the e-mail went out. */
+  const _inviteInFlight = {};
   async function sendEmail(id) {
+    if (_inviteInFlight[id]) return;
     const u = userMap[id];
     const name = u ? `${u.firstName} ${u.lastName}` : id;
+    const again = isInvited(u);
+    const btn = document.getElementById('inviteBtn_' + id);
+    _inviteInFlight[id] = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    let sent = false;
     try {
       const res  = await fetch(`/api/users/${id}/email`, { method: 'POST' });
-      const data = await res.json();
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
       if (res.ok) {
-        showFeedback(`✉️ Email sent to "${name}" successfully.`, 'success');
+        sent = true;
+        showFeedback(again ? `✉️ Invitation sent again to "${name}". The earlier link no longer works.`
+                           : `✉️ Invitation sent to "${name}". They will get an e-mail with a link to sign up.`, 'success');
       } else {
-        showFeedback(`❌ ${data.error || 'Failed to send email.'}`, 'error');
+        const ref = data.ref ? ` (ref ${data.ref})` : '';
+        showFeedback(`❌ The invitation was not sent. ${data.error || 'Please try again.'}${ref}`, 'error');
       }
     } catch {
-      showFeedback('❌ Network error — could not send email.', 'error');
+      showFeedback('❌ Network error — the invitation was not sent.', 'error');
+    } finally {
+      delete _inviteInFlight[id];
+    }
+    if (sent) {
+      // Show the new state at once, then confirm it from the server (the stored status).
+      if (u && !u.hasActiveLogin) { u.invited = true; u.inviteStatus = 'INVITED'; }
+      renderTable();
+      try {
+        const res = await fetch('/api/users', { cache: 'no-store' });
+        if (res.ok) {
+          const fresh = await res.json();
+          if (Array.isArray(fresh)) {
+            allUsers = fresh;
+            Object.keys(userMap).forEach(k => delete userMap[k]);
+            allUsers.forEach(x => { userMap[x.id] = x; });
+            renderTable();
+          }
+        }
+      } catch (e) { /* the row already shows the confirmed result of this click */ }
+    } else {
+      renderTable();          // back to the label it had: a failed send changes nothing
     }
   }
 
@@ -2372,7 +2427,7 @@
           <td>
             <div class="actions">
               <button class="btn-action btn-edit" onclick="openMemberEditModal(${m.id})" title="Edit">📝</button>
-              <button class="btn-action btn-delete" onclick="softDeleteMember(${m.id}, '${safeName}')" title="Delete account" style="background:#c62828;border-color:#c62828;">🗑</button>
+              <button class="btn-action btn-delete" onclick="softDeleteMember(${m.id}, '${safeName}')" title="Remove this Member Portal login (the person stays in Families)" style="background:#c62828;border-color:#c62828;">🗑</button>
               <button class="btn-action btn-email" onclick="sendMemberResetLink(${m.id}, '${safeName}')" title="Send password reset link">🔑 Reset</button>
               ${permsBtn}
             </div>
@@ -2384,6 +2439,142 @@
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#c62828;padding:20px;">❌ Network error loading member portal users.</td></tr>';
     }
   }
+
+  /* ════════════════════════════════════
+     MEMBER PORTAL USER — edit dialog, reset link
+     (the row's 📝 and 🔑 buttons and this dialog's ✕ / Cancel / Save called functions
+      that did not exist, so none of them did anything — 2026-11-19)
+  ════════════════════════════════════ */
+  let _memberEditId = null;
+
+  function memberPortalUser(id) {
+    return (_memberPortalUsers || []).find(m => String(m.id) === String(id)) || null;
+  }
+
+  function setMemberEditHint(field, msg) {
+    const input = document.getElementById(field);
+    const hint  = document.getElementById(field + 'Hint');
+    if (hint)  hint.textContent = msg || '';
+    if (input) input.classList.toggle('invalid', !!msg);
+  }
+
+  function openMemberEditModal(id) {
+    const m = memberPortalUser(id);
+    if (!m) { showFeedback('❌ That member account could not be found. Refresh the page and try again.', 'error'); return; }
+    _memberEditId = m.id;
+    document.getElementById('meFirstName').value = m.firstName || '';
+    document.getElementById('meLastName').value  = m.lastName  || '';
+    document.getElementById('meEmail').value     = m.email     || '';
+    ['meFirstName', 'meLastName', 'meEmail'].forEach(f => setMemberEditHint(f, ''));
+    const btn = document.getElementById('memberEditSaveBtn');
+    btn.disabled = false; btn.textContent = 'Save Changes';
+    document.getElementById('memberEditModal').classList.add('open');
+    document.getElementById('meFirstName').focus();
+  }
+
+  function closeMemberEditModal() {
+    document.getElementById('memberEditModal').classList.remove('open');
+    _memberEditId = null;
+  }
+
+  function onMemberEditOverlayClick(event) {
+    if (event.target === document.getElementById('memberEditModal')) closeMemberEditModal();
+  }
+
+  async function saveMemberEdit() {
+    if (_memberEditId == null) return;
+    const firstName = document.getElementById('meFirstName').value.trim();
+    const lastName  = document.getElementById('meLastName').value.trim();
+    const email     = document.getElementById('meEmail').value.trim();
+    setMemberEditHint('meFirstName', firstName ? '' : 'First name is required.');
+    setMemberEditHint('meLastName',  lastName  ? '' : 'Last name is required.');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    setMemberEditHint('meEmail', !email ? 'Email is required.' : emailOk ? '' : 'Enter a valid email address.');
+    if (!firstName || !lastName || !emailOk) return;
+
+    const btn = document.getElementById('memberEditSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const name = firstName + ' ' + lastName;
+    try {
+      const res  = await fetch(`/api/members/${_memberEditId}/edit`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
+      if (res.ok) {
+        closeMemberEditModal();
+        showFeedback(`✅ "${name}" was updated.`, 'success');
+        await loadMemberPortalUsers();
+      } else {
+        setMemberEditHint('meEmail', data.error || 'The changes could not be saved. Please try again.');
+        document.getElementById('meEmail').classList.remove('invalid');
+      }
+    } catch {
+      setMemberEditHint('meEmail', 'Network error — the changes were not saved.');
+      document.getElementById('meEmail').classList.remove('invalid');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Changes';
+    }
+  }
+
+  async function sendMemberResetLink(id, name) {
+    const m = memberPortalUser(id);
+    const label = (m ? ((m.firstName || '') + ' ' + (m.lastName || '')).trim() : '') || name || 'this member';
+    if (!confirm(`Send a password reset link for "${label}"?\n\nThe link is e-mailed to the address on their family record and works for 10 minutes.`)) return;
+    try {
+      const res  = await fetch(`/api/members/${id}/send-reset`, { method: 'POST' });
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
+      if (res.ok) showFeedback(`🔑 ${data.message || 'Reset link sent.'}`, 'success');
+      else        showFeedback(`❌ ${data.error || 'The reset link could not be sent.'}`, 'error');
+    } catch {
+      showFeedback('❌ Network error — the reset link was not sent.', 'error');
+    }
+  }
+
+  /* 🗑 on a Member Portal Users row: removes the portal LOGIN only. The person stays in
+     Families with their giving and history (the server no longer touches the family record). */
+  async function softDeleteMember(id, name) {
+    const m = memberPortalUser(id);
+    const label = (m ? ((m.firstName || '') + ' ' + (m.lastName || '')).trim() : '') || name || 'this member';
+    if (!confirm(`Remove the Member Portal login for "${label}"?\n\n` +
+                 `• They will no longer be able to sign in to the Member Portal.\n` +
+                 `• They stay in Families — their family record, giving and history are not changed.\n` +
+                 `• They can create a new login later with your Member Signup link.`)) return;
+    try {
+      const res  = await fetch(`/api/members/${id}/soft-delete`, { method: 'DELETE' });
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
+      if (res.ok) {
+        showFeedback(`✅ The Member Portal login for "${label}" was removed. They are still in Families.`, 'success');
+        await loadMemberPortalUsers();
+      } else {
+        const ref = data.ref ? ` (ref ${data.ref})` : '';
+        showFeedback(`❌ ${data.error || 'The login could not be removed.'}${ref}`, 'error');
+      }
+    } catch {
+      showFeedback('❌ Network error — the login was not removed.', 'error');
+    }
+  }
+
+  /* ════════════════════════════════════
+     HELP + keyboard
+  ════════════════════════════════════ */
+  function openUsersHelp(topic) {
+    if (window.CGP_usersHelp) window.CGP_usersHelp.open(topic || 'users', () => visiblePermTree());
+  }
+
+  /* Escape closes the dialog on top (Help first, then Permissions, Link, Edit Member, Add/Edit User). */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (window.CGP_usersHelp && window.CGP_usersHelp.isOpen()) { window.CGP_usersHelp.close(); return; }
+    const open = id => document.getElementById(id).classList.contains('open');
+    if (open('permModal'))            closePermModal();
+    else if (open('linkModal'))       closeLinkModal();
+    else if (open('memberEditModal')) closeMemberEditModal();
+    else if (open('userModal'))       closeModal();
+  });
 
   /* ════════════════════════════════════
      PAGE INIT
@@ -2418,6 +2609,7 @@ window.CGP_applyPerms = function() {
   if (typeof renderTable === 'function') renderTable();
 };
 </script>
+<script src="/viewusers-help.js"></script>
 <script src="/shell.js"></script>
 <script src="/session.js"></script>
 </body>

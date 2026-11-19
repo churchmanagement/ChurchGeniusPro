@@ -46,11 +46,54 @@ public class AiFormDraftService {
         JsonNode node = openAi.chatJson(systemPrompt(today), "DESCRIPTION:\n" + description.trim(), 0.2);
         if (node == null) return null;
         try {
-            return validate(normalizeModelOutput(node));
+            return withLocation(validate(normalizeModelOutput(node)), description);
         } catch (IllegalArgumentException e) {
             log.warn("[ai-forms] model output refused: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Makes sure a location named in the description reaches the Event form's Location fields
+     * (2026-11-19: "…at Location: 16127 S Bradley Dr Olathe KS 66062" filled every field but the
+     * location — the schema had no location keys, so the model could not return one).
+     * <ul>
+     *   <li>the model gave no location → it is read from the description by rule
+     *       ({@link EventLocationParser#fromDescription});</li>
+     *   <li>the model put a whole address on one line ("16127 S Bradley Dr Olathe KS 66062" in
+     *       address1, nothing else) → it is split into street / city / state / zip;</li>
+     *   <li>a part the model did give is never overwritten.</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> withLocation(Map<String, Object> draft, String description) {
+        if (draft == null || !(draft.get("event") instanceof Map<?, ?>)) return draft;
+        Map<String, Object> event = (Map<String, Object>) draft.get("event");
+        boolean any = EventLocationParser.KEYS.stream().anyMatch(event::containsKey);
+        Map<String, String> found;
+        if (!any) {
+            found = EventLocationParser.fromDescription(description);
+        } else if (event.get("address1") instanceof String a1 && !event.containsKey("city") && !event.containsKey("state") && !event.containsKey("pinCode")) {
+            Map<String, String> split = EventLocationParser.parse(a1);
+            if (split.containsKey("city") || split.containsKey("state") || split.containsKey("pinCode")) {
+                event.remove("address1");                                   // replaced by its own street part
+                if (event.containsKey("address2")) split.remove("address2");
+                if (event.containsKey("country")) split.remove("country");
+                found = split;
+            } else found = Map.of();
+        } else found = Map.of();
+        if (!found.isEmpty()) {
+            // keep the location together, right after the dates, whatever order the model used
+            Map<String, Object> rebuilt = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> en : event.entrySet()) if (!EventLocationParser.KEYS.contains(en.getKey())) rebuilt.put(en.getKey(), en.getValue());
+            for (String k : EventLocationParser.KEYS) {
+                Object v = event.containsKey(k) ? event.get(k) : found.get(k);
+                if (v != null) rebuilt.put(k, v);
+            }
+            event.clear(); event.putAll(rebuilt);
+        }
+        if (event.containsKey("state") && !event.containsKey("country")) event.put("country", "USA");
+        return draft;
     }
 
     public static String systemPrompt(LocalDate today) {
@@ -61,7 +104,12 @@ public class AiFormDraftService {
              + "eventName (string), eventType (\"One Day\" or \"Multiple Days\"), eventDate (YYYY-MM-DD, the first day), endDate (YYYY-MM-DD, multi-day only), "
              + "startTime (HH:MM 24h), endTime (HH:MM 24h), registrationEndDate (YYYY-MM-DD), fee (short text such as \"Free\" or \"$10 per child\"), "
              + "maxCapacity (integer), allowMaybeRsvp (boolean), showRegistrants (boolean), foodAvailable (boolean), foodLabel (string), foodOptions (array of short strings), "
-             + "accommodationAvailable (boolean), accommodationAddress (string), accommodationComments (string), hostName, hostPhone, hostEmail (strings), note (string: a short public description for registrants). "
+             + "accommodationAvailable (boolean), accommodationAddress (string), accommodationComments (string), hostName, hostPhone, hostEmail (strings), note (string: a short public description for registrants), "
+             + "and the event's LOCATION as: address1 (the street address, e.g. \"16127 S Bradley Dr\"; or the venue name when no street is given, e.g. \"Fellowship Hall\"), "
+             + "address2 (the venue or building name when a street address is also given, or an apartment / suite), city, state (two-letter US state code such as KS), "
+             + "country (one of USA, CAN, GBR, AUS, IND, OTHER; USA for a US address), pinCode (zip / postal code). "
+             + "ALWAYS fill the location keys when the description names a place — it may follow \"Location:\", \"Venue:\", \"Address:\", \"Place:\", \"at\", \"@\" or \"in the\" "
+             + "(\"at 7:30 pm\" is a time, not a place). Split a one-line address into street, city, state and zip; never put the whole address in one key when its parts are clear. "
              + "\"questions\" = the extra things the form should ask each registrant (child's name, allergies, parent phone, pickup authorisation, T-shirt size …): "
              + "objects {\"type\": one of text|textarea|email|phone|number|date|yesno|checkbox|select|radio|section, \"label\": string, \"required\": boolean, \"options\": [strings] (select/radio only)}. "
              + "Do not repeat as questions what the registration form already collects (first name, last name, e-mail, phone, number of attendees, dietary preference when foodOptions is used). "
@@ -82,6 +130,11 @@ public class AiFormDraftService {
                 switch (k) {
                     case "eventName", "fee", "foodLabel", "accommodationAddress", "hostName", "hostPhone", "hostEmail" -> event.put(k, text(v, k, MAX_LABEL));
                     case "accommodationComments", "note" -> event.put(k, text(v, k, MAX_TEXT));
+                    case "address1", "address2" -> event.put(k, text(v, k, MAX_LABEL));
+                    case "city" -> event.put(k, text(v, k, 80));
+                    case "pinCode" -> { String z = text(v, k, 12); if (!z.matches("[A-Za-z0-9][A-Za-z0-9 -]{1,11}")) throw new IllegalArgumentException("pinCode must be a zip or postal code."); event.put(k, z); }
+                    case "state" -> { String st = EventLocationParser.stateCode(text(v, k, 30)); if (st == null) throw new IllegalArgumentException("state must be a US state."); event.put(k, st); }
+                    case "country" -> { String c = EventLocationParser.countryCode(text(v, k, 40)); if (c == null) throw new IllegalArgumentException("country must be one of USA, CAN, GBR, AUS, IND, OTHER."); event.put(k, c); }
                     case "eventType" -> { String t = text(v, k, 20); if (!EVENT_TYPES.contains(t)) throw new IllegalArgumentException("eventType must be One Day or Multiple Days."); event.put(k, t); }
                     case "eventDate", "endDate", "registrationEndDate" -> event.put(k, date(v, k));
                     case "startTime", "endTime" -> event.put(k, time(v, k));
@@ -136,6 +189,29 @@ public class AiFormDraftService {
     private static final Set<String> TIME_KEYS = Set.of("startTime", "endTime");
     private static final Set<String> BOOL_KEYS = Set.of("allowMaybeRsvp", "showRegistrants", "foodAvailable", "accommodationAvailable");
 
+    /** Model spellings of the Event form's location fields → the form's own key ("*" = a whole one-line location). */
+    private static final Map<String, String> LOCATION_ALIASES = Map.ofEntries(
+            Map.entry("address1", "address1"), Map.entry("addressline1", "address1"), Map.entry("address_1", "address1"), Map.entry("street", "address1"),
+            Map.entry("streetaddress", "address1"), Map.entry("street_address", "address1"),
+            Map.entry("address2", "address2"), Map.entry("addressline2", "address2"), Map.entry("address_2", "address2"), Map.entry("venuename", "address2"),
+            Map.entry("city", "city"), Map.entry("town", "city"),
+            Map.entry("state", "state"), Map.entry("province", "state"),
+            Map.entry("country", "country"),
+            Map.entry("pincode", "pinCode"), Map.entry("pin_code", "pinCode"), Map.entry("zip", "pinCode"), Map.entry("zipcode", "pinCode"), Map.entry("zip_code", "pinCode"),
+            Map.entry("postalcode", "pinCode"), Map.entry("postal_code", "pinCode"),
+            Map.entry("location", "*"), Map.entry("eventlocation", "*"), Map.entry("venue", "*"), Map.entry("address", "*"), Map.entry("place", "*"), Map.entry("where", "*"));
+
+    /** One location value from the model: repaired where it is a harmless slip, dropped (never guessed) otherwise. */
+    private static void putLocation(com.fasterxml.jackson.databind.node.ObjectNode ev, String key, String value, List<String> dropped) {
+        switch (key) {
+            case "*" -> EventLocationParser.parse(value).forEach((k, v) -> { if (!ev.has(k)) ev.put(k, v); });
+            case "state" -> { String st = EventLocationParser.stateCode(value); if (st != null) ev.put("state", st); else dropped.add("state"); }
+            case "country" -> { String c = EventLocationParser.countryCode(value); if (c != null) ev.put("country", c); else dropped.add("country"); }
+            case "pinCode" -> { String z = value.replaceAll("\\.0$", ""); if (z.matches("[A-Za-z0-9][A-Za-z0-9 -]{1,11}")) ev.put("pinCode", z); else dropped.add("pinCode"); }
+            default -> ev.put(key, value);
+        }
+    }
+
     public static JsonNode normalizeModelOutput(JsonNode node) {
         if (node == null || !node.isObject()) return node;
         com.fasterxml.jackson.databind.node.ObjectNode out = NM.createObjectNode();
@@ -146,6 +222,12 @@ public class AiFormDraftService {
             for (Iterator<String> it = e.fieldNames(); it.hasNext(); ) {
                 String k = it.next(); JsonNode v = e.get(k);
                 if (v == null || v.isNull() || (v.isTextual() && v.asText().isBlank()) || (v.isArray() && v.size() == 0)) continue;
+                String lk = LOCATION_ALIASES.get(k.toLowerCase(Locale.ROOT));
+                if (lk != null) {                                             // location, in any of the names a model uses for it
+                    if (v.isObject()) { v.fields().forEachRemaining(en -> { String sub = LOCATION_ALIASES.get(en.getKey().toLowerCase(Locale.ROOT)); if (sub != null && en.getValue().isValueNode() && !en.getValue().asText().isBlank()) putLocation(ev, sub, en.getValue().asText().trim(), dropped); }); continue; }
+                    if (v.isValueNode()) putLocation(ev, lk, v.asText().trim(), dropped); else dropped.add(k);
+                    continue;
+                }
                 if (TEXT_KEYS.contains(k)) {
                     if ("fee".equals(k) && v.isNumber()) { ev.put(k, v.asDouble() == 0 ? "Free" : "$" + v.asText()); continue; }
                     if (v.isValueNode()) ev.put(k, v.asText().trim()); else dropped.add(k);

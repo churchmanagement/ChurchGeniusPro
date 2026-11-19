@@ -430,24 +430,39 @@ public class AppUserService {
      */
     public void sendEmail(Integer id) throws Exception {
         AppUser u          = findOrThrow(id);
-        // A fresh random invite token per send: single-use, and re-sending replaces it.
-        u.setInviteToken(PublicLinkResolver.newToken());
-        userRepository.save(u);
-        String link        = baseUrl + "/signup?clientId=" + u.getInviteToken();
-
         if (u.getEmail() == null || u.getEmail().isBlank()) {
             throw new IllegalArgumentException(
                     "This account has no email address on file. Add one before inviting.");
         }
+        // A fresh random invite token per send: single-use, and re-sending replaces it.
+        // The stored token is also the invitation STATUS the Accounts page shows ("ReInvite"
+        // = invited, not yet accepted — see toMap), so a send that fails must leave it as it
+        // was: the earlier link (if any) keeps working and the button does not change.
+        String previousToken = u.getInviteToken();
+        u.setInviteToken(PublicLinkResolver.newToken());
+        userRepository.save(u);
+        String link        = baseUrl + "/signup?clientId=" + u.getInviteToken();
 
         // ── Email ──────────────────────────────────────────────────────────
-        String churchName = emailService.getChurchName(u.getClientId());
-        String html = buildSignupInvitationEmail(u.getFirstName(), link, churchName);
-        emailService.sendAccountEmailOrThrow(
-                u.getEmail(),
-                "Complete Your " + churchName + " Sign-Up",
-                html,
-                u.getClientId());
+        final String churchName;
+        try {
+            churchName = emailService.getChurchName(u.getClientId());
+            String html = buildSignupInvitationEmail(u.getFirstName(), link, churchName);
+            emailService.sendAccountEmailOrThrow(
+                    u.getEmail(),
+                    "Complete Your " + churchName + " Sign-Up",
+                    html,
+                    u.getClientId());
+        } catch (Exception sendFailure) {
+            try {
+                u.setInviteToken(previousToken);
+                userRepository.save(u);
+            } catch (Exception restoreFailure) {
+                LOG.warn("Invitation for app_user {} failed and its previous invite state could not be restored - {}",
+                         u.getId(), LogSafe.exception(restoreFailure));
+            }
+            throw sendFailure;
+        }
 
         // ── WhatsApp ───────────────────────────────────────────────────────
         // Best-effort, and deliberately after the email: WhatsApp is a convenience
@@ -518,7 +533,17 @@ public class AppUserService {
         m.put("role",           u.getRole());
         m.put("enabled",        u.isEnabled());
         m.put("linkGroup",      u.getLinkGroup());
-        m.put("hasActiveLogin", activeLoginIds.contains(u.getUserId()));
+        boolean accepted = activeLoginIds.contains(u.getUserId());
+        m.put("hasActiveLogin", accepted);
+        // Invitation status for the Accounts page, read from the stored row on every load:
+        //   ACCEPTED    — the person finished sign-up and has a login;
+        //   INVITED     — an invitation was sent successfully and is still waiting (invite_token
+        //                 is minted when it is sent, kept only when the e-mail went out, and
+        //                 cleared when the sign-up completes);
+        //   NOT_INVITED — nothing has been sent yet.
+        boolean invited = !accepted && u.getInviteToken() != null && !u.getInviteToken().isBlank();
+        m.put("invited",        invited);
+        m.put("inviteStatus",   accepted ? "ACCEPTED" : invited ? "INVITED" : "NOT_INVITED");
         m.put("privileges",     u.getPrivileges());
         return m;
     }

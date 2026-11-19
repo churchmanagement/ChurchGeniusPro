@@ -619,12 +619,15 @@ public class AppUserController {
     }
 
     /**
-     * Admin: soft-delete a member portal user.
-     * Sets deleteFlag on the FamilyMember and marks their SignUp as deleted+inactive.
+     * Church login: remove a member's Member Portal login (Accounts → Member Portal Users → 🗑).
+     *
+     * <p>Removes ONLY the login (user decision 2026-11-19). Until then this handler also set
+     * {@code family_member.delete_flag}, which took the person out of Families — more than
+     * "delete account" says; no page could call it (the button's script function did not
+     * exist), so nothing relied on that. The person's family record, giving and history stay.
      */
     @ResponseBody
     @DeleteMapping("/api/members/{id}/soft-delete")
-    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Map<String, Object>> softDeleteMemberPortalUser(
             @PathVariable Integer id,
             HttpServletRequest request) {
@@ -633,30 +636,24 @@ public class AppUserController {
         Object churchAttr = session.getAttribute("church");
         boolean isChurch = Boolean.TRUE.equals(churchAttr) || "true".equalsIgnoreCase(String.valueOf(churchAttr));
         if (!isChurch) return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
-
-        // Tenant-scoped lookup with the family fetched in the same query (2026-11-06): the old
-        // findById + belongsToChurch touched the lazy family outside a session
-        // (open-in-view is off) → LazyInitializationException → 500.
-        com.churchgeniuspro.hibernate.FamilyMember fm = familyMemberRepository
-                .findByIdAndTenant(id, (String) session.getAttribute("clientId"))
-                .orElse(null);
-        if (fm == null) return ResponseEntity.status(404).body(Map.of("error", "Member not found."));
-
-        fm.setDeleteFlag(true);
-        familyMemberRepository.save(fm);
-
-        // Also mark their SignUp (login) as deleted + inactive
-        if (fm.getMemberRef() != null && !fm.getMemberRef().isBlank()) {
-            loginRepository.findAll().stream()
-                    .filter(s -> fm.getMemberRef().equals(s.getClientId()))
-                    .forEach(s -> {
-                        s.setDeleted(true);
-                        s.setActive(false);
-                        loginRepository.save(s);
-                    });
+        if (memberAccountDeletion == null) return ResponseEntity.status(503).body(Map.of("error", "This action is not available right now."));
+        try {
+            com.churchgeniuspro.service.MemberAccountDeletionService.Outcome out =
+                    memberAccountDeletion.removeLoginByChurch(id, (String) session.getAttribute("clientId"));
+            if (!out.ok()) return ResponseEntity.status(out.status()).body(Map.of("error", out.error()));
+            Map<String, Object> ok = new HashMap<>();
+            ok.put("success", true);
+            ok.put("loginOnly", true);
+            ok.put("name", out.memberName());
+            return ResponseEntity.ok(ok);
+        } catch (Exception ex) {
+            return ErrorResponses.internal(log, "Failed to remove member portal login", ex);
         }
-        return ResponseEntity.ok(Map.of("success", true));
     }
+
+    /** Optional so hand-built controller tests keep their constructor. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.service.MemberAccountDeletionService memberAccountDeletion;
 
     /**
      * Admin: send a password reset link to a member portal user's email.

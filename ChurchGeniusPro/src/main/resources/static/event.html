@@ -2091,7 +2091,10 @@ window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTi
                       maxCapacity:'Capacity', allowMaybeRsvp:'Allow "Maybe"', showRegistrants:'Show registrants', foodAvailable:'Food', foodLabel:'Food label', foodOptions:'Food options',
                       accommodationAvailable:'Accommodation', accommodationAddress:'Accommodation address', accommodationComments:'Accommodation notes', hostName:'Host', hostPhone:'Host phone', hostEmail:'Host e-mail', note:'Note' };
       let h = '';
-      Object.keys(ev).forEach(k => { const v = ev[k]; h += '<div><b>' + aiEsc(LABEL[k] || k) + ':</b> ' + aiEsc(Array.isArray(v) ? v.join(', ') : (v === true ? 'Yes' : v === false ? 'No' : v)) + '</div>'; });
+      const LOC = ['address1', 'address2', 'city', 'state', 'pinCode', 'country'];
+      const locLine = aiLocationLine(ev);
+      Object.keys(ev).forEach(k => { if (LOC.indexOf(k) >= 0) return; if (k === 'note' && locLine) h += '<div><b>Location:</b> ' + aiEsc(locLine) + '</div>'; const v = ev[k]; h += '<div><b>' + aiEsc(LABEL[k] || k) + ':</b> ' + aiEsc(Array.isArray(v) ? v.join(', ') : (v === true ? 'Yes' : v === false ? 'No' : v)) + '</div>'; });
+      if (locLine && !('note' in ev)) h += '<div><b>Location:</b> ' + aiEsc(locLine) + '</div>';
       if (qs.length) { h += '<div style="margin-top:8px"><b>Registration questions</b></div>' + qs.map(q => '<div>• ' + aiEsc(q.label) + (q.required ? ' <i>(required)</i>' : '') + ' <span style="color:#888">[' + aiEsc(q.type) + (q.options ? ': ' + aiEsc(q.options.join(' / ')) : '') + ']</span></div>').join(''); }
       if (un.length) { h += '<div style="margin-top:8px;color:#9a3412"><b>Not available in this form:</b> ' + aiEsc(un.join('; ')) + '</div>'; }
       if (!h) h = '<i>The assistant found nothing it could fill from that description.</i>';
@@ -2103,6 +2106,26 @@ window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTi
       aiFormLast = null; document.getElementById('aiFormResult').hidden = true;
       aiFormError(CGP_errorMessage(e, "The assistant couldn't draft that form just now."));
     } finally { btn.disabled = false; btn.textContent = 'Draft the form'; }
+  }
+  /* The drafted location as one line for the preview ("16127 S Bradley Dr, Olathe, KS 66062"). */
+  function aiLocationLine(ev) {
+    const a = [ev.address1, ev.address2, ev.city].filter(Boolean).join(', ');
+    const b = [ev.state, ev.pinCode].filter(Boolean).join(' ');
+    let line = [a, b].filter(Boolean).join(', ');
+    if (ev.country && ev.country !== 'USA' && ev.country !== 'OTHER') line += (line ? ', ' : '') + ev.country;
+    return line;
+  }
+  /* State arrives as a two-letter code; the form's list is keyed by number ("16" = KS – Kansas). */
+  function aiSetState(code) {
+    const sel = document.getElementById('state'); if (!sel || !code) return;
+    const want = String(code).toUpperCase();
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text.trim().toUpperCase().indexOf(want + ' ') === 0) { aiSet('state', sel.options[i].value); return; }
+    }
+  }
+  function aiSetCountry(code) {
+    const sel = document.getElementById('country'); if (!sel || !code) return;
+    for (let i = 0; i < sel.options.length; i++) if (sel.options[i].value === code) { aiSet('country', code); return; }
   }
   function aiSet(id, v) { const el = document.getElementById(id); if (!el || v == null) return; el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
   function aiCheck(id, v, handler) { const el = document.getElementById(id); if (!el || typeof v !== 'boolean') return; if (el.checked !== v) { el.checked = v; if (handler) handler(); else el.dispatchEvent(new Event('change', { bubbles: true })); } }
@@ -2124,6 +2147,8 @@ window.CGP_PAGE = { activePage: 'general/events', openSection: 'general', pageTi
     aiCheck('accommodationAvailable', ev.accommodationAvailable, onAccomChange);
     aiSet('accommodationAddress', ev.accommodationAddress); aiSet('accommodationComments', ev.accommodationComments);
     aiSet('hostName', ev.hostName); aiSet('hostPhone', ev.hostPhone); aiSet('hostEmail', ev.hostEmail);
+    aiSet('address1', ev.address1); aiSet('address2', ev.address2); aiSet('city', ev.city); aiSet('pinCode', ev.pinCode);
+    aiSetCountry(ev.country); aiSetState(ev.state);
     let noteText = ev.note || '';
     if (qs.length && document.getElementById('aiFormAddQuestions').checked) {
       noteText += (noteText ? '\n\n' : '') + 'Registration questions:\n' + qs.map(q => '• ' + q.label + (q.required ? ' (required)' : '') + (q.options ? ': ' + q.options.join(' / ') : '')).join('\n');

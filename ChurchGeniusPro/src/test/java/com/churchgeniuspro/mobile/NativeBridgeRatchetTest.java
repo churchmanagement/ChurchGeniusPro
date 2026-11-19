@@ -156,4 +156,14 @@ class NativeBridgeRatchetTest {
         }
     }
 
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a link that opens the app goes to its page (cold start and while running), same site only, once")
+    void launchLinks() throws Exception {
+        String js = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/static/native-bridge.js"));
+        org.assertj.core.api.Assertions.assertThat(js).contains("P.App.getLaunchUrl()", "addListener('appUrlOpen'",
+                "if (u.origin !== location.origin) return null;", "if (st.tries >= 1 && !overridden) return false;");
+        // inert in a browser: the section sits after the early return for non-app pages
+        org.assertj.core.api.Assertions.assertThat(js.indexOf("P.App.getLaunchUrl()")).isGreaterThan(js.indexOf("var P = cap.Plugins"));
+    }
 }

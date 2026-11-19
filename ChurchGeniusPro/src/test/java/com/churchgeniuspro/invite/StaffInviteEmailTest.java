@@ -161,6 +161,70 @@ class StaffInviteEmailTest {
         verify(whatsAppSender, never()).sendWhatsAppToPhone(anyString(), anyString(), anyString());
     }
 
+    /* ── invitation status: Invite → ReInvite (2026-11-19) ──────────────── */
+
+    private String statusOf(AppUser u) {
+        when(userRepository.findByClientIdAndDeleteFlagFalseOrderByLastNameAscFirstNameAsc(CLIENT_ID)).thenReturn(java.util.List.of(u));
+        java.util.Map<String, Object> row = service.getAll(CLIENT_ID).get(0);
+        assertThat(row.get("invited")).isEqualTo("INVITED".equals(row.get("inviteStatus")));
+        assertThat(row).doesNotContainKey("inviteToken");          // the link itself is never sent to the page
+        return (String) row.get("inviteStatus");
+    }
+
+    @Test
+    @DisplayName("status comes from the stored row: NOT_INVITED → INVITED after a successful send → ACCEPTED once a login exists")
+    void statusFollowsTheStoredRow() throws Exception {
+        AppUser u = staff("ruth@example.org", null);
+        when(loginRepository.findActiveSignupsByUserIds(any())).thenReturn(java.util.List.of());
+        assertThat(statusOf(u)).isEqualTo("NOT_INVITED");
+
+        service.sendEmail(27);
+        assertThat(u.getInviteToken()).isNotBlank();
+        assertThat(statusOf(u)).isEqualTo("INVITED");
+        assertThat(statusOf(u)).as("the same after the page is loaded again").isEqualTo("INVITED");
+
+        // re-invite: a new link replaces the old one, still INVITED, one more e-mail — and only because it was asked for
+        String first = u.getInviteToken();
+        service.sendEmail(27);
+        assertThat(u.getInviteToken()).isNotEqualTo(first);
+        assertThat(statusOf(u)).isEqualTo("INVITED");
+        verify(emailService, org.mockito.Mockito.times(2)).sendAccountEmailOrThrow(anyString(), anyString(), anyString(), anyString());
+
+        // sign-up completed: the token is cleared and a login exists
+        u.setInviteToken(null);
+        com.churchgeniuspro.hibernate.SignUp login = new com.churchgeniuspro.hibernate.SignUp();
+        login.setClientId(USER_ID);
+        when(loginRepository.findActiveSignupsByUserIds(any())).thenReturn(java.util.List.of(login));
+        assertThat(statusOf(u)).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    @DisplayName("a failed first invitation leaves the user NOT_INVITED; a failed re-invite keeps the earlier link working")
+    void failedSendDoesNotChangeTheStatus() throws Exception {
+        AppUser u = staff("ruth@example.org", null);
+        when(loginRepository.findActiveSignupsByUserIds(any())).thenReturn(java.util.List.of());
+        doThrow(new jakarta.mail.MessagingException("relay refused"))
+                .when(emailService).sendAccountEmailOrThrow(anyString(), anyString(), anyString(), anyString());
+
+        assertThatThrownBy(() -> service.sendEmail(27)).hasMessageContaining("relay refused");
+        assertThat(u.getInviteToken()).isNull();
+        assertThat(statusOf(u)).isEqualTo("NOT_INVITED");
+
+        u.setInviteToken("earlier-link-token");
+        assertThatThrownBy(() -> service.sendEmail(27)).hasMessageContaining("relay refused");
+        assertThat(u.getInviteToken()).isEqualTo("earlier-link-token");
+        assertThat(statusOf(u)).isEqualTo("INVITED");
+    }
+
+    @Test
+    @DisplayName("no address on file: refused before anything is stored")
+    void missingEmailStoresNothing() {
+        AppUser u = staff(" ", null);
+        assertThatThrownBy(() -> service.sendEmail(27)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(u.getInviteToken()).isNull();
+        verify(userRepository, never()).save(any());
+    }
+
     /* ── input the admin can actually fix ───────────────────────────────── */
 
     @Test

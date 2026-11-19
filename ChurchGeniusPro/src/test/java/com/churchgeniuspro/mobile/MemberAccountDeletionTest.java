@@ -132,4 +132,65 @@ class MemberAccountDeletionTest {
         svc.sendConfirmation("ann@example.org", "Ann", CHURCH);   // must not propagate
         svc.sendConfirmation(null, "Ann", CHURCH);
     }
+
+    /* ── the church removes a portal login (Accounts → Member Portal Users → 🗑), 2026-11-19 ── */
+
+    @Test
+    @DisplayName("church removes a portal login: the login is closed, the family record is not touched at all")
+    void churchRemovesLoginOnly() {
+        member.setDeleteFlag(false);
+        MemberAccountDeletionService.Outcome out = svc.removeLoginByChurch(7, CHURCH);
+        assertThat(out.ok()).isTrue();
+        assertThat(out.memberName()).contains("Ann");
+
+        assertThat(login.getDeleted()).isTrue();
+        assertThat(login.getActive()).isFalse();
+        assertThat(login.getPassword()).isEmpty();
+        assertThat(login.getUsername()).startsWith("deleted-42-");
+        assertThat(login.getClientId()).isEqualTo(REF + "#deleted-42");      // released: the person can register again
+        assertThat(login.getLinkGroup()).isNull();
+        verify(rememberMe).revokeAllFor(42);
+        assertThat(sub.isActive()).isFalse();
+
+        // the person stays in Families exactly as before
+        verify(members, never()).save(any());
+        assertThat(member.isDeleteFlag()).isFalse();
+        assertThat(member.getMemberRef()).isEqualTo(REF);
+        assertThat(member.getEmail()).isEqualTo("ann@example.org");
+        assertThat(member.getPortalAccountDeletedAt()).isNull();
+        // nothing else of theirs is removed, and nobody is notified or e-mailed
+        verifyNoInteractions(messages, blocks, prefs, favs, dash, tips, notifications, email);
+    }
+
+    @Test
+    @DisplayName("church removes a portal login: another church's member, a member with no login, or an already removed login → 404, nothing written")
+    void churchRemoveRefusals() {
+        when(members.findByIdAndTenant(7, "CHR-2")).thenReturn(Optional.empty());
+        assertThat(svc.removeLoginByChurch(7, "CHR-2").status()).isEqualTo(404);
+        assertThat(svc.removeLoginByChurch(null, CHURCH).status()).isEqualTo(404);
+        assertThat(svc.removeLoginByChurch(7, " ").status()).isEqualTo(404);
+
+        member.setMemberRef(null);
+        assertThat(svc.removeLoginByChurch(7, CHURCH).status()).isEqualTo(404);
+        member.setMemberRef(REF);
+        login.setDeleted(true);
+        MemberAccountDeletionService.Outcome gone = svc.removeLoginByChurch(7, CHURCH);
+        assertThat(gone.status()).isEqualTo(404);
+        assertThat(gone.error()).contains("no Member Portal login");
+
+        verify(logins, never()).save(any());
+        verify(rememberMe, never()).revokeAllFor(anyInt());
+        assertThat(sub.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("the endpoint behind the 🗑 button no longer flags the family member as deleted")
+    void endpointIsLoginOnly() throws Exception {
+        String c = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/java/com/churchgeniuspro/controller/AppUserController.java"));
+        String h = c.substring(c.indexOf("@DeleteMapping(\"/api/members/{id}/soft-delete\")"));
+        h = h.substring(0, h.indexOf("@PostMapping(\"/api/members/{id}/send-reset\")"));
+        assertThat(h).contains("memberAccountDeletion.removeLoginByChurch(id, (String) session.getAttribute(\"clientId\"))")
+                .contains("if (!isChurch) return ResponseEntity.status(403)")
+                .doesNotContain("setDeleteFlag").doesNotContain("familyMemberRepository.save").doesNotContain("loginRepository.findAll()");
+    }
 }
