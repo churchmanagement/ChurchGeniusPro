@@ -44,6 +44,25 @@ public class AiActionController {
         return ResponseEntity.ok(AiDataSearchController.audited(req, actions.reject(req, SessionUtil.getAppClientId(req), token)));
     }
 
+    /** 2026-11-20: "several donations" conversation — optional so hand-built tests keep their constructor. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedBatchService batch;
+
+    /**
+     * {@code POST /api/ai/actions/batch-check} — the chat scanned a check photo with the existing check scan
+     * ({@code /api/income/check-scan}) and hands the result to the open "several donations" conversation, which
+     * answers with that check's review (or why it could not be used). Never saves: the entry is saved only by its
+     * own Confirm &amp; Save. Same gate, plan feature, rate limit and audit as the other action endpoints.
+     */
+    @PostMapping("/api/ai/actions/batch-check")
+    public ResponseEntity<Map<String, Object>> batchCheck(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest req) {
+        ResponseEntity<Map<String, Object>> g = AiWritingController.gate(req, "AI actions");
+        if (g != null) return g;
+        if (batch == null) return ResponseEntity.status(503).body(Map.of("error", "This is not available right now."));
+        Map<String, Object> m = batch.checkScanned(req, SessionUtil.getAppClientId(req), body);
+        return ResponseEntity.ok(AiDataSearchController.audited(req, m));
+    }
+
     @GetMapping("/api/ai/actions")
     public ResponseEntity<Map<String, Object>> recent(HttpServletRequest req) {
         ResponseEntity<Map<String, Object>> g = AiWritingController.gate(req, "AI actions");

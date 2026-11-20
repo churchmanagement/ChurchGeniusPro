@@ -51,6 +51,9 @@ public class AiDataSearchController {
     private com.churchgeniuspro.ai.guided.AiGuidedEmailService emails;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.ai.guided.AiPageLinkService pageLinks;
+    /** 2026-11-20: "I received 20 checks and $2,000 in cash …" — several donations in one conversation. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedBatchService batch;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
@@ -99,6 +102,14 @@ public class AiDataSearchController {
             if (emails != null && hs != null && hs.getAttribute(com.churchgeniuspro.ai.guided.GuidedDrafts.EMAIL) != null) {
                 Map<String, Object> em = emails.handle(request, clientId, question);
                 if (em != null) return ResponseEntity.ok(audited(request, em));
+            }
+            // 2026-11-20 — several donations in one conversation ("I received 20 checks and $2,000 in cash …"). It gets
+            // the first look while it is open: its own questions, and "cancel" during one of its entries; an answer
+            // to the entry in progress is left (null) to the income conversation below.
+            if (batch != null && (com.churchgeniuspro.ai.guided.AiGuidedBatchService.isStartRequest(question)
+                    || com.churchgeniuspro.ai.guided.AiGuidedBatchService.hasDraft(hs))) {
+                Map<String, Object> bt = batch.handle(request, clientId, question);
+                if (bt != null) return ResponseEntity.ok(audited(request, bt));
             }
             // A new start request of one conversation drops every other conversation's open draft (GuidedDrafts).
             if (emails != null && com.churchgeniuspro.ai.guided.AiGuidedEmailService.isStartRequest(question)) {

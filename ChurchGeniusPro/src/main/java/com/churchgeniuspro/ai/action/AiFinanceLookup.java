@@ -102,6 +102,18 @@ public class AiFinanceLookup {
         return n == null ? 0 : n;
     }
 
+    /**
+     * 2026-11-20 — "is this check already recorded?": the date of the newest live income row of this church with
+     * the same reference (check) number and amount, or null. Used before a scanned check is offered for review.
+     */
+    public LocalDate incomeDateForCheck(String cid, String refNo, BigDecimal amount) {
+        if (blank(cid) || refNo == null || refNo.isBlank() || amount == null) return null;
+        java.util.List<java.sql.Date> rows = jdbc.queryForList("SELECT i.income_date FROM income i WHERE i.app_client_id = :cid AND i.delete_flag = false "
+                + "AND i.amount = :a AND LOWER(TRIM(COALESCE(i.ref_no,''))) = :r ORDER BY i.income_date DESC LIMIT 1",
+                new MapSqlParameterSource().addValue("cid", cid).addValue("a", amount).addValue("r", refNo.trim().toLowerCase(java.util.Locale.ROOT)), java.sql.Date.class);
+        return rows.isEmpty() || rows.get(0) == null ? null : rows.get(0).toLocalDate();
+    }
+
     /** Live expense rows of this church with the same category, fund, date and amount. */
     public int expenseDuplicates(String cid, LocalDate date, BigDecimal amount, long categoryId, long fundId) {
         if (blank(cid) || date == null || amount == null) return 0;

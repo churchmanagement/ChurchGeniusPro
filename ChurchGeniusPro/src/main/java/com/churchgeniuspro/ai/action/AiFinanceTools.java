@@ -140,6 +140,9 @@ public final class AiFinanceTools {
                 out.put("memberId", m.id()); out.put("contributorLabel", m.label());
             } else if (guest != null) {
                 out.put("guestName", cap(guest, 300)); out.put("contributorLabel", cap(guest, 300) + " (guest)");
+            } else if (Boolean.TRUE.equals(raw.get("noContributor")) || "true".equalsIgnoreCase(String.valueOf(raw.get("noContributor")))) {
+                // 2026-11-20: an explicit "No Contributor" (the Income page saves such an entry too)
+                out.put("noContributor", true); out.put("contributorLabel", "No contributor");
             } else return Resolution.refuse("The contributor is missing.");
             Long fundId = l(raw, "fundId");
             Hit fund = fundId == null ? null : lookup.incomeFundById(cid, fundId);

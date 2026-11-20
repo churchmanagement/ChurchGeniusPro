@@ -520,7 +520,7 @@
     // start the same guided conversation as Type instead of jumping to the page.
     // 2026-11-09: an open conversation's answer ("Prayer Meeting" to "Which category?") goes to the server first in
     // every mode — spoken, it used to match the Meetings page name and open the page instead of answering.
-    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || _aaServerPending;
+    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || looksLikeOfferings(query) || _aaServerPending;
     if (!dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
 
     // ── Natural-language DATA questions ("When is Anson's birthday?",
@@ -609,6 +609,13 @@
   // first — it proposes an action and asks for confirmation; nothing is written until the card is confirmed.
   function looksLikeManage(q){
     return /^\s*(please\s+)?(can you\s+|could you\s+)?(edit|change|update|modify|rename|delete|remove|erase|deactivate|archive)\b/i.test(q);
+  }
+  /* 2026-11-20: "I received 20 checks and $2,000 in cash … add them to the General Fund" — several donations in
+     one conversation. The server decides (AiGuidedBatchService.isStartRequest); this only sends it there first. */
+  function looksLikeOfferings(q){
+    if (/^\s*(how|where|what|when|which|who|why|is|are|do|does|did|list|show|find)\b/i.test(q)) return false;
+    var things=/\b(checks?|cheques?|cash|offerings|donations|contributions|gifts|tithes)\b/i.test(q);
+    return things && /\b(received|receive|got|collected|have|counted|record|add|enter|log|post)\b/i.test(q) && (/\d/.test(q) || /\b(several|multiple|many|a few|some|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty)\b/i.test(q) || /\b(offerings|donations|contributions|checks|cheques)\b/i.test(q));
   }
   function looksLikeAction(q){
     // 2026-11-11: + compose / draft / send an e-mail, make / start / form a group or campaign, and the page-link
@@ -950,6 +957,7 @@
     // Structured data answers (Phase B): a summary strip and/or a bounded table.
     if (a.data && !a.data.denied){
       var d=a.data;
+      var cut0=html.length;
       if (d.summary && typeof d.summary==='object'){
         html+='<div class="aa-summary">';
         Object.keys(d.summary).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v">'+esc(d.summary[k])+'</div></div>'; });
@@ -963,6 +971,10 @@
         html+='</tbody></table></div>';
         if (d.truncated) html+='<div class="aa-more">Showing '+esc(String(d.shown||d.rows.length))+(d.total!=null?' of '+esc(String(d.total)):'')+' — open the page for the full list.</div>';
       }
+      // 2026-11-20: a saved entry that also ends the several-donations conversation — its own confirmation first,
+      // the summary of everything that was saved after it.
+      var later='';
+      if (d.receipt && d.batchSummary){ later=html.slice(cut0); html=html.slice(0, cut0); }
       // Cross-referenced answers (Phase 1): which modules were read, and what the words mean.
       if (Array.isArray(d.sources) && d.sources.length){
         html+='<div class="aa-sources"><strong>Read from:</strong> '+d.sources.map(esc).join(' \u00b7 ')+'</div>';
@@ -1029,6 +1041,9 @@
           html+='<div class="aa-receipt-note">'+esc(rc.totalsNote)+'</div>';
         }
         html+='</div>';
+        // 2026-11-20: the conversation goes on after this save (next cash part, next check, the summary)
+        if (d.question && (d.pending===true || d.batchSummary)) html+='<div class="aa-next">'+esc(d.question)+'</div>';
+        html+=later;
       }
       // 2026-11-11 e-mail conversation: the draft as it stands (text only), and at the end the review card —
       // recipients / subject, optional attachments, and the ONE button that sends (one-time token).
@@ -1060,6 +1075,7 @@
       // Meeting creation (Phase E): the draft summary and a one-time "Create meeting" button.
       // The token is single-use on the server, so a double click cannot create two meetings.
       if (d.confirm && d.confirm.token){
+        if (d.scanned) html+='<div class="aa-scanned"><span aria-hidden="true">\ud83d\udcf7</span> '+esc(d.scanned)+'</div>';
         if (Array.isArray(d.confirm.fields) && d.confirm.fields.length){
           // 2026-11-08 review card: every value with Required / Optional and an Edit button.
           html+='<div class="aa-fields" role="table" aria-label="Details to review">';
@@ -1078,16 +1094,38 @@
           Object.keys(cs).forEach(function(k){ html+='<div class="aa-sum"><div class="aa-sum-k">'+esc(k)+'</div><div class="aa-sum-v aa-sum-sm">'+esc(cs[k])+'</div></div>'; });
           html+='</div>';
         }
+        // 2026-11-20: what the Net Balance is now and what it will be after this entry (income and expense cards)
+        var bl=d.confirm.balance;
+        if (bl && typeof bl==='object' && bl.previous && bl.next){
+          html+='<div class="aa-balance" role="group" aria-label="'+esc(bl.label||'Net Balance')+'"><div class="aa-balance-h">'+esc(bl.label||'Net Balance')+'</div>'
+            +'<div class="aa-tot-row"><span>'+esc(bl.previousLabel||'Previous Net Balance')+'</span><span>'+esc(bl.previous)+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-add'+(/^\u2212|^-/.test(String(bl.change||'')) ? ' aa-tot-sub' : '')+'"><span>'+esc(bl.changeLabel||'This entry')+'</span><span>'+esc(bl.change||'')+'</span></div>'
+            +'<div class="aa-tot-row aa-tot-new"><span>'+esc(bl.nextLabel||'New Net Balance')+'</span><span>'+esc(bl.next)+'</span></div></div>';
+        }
         html+='<div class="aa-actions">'
           +'<button type="button" class="aa-open aa-confirm" data-token="'+esc(d.confirm.token)+'" data-label="'+esc(d.confirm.label||'Create meeting')+'" data-endpoint="'+esc(d.confirm.endpoint||'/api/ai-search/confirm')+'"'+dis+'>'+esc(d.confirm.label||'Create meeting')+'</button>'
           +'<button type="button" class="aa-open alt aa-cancel" data-token="'+esc(d.confirm.token)+'" data-endpoint="'+esc(d.confirm.endpoint||'')+'"'+dis+'>Cancel</button>'
           +'<span class="aa-actions-note">'+(old ? 'Replaced by a newer card.' : 'Nothing is saved until you confirm.')+'</span></div>';
+      }
+      // 2026-11-20 several donations: a photo of the check (camera or a saved picture) goes to the existing check
+      // scan; what it read comes back as a review card. Nothing is saved by taking the photo.
+      if (d.scan && d.scan.scanEndpoint && d.scan.submitEndpoint && !(d.confirm && d.confirm.token)){
+        html+='<div class="aa-scan" data-scan="'+esc(d.scan.scanEndpoint)+'" data-submit="'+esc(d.scan.submitEndpoint)+'" data-image="'+esc(d.scan.imageEndpoint||'')+'">'
+          +'<button type="button" class="aa-open aa-scan-btn" data-capture="1"'+dis+'><span aria-hidden="true">\ud83d\udcf7</span> Take Photo</button>'
+          +'<button type="button" class="aa-open alt aa-scan-btn"'+dis+'><span aria-hidden="true">\ud83d\uddbc\ufe0f</span> Upload Image</button>'
+          +'<input type="file" class="aa-scan-file" accept="image/*" hidden tabindex="-1" aria-hidden="true">'
+          +'<span class="aa-scan-status" role="status" aria-live="polite"></span></div>';
       }
       // Suggested answers (categories, funds, AM / PM …) as buttons; typing still works.
       if (Array.isArray(d.choices) && d.choices.length && !(d.confirm && d.confirm.token)){
         html+='<div class="aa-choices" role="group" aria-label="Suggested answers">';
         d.choices.slice(0, 24).forEach(function(c){ html+='<button type="button" class="aa-choice" data-text="'+esc(c)+'"'+dis+'>'+esc(c)+'</button>'; });
         html+='</div>';
+        // 2026-11-20: "Select a Date" — a date field beside the suggested dates
+        if (d.dateInput===true){
+          html+='<div class="aa-datepick"><label>Select a Date <input type="date" class="aa-date-in"'+dis+'></label>'
+            +'<button type="button" class="aa-open alt aa-date-go"'+dis+'>Use this date</button></div>';
+        }
       }
     }
     if (pages.length){
@@ -1115,6 +1153,7 @@
       if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
       if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
       if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(b.closest('.aa-turn') || wrap, b); }); return; }
+      if (b.classList.contains('aa-scan-btn') || b.classList.contains('aa-date-go')) return;      // wired below
       b.addEventListener('click', function(){ open(b.getAttribute('data-url'), b.getAttribute('data-label'), b.getAttribute('data-nt')==='1' || wantsNewTab(lastQ)); });
     });
     wrap.querySelectorAll('.aa-chip-x').forEach(function(x){
@@ -1122,7 +1161,13 @@
     });
     wrap.querySelectorAll('.aa-choice').forEach(function(b){
       if (b.disabled) return;
-      b.addEventListener('click', function(){ wrap.querySelectorAll('.aa-choice').forEach(function(x){ x.disabled=true; }); chooseAnswer(b.getAttribute('data-text')||''); });
+      b.addEventListener('click', function(){
+        // 2026-11-20: "Scan Next Check" opens the camera of this card; the photo itself is the answer
+        var sb = /^scan next check$/i.test(b.getAttribute('data-text')||'') ? scopeOf(b, wrap).querySelector('.aa-scan-btn[data-capture]') : null;
+        if (sb && !sb.disabled){ sb.click(); return; }
+        if (/^enter it by hand$/i.test(b.getAttribute('data-text')||'')) _scanFile=null;
+        wrap.querySelectorAll('.aa-choice,.aa-scan-btn,.aa-date-go').forEach(function(x){ x.disabled=true; }); chooseAnswer(b.getAttribute('data-text')||'');
+      });
     });
     wrap.querySelectorAll('.aa-edit').forEach(function(b){
       if (b.disabled) return;
@@ -1135,9 +1180,92 @@
       });
     });
     wrap.querySelectorAll('.aa-attach').forEach(wireAttach);
+    wrap.querySelectorAll('.aa-scan').forEach(function(box){ wireScan(box, wrap); });
+    wrap.querySelectorAll('.aa-datepick').forEach(function(box){
+      var inp=box.querySelector('.aa-date-in'), go=box.querySelector('.aa-date-go');
+      if (!inp || !go || go.disabled) return;
+      go.addEventListener('click', function(){
+        var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(inp.value||'');
+        if (!m){ try{ inp.focus(); if (inp.showPicker) inp.showPicker(); }catch(e){} return; }
+        wrap.querySelectorAll('.aa-choice,.aa-date-go,.aa-date-in').forEach(function(x){ x.disabled=true; });
+        chooseAnswer(m[2]+'/'+m[3]+'/'+m[1]);
+      });
+    });
     var nc=wrap.querySelector('.aa-newconv');
     if (nc) nc.addEventListener('click', newConversation);
   }
+  /* 2026-11-20 several donations — the check photo. Take Photo asks the device for its camera (a computer opens
+     the file window), Upload Image always opens the file window. The picture goes to the Income page's own scan
+     (/api/income/check-scan); what it read goes to the conversation, which answers with a review card, a
+     duplicate question, or "I couldn't read that". The picture is kept only until that check is saved (then it is
+     stored with the income, as the Income page does) or dropped. */
+  var _scanFile=null;
+  function scopeOf(el, wrap){ return (el.closest && (el.closest('.aa-turn') || el.closest('.ga-ai'))) || wrap; }
+  function wireScan(box, wrap){
+    var input=box.querySelector('.aa-scan-file'); if (!input) return;
+    box.querySelectorAll('.aa-scan-btn').forEach(function(b){
+      if (b.disabled) return;
+      b.addEventListener('click', function(){
+        if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); return; }
+        if (b.getAttribute('data-capture')) input.setAttribute('capture', 'environment'); else input.removeAttribute('capture');
+        input.value=''; input.click();
+      });
+    });
+    input.addEventListener('change', function(){ var f=input.files && input.files[0]; if (f) scanCheckPhoto(f, box, wrap); });
+  }
+  function scanCheckPhoto(file, box, wrap){
+    var status=box.querySelector('.aa-scan-status');
+    function say(t){ if (status) status.textContent=t; }
+    if (!/^image\//i.test(file.type||'') && !/\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(file.name||'')){ say('Please choose a photo of the check (an image file).'); return; }
+    if (file.size > 15*1048576){ say('That picture is larger than 15 MB. Please take a smaller photo.'); return; }
+    if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); return; }
+    var scope=scopeOf(box, wrap);
+    scope.querySelectorAll('.aa-scan-btn,.aa-choice').forEach(function(x){ x.disabled=true; });
+    say('Reading the check…');
+    lastQ='Check photo';
+    reportQuestion('\ud83d\udcf7 Photo of a check', 'type');
+    var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true); busy(true);
+    _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
+    _scanFile=null;
+    var fd=new FormData(); fd.append('file', file);
+    fetch(box.getAttribute('data-scan'), { method:'POST', body:fd, signal:aaSignal() })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j||{} }; }, function(){ return { ok:false, j:{} }; }); })
+      .catch(function(){ return { ok:false, j:{ error:'The photo could not be uploaded.' } }; })
+      .then(function(res){
+        // A refused or failed scan is told to the conversation too: it offers another photo or typing it in.
+        var body = res.ok ? res.j : { readable:false, fields:{}, error:(res.j && (res.j.error || res.j.message)) || 'The photo could not be read.' };
+        if (res.ok && body.readable===false) body.error = body.visionDisabled ? 'Reading checks from a photo is not available for this church at the moment.' : '';
+        return fetch(box.getAttribute('data-submit'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), signal:aaSignal() })
+          .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+      })
+      .then(function(d){
+        if (!aaLive(g)) return;
+        busy(false); endTurn(); say('');
+        if (!d || !d.handled){
+          d={ handled:true, denied:false, intent:'guided.ask', pending:true, answer:'I couldn\'t use that photo. You can take another photo, or enter this check by hand.',
+              scan:{ scanEndpoint:box.getAttribute('data-scan'), submitEndpoint:box.getAttribute('data-submit'), imageEndpoint:box.getAttribute('data-image')||'' },
+              choices:['Enter it by hand', 'Finish & Review Summary', 'Cancel'] };
+        }
+        _aaServerPending=isPendingAnswer(d);
+        // kept for the saved income only when the photo became an entry (a review card or one of its questions)
+        if (!d.scanFailed && !d.denied && d.pending===true && !d.scan) _scanFile={ file:file, endpoint:box.getAttribute('data-image')||'' };
+        renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'', pages:[], suggestedAction:'none', data:d });
+        setDebug({ intent:'Data: '+(d.intent||'scan'), source:'Church Data', result: d.scanFailed ? 'Not readable' : (d.denied ? 'Permission denied' : 'Read') });
+        if (speaking) speak(stripUrls(d.answer||''));
+      });
+  }
+  /* After a scanned check was saved: its picture is stored with that income (best effort — the entry is saved
+     either way). */
+  function keepCheckImage(d){
+    var k=_scanFile; if (!d) return;
+    if (d.executed || /^guided\.(summary|cancelled|expired)$/.test(String(d.intent||'')) || d.denied) _scanFile=null;
+    if (!k || !d.executed || d.checkImage!==true || !d.incomeId || !k.endpoint) return;
+    var url=String(k.endpoint).replace('{id}', encodeURIComponent(String(d.incomeId)));
+    if (!/^\/api\/income\/[0-9]+\/check-image$/.test(url)) return;
+    var fd=new FormData(); fd.append('file', k.file);
+    try{ fetch(url, { method:'POST', body:fd }).catch(function(){}); }catch(e){}
+  }
+
   /* 2026-11-11: attachments of the e-mail review card. The chosen files live on the element only (never stored);
      a card restored after a reload starts with none. The server applies the same limits again. */
   function fmtSize(n){ return n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1, Math.round(n/1024))+' KB'; }
@@ -1233,6 +1361,7 @@
         if (!d || !d.handled){ d= isAction ? { handled:true, denied:false, intent:'action.failed', answer:'The action could not be completed, so nothing was saved. Please try again or use the page directly.' }
                                            : { handled:true, denied:false, intent:'meeting.error', answer:'The meeting could not be created. Please try again or use the Meetings page.' }; }
         if (row && !_thread.active){ row.remove(); }
+        keepCheckImage(d);
         renderCard({ intent:d.intent||'data', category:'Data', source:'Church Data', confidence:1, answer:d.answer||'',
           pages:(d.link && d.link.url && !d.denied) ? [{label:d.link.label||'Open', url:d.link.url}] : [], suggestedAction:'none', data:d });
         setDebug({ intent:'Data: '+(d.intent||'meeting'), source:'Church Data', result: (d.created || d.executed) ? 'Done' : (d.denied ? 'Permission denied' : 'Not done') });
@@ -1287,7 +1416,7 @@
     var token = btn && btn.getAttribute ? btn.getAttribute('data-token') : null;
     var threaded = _thread.active && !uiHook();
     if (row && !threaded){ row.remove(); }
-    _aaServerPending=false;
+    _aaServerPending=false; _scanFile=null;
     var isAction = endpoint.indexOf('/api/ai/actions/') === 0 && token;
     if (isAction){
       // AI Phase 4: reject the proposal itself (the server marks it REJECTED; the token can never be used).
@@ -1709,6 +1838,17 @@
       '.aa-tot-new{font-weight:700;border-top:1px solid #b7d8b9;margin-top:3px;padding-top:4px;}',
       '.aa-receipt-note{margin-top:8px;color:#5f6b61;font-size:12.5px;}',
       '.aa-fields{margin-top:10px;border:1px solid #eadfe6;border-radius:9px;overflow:hidden;}',
+      '.aa-balance{margin-top:10px;border:1px dashed #d9c7d0;background:#fbf7f9;border-radius:9px;padding:9px 12px;font-size:13px;color:#3b2a33;}',
+      '.aa-balance-h{font-weight:700;margin-bottom:4px;color:#673147;}',
+      '.aa-next{margin-top:10px;font-size:14px;font-weight:600;color:#3b2a33;}',
+      '.aa-scanned{margin-top:10px;padding:8px 11px;border-radius:9px;background:#f3f6fb;border:1px solid #d5dfee;color:#2f4466;font-size:13px;}',
+      '.aa-scan{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;}',
+      '.aa-scan .aa-scan-btn{min-height:40px;}',
+      '.aa-scan-status{font-size:12.5px;color:#7a5c6b;flex-basis:100%;}',
+      '.aa-scan-status:empty{display:none;}',
+      '.aa-datepick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:#4a3640;}',
+      '.aa-datepick label{display:flex;align-items:center;gap:6px;font-weight:600;}',
+      '.aa-date-in{border:1.5px solid #c5a0b5;border-radius:8px;padding:6px 8px;font:inherit;min-height:36px;background:#fff;color:#2b2030;}',
       '.aa-preview{margin-top:10px;border:1px solid #eadfe6;border-radius:10px;background:#fff;overflow:hidden;font-size:13.5px;color:#2b2730;}',
       '.aa-preview-s{padding:9px 12px;border-bottom:1px solid #f0e8ed;font-weight:700;overflow-wrap:anywhere;}',
       '.aa-preview-s span{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a7a84;margin-bottom:2px;}',
@@ -1824,7 +1964,7 @@
   function createHelpHtml(){
     var ex = [
       ['Meetings', ['Create a meeting', 'Schedule a Bible Study next Sunday at 10 AM.']],
-      ['Income', ['Record an income of $500 for Sunday offerings.']],
+      ['Income', ['Record an income of $500 for Sunday offerings.', 'I received 20 checks and $2,000 in cash this Sunday. Add them to the General Fund.']],
       ['Expenses', ['Record an expense of $150 for electricity.']],
       ['Transaction types', ['Create a transaction type called Mission Offering.']],
       ['Funds', ['Create a fund called Building Fund.']],

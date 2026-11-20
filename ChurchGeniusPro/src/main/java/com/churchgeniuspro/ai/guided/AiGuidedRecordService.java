@@ -100,6 +100,13 @@ public class AiGuidedRecordService {
         String pendingGuest;
         /** Several funds / categories / methods matched — the names, to pick from. */
         String token;
+        /** 2026-11-20: this entry is one item of a "several donations" conversation ({@link AiGuidedBatchService}) —
+         *  GUI choices for the date / contributor / optional questions, no "ready to review?" step, "Confirm & Save". */
+        boolean batch; String batchLabel;
+        /** Batch only: "No Contributor" was chosen (the Income page allows an entry with no contributor). */
+        boolean noContributor;
+        /** Batch only: "Select a Member" / "Enter a Guest Name" was chosen — the next answer is that name. */
+        String contributorPrompt;
         String noun() { return kind == Kind.INCOME ? "income" : "expense"; }
     }
 
@@ -122,7 +129,7 @@ public class AiGuidedRecordService {
     static final Pattern READY = Pattern.compile(
         "(?i)^\\s*(yes|yeah|yep|sure|ok|okay|no|nope|nothing|none|nothing else|that'?s (all|it|everything)|all good|looks good|ready|i'?m ready|"
         + "review|review (it|them|the details)|let me review|show me|show (me )?the details|go ahead|proceed|continue|done|next|skip|skip (them|it|both)|"
-        + "skip and (review|proceed)|skip (them |it )?and proceed to review|proceed to review|no,? (skip|proceed)( (them|to review))?)"
+        + "skip (and|&) (review|proceed)|skip (them |it )?and proceed to review|proceed to review|no,? (skip|proceed)( (them|to review))?)"
         + "([,.! ]+(please|thanks?|thank you|ready|review|i'?m ready|let'?s review|go ahead|proceed( to review)?))*[.!]?\\s*$");
     static final Pattern ADD_REF = Pattern.compile("(?i)^\\s*(?:yes,?\\s+)?(?:add|enter|include)\\s+(?:a\\s+|the\\s+)?(?:ref(?:erence)?(?:\\s+(?:number|no\\.?|#))?|check\\s+(?:number|no\\.?|#))[.!]?\\s*$");
     static final Pattern ADD_NOTE = Pattern.compile("(?i)^\\s*(?:yes,?\\s+)?(?:add|enter|include|write)\\s+(?:a\\s+|the\\s+|some\\s+)?notes?[.!]?\\s*$");
@@ -278,7 +285,9 @@ public class AiGuidedRecordService {
                     setGuest(d, d.pendingGuest); d.pendingGuest = null; return advance(req, session, d);
                 }
                 if (NO.matcher(q).matches() || t.toLowerCase(Locale.ROOT).contains("another")) {
-                    d.pendingGuest = null; return ask(session, d, "contributor", contributorQuestion(), List.of("Anonymous", "Loose Offering"));
+                    d.pendingGuest = null;
+                    if (d.batch) { d.contributorPrompt = null; return advance(req, session, d); }
+                    return ask(session, d, "contributor", contributorQuestion(), List.of("Anonymous", "Loose Offering"));
                 }
                 d.pendingGuest = null;
                 if (contributor(d, t)) return advance(req, session, d);
@@ -306,6 +315,11 @@ public class AiGuidedRecordService {
                 return null;
             }
             default -> { }
+        }
+        // batch: "Enter a Guest Name" was chosen — whatever is typed now is that guest's name
+        if ("contributor".equals(asked) && "guest".equals(d.contributorPrompt) && d.kind == Kind.INCOME) {
+            String name = t.replaceAll("\\s+", " ").trim();
+            if (!name.isEmpty() && name.matches(".*\\p{L}.*")) { d.contributorPrompt = null; setGuest(d, cap(name, 120)); return advance(req, session, d); }
         }
         // a pick from the offered choices first ("2", "Building Fund", "Mark Lee")
         if (d.choices != null && !d.choices.isEmpty()) {
@@ -497,6 +511,7 @@ public class AiGuidedRecordService {
         List<Hit> hits = people.members(d.clientId, who);
         if (hits.size() == 1) {
             d.memberId = hits.get(0).id(); d.contributorLabel = hits.get(0).label(); d.guestName = null; d.choices = null; d.choiceIds = null;
+            d.noContributor = false; d.contributorPrompt = null;
             return true;
         }
         if (hits.size() > 1) {
@@ -517,6 +532,7 @@ public class AiGuidedRecordService {
 
     private void setGuest(Draft d, String name) {
         d.memberId = null; d.guestName = cap(name, 300); d.contributorLabel = d.guestName + " (guest)"; d.choices = null; d.choiceIds = null;
+        d.noContributor = false; d.contributorPrompt = null;
     }
 
     private boolean applyChoice(Draft d, String asked, String picked) {
@@ -526,14 +542,22 @@ public class AiGuidedRecordService {
                 if (d.choiceIds != null && i >= 0 && i < d.choiceIds.size()) {
                     Hit h = people.memberById(d.clientId, d.choiceIds.get(i));
                     if (h == null) return false;
-                    d.memberId = h.id(); d.contributorLabel = h.label(); d.guestName = null;
+                    d.memberId = h.id(); d.contributorLabel = h.label(); d.guestName = null; d.noContributor = false; d.contributorPrompt = null;
                 } else if (picked.equalsIgnoreCase("Anonymous") || picked.equalsIgnoreCase("Loose Offering")) setGuest(d, picked);
+                else if (d.batch && picked.equalsIgnoreCase(NO_CONTRIBUTOR)) { d.noContributor = true; d.memberId = null; d.guestName = null; d.contributorLabel = "No contributor"; d.contributorPrompt = null; }
+                else if (d.batch && picked.equalsIgnoreCase(SELECT_MEMBER)) { d.contributorPrompt = "member"; }
+                else if (d.batch && picked.equalsIgnoreCase(ENTER_GUEST)) { d.contributorPrompt = "guest"; }
                 else return false;
             }
             case "fund" -> { if (pickFund(d, picked) == null) return false; }
             case "category" -> { if (pickCategory(d, picked) == null) return false; }
             case "method" -> { if (pickMethod(d, picked) == null) return false; }
-            case "date" -> { if (!picked.equalsIgnoreCase("Today")) return false; d.date = AppClock.today(); }
+            case "date" -> {
+                String pk = picked.toLowerCase(Locale.ROOT);
+                if (pk.startsWith("today")) d.date = AppClock.today();
+                else if (d.batch && pk.startsWith("last sunday")) d.date = AppClock.today().with(TemporalAdjusters.previous(DayOfWeek.SUNDAY));
+                else return false;
+            }
             default -> { return false; }
         }
         d.choices = null; d.choiceIds = null;
@@ -628,7 +652,7 @@ public class AiGuidedRecordService {
 
     static List<String> missing(Draft d) {
         List<String> out = new ArrayList<>();
-        if (d.kind == Kind.INCOME && d.memberId == null && d.guestName == null) out.add("contributor");
+        if (d.kind == Kind.INCOME && d.memberId == null && d.guestName == null && !d.noContributor) out.add("contributor");
         if (d.kind == Kind.EXPENSE && d.categoryId == null) out.add("category");
         if (d.amount == null) out.add("amount");
         if (d.fundId == null) out.add("fund");
@@ -670,7 +694,7 @@ public class AiGuidedRecordService {
         LocalDate today = AppClock.today();
         d.created = Instant.now();
         // an open contributor question (several members / record as a guest?) comes first
-        if (d.kind == Kind.INCOME && d.memberId == null && d.guestName == null) {
+        if (d.kind == Kind.INCOME && d.memberId == null && d.guestName == null && !d.noContributor) {
             if (d.pendingGuest != null) {
                 return ask(session, d, "guestConfirm", "I couldn't find a member called “" + d.pendingGuest + "”. Should I record it from a guest named “"
                     + d.pendingGuest + "”?", List.of("Yes, record as a guest", "No, choose another name"));
@@ -680,11 +704,22 @@ public class AiGuidedRecordService {
             }
         }
         List<String> miss = missing(d);
+        if (d.batch && miss.remove("date")) miss.add(0, "date");                  // several donations: the date first, then who
         if (first != null && miss.remove(first)) miss.add(0, first);
         if (!miss.isEmpty()) {
             String f = miss.get(0);
             switch (f) {
-                case "contributor" -> { return ask(session, d, f, contributorQuestion(), List.of("Anonymous", "Loose Offering")); }
+                case "contributor" -> {
+                    if (d.batch) {
+                        if ("member".equals(d.contributorPrompt)) return ask(session, d, f, "Type the member's first or last name.", null);
+                        if ("guest".equals(d.contributorPrompt)) return ask(session, d, f, "What is the guest's name?", null);
+                        Map<String, Object> m = ask(session, d, f, "Who should be recorded as the contributor? You can enter a member's name or a guest name, or choose one of the following:",
+                            List.of("Anonymous", "Loose Offering", NO_CONTRIBUTOR, SELECT_MEMBER, ENTER_GUEST));
+                        m.put("question", "Who should be recorded as the contributor? You can type a member's name or a guest name, or choose one of these:");
+                        return m;
+                    }
+                    return ask(session, d, f, contributorQuestion(), List.of("Anonymous", "Loose Offering"));
+                }
                 case "category" -> {
                     List<String> names = labels(lookup.expenseCategories(d.clientId));
                     if (names.isEmpty()) return stop(session, d, "There are no expense categories yet — add one on the Expense page first.");
@@ -700,7 +735,14 @@ public class AiGuidedRecordService {
                     return ask(session, d, f, (d.kind == Kind.EXPENSE ? "Which fund is it paid from? " : "Which fund is it for? ") + String.join(", ", ch)
                         + (names.size() > ch.size() ? " …" : "") + ".", ch);
                 }
-                case "date" -> { return ask(session, d, f, "What date should I record? (for example today, yesterday or Nov 3)", List.of("Today")); }
+                case "date" -> {
+                    if (d.batch) {
+                        Map<String, Object> m = ask(session, d, f, "What is the transaction date?", dateChoices(today));
+                        m.put("dateInput", true);            // the chat also offers "Select a Date" (a date picker)
+                        return m;
+                    }
+                    return ask(session, d, f, "What date should I record? (for example today, yesterday or Nov 3)", List.of("Today"));
+                }
                 default -> {
                     List<String> names = labels(methodList(d));
                     if (names.isEmpty()) return stop(session, d, "There are no payment methods yet — add one on the " + (d.kind == Kind.EXPENSE ? "Expense" : "Income") + " page first.");
@@ -746,13 +788,15 @@ public class AiGuidedRecordService {
             d.optionalAsked = true;
             d.stage = Stage.OPTIONAL; d.asked = null; d.choices = null;
             session.setAttribute(SESSION_KEY, d);
-            Map<String, Object> m = base("guided.ask", "You haven't entered the optional Reference Number (useful for check payments) or Notes. "
+            Map<String, Object> m = base("guided.ask", d.batch
+                ? "Would you like to add an optional Reference Number or Notes? A reference number can be useful for check payments."
+                : "You haven't entered the optional Reference Number (useful for check payments) or Notes. "
                 + "Would you like to add either of these, or should I skip them and proceed to review?", d.noun());
             m.put("asking", "optional"); m.put("pending", true); m.put("missing", List.of());
-            m.put("choices", List.of("Add a reference number", "Add notes", "Skip and review"));
+            m.put("choices", d.batch ? List.of("Add Reference Number", "Add Notes", "Skip & Review") : List.of("Add a reference number", "Add notes", "Skip and review"));
             return m;
         }
-        if (!d.reviewOffered && !d.oneShot) {
+        if (!d.reviewOffered && !d.oneShot && !d.batch) {
             d.reviewOffered = true;
             d.stage = Stage.REVIEW; d.asked = null; d.choices = null;
             session.setAttribute(SESSION_KEY, d);
@@ -779,7 +823,9 @@ public class AiGuidedRecordService {
         AiAccess a = access.resolve(req, d.clientId);
         Map<String, Object> raw = new LinkedHashMap<>();
         if (d.kind == Kind.INCOME) {
-            if (d.memberId != null) raw.put("memberId", d.memberId); else raw.put("guestName", d.guestName);
+            if (d.memberId != null) raw.put("memberId", d.memberId);
+            else if (d.noContributor) raw.put("noContributor", true);
+            else raw.put("guestName", d.guestName);
         } else raw.put("categoryId", d.categoryId);
         raw.put("fundId", d.fundId); raw.put("amount", d.amount); raw.put("date", d.date.toString()); raw.put("methodId", d.methodId);
         if (d.refNo != null) raw.put("refNo", d.refNo);
@@ -795,9 +841,21 @@ public class AiGuidedRecordService {
         d.token = String.valueOf(p.get("token"));
         d.stage = Stage.CONFIRM; d.asked = null; d.choices = null; d.reviewOffered = true; d.created = Instant.now();
         session.setAttribute(SESSION_KEY, d);
-        String label = d.kind == Kind.INCOME ? "Save income" : "Save expense";
-        Map<String, Object> m = base("guided.confirm", "Please review the " + d.noun() + " details. Nothing is saved until you press "
+        String label = d.batch ? "Confirm & Save" : d.kind == Kind.INCOME ? "Save income" : "Save expense";
+        Map<String, Object> m = base("guided.confirm", d.batch
+            ? "Your transaction is ready for review. Nothing is saved until you press Confirm & Save (or say “yes”). Press Edit on any row to change it."
+            : "Please review the " + d.noun() + " details. Nothing is saved until you press "
             + label + " (or say “yes”). Press Edit on any row to change it.", d.noun());
+        if (d.batch) {
+            // the conversation that owns this item learns which card is its own (it continues after Save / Cancel)
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("token", d.token); item.put("amount", d.amount); item.put("date", d.date.toString());
+            item.put("method", d.methodLabel); item.put("contributor", d.contributorLabel); item.put("fund", d.fundLabel);
+            if (d.refNo != null) item.put("refNo", d.refNo);
+            if (d.batchLabel != null) item.put("label", d.batchLabel);
+            session.setAttribute(AiGuidedBatchService.ITEM_KEY, new HashMap<>(item));
+            if (d.batchLabel != null) m.put("reviewTitle", d.batchLabel);
+        }
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("token", d.token); c.put("proposalId", p.get("proposalId")); c.put("label", label);
         c.put("endpoint", "/api/ai/actions/confirm"); c.put("cancelEndpoint", "/api/ai/actions/reject");
@@ -828,10 +886,92 @@ public class AiGuidedRecordService {
             }
         }
         c.put("fields", fields);
+        // 2026-11-20: the church's Net Balance now and what it will be once this entry is saved (a preview —
+        // the saved confirmation shows the real figures). Left out when it cannot be read.
+        try {
+            BigDecimal before = lookup.netBalance(d.clientId);
+            if (before != null) {
+                BigDecimal amt = new BigDecimal(d.amount);
+                BigDecimal after = d.kind == Kind.INCOME ? before.add(amt) : before.subtract(amt);
+                Map<String, Object> bal = new LinkedHashMap<>();
+                bal.put("label", "Net Balance (income minus expenses, all funds)");
+                bal.put("previousLabel", "Previous Net Balance"); bal.put("previous", AiFinanceTools.money(before));
+                bal.put("changeLabel", d.kind == Kind.INCOME ? "This income" : "This expense");
+                bal.put("change", (d.kind == Kind.INCOME ? "+" : "\u2212") + AiFinanceTools.money(amt));
+                bal.put("nextLabel", "New Net Balance after saving"); bal.put("next", AiFinanceTools.money(after));
+                c.put("balance", bal);
+            }
+        } catch (RuntimeException e) { log.debug("net balance preview unavailable: {}", e.getClass().getSimpleName()); }
         m.put("confirm", c);
         m.put("pending", true);
         return m;
     }
+
+    // ── one item of a "several donations" conversation (2026-11-20) ────────────
+
+    static final String NO_CONTRIBUTOR = "No Contributor", SELECT_MEMBER = "Select a Member", ENTER_GUEST = "Enter a Guest Name";
+
+    /** "Last Sunday (Nov 15)" and "Today (Fri, Nov 20)"; on a Sunday, today comes first. */
+    static List<String> dateChoices(LocalDate today) {
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH);
+        String last = "Last Sunday (" + f.format(today.with(TemporalAdjusters.previous(DayOfWeek.SUNDAY))) + ")";
+        String now = "Today (" + DateTimeFormatter.ofPattern("EEE, MMM d", Locale.ENGLISH).format(today) + ")";
+        return today.getDayOfWeek() == DayOfWeek.SUNDAY ? List.of(now, last) : List.of(last, now);
+    }
+
+    /** What the batch conversation already knows about the next entry. Anything null is asked. */
+    public record BatchItem(String label, Long fundId, String amount, String methodName, LocalDate date,
+                            String refNo, String note, Long memberId, String contributorName) { }
+
+    /**
+     * Starts one income entry of a batch with what is already known filled in, and returns the next question
+     * (or the review card). The same permission gate, validation, alerts, duplicate check and one-time Save as
+     * every guided income; nothing is saved here.
+     */
+    public Map<String, Object> startBatchItem(HttpServletRequest req, String clientId, BatchItem item) {
+        HttpSession session = req == null ? null : req.getSession(false);
+        if (session == null || clientId == null || item == null) return null;
+        Draft open = pending(session, clientId);
+        if (open != null) dropCard(req, open);
+        clear(session);
+        session.removeAttribute(AiGuidedBatchService.ITEM_KEY);
+        Map<String, Object> gate = gate(req, clientId, Kind.INCOME);
+        if (gate != null) return gate;
+        AiAccess a = access.resolve(req, clientId);
+        Draft d = new Draft();
+        d.kind = Kind.INCOME; d.clientId = clientId; d.username = a.username(); d.created = Instant.now();
+        d.batch = true; d.batchLabel = item.label(); d.reviewOffered = true;
+        if (item.fundId() != null) { Hit f = lookup.incomeFundById(clientId, item.fundId()); if (f != null) { d.fundId = f.id(); d.fundLabel = f.label(); } }
+        if (item.amount() != null) { BigDecimal v = number(item.amount()); if (v != null && v.signum() > 0 && v.scale() <= 2) d.amount = v.toPlainString(); }
+        if (item.methodName() != null) {
+            for (Hit h : methodList(d)) if (norm(h.label()).equals(norm(item.methodName()))) { d.methodId = h.id(); d.methodLabel = h.label(); break; }
+            if (d.methodId == null) for (Hit h : methodList(d)) if (norm(h.label()).contains(norm(item.methodName()))) { d.methodId = h.id(); d.methodLabel = h.label(); break; }
+        }
+        d.date = item.date();
+        if (item.refNo() != null && !item.refNo().isBlank()) d.refNo = cap(item.refNo().trim(), 100);
+        if (item.note() != null && !item.note().isBlank()) d.note = cap(item.note().trim(), 2000);
+        if (item.memberId() != null) {
+            Hit h = people.memberById(clientId, item.memberId());
+            if (h != null) { d.memberId = h.id(); d.contributorLabel = h.label(); }
+        }
+        if (d.memberId == null && item.contributorName() != null && !item.contributorName().isBlank()) contributor(d, item.contributorName());
+        return advance(req, session, d);
+    }
+
+    /** Drops the open entry (its card's token is withdrawn). True when there was one. */
+    public boolean cancelOpen(HttpServletRequest req, String clientId) {
+        HttpSession session = req == null ? null : req.getSession(false);
+        if (session == null) return false;
+        Draft d = pending(session, clientId);
+        session.removeAttribute(AiGuidedBatchService.ITEM_KEY);
+        if (d == null) return false;
+        dropCard(req, d);
+        clear(session);
+        return true;
+    }
+
+    /** The income permission + plan gate for a conversation that hands its entries to this service. Null = allowed. */
+    Map<String, Object> incomeGate(HttpServletRequest req, String clientId) { return gate(req, clientId, Kind.INCOME); }
 
     private Map<String, Object> ask(HttpSession session, Draft d, String field, String question, List<String> choices) {
         boolean memberChoices = "contributor".equals(field) && choices != null && choices == d.choices && d.choiceIds != null;

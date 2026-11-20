@@ -172,6 +172,9 @@
       '.ga-review.ga-cancelled .ga-badge{background:#f3f2f4;color:#6c6370;}',
       '.ga-panel .ga-review .aa-fields{margin:0;border:none;border-radius:0;}',
       '.ga-panel .ga-review .aa-field{grid-template-columns:minmax(0,34%) minmax(0,1fr) auto;padding:9px 13px;}',
+      '.ga-panel .ga-review .aa-balance{margin:0;border:none;border-top:1px solid var(--ga-line);border-radius:0;padding:10px 13px;}',
+      '.ga-panel .ga-review .aa-scanned{margin:0;border:none;border-bottom:1px solid var(--ga-line);border-radius:0;}',
+      '.ga-panel .aa-scan .aa-scan-btn{flex:1 1 140px;}',
       '.ga-panel .ga-review .aa-actions{margin:0;padding:10px 13px;background:#fbf9fa;border-top:1px solid var(--ga-line);}',
       '.ga-panel .ga-review .aa-attach{margin:0;padding:10px 13px;border-top:1px solid var(--ga-line);}',
       '.ga-panel .aa-confirm{background:var(--ga-plum);color:#fff;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;}',
@@ -594,7 +597,7 @@
     st.nodes.forEach(function (n) {
       if (n === except || !n.classList || !n.classList.contains('ga-ai')) return;
       var any = false;
-      n.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel, .ga-filter, .aa-send, .aa-send-cancel, .aa-files, .aa-file-x').forEach(function (b) {
+      n.querySelectorAll('.aa-choice, .aa-edit, .aa-confirm, .aa-cancel, .ga-filter, .aa-send, .aa-send-cancel, .aa-files, .aa-file-x, .aa-scan-btn, .aa-date-go, .aa-date-in').forEach(function (b) {
         if (!b.disabled) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); any = true; }
       });
       if (any) {
@@ -624,6 +627,7 @@
     return 'Action';
   }
   function reviewTitle(d) {
+    if (d.reviewTitle) return String(d.reviewTitle);            // 2026-11-20: the server names the card ("Cash offering", "Check #1042")
     var l = d.confirm && d.confirm.label ? String(d.confirm.label) : 'Details';
     var t = l.replace(/^(save|create)\s+/i, '');
     return (/^meeting/i.test(t) ? '📅 ' : /income|offering|donation/i.test(t) ? '💵 ' : /expense/i.test(t) ? '🧾 ' : '📝 ') + cap(t) + ' details';
@@ -662,8 +666,10 @@
     if (d.confirm && d.confirm.token && acts && acts.querySelector('.aa-confirm')) {
       var card = document.createElement('div'); card.className = 'ga-review';
       card.innerHTML = '<div class="ga-review-h"><b>' + esc(reviewTitle(d)) + '</b><span class="ga-badge">Draft · not saved</span></div>';
+      var scn = extra.querySelector('.aa-scanned'); if (scn) card.appendChild(scn);     // what the photo read
       if (fields) card.appendChild(fields);
       else { var sm = extra.querySelector('.aa-summary'); if (sm) card.appendChild(sm); }
+      var bal = extra.querySelector('.aa-balance'); if (bal) card.appendChild(bal);     // Net Balance before / after
       card.appendChild(acts);
       extra.appendChild(card);
       watchReview(card);

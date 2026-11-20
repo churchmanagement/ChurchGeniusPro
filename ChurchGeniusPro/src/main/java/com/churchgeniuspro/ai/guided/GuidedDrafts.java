@@ -22,12 +22,16 @@ public final class GuidedDrafts {
     public static final String ACTION_DRAFT = "aiActionDraft";
     public static final String ACTION_TOKEN = "aiActionPendingToken";
 
-    private static final List<String> ALL = List.of(MEETING, RECORD, SETTING, GROUP, PLEDGE, EMAIL);
+    /** 2026-11-20: "several donations" (cash + checks); its entry in progress is a RECORD draft. */
+    public static final String BATCH   = AiGuidedBatchService.SESSION_KEY;
+
+    private static final List<String> ALL = List.of(MEETING, RECORD, SETTING, GROUP, PLEDGE, EMAIL, BATCH);
 
     /** Drops every conversation draft except {@code keep} (null = all). */
     public static void clearOthers(HttpSession s, String keep) {
         if (s == null) return;
         for (String k : ALL) if (!k.equals(keep)) s.removeAttribute(k);
+        if (!BATCH.equals(keep)) s.removeAttribute(AiGuidedBatchService.ITEM_KEY);
     }
 
     /** True while any conversation (or an action card) waits for an answer. */
