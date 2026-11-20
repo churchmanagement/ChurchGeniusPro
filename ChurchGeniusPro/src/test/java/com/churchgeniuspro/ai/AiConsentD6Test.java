@@ -177,7 +177,7 @@ class AiConsentD6Test {
     void coverage() {
         Map<String, Type> expected = new java.util.LinkedHashMap<>();
         expected.put("/api/voice/command", Type.VOICE);
-        for (String p : List.of("/api/ai-search", "/api/ai-search/data", "/api/ai/write", "/api/ai/forms/draft", "/api/workflows/draft",
+        for (String p : List.of("/api/ai-search", "/api/ai-search/data", "/api/ai/write", "/api/ai/write/tax-letter", "/api/ai/forms/draft", "/api/workflows/draft",
                 "/api/ai-assist", "/api/help/assist", "/api/voice/extract")) expected.put(p, Type.ASSISTANT);
         for (String p : List.of("/api/income/check-scan", "/api/expense/check-scan", "/api/bank-import/scan", "/api/family/scan-extract",
                 "/api/kids-ministry/child-scan-extract")) expected.put(p, Type.SCAN);

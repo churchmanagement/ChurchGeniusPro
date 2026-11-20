@@ -340,6 +340,19 @@ public interface IncomeRepository extends JpaRepository<Income, Integer> {
             @Param("guestName")   String guestName);
 
     /**
+     * Tax Report contributor filter (2026-11-20): the member type of the given people, read inside this church
+     * only (a person of another church is never returned). Rows of [member_id, member_type].
+     */
+    @Query(value =
+           "SELECT fm.id, fm.member_type " +
+           "FROM   family_member fm " +
+           "JOIN   family f ON f.id = fm.family_id " +
+           "WHERE  f.app_client_id = :appClientId " +
+           "  AND  fm.id IN (:ids)",
+           nativeQuery = true)
+    List<Object[]> findMemberTypesForTaxReport(@Param("appClientId") String appClientId, @Param("ids") List<Integer> ids);
+
+    /**
      * Returns distinct non-empty guest_name values for the given org and year.
      * Used to populate the tax-report member/contributor filter dropdown.
      * Returns a list of String (the guest_name values), ordered alphabetically.

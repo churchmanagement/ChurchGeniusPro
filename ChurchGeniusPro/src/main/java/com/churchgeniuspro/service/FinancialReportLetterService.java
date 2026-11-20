@@ -226,6 +226,19 @@ public class FinancialReportLetterService {
         }
     }
 
+    /**
+     * Wording that is not this church's saved text (the AI draft, 2026-11-20) with the same placeholders filled
+     * in the same way. The caller supplies HTML it built itself; the church name and year are escaped here.
+     *
+     * @return introHtml, closingHtml and the signature lines the letters have always printed by default
+     */
+    public static Map<String, String> fillPlaceholders(String introHtml, String closingHtml, String churchName, Object year) {
+        Map<String, String> out = new LinkedHashMap<>();
+        out.put("introHtml",   substitute(introHtml,   churchName, year));
+        out.put("closingHtml", substitute(closingHtml, churchName, year));
+        return out;
+    }
+
     private static String substitute(String html, String churchName, Object year) {
         if (html == null || html.isEmpty()) return "";
         String name = HtmlUtils.htmlEscape(churchName == null ? "" : churchName);

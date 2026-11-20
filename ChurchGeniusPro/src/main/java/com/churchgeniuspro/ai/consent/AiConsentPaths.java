@@ -39,6 +39,7 @@ public final class AiConsentPaths {
         EXACT.put("/api/ai-search", Requirement.fixed(Type.ASSISTANT));
         EXACT.put("/api/ai-search/data", Requirement.fixed(Type.ASSISTANT));
         EXACT.put("/api/ai/write", Requirement.fixed(Type.ASSISTANT));
+        EXACT.put("/api/ai/write/tax-letter", Requirement.fixed(Type.ASSISTANT));   // 2026-11-20: tax letter wording
         EXACT.put("/api/ai/forms/draft", Requirement.fixed(Type.ASSISTANT));
         EXACT.put("/api/workflows/draft", Requirement.fixed(Type.ASSISTANT));
         // Voice or typed text — decided by the server (one-time voice token).

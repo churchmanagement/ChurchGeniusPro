@@ -55,6 +55,10 @@ public class AiDataSearchController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.churchgeniuspro.ai.guided.AiGuidedBatchService batch;
 
+    /** 2026-11-20: "Create a tax report for 2026" — the Year-End Tax Report conversation (read-only). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.guided.AiGuidedTaxService taxReports;
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiDataSearchController(AiDataSearchService service, com.churchgeniuspro.service.AiMeetingCreateService meetingCreate) {
         this.service = service;
@@ -102,6 +106,13 @@ public class AiDataSearchController {
             if (emails != null && hs != null && hs.getAttribute(com.churchgeniuspro.ai.guided.GuidedDrafts.EMAIL) != null) {
                 Map<String, Object> em = emails.handle(request, clientId, question);
                 if (em != null) return ResponseEntity.ok(audited(request, em));
+            }
+            // 2026-11-20 — the Year-End Tax Report conversation ("Create a tax report for 2026"): read-only; it asks
+            // the year, the contributors and the template, then returns the statement or a link to the page.
+            if (taxReports != null && (com.churchgeniuspro.ai.guided.AiGuidedTaxService.isStartRequest(question)
+                    || com.churchgeniuspro.ai.guided.AiGuidedTaxService.hasDraft(hs))) {
+                Map<String, Object> tx = taxReports.handle(request, clientId, question);
+                if (tx != null) return ResponseEntity.ok(audited(request, tx));
             }
             // 2026-11-20 — several donations in one conversation ("I received 20 checks and $2,000 in cash …"). It gets
             // the first look while it is open: its own questions, and "cancel" during one of its entries; an answer

@@ -522,14 +522,22 @@ public class AccountingReportController {
      * The church name is resolved from the {@code church_registration} table via
      * the session tenant so the PDF letter always shows the correct registered name.
      * Optional: memberId filters to a single member.
-     * Query params: year (required); memberId, guestName (optional). A client-supplied
+     * Query params: year (required); memberId, guestName, contributorType (all | members | nonmembers),
+     * template (default = the built-in wording; otherwise the church's own) (optional). A client-supplied
      * {@code clientId} is ignored — the tenant always comes from the session.
      */
+    /** The report as it was before 2026-11-20: every contributor, the church's own wording. */
+    public ResponseEntity<?> taxReport(int year, Integer memberId, String guestName, HttpServletRequest request) {
+        return taxReport(year, memberId, guestName, null, null, request);
+    }
+
     @GetMapping("/tax")
     public ResponseEntity<?> taxReport(
             @RequestParam int year,
             @RequestParam(required = false) Integer memberId,
             @RequestParam(required = false) String  guestName,
+            @RequestParam(required = false) String  contributorType,
+            @RequestParam(required = false) String  template,
             HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> denied = gate(request);
         if (denied != null) return denied;
@@ -541,148 +549,20 @@ public class AccountingReportController {
                             .map(cr -> cr.getChurchName() != null ? cr.getChurchName() : "")
                             .orElse("");
 
-        // Normalise: blank string → null so SQL CAST(:x IS NULL) short-circuits correctly
-        String guestNameFilter = (guestName != null && !guestName.isBlank()) ? guestName.trim() : null;
-
-        // ── Grouped summary (contributions per sub-source) ─────────────────
-        // [member_id (null for guests), first_name, last_name, guest_name,
-        //  sub_name, main_name, total, cnt]
-        List<Object[]> summaryRows = incomeRepo.reportAnnualIncomeByMemberFiltered(
-                year, appClientId, memberId, guestNameFilter);
-
-        // Key: memberId (for members) or "guest::<guestName>" (for guest rows)
-        Map<String, Map<String, Object>> memberMap = new LinkedHashMap<>();
-
-        // Financial audit M5: income with neither a matched member nor a guest
-        // name (an unattributed lump sum — e.g. an uncounted plate-offering
-        // total) has no one a contribution statement could be addressed to.
-        // Tallied here and reported separately instead of being folded into a
-        // "guest::" bucket keyed by an empty name.
-        BigDecimal unattributedTotal = BigDecimal.ZERO;
-        int        unattributedCount = 0;
-
-        for (Object[] r : summaryRows) {
-            boolean isGuest   = r[0] == null;
-            String  firstName = str(r[1]);
-            String  lastName  = str(r[2]);
-            String  gName     = str(r[3]);
-            String  subName   = str(r[4]);
-            String  mainName  = str(r[5]);
-            BigDecimal total  = toBD(r[6]);
-
-            if (isGuest && gName.isBlank()) {
-                unattributedTotal = unattributedTotal.add(total);
-                unattributedCount++;
-                continue;
-            }
-
-            String mapKey;
-            if (!isGuest) {
-                mapKey = "member::" + ((Number) r[0]).intValue();
-            } else {
-                mapKey = "guest::" + gName;
-            }
-
-            memberMap.computeIfAbsent(mapKey, k -> {
-                Map<String, Object> m = new LinkedHashMap<>();
-                if (!isGuest) {
-                    m.put("id",        ((Number) r[0]).intValue());
-                    m.put("name",      (lastName.isBlank() ? "" : lastName + ", ") + firstName);
-                    m.put("firstName", firstName);
-                    m.put("lastName",  lastName);
-                } else {
-                    m.put("id",        null);
-                    m.put("name",      gName);
-                    m.put("firstName", gName);
-                    m.put("lastName",  "");
-                    // Financial audit M5: a guest is matched by name text alone —
-                    // the only identity signal a walk-in/anonymous gift carries,
-                    // so two different people who happen to share a name are
-                    // combined into one statement. This flag lets a reviewer (or
-                    // a future UI) know to double-check before mailing rather
-                    // than hiding that the match is unverified.
-                    m.put("nameOnly",  true);
-                }
-                m.put("contributions", new ArrayList<Map<String, Object>>());
-                m.put("entries",       new ArrayList<Map<String, Object>>());
-                m.put("memberTotal",   BigDecimal.ZERO);
-                m.put("address1",  "");
-                m.put("address2",  "");
-                m.put("city",      "");
-                m.put("state",     "");
-                m.put("pinCode",   "");
-                return m;
-            });
-            Map<String, Object> member = memberMap.get(mapKey);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> contribs = (List<Map<String, Object>>) member.get("contributions");
-            Map<String, Object> c = new LinkedHashMap<>();
-            c.put("mainCategory", mainName);
-            c.put("subCategory",  subName);
-            c.put("total",        total);
-            contribs.add(c);
-            member.put("memberTotal", ((BigDecimal) member.get("memberTotal")).add(total));
+        final Map<String, Object> res;
+        try {
+            res = com.churchgeniuspro.service.TaxStatements.build(incomeRepo, appClientId, churchName, year, memberId, guestName, contributorType);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-
-        // ── Individual entries (for letter-format PDF) ─────────────────────
-        // [member_id (null for guests), first_name, last_name, guest_name,
-        //  address1, address2, city, state, pin_code,
-        //  income_date, main_name, sub_name, amount, method]
-        List<Object[]> entryRows = incomeRepo.reportIncomeEntriesForTaxYear(
-                year, appClientId, memberId, guestNameFilter);
-
-        for (Object[] r : entryRows) {
-            boolean isGuest = r[0] == null;
-            String  gName   = str(r[3]);
-            // Financial audit M5: same exclusion as the summary loop above —
-            // an unattributed entry never got a memberMap bucket to land in.
-            if (isGuest && gName.isBlank()) continue;
-            String  mapKey  = isGuest ? "guest::" + gName
-                                      : "member::" + ((Number) r[0]).intValue();
-
-            Map<String, Object> member = memberMap.get(mapKey);
-            if (member == null) continue;
-
-            if ("".equals(member.get("address1"))) {
-                member.put("address1", str(r[4]));
-                member.put("address2", str(r[5]));
-                member.put("city",     str(r[6]));
-                member.put("state",    str(r[7]));
-                member.put("pinCode",  str(r[8]));
-            }
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> entries = (List<Map<String, Object>>) member.get("entries");
-            Map<String, Object> e = new LinkedHashMap<>();
-            e.put("date",         toDateStr(r[9]));
-            e.put("mainCategory", str(r[10]));
-            e.put("subCategory",  str(r[11]));
-            e.put("amount",       toBD(r[12]));
-            e.put("method",       str(r[13]));
-            entries.add(e);
-        }
-
-        BigDecimal grandTotal = memberMap.values().stream()
-                .map(m -> (BigDecimal) m.get("memberTotal"))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        Map<String, Object> res = new LinkedHashMap<>();
-        res.put("year",        year);
-        res.put("memberId",    memberId);
-        res.put("guestName",   guestNameFilter);
-        res.put("churchName",  churchName);
-        res.put("members",     new ArrayList<>(memberMap.values()));
-        res.put("grandTotal",  grandTotal);
-        // Financial audit M5: income excluded from the statements above because
-        // it has neither a matched member nor a guest name — surfaced here so
-        // it stays visible to staff instead of silently vanishing from the
-        // report, or worse, becoming a letter addressed to nobody.
-        res.put("unattributedTotal", unattributedTotal);
-        res.put("unattributedCount", unattributedCount);
         // The letter wording around the contribution table, this church's own if it
         // has edited it. Carried in the report payload rather than fetched
         // separately so the letters cannot render before their text arrives.
-        res.putAll(letterText(appClientId, churchName, year));
+        // 2026-11-20: template=default asks for the built-in original wording instead.
+        if ("default".equalsIgnoreCase(template == null ? "" : template.trim()))
+            res.putAll(com.churchgeniuspro.service.FinancialReportLetterService.defaults(churchName, year));
+        else
+            res.putAll(letterText(appClientId, churchName, year));
         return ResponseEntity.ok(res);
     }
 

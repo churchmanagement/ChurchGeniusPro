@@ -25,7 +25,9 @@ public final class GuidedDrafts {
     /** 2026-11-20: "several donations" (cash + checks); its entry in progress is a RECORD draft. */
     public static final String BATCH   = AiGuidedBatchService.SESSION_KEY;
 
-    private static final List<String> ALL = List.of(MEETING, RECORD, SETTING, GROUP, PLEDGE, EMAIL, BATCH);
+    public static final String TAX     = AiGuidedTaxService.SESSION_KEY;
+
+    private static final List<String> ALL = List.of(MEETING, RECORD, SETTING, GROUP, PLEDGE, EMAIL, BATCH, TAX);
 
     /** Drops every conversation draft except {@code keep} (null = all). */
     public static void clearOthers(HttpSession s, String keep) {

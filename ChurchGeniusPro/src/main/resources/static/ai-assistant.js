@@ -520,14 +520,14 @@
     // start the same guided conversation as Type instead of jumping to the page.
     // 2026-11-09: an open conversation's answer ("Prayer Meeting" to "Which category?") goes to the server first in
     // every mode — spoken, it used to match the Meetings page name and open the page instead of answering.
-    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || looksLikeOfferings(query) || _aaServerPending;
+    var dataFirst = (looksLikeDataQuestion(query) && looksSpecific(query)) || looksLikeManage(query) || looksLikeAction(query) || looksLikeOfferings(query) || looksLikeTaxReport(query) || _aaServerPending;
     if (!dataFirst && directNav(query)){ if(input) input.value=''; assistDone(g); return; }
 
     // ── Natural-language DATA questions ("When is Anson's birthday?",
     //    "What was the income for March?", "Who are the volunteers?").
     //    Answered server-side with permission checks; runs in ALL modes.
     //    handled=false → fall through to the normal flow below.
-    if (looksLikeDataQuestion(query) || looksLikeAction(query) || _aaServerPending){
+    if (looksLikeDataQuestion(query) || looksLikeAction(query) || looksLikeOfferings(query) || looksLikeTaxReport(query) || _aaServerPending){
       tryDataSearch(query).then(function(d){
         if (!aaLive(g)) return;                     // stopped, or superseded
         // A meeting draft is open on the server (missing fields / awaiting "yes"): the next
@@ -616,6 +616,14 @@
     if (/^\s*(how|where|what|when|which|who|why|is|are|do|does|did|list|show|find)\b/i.test(q)) return false;
     var things=/\b(checks?|cheques?|cash|offerings|donations|contributions|gifts|tithes)\b/i.test(q);
     return things && /\b(received|receive|got|collected|have|counted|record|add|enter|log|post)\b/i.test(q) && (/\d/.test(q) || /\b(several|multiple|many|a few|some|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty)\b/i.test(q) || /\b(offerings|donations|contributions|checks|cheques)\b/i.test(q));
+  }
+  /* 2026-11-20: "Create a tax report for 2026", "Download tax statements for non-members" — the Year-End Tax Report
+     conversation (the server decides: AiGuidedTaxService.isStartRequest). "Tax report" / "Open the tax report"
+     have no such verb and stay page requests. */
+  function looksLikeTaxReport(q){
+    if (/^\s*(how|where|what|when|which|who|why|is|are|does|do i|can i see|explain|tell me about|open|go to|show|take me)\b/i.test(q)) return false;
+    return /\b(tax\s+(report|statement|letter|receipt)s?|(contribution|giving|donation|donor)\s+(tax\s+)?(statement|letter|receipt)s?|year[-\s]?end\s+(tax|giving|contribution|donation)\s+(report|statement|summary|letter)s?)\b/i.test(q)
+        && /\b(create|generate|make|prepare|produce|build|download|print|export|get|run|send me|need|want|give me|do)\b/i.test(q);
   }
   function looksLikeAction(q){
     // 2026-11-11: + compose / draft / send an e-mail, make / start / form a group or campaign, and the page-link
@@ -1045,6 +1053,18 @@
         if (d.question && (d.pending===true || d.batchSummary)) html+='<div class="aa-next">'+esc(d.question)+'</div>';
         html+=later;
       }
+      // 2026-11-20 tax report conversation: the statement(s) to review (drawn by tax-letter.js, the Tax Report
+      // page's own renderer) and the PDF download. The report travels with the card; nothing is fetched again.
+      if (d.taxStatement && d.taxStatement.report){
+        var ts=d.taxStatement;
+        html+='<div class="aa-tax" data-file="'+esc(ts.filename||'tax-report.pdf')+'">'
+          +(ts.aiDraft ? '<div class="aa-scanned">The wording around the table is an AI draft \u2014 please read it before downloading. The names and figures are from your records.</div>' : '')
+          +'<div class="aa-actions"><button type="button" class="aa-open aa-tax-dl"><span aria-hidden="true">\u2b07</span> Download PDF</button>'
+          +'<button type="button" class="aa-open alt aa-tax-toggle" aria-expanded="true">Hide the statement</button>'
+          +'<span class="aa-actions-note aa-tax-status" role="status" aria-live="polite"></span></div>'
+          +'<div class="aa-tax-preview" tabindex="0" aria-label="Statement to review"></div>'
+          +'<script type="application/json" class="aa-tax-json">'+JSON.stringify({ year:ts.year, filename:ts.filename, report:ts.report }).replace(/</g,'\\u003c')+'</script></div>';
+      }
       // 2026-11-11 e-mail conversation: the draft as it stands (text only), and at the end the review card —
       // recipients / subject, optional attachments, and the ONE button that sends (one-time token).
       if (d.preview && typeof d.preview === 'object' && (d.preview.subject || d.preview.body)){
@@ -1153,7 +1173,7 @@
       if (b.classList.contains('aa-confirm')) { b.addEventListener('click', function(){ confirmMeeting(b.getAttribute('data-token'), b); }); return; }
       if (b.classList.contains('aa-cancel'))  { b.addEventListener('click', function(){ cancelMeeting(b); }); return; }
       if (b.classList.contains('aa-save-list')) { b.addEventListener('click', function(){ saveFilterAsList(b.closest('.aa-turn') || wrap, b); }); return; }
-      if (b.classList.contains('aa-scan-btn') || b.classList.contains('aa-date-go')) return;      // wired below
+      if (b.classList.contains('aa-scan-btn') || b.classList.contains('aa-date-go') || b.classList.contains('aa-tax-dl') || b.classList.contains('aa-tax-toggle')) return;      // wired below
       b.addEventListener('click', function(){ open(b.getAttribute('data-url'), b.getAttribute('data-label'), b.getAttribute('data-nt')==='1' || wantsNewTab(lastQ)); });
     });
     wrap.querySelectorAll('.aa-chip-x').forEach(function(x){
@@ -1181,6 +1201,7 @@
     });
     wrap.querySelectorAll('.aa-attach').forEach(wireAttach);
     wrap.querySelectorAll('.aa-scan').forEach(function(box){ wireScan(box, wrap); });
+    wrap.querySelectorAll('.aa-tax').forEach(wireTax);
     wrap.querySelectorAll('.aa-datepick').forEach(function(box){
       var inp=box.querySelector('.aa-date-in'), go=box.querySelector('.aa-date-go');
       if (!inp || !go || go.disabled) return;
@@ -1194,6 +1215,57 @@
     var nc=wrap.querySelector('.aa-newconv');
     if (nc) nc.addEventListener('click', newConversation);
   }
+  /* 2026-11-20 tax report — the statement in the conversation. tax-letter.js (the Tax Report page's renderer) is
+     loaded on first use; the preview and the PDF are made from the report the answer carried. */
+  var _taxLib=null;
+  function loadTaxLib(){
+    if (window.CGP_TAX_LETTER) return Promise.resolve();
+    if (_taxLib) return _taxLib;
+    _taxLib=new Promise(function(resolve, reject){
+      var sc=document.createElement('script'); sc.src='/tax-letter.js';
+      sc.onload=function(){ window.CGP_TAX_LETTER ? resolve() : reject(new Error('unavailable')); };
+      sc.onerror=function(){ _taxLib=null; reject(new Error('unavailable')); };
+      document.head.appendChild(sc);
+    });
+    return _taxLib;
+  }
+  function wireTax(box){
+    if (box._aaTax) return; box._aaTax=true;
+    var prev=box.querySelector('.aa-tax-preview'), dl=box.querySelector('.aa-tax-dl'), tg=box.querySelector('.aa-tax-toggle'), status=box.querySelector('.aa-tax-status');
+    function say(t){ if (status) status.textContent=t||''; }
+    var data=null;
+    try{ var tag=box.querySelector('.aa-tax-json'); data=tag ? JSON.parse(tag.textContent) : null; }catch(e){ data=null; }
+    if (!data || !data.report || !prev){
+      if (dl) dl.disabled=true; if (tg) tg.disabled=true;
+      say('This statement is no longer loaded \u2014 ask for the tax report again to download it.');
+      return;
+    }
+    var drawn=null;
+    function draw(){
+      if (drawn) return drawn;
+      drawn=loadTaxLib().then(function(){ return window.CGP_TAX_LETTER.loadLogo(); }).then(function(logo){
+        window.CGP_TAX_LETTER.ensureCss();
+        prev.innerHTML=window.CGP_TAX_LETTER.lettersHtml(data.report, data.year, logo) || '<div class="aa-more">No statement to show.</div>';
+      }).catch(function(e){ drawn=null; throw e; });
+      return drawn;
+    }
+    draw().catch(function(){ say('The statement could not be shown here. Use Open in Tax Report page.'); });
+    if (tg) tg.addEventListener('click', function(){
+      var hide=!prev.hidden; prev.hidden=hide;
+      tg.textContent= hide ? 'Review the statement' : 'Hide the statement'; tg.setAttribute('aria-expanded', hide ? 'false' : 'true');
+    });
+    if (dl) dl.addEventListener('click', function(){
+      if (dl.disabled) return;
+      dl.disabled=true; say('Preparing the PDF\u2026');
+      draw().then(function(){
+        var el=prev.querySelector('.letters-wrap');
+        if (!el) throw new Error('empty');
+        return window.CGP_TAX_LETTER.downloadPdf(el, box.getAttribute('data-file') || data.filename || 'tax-report.pdf');
+      }).then(function(){ say('The PDF was downloaded.'); dl.disabled=false; })
+        .catch(function(){ say('The PDF could not be made here. Use Open in Tax Report page to download it.'); dl.disabled=false; });
+    });
+  }
+
   /* 2026-11-20 several donations — the check photo. Take Photo asks the device for its camera (a computer opens
      the file window), Upload Image always opens the file window. The picture goes to the Income page's own scan
      (/api/income/check-scan); what it read goes to the conversation, which answers with a review card, a
@@ -1207,11 +1279,92 @@
       if (b.disabled) return;
       b.addEventListener('click', function(){
         if (_inFlight && !_stopped){ flashHint('Still working on your last question — one moment…'); return; }
+        // 2026-11-20: Take Photo — a phone or tablet (and the app) opens its own camera; a computer has no such
+        // thing behind a file field (it would only open the file window), so its webcam is shown in a small window.
+        if (b.getAttribute('data-capture') && useLiveCamera()){ openCamera(box, wrap); return; }
         if (b.getAttribute('data-capture')) input.setAttribute('capture', 'environment'); else input.removeAttribute('capture');
         input.value=''; input.click();
       });
     });
     input.addEventListener('change', function(){ var f=input.files && input.files[0]; if (f) scanCheckPhoto(f, box, wrap); });
+  }
+  function isHandheld(){
+    var ua=navigator.userAgent||'';
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+    return /Macintosh/i.test(ua) && (navigator.maxTouchPoints||0) > 1;          // iPad that says it is a Mac
+  }
+  function useLiveCamera(){
+    return !window.Capacitor && !isHandheld() && !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia==='function');
+  }
+  /* The computer's camera in a window: live picture → Capture → Use this photo / Retake. The camera is switched
+     off as soon as the window closes, whichever way it closes. Nothing is uploaded before "Use this photo". */
+  function openCamera(box, wrap){
+    var status=box.querySelector('.aa-scan-status');
+    function say(t){ if (status) status.textContent=t; }
+    var old=document.querySelector('.aa-cam-ov'); if (old && old.parentNode) old.parentNode.removeChild(old);
+    var ov=document.createElement('div'); ov.className='aa-modal-ov aa-cam-ov';
+    ov.innerHTML='<div class="aa-modal aa-cam" role="dialog" aria-modal="true" aria-label="Take a photo of the check">'
+      +'<button class="aa-modal-x" type="button" aria-label="Close">\u2715</button><h3>Take a photo of the check</h3>'
+      +'<p class="aa-cam-msg" role="status" aria-live="polite">Starting the camera…</p>'
+      +'<div class="aa-cam-view"><video class="aa-cam-video" autoplay playsinline muted></video><img class="aa-cam-shot" alt="The photo you took" hidden></div>'
+      +'<div class="aa-cam-actions">'
+      +'<button type="button" class="aa-open aa-cam-snap" disabled>Capture</button>'
+      +'<button type="button" class="aa-open aa-cam-use" hidden>Use this photo</button>'
+      +'<button type="button" class="aa-open alt aa-cam-retake" hidden>Retake</button>'
+      +'<button type="button" class="aa-open alt aa-cam-cancel">Cancel</button></div></div>';
+    var video=ov.querySelector('.aa-cam-video'), shot=ov.querySelector('.aa-cam-shot'), msg=ov.querySelector('.aa-cam-msg'),
+        snap=ov.querySelector('.aa-cam-snap'), use=ov.querySelector('.aa-cam-use'), retake=ov.querySelector('.aa-cam-retake');
+    var stream=null, blob=null, closed=false;
+    function stop(){ try{ if (stream) stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} stream=null; }
+    function close(){ if (closed) return; closed=true; stop(); if (shot.src) { try{ URL.revokeObjectURL(shot.src); }catch(e){} } if (ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown', escK); }
+    function escK(e){ if (e.key==='Escape') close(); }
+    function fail(text){ close(); say(text); }
+    ov.addEventListener('click', function(e){ if (e.target===ov) close(); });
+    ov.querySelector('.aa-modal-x').addEventListener('click', close);
+    ov.querySelector('.aa-cam-cancel').addEventListener('click', close);
+    document.addEventListener('keydown', escK);
+    document.body.appendChild(ov);
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1920 }, height:{ ideal:1080 } }, audio:false })
+      .then(function(st){
+        if (closed){ try{ st.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} return; }
+        stream=st; video.srcObject=st;
+        var ready=function(){ if (closed) return; snap.disabled=false; msg.textContent='Hold the check flat and fill the picture with it, then press Capture.'; try{ snap.focus(); }catch(e){} };
+        if (video.readyState >= 2) ready(); else video.addEventListener('loadeddata', ready, { once:true });
+        try{ var pl=video.play(); if (pl && pl.catch) pl.catch(function(){}); }catch(e){}
+      })
+      .catch(function(err){
+        var n=(err && err.name)||'';
+        if (n==='NotAllowedError' || n==='SecurityError') fail('The camera is not allowed for this site. Allow it in your browser (the camera icon in the address bar) and press Take Photo again, or use Upload Image.');
+        else if (n==='NotFoundError' || n==='OverconstrainedError' || n==='DevicesNotFoundError') fail('No camera was found on this computer. Use Upload Image, or open ChurchGeniusPro on your phone to take the photo.');
+        else if (n==='NotReadableError' || n==='AbortError') fail('The camera is being used by another program. Close it and press Take Photo again, or use Upload Image.');
+        else fail('The camera could not be started. Use Upload Image instead.');
+      });
+    snap.addEventListener('click', function(){
+      var w=video.videoWidth, h=video.videoHeight;
+      if (!w || !h){ msg.textContent='The camera is not ready yet — one moment.'; return; }
+      var c=document.createElement('canvas'); c.width=w; c.height=h;
+      try{ c.getContext('2d').drawImage(video, 0, 0, w, h); }catch(e){ msg.textContent='The picture could not be taken. Please try again.'; return; }
+      snap.disabled=true;
+      c.toBlob(function(b){
+        if (closed) return;
+        if (!b){ snap.disabled=false; msg.textContent='The picture could not be taken. Please try again.'; return; }
+        blob=b; shot.src=URL.createObjectURL(b); shot.hidden=false; video.hidden=true;
+        snap.hidden=true; use.hidden=false; retake.hidden=false;
+        msg.textContent='Can you read the amount, the check number and the name? If so, use this photo.';
+        try{ use.focus(); }catch(e){}
+      }, 'image/jpeg', 0.92);
+    });
+    retake.addEventListener('click', function(){
+      blob=null; try{ URL.revokeObjectURL(shot.src); }catch(e){} shot.removeAttribute('src'); shot.hidden=true; video.hidden=false;
+      snap.hidden=false; snap.disabled=false; use.hidden=true; retake.hidden=true;
+      msg.textContent='Hold the check flat and fill the picture with it, then press Capture.';
+    });
+    use.addEventListener('click', function(){
+      if (!blob) return;
+      var f; try{ f=new File([blob], 'check-photo.jpg', { type:'image/jpeg' }); }catch(e){ f=blob; f.name='check-photo.jpg'; }
+      close();
+      scanCheckPhoto(f, box, wrap);
+    });
   }
   function scanCheckPhoto(file, box, wrap){
     var status=box.querySelector('.aa-scan-status');
@@ -1227,7 +1380,7 @@
     var g=++runGen; _stopped=false; _inFlight=true; setResultsBusy(true); busy(true);
     _turnTimer = aaAfter(AA_TIMEOUT_MS, function(){ if (aaLive(g)) onTurnTimeout(g); });
     _scanFile=null;
-    var fd=new FormData(); fd.append('file', file);
+    var fd=new FormData(); fd.append('file', file, file.name||'check-photo.jpg');
     fetch(box.getAttribute('data-scan'), { method:'POST', body:fd, signal:aaSignal() })
       .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j||{} }; }, function(){ return { ok:false, j:{} }; }); })
       .catch(function(){ return { ok:false, j:{ error:'The photo could not be uploaded.' } }; })
@@ -1262,7 +1415,7 @@
     if (!k || !d.executed || d.checkImage!==true || !d.incomeId || !k.endpoint) return;
     var url=String(k.endpoint).replace('{id}', encodeURIComponent(String(d.incomeId)));
     if (!/^\/api\/income\/[0-9]+\/check-image$/.test(url)) return;
-    var fd=new FormData(); fd.append('file', k.file);
+    var fd=new FormData(); fd.append('file', k.file, k.file.name||'check-photo.jpg');
     try{ fetch(url, { method:'POST', body:fd }).catch(function(){}); }catch(e){}
   }
 
@@ -1842,6 +1995,20 @@
       '.aa-balance-h{font-weight:700;margin-bottom:4px;color:#673147;}',
       '.aa-next{margin-top:10px;font-size:14px;font-weight:600;color:#3b2a33;}',
       '.aa-scanned{margin-top:10px;padding:8px 11px;border-radius:9px;background:#f3f6fb;border:1px solid #d5dfee;color:#2f4466;font-size:13px;}',
+      '.aa-cam{max-width:560px;}',
+      '.aa-cam-view{background:#111;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:180px;margin:8px 0 12px;}',
+      '.aa-cam-video,.aa-cam-shot{display:block;width:100%;max-height:56vh;object-fit:contain;}',
+      '.aa-cam-video[hidden],.aa-cam-shot[hidden],.aa-cam-actions [hidden]{display:none !important;}',
+      '.aa-cam-actions{display:flex;flex-wrap:wrap;gap:8px;}',
+      '.aa-cam-msg{min-height:20px;}',
+      '.aa-tax{margin-top:10px;}',
+      '.aa-tax-preview{margin-top:10px;max-height:460px;overflow:auto;border:1px solid #eadfe6;border-radius:9px;background:#f4f1f3;padding:8px;}',
+      '.aa-tax-preview[hidden]{display:none;}',
+      '.aa-tax-preview .letter-page{padding:20px 18px;margin:0 0 10px;max-width:none;border-radius:6px;}',
+      '.aa-tax-preview .letter-page:last-child{margin-bottom:0;}',
+      '.aa-tax-preview .ltr-top{flex-direction:column;gap:8px;margin-bottom:14px;}',
+      '.aa-tax-preview table.ltr-tbl{font-size:12px;}',
+      '.aa-tax-preview table.ltr-tbl thead th,.aa-tax-preview table.ltr-tbl tbody td,.aa-tax-preview table.ltr-tbl tfoot td{padding:6px 6px;}',
       '.aa-scan{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;}',
       '.aa-scan .aa-scan-btn{min-height:40px;}',
       '.aa-scan-status{font-size:12.5px;color:#7a5c6b;flex-basis:100%;}',
@@ -1965,6 +2132,7 @@
     var ex = [
       ['Meetings', ['Create a meeting', 'Schedule a Bible Study next Sunday at 10 AM.']],
       ['Income', ['Record an income of $500 for Sunday offerings.', 'I received 20 checks and $2,000 in cash this Sunday. Add them to the General Fund.']],
+      ['Tax reports', ['Create a tax report for 2026.', 'Create a tax report for John Smith for 2026.']],
       ['Expenses', ['Record an expense of $150 for electricity.']],
       ['Transaction types', ['Create a transaction type called Mission Offering.']],
       ['Funds', ['Create a fund called Building Fund.']],

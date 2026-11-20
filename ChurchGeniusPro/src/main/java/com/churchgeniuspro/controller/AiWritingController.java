@@ -58,4 +58,41 @@ public class AiWritingController {
         out.put("draft", true);     // always a draft — the page inserts, the staff member sends
         return ResponseEntity.ok(out);
     }
+
+    /**
+     * 2026-11-20 — the Tax Report's "AI draft": wording for the letter around the contribution table. The model is
+     * given no contributor and no figure (see AiTaxLetterService); the page and Genius Assistant put the draft
+     * around the table they already drew from the database. Same people as the Tax Report itself
+     * (SuperAdmin / Admin / Accountant) plus the AI Assistant permission and the aiWrite plan
+     * feature (this path is under /api/ai/write). Nothing is saved.
+     */
+    @PostMapping("/api/ai/write/tax-letter")
+    public ResponseEntity<Map<String, Object>> taxLetter(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest req) {
+        ResponseEntity<Map<String, Object>> g = gate(req, "AI writing");
+        if (g != null) return g;
+        if (RoleGuard.requireAccountantOrAdmin(req) != null)                 // the Tax Report API's own rule
+            return ResponseEntity.status(403).body(Map.of("error", "You do not have access to the Tax Report."));
+        int year;
+        try { year = Integer.parseInt(String.valueOf(body == null ? null : body.get("year")).trim()); }
+        catch (RuntimeException e) { return ResponseEntity.badRequest().body(Map.of("error", "Choose the tax year first.")); }
+        if (year < 2000 || year > com.churchgeniuspro.util.AppClock.today().getYear() + 1)
+            return ResponseEntity.badRequest().body(Map.of("error", "That tax year is not available."));
+        AiAuditService.intent(req, "write.draft.taxletter");
+        if (taxLetters == null || !taxLetters.isEnabled())
+            return ResponseEntity.status(503).body(Map.of("error", "AI writing is not configured on this server."));
+        String clientId = SessionUtil.getAppClientId(req);
+        String churchName = churches == null ? "" : churches.findByClientIdAndDeleteFlagFalse(clientId)
+                .map(c -> c.getChurchName() == null ? "" : c.getChurchName()).orElse("");
+        Object tone = body == null ? null : body.get("tone");
+        Map<String, String> d = taxLetters.draft(churchName, year, tone instanceof String t && AiWritingService.TONES.contains(t.trim().toLowerCase()) ? t : null);
+        if (d == null) return ResponseEntity.status(502).body(Map.of("error", "The assistant couldn't produce a draft just now. Please try again, or use the default template."));
+        Map<String, Object> out = new java.util.LinkedHashMap<>(d);
+        out.put("draft", true); out.put("year", year);
+        return ResponseEntity.ok(out);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.ai.write.AiTaxLetterService taxLetters;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.churchgeniuspro.repository.ChurchRegistrationRepository churches;
 }

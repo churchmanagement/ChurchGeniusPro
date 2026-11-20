@@ -127,9 +127,13 @@ class FinancialReportSignatureTest {
     @DisplayName("both report pages print the configured signature and fall back to the old literals")
     void pagesUseIt() throws IOException {
         String tax = Files.readString(Paths.get("src/main/resources/static/tax-report.html"));
-        assertThat(tax).contains("id=\"ltSigName\"", "id=\"ltSigTitle\"", "signatureName:  document.getElementById('ltSigName').value",
-                "${data.signatureName || churchName}", "${data.signatureTitle || 'Finance Department'}");
+        assertThat(tax).contains("id=\"ltSigName\"", "id=\"ltSigTitle\"", "signatureName:  document.getElementById('ltSigName').value");
+        // 2026-11-20: the letter is drawn by tax-letter.js (shared with Genius Assistant); the page calls it
+        String letter = Files.readString(Paths.get("src/main/resources/static/tax-letter.js"));
+        assertThat(tax).contains("<script src=\"/tax-letter.js\"></script>", "CGP_TAX_LETTER.lettersHtml(data, year, churchLogoDataUrl)");
+        assertThat(letter).contains("${data.signatureName || churchName}", "${data.signatureTitle || 'Finance Department'}");
         assertThat(tax).doesNotContain("<div class=\"ltr-sig-title\">Finance Department</div>");
+        assertThat(letter).doesNotContain("<div class=\"ltr-sig-title\">Finance Department</div>");
         String member = Files.readString(Paths.get("src/main/resources/static/memberHome.html"));
         assertThat(member).contains("(data.signatureName || churchName)", "(data.signatureTitle || 'Finance Department')");
         assertThat(member).doesNotContain("<div class=\"ltr-sig-title\">Finance Department</div>");

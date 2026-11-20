@@ -84,6 +84,12 @@
     .btn-primary:hover{background:#673147;color:#fff;}
     .btn-pdf{padding:10px 18px;background:#43a047;color:#fff;border-radius:7px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
     .btn-pdf:hover{background:#2e7d32;}
+    .tr-hint{font-size:12px;color:#888;line-height:1.5;margin-top:8px;}
+    .tr-msg{margin:0 0 14px;padding:10px 14px;border-radius:7px;background:#fdecea;border:1px solid #f5c2c0;color:#8a1c16;font-size:13.5px;}
+    .tr-msg.info{background:#eef4fb;border-color:#cfdff2;color:#274a73;}
+    .tr-aibar{margin:0 0 16px;padding:12px 14px;border-radius:8px;background:#fff8e6;border:1px solid #f0dca0;color:#5c4a12;font-size:13px;line-height:1.55;display:flex;flex-direction:column;gap:10px;}
+    .tr-aibar-actions{display:flex;flex-wrap:wrap;gap:8px;}
+    @media print{.tr-aibar,.tr-msg{display:none !important;}}
     .rpt-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
     .rpt-actions-title{font-size:15px;font-weight:700;color:#673147;}
     .empty-msg{text-align:center;padding:32px;color:#bbb;font-size:13px;}
@@ -251,11 +257,28 @@
             <label>Financial Year</label>
             <select id="yearSelect"></select>
           </div>
+          <div class="field">
+            <label for="contributorType">Contributors to include</label>
+            <select id="contributorType">
+              <option value="all" selected>All (Members and Non-Members)</option>
+              <option value="members">Members only</option>
+              <option value="nonmembers">Non-Members only</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="templateSelect">Letter template</label>
+            <select id="templateSelect">
+              <option value="mine" selected>Default template (your church's letter text)</option>
+              <option value="default">Original built-in wording</option>
+              <option value="ai">AI draft — review before downloading</option>
+            </select>
+          </div>
         </div>
+        <div class="tr-hint" id="typeHint">Members are people on file whose type is Member. Non-Members are people on file as Guest or Visitor, and contributors recorded by name only.</div>
         <hr class="filter-section-divider"/>
         <div class="form-grid" style="margin-top:6px;">
           <div class="field">
-            <label>Contributor <span style="font-weight:400;text-transform:none;color:#aaa;">(optional — leave blank for all)</span></label>
+            <label>Contributor <span style="font-weight:400;text-transform:none;color:#aaa;">(optional — leave blank for everyone in the selection above)</span></label>
             <div class="combo-wrap">
               <input type="text" id="contributorInput" class="combo-input"
                      placeholder="Search member or guest contributor…"
@@ -280,6 +303,15 @@
           <div class="rpt-actions-title" id="reportYearLabel"></div>
           <button class="btn-pdf" onclick="downloadPDF()">⬇ Download PDF</button>
         </div>
+        <div class="tr-msg" id="reportMsg" role="status" aria-live="polite" style="display:none;"></div>
+        <div class="tr-aibar" id="aiDraftBar" style="display:none;">
+          <div><strong>AI draft — please review before downloading.</strong> Only the wording above and below the table was written by AI. Every name, address, gift and total comes from your records and was not changed.</div>
+          <div class="tr-aibar-actions">
+            <button type="button" class="btn-letter-text" id="aiRedraftBtn" onclick="redraftAi()">↻ Write it again</button>
+            <button type="button" class="btn-letter-text" onclick="useAiAsLetterText()">Use as my letter text…</button>
+            <button type="button" class="btn-letter-text" onclick="discardAiDraft()">Use the default template instead</button>
+          </div>
+        </div>
         <div id="reportContent">
           <div id="reportLetters"></div>
         </div>
@@ -290,6 +322,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="/tax-letter.js"></script>
 <script>
 /* ══════════════════════════════════════════════
    CONTRIBUTOR COMBOBOX STATE
@@ -334,6 +367,7 @@ let _ddMouseDown = false; // suppresses blur-close while pointer is inside the d
   const dd = document.getElementById('contributorDropdown');
   dd.addEventListener('mousedown', () => { _ddMouseDown = true; });
   dd.addEventListener('mouseup',   () => { _ddMouseDown = false; });
+  applyUrlChoices();
 })();
 
 /* ══════════════════════════════════════════════
@@ -453,22 +487,129 @@ function today(){
 /* ══════════════════════════════════════════════
    GENERATE REPORT
 ══════════════════════════════════════════════ */
+/* 2026-11-20: who to include (All / Members / Non-Members) and which wording (the church's letter text, the
+   built-in original, or an AI draft of the wording). The figures always come from /api/reports/tax; an AI draft
+   only replaces the two passages of text around the table and is shown for review, never saved by itself. */
+let lastReport = null;      // { data, year, label } as last drawn — the AI draft is laid over it
+let aiDraft = null;         // { introHtml, closingHtml } of the draft on screen
+
+function reportMsg(text, info) {
+  const el = document.getElementById('reportMsg');
+  el.textContent = text || '';
+  el.classList.toggle('info', !!info);
+  el.style.display = text ? '' : 'none';
+  if (text) document.getElementById('reportCard').style.display = '';
+}
+
+async function fetchAiDraft(year) {
+  const res = await fetch('/api/ai/write/tax-letter', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ year: Number(year) }) });
+  let body = {};
+  try { body = await res.json(); } catch(e) {}
+  if (!res.ok || !body.introHtml) {
+    throw new Error(body.error || body.message || (res.status === 403 ? 'AI drafting is not available for your login or plan.' : 'The AI draft could not be produced.'));
+  }
+  return { introHtml: body.introHtml, closingHtml: body.closingHtml || '' };
+}
+
 async function generateReport(){
   const year      = document.getElementById('yearSelect').value;
   const memberId  = document.getElementById('selectedMemberId').value;
   const guestName = document.getElementById('selectedGuestName').value;
+  const typed     = document.getElementById('contributorInput').value.trim();
+  const type      = document.getElementById('contributorType').value || 'all';
+  const template  = document.getElementById('templateSelect').value || 'mine';
   const clientId  = localStorage.getItem('clientId') || '';
+  const one       = !!(memberId || guestName);
 
   let url = `/api/reports/tax?year=${year}&clientId=${encodeURIComponent(clientId)}`;
   if (memberId)  url += `&memberId=${encodeURIComponent(memberId)}`;
   if (guestName) url += `&guestName=${encodeURIComponent(guestName)}`;
+  if (!one)      url += `&contributorType=${encodeURIComponent(type)}`;      // a named contributor is that person, whatever the selection
+  if (template === 'default') url += '&template=default';
 
+  const typeLabel = { all:'All Contributors', members:'Members only', nonmembers:'Non-Members only' }[type] || 'All Contributors';
+  const label = one ? (typed || 'Selected contributor') : typeLabel;
+  aiDraft = null; reportMsg('');
+  document.getElementById('aiDraftBar').style.display = 'none';
   try {
     await loadChurchLogo();
     const res = await fetch(url);
-    const label = document.getElementById('contributorInput').value.trim() || 'All Contributors';
-    renderReport(await res.json(), year, label);
-  } catch(e) { alert('Failed to load report.'); console.error(e); }
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
+    if (!res.ok) { reportMsg(data.error || data.message || 'The report could not be loaded. Please try again.'); document.getElementById('reportLetters').innerHTML = ''; return; }
+    lastReport = { data, year, label };
+    if (template === 'ai' && (data.members || []).length) {
+      document.getElementById('reportLetters').innerHTML = '<div class="empty-msg">Writing the AI draft…</div>';
+      document.getElementById('reportCard').style.display = '';
+      try { aiDraft = await fetchAiDraft(year); }
+      catch (e) {
+        // never a half-made statement: the letters are shown with the church's own wording and the reason is said
+        reportMsg((e && e.message ? e.message : 'The AI draft could not be produced.') + ' The letters below use the default template instead.');
+      }
+    }
+    drawReport();
+  } catch(e) { reportMsg('The report could not be loaded. Please check your connection and try again.'); console.error(e); }
+}
+
+function drawReport() {
+  if (!lastReport) return;
+  const data = aiDraft ? Object.assign({}, lastReport.data, { introHtml: aiDraft.introHtml, closingHtml: aiDraft.closingHtml }) : lastReport.data;
+  renderReport(data, lastReport.year, lastReport.label + (aiDraft ? ' · AI draft' : ''));
+  document.getElementById('aiDraftBar').style.display = aiDraft && (data.members || []).length ? '' : 'none';
+}
+
+async function redraftAi() {
+  if (!lastReport) return;
+  const btn = document.getElementById('aiRedraftBtn');
+  btn.disabled = true; btn.textContent = 'Writing…'; reportMsg('');
+  try { aiDraft = await fetchAiDraft(lastReport.year); drawReport(); }
+  catch (e) { reportMsg((e && e.message) || 'The AI draft could not be produced. The previous draft is still shown.'); }
+  btn.disabled = false; btn.textContent = '↻ Write it again';
+}
+
+function discardAiDraft() {
+  aiDraft = null;
+  document.getElementById('templateSelect').value = 'mine';
+  reportMsg(''); drawReport();
+}
+
+/* Puts the draft's wording into the letter-text editor; it becomes the church's template only when Save is pressed. */
+async function useAiAsLetterText() {
+  if (!aiDraft || !lastReport) return;
+  const card = document.getElementById('letterTextCard');
+  if (card.style.display === 'none') await toggleLetterText();
+  // back to placeholders, so the saved text works for every year
+  const church = (lastReport.data.churchName || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const back = h => { let t = h || ''; if (church) t = t.split(church).join('{ChurchName}'); return t.split(String(lastReport.year)).join('{Year}'); };
+  document.getElementById('ltIntro').innerHTML   = back(aiDraft.introHtml);
+  document.getElementById('ltClosing').innerHTML = back(aiDraft.closingHtml);
+  ltSay('AI draft loaded — review it, then press Save letter text to make it your template.');
+  card.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* A link from Genius Assistant (or a bookmark) can carry the choices: ?year=&type=&template=&memberId=|guestName=&auto=1 */
+function applyUrlChoices() {
+  let p; try { p = new URLSearchParams(location.search); } catch(e) { return; }
+  const year = p.get('year');
+  if (year && /^(19|20)\d{2}$/.test(year)) {
+    const sel = document.getElementById('yearSelect');
+    if (![...sel.options].some(o => o.value === year)) { const o = document.createElement('option'); o.value = year; o.textContent = year; sel.appendChild(o); }
+    sel.value = year;
+  }
+  const type = p.get('type');
+  if (['all','members','nonmembers'].includes(type)) document.getElementById('contributorType').value = type;
+  const tpl = p.get('template');
+  if (['mine','default','ai'].includes(tpl)) document.getElementById('templateSelect').value = tpl;
+  const mid = p.get('memberId'), guest = p.get('guestName');
+  if (mid && /^\d+$/.test(mid)) {
+    const c = allContributors.find(x => x.type === 'member' && String(x.id) === mid);
+    document.getElementById('selectedMemberId').value = mid;
+    document.getElementById('contributorInput').value = c ? c.label : 'Selected contributor';
+  } else if (guest) {
+    document.getElementById('selectedGuestName').value = guest.slice(0, 200);
+    document.getElementById('contributorInput').value = guest.slice(0, 200) + ' (non-member)';
+  }
+  if (p.get('auto') === '1' && year) generateReport();
 }
 
 /* ══════════════════════════════════════════════
@@ -609,98 +750,8 @@ function renderReport(data, year, selectedLabel) {
     return;
   }
 
-  const churchName = esc(data.churchName || localStorage.getItem('churchName') || '');
-  // The church's own wording around the contribution table, sanitised and
-  // placeholder-filled server-side. The literals are the original text, kept only
-  // as a fallback for a server that sends neither.
-  const introHtml   = data.introHtml   || DEFAULT_INTRO_HTML(churchName, year);
-  const closingHtml = data.closingHtml || DEFAULT_CLOSING_HTML;
-  const logoHtml = churchLogoDataUrl
-    ? `<div style="text-align:center;margin-bottom:14px;"><img src="${churchLogoDataUrl}" alt="Church Logo" style="max-height:90px;max-width:220px;object-fit:contain;" /></div>`
-    : '';
-  const todayStr = today();
-  let html = '<div class="letters-wrap">';
-
-  members.forEach(m => {
-    // For guests: firstName holds the full guestName, lastName is empty
-    const firstName   = esc(m.firstName || '');
-    const lastName    = esc(m.lastName  || '');
-    const displayName = lastName ? `${firstName} ${lastName}`.trim() : firstName;
-    const addr1       = esc(m.address1 || '');
-    const addr2       = esc(m.address2 || '');
-    const city        = esc(m.city     || '');
-    const state       = esc(m.state    || '');
-    const pin         = esc(m.pinCode  || '');
-    const cityLine    = [city, state, pin].filter(Boolean).join(', ');
-    const memberTotal = Number(m.memberTotal || 0);
-    const entries     = m.entries || [];
-    const hasDates    = entries.length > 0;
-
-    // Address block
-    let addrHtml = `<strong>${displayName}</strong>`;
-    if (addr1) addrHtml += `<br>${addr1}`;
-    if (addr2) addrHtml += `<br>${addr2}`;
-    if (cityLine) addrHtml += `<br>${cityLine}`;
-
-    // Contribution rows
-    let tRows = '';
-    if (hasDates) {
-      entries.forEach(e => {
-        tRows += `<tr>
-          <td>${esc(fmtDateShort(e.date))}</td>
-          <td>${esc(e.subCategory || e.mainCategory || '')}</td>
-          <td class="ltr-tbl-amt">${fmt(e.amount)}</td>
-          <td>${esc(e.method || '')}</td>
-        </tr>`;
-      });
-    } else {
-      (m.contributions || []).forEach(c => {
-        tRows += `<tr>
-          <td colspan="2">${esc(c.subCategory || c.mainCategory || '')}</td>
-          <td class="ltr-tbl-amt">${fmt(c.total)}</td>
-          <td></td>
-        </tr>`;
-      });
-    }
-
-    // Salutation: use first name if available, else full guest name
-    const salutationName = firstName || displayName;
-
-    html += `
-    <div class="letter-page">
-      ${logoHtml}<div class="ltr-church-name">${churchName}</div>
-      <hr class="ltr-divider"/>
-      <div class="ltr-heading">Year-End Giving Summary — Tax Year ${year}</div>
-      <div class="ltr-top">
-        <div class="ltr-date">${todayStr}</div>
-        <div class="ltr-address">${addrHtml}</div>
-      </div>
-      <p class="ltr-salutation">Dear ${salutationName},</p>
-      ${introHtml}
-      <div class="ltr-table-wrap">
-        <table class="ltr-tbl">
-          <thead><tr>
-            <th style="width:18%">Date</th>
-            <th>Category</th>
-            <th class="ltr-tbl-amt" style="width:16%">Amount</th>
-            <th style="width:14%">Method</th>
-          </tr></thead>
-          <tbody>${tRows}</tbody>
-          <tfoot><tr>
-            <td colspan="2">Total Contributions — ${year}</td>
-            <td class="ltr-tbl-amt">${fmt(memberTotal)}</td>
-            <td></td>
-          </tr></tfoot>
-        </table>
-      </div>
-      ${closingHtml}
-      <p class="ltr-closing">Sincerely,</p>
-      <div class="ltr-sig-name">${data.signatureName || churchName}</div>
-      <div class="ltr-sig-title">${data.signatureTitle || 'Finance Department'}</div>
-    </div>`;
-  });
-
-  html += '</div>';
+  // One renderer for this page and Genius Assistant (tax-letter.js).
+  const html = CGP_TAX_LETTER.lettersHtml(data, year, churchLogoDataUrl);
   document.getElementById('reportLetters').innerHTML = html;
   document.getElementById('reportCard').style.display = '';
 }
@@ -711,7 +762,8 @@ function renderReport(data, year, selectedLabel) {
 function downloadPDF(){
   const year   = document.getElementById('yearSelect').value;
   const label  = document.getElementById('contributorInput').value.trim();
-  const suffix = label ? `-${label.replace(/[^a-z0-9]/gi,'-').toLowerCase()}` : '-all';
+  const type   = document.getElementById('contributorType').value || 'all';
+  const suffix = label ? `-${label.replace(/[^a-z0-9]/gi,'-').toLowerCase()}` : (type === 'all' ? '-all' : '-' + type);
   const el     = document.getElementById('reportContent');
   html2pdf().set({
     margin: [12,12,12,12],
