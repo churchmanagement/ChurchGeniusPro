@@ -91,25 +91,36 @@
     } catch (e) {}
   }
 
+  // Inside the ChurchGeniusPro iOS/Android app there is no cookie notice: the
+  // app sets only first-party sign-in/security cookies (no analytics, advertising
+  // or tracking), and App Review read the old "optional cookies" consent banner as
+  // a tracking prompt. Same app-shell markers as native-bridge.js / LoginController.
+  function isAppShell() {
+    try {
+      if (window.Capacitor) return true;
+      return /ChurchGeniusProApp\//.test(navigator.userAgent || "");
+    } catch (e) { return false; }
+  }
+
+  // Websites show a plain notice (not a consent choice): there are no optional,
+  // analytics or advertising cookies to accept or decline.
   function buildCookieBanner() {
+    if (isAppShell()) return;
     if (getCookie("cgp_cookie_consent")) return;
     if (document.getElementById("cgp-cookie-banner")) return;
     var b = document.createElement("div");
     b.id = "cgp-cookie-banner";
     b.setAttribute("role", "dialog");
-    b.setAttribute("aria-label", "Cookie consent");
+    b.setAttribute("aria-label", "Cookie notice");
     b.innerHTML =
-      "<p>We use essential cookies to run ChurchGeniusPro and, with your consent, " +
-      'optional cookies to improve it. See our <a href="/cookie-policy">Cookie Policy</a>.</p>' +
+      "<p>ChurchGeniusPro uses only essential cookies to sign you in and keep the " +
+      "Service secure. We do not use advertising or tracking cookies. " +
+      'See our <a href="/cookie-policy">Cookie Policy</a>.</p>' +
       '<div class="cbtns">' +
-      '<button class="decline" type="button">Decline optional</button>' +
-      '<button class="accept" type="button">Accept all</button>' +
+      '<button class="accept" type="button">OK</button>' +
       "</div>";
     document.body.appendChild(b);
     b.querySelector(".accept").addEventListener("click", function () {
-      recordCookieConsent("all"); b.remove();
-    });
-    b.querySelector(".decline").addEventListener("click", function () {
       recordCookieConsent("essential"); b.remove();
     });
   }
