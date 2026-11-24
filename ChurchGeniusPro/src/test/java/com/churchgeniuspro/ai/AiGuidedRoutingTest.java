@@ -371,6 +371,13 @@ class AiGuidedRoutingTest {
     }
     MockHttpServletRequest withAsk(MockHttpServletRequest r, String q) { ask(r, q); return r; }
 
+    /** A meeting date that is always in the future (a fixed date stops being "upcoming" and the
+     *  conversation then asks the past-date question instead of moving on). */
+    static String futureDate() {
+        return com.churchgeniuspro.util.AppClock.today().plusDays(30)
+                .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+    }
+
     @SuppressWarnings("unchecked")
     static Map<String, Object> field(Map<String, Object> card, String key) {
         for (Map<String, Object> f : (List<Map<String, Object>>) ((Map<String, Object>) card.get("confirm")).get("fields"))
@@ -389,7 +396,7 @@ class AiGuidedRoutingTest {
         assertThat((List<String>) m.get("choices")).containsExactly("Bible Study", "Prayer Meeting");
         m = ask(r, "Prayer Meeting");
         assertThat(m.get("asking")).isEqualTo("date");
-        m = ask(r, "11/20/2026");
+        m = ask(r, futureDate());
         for (int i = 0; i < 4 && !"review".equals(m.get("asking")) && !"meeting.confirm".equals(m.get("intent")); i++)
             m = ask(r, "location".equals(m.get("asking")) ? "no location" : "no");
         assertThat(m.get("asking")).isEqualTo("review");
@@ -410,7 +417,7 @@ class AiGuidedRoutingTest {
         // Cancel from the review question saves nothing
         MockHttpServletRequest rc = staff("Admin", null);
         ask(rc, "Create a meeting at 7:30 PM."); ask(rc, "Prayer Meeting");
-        m = ask(rc, "11/20/2026");
+        m = ask(rc, futureDate());
         for (int i = 0; i < 4 && !"review".equals(m.get("asking")); i++) m = ask(rc, "location".equals(m.get("asking")) ? "no location" : "no");
         m = ask(rc, "Cancel");
         assertThat(String.valueOf(m.get("intent"))).contains("cancel");
